@@ -133,6 +133,8 @@ ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
 
 Select both Clang compilers: the renderer, tiling and metrics cores and generated protocol code use C. The configured clang-tidy checks also apply to C targets. Use a fresh directory when changing compilers. Any sanitizer report, enabled clang-tidy warning or nonzero test exit fails validation. Leak detection is disabled; these runs do not check leaks. See [Security checks](SECURITY_CHECKS.md) for CodeQL and required PR checks.
 
+On Ubuntu 24.04, select `clang-19`, `clang++-19` and `clang-tidy-19` for combined analysis and install `libclang-rt-19-dev`. Run `python3 tests/security/test_analyzer.py clang-tidy-19` to check valid Qt pointer handling and actual use-after-free detection. CI separately verifies Clang 18 ASan/UBSan with `libclang-rt-18-dev`; older Qt packages omit optional text-input v3 automatically.
+
 ## 7. Packaging and website
 
 ```sh
@@ -161,6 +163,10 @@ Review the website at desktop and mobile widths. Test keyboard navigation, accen
 | `Failed to initialize EGL display` | Inspect the host backend and buffer integration. Run the current script with `xcb_egl`; do not treat a geometry-only pass as GPU validation. |
 | Portal app ID warning | The host portal cannot resolve a development app registration. Full portal support is not implemented. |
 | Child process crash or timeout | Retain logs and treat the run as failed. Current cleanup requests normal Wayland close and checks exit status. |
+| `QWaylandTextInputManagerV3` header missing | Rebuild the updated source: v3 registration is conditional on the installed Qt headers. Qt's input-method protocol and text-input v2 remain available. |
+| Clang 18 reports `qsharedpointer_impl.h:130` use-after-free | Use the configured Clang 19 analysis job and run `test_analyzer.py`; keep memory-safety checks enabled. The minimal Qt guard reproduces an old analyzer false positive. |
+| Qt 6.4 crash in `zwp_text_input_v2::handle_modifiers_map` | Rebuild with the corrected input-protocol registration order, then require the complete Wayland session test to pass. |
+| Blur reports non-finite float-to-integer conversion | Rebuild with bounded blur geometry and run `blur-geometry` plus the Wayland rendering test. |
 | NetworkManager unavailable | Existing interfaces may still work. Install/configure the appropriate system network tools or continue offline. |
 | Guide repeats / preferences reset | Check XDG_CONFIG_HOME, write access and whether a test uses an intentionally fresh directory. |
 | Pages returns 404 | Enable Pages, verify repository/plan permissions, inspect deployment workflow and confirm the published URL. |
@@ -168,7 +174,23 @@ Review the website at desktop and mobile widths. Test keyboard navigation, accen
 ## 9. Verification record
 
 <!-- verification-results -->
-The final validation run for this change is pending. Workflow configuration alone is not a remote CI result.
+Verified locally on 2026-09-14 (Asia/Taipei). These results describe executed tests, not merely workflow configuration.
+
+| Environment / check | Result |
+| --- | --- |
+| Arch development host, Qt 6.11.2, GCC | Full build and all 12 CTest checks passed. |
+| Arch host, Clang 22 with clang-tidy, ASan and UBSan | Full build and all 12 CTest checks passed; enabled analyzer warnings remain errors. |
+| Arch GL and GLES sessions with Quickshell and sanitizers | Three native clients rendered without overlap, blur rendered, and shutdown was clean for both APIs. |
+| Arch settings, setup and customization | All 15 settings categories, first-run persistence, shell interactions, JSON validation, custom QML replacement/error fallback, live Files palette changes and interactive Fish passed during this change. |
+| Arch live effects | Blur/opacity changes, reduced motion, minimize/restore and clean shutdown passed on the final renderer. |
+| Ubuntu 24.04.4 container, Qt 6.4.2, Clang 19 | All production translation units passed static analysis. The Qt guard / intentional use-after-free analyzer regression passed. |
+| Ubuntu container, Clang 18 ASan/UBSan | All 12 CTest checks passed. The final no-shell Wayland session rendered two clients and 15 blur frames, closed cleanly, and passed authenticated X11 lifecycle and deliberate client-crash detection. |
+| Astro/TypeScript website | Type checking: zero errors, warnings or hints. Five built English pages passed asset/link checks. Desktop/mobile browser checks passed, including generated module JSON and clipboard behavior. |
+| Packaging and source policy | Staged CMake installation, source archive contents, English source policy and whitespace checks passed. |
+
+The supplied GitHub Actions logs exposed an optional Qt header failure and Clang 18's Qt pointer diagnostic. Ubuntu reproduction also exposed an Xauthority length conversion, Qt 6.4 input-protocol announcement ordering and a render-matrix lifetime bug; the final checks above include their fixes. Successful final Ubuntu session and analysis results are in `build/ci-evidence/ubuntu-final-session-and-analysis.log`; its clean final unit-test report is `build/ci-evidence/ubuntu-asan-tests.log`. Intermediate failure reproductions are under `build/ci-evidence/diagnostics/`. Other local evidence is retained under `build/ci-evidence/`; screenshots are in `build/`.
+
+GitHub Actions and CodeQL have not been rerun remotely from this workspace. Push the reviewed changes and require the remote jobs to pass; the supplied failed runs are not a successful CI result. Fedora remains configured but was not reproduced locally in this run. Xvfb/software rendering does not verify physical GPU drivers or a complete standalone login session. Leak detection was disabled; no memory-leak coverage is claimed.
 <!-- /verification-results -->
 
 See [Modules](MODULES.md) for JSON/QML templates, and [Default apps and Files](DEFAULT_APPS_AND_FILES.md) for terminal setup and file-operation limits.
@@ -202,6 +224,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/application_catalog/ApplicationCatalog.h](../include/LuDash/application_catalog/ApplicationCatalog.h) | Declare interfaces/types to discover installed application entries and launch requests. |
 | [include/LuDash/application_window/ApplicationWindow.h](../include/LuDash/application_window/ApplicationWindow.h) | Declare interfaces/types to host built-in applications and route close requests. |
 | [include/LuDash/audio_settings/AudioSettings.h](../include/LuDash/audio_settings/AudioSettings.h) | Declare interfaces to validate audio requests and read/control default PipeWire devices. |
+| [include/LuDash/blur/BlurGeometry.h](../include/LuDash/blur/BlurGeometry.h) | Declare interfaces to clip finite blur capture coordinates before integer conversion. |
 | [include/LuDash/blur/BlurItem.h](../include/LuDash/blur/BlurItem.h) | Declare interfaces/types to synchronize application blur properties into the scene graph. |
 | [include/LuDash/blur/BlurNode.h](../include/LuDash/blur/BlurNode.h) | Declare interfaces/types to bridge Qt scene graph state and the C blur renderer. |
 | [include/LuDash/compositor/ClientWindow.h](../include/LuDash/compositor/ClientWindow.h) | Declare interfaces/types to track compositor-owned client state and geometry. |
@@ -258,6 +281,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/application_catalog/ApplicationCatalog.cpp](../src/application_catalog/ApplicationCatalog.cpp) | Implement behavior to discover installed application entries and launch requests. |
 | [src/application_window/ApplicationWindow.cpp](../src/application_window/ApplicationWindow.cpp) | Implement behavior to host built-in applications and route close requests. |
 | [src/audio_settings/AudioSettings.cpp](../src/audio_settings/AudioSettings.cpp) | Implement behavior to validate audio requests and read/control default PipeWire devices. |
+| [src/blur/BlurGeometry.cpp](../src/blur/BlurGeometry.cpp) | Implement behavior to clip finite blur capture coordinates before integer conversion. |
 | [src/blur/BlurItem.cpp](../src/blur/BlurItem.cpp) | Implement behavior to synchronize application blur properties into the scene graph. |
 | [src/blur/BlurNode.cpp](../src/blur/BlurNode.cpp) | Implement behavior to bridge Qt scene graph state and the C blur renderer. |
 | [src/compositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
@@ -389,11 +413,13 @@ Generated build output, dependency caches, source archives and Git internals are
 | [scripts/test-wayland.sh](../scripts/test-wayland.sh) | Isolated demo/overview/setup rendering tests and screenshot/state evidence. |
 | [tests/DesktopTests.cpp](../tests/DesktopTests.cpp) | Behavioral tests for native apps, layout and validated external inputs. |
 | [tests/animation/AnimationTests.cpp](../tests/animation/AnimationTests.cpp) | Interrupted transitions, item destruction and reduced-motion tests. |
+| [tests/blur/BlurGeometryTests.cpp](../tests/blur/BlurGeometryTests.cpp) | Verify blur capture bounds, pixel scaling and rejection of non-finite coordinates. |
 | [tests/configuration/PreferenceTests.cpp](../tests/configuration/PreferenceTests.cpp) | Preference validation and network-state classification tests. |
 | [tests/core/CoreTests.c](../tests/core/CoreTests.c) | C geometry and parser boundary, overflow and counter-reset tests. |
 | [tests/file_operations/FileTests.cpp](../tests/file_operations/FileTests.cpp) | Overwrite prevention and literal default-app argument tests. |
 | [tests/renderer/RenderTests.cpp](../tests/renderer/RenderTests.cpp) | Real GL/GLES context and production shader checks. |
 | [tests/renderer/test_startup_failure.py](../tests/renderer/test_startup_failure.py) | Regression for controlled graphics initialization failure. |
+| [tests/security/test_analyzer.py](../tests/security/test_analyzer.py) | Verify that static analysis accepts valid Qt guards and rejects real use-after-free. |
 | [tests/security/test_sarif_gate.py](../tests/security/test_sarif_gate.py) | Negative and positive SARIF gate cases. |
 | [tests/security/test_source_language.py](../tests/security/test_source_language.py) | Keep code, documentation and website text in English. |
 | [tests/shell_modules/ModuleTests.cpp](../tests/shell_modules/ModuleTests.cpp) | Module bounds, trust defaults, atomic preservation and symlink escape tests. |

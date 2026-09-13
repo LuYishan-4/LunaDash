@@ -71,10 +71,10 @@ QHeaderView::section { background: #18212c; color: #8294a9; font-size: 11px; pad
     return style;
 }
 void watchDesktopTheme(QWidget* window) {
-    QPalette palette = window->palette(); palette.setColor(QPalette::Highlight, QColor(desktopPreferences().value("accent").toString())); window->setPalette(palette);
+    QPalette palette = window->palette(); palette.setColor(QPalette::Highlight, QColor(desktopPreferences().value("accent").toString())); window->setPalette(palette); window->setProperty("ludashAccent", palette.color(QPalette::Highlight));
     window->setStyleSheet(desktopStyle());
     auto* timer = new QTimer(window); timer->setInterval(700);
-    QObject::connect(timer, &QTimer::timeout, window, [window] { const auto next = desktopStyle(); if (window->styleSheet() != next) { QPalette palette = window->palette(); palette.setColor(QPalette::Highlight, QColor(desktopPreferences().value("accent").toString())); window->setPalette(palette); window->setStyleSheet(next); } });
+    QObject::connect(timer, &QTimer::timeout, window, [window] { const auto next = desktopStyle(); if (window->styleSheet() != next) { QPalette palette = window->palette(); palette.setColor(QPalette::Highlight, QColor(desktopPreferences().value("accent").toString())); window->setPalette(palette); window->setProperty("ludashAccent", palette.color(QPalette::Highlight)); window->setStyleSheet(next); } });
     timer->start();
 }
 }

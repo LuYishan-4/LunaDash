@@ -19,9 +19,11 @@ jobs:
         with:
           persist-credentials: false
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev ninja-build clang clang-tidy qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev ninja-build clang-19 clang-tidy-19 python3 qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev
+      - name: Verify Qt pointer analysis and use-after-free detection
+        run: python3 tests/security/test_analyzer.py clang-tidy-19
       - name: Configure clang-tidy
-        run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_CLANG_TIDY=clang-tidy -DBUILD_TESTING=OFF
+        run: cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_CXX_CLANG_TIDY=clang-tidy-19 -DBUILD_TESTING=OFF
       - name: Analyze all production translation units
         run: cmake --build build --parallel 2
 
@@ -41,7 +43,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev ninja-build clang qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libgl1-mesa-dri xvfb xauth xwayland xdotool python3 python3-pil
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev ninja-build clang libclang-rt-18-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libgl1-mesa-dri xvfb xauth xwayland xdotool python3 python3-pil
       - name: Build instrumented binaries
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLUDASH_ENABLE_SANITIZERS=ON && cmake --build build --parallel 2
       - name: Run instrumented interaction tests

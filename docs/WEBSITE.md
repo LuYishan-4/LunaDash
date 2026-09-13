@@ -22,6 +22,16 @@ The intended project URL is `https://luyishan-4.github.io/LuDash/`. A URL in thi
 
 After changing site files, push the reviewed changes to main or run **Documentation website** manually. Inspect the Actions result and load the published URL to confirm the deployment. For a rollback, revert the relevant website change and let the workflow redeploy; do not force-push shared history.
 
+First deployment:
+
+1. Open the LuDash repository on GitHub, then **Settings → Pages → Build and deployment**.
+2. Set **Source** to **GitHub Actions**. The repository already contains the workflow; no additional starter template is needed.
+3. Push the website and workflow to `main`. To deploy an existing main revision, open **Actions → Documentation website → Run workflow**, select `main`, and run it.
+4. Wait for both `validate` and `deploy` to succeed. Open the deployment URL shown by the `github-pages` environment.
+5. Check the home page, Settings guide and API guide, including images and navigation under `/LuDash/`.
+
+The push trigger watches `site/**`, `tests/site/**` and the Pages workflow. A C++-only push does not redeploy the website. The current `site` and `base` values in `site/astro.config.mjs` already match `https://luyishan-4.github.io/LuDash/`; update both when changing the account, repository name or domain. GitHub Free supports Pages for public repositories; private repositories require an eligible plan. See [GitHub's publishing-source instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+
 The site includes four English guide routes: `/docs/settings/`, `/docs/modules/`, `/docs/api/` and `/docs/start/`. They cover every settings category, a local-only JSON style playground, QML contracts, native plugin metadata and bounded Unix-socket examples. Markdown source guides remain linked for deeper detail. The source tree includes the entire per-file map and testing instructions. Astro generates the static browser HTML during build; no handwritten `.html` page is maintained. Astro and the TypeScript checker are pinned development dependencies. `site/src/app.ts` is the interaction source, and `site/dist/` is ignored generated output. No user configuration, logs, credentials or native binaries belong in `site/`.
 
 Reference: [GitHub custom Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).

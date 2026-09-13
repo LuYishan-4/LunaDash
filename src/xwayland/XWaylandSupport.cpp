@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <cstring>
+#include <limits>
 namespace LuDash {
 namespace {
 bool writeAuthority(const QString& path, const QString& display) {
@@ -24,7 +25,10 @@ bool writeAuthority(const QString& path, const QString& display) {
     QDataStream stream(&file); stream.setByteOrder(QDataStream::BigEndian);
     stream << quint16(65535); // FamilyWild: local-only transport still requires the cookie.
     for (const auto& field : {QByteArray(), display.mid(1).toUtf8(), QByteArray("MIT-MAGIC-COOKIE-1"), cookie}) {
-        stream << static_cast<quint16>(field.size()); stream.writeRawData(field.constData(), field.size());
+        if (field.size() > std::numeric_limits<quint16>::max()) return false;
+        const auto length = static_cast<int>(field.size());
+        stream << static_cast<quint16>(length);
+        if (stream.writeRawData(field.constData(), length) != length) return false;
     }
     return stream.status() == QDataStream::Ok && file.flush();
 }

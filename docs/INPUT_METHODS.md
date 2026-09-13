@@ -4,7 +4,9 @@ C++ and QML use English source strings as translation keys. Traditional Chinese 
 
 Currently only English and Traditional Chinese are registered. Adding a language requires a JSON dictionary, CMake resource registration, selection logic and UI options. Do not add translated strings to feature source files. Qt's standard dialogs use the distribution's `qt6-translations` package.
 
-The compositor registers text-input v2/v3 and Qt's input-method protocol. This supports the Qt platform input route; it does not implement a complete Fcitx5 input-method-v2 compositor bridge.
+The compositor registers text-input v2 and Qt's input-method protocol. Text-input v3 is also registered when the installed Qt development package exposes `QWaylandTextInputManagerV3`. Older distributions, including Ubuntu 24.04's Qt 6.4 packages, build without that optional extension and print a startup capability message. This supports the Qt platform input route; it does not implement a complete Fcitx5 input-method-v2 compositor bridge. See Qt's [text-input v2 reference](https://doc.qt.io/qt-6/qwaylandtextinputmanager.html).
+
+Qt's preferred input-method extension is announced before the text-input fallbacks. Qt 6.4 clients can otherwise replace a newly bound v2 object during registry discovery while its initial events are queued, causing a startup crash in `zwp_text_input_v2::handle_modifiers_map`. The Ubuntu Wayland session test covers native client startup and clean shutdown with both managers advertised. The preference and replacement logic is in [Qt 6.4's client registry handler](https://github.com/qt/qtwayland/blob/v6.4.2/src/client/qwaylanddisplay.cpp).
 
 Optional Arch packages:
 

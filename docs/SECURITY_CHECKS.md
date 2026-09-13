@@ -15,6 +15,8 @@ CodeQL builds a real CMake database including Qt/moc. A completed analysis is no
 
 The Ubuntu sanitizer job tests native client lifetimes with `--no-shell`; the Arch job additionally tests Quickshell, first-run setup and GL/GLES integration. Leak detection is disabled because Qt/Mesa retain process-wide allocations. **This does not test memory leaks.** Other ASan checks remain active. Dynamic checks cover only executed paths; static analysis is not a proof that the application is secure.
 
+Ubuntu 24.04 static analysis explicitly uses the distribution's `clang-19` and `clang-tidy-19` packages. Clang 18 misreports Qt 6.4's `QPointer` destruction inside `QWeakPointer`'s deallocator when Qt headers are system includes; a minimal valid guard reproduces the diagnostic without LuDash code. Clang 19 accepts it. The workflow first runs `tests/security/test_analyzer.py`, which requires both a valid Qt guard to pass and an intentionally invalid lifetime to fail with `clang-analyzer-cplusplus.NewDelete`. No check is disabled and warnings remain errors. The sanitizer job independently uses Clang 18 and explicitly installs `libclang-rt-18-dev`.
+
 ## Require checks on GitHub
 
 After the workflows have run, configure repository Rulesets / Branch protection to require the three Linux build matrix checks, **C/C++ static analysis**, **ASan and UBSan**, and **CodeQL security and quality**. YAML alone cannot enable branch protection. The repository includes configuration, not a claim that remote policies have been enabled.
@@ -24,6 +26,7 @@ After the workflows have run, configure repository Rulesets / Branch protection 
 Finish code and documentation before building:
 
 ```sh
+python3 tests/security/test_analyzer.py clang-tidy
 cmake -S . -B build-checked -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_CXX_CLANG_TIDY=clang-tidy -DLUDASH_ENABLE_SANITIZERS=ON
@@ -34,6 +37,8 @@ ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
 ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
   LUDASH_BUILD_DIR="$PWD/build-checked" ./scripts/test-wayland.sh
 ```
+
+On Ubuntu 24.04, use `clang-19`, `clang++-19` and `clang-tidy-19` for the combined local command above, and install `libclang-rt-19-dev` for its sanitizer runtime. The separate CI sanitizer job stays on Clang 18 to verify the older compiler independently.
 
 The crash-regression test deliberately signals only its own child with core dumps disabled and requires compositor exit code 2. Never run this by targeting unrelated desktop processes. Configuration tests reject mixed valid/invalid updates before writing; network tests distinguish link state from verified Internet connectivity without changing host network settings.
 

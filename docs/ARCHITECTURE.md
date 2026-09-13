@@ -6,7 +6,7 @@ Existing Wayland host / experimental EGLFS-KMS session
     xdg-shell: native windows and the XWayland compatibility container
     viewporter: client viewport scaling
     layer-shell v2 subset: Quickshell desktop surfaces
-    text-input v2/v3 and Qt input-method protocol
+    text-input v2, optional v3 and Qt input-method protocol
     master/stack tiling, four workspaces, focus and window effects
     asynchronous NetworkManager status and saved desktop preferences
     user-only local JSON control socket

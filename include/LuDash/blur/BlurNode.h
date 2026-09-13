@@ -8,6 +8,7 @@ public:
     explicit BlurNode(std::shared_ptr<BlurHealth> health);
     ~BlurNode() override;
     void synchronize(const QRectF& rectangle, int radius, qreal pixelRatio);
+    void prepare() override;
     void render(const RenderState* state) override;
     void releaseResources() override;
     StateFlags changedStates() const override;
@@ -16,6 +17,7 @@ public:
 private:
     bool initialize();
     QRectF rectangle_;
+    QRectF sceneRectangle_;
     int radius_ = 18;
     qreal pixelRatio_ = 1;
     LuDashBlurPass* pass_ = nullptr;

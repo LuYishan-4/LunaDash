@@ -6,7 +6,7 @@ The first launch presents four steps: language, network, appearance and a short 
 
 LuDash reads the existing system connection state through NetworkManager's D-Bus API every five seconds. It does not create accounts, modify connection profiles, enable services or send connectivity probes. A connected interface is not automatically labeled as Internet access: captive portals and unknown connectivity have separate labels. Without NetworkManager, interface detection reports only a possible link, with Internet access unverified.
 
-**Configure network** opens `nm-connection-editor`. If it is unavailable, LuDash tries `nmtui` in foot, Konsole or Alacritty. The first-run guide temporarily yields to the editor and returns after its window closes. Passwords remain in the external editor; LuDash never stores them or sends them over its IPC. Changing system connections may require the distribution's working polkit authentication agent. LuDash does not currently provide one.
+**Configure network** opens `nm-connection-editor`. If it is unavailable, LuDash tries `nmtui` in Konsole, foot or Alacritty. The first-run guide temporarily yields to the editor and returns after its window closes. Passwords remain in the external editor; LuDash never stores them or sends them over its IPC. Changing system connections may require the distribution's working polkit authentication agent. LuDash does not currently provide one.
 
 Arch optional packages: `networkmanager nm-connection-editor`. Do not enable NetworkManager alongside a conflicting manager. Existing host connections need no changes. A native Wi-Fi scanner, credential form and captive-portal browser flow are not implemented.
 

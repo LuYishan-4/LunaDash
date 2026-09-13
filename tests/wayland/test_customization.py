@@ -67,6 +67,14 @@ with tempfile.TemporaryDirectory(prefix='ludash-customization-') as runtime:
             assert 'error' not in request('launch-default', 'files')
             state = wait_for(lambda s: any(c['mapped'] and 'files' in c['title'] for c in s['clients']))
             client = next(c for c in state['clients'] if 'files' in c['title'])
+            demo = Path(runtime) / 'Workspace'
+            demo.mkdir()
+            for name in ('Design', 'Documents', 'Music', 'Pictures', 'Projects', 'Wallpapers'):
+                (demo / name).mkdir()
+            (demo / 'Welcome.md').write_text('# Your workspace\nExample files for the LuDash preview.\n')
+            subprocess.run(['xdotool', 'key', 'ctrl+l'], check=True)
+            subprocess.run(['xdotool', 'type', '--clearmodifiers', str(demo)], check=True)
+            subprocess.run(['xdotool', 'key', 'Return'], check=True)
             time.sleep(1)
             before = ImageGrab.grab().convert('RGB')
             request('appearance', '{"accent":"#dfa5bd"}')
@@ -78,13 +86,16 @@ with tempfile.TemporaryDirectory(prefix='ludash-customization-') as runtime:
             assert before.crop(crop).tobytes() != after.crop(crop).tobytes(), 'Files did not recolor'
             request('close', client['id']); wait_for(lambda s: not s['clients'])
             result = request('launch-default', 'terminal'); assert 'error' not in result, result
-            wait_for(lambda s: any(c['mapped'] for c in s['clients']))
+            terminal = wait_for(lambda s: any(c['mapped'] and 'LuDash Terminal' in c['title'] for c in s['clients']))
+            request('focus', terminal['clients'][0]['id'])
+            time.sleep(.7)
+            subprocess.run(['xdotool', 'mousemove', '--window', window, '720', '450', 'click', '1'], check=True)
             marker = Path(runtime) / 'fish-version'
             command = 'printf "%s" $version > ' + shlex.quote(str(marker))
             subprocess.run(['xdotool', 'type', '--clearmodifiers', '--delay', '2', command], check=True)
             subprocess.run(['xdotool', 'key', 'Return'], check=True)
             deadline = time.monotonic() + 4
-            while not marker.exists() and time.monotonic() < deadline: time.sleep(.1)
+            while time.monotonic() < deadline and (not marker.exists() or not marker.read_text().strip()): time.sleep(.1)
             assert marker.exists() and marker.read_text().strip(), 'Interactive Fish did not execute the command'
             subprocess.run(['xdotool', 'type', '--clearmodifiers', 'exit'], check=True)
             subprocess.run(['xdotool', 'key', 'Return'], check=True)
@@ -92,6 +103,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-customization-') as runtime:
             assert process.wait(timeout=32) == 0, 'Customization session did not close cleanly'
             print('Customization passed: JSON validation, template replacement, error fallback, reset, live Files palette and interactive Fish.')
         except BaseException:
+            ImageGrab.grab().save(build / 'customization-failure.png')
             log.flush(); log.seek(0); print(log.read(), file=sys.stderr); raise
         finally:
             if process.poll() is None:

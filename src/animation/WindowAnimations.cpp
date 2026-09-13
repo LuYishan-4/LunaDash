@@ -4,13 +4,27 @@
 #include <algorithm>
 namespace LuDash {
 WindowAnimations::WindowAnimations(QObject* parent) : QObject(parent) {}
+WindowAnimations::~WindowAnimations() {
+    const auto items = active_.keys();
+    for (auto* item : items) cancel(item);
+}
 void WindowAnimations::setDuration(int milliseconds) {
     duration_ = std::clamp(milliseconds, 0, 600);
-    if (!duration_) { const auto running = active_.values(); for (const auto& group : running) if (group) { group->setCurrentTime(group->duration()); if (group) group->stop(); } }
+    if (!duration_) {
+        const auto items = active_.keys();
+        for (auto* item : items) {
+            // A completion callback may destroy another item or start an animation.
+            if (auto* group = active_.value(item)) group->setCurrentTime(group->duration());
+        }
+    }
 }
 int WindowAnimations::activeCount() const { return static_cast<int>(active_.size()); }
 void WindowAnimations::cancel(QQuickItem* item) {
-    if (auto* group = active_.take(item).data()) { group->stop(); group->deleteLater(); }
+    if (auto* group = active_.take(item)) {
+        disconnect(group, nullptr, this, nullptr);
+        group->stop();
+        group->deleteLater();
+    }
 }
 void WindowAnimations::show(QQuickItem* item) { animate(item, true, {}); }
 void WindowAnimations::hide(QQuickItem* item, const std::function<void()>& finished) { animate(item, false, finished); }
@@ -29,10 +43,16 @@ void WindowAnimations::animate(QQuickItem* item, bool showing, const std::functi
         group->addAnimation(animation);
     }
     active_.insert(item, group);
-    connect(group, &QParallelAnimationGroup::finished, this, [this, item, showing, finished] {
-        active_.remove(item); if (!showing) item->setVisible(false); if (finished) finished();
+    connect(group, &QParallelAnimationGroup::finished, this, [this, item, group, showing, finished] {
+        if (active_.value(item) != group) return;
+        active_.remove(item);
+        group->deleteLater();
+        if (!showing) item->setVisible(false);
+        if (finished) finished();
     });
-    connect(item, &QObject::destroyed, group, [this, item] { active_.remove(item); });
-    group->start(QAbstractAnimation::DeleteWhenStopped);
+    connect(group, &QObject::destroyed, this, [this, item, group] {
+        if (active_.value(item) == group) active_.remove(item);
+    });
+    group->start();
 }
 }

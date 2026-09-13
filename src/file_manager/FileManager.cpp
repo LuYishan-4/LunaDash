@@ -58,6 +58,7 @@ QWidget* createFileManager() {
         if (!info.isDir()) { status->setText(translate("Folder not found: ") + path); return; }
         const auto absolute = info.absoluteFilePath();
         if (remember && (state->index < 0 || state->history.value(state->index) != absolute)) { state->history = state->history.mid(0, state->index + 1); state->history << absolute; state->index++; }
+        model->sort(0, Qt::AscendingOrder);
         location->setText(absolute); const auto index = model->index(absolute); view->setRootIndex(index); icons->setRootIndex(index);
         back->setEnabled(state->index > 0); forward->setEnabled(state->index + 1 < state->history.size()); folderTitle->setText(absolute == QDir::homePath() ? translate("Home") : info.fileName().isEmpty() ? translate("File system") : info.fileName());
         for (int row = 0; row < places->count(); ++row) places->item(row)->setSelected(places->item(row)->data(Qt::UserRole).toString() == absolute);

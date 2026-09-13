@@ -2,6 +2,7 @@
 #include <LuDash/file_icons/FileIcons.h>
 #include <QFileSystemModel>
 #include <QStyleOptionViewItem>
+#include <QAbstractItemView>
 namespace LuDash {
 FileIconDelegate::FileIconDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
 void FileIconDelegate::initStyleOption(QStyleOptionViewItem* option, const QModelIndex& index) const {
@@ -14,7 +15,10 @@ void FileIconDelegate::initStyleOption(QStyleOptionViewItem* option, const QMode
     else if (!info.isDir() && QStringList{"mp3", "flac", "ogg", "wav"}.contains(extension)) icon = FileIcon::Music;
     else if (!info.isDir() && QStringList{"mp4", "mkv", "webm"}.contains(extension)) icon = FileIcon::Video;
     option->features |= QStyleOptionViewItem::HasDecoration;
-    if (!option->decorationSize.isValid()) option->decorationSize = QSize(32, 32);
-    option->icon = fileIcon(icon, info.isDir() ? option->palette.color(QPalette::Highlight) : QColor("#aebccc"));
+    const auto* view = qobject_cast<const QAbstractItemView*>(parent());
+    option->decorationSize = view ? view->iconSize() : QSize(24, 24);
+    if (option->decorationSize.isEmpty()) option->decorationSize = QSize(24, 24);
+    const auto accent = view ? view->window()->property("ludashAccent").value<QColor>() : QColor();
+    option->icon = fileIcon(icon, info.isDir() ? (accent.isValid() ? accent : QColor("#9ccbfb")) : QColor("#aebccc"));
 }
 }
