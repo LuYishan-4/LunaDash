@@ -88,5 +88,17 @@
   "Command console": "命令主控台",
   "Plugin manager": "外掛管理",
   "Installed applications": "系統應用程式",
-  "[Exit code 7]": "[結束碼 7]"
+  "[Exit code 7]": "[結束碼 7]",
+  "Choose wallpaper": "選擇桌布",
+  "Choose image…": "選擇圖片…",
+  "Florist": "花店街景",
+  "Desktop information": "桌面資訊",
+  "Open windows": "已開啟的視窗",
+  "No open windows": "目前沒有開啟的視窗",
+  "End this desktop session?": "結束這個桌面工作階段？",
+  "Cancel": "取消",
+  "Log out": "登出",
+  "Invalid image": "無效的圖片",
+  "Choose a readable image smaller than 64 MiB and 32 megapixels.": "請選擇可讀取、檔案小於 64 MiB 且像素數低於 3200 萬的圖片。",
+  "Could not contact the desktop.": "無法連線至桌面。"
 }

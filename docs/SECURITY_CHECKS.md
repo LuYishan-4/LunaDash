@@ -33,11 +33,11 @@ YAML 本身不能替 repository 管理者開啟分支保護。此專案目前只
 先完成程式碼與文件，再執行：
 
 ```sh
-cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++ -DLUDASH_ENABLE_SANITIZERS=ON
+cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLUDASH_ENABLE_SANITIZERS=ON
 cmake --build build-asan -j
 ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 QT_QPA_PLATFORM=xcb xvfb-run -a ctest --test-dir build-asan --output-on-failure
 
-cmake -S . -B build-tidy -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_CLANG_TIDY=clang-tidy -DBUILD_TESTING=OFF
+cmake -S . -B build-tidy -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_CLANG_TIDY=clang-tidy -DBUILD_TESTING=OFF
 cmake --build build-tidy -j
 ```
 

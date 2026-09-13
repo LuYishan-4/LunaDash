@@ -3,18 +3,36 @@ import Quickshell
 import Quickshell.Io
 import "wallpaper"
 import "panel"
-import "dock"
+import "overview"
 import "launcher"
 import "settings"
+import "session"
+import "feedback"
 
 ShellRoot {
     id: root
-    property var state: ({ workspace: 0, clients: [], language: "zh_TW", wallpaper: 0 })
+    property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0 })
     property string bin: Quickshell.env("LUDASH_BIN_DIR")
     property bool launcherOpen: false
     property bool settingsOpen: false
+    property bool overviewOpen: true
+    property bool logoutOpen: false
+    property string errorMessage: ""
+    property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LuDash"
     function tr(source) { return (state.translations || {})[source] || source }
-    function command(method, value) { Quickshell.execDetached([bin + "/ludashctl", method, String(value ?? "")]) }
+    function command(method, value) {
+        action.queue.push([method, String(value ?? "")]); dispatch()
+    }
+    function dispatch() {
+        if (action.running || action.queue.length === 0) return
+        action.command = [bin + "/ludashctl"].concat(action.queue.shift()); action.running = true
+    }
+    Process {
+        id: action
+        property var queue: []
+        stdout: StdioCollector { onStreamFinished: { try { const result = JSON.parse(text); if (result.error) root.errorMessage = result.error } catch (error) { root.errorMessage = "Could not contact the desktop." } } }
+        onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
+    }
     function launch(id) { Quickshell.execDetached([bin + "/ludash-desktop", "--app", id]); launcherOpen = false }
     Process {
         id: status
@@ -24,7 +42,9 @@ ShellRoot {
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root }
     TopPanel { shell: root }
-    Dock { shell: root }
+    Overview { shell: root; visible: root.overviewOpen }
     Launcher { shell: root; visible: root.launcherOpen }
     SettingsPanel { shell: root; visible: root.settingsOpen }
+    LogoutPanel { shell: root; visible: root.logoutOpen }
+    Message { shell: root; visible: root.errorMessage.length > 0 }
 }

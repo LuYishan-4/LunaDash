@@ -14,6 +14,7 @@ class QWaylandQuickOutput;
 class QWaylandXdgToplevel;
 class QWaylandXdgSurface;
 namespace LuDash {
+class SystemStatus;
 class WallpaperItem;
 class PluginManager;
 class WindowFrame;
@@ -36,6 +37,7 @@ private:
     WallpaperItem* wallpaper_ = nullptr;
     QWaylandQuickCompositor compositor_;
     QQuickWindow window_;
+    SystemStatus* systemStatus_ = nullptr;
     PluginManager* pluginManager_ = nullptr;
     LayerShell* layerShell_ = nullptr;
     ControlServer* controlServer_ = nullptr;

@@ -1,4 +1,5 @@
 #include <LuDash/plugins/PluginManager.h>
+#include <LuDash/wallpaper/WallpaperSettings.h>
 #include <LuDash/packages/PackageManager.h>
 #include <LuDash/localization/Localization.h>
 #include <LuDash/application_window/ApplicationWindow.h>
@@ -26,6 +27,16 @@ private slots:
         QVERIFY(dictionary.contains("Notes"));
         QVERIFY(dictionary.value("Notes").toString() != "Notes");
         QCOMPARE(LuDash::translate("Notes"), QString("Notes"));
+    }
+    void wallpaperRejectsInvalidFiles() {
+        QTemporaryDir directory;
+        QString error;
+        QVERIFY(!LuDash::setWallpaperImage(directory.path(), &error));
+        QVERIFY(!error.isEmpty());
+        QFile file(directory.filePath("invalid.png")); QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("not an image"); file.close();
+        QVERIFY(!LuDash::setWallpaperImage(file.fileName(), &error));
+        QVERIFY(!LuDash::setWallpaperImage(directory.filePath("missing.png"), &error));
     }
     void packageArgumentsRejectOptionInjection() {
         QCOMPARE(LuDash::packageTransactionArguments("install", "fcitx5"), QStringList({"-Syu", "--", "fcitx5"}));

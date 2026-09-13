@@ -6,16 +6,19 @@
 #include <QFile>
 int qInitResources_renderer_shaders();
 namespace LuDash {
-GraphicsApi graphicsApiFromArguments(int argc, char** argv) {
+std::optional<GraphicsApi> graphicsApiFromArguments(int argc, char** argv) {
     QString value = "auto";
     for (int i = 1; i < argc; ++i) {
         const auto argument = QString::fromLocal8Bit(argv[i]);
         if (argument.startsWith("--graphics=")) value = argument.mid(11);
-        else if (argument == "--graphics" && i + 1 < argc) value = QString::fromLocal8Bit(argv[++i]);
+        else if (argument == "--graphics") {
+            if (i + 1 >= argc) return std::nullopt;
+            value = QString::fromLocal8Bit(argv[++i]);
+        }
     }
     if (value == "opengl") return GraphicsApi::OpenGL;
     if (value == "gles") return GraphicsApi::OpenGLES;
-    if (value != "auto") qFatal("--graphics must be auto, opengl, or gles");
+    if (value != "auto") return std::nullopt;
     return GraphicsApi::Auto;
 }
 void configureGraphics(GraphicsApi api) {
@@ -25,7 +28,8 @@ void configureGraphics(GraphicsApi api) {
     format.setRenderableType(es ? QSurfaceFormat::OpenGLES : QSurfaceFormat::OpenGL);
     format.setVersion(3, es ? 0 : 3);
     format.setProfile(es ? QSurfaceFormat::NoProfile : QSurfaceFormat::CoreProfile);
-    format.setDepthBufferSize(0); format.setStencilBufferSize(0); format.setSwapInterval(1);
+    // Qt Quick uses depth ordering for opaque items and stencil for clipping.
+    format.setDepthBufferSize(24); format.setStencilBufferSize(8); format.setSwapInterval(1);
     QSurfaceFormat::setDefaultFormat(format);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 }

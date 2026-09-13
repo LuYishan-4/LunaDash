@@ -28,6 +28,10 @@ add_library(ludash-renderer src/renderer/RenderBackend.cpp src/renderer/Wallpape
 target_include_directories(ludash-renderer PUBLIC include)
 target_link_libraries(ludash-renderer PUBLIC Qt6::Quick Qt6::OpenGL)
 qt_add_resources(ludash-renderer renderer_shaders PREFIX /LuDash FILES data/shaders/wallpaper.vert data/shaders/wallpaper.frag)
+add_library(ludash-wallpaper src/wallpaper/WallpaperSettings.cpp)
+target_include_directories(ludash-wallpaper PUBLIC include)
+target_link_libraries(ludash-wallpaper PUBLIC Qt6::Gui)
+target_compile_definitions(ludash-wallpaper PRIVATE LUDASH_WALLPAPER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/wallpapers")
 add_library(ludash-tiling src/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC include)
 target_link_libraries(ludash-tiling PUBLIC Qt6::Core)
@@ -49,7 +53,7 @@ add_library(ludash-apps
     src/plugin_settings/PluginSettings.cpp
 )
 target_include_directories(ludash-apps PUBLIC include)
-target_link_libraries(ludash-apps PUBLIC ludash-localization ludash-plugins Qt6::Widgets)
+target_link_libraries(ludash-apps PUBLIC ludash-localization ludash-plugins ludash-wallpaper Qt6::Widgets)
 target_compile_options(ludash-apps PRIVATE -Wall -Wextra -Wpedantic)
 
 set(LAYER_HEADER ${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-server.h)
@@ -63,12 +67,14 @@ add_library(ludash-wayland
     src/window_frame/WindowFrame.cpp
     src/input_method/InputMethodSupport.cpp
     src/layer_shell/LayerShell.cpp
+    src/layer_shell/LayerSurface.cpp
     src/ipc/ControlServer.cpp
+    src/system_status/SystemStatus.cpp
     ${LAYER_HEADER} ${LAYER_CODE}
 )
 target_include_directories(ludash-wayland PUBLIC include PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(ludash-wayland PRIVATE LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
-target_link_libraries(ludash-wayland PUBLIC ludash-renderer ludash-tiling ludash-localization ludash-plugins Qt6::Quick Qt6::Network Qt6::WaylandCompositor PkgConfig::WAYLAND_SERVER)
+target_link_libraries(ludash-wayland PUBLIC ludash-wallpaper ludash-renderer ludash-tiling ludash-localization ludash-plugins Qt6::Quick Qt6::Network Qt6::WaylandCompositor PkgConfig::WAYLAND_SERVER)
 target_compile_options(ludash-wayland PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(ludash-desktop src/entrypoints/desktop_main.cpp)
 target_link_libraries(ludash-desktop PRIVATE ludash-apps)
@@ -91,6 +97,7 @@ install(TARGETS ludash-desktop ludash-compositor ludashctl RUNTIME DESTINATION $
 install(PROGRAMS scripts/ludash-session DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ludash.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 install(DIRECTORY qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/shell)
+install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)
 install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)
 install(FILES include/LuDash/plugins/CompositorPlugin.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/LuDash/plugins)
 include(CTest)
@@ -104,7 +111,9 @@ if(BUILD_TESTING)
   add_test(NAME security-gate COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/security/test_sarif_gate.py)
   add_executable(ludash-render-tests tests/renderer/RenderTests.cpp)
   target_link_libraries(ludash-render-tests PRIVATE ludash-renderer Qt6::Test)
-  add_test(NAME graphics-contexts COMMAND ludash-render-tests)
+  add_test(NAME graphics-contexts COMMAND ${CMAKE_COMMAND} -E env --unset=MESA_GL_VERSION_OVERRIDE --unset=MESA_GLSL_VERSION_OVERRIDE $<TARGET_FILE:ludash-render-tests>)
   set_tests_properties(graphics-contexts PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_XCB_GL_INTEGRATION=xcb_egl")
+  add_test(NAME graphics-startup-failure COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/renderer/test_startup_failure.py $<TARGET_FILE:ludash-compositor>)
+  set_tests_properties(graphics-startup-failure PROPERTIES TIMEOUT 30)
   add_test(NAME source-language COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/security/test_source_language.py)
 endif()

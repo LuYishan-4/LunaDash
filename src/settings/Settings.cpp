@@ -1,6 +1,7 @@
 #include <LuDash/localization/Localization.h>
 #include <QProcess>
 #include <LuDash/settings/Settings.h>
+#include <LuDash/wallpaper/WallpaperSettings.h>
 #include <QtWidgets>
 namespace LuDash {
 QWidget* createSettings(bool tiled, const std::function<void(bool)>& setTiled) {
@@ -20,9 +21,16 @@ QWidget* createSettings(bool tiled, const std::function<void(bool)>& setTiled) {
         }
         QMessageBox::information(page, LuDash::translate("Input method settings unavailable"), LuDash::translate("Install fcitx5-configtool or ibus."));
     });
+    auto* chooseWallpaper = new QPushButton(LuDash::translate("Choose wallpaper")); layout->addWidget(chooseWallpaper);
+    QObject::connect(chooseWallpaper, &QPushButton::clicked, page, [page] {
+        const auto path = QFileDialog::getOpenFileName(page, LuDash::translate("Choose wallpaper"), QDir::homePath(), "Images (*.png *.jpg *.jpeg *.webp)");
+        if (path.isEmpty()) return;
+        QString error;
+        if (!setWallpaperImage(path, &error)) QMessageBox::warning(page, LuDash::translate("Invalid image"), LuDash::translate(qPrintable(error)));
+    });
     layout->addWidget(new QLabel(LuDash::translate("Wallpaper colors")));
     auto* themes = new QComboBox; themes->addItems({LuDash::translate("Dusk mountains"), LuDash::translate("Forest mountains")}); themes->setCurrentIndex(QSettings().value("appearance/wallpaper", 0).toInt()); layout->addWidget(themes);
-    QObject::connect(themes, &QComboBox::currentIndexChanged, page, [](int theme) { QSettings().setValue("appearance/wallpaper", theme); });
+    QObject::connect(themes, &QComboBox::currentIndexChanged, page, [](int theme) { QSettings().setValue("appearance/wallpaper", theme); QSettings().setValue("appearance/wallpaperMode", "shader"); });
     auto* tiling = new QCheckBox(LuDash::translate("Tile application windows automatically")); tiling->setChecked(tiled); layout->addWidget(tiling); tiling->setVisible(bool(setTiled));
     if (setTiled) QObject::connect(tiling, &QCheckBox::toggled, page, setTiled);
     auto* shortcuts = new QLabel(LuDash::translate("Wayland shortcuts\nSuper+Enter  Console\nSuper+E  Files\nSuper+D  Applications\nSuper+J / K  Focus window\nSuper+1...4  Switch workspace\nSuper+Shift+1...4  Move window\nSuper+H / L  Adjust master ratio\nSuper+Space  Toggle floating\nSuper+Q  Close window"));

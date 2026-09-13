@@ -6,7 +6,7 @@
 int main(int argc, char** argv) {
     QCoreApplication application(argc, argv);
     const auto args = application.arguments();
-    if (args.size() < 2) { QTextStream(stderr) << "Usage: ludashctl status|workspace|focus|minimize|close|language|wallpaper|quit [value]\n"; return 2; }
+    if (args.size() < 2) { QTextStream(stderr) << "Usage: ludashctl status|workspace|focus|minimize|close|language|wallpaper|wallpaper-image|wallpaper-default|quit [value]\n"; return 2; }
     const auto path = qEnvironmentVariable("LUDASH_CONTROL");
     if (path.isEmpty()) { QTextStream(stderr) << "LUDASH_CONTROL is not set.\n"; return 2; }
     QLocalSocket socket; socket.connectToServer(path);

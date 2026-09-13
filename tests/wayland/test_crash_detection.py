@@ -1,17 +1,21 @@
 """Negative integration test: a crashed owned client must make the session fail."""
 import os
 import pathlib
+import resource
 import signal
 import subprocess
 import sys
 import tempfile
 import time
 
+resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 binary = pathlib.Path(sys.argv[1]).resolve() / 'ludash-compositor'
 with tempfile.TemporaryDirectory(prefix='ludash-crash-test-') as runtime:
     os.chmod(runtime, 0o700)
     env = os.environ | {'XDG_RUNTIME_DIR': runtime, 'QT_QPA_PLATFORM': 'xcb',
                         'QT_XCB_GL_INTEGRATION': 'xcb_egl', 'LIBGL_ALWAYS_SOFTWARE': '1'}
+    env.pop('MESA_GL_VERSION_OVERRIDE', None)
+    env.pop('MESA_GLSL_VERSION_OVERRIDE', None)
     with open(pathlib.Path(runtime) / 'output.log', 'w+') as output:
         process = subprocess.Popen([str(binary), '--no-shell', '--demo', '--exit-after', '4000'], env=env, stdout=output, stderr=output)
         try:

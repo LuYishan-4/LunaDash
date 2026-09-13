@@ -8,7 +8,8 @@
 
 int main(int argc, char** argv) {
     const auto graphics = LuDash::graphicsApiFromArguments(argc, argv);
-    LuDash::configureGraphics(graphics);
+    if (!graphics) { qCritical("--graphics must be auto, opengl, or gles"); return 2; }
+    LuDash::configureGraphics(*graphics);
     QGuiApplication app(argc, argv); app.setApplicationName("LuDash"); app.setOrganizationName("LuDash");
     LuDash::initializeLocalization(app);
     QCommandLineParser parser; parser.setApplicationDescription("LuDash native Wayland tiling compositor (OpenGL)"); parser.addHelpOption();
@@ -20,8 +21,8 @@ int main(int argc, char** argv) {
     parser.addOption({"screenshot", "Save compositor screenshot at exit.", "path"});
     parser.addOption({"state", "Write window geometry JSON at exit.", "path"});
     parser.addOption({"exit-after", "Exit after this many milliseconds (test mode).", "ms"}); parser.process(app);
-    LuDash::WaylandCompositor compositor(parser.value("socket").toUtf8(), parser.isSet("fullscreen"), !parser.isSet("no-shell"), graphics);
-    if (parser.isSet("demo")) QTimer::singleShot(900, &app, [&] { compositor.spawn({"--app", "files"}); compositor.spawn({"--app", "monitor"}); });
+    LuDash::WaylandCompositor compositor(parser.value("socket").toUtf8(), parser.isSet("fullscreen"), !parser.isSet("no-shell"), *graphics);
+    if (parser.isSet("demo")) QTimer::singleShot(900, &app, [&] { if (!parser.isSet("no-shell")) compositor.spawn({"--app", "welcome"}); compositor.spawn({"--app", "files"}); compositor.spawn({"--app", "monitor"}); });
     if (parser.isSet("exit-after")) QTimer::singleShot(std::max(1000, parser.value("exit-after").toInt()), &app, [&] {
         if (parser.isSet("state")) compositor.saveState(parser.value("state"));
         bool ok = true; if (parser.isSet("screenshot")) ok = compositor.saveScreenshot(parser.value("screenshot"));

@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 
     if (parser.isSet("app")) {
         app.setDesktopFileName("ludash-app");
-        LuDash::ApplicationWindow window; window.setObjectName("applicationWindow"); window.setStyleSheet(LuDash::desktopStyle() + "QWidget#applicationWindow { background: #1d2434; }");
+        LuDash::ApplicationWindow window; window.setAttribute(Qt::WA_TranslucentBackground); window.setObjectName("applicationWindow"); window.setStyleSheet(LuDash::desktopStyle() + "QWidget#applicationWindow { background: rgba(18, 28, 29, 232); }");
         QWidget* content = nullptr; const auto id = parser.value("app");
         if (id == "files") content = LuDash::createFileManager();
         else if (id == "console") content = LuDash::createConsole();

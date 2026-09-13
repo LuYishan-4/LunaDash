@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <protocol name="wlr_layer_shell_unstable_v1">
-  <!-- Wire-compatible v1 subset. Protocol reference: swaywm/wlr-protocols. -->
-  <interface name="zwlr_layer_shell_v1" version="1">
+  <!-- Wire-compatible v2 subset. Protocol reference: swaywm/wlr-protocols. -->
+  <interface name="zwlr_layer_shell_v1" version="2">
     <request name="get_layer_surface">
       <arg name="id" type="new_id" interface="zwlr_layer_surface_v1"/>
       <arg name="surface" type="object" interface="wl_surface"/>
       <arg name="output" type="object" interface="wl_output" allow-null="true"/>
-      <arg name="layer" type="uint"/><arg name="namespace" type="string"/>
+      <arg name="layer" type="uint"/><arg name="name_space" type="string"/>
     </request>
   </interface>
-  <interface name="zwlr_layer_surface_v1" version="1">
+  <interface name="zwlr_layer_surface_v1" version="2">
     <request name="set_size"><arg name="width" type="uint"/><arg name="height" type="uint"/></request>
     <request name="set_anchor"><arg name="anchor" type="uint"/></request>
     <request name="set_exclusive_zone"><arg name="zone" type="int"/></request>
@@ -20,5 +20,6 @@
     <request name="destroy" type="destructor"/>
     <event name="configure"><arg name="serial" type="uint"/><arg name="width" type="uint"/><arg name="height" type="uint"/></event>
     <event name="closed"/>
+    <request name="set_layer" since="2"><arg name="layer" type="uint"/></request>
   </interface>
 </protocol>

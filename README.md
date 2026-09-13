@@ -2,7 +2,7 @@
 
 **C++20 / OpenGL Wayland compositor + Quickshell 桌面介面**，參考 KDE 的面板、啟動器與工作區概念，採用主欄／堆疊平鋪。C++ namespace 為 `LuDash`，程式碼使用英文，繁中放在獨立語言包。
 
-目前為 0.1 開發版，尚不是完整 KDE 替代品。已實作：Quickshell 桌布／面板／Dock／啟動器／設定、原生 Wayland 平鋪與 4 工作區、英文／繁中、text-input 協定註冊、pacman 介面、metadata 原生外掛與淡入範例，以及檔案／筆記／命令主控台等独立工具。
+目前為 0.1 開發版，尚不是完整 KDE 替代品。已實作：Quickshell 桌布／分段狀態列／資訊卡／啟動器／設定、原生 Wayland 平鋪與 4 工作區、英文／繁中、text-input 協定註冊、pacman 介面、metadata 原生外掛與淡入範例，以及檔案／筆記／命令主控台等独立工具。
 
 ## Arch 安裝依賴與建置
 
@@ -15,7 +15,7 @@ QT_QPA_PLATFORM=wayland ./build/ludash-compositor --socket ludash-test
 
 [Quickshell 已提供 Arch 套件](https://archlinux.org/packages/extra/x86_64/quickshell/)。其他發行版的 C++ 後端需 Qt ≥ 6.4、CMake ≥ 3.21、C++20、Wayland 開發檔與 scanner；Quickshell ≥ 0.3 需另外依其 [官方安裝方式](https://quickshell.org/docs/v0.3.0/guide/install-setup/) 配置，可能需要較新 Qt。
 
-Ubuntu 24.04 / Debian 的後端依賴：`build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libwayland-dev pkg-config`。
+Ubuntu 24.04 / Debian 的後端依賴：`build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libwayland-dev pkg-config`。
 Fedora 後端依賴：`gcc-c++ cmake ninja-build qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel wayland-devel`。
 
 CI 設定包含 Arch／Ubuntu／Fedora 後端建置；完整 Quickshell 工作階段在 Arch job 驗證。設定檔存在不代表遠端 CI 已執行或其他平台已實測。
@@ -69,3 +69,5 @@ Arch 封裝：`./scripts/make-source.sh`，再於 `packaging/arch` 執行 `makep
 尚未完成 XWayland、多螢幕、完整 layer-shell、鎖定、portal、網路／音量管理，以及 Fcitx5／IBus 完整端到端相容性。原生外掛沒有 sandbox，預設停用。授權為 GPL-3.0-only，見 LICENSE。
 
 圖形 API 可用 `--graphics opengl|gles|auto` 選擇。自訂 context／GLSL shader 與 OpenGL ES 3.0 支援詳見 [docs/GRAPHICS.md](docs/GRAPHICS.md)。
+
+外觀與自訂桌布：[docs/APPEARANCE.md](docs/APPEARANCE.md)。
