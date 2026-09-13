@@ -1,14 +1,14 @@
-## 問題與修改後行為
+## Problem and resulting behavior
 
-<!-- 說明具體問題與可觀察的改變。 -->
+<!-- Describe a concrete trigger and the observable change. -->
 
-## 驗證
+## Validation
 
-<!-- 列出已執行的測試、平台與尚未驗證的範圍。 -->
+<!-- List tests actually run, platforms and unverified scope. -->
 
-## 資安與穩定性
+## Security and stability
 
-- [ ] 已檢查外部輸入、程序啟動、檔案路徑與權限影響。
-- [ ] 已檢查 QObject 生命週期、指標、視窗關閉與 Wayland 用戶端斷線。
-- [ ] 新功能有獨立目錄，標頭與實作分離，且採用 LuDash namespace。
-- [ ] 已完成 Linux build、C++ static analysis、ASan and UBSan、CodeQL 檢查；未執行者在驗證欄說明。
+- [ ] Reviewed external input, process launching, file paths and permission changes.
+- [ ] Reviewed QObject lifetimes, pointers, window closing and client disconnects.
+- [ ] New features have dedicated directories, separate headers/implementations and the LuDash namespace.
+- [ ] Completed applicable build, static analysis, sanitizer and CodeQL checks; explicitly listed checks not run.

@@ -26,10 +26,10 @@ PanelWindow {
         anchors.horizontalCenter: parent.horizontalCenter; height: parent.height; spacing: -5
         Segment { text: "▱"; ink: Theme.muted; onClicked: shell.launch("files") }
         Segment { text: "✎"; fill: Theme.lavender; ink: "#293238"; onClicked: shell.launch("notes") }
-        Segment { text: "◈  LuDash"; fill: Theme.accent; ink: "#182526"; onClicked: shell.overviewOpen = !shell.overviewOpen }
+        Segment { text: "◈  LuDash"; fill: Theme.accent; ink: "#182526"; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }
         Segment {
             id: clock; property string time: ""; text: "◷ " + time; fill: "#a8c6c4"; ink: "#243437"
-            onClicked: shell.overviewOpen = !shell.overviewOpen
+            onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
             Timer { interval: 1000; repeat: true; running: true; triggeredOnStart: true; onTriggered: clock.time = Qt.formatDateTime(new Date(), "HH:mm") }
         }
         Rectangle {
@@ -50,7 +50,7 @@ PanelWindow {
         Segment { visible: panel.width > 1100; text: "⬡"; ink: Theme.lavender; onClicked: shell.launch("packages") }
         Segment { text: "CPU " + (panel.stats.cpuPercent || 0) + "%"; ink: Theme.accent; onClicked: shell.launch("monitor") }
         Segment { text: "MEM " + (panel.stats.memoryPercent || 0) + "%"; ink: Theme.muted; onClicked: shell.launch("monitor") }
-        Segment { visible: (panel.stats.batteryPercent ?? -1) >= 0; text: "▰ " + panel.stats.batteryPercent + "%"; ink: Theme.muted; onClicked: shell.overviewOpen = !shell.overviewOpen }
+        Segment { visible: (panel.stats.batteryPercent ?? -1) >= 0; text: "▰ " + panel.stats.batteryPercent + "%"; ink: Theme.muted; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }
         Segment { text: "⚙"; onClicked: shell.settingsOpen = !shell.settingsOpen }
         Segment { text: "⏻"; ink: Theme.danger; onClicked: shell.logoutOpen = !shell.logoutOpen }
     }

@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-shell-test-') as runtime:
     env = os.environ | {
         'XDG_RUNTIME_DIR': runtime, 'XDG_CONFIG_HOME': runtime,
         'QT_QPA_PLATFORM': 'xcb', 'QT_XCB_GL_INTEGRATION': 'xcb_egl',
-        'LIBGL_ALWAYS_SOFTWARE': '1', 'QT_FORCE_STDERR_LOGGING': '1', 'LANG': 'C.UTF-8',
+        'LUDASH_SKIP_SETUP': '1', 'LIBGL_ALWAYS_SOFTWARE': '1', 'QT_FORCE_STDERR_LOGGING': '1', 'LANG': 'C.UTF-8',
     }
     for name in ('MESA_GL_VERSION_OVERRIDE', 'MESA_GLSL_VERSION_OVERRIDE', 'LUDASH_LANGUAGE'):
         env.pop(name, None)
@@ -74,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-shell-test-') as runtime:
             click(1390, 14)
             wait_for(lambda state: state['layerSurfaces'] >= 4, 'Settings did not open')
             time.sleep(.3)
-            click(1080, 155)
+            click(1010, 145)
             wait_for(lambda state: state['language'] == 'zh_TW', 'Language button did not update the compositor')
             click(1390, 14)
             request('wallpaper', 1)

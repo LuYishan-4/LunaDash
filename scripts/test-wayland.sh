@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 unset MESA_GL_VERSION_OVERRIDE MESA_GLSL_VERSION_OVERRIDE
-export QT_FORCE_STDERR_LOGGING=1
+export QT_FORCE_STDERR_LOGGING=1 LUDASH_SKIP_SETUP=1
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_dir=${LUDASH_BUILD_DIR:-"$project_dir/build"}
 evidence_name=wayland

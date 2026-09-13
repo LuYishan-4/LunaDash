@@ -1,35 +1,39 @@
-# LuDash 架構
+# Architecture
 
 ```text
-Linux / existing Wayland host / EGLFS-KMS
-  ludash-compositor (C++20, Qt Wayland Compositor, OpenGL)
+Existing Wayland host / experimental EGLFS-KMS session
+  ludash-compositor: C++20, Qt Wayland Compositor, OpenGL / GLES
     xdg-shell: native application windows
-    layer-shell v2 subset: Quickshell wallpaper/panel/overview/overlays
-    text-input v2/v3 + Qt input-method protocol
-    master/stack tiling, four workspaces, focus, window effects
-    local user-only JSON control socket
-      ludashctl -> Quickshell status and controls
+    layer-shell v2 subset: Quickshell desktop surfaces
+    text-input v2/v3 and Qt input-method protocol
+    master/stack tiling, four workspaces, focus and window effects
+    asynchronous NetworkManager status and saved desktop preferences
+    user-only local JSON control socket
+      ludashctl <-> Quickshell status and commands
     quickshell --path qml/shell.qml
-      wallpaper / panel / overview / launcher / settings / session
+      setup / wallpaper / panel / overview / launcher / settings / session
     ludash-desktop --app <id>
       files / notes / console / monitor / packages / plugins / settings
 ```
 
-桌面外殼使用 Quickshell／QML。獨立的內建工具目前使用 C++ Qt Widgets，可與其他 Wayland 應用程式一起平鋪；compositor 以 OpenGL 合成所有表面。Quickshell Scene Graph 使用 OpenGL，桌布由 C++ render-thread context 中的 GLSL vertex／fragment shader 繪製。
+Quickshell/QML implements the desktop shell. Built-in applications currently use C++ Qt Widgets and tile alongside other Wayland applications. The compositor owns Wayland window lifetimes and rendering; Quickshell runs in a separate process with its own graphics context.
 
-每項 C++ 功能有 `include/LuDash/<feature>/` 與 `src/<feature>/` 目錄。標頭僅宣告型別與介面，實作在 `.cpp`；入口點放 `src/entrypoints/`。QML 每項功能放 `qml/<feature>/`。翻譯僅放 `data/translations/`。CMake 明確列出來源檔。
+Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/` directory. Headers declare types and interfaces; `.cpp` files implement them. Entry points live in `src/entrypoints/`; CMake lists sources explicitly. QML features live under `qml/<feature>/`. Project code is English and uses namespace `LuDash`, except `main`, Qt-generated resource initialization and scanner-generated C protocol symbols.
 
-- `renderer`：OpenGL 3.3／GLES 3.0 context、FBO、GLSL 與跨執行緒狀態。
-- `compositor`、`tiling`：Wayland 視窗生命週期與主欄／堆疊幾何。
-- `layer_shell`：Quickshell 背景、頂部狀態列、資訊卡、overlay；v2 子集（含 set_layer），固定單一輸出，layer popup 尚未實作。
-- `ipc`：user-only Unix socket，大小限制及連線逾時；控制器僅接受列出的指令。
-- `input_method`、`localization`：輸入法協定與語言資源。
-- `plugins`、`fade_plugin`、`plugin_settings`：metadata 探索、明確啟用、native effect 範例與設定。
-- `packages`：pacman 唯讀查詢，異動交由終端機與 sudo/pacman 原生確認；不執行 `--noconfirm`、`-Sy` 或任意 shell。
-- `file_manager`、`notes`、`console`、`system_monitor`、`welcome`、`launcher`、`settings`：獨立工具。
+| Module | Responsibility |
+| --- | --- |
+| renderer | Context selection, FBO, GLSL and atomic render health |
+| compositor / tiling / window_frame | Window lifetime, layout and decorations |
+| layer_shell | Background, panel and overlay surfaces; negotiated v2 subset |
+| ipc | User-only local socket, 64 KiB request limit, three-second timeout |
+| configuration | Validated saved appearance and first-run completion |
+| network | Nonblocking NetworkManager D-Bus reads, interface fallback |
+| system_status / wallpaper | Local system statistics and validated local images |
+| localization / input_method | Translation resources and input protocol registration |
+| plugins / fade_plugin / plugin_settings | Metadata discovery, explicit enablement and native example |
+| packages | Read-only queries and confirmed terminal-based pacman changes |
+| remaining app modules | Separate files, notes, console, monitor and settings tools |
 
-Qt 資源初始化及 Wayland scanner 產生的 C 協定檔遵循上游要求使用全域符號，其餘專案 C++ 使用 `LuDash` namespace。
+The shell controls LuDash through allowlisted JSON methods. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LuDash's control socket.
 
-這是單輸出的開發版本，不是完整 KDE 替代品。尚缺 XWayland、完整 layer-shell（任意 exclusive zone、popup、所有雙緩衝狀態）、多螢幕、螢幕鎖定、portal、PipeWire 擷取、網路／音訊／電源服務與完整 IME bridge。面板可用區域目前固定預留頂部 28px 與平鋪間距，符合本專案隨附的 Quickshell 版面。
-
-EGLFS/KMS 獨立登入工作階段仍待 seat、VT 與 GPU 真機驗證。優先使用 nested 模式。
+The current compositor uses one output. Panel height and tiling gaps define its work area; this is not a general implementation of arbitrary exclusive zones. Layer-shell popups and some double-buffered state behavior remain incomplete. XWayland, multiple outputs, locking, portals, PipeWire capture, an audio service, a polkit agent and a full input-method-v2 bridge are not implemented. The EGLFS/KMS launcher is experimental; evaluate nested sessions first.

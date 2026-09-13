@@ -33,7 +33,7 @@ PanelWindow {
             }
             ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true; spacing: 5
-                Text { text: (overview.stats.user || "user") + " @ " + (overview.stats.host || "linux"); color: Theme.accent; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { text: shell.state.appearance?.showHostDetails ? (overview.stats.user || "user") + " @ " + (overview.stats.host || "linux") : "LuDash / " + shell.tr("Your workspace"); color: Theme.accent; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                 Text { text: "────────────────────────────"; color: Theme.border; font.family: Theme.font; font.pixelSize: 11 }
                 Repeater {
                     model: [

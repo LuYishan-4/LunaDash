@@ -15,6 +15,7 @@ class QWaylandXdgToplevel;
 class QWaylandXdgSurface;
 namespace LuDash {
 class SystemStatus;
+class NetworkStatus;
 class WallpaperItem;
 class PluginManager;
 class WindowFrame;
@@ -25,7 +26,7 @@ class WaylandCompositor final : public QObject {
 public:
     WaylandCompositor(const QByteArray& socket, bool fullscreen, bool startShell, GraphicsApi graphics = GraphicsApi::Auto);
     ~WaylandCompositor() override;
-    QProcess* spawn(const QStringList& arguments);
+    QProcess* spawn(const QStringList& arguments, const QString& program = {});
     bool saveScreenshot(const QString& path);
     void saveState(const QString& path);
     bool hasProcessFailure() const;
@@ -38,6 +39,7 @@ private:
     QWaylandQuickCompositor compositor_;
     QQuickWindow window_;
     SystemStatus* systemStatus_ = nullptr;
+    NetworkStatus* networkStatus_ = nullptr;
     PluginManager* pluginManager_ = nullptr;
     LayerShell* layerShell_ = nullptr;
     ControlServer* controlServer_ = nullptr;

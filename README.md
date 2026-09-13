@@ -1,75 +1,72 @@
 # LuDash
 
-**C++20 / OpenGL Wayland compositor + Quickshell 桌面介面**，參考 KDE 的面板、啟動器與工作區概念，採用主欄／堆疊平鋪。C++ namespace 為 `LuDash`，程式碼使用英文，繁中放在獨立語言包。
+A C++20 Wayland tiling desktop with an OpenGL / OpenGL ES compositor and a Quickshell interface. A quiet, segmented panel, atmospheric wallpaper and a translucent information card keep the workspace in view.
 
-目前為 0.1 開發版，尚不是完整 KDE 替代品。已實作：Quickshell 桌布／分段狀態列／資訊卡／啟動器／設定、原生 Wayland 平鋪與 4 工作區、英文／繁中、text-input 協定註冊、pacman 介面、metadata 原生外掛與淡入範例，以及檔案／筆記／命令主控台等獨立工具。
+**0.1 development preview.** LuDash is not a production-ready KDE replacement. Start with a nested session inside your existing desktop.
 
-## Arch 安裝依賴與建置
+## What works
+
+- Native Wayland windows, master/stack tiling, four workspaces, floating and minimized windows.
+- Quickshell wallpaper, panel, launcher, settings, first-run guide and logout confirmation.
+- Saved accent colors, window gaps, panel height, wallpaper and information-card preferences.
+- English and an external Traditional Chinese language pack.
+- Existing network connection detection and a NetworkManager configuration entry point.
+- Files, notes, command console, system monitor, pacman interface and opt-in metadata plugins.
+- Explicit OpenGL 3.3 Core / OpenGL ES 3.0 contexts and vertex/fragment shaders.
+
+## Build on Arch Linux
 
 ```sh
 sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland qt6-translations quickshell mesa
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j4
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel 4
 QT_QPA_PLATFORM=wayland ./build/ludash-compositor --socket ludash-test
 ```
 
-[Quickshell 已提供 Arch 套件](https://archlinux.org/packages/extra/x86_64/quickshell/)。其他發行版的 C++ 後端需 Qt ≥ 6.4、CMake ≥ 3.21、C++20、Wayland 開發檔與 scanner；Quickshell ≥ 0.3 需另外依其 [官方安裝方式](https://quickshell.org/docs/v0.3.0/guide/install-setup/) 配置，可能需要較新 Qt。
+For network configuration, optionally install `networkmanager nm-connection-editor`. LuDash reuses existing connections; installing a package does not enable a network service. Avoid replacing an existing network manager without reviewing your distribution's configuration.
 
-Ubuntu 24.04 / Debian 的後端依賴：`build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libwayland-dev pkg-config`。
-Fedora 後端依賴：`gcc-c++ cmake ninja-build qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel wayland-devel`。
+The first-run guide offers language, network and appearance settings. Offline use is supported. The gear reopens settings and the guide. Native application language changes take effect when those applications are reopened.
 
-CI 設定包含 Arch／Ubuntu／Fedora 後端建置；完整 Quickshell 工作階段在 Arch job 驗證。設定檔存在不代表遠端 CI 已執行或其他平台已實測。
+[Quickshell is packaged for Arch](https://archlinux.org/packages/extra/x86_64/quickshell/). The C++ backend needs Qt 6.4+, CMake 3.21+, a C++20 compiler and Wayland development headers/scanner. The shell targets Quickshell 0.3; follow its [installation guide](https://quickshell.org/docs/v0.3.0/guide/install-setup/) on other distributions, where a newer Qt may be needed.
 
-## 使用與測試
+Ubuntu 24.04 backend packages: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`.
+Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`.
+
+Arch, Ubuntu and Fedora builds are configured in CI. Configuration is not evidence that a remote job ran or that every distribution was verified. See the dated local results in the testing guide.
+
+## Test and explore
 
 ```sh
+sudo pacman -S --needed xorg-server-xvfb xorg-xauth xdotool python python-pillow
 QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build --output-on-failure
-./scripts/test-wayland.sh
+LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
+LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
 ```
 
-自動測試需要 Xvfb、xauth、Python 與 Pillow；Quickshell 點擊測試另需 xdotool。成功需同時顯示畫面、通過平鋪檢查與正常退出；輸出在 `build/wayland-preview.png`、`wayland-state.json`、`wayland.log`。
+The integration script requires rendered client content, non-overlapping geometry and clean shutdown. An old success line followed by crashed processes is not a passing result.
 
-另一個終端機可連到手動工作階段：
-
-```sh
-WAYLAND_DISPLAY=ludash-test QT_QPA_PLATFORM=wayland ./build/ludash-desktop --app notes
-```
-
-Quickshell 設定可切換語言與桌布、開啟輸入法與外掛管理。原生工具的語言變更下次啟動生效。套件操作會開啟 Konsole／foot／Alacritty，保留 sudo 與 pacman 確認；沒有 pacman 的系統只停用此工具。
-
-| 快捷鍵 | 功能 |
+| Shortcut | Action |
 | --- | --- |
-| Super+Enter / E / D | 主控台／檔案／啟動器 |
-| Super+J / K | 切換焦點 |
-| Super+H / L | 主欄比例 |
-| Super+1…4 | 工作區 |
-| Super+Shift+1…4 | 移動視窗至工作區 |
-| Super+Space / F / M / Q | 浮動／填滿／最小化／關閉 |
+| Super + Enter / E / D | Console / files / launcher |
+| Super + J / K | Focus next / previous window |
+| Super + H / L | Change master-column ratio |
+| Super + 1–4 | Switch workspace |
+| Super + Shift + 1–4 | Move focused window to workspace |
+| Super + Space / F / M / Q | Toggle floating / fill / minimize / close |
 
-外層桌面可能攔截 Super 快捷鍵，可使用 Quickshell 工作區按鈕與啟動器。
+Your host desktop may intercept Super shortcuts. The shell provides clickable workspace and launcher controls.
 
-## 安裝
+## Installation and documentation
 
-```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build build -j4
-sudo cmake --install build
-```
+For a staged install use `DESTDIR=/tmp/ludash-stage cmake --install build`. For a system install configure `-DCMAKE_INSTALL_PREFIX=/usr`, build, then run `sudo cmake --install build`. The Arch source package is created by `./scripts/make-source.sh`; run `makepkg -Cfs` in `packaging/arch`. The packaged EGLFS/KMS login session still needs physical GPU, seat and VT testing.
 
-Arch 封裝：`./scripts/make-source.sh`，再於 `packaging/arch` 執行 `makepkg -Cfs`。工作階段檔 `ludash.desktop` 使用 EGLFS/KMS，仍需真機驗證；先使用 nested 模式。
+- [Testing instructions and every maintained file](docs/TESTING_AND_FILES.md)
+- [First-run setup and customization](docs/CONFIGURATION.md)
+- [Appearance](docs/APPEARANCE.md) and [graphics contexts](docs/GRAPHICS.md)
+- [Architecture](docs/ARCHITECTURE.md), [languages and input methods](docs/INPUT_METHODS.md)
+- [Plugin development](docs/PLUGINS.md), [security and crash checks](docs/SECURITY_CHECKS.md)
+- [Website and GitHub Pages deployment](docs/WEBSITE.md)
 
-## 文件與限制
+Missing or incomplete: XWayland, multiple outputs, full layer-shell, screen locking, portals, audio controls, full system tray, native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Native plugins are disabled by default and run without a sandbox when enabled. Pacman operations require a real terminal and retain sudo/pacman confirmation; this tool is unavailable on systems without pacman.
 
-- [測試方式與訊息判讀](docs/TESTING.md)
-- [架構與模組分離](docs/ARCHITECTURE.md)
-- [多語言與輸入法](docs/INPUT_METHODS.md)
-- [metadata 外掛開發](docs/PLUGINS.md)
-- [PR 資安與 crash 檢查](docs/SECURITY_CHECKS.md)
-
-尚未完成 XWayland、多螢幕、完整 layer-shell、鎖定、portal、網路／音量管理，以及 Fcitx5／IBus 完整端到端相容性。原生外掛沒有 sandbox，預設停用。授權為 GPL-3.0-only，見 LICENSE。
-
-圖形 API 可用 `--graphics opengl|gles|auto` 選擇。自訂 context／GLSL shader 與 OpenGL ES 3.0 支援詳見 [docs/GRAPHICS.md](docs/GRAPHICS.md)。
-
-外觀與自訂桌布：[docs/APPEARANCE.md](docs/APPEARANCE.md)。
-
-完整測試與逐檔介紹：[docs/TESTING_AND_FILES.md](docs/TESTING_AND_FILES.md)。
+Licensed under GPL-3.0-only; see [LICENSE](LICENSE).

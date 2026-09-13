@@ -1,8 +1,8 @@
-# LuDash 原生外掛
+# Native plugins
 
-LuDash 的外掛格式參考 KDE 的 `KPlugin` metadata 結構，但 **不相容 KWin 的 ABI，也不能直接載入 KWin 外掛**。
+LuDash uses metadata inspired by KDE's `KPlugin` structure. **It does not implement KWin's ABI and cannot load KWin plugins.**
 
-目錄：`~/.local/share/ludash/plugins/<id>/`（使用者）或 `$prefix/share/ludash/plugins/<id>/`（系統）。開發版本也掃描執行檔旁的 `plugins/`。每個目錄需包含 `metadata.json` 與 `.so`。
+Place a plugin in `~/.local/share/ludash/plugins/<id>/` or `$prefix/share/ludash/plugins/<id>/`. Development builds also scan `plugins/` next to the executable. Each directory contains `metadata.json` and a shared library.
 
 ```json
 {
@@ -22,10 +22,10 @@ LuDash 的外掛格式參考 KDE 的 `KPlugin` metadata 結構，但 **不相容
 }
 ```
 
-C++ 類別需繼承 `QObject` 與 `LuDash::CompositorPlugin`，實作 `windowOpened(QQuickItem*)` 及 `windowFocused(QQuickItem*)`，透過 `Q_PLUGIN_METADATA` 嵌入同一份 metadata、`Q_INTERFACES` 宣告介面。不可保存已銷毀視窗的裸指標；需要保存時使用 `QPointer<QQuickItem>`。
+Derive the C++ class from `QObject` and `LuDash::CompositorPlugin`. Implement `windowOpened(QQuickItem*)` and `windowFocused(QQuickItem*)`, embed matching metadata using `Q_PLUGIN_METADATA` and declare the interface with `Q_INTERFACES`. Use `QPointer<QQuickItem>` if retaining a window reference; do not dereference destroyed windows.
 
-完整範例：`include/LuDash/fade_plugin/FadePlugin.h`、`src/fade_plugin/FadePlugin.cpp`、`data/plugins/fade/metadata.json`。預設編譯至 `build/plugins/org.ludash.fade/`。開啟 Quickshell 設定的外掛管理後可啟用，重新啟動 compositor 才會載入。
+The complete example is in `include/LuDash/fade_plugin/FadePlugin.h`, `src/fade_plugin/FadePlugin.cpp` and `data/plugins/fade/metadata.json`. It builds into `build/plugins/org.ludash.fade/`. Enable it in the plugin manager and restart the compositor to load it.
 
-Loader 檢查 JSON 大小、Id、ApiVersion、Type、程式庫 canonical path、Qt plugin IID 與嵌入的 Id。預設不載入任何原生外掛，metadata 的 EnabledByDefault 不能繞過使用者設定。沒有簽章或 sandbox；啟用原生外掛等同信任它在 compositor 程序內執行，惡意或錯誤外掛仍可導致當機。
+The loader validates JSON size, ID, API version, type, canonical library path, Qt plugin IID and embedded ID. Native plugins are disabled by default. Metadata `EnabledByDefault` cannot override explicit user settings. There is no signing or sandbox: enabling a native plugin trusts its code inside the compositor process, where it can access the session or crash it.
 
-參考：[KDE metadata 結構](https://develop.kde.org/docs/plasma/widget/setup/)。
+Reference: [KDE metadata structure](https://develop.kde.org/docs/plasma/widget/setup/).

@@ -8,6 +8,8 @@ import "launcher"
 import "settings"
 import "session"
 import "feedback"
+import "setup"
+import "style"
 
 ShellRoot {
     id: root
@@ -15,8 +17,24 @@ ShellRoot {
     property string bin: Quickshell.env("LUDASH_BIN_DIR")
     property bool launcherOpen: false
     property bool settingsOpen: false
-    property bool overviewOpen: true
+    readonly property bool overviewOpen: state.appearance?.overview ?? true
+    function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
+    onStateChanged: {
+        Theme.accent = state.appearance?.accent || "#7dcccf"; Theme.barHeight = state.appearance?.panelHeight || 28
+        if (setupPaused) {
+            const mapped = state.clients.some(client => client.mapped)
+            if (mapped) setupEditorMapped = true
+            if ((!mapped && setupEditorMapped) || (!setupEditorMapped && ++setupWaitTicks >= 15)) setupPaused = false
+        }
+    }
     property bool logoutOpen: false
+    property bool setupPaused: false
+    property bool setupEditorMapped: false
+    property int setupWaitTicks: 0
+    function configureNetwork() {
+        command("configure-network", "")
+        if (state.setupComplete === false) { setupPaused = true; setupEditorMapped = false; setupWaitTicks = 0 }
+    }
     property string errorMessage: ""
     property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LuDash"
     function tr(source) { return (state.translations || {})[source] || source }
@@ -45,6 +63,7 @@ ShellRoot {
     Overview { shell: root; visible: root.overviewOpen }
     Launcher { shell: root; visible: root.launcherOpen }
     SettingsPanel { shell: root; visible: root.settingsOpen }
+    SetupWizard { shell: root; visible: root.state.setupComplete === false && !root.setupPaused }
     LogoutPanel { shell: root; visible: root.logoutOpen }
     Message { shell: root; visible: root.errorMessage.length > 0 }
 }

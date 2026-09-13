@@ -6,12 +6,13 @@ import Quickshell
 import Quickshell.Wayland
 import "../components"
 import "../style"
+import "../configuration"
 PanelWindow {
     id: settings
     required property var shell
     anchors { top: true; right: true }
-    margins { top: 40; right: 14 }
-    implicitWidth: 420; implicitHeight: 430
+    margins { top: Theme.barHeight + 12; right: 14 }
+    implicitWidth: 500; implicitHeight: 700
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ludash-settings"
@@ -24,7 +25,7 @@ PanelWindow {
         onAccepted: shell.command("wallpaper-image", selectedFile.toString())
     }
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: 23; spacing: 15
+        anchors.fill: parent; anchors.margins: 23; spacing: 12
         RowLayout {
             Text { text: shell.tr("Desktop settings"); color: Theme.text; font.family: Theme.font; font.pixelSize: 20; Layout.fillWidth: true }
             ShellButton { text: "×"; onClicked: shell.settingsOpen = false }
@@ -43,7 +44,12 @@ PanelWindow {
             ShellButton { text: shell.tr("Dusk"); onClicked: shell.command("wallpaper", 0) }
             ShellButton { text: shell.tr("Forest"); onClicked: shell.command("wallpaper", 1) }
         }
-        ShellButton { text: shell.tr("Desktop information"); active: shell.overviewOpen; onClicked: shell.overviewOpen = !shell.overviewOpen }
+        AppearanceControls { shell: settings.shell; Layout.fillWidth: true }
+        Text { text: shell.tr(shell.state.network?.label || "Checking network"); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+        RowLayout {
+            ShellButton { text: shell.tr("Configure network"); onClicked: shell.configureNetwork() }
+            ShellButton { text: shell.tr("First-run guide"); onClicked: { shell.settingsOpen = false; shell.command("setup", "") } }
+        }
         ShellButton { text: shell.tr("Input method and more"); onClicked: shell.launch("settings") }
         ShellButton { text: shell.tr("Manage metadata plugins"); onClicked: shell.launch("plugins") }
         Item { Layout.fillHeight: true }
