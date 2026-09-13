@@ -35,4 +35,4 @@ jobs:
         run: QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build --output-on-failure
       - name: Test Quickshell session on Arch
         if: matrix.image == 'archlinux:latest'
-        run: ./scripts/test-wayland.sh
+        run: LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh && LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh

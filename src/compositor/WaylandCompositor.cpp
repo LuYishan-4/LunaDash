@@ -1,3 +1,4 @@
+#include <LuDash/renderer/WallpaperItem.h>
 #include <LuDash/input_method/InputMethodSupport.h>
 #include <LuDash/plugins/PluginManager.h>
 #include <LuDash/compositor/WaylandCompositor.h>
@@ -35,8 +36,12 @@
 #include <memory>
 
 namespace LuDash {
-WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, bool startShell) {
+WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, bool startShell, GraphicsApi graphics) {
     window_.setTitle("LuDash Wayland · workspace 1"); window_.resize(1440, 900); window_.setMinimumSize({960, 640});
+    renderState_ = std::make_shared<RenderState>();
+    wallpaper_ = new WallpaperItem(graphics, renderState_, window_.contentItem());
+    wallpaper_->setSize(window_.size()); wallpaper_->setZ(-200);
+    wallpaper_->setPalette(QSettings().value("appearance/wallpaper", 0).toInt());
     window_.setColor(QColor("#171c36")); window_.installEventFilter(this);
     compositor_.setSocketName(socket);
     shell_ = new QWaylandXdgShell(&compositor_);
@@ -136,7 +141,9 @@ QJsonObject WaylandCompositor::state() const {
         {"x", client->frame->x()}, {"y", client->frame->y()}, {"width", client->frame->width()}, {"height", client->frame->height()}, {"mapped", client->mapped}});
     return {{"workspace", workspace_}, {"processFailure", processFailure_}, {"clients", entries},
             {"layerSurfaces", layerShell_ ? layerShell_->mappedCount() : 0}, {"language", selectedLanguage()}, {"translations", languageDictionary(selectedLanguage())},
-            {"wallpaper", QSettings().value("appearance/wallpaper", 0).toInt()}, {"shutdown", testStopping_}};
+            {"wallpaper", QSettings().value("appearance/wallpaper", 0).toInt()}, {"shutdown", testStopping_},
+            {"graphicsApi", renderState_->isOpenGLES ? "OpenGL ES" : "OpenGL"}, {"shaderReady", renderState_->shaderReady.load()},
+            {"graphicsFailed", renderState_->failed.load()}, {"graphicsMajor", renderState_->majorVersion.load()}, {"graphicsMinor", renderState_->minorVersion.load()}};
 }
 void WaylandCompositor::saveState(const QString& path) {
     QFile file(path); if (file.open(QIODevice::WriteOnly)) file.write(QJsonDocument(state()).toJson());
@@ -147,7 +154,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject& request) {
     bool numberValid = false; const int number = value.toInt(&numberValid);
     if (method == "workspace" && numberValid && number >= 0 && number < 4) { workspace_ = number; arrange(); focusNext(1); }
     else if (method == "language" && (value == "en_US" || value == "zh_TW")) QSettings().setValue("appearance/language", value);
-    else if (method == "wallpaper" && numberValid && number >= 0 && number <= 1) QSettings().setValue("appearance/wallpaper", number);
+    else if (method == "wallpaper" && numberValid && number >= 0 && number <= 1) { QSettings().setValue("appearance/wallpaper", number); wallpaper_->setPalette(number); }
     else if (method == "quit") QTimer::singleShot(0, this, &WaylandCompositor::requestShutdown);
     else if ((method == "focus" || method == "close" || method == "minimize") && numberValid) {
         for (const auto& client : clients_) if (client->id == number) {
@@ -161,7 +168,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject& request) {
     return state();
 }
 
-bool WaylandCompositor::hasProcessFailure() const { return processFailure_; }
+bool WaylandCompositor::hasProcessFailure() const { return processFailure_ || renderState_->failed || !renderState_->shaderReady; }
 
 void WaylandCompositor::closeTestSession(const std::function<void(bool)>& finished) {
     testStopping_ = true;
@@ -242,6 +249,7 @@ void WaylandCompositor::configure(ClientWindow* client, const QRect& rectangle) 
 }
 
 void WaylandCompositor::arrange() {
+    if (wallpaper_) wallpaper_->setSize(window_.size());
     QList<ClientWindow*> tiled;
     for (const auto& client : clients_) {
         client->frame->setVisible(client->mapped && !client->minimized && (client->desktop || client->workspace == workspace_));

@@ -15,10 +15,11 @@ Linux / existing Wayland host / EGLFS-KMS
       files / notes / console / monitor / packages / plugins / settings
 ```
 
-桌面外殼使用 Quickshell／QML。獨立的內建工具目前使用 C++ Qt Widgets，可與其他 Wayland 應用程式一起平鋪；compositor 以 OpenGL 合成所有表面。Quickshell Scene Graph 使用 OpenGL，桌布也由 QML Shape 繪製。
+桌面外殼使用 Quickshell／QML。獨立的內建工具目前使用 C++ Qt Widgets，可與其他 Wayland 應用程式一起平鋪；compositor 以 OpenGL 合成所有表面。Quickshell Scene Graph 使用 OpenGL，桌布由 C++ render-thread context 中的 GLSL vertex／fragment shader 繪製。
 
 每項 C++ 功能有 `include/LuDash/<feature>/` 與 `src/<feature>/` 目錄。標頭僅宣告型別與介面，實作在 `.cpp`；入口點放 `src/entrypoints/`。QML 每項功能放 `qml/<feature>/`。翻譯僅放 `data/translations/`。CMake 明確列出來源檔。
 
+- `renderer`：OpenGL 3.3／GLES 3.0 context、FBO、GLSL 與跨執行緒狀態。
 - `compositor`、`tiling`：Wayland 視窗生命週期與主欄／堆疊幾何。
 - `layer_shell`：Quickshell 背景、上面板、Dock、overlay；v1 子集，固定單一輸出，layer popup 尚未實作。
 - `ipc`：user-only Unix socket，大小限制及連線逾時；控制器僅接受列出的指令。

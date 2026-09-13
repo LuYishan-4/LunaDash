@@ -67,3 +67,5 @@ Arch 封裝：`./scripts/make-source.sh`，再於 `packaging/arch` 執行 `makep
 - [PR 資安與 crash 檢查](docs/SECURITY_CHECKS.md)
 
 尚未完成 XWayland、多螢幕、完整 layer-shell、鎖定、portal、網路／音量管理，以及 Fcitx5／IBus 完整端到端相容性。原生外掛沒有 sandbox，預設停用。授權為 GPL-3.0-only，見 LICENSE。
+
+圖形 API 可用 `--graphics opengl|gles|auto` 選擇。自訂 context／GLSL shader 與 OpenGL ES 3.0 支援詳見 [docs/GRAPHICS.md](docs/GRAPHICS.md)。

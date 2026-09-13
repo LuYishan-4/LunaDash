@@ -1,5 +1,6 @@
 #pragma once
 #include <QObject>
+#include <LuDash/renderer/RenderBackend.h>
 #include <QQuickWindow>
 #include <QSet>
 #include <QJsonObject>
@@ -13,6 +14,7 @@ class QWaylandQuickOutput;
 class QWaylandXdgToplevel;
 class QWaylandXdgSurface;
 namespace LuDash {
+class WallpaperItem;
 class PluginManager;
 class WindowFrame;
 class LayerShell;
@@ -20,7 +22,7 @@ class ControlServer;
 struct ClientWindow;
 class WaylandCompositor final : public QObject {
 public:
-    WaylandCompositor(const QByteArray& socket, bool fullscreen, bool startShell);
+    WaylandCompositor(const QByteArray& socket, bool fullscreen, bool startShell, GraphicsApi graphics = GraphicsApi::Auto);
     ~WaylandCompositor() override;
     QProcess* spawn(const QStringList& arguments);
     bool saveScreenshot(const QString& path);
@@ -30,6 +32,8 @@ public:
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 private:
+    std::shared_ptr<RenderState> renderState_;
+    WallpaperItem* wallpaper_ = nullptr;
     QWaylandQuickCompositor compositor_;
     QQuickWindow window_;
     PluginManager* pluginManager_ = nullptr;

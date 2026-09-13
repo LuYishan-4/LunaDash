@@ -7,10 +7,12 @@
 #include <algorithm>
 
 int main(int argc, char** argv) {
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    const auto graphics = LuDash::graphicsApiFromArguments(argc, argv);
+    LuDash::configureGraphics(graphics);
     QGuiApplication app(argc, argv); app.setApplicationName("LuDash"); app.setOrganizationName("LuDash");
     LuDash::initializeLocalization(app);
     QCommandLineParser parser; parser.setApplicationDescription("LuDash native Wayland tiling compositor (OpenGL)"); parser.addHelpOption();
+    parser.addOption({"graphics", "Graphics context: auto, opengl (3.3+), or gles (3.0+).", "api", "auto"});
     parser.addOption({"socket", "Wayland socket name.", "name", "ludash-0"});
     parser.addOption({"fullscreen", "Use the entire host output."});
     parser.addOption({"no-shell", "Do not start the desktop shell."});
@@ -18,7 +20,7 @@ int main(int argc, char** argv) {
     parser.addOption({"screenshot", "Save compositor screenshot at exit.", "path"});
     parser.addOption({"state", "Write window geometry JSON at exit.", "path"});
     parser.addOption({"exit-after", "Exit after this many milliseconds (test mode).", "ms"}); parser.process(app);
-    LuDash::WaylandCompositor compositor(parser.value("socket").toUtf8(), parser.isSet("fullscreen"), !parser.isSet("no-shell"));
+    LuDash::WaylandCompositor compositor(parser.value("socket").toUtf8(), parser.isSet("fullscreen"), !parser.isSet("no-shell"), graphics);
     if (parser.isSet("demo")) QTimer::singleShot(900, &app, [&] { compositor.spawn({"--app", "files"}); compositor.spawn({"--app", "monitor"}); });
     if (parser.isSet("exit-after")) QTimer::singleShot(std::max(1000, parser.value("exit-after").toInt()), &app, [&] {
         if (parser.isSet("state")) compositor.saveState(parser.value("state"));
