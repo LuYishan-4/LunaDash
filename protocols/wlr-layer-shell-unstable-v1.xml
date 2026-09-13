@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="wlr_layer_shell_unstable_v1">
+  <!-- Wire-compatible v1 subset. Protocol reference: swaywm/wlr-protocols. -->
+  <interface name="zwlr_layer_shell_v1" version="1">
+    <request name="get_layer_surface">
+      <arg name="id" type="new_id" interface="zwlr_layer_surface_v1"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+      <arg name="output" type="object" interface="wl_output" allow-null="true"/>
+      <arg name="layer" type="uint"/><arg name="namespace" type="string"/>
+    </request>
+  </interface>
+  <interface name="zwlr_layer_surface_v1" version="1">
+    <request name="set_size"><arg name="width" type="uint"/><arg name="height" type="uint"/></request>
+    <request name="set_anchor"><arg name="anchor" type="uint"/></request>
+    <request name="set_exclusive_zone"><arg name="zone" type="int"/></request>
+    <request name="set_margin"><arg name="top" type="int"/><arg name="right" type="int"/><arg name="bottom" type="int"/><arg name="left" type="int"/></request>
+    <request name="set_keyboard_interactivity"><arg name="keyboard_interactivity" type="uint"/></request>
+    <request name="get_popup"><arg name="popup" type="object"/></request>
+    <request name="ack_configure"><arg name="serial" type="uint"/></request>
+    <request name="destroy" type="destructor"/>
+    <event name="configure"><arg name="serial" type="uint"/><arg name="width" type="uint"/><arg name="height" type="uint"/></event>
+    <event name="closed"/>
+  </interface>
+</protocol>

@@ -1,0 +1,13 @@
+SPDX-License-Identifier: GPL-3.0-only
+
+LuDash is distributed under the GNU General Public License, version 3 only.
+
+You may redistribute and modify this software under the terms of version 3
+of the GNU General Public License, as published by the Free Software Foundation.
+This software is provided without any warranty, including the implied warranties
+of merchantability or fitness for a particular purpose.
+
+The complete license terms are available at:
+https://www.gnu.org/licenses/gpl-3.0.txt
+
+Qt and all other dependencies retain their own copyrights and licenses.

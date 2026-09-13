@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=LuDash (Wayland)
+Comment=C++ and OpenGL tiling desktop
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/ludash-session
+TryExec=@CMAKE_INSTALL_FULL_BINDIR@/ludash-session
+Type=Application
+DesktopNames=LuDash

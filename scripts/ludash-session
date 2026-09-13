@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=LuDash
+export QT_QPA_PLATFORM=eglfs
+export QSG_RHI_BACKEND=opengl
+# Session launch only: EGLFS/KMS owns the display; nested use runs the compositor directly.
+exec dbus-run-session -- ludash-compositor --fullscreen "$@"

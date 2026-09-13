@@ -1,0 +1,12 @@
+Checks: >-
+  -*,
+  clang-analyzer-core.*,clang-analyzer-cplusplus.*,clang-analyzer-deadcode.*,
+  clang-analyzer-security.*,
+  bugprone-dangling-handle,bugprone-use-after-move,
+  bugprone-sizeof-expression,bugprone-suspicious-memory-comparison,
+  bugprone-suspicious-memset-usage,bugprone-undefined-memory-manipulation,
+  bugprone-integer-division,bugprone-infinite-loop,
+  bugprone-misplaced-widening-cast,bugprone-narrowing-conversions
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(^|/)(include/LuDash|src)/'
+SystemHeaders: false

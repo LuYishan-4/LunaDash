@@ -1,0 +1,9 @@
+/build/
+*.user
+/packaging/arch/*.tar.gz
+/packaging/arch/*.pkg.tar.zst
+/packaging/arch/src/
+/packaging/arch/pkg/
+/packaging/arch/build/
+/build-*/
+/codeql-results/

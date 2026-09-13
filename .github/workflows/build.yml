@@ -1,0 +1,38 @@
+name: Linux build
+on: [push, pull_request, merge_group, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: linux-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    timeout-minutes: 25
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['archlinux:latest', 'ubuntu:24.04', 'fedora:latest']
+    steps:
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if command -v pacman >/dev/null; then
+            pacman -Syu --noconfirm git python base-devel cmake ninja qt6-base qt6-declarative qt6-wayland quickshell mesa xorg-server-xvfb xorg-xauth
+          elif command -v apt-get >/dev/null; then
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y git python3 g++ cmake ninja-build qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libgl1-mesa-dri xvfb xauth
+          else
+            dnf install -y git python3 gcc-c++ cmake ninja-build qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel mesa-dri-drivers xorg-x11-server-Xvfb xorg-x11-xauth
+          fi
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+      - name: Test
+        run: QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build --output-on-failure
+      - name: Test Quickshell session on Arch
+        if: matrix.image == 'archlinux:latest'
+        run: ./scripts/test-wayland.sh
