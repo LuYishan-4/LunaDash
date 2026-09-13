@@ -44,6 +44,8 @@ QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -
 | window-animations | Interrupted visibility transitions, item destruction and reduced motion |
 | desktop-preferences | Type/range validation, no partial invalid update, setup completion and link/Internet distinction |
 | system-settings | Bounded helper output/timeouts, audio arguments and power-profile parsing |
+| shell-modules | Module schema bounds, atomic preservation, template ownership, trust defaults and symlink escape rejection |
+| files-and-defaults | File overwrite protection, name validation, default application validation and literal argument preservation |
 | source-language | English C/C++/QML, Markdown documentation and website sources |
 
 Require `100% tests passed`. Graphics tests use Mesa software rendering; they are not physical GPU compatibility results.
@@ -59,6 +61,7 @@ xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interact
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_settings.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_effects.py build
+xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_customization.py build
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
 xvfb-run -a python3 tests/wayland/test_crash_detection.py build
 ```
@@ -105,7 +108,7 @@ Retain the same configuration directory for a second launch to verify persistenc
 2. Change accent, gaps, panel height, wallpaper and card visibility. Restart with the same configuration and check those choices remain. Reopen the guide from settings.
 3. Open Files, Console and Monitor from the launcher. Check real client content, readable translucent backgrounds and no overlap with the panel.
 4. Open Settings → Keyboard and pointer. Change a keyboard layout and repeat settings, then use the test field to check input. No bundled Notes application is installed.
-5. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal; use a real terminal for interactive programs.
+5. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal; use the default Terminal (Konsole/Fish) for interactive programs.
 6. Navigate into and out of a directory in Files.
 7. Switch workspaces by clicking the panel. Test Super + Shift + 2 to move a window, Super + M to minimize, and the launcher's open-window list to restore it.
 8. Adjust blur, window opacity and animation duration in settings. Disable animations and rapidly switch workspaces or close windows. Launch an X11-only app through the compatibility dialog when XWayland is available. Choose a local wallpaper file; reject an invalid path without crashing. Test both shader palettes and return to the bundled image.
@@ -168,6 +171,8 @@ Review the website at desktop and mobile widths. Test keyboard navigation, accen
 The final validation run for this change is pending. Workflow configuration alone is not a remote CI result.
 <!-- /verification-results -->
 
+See [Modules](MODULES.md) for JSON/QML templates, and [Default apps and Files](DEFAULT_APPS_AND_FILES.md) for terminal setup and file-operation limits.
+
 ## 10. Every maintained file
 
 Generated build output, dependency caches, source archives and Git internals are excluded. Header rows describe interfaces; matching implementation rows describe behavior.
@@ -203,9 +208,11 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/compositor/WaylandCompositor.h](../include/LuDash/compositor/WaylandCompositor.h) | Declare interfaces/types to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [include/LuDash/configuration/DesktopPreferences.h](../include/LuDash/configuration/DesktopPreferences.h) | Declare interfaces/types to validate and persist appearance and first-run completion. |
 | [include/LuDash/console/Console.h](../include/LuDash/console/Console.h) | Declare interfaces/types to run bounded shell commands with process-group cleanup. |
+| [include/LuDash/default_applications/DefaultApplications.h](../include/LuDash/default_applications/DefaultApplications.h) | Declare interfaces to validate default app argument arrays and prepare the Konsole/Fish profile. |
 | [include/LuDash/display_settings/DisplaySettings.h](../include/LuDash/display_settings/DisplaySettings.h) | Declare interfaces to describe the output and validate nested window-size changes. |
 | [include/LuDash/fade_plugin/FadePlugin.h](../include/LuDash/fade_plugin/FadePlugin.h) | Declare interfaces/types to animate the opt-in example window effect. |
 | [include/LuDash/file_manager/FileManager.h](../include/LuDash/file_manager/FileManager.h) | Declare interfaces/types to browse the local filesystem. |
+| [include/LuDash/file_operations/FileOperations.h](../include/LuDash/file_operations/FileOperations.h) | Declare interfaces to perform guarded asynchronous file operations. |
 | [include/LuDash/input_method/InputMethodSupport.h](../include/LuDash/input_method/InputMethodSupport.h) | Declare interfaces/types to register Qt and Wayland text-input protocols. |
 | [include/LuDash/input_settings/InputSettings.h](../include/LuDash/input_settings/InputSettings.h) | Declare interfaces to apply validated keyboard maps and repeat settings to the Wayland seat. |
 | [include/LuDash/ipc/ControlServer.h](../include/LuDash/ipc/ControlServer.h) | Declare interfaces/types to serve bounded user-only JSON control requests. |
@@ -227,6 +234,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/renderer/RenderBackend.h](../include/LuDash/renderer/RenderBackend.h) | Declare interfaces/types to select and configure the graphics API and shared render health. |
 | [include/LuDash/renderer/WallpaperItem.h](../include/LuDash/renderer/WallpaperItem.h) | Declare interfaces/types to expose the compositor framebuffer wallpaper item. |
 | [include/LuDash/renderer/WallpaperRenderer.h](../include/LuDash/renderer/WallpaperRenderer.h) | Declare interfaces/types to compile GLSL and draw with the current render-thread context. |
+| [include/LuDash/shell_modules/ModuleSchema.h](../include/LuDash/shell_modules/ModuleSchema.h) | Declare interfaces to validate and normalize versioned shell module metadata. |
+| [include/LuDash/shell_modules/ShellModules.h](../include/LuDash/shell_modules/ShellModules.h) | Declare interfaces to persist module configuration, enforce trust and watch custom entrypoints. |
 | [include/LuDash/system_metrics/SystemMetrics.h](../include/LuDash/system_metrics/SystemMetrics.h) | Declare interfaces/types to parse bounded CPU and memory counters with overflow validation. |
 | [include/LuDash/system_monitor/SystemMonitor.h](../include/LuDash/system_monitor/SystemMonitor.h) | Declare interfaces/types to show native process/system monitoring. |
 | [include/LuDash/system_status/SystemStatus.h](../include/LuDash/system_status/SystemStatus.h) | Declare interfaces/types to sample CPU, memory, disk and battery data for the shell. |
@@ -252,12 +261,14 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/compositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [src/configuration/DesktopPreferences.cpp](../src/configuration/DesktopPreferences.cpp) | Implement behavior to validate and persist appearance and first-run completion. |
 | [src/console/Console.cpp](../src/console/Console.cpp) | Implement behavior to run bounded shell commands with process-group cleanup. |
+| [src/default_applications/DefaultApplications.cpp](../src/default_applications/DefaultApplications.cpp) | Implement behavior to validate default app argument arrays and prepare the Konsole/Fish profile. |
 | [src/display_settings/DisplaySettings.cpp](../src/display_settings/DisplaySettings.cpp) | Implement behavior to describe the output and validate nested window-size changes. |
 | [src/entrypoints/compositor_main.cpp](../src/entrypoints/compositor_main.cpp) | Parse compositor arguments, create the session and coordinate test shutdown. |
 | [src/entrypoints/control_main.cpp](../src/entrypoints/control_main.cpp) | Send one bounded local control request and return the response status. |
 | [src/entrypoints/desktop_main.cpp](../src/entrypoints/desktop_main.cpp) | Launch a native app or delegate desktop startup to the compositor. |
 | [src/fade_plugin/FadePlugin.cpp](../src/fade_plugin/FadePlugin.cpp) | Implement behavior to animate the opt-in example window effect. |
 | [src/file_manager/FileManager.cpp](../src/file_manager/FileManager.cpp) | Implement behavior to browse the local filesystem. |
+| [src/file_operations/FileOperations.cpp](../src/file_operations/FileOperations.cpp) | Implement behavior to perform guarded asynchronous file operations. |
 | [src/input_method/InputMethodSupport.cpp](../src/input_method/InputMethodSupport.cpp) | Implement behavior to register Qt and Wayland text-input protocols. |
 | [src/input_settings/InputSettings.cpp](../src/input_settings/InputSettings.cpp) | Implement behavior to apply validated keyboard maps and repeat settings to the Wayland seat. |
 | [src/ipc/ControlServer.cpp](../src/ipc/ControlServer.cpp) | Implement behavior to serve bounded user-only JSON control requests. |
@@ -278,6 +289,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/renderer/RenderBackend.cpp](../src/renderer/RenderBackend.cpp) | Implement behavior to select and configure the graphics API and shared render health. |
 | [src/renderer/WallpaperItem.cpp](../src/renderer/WallpaperItem.cpp) | Implement behavior to expose the compositor framebuffer wallpaper item. |
 | [src/renderer/WallpaperRenderer.cpp](../src/renderer/WallpaperRenderer.cpp) | Implement behavior to compile GLSL and draw with the current render-thread context. |
+| [src/shell_modules/ModuleSchema.cpp](../src/shell_modules/ModuleSchema.cpp) | Implement behavior to validate and normalize versioned shell module metadata. |
+| [src/shell_modules/ShellModules.cpp](../src/shell_modules/ShellModules.cpp) | Implement behavior to persist module configuration, enforce trust and watch custom entrypoints. |
 | [src/system_metrics/SystemMetrics.c](../src/system_metrics/SystemMetrics.c) | Implement behavior to parse bounded CPU and memory counters with overflow validation. |
 | [src/system_monitor/SystemMonitor.cpp](../src/system_monitor/SystemMonitor.cpp) | Implement behavior to show native process/system monitoring. |
 | [src/system_status/SystemStatus.cpp](../src/system_status/SystemStatus.cpp) | Implement behavior to sample CPU, memory, disk and battery data for the shell. |
@@ -299,17 +312,23 @@ Generated build output, dependency caches, source archives and Git internals are
 | [qml/components/Segment.qml](../qml/components/Segment.qml) | Rounded animated top-panel button with keyboard access. |
 | [qml/components/ShellButton.qml](../qml/components/ShellButton.qml) | Reusable shell button with keyboard and accessibility labels. |
 | [qml/configuration/AppearanceControls.qml](../qml/configuration/AppearanceControls.qml) | Shared accent, gap, panel and information-card controls. |
+| [qml/configuration/qmldir](../qml/configuration/qmldir) | Register shared appearance controls for dynamically loaded pages. |
 | [qml/effects/EffectsControls.qml](../qml/effects/EffectsControls.qml) | Live blur, transparency and animation preferences. |
+| [qml/effects/qmldir](../qml/effects/qmldir) | Register effect controls for dynamically loaded settings pages. |
 | [qml/feedback/Message.qml](../qml/feedback/Message.qml) | Dismissible IPC and validation error feedback. |
 | [qml/launcher/Launcher.qml](../qml/launcher/Launcher.qml) | Search built-in/installed apps and restore existing windows. |
+| [qml/modules/ModuleSurface.qml](../qml/modules/ModuleSurface.qml) | Host built-in or trusted user QML content with style overrides, animations and loading fallback. |
 | [qml/overview/Overview.qml](../qml/overview/Overview.qml) | Tabbed dashboard with performance and workspace controls. |
+| [qml/panel/PanelSegment.qml](../qml/panel/PanelSegment.qml) | Panel button adapter for per-module height, typography and accent colors. |
 | [qml/panel/TopPanel.qml](../qml/panel/TopPanel.qml) | Workspace/app controls, clock, CPU history, memory and battery indicators. |
 | [qml/session/LogoutPanel.qml](../qml/session/LogoutPanel.qml) | Confirm or cancel ending the desktop session. |
 | [qml/settings/SettingsPanel.qml](../qml/settings/SettingsPanel.qml) | Dedicated settings center with searchable sidebar and dynamically loaded feature pages. |
+| [qml/settings/components/DefaultAppEditor.qml](../qml/settings/components/DefaultAppEditor.qml) | Editor for validated terminal/file-manager argument arrays. |
 | [qml/settings/components/HelpText.qml](../qml/settings/components/HelpText.qml) | Wrapped localized explanatory text for settings pages. |
 | [qml/settings/components/PageTitle.qml](../qml/settings/components/PageTitle.qml) | Localized settings page title. |
 | [qml/settings/components/PreferenceSlider.qml](../qml/settings/components/PreferenceSlider.qml) | Validated preference slider with separate pending and saved values. |
 | [qml/settings/components/ToolList.qml](../qml/settings/components/ToolList.qml) | System/host tool availability, package guidance and explicit launch buttons. |
+| [qml/settings/components/qmldir](../qml/settings/components/qmldir) | Explicit settings component registration for dynamically loaded pages. |
 | [qml/settings/pages/about.qml](../qml/settings/pages/about.qml) | Settings page for about; direct controls and explicit system-service availability. |
 | [qml/settings/pages/appearance.qml](../qml/settings/pages/appearance.qml) | Settings page for appearance; direct controls and explicit system-service availability. |
 | [qml/settings/pages/applications.qml](../qml/settings/pages/applications.qml) | Settings page for applications; direct controls and explicit system-service availability. |
@@ -318,6 +337,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [qml/settings/pages/display.qml](../qml/settings/pages/display.qml) | Settings page for display; direct controls and explicit system-service availability. |
 | [qml/settings/pages/general.qml](../qml/settings/pages/general.qml) | Settings page for general; direct controls and explicit system-service availability. |
 | [qml/settings/pages/input.qml](../qml/settings/pages/input.qml) | Settings page for input; direct controls and explicit system-service availability. |
+| [qml/settings/pages/modules.qml](../qml/settings/pages/modules.qml) | Settings page for modules; direct controls and explicit system-service availability. |
 | [qml/settings/pages/network.qml](../qml/settings/pages/network.qml) | Settings page for network; direct controls and explicit system-service availability. |
 | [qml/settings/pages/power.qml](../qml/settings/pages/power.qml) | Settings page for power; direct controls and explicit system-service availability. |
 | [qml/settings/pages/privacy.qml](../qml/settings/pages/privacy.qml) | Settings page for privacy; direct controls and explicit system-service availability. |
@@ -335,11 +355,15 @@ Generated build output, dependency caches, source archives and Git internals are
 | File | Purpose |
 | --- | --- |
 | [data/ludash.desktop.in](../data/ludash.desktop.in) | Template for the experimental Wayland login-session descriptor. |
+| [data/modules/templates/overview/Main.qml](../data/modules/templates/overview/Main.qml) | Original custom dashboard template displaying actual session statistics. |
+| [data/modules/templates/panel/Main.qml](../data/modules/templates/panel/Main.qml) | Original custom taskbar template with workspace and settings controls. |
+| [data/modules/templates/shell-modules.json](../data/modules/templates/shell-modules.json) | Versioned JSON example with a floating bottom taskbar. |
 | [data/plugins/fade/metadata.json](../data/plugins/fade/metadata.json) | Example effect identity, library and API metadata. |
 | [data/shaders/blur/blur.frag](../data/shaders/blur/blur.frag) | Separable Gaussian sampling and alpha composition. |
 | [data/shaders/blur/blur.vert](../data/shaders/blur/blur.vert) | Full-screen blur pass vertex shader. |
 | [data/shaders/wallpaper.frag](../data/shaders/wallpaper.frag) | Dusk/Forest procedural wallpaper fragment shader. |
 | [data/shaders/wallpaper.vert](../data/shaders/wallpaper.vert) | Full-screen triangle vertex shader. |
+| [data/terminal/ludash.fish](../data/terminal/ludash.fish) | Session-local Fish prompt and colors without rewriting the user profile. |
 | [data/translations/en_US.json](../data/translations/en_US.json) | English dictionary entry; empty mappings use source strings. |
 | [data/translations/zh_TW.json](../data/translations/zh_TW.json) | External Traditional Chinese translations, including first-run setup. |
 | [data/wallpapers/README.md](../data/wallpapers/README.md) | Bundled wallpaper provenance and usage notes. |
@@ -359,15 +383,18 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/animation/AnimationTests.cpp](../tests/animation/AnimationTests.cpp) | Interrupted transitions, item destruction and reduced-motion tests. |
 | [tests/configuration/PreferenceTests.cpp](../tests/configuration/PreferenceTests.cpp) | Preference validation and network-state classification tests. |
 | [tests/core/CoreTests.c](../tests/core/CoreTests.c) | C geometry and parser boundary, overflow and counter-reset tests. |
+| [tests/file_operations/FileTests.cpp](../tests/file_operations/FileTests.cpp) | Overwrite prevention and literal default-app argument tests. |
 | [tests/renderer/RenderTests.cpp](../tests/renderer/RenderTests.cpp) | Real GL/GLES context and production shader checks. |
 | [tests/renderer/test_startup_failure.py](../tests/renderer/test_startup_failure.py) | Regression for controlled graphics initialization failure. |
 | [tests/security/test_sarif_gate.py](../tests/security/test_sarif_gate.py) | Negative and positive SARIF gate cases. |
 | [tests/security/test_source_language.py](../tests/security/test_source_language.py) | Keep code, documentation and website text in English. |
+| [tests/shell_modules/ModuleTests.cpp](../tests/shell_modules/ModuleTests.cpp) | Module bounds, trust defaults, atomic preservation and symlink escape tests. |
 | [tests/site/test_site.py](../tests/site/test_site.py) | Check compiled website assets, fragments, language and image descriptions. |
 | [tests/system_settings/SettingsTests.cpp](../tests/system_settings/SettingsTests.cpp) | Audio/profile validation, command allowlists and bounded helper output/timeouts. |
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
+| [tests/wayland/test_customization.py](../tests/wayland/test_customization.py) | Actual custom QML replacement/fallback, Files recoloring and interactive Fish under Wayland. |
 | [tests/wayland/test_effects.py](../tests/wayland/test_effects.py) | Live blur, opacity and reduced-motion preferences; private-safe window screenshot. |
-| [tests/wayland/test_settings.py](../tests/wayland/test_settings.py) | Load all fourteen settings pages and verify real keyboard/workspace updates without modifying host services. |
+| [tests/wayland/test_settings.py](../tests/wayland/test_settings.py) | Load all fifteen settings pages and verify real keyboard/workspace updates without modifying host services. |
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
 | [tests/wayland/test_shell_interactions.py](../tests/wayland/test_shell_interactions.py) | Click the live shell and verify workspace/app/settings/window behavior. |
 | [tests/wayland/test_xwayland.py](../tests/wayland/test_xwayland.py) | Authenticated X11 mapping, denied unauthenticated access and shutdown cleanup. |
@@ -394,9 +421,11 @@ Generated build output, dependency caches, source archives and Git internals are
 | [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | Process, module and protocol boundaries and missing features. |
 | [docs/CONFIGURATION.md](../docs/CONFIGURATION.md) | First-run flow, network boundaries, saved keys and IPC customization. |
 | [docs/C_CORE.md](../docs/C_CORE.md) | C11 module boundaries, ownership contracts and checks. |
+| [docs/DEFAULT_APPS_AND_FILES.md](../docs/DEFAULT_APPS_AND_FILES.md) | Default terminal and file-manager setup, Fish profile and Files features/limits. |
 | [docs/EFFECTS.md](../docs/EFFECTS.md) | Default blur, window transparency, animations and limitations. |
 | [docs/GRAPHICS.md](../docs/GRAPHICS.md) | Context, shader, render-thread and graphics-failure behavior. |
 | [docs/INPUT_METHODS.md](../docs/INPUT_METHODS.md) | Language registration and honest Fcitx/IBus validation guidance. |
+| [docs/MODULES.md](../docs/MODULES.md) | Shell module schema, QML contract, templates, trust and recovery. |
 | [docs/PLUGINS.md](../docs/PLUGINS.md) | Plugin metadata, SDK, loading and native trust boundary. |
 | [docs/SECURITY_CHECKS.md](../docs/SECURITY_CHECKS.md) | PR gates, local analysis commands and branch protection instructions. |
 | [docs/SETTINGS.md](../docs/SETTINGS.md) | Settings coverage, direct controls, system/host integrations, saved keys and limitations. |

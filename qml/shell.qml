@@ -16,6 +16,7 @@ ShellRoot {
     id: root
     property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0 })
     property string bin: Quickshell.env("LUDASH_BIN_DIR")
+    signal commandCompleted(string method, var result)
     property bool stopping: false
     property int lastSettingsSerial: 0
     property bool launcherOpen: false
@@ -26,7 +27,7 @@ ShellRoot {
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"; Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
-        Theme.accent = (state.appearance || {}).accent || "#9ccbfb"; Theme.barHeight = (state.appearance || {}).panelHeight || 40
+        Theme.accent = (state.appearance || {}).accent || "#9ccbfb"; Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true); Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
         if (setupPaused) {
             const mapped = state.clients.some(client => client.mapped)
@@ -55,10 +56,10 @@ ShellRoot {
     Process {
         id: action
         property var queue: []
-        stdout: StdioCollector { onStreamFinished: { try { const result = JSON.parse(text); if (result.error) root.errorMessage = result.error } catch (error) { root.errorMessage = "Could not contact the desktop." } } }
+        stdout: StdioCollector { onStreamFinished: { try { const result = JSON.parse(text); if (result.error) root.errorMessage = result.error; root.commandCompleted(action.command[1], result) } catch (error) { root.errorMessage = "Could not contact the desktop." } } }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
-    function launch(id) { if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([bin + "/ludash-desktop", "--app", id]); launcherOpen = false }
+    function launch(id) { if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return } if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([bin + "/ludash-desktop", "--app", id]); launcherOpen = false }
     Process {
         id: status
         command: [root.bin + "/ludashctl", "status"]
@@ -66,8 +67,8 @@ ShellRoot {
     }
     Timer { id: shutdownTimer; interval: 300; onTriggered: Qt.quit() }
     Timer { interval: 700; running: !root.stopping; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
-    Wallpaper { shell: root; visible: !root.stopping }
-    TopPanel { shell: root; visible: !root.stopping }
+    Wallpaper { shell: root; opened: !root.stopping }
+    TopPanel { shell: root; opened: !root.stopping }
     Overview { shell: root; opened: !root.stopping && root.overviewOpen }
     Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
     SettingsPanel { id: settingsCenter; shell: root; opened: !root.stopping && root.settingsOpen }

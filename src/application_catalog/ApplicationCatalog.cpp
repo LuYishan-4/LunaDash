@@ -5,7 +5,7 @@
 
 namespace LuDash {
 QList<BuiltinApplication> builtinApplications() {
-    return {{"welcome", "◈", LuDash::translate("Welcome")}, {"files", "▱", LuDash::translate("Files")}, {"console", "⌘", LuDash::translate("Console")},
+    return {{"welcome", "◈", LuDash::translate("Welcome")}, {"files", "▱", LuDash::translate("Files")}, {"terminal", "⌘", LuDash::translate("Terminal")}, {"console", "❯", LuDash::translate("Command console")},
             {"monitor", "▥", LuDash::translate("System monitor")}, {"settings", "⚙", LuDash::translate("Settings")},
             {"packages", "⬡", LuDash::translate("Package manager")}, {"plugins", "◇", LuDash::translate("Plugins")}};
 }

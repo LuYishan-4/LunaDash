@@ -1,14 +1,19 @@
+import "../modules"
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-PanelWindow {
+ModuleSurface {
     id: wallpaper
-    required property var shell
-    anchors { top: true; bottom: true; left: true; right: true }
+    moduleId: "wallpaper"
+    anchors { top: !moduleStyle.height; bottom: !moduleStyle.height; left: !moduleStyle.width; right: !moduleStyle.width }
+    implicitWidth: moduleWidth(screen ? screen.width : 1440)
+    implicitHeight: moduleHeight(screen ? screen.height : 900)
+    margins { top: moduleMargin; bottom: moduleMargin; left: moduleMargin; right: moduleMargin }
     WlrLayershell.layer: WlrLayer.Background
     WlrLayershell.namespace: "ludash-wallpaper"
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
+    Rectangle { anchors.fill: parent; color: moduleStyle.background === "inherit" ? "transparent" : moduleBackground; radius: moduleRadius }
     Image {
         anchors.fill: parent
         source: wallpaper.shell.state.wallpaperImage || ""

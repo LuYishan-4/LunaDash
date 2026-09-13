@@ -19,7 +19,7 @@ A C++20 Wayland tiling desktop with C11 rendering, geometry and metrics cores wi
 ## Build on Arch Linux
 
 ```sh
-sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland qt6-translations quickshell mesa
+sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland qt6-translations quickshell konsole fish mesa
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel 4
 QT_QPA_PLATFORM=wayland ./build/ludash-compositor --socket ludash-test
@@ -49,7 +49,7 @@ The integration script requires rendered client content, non-overlapping geometr
 
 | Shortcut | Action |
 | --- | --- |
-| Super + Enter / E / D | Console / files / launcher |
+| Super + Enter / E / D | Default terminal / file manager / launcher |
 | Super + J / K | Focus next / previous window |
 | Super + H / L | Change master-column ratio |
 | Super + 1–4 | Switch workspace |
@@ -70,8 +70,10 @@ For a staged install use `DESTDIR=/tmp/ludash-stage cmake --install build`. For 
 - [Plugin development](docs/PLUGINS.md), [security and crash checks](docs/SECURITY_CHECKS.md)
 - [Website and GitHub Pages deployment](docs/WEBSITE.md)
 
-Missing or incomplete: multiple outputs, full layer-shell, screen locking, portals, audio controls, full system tray, native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Native plugins are disabled by default and run without a sandbox when enabled. Pacman operations require a real terminal and retain sudo/pacman confirmation; this tool is unavailable on systems without pacman.
+Missing or incomplete: multiple outputs, full layer-shell, screen locking, portals, full system tray, native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Native plugins are disabled by default and run without a sandbox when enabled. Pacman operations require a real terminal and retain sudo/pacman confirmation; this tool is unavailable on systems without pacman.
 
 Licensed under GPL-3.0-only; see [LICENSE](LICENSE).
 
 The dedicated settings center covers desktop preferences, workspaces, input, audio, power profiles and installed system tools. See [Settings coverage](docs/SETTINGS.md) for direct controls, host integrations and missing capabilities. The bundled Notes application has been removed.
+
+Shell blocks support validated JSON styles and optional trusted QML replacements. See [Module contract and templates](docs/MODULES.md) and [Default applications, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md). LuDash Files follows live desktop colors; the default interactive terminal is Konsole with a LuDash Fish profile.

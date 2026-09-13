@@ -1,18 +1,19 @@
+import "../modules"
 import QtQuick
 import "../components"
 import Quickshell
 import Quickshell.Wayland
 import "../style"
-AnimatedPanel {
-    required property var shell
+ModuleSurface {
+    moduleId: "feedback"
     anchors.top: true
     margins.top: 42
-    implicitWidth: 460; implicitHeight: 74
+    implicitWidth: moduleWidth(460); implicitHeight: moduleHeight(74)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ludash-message"
     color: "transparent"
-    Rectangle { anchors.fill: parent; radius: 6; color: Theme.background; border.color: Theme.danger }
-    Text { anchors.fill: parent; anchors.margins: 16; text: shell.tr(shell.errorMessage); wrapMode: Text.WordWrap; color: Theme.text; font.family: Theme.font; font.pixelSize: 12 }
+    Rectangle { anchors.fill: parent; radius: 6; color: moduleBackground; border.color: Theme.danger }
+    Text { anchors.fill: parent; anchors.margins: 16; text: shell.tr(shell.errorMessage); wrapMode: Text.WordWrap; color: moduleForeground; font.family: Theme.font; font.pixelSize: 12 }
     MouseArea { anchors.fill: parent; onClicked: shell.errorMessage = "" }
 }

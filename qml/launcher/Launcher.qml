@@ -1,3 +1,4 @@
+import "../modules"
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -5,20 +6,20 @@ import Quickshell
 import Quickshell.Wayland
 import "../components"
 import "../style"
-AnimatedPanel {
+ModuleSurface {
     id: launcher
-    required property var shell
+    moduleId: "launcher"
     anchors { top: true; left: true }
-    margins { top: Theme.barHeight + 12; left: 14 }
-    implicitWidth: 480; implicitHeight: screen ? Math.min(610, screen.height - 56) : 610
+    margins { top: Theme.barHeight + moduleMargin; left: moduleMargin }
+    implicitWidth: moduleWidth(480); implicitHeight: moduleHeight(screen ? Math.min(610, screen.height - 56) : 610)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "ludash-launcher"
     color: "transparent"
-    Rectangle { anchors.fill: parent; radius: Theme.radius; color: Theme.background; border.color: Theme.border }
+    Rectangle { anchors.fill: parent; radius: moduleRadius; color: moduleBackground; border.color: Theme.border }
     property var builtins: [
-        { id: "files", name: "Files" }, { id: "console", name: "Console" },
+        { id: "files", name: "Files" }, { id: "terminal", name: "Terminal" },
         { id: "settings", name: "Settings" }, { id: "monitor", name: "System monitor" },
         { id: "packages", name: "Packages" }, { id: "plugins", name: "Plugins" }
     ]
@@ -27,7 +28,7 @@ AnimatedPanel {
         RowLayout {
             TextField {
                 id: search; Layout.fillWidth: true; placeholderText: shell.tr("Search applications...")
-                color: Theme.text; placeholderTextColor: Theme.muted; font.family: Theme.font
+                color: moduleForeground; placeholderTextColor: Theme.muted; font.family: Theme.font
                 background: Rectangle { color: "#162224"; border.color: search.activeFocus ? Theme.accent : Theme.border; radius: 3 }
                 focus: true; Keys.onEscapePressed: shell.launcherOpen = false
             }
@@ -41,7 +42,7 @@ AnimatedPanel {
                 ShellButton { required property var modelData; Layout.fillWidth: true; text: shell.tr(modelData.name); onClicked: shell.launch(modelData.id) }
             }
         }
-        Text { text: shell.tr("Open windows"); color: Theme.accent; font.family: Theme.font }
+        Text { text: shell.tr("Open windows"); color: moduleAccent; font.family: Theme.font }
         ListView {
             Layout.fillWidth: true; Layout.preferredHeight: 120; clip: true; spacing: 6
             model: shell.state.clients.filter(client => !client.desktop)
@@ -52,7 +53,7 @@ AnimatedPanel {
             }
             Text { anchors.centerIn: parent; visible: parent.count === 0; text: shell.tr("No open windows"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 12 }
         }
-        Text { text: shell.tr("Installed applications"); color: Theme.accent; font.family: Theme.font }
+        Text { text: shell.tr("Installed applications"); color: moduleAccent; font.family: Theme.font }
         ListView {
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 6
             model: DesktopEntries.applications.values.filter(entry => entry.name.toLowerCase().includes(search.text.toLowerCase()))

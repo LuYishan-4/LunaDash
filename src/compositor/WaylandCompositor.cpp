@@ -1,5 +1,7 @@
 #include <LuDash/renderer/WallpaperItem.h>
 #include <LuDash/audio_settings/AudioSettings.h>
+#include <LuDash/shell_modules/ShellModules.h>
+#include <LuDash/default_applications/DefaultApplications.h>
 #include <LuDash/power_settings/PowerSettings.h>
 #include <LuDash/system_tools/SystemTools.h>
 #include <LuDash/input_settings/InputSettings.h>
@@ -84,6 +86,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
     layerShell_ = new LayerShell(&compositor_, output_, &window_);
     controlPath_ = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" + QString::fromUtf8(socket) + "-control";
     controlServer_ = new ControlServer(controlPath_, [this](const QJsonObject& request) { return control(request); }, this);
+    shellModules_ = new ShellModules(this);
+    connect(shellModules_, &ShellModules::changed, this, &WaylandCompositor::arrange);
     systemStatus_ = new SystemStatus(this);
     audioSettings_ = new AudioSettings(this); powerSettings_ = new PowerSettings(this);
     applyKeyboardPreferences(compositor_.defaultSeat(), desktopPreferences());
@@ -185,7 +189,7 @@ QJsonObject WaylandCompositor::state() const {
         {"id", client->id}, {"title", client->toplevel ? client->toplevel->title() : ""}, {"desktop", client->desktop},
         {"workspace", client->workspace}, {"visible", client->frame->isVisible()}, {"focused", client.get() == focused_},
         {"x", client->frame->x()}, {"y", client->frame->y()}, {"width", client->frame->width()}, {"height", client->frame->height()}, {"mapped", client->mapped}});
-    return {{"audio", audioSettings_->snapshot()}, {"power", powerSettings_->snapshot()}, {"settingsTools", systemSettingsTools()},
+    return {{"defaultApps", defaultApplications()}, {"shellModules", shellModules_->snapshot()}, {"panelExtent", shellModules_->panelExtent(desktopPreferences().value("panelHeight").toInt())}, {"panelAtBottom", shellModules_->panelAtBottom()}, {"audio", audioSettings_->snapshot()}, {"power", powerSettings_->snapshot()}, {"settingsTools", systemSettingsTools()},
             {"display", describeDisplay(&window_)}, {"settingsSerial", settingsSerial_}, {"settingsPage", settingsPage_},
             {"input", QJsonObject{{"layout", compositor_.defaultSeat()->keymap()->layout()}, {"repeatRate", static_cast<int>(compositor_.defaultSeat()->keyboard()->repeatRate())}, {"repeatDelay", static_cast<int>(compositor_.defaultSeat()->keyboard()->repeatDelay())}}}, {"blurReady", blurHealth_->ready.load()}, {"blurFailed", blurHealth_->failed.load()}, {"blurFrames", static_cast<int>(blurHealth_->frames.load())},
             {"activeAnimations", animations_->activeCount()}, {"xwayland", xwayland_ ? xwayland_->snapshot() : QJsonObject{}}, {"appearance", desktopPreferences()}, {"setupComplete", setupComplete()}, {"network", networkStatus_->snapshot()},
@@ -206,8 +210,31 @@ QJsonObject WaylandCompositor::control(const QJsonObject& request) {
     if (method == "workspace" && numberValid && number >= 0 && number < desktopPreferences().value("workspaceCount").toInt()) { workspace_ = number; arrange(); focusNext(1); }
     else if (method == "language" && (value == "en_US" || value == "zh_TW")) QSettings().setValue("appearance/language", value);
     else if (method == "open-settings") {
-        if (!value.isEmpty() && !QStringList{"general", "appearance", "windows", "display", "input", "sound", "network", "bluetooth", "power", "applications", "privacy", "system", "devices", "about"}.contains(value)) return {{"error", "Unknown settings page."}};
+        if (!value.isEmpty() && !QStringList{"general", "appearance", "windows", "display", "input", "sound", "network", "bluetooth", "power", "applications", "privacy", "system", "devices", "about", "modules"}.contains(value)) return {{"error", "Unknown settings page."}};
         settingsPage_ = value.isEmpty() ? "general" : value; settingsSerial_ = (settingsSerial_ + 1) % 1000000;
+    }
+    else if (method == "module-validate" || method == "module-save" || method == "module-reset" || method == "module-code-trust" || method == "module-template") {
+        QString error; bool ok = false;
+        if (method == "module-validate") ok = shellModules_->validate(value.toUtf8(), &error);
+        else if (method == "module-save") ok = shellModules_->apply(value.toUtf8(), &error);
+        else if (method == "module-reset") ok = shellModules_->reset(&error);
+        else if (method == "module-template") ok = shellModules_->installTemplate(value, &error);
+        else if (value == "true" || value == "false") ok = shellModules_->setCodeTrusted(value == "true", &error);
+        if (!ok) return {{"error", error.isEmpty() ? "Invalid module command." : error}};
+    }
+    else if (method == "module-error") {
+        const auto error = QJsonDocument::fromJson(value.toUtf8()).object();
+        shellModules_->reportError(error.value("id").toString(), error.value("error").toString());
+    }
+    else if (method == "default-apps") {
+        const auto document = QJsonDocument::fromJson(value.toUtf8()); QString error;
+        if (!document.isObject() || !setDefaultApplications(document.object(), &error)) return {{"error", error.isEmpty() ? "Expected a JSON object." : error}};
+    }
+    else if (method == "launch-default" && (value == "terminal" || value == "files")) {
+        QString error; auto command = defaultApplicationCommand(value, &error);
+        if (!error.isEmpty()) return {{"error", error}};
+        if (command.isEmpty()) spawn({"--app", "files", "--builtin"});
+        else { const auto program = command.takeFirst(); spawn(command, program); }
     }
     else if (method == "system-tool") {
         auto command = systemSettingsCommand(value);
@@ -244,7 +271,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject& request) {
         auto program = QStandardPaths::findExecutable("nm-connection-editor");
         QStringList arguments;
         if (program.isEmpty() && !QStandardPaths::findExecutable("nmtui").isEmpty()) {
-            for (const auto& terminal : {"foot", "konsole", "alacritty"}) {
+            for (const auto& terminal : {"konsole", "alacritty", "foot"}) {
                 program = QStandardPaths::findExecutable(terminal);
                 if (!program.isEmpty()) { arguments = {"-e", "nmtui"}; break; }
             }
@@ -376,8 +403,10 @@ void WaylandCompositor::arrange() {
     for (const auto& client : clients_) client->workspace = std::min(client->workspace, count - 1);
     ratio_ = preferences.value("masterRatio").toInt() / 100.0;
     const int gap = preferences.value("gap").toInt();
-    const int top = preferences.value("panelHeight").toInt() + gap;
-    const QRect workArea(gap, top, std::max(1, window_.width() - gap * 2), std::max(1, window_.height() - top - gap));
+    const int extent = shellModules_ ? shellModules_->panelExtent(preferences.value("panelHeight").toInt()) : preferences.value("panelHeight").toInt();
+    const bool bottom = shellModules_ && shellModules_->panelAtBottom();
+    const int top = (bottom ? 0 : extent) + gap;
+    const QRect workArea(gap, top, std::max(1, window_.width() - gap * 2), std::max(1, window_.height() - top - gap - (bottom ? extent : 0)));
     QList<ClientWindow*> tiled;
     for (const auto& client : clients_) {
         client->frame->accent = QColor(preferences.value("accent").toString());
@@ -449,8 +478,8 @@ bool WaylandCompositor::eventFilter(QObject* watched, QEvent* event) {
                 case Qt::Key_M: if (focused_) { focused_->minimized = true; arrange(); focusNext(1); } break;
                 case Qt::Key_Q: if (focused_ && focused_->toplevel) focused_->toplevel->sendClose(); break;
                 case Qt::Key_Space: if (focused_) { focused_->floating = !focused_->floating; arrange(); } break;
-                case Qt::Key_Return: spawn({"--app", "console"}); break;
-                case Qt::Key_E: spawn({"--app", "files"}); break;
+                case Qt::Key_Return: control({{"method", "launch-default"}, {"value", "terminal"}}); break;
+                case Qt::Key_E: control({{"method", "launch-default"}, {"value", "files"}}); break;
                 case Qt::Key_D: spawn({"--app", "launcher"}); break;
                 default: handled = false;
             }

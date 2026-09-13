@@ -1,25 +1,26 @@
+import "../modules"
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import "../components"
 import "../style"
-AnimatedPanel {
+ModuleSurface {
     id: dashboard
-    required property var shell
+    moduleId: "overview"
     property var stats: shell.state.system || ({})
     property int tab: 0
     property string time: ""
     property string date: ""
     anchors { top: true }
-    margins.top: Theme.barHeight + 12
-    implicitWidth: 760; implicitHeight: 390
+    margins.top: Theme.barHeight + moduleMargin
+    implicitWidth: moduleWidth(760); implicitHeight: moduleHeight(390)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "ludash-overview"
     color: "transparent"
     Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: { dashboard.time = Qt.formatDateTime(new Date(), "HH:mm"); dashboard.date = Qt.formatDateTime(new Date(), "dddd, d MMMM") } }
-    Rectangle { anchors.fill: parent; color: Theme.background; radius: Theme.radius }
+    Rectangle { anchors.fill: parent; color: moduleBackground; radius: moduleRadius }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 24; spacing: 18
         RowLayout {
@@ -39,27 +40,27 @@ AnimatedPanel {
                 Column {
                     anchors { left: parent.left; bottom: parent.bottom; margins: 18 } spacing: 3
                     Text { text: "LuDash"; color: "white"; font.pixelSize: 28; font.weight: Font.Medium }
-                    Text { text: "WAYLAND / 0.1"; color: Theme.accent; font.pixelSize: 10 }
+                    Text { text: "WAYLAND / 0.1"; color: moduleAccent; font.pixelSize: 10 }
                 }
             }
             ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true; spacing: 7
-                Text { text: dashboard.time; font.pixelSize: 60; font.weight: Font.Light; color: Theme.accent }
+                Text { text: dashboard.time; font.pixelSize: 60; font.weight: Font.Light; color: moduleAccent }
                 Text { text: dashboard.date; color: Theme.muted; font.pixelSize: 14 }
-                Text { text: (shell.state.appearance || {}).showHostDetails ? (dashboard.stats.user || "user") + " @ " + (dashboard.stats.host || "linux") : shell.tr("Your workspace"); color: Theme.text; font.pixelSize: 19; Layout.topMargin: 12 }
+                Text { text: (shell.state.appearance || {}).showHostDetails ? (dashboard.stats.user || "user") + " @ " + (dashboard.stats.host || "linux") : shell.tr("Your workspace"); color: moduleForeground; font.pixelSize: 19; Layout.topMargin: 12 }
                 Text { text: (dashboard.stats.os || "Linux") + " · " + (shell.state.graphicsApi || "OpenGL"); color: Theme.muted; font.pixelSize: 12 }
                 Text { text: shell.tr((shell.state.network || {}).label || "Checking network"); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 Item { Layout.fillHeight: true }
                 RowLayout {
                     ShellButton { text: shell.tr("Files"); onClicked: shell.launch("files") }
-                    ShellButton { text: shell.tr("Console"); onClicked: shell.launch("console") }
+                    ShellButton { text: shell.tr("Terminal"); onClicked: shell.launch("terminal") }
                     ShellButton { text: shell.tr("Desktop settings"); onClicked: { shell.setAppearance({ overview: false }); shell.settingsOpen = true } }
                 }
             }
         }
         ColumnLayout {
             visible: dashboard.tab === 1; Layout.fillHeight: true; Layout.fillWidth: true; spacing: 15
-            Text { text: dashboard.stats.cpuModel || "CPU"; color: Theme.text; font.pixelSize: 17; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text { text: dashboard.stats.cpuModel || "CPU"; color: moduleForeground; font.pixelSize: 17; elide: Text.ElideRight; Layout.fillWidth: true }
             RowLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true; spacing: 12
                 Repeater {
@@ -73,7 +74,7 @@ AnimatedPanel {
                         Layout.fillWidth: true; Layout.fillHeight: true; radius: 22; color: Theme.surface
                         Column { anchors.centerIn: parent; spacing: 12
                             Text { text: modelData[0]; color: Theme.muted; font.pixelSize: 12 }
-                            Text { text: modelData[1]; color: Theme.accent; font.pixelSize: 29; font.weight: Font.Light }
+                            Text { text: modelData[1]; color: moduleAccent; font.pixelSize: 29; font.weight: Font.Light }
                         }
                     }
                 }
@@ -90,7 +91,7 @@ AnimatedPanel {
                     property int count: shell.state.clients.filter(client => client.workspace === index && client.mapped).length
                     Layout.fillWidth: true; Layout.fillHeight: true; radius: 24; color: shell.state.workspace === index ? "#344f69" : Theme.surface
                     Column { anchors.centerIn: parent; spacing: 15
-                        Text { text: String(index + 1); font.pixelSize: 48; color: Theme.accent }
+                        Text { text: String(index + 1); font.pixelSize: 48; color: moduleAccent }
                         Text { text: count + " " + shell.tr("windows"); color: Theme.muted; font.pixelSize: 12 }
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: shell.command("workspace", index) }
