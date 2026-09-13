@@ -52,7 +52,7 @@ jobs:
         run: xvfb-run -a python3 tests/wayland/test_crash_detection.py build
       - name: Save test evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sanitizer-evidence
           path: |
