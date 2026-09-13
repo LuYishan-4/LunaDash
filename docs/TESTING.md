@@ -5,7 +5,7 @@
 ## 1. 安裝 Arch 測試依賴
 
 ```sh
-sudo pacman -S --needed base-devel cmake qt6-base qt6-declarative qt6-wayland quickshell qt6-translations mesa xorg-server-xvfb xorg-xauth python python-pillow
+sudo pacman -S --needed base-devel cmake qt6-base qt6-declarative qt6-wayland quickshell qt6-translations mesa xorg-server-xvfb xorg-xauth xdotool python python-pillow
 ```
 
 ## 2. 編譯並執行自動測試

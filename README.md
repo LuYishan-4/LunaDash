@@ -2,7 +2,7 @@
 
 **C++20 / OpenGL Wayland compositor + Quickshell 桌面介面**，參考 KDE 的面板、啟動器與工作區概念，採用主欄／堆疊平鋪。C++ namespace 為 `LuDash`，程式碼使用英文，繁中放在獨立語言包。
 
-目前為 0.1 開發版，尚不是完整 KDE 替代品。已實作：Quickshell 桌布／分段狀態列／資訊卡／啟動器／設定、原生 Wayland 平鋪與 4 工作區、英文／繁中、text-input 協定註冊、pacman 介面、metadata 原生外掛與淡入範例，以及檔案／筆記／命令主控台等独立工具。
+目前為 0.1 開發版，尚不是完整 KDE 替代品。已實作：Quickshell 桌布／分段狀態列／資訊卡／啟動器／設定、原生 Wayland 平鋪與 4 工作區、英文／繁中、text-input 協定註冊、pacman 介面、metadata 原生外掛與淡入範例，以及檔案／筆記／命令主控台等獨立工具。
 
 ## Arch 安裝依賴與建置
 
@@ -27,7 +27,7 @@ QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -
 ./scripts/test-wayland.sh
 ```
 
-自動測試需要 Xvfb、xauth、Python。成功需同時顯示畫面、通過平鋪檢查與正常退出；輸出在 `build/wayland-preview.png`、`wayland-state.json`、`wayland.log`。
+自動測試需要 Xvfb、xauth、Python 與 Pillow；Quickshell 點擊測試另需 xdotool。成功需同時顯示畫面、通過平鋪檢查與正常退出；輸出在 `build/wayland-preview.png`、`wayland-state.json`、`wayland.log`。
 
 另一個終端機可連到手動工作階段：
 
@@ -46,7 +46,7 @@ Quickshell 設定可切換語言與桌布、開啟輸入法與外掛管理。原
 | Super+Shift+1…4 | 移動視窗至工作區 |
 | Super+Space / F / M / Q | 浮動／填滿／最小化／關閉 |
 
-外層桌面可能攔截 Super 快捷鍵，可使用 Quickshell 工作區按鈕與工作列。
+外層桌面可能攔截 Super 快捷鍵，可使用 Quickshell 工作區按鈕與啟動器。
 
 ## 安裝
 
@@ -71,3 +71,5 @@ Arch 封裝：`./scripts/make-source.sh`，再於 `packaging/arch` 執行 `makep
 圖形 API 可用 `--graphics opengl|gles|auto` 選擇。自訂 context／GLSL shader 與 OpenGL ES 3.0 支援詳見 [docs/GRAPHICS.md](docs/GRAPHICS.md)。
 
 外觀與自訂桌布：[docs/APPEARANCE.md](docs/APPEARANCE.md)。
+
+完整測試與逐檔介紹：[docs/TESTING_AND_FILES.md](docs/TESTING_AND_FILES.md)。
