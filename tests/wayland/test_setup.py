@@ -8,7 +8,10 @@ import sys
 import tempfile
 import time
 
-binary = Path(sys.argv[1]).resolve() / 'ludash-compositor'
+build = Path(sys.argv[1]).resolve()
+binary = build / 'ludash-compositor'
+evidence = build / 'ci-evidence/setup'
+evidence.mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
     env = os.environ | {'XDG_RUNTIME_DIR': runtime, 'XDG_CONFIG_HOME': runtime,
                         'QT_QPA_PLATFORM': 'xcb', 'QT_XCB_GL_INTEGRATION': 'xcb_egl',
@@ -43,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
         raise AssertionError('Setup state did not match expectation')
 
     for run in range(2):
-        with open(Path(runtime) / f'run-{run}.log', 'w+') as log:
+        with open(evidence / f'run-{run}.log', 'w+') as log:
             process = subprocess.Popen([str(binary), '--socket', 'ludash-setup', '--graphics', 'opengl',
                                         '--exit-after', '13000' if run == 0 else '4000'], env=env, stdout=log, stderr=log)
             try:

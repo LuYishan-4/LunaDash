@@ -54,3 +54,13 @@ jobs:
       - name: Test authenticated X11 compatibility on Arch
         if: matrix.image == 'archlinux:latest'
         run: xvfb-run -a python3 tests/wayland/test_xwayland.py build
+      - name: Preserve Arch session diagnostics
+        if: always() && matrix.image == 'archlinux:latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-session-diagnostics
+          path: |
+            build/wayland.log
+            build/ci-evidence/setup/*.log
+          if-no-files-found: ignore
+          retention-days: 7

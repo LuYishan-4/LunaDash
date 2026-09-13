@@ -17,11 +17,16 @@ bool WallpaperRenderer::initialize() {
         || format.majorVersion() < 3 || (!es && format.majorVersion() == 3 && format.minorVersion() < 3)) {
         qCritical("Requested graphics API/context version is not available."); state_->failed = true; return false;
     }
+    if (!es && format.profile() != QSurfaceFormat::CompatibilityProfile) {
+        qCritical("Qt Wayland external textures require an OpenGL compatibility profile. Try --graphics gles.");
+        state_->failed = true; return false;
+    }
     char error[1024]{};
     const auto vertex = shaderSource("wallpaper.vert", es), fragment = shaderSource("wallpaper.frag", es);
     program_ = ludash_shader_create(resolveGLFunction, vertex.constData(), fragment.constData(), error, sizeof(error));
     if (!program_) { qCritical("Wallpaper shader failed: %s", error); state_->failed = true; return false; }
-    qInfo().noquote() << "LuDash graphics context:" << (es ? "OpenGL ES" : "OpenGL") << format.majorVersion() << "." << format.minorVersion();
+    qInfo().noquote() << "LuDash graphics context:" << (es ? "OpenGL ES" : "OpenGL") << format.majorVersion() << "." << format.minorVersion()
+                     << (es ? "(ES profile)" : "(compatibility profile)");
     return true;
 }
 void WallpaperRenderer::synchronize(QQuickFramebufferObject* item) { palette_ = static_cast<WallpaperItem*>(item)->palette(); }

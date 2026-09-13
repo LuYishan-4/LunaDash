@@ -14,7 +14,7 @@ A C++20 Wayland tiling desktop with C11 rendering, geometry and metrics cores wi
 - Files, command console, system monitor, pacman interface and opt-in metadata plugins.
 - Configurable default backdrop blur, opacity and reduced-motion-friendly window/shell transitions.
 - Optional X11 compatibility inside an authenticated XWayland window.
-- Explicit OpenGL 3.3 Core / OpenGL ES 3.0 contexts and vertex/fragment shaders.
+- Explicit OpenGL 3.3 compatibility / OpenGL ES 3.0 contexts and vertex/fragment shaders.
 
 ## Build on Arch Linux
 
@@ -59,6 +59,8 @@ The integration script requires rendered client content, non-overlapping geometr
 Your host desktop may intercept Super shortcuts. The shell provides clickable workspace and launcher controls.
 
 ## Installation and documentation
+
+On Arch, `./scripts/install-session.sh` builds and installs a pacman-managed package and registers the login session. Use `--enable-sddm` only when you want SDDM enabled for the next boot; optional `--autologin USER` explicitly enables passwordless login. See [Boot and login session](docs/LOGIN_SESSION.md) for preflight, limitations and recovery.
 
 For a staged install use `DESTDIR=/tmp/ludash-stage cmake --install build`. For a system install configure `-DCMAKE_INSTALL_PREFIX=/usr`, build, then run `sudo cmake --install build`. The Arch source package is created by `./scripts/make-source.sh`; run `makepkg -Cfs` in `packaging/arch`. The packaged EGLFS/KMS login session still needs physical GPU, seat and VT testing.
 

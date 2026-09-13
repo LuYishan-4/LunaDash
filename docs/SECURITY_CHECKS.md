@@ -9,6 +9,7 @@ The Linux and security workflows run on pull requests, pushes, merge groups and 
 | ASan and UBSan | Executed out-of-bounds, use-after-free, double-free and undefined behavior paths | Sanitizer report or test failure |
 | CodeQL security and quality | C/C++ dataflow, security and quality queries | SARIF error/warning or security-severity finding; missing reports also fail |
 | Source language | C/C++/QML, documentation and website text policy | Chinese source text outside translation packs |
+| Graphics diagnostics | Qt shader selection and graphics pipeline creation logs | Missing GLSL variant or failed pipeline, including sessions that exit with zero |
 | Website validation | Assets, fragment targets, English language and image descriptions | Invalid local links or missing assets |
 
 CodeQL builds a real CMake database including Qt/moc. A completed analysis is not the same as no findings: `scripts/security/check_sarif.py` makes reported findings fail the job without printing source snippets. Public repositories or appropriately licensed private repositories are required for GitHub code scanning. Setup/licensing failures remain visible failures.

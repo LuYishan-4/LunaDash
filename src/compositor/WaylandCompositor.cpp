@@ -60,7 +60,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
             [this](QQuickWindow::SceneGraphError, const QString& message) {
         renderState_->failed = true;
         qCritical().noquote() << "LuDash graphics initialization failed:" << message;
-        qCritical("Requires OpenGL 3.3 Core or OpenGL ES 3.0. Check the driver and MESA_GL_VERSION_OVERRIDE.");
+        qCritical("Requires OpenGL 3.3 compatibility or OpenGL ES 3.0. Check the driver and MESA_GL_VERSION_OVERRIDE.");
         QTimer::singleShot(0, this, [] { QCoreApplication::exit(2); });
     });
     wallpaper_ = new WallpaperItem(graphics, renderState_, window_.contentItem());
@@ -126,6 +126,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
         });
     }
     if (startShell && setupComplete()) QTimer::singleShot(1200, this, [this] {
+        if (testStopping_ || shuttingDown_) return;
         for (const auto& app : desktopPreferences().value("startupApps").toArray()) spawn({"--app", app.toString()});
     });
     qInfo().noquote() << "LuDash Wayland socket:" << socket;
@@ -163,8 +164,11 @@ QProcess* WaylandCompositor::spawn(const QStringList& arguments, const QString& 
         processFailure_ = true;
         qWarning().noquote() << "LuDash child process error:" << process->errorString();
     });
-    connect(process, &QProcess::finished, this, [this](int code, QProcess::ExitStatus status) {
-        if (!shuttingDown_ && (code != 0 || status != QProcess::NormalExit)) processFailure_ = true;
+    connect(process, &QProcess::finished, this, [this, process](int code, QProcess::ExitStatus status) {
+        if (!shuttingDown_ && (code != 0 || status != QProcess::NormalExit)) {
+            processFailure_ = true;
+            qWarning().noquote() << "LuDash child exited abnormally:" << process->program() << "code" << code << "status" << status;
+        }
     });
     if (program.isEmpty() && arguments.contains("--session")) {
         connect(process, &QProcess::started, this, [this, process] { shellProcessIds_.insert(process->processId()); });
@@ -316,7 +320,14 @@ void WaylandCompositor::closeTestSession(const std::function<void(bool)>& finish
         if ((clients_.empty() && processesFinished && compatibilityFinished) || *elapsed >= 5000) {
             timer->stop(); timer->deleteLater();
             const bool clean = clients_.empty() && processesFinished && compatibilityFinished && !processFailure_;
-            if (!clean) qWarning("LuDash test session did not shut down cleanly.");
+            if (!clean) {
+                qWarning() << "LuDash test session did not shut down cleanly."
+                           << "clients:" << clients_.size() << "animations:" << animations_->activeCount()
+                           << "layers:" << layerShell_->mappedCount() << "XWayland stopped:" << (!xwayland_ || xwayland_->stopped())
+                           << "child failure:" << processFailure_;
+                for (const auto* process : processes_) if (process->state() != QProcess::NotRunning)
+                    qWarning().noquote() << "Pending child:" << process->program() << "PID:" << process->processId() << "state:" << process->state();
+            }
             finished(clean);
         }
     });

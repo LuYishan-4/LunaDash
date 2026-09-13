@@ -4,6 +4,7 @@
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLExtraFunctions>
+#include <QOpenGLShaderProgram>
 #include <LuDash/render_core/ShaderProgram.h>
 #include <LuDash/render_core/BlurPass.h>
 #include <memory>
@@ -12,18 +13,46 @@ namespace LuDash {
 class RenderTests : public QObject {
     Q_OBJECT
 private slots:
+    void configuredContextSupportsQtMaterials() {
+        QVERIFY(QCoreApplication::testAttribute(Qt::AA_ShareOpenGLContexts));
+        auto* shared = QOpenGLContext::globalShareContext();
+        QVERIFY(shared);
+        QVERIFY(shared->isValid());
+        const auto format = QSurfaceFormat::defaultFormat();
+        if (format.renderableType() == QSurfaceFormat::OpenGLES)
+            QCOMPARE(format.profile(), QSurfaceFormat::NoProfile);
+        else {
+            QCOMPARE(format.profile(), QSurfaceFormat::CompatibilityProfile);
+            QVERIFY(format.testOption(QSurfaceFormat::DeprecatedFunctions));
+        }
+    }
     void shaderContexts_data() {
         QTest::addColumn<bool>("gles");
-        QTest::newRow("OpenGL-3.3") << false;
-        QTest::newRow("OpenGL-ES-3.0") << true;
+        QTest::addColumn<bool>("compatibility");
+        QTest::newRow("OpenGL-3.3-Core") << false << false;
+        QTest::newRow("OpenGL-3.3-Compatibility") << false << true;
+        QTest::newRow("OpenGL-ES-3.0") << true << false;
     }
     void shaderContexts() {
         QFETCH(bool, gles);
+        QFETCH(bool, compatibility);
         QSurfaceFormat format; format.setRenderableType(gles ? QSurfaceFormat::OpenGLES : QSurfaceFormat::OpenGL);
-        format.setVersion(3, gles ? 0 : 3); format.setProfile(gles ? QSurfaceFormat::NoProfile : QSurfaceFormat::CoreProfile);
+        format.setVersion(3, gles ? 0 : 3);
+        format.setProfile(gles ? QSurfaceFormat::NoProfile : compatibility ? QSurfaceFormat::CompatibilityProfile : QSurfaceFormat::CoreProfile);
+        if (compatibility) format.setOption(QSurfaceFormat::DeprecatedFunctions);
         QOpenGLContext context; context.setFormat(format); QVERIFY(context.create()); QCOMPARE(context.isOpenGLES(), gles);
         QOffscreenSurface surface; surface.setFormat(context.format()); surface.create(); QVERIFY(surface.isValid());
         QVERIFY(context.makeCurrent(&surface));
+        if (compatibility) {
+            QCOMPARE(context.format().profile(), QSurfaceFormat::CompatibilityProfile);
+            // The Qt external-texture material's desktop variant needs GLSL 120.
+            QOpenGLShaderProgram legacy;
+            QVERIFY2(legacy.addShaderFromSourceCode(QOpenGLShader::Vertex,
+                "#version 120\nattribute vec4 position; void main() { gl_Position = position; }"), qPrintable(legacy.log()));
+            QVERIFY2(legacy.addShaderFromSourceCode(QOpenGLShader::Fragment,
+                "#version 120\nvoid main() { gl_FragColor = vec4(1.0); }"), qPrintable(legacy.log()));
+            QVERIFY2(legacy.link(), qPrintable(legacy.log()));
+        }
         char error[1024]{};
         const auto vertex = shaderSource("wallpaper.vert", gles), fragment = shaderSource("wallpaper.frag", gles);
         auto* wallpaper = ludash_shader_create(resolveGLFunction, vertex.constData(), fragment.constData(), error, sizeof(error));

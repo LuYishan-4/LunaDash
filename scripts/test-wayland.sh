@@ -5,6 +5,16 @@ export QT_FORCE_STDERR_LOGGING=1 LUDASH_SKIP_SETUP=1
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_dir=${LUDASH_BUILD_DIR:-"$project_dir/build"}
 evidence_name=wayland
+host_wayland=""
+if [ "${LUDASH_TEST_HOST_WAYLAND:-0}" = 1 ]; then
+  case "${WAYLAND_DISPLAY:-}" in
+    /*) host_wayland=$WAYLAND_DISPLAY ;;
+    ?*) host_wayland=${XDG_RUNTIME_DIR:?Host XDG_RUNTIME_DIR is required}/$WAYLAND_DISPLAY ;;
+    *) echo 'A running host Wayland session is required.' >&2; exit 1 ;;
+  esac
+  if [ ! -S "$host_wayland" ]; then echo 'Host Wayland socket is unavailable.' >&2; exit 1; fi
+  evidence_name=host-wayland
+fi
 if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ]; then evidence_name=desktop; fi
 if [ "${LUDASH_TEST_SETUP:-0}" = 1 ]; then evidence_name=setup; export LUDASH_SKIP_SETUP=0; fi
 rm -f -- "$build_dir/$evidence_name-preview.png" "$build_dir/$evidence_name-state.json"
@@ -21,10 +31,18 @@ test_shell_args=""
 test_demo_args="--demo"
 if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ] || [ "${LUDASH_TEST_SETUP:-0}" = 1 ]; then test_demo_args=""; fi
 if [ "${LUDASH_TEST_NO_SHELL:-0}" = 1 ]; then test_shell_args="--no-shell"; fi
-XDG_RUNTIME_DIR="$runtime_dir" QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl LIBGL_ALWAYS_SOFTWARE=1 \
-  xvfb-run -a -s '-screen 0 1440x900x24' "$build_dir/ludash-compositor" \
+run_session() {
+  if [ -n "$host_wayland" ]; then
+    env -u LIBGL_ALWAYS_SOFTWARE XDG_RUNTIME_DIR="$runtime_dir" WAYLAND_DISPLAY="$host_wayland" QT_QPA_PLATFORM=wayland "$@"
+  else
+    XDG_RUNTIME_DIR="$runtime_dir" QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl LIBGL_ALWAYS_SOFTWARE=1 \
+      xvfb-run -a -s '-screen 0 1440x900x24' "$@"
+  fi
+}
+run_session "$build_dir/ludash-compositor" \
   $test_shell_args --graphics "${LUDASH_GRAPHICS:-auto}" $test_demo_args --exit-after 8000 --screenshot "$build_dir/$evidence_name-preview.png" --state "$build_dir/$evidence_name-state.json" >"$build_dir/$evidence_name.log" 2>&1 || { cat "$build_dir/$evidence_name.log"; exit 1; }
 cat "$build_dir/$evidence_name.log"
+python3 "$project_dir/scripts/testing/check_graphics_log.py" "$build_dir/$evidence_name.log"
 python3 - "$build_dir/$evidence_name-state.json" "$build_dir/$evidence_name-preview.png" <<'PY'
 import json, sys, os
 from PIL import Image
@@ -52,11 +70,14 @@ if clients and state['appearance']['blur']:
 assert all(c['mapped'] and c['visible'] for c in clients), state
 frame = Image.open(sys.argv[2]).convert('RGB')
 assert frame.getcolors(maxcolors=128) is None, 'Desktop screenshot is blank'
+logical_width, logical_height = state['display']['width'], state['display']['height']
+scale_x, scale_y = frame.width / logical_width, frame.height / logical_height
 for client in clients:
     assert client['contentWidth'] > 0 and client['contentHeight'] > 0, client
     x, y, width, height = (int(client[key]) for key in ('x', 'y', 'width', 'height'))
-    assert 0 <= x < x + width <= frame.width and 0 <= y < y + height <= frame.height, client
-    content = frame.crop((x + 8, y + 40, x + width - 8, y + height - 8))
+    assert 0 <= x < x + width <= logical_width and 0 <= y < y + height <= logical_height, client
+    content = frame.crop((int((x + 8) * scale_x), int((y + 40) * scale_y),
+                          int((x + width - 8) * scale_x), int((y + height - 8) * scale_y)))
     assert content.getcolors(maxcolors=32) is None, f'Blank client content: {client}'
 if os.environ.get('LUDASH_TEST_NO_SHELL') != '1':
     assert state.get('layerSurfaces', 0) >= 2, state

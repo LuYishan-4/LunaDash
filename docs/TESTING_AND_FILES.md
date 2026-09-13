@@ -2,7 +2,7 @@
 
 This guide explains how to test LuDash, interpret failures and find the purpose of every maintained project file. Run commands from the repository root unless stated otherwise. Complete intended code, packaging and documentation edits before building.
 
-LuDash 0.1 is a development preview, not a production-ready KDE replacement. Test it inside an existing desktop first. The compositor uses C++20, C11 cores and native Wayland; the shell uses Quickshell. Graphics require OpenGL 3.3 Core or OpenGL ES 3.0+.
+LuDash 0.1 is a development preview, not a production-ready KDE replacement. Test it inside an existing desktop first. The compositor uses C++20, C11 cores and native Wayland; the shell uses Quickshell. Graphics require OpenGL 3.3 compatibility or OpenGL ES 3.0+.
 
 ## 1. Dependencies
 
@@ -68,7 +68,7 @@ xvfb-run -a python3 tests/wayland/test_crash_detection.py build
 
 The X11 test checks a real mapped XCB client, authentication rejection and socket cleanup.
 
-Each session uses its own runtime/configuration directory. The normal demo runs for eight seconds and allows up to five seconds for clean shutdown. The script removes stale screenshots/JSON before starting. It checks actual graphics and blur health, visible client content, non-overlapping geometry and child-process status. Pixel-diversity checks catch blank content but do not prove visual correctness; inspect the screenshot too.
+Each session uses its own runtime/configuration directory. The normal demo runs for eight seconds and allows up to five seconds for clean shutdown. The script removes stale screenshots/JSON before starting. During shutdown Quickshell waits for the compositor to observe panel unmapping and for control helpers to exit. First-run logs are retained in `build/ci-evidence/setup/`; a failed shutdown reports pending processes, clients, layers and animations. It checks actual graphics and blur health, visible client content, non-overlapping geometry and child-process status. Pixel-diversity checks catch blank content but do not prove visual correctness; inspect the screenshot too.
 
 The interaction test clicks workspace, launcher and settings controls, checks language and wallpaper changes, and minimizes/restores a native window. The setup test walks through the offline guide, changes its accent, completes it, rejects invalid mixed preference updates and restarts the compositor to verify persistence. It never changes the host network. The negative crash test deliberately signals one owned test client and requires compositor exit code 2.
 
@@ -167,9 +167,12 @@ Review the website at desktop and mobile widths. Test keyboard navigation, accen
 | Clang 18 reports `qsharedpointer_impl.h:130` use-after-free | Use the configured Clang 19 analysis job and run `test_analyzer.py`; keep memory-safety checks enabled. The minimal Qt guard reproduces an old analyzer false positive. |
 | Qt 6.4 crash in `zwp_text_input_v2::handle_modifiers_map` | Rebuild with the corrected input-protocol registration order, then require the complete Wayland session test to pass. |
 | Blur reports non-finite float-to-integer conversion | Rebuild with bounded blur geometry and run `blur-geometry` plus the Wayland rendering test. |
+| `No GLSL shader code found` / `Failed to build graphics pipeline state` | Rebuild with the desktop compatibility profile; Qt's external OES material requires GLSL 120. Try `--graphics gles` if needed. Test the host GPU path with `LUDASH_TEST_HOST_WAYLAND=1`; the session checker rejects these messages even on exit code zero. |
 | NetworkManager unavailable | Existing interfaces may still work. Install/configure the appropriate system network tools or continue offline. |
 | Guide repeats / preferences reset | Check XDG_CONFIG_HOME, write access and whether a test uses an intentionally fresh directory. |
 | Pages returns 404 | Enable Pages, verify repository/plan permissions, inspect deployment workflow and confirm the published URL. |
+
+For boot login installation, optional SDDM auto-login and recovery, see [Login session](LOGIN_SESSION.md). `tests/wayland/test_session_launcher.py` checks launcher isolation, literal arguments, log permissions and installer dry-run behavior with fake commands; it never acquires a GPU or changes services.
 
 ## 9. Verification record
 
@@ -178,17 +181,20 @@ Verified locally on 2026-09-14 (Asia/Taipei). These results describe executed te
 
 | Environment / check | Result |
 | --- | --- |
-| Arch development host, Qt 6.11.2, GCC | Full build and all 12 CTest checks passed. |
-| Arch host, Clang 22 with clang-tidy, ASan and UBSan | Full build and all 12 CTest checks passed; enabled analyzer warnings remain errors. |
+| Arch development host, Qt 6.11.2, GCC | Full build and all 14 CTest checks passed. |
+| Arch host, Clang 22 with clang-tidy, ASan and UBSan | Full build and all 14 CTest checks passed; enabled analyzer warnings remain errors. |
 | Arch GL and GLES sessions with Quickshell and sanitizers | Three native clients rendered without overlap, blur rendered, and shutdown was clean for both APIs. |
-| Arch settings, setup and customization | All 15 settings categories, first-run persistence, shell interactions, JSON validation, custom QML replacement/error fallback, live Files palette changes and interactive Fish passed during this change. |
+| Host Wayland GPU path, Qt 6.11.2 | OpenGL 4.6 compatibility and GLES 3.2 rendered three clients and closed cleanly after enabling the global share context. No missing-GLSL, failed-pipeline or missing-current-context diagnostics remained. Qt still reports orphaned EGLStream textures at teardown; resource-leak coverage is not claimed. |
+| Arch settings, setup and customization | All 15 settings categories, first-run persistence (three consecutive two-session runs), shell interactions, JSON validation, custom QML replacement/error fallback, live Files palette changes and interactive Fish passed during this change. |
 | Arch live effects | Blur/opacity changes, reduced motion, minimize/restore and clean shutdown passed on the final renderer. |
 | Ubuntu 24.04.4 container, Qt 6.4.2, Clang 19 | All production translation units passed static analysis. The Qt guard / intentional use-after-free analyzer regression passed. |
 | Ubuntu container, Clang 18 ASan/UBSan | All 12 CTest checks passed. The final no-shell Wayland session rendered two clients and 15 blur frames, closed cleanly, and passed authenticated X11 lifecycle and deliberate client-crash detection. |
 | Astro/TypeScript website | Type checking: zero errors, warnings or hints. Five built English pages passed asset/link checks. Desktop/mobile browser checks passed, including generated module JSON and clipboard behavior. |
-| Packaging and source policy | Staged CMake installation, source archive contents, English source policy and whitespace checks passed. |
+| Packaging and source policy | Staged CMake installation, installed launcher preflight, installer dry-run, package metadata, source archive contents, English source policy and whitespace checks passed. No system installation, service changes or physical boot login were performed. |
 
 The supplied GitHub Actions logs exposed an optional Qt header failure and Clang 18's Qt pointer diagnostic. Ubuntu reproduction also exposed an Xauthority length conversion, Qt 6.4 input-protocol announcement ordering and a render-matrix lifetime bug; the final checks above include their fixes. Successful final Ubuntu session and analysis results are in `build/ci-evidence/ubuntu-final-session-and-analysis.log`; its clean final unit-test report is `build/ci-evidence/ubuntu-asan-tests.log`. Intermediate failure reproductions are under `build/ci-evidence/diagnostics/`. Other local evidence is retained under `build/ci-evidence/`; screenshots are in `build/`.
+
+The later Arch CI first-run failure was not reproduced by four baseline retries. Shutdown now waits for observed layer unmapping and drained control helpers rather than relying on a fixed 300 ms delay; failed shutdowns retain detailed process/layer/animation diagnostics and the workflow uploads the logs. The original GPU shader mismatch was identified in Qt source; host testing then reproduced missing EGLStream import contexts, fixed by enabling the global share group. Current evidence is in `build/ci-evidence/graphics-*.log`; before-fix host failures are in `build/ci-evidence/diagnostics/host-before-share-*.log`.
 
 GitHub Actions and CodeQL have not been rerun remotely from this workspace. Push the reviewed changes and require the remote jobs to pass; the supplied failed runs are not a successful CI result. Fedora remains configured but was not reproduced locally in this run. Xvfb/software rendering does not verify physical GPU drivers or a complete standalone login session. Leak detection was disabled; no memory-leak coverage is claimed.
 <!-- /verification-results -->
@@ -407,10 +413,12 @@ Generated build output, dependency caches, source archives and Git internals are
 
 | File | Purpose |
 | --- | --- |
+| [scripts/install-session.sh](../scripts/install-session.sh) | Build and install the Arch package; optionally enable SDDM and explicit boot auto-login. |
 | [scripts/ludash-session](../scripts/ludash-session) | Experimental EGLFS/KMS standalone session launcher. |
 | [scripts/make-source.sh](../scripts/make-source.sh) | Create the local Arch source archive without build/Python caches. |
 | [scripts/security/check_sarif.py](../scripts/security/check_sarif.py) | Fail closed on missing SARIF or security/quality findings. |
 | [scripts/test-wayland.sh](../scripts/test-wayland.sh) | Isolated demo/overview/setup rendering tests and screenshot/state evidence. |
+| [scripts/testing/check_graphics_log.py](../scripts/testing/check_graphics_log.py) | Reject missing GLSL and failed Qt pipeline diagnostics in session logs. |
 | [tests/DesktopTests.cpp](../tests/DesktopTests.cpp) | Behavioral tests for native apps, layout and validated external inputs. |
 | [tests/animation/AnimationTests.cpp](../tests/animation/AnimationTests.cpp) | Interrupted transitions, item destruction and reduced-motion tests. |
 | [tests/blur/BlurGeometryTests.cpp](../tests/blur/BlurGeometryTests.cpp) | Verify blur capture bounds, pixel scaling and rejection of non-finite coordinates. |
@@ -418,6 +426,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/core/CoreTests.c](../tests/core/CoreTests.c) | C geometry and parser boundary, overflow and counter-reset tests. |
 | [tests/file_operations/FileTests.cpp](../tests/file_operations/FileTests.cpp) | Overwrite prevention and literal default-app argument tests. |
 | [tests/renderer/RenderTests.cpp](../tests/renderer/RenderTests.cpp) | Real GL/GLES context and production shader checks. |
+| [tests/renderer/test_shader_diagnostics.py](../tests/renderer/test_shader_diagnostics.py) | Verify that pipeline errors cannot yield a passing integration result. |
 | [tests/renderer/test_startup_failure.py](../tests/renderer/test_startup_failure.py) | Regression for controlled graphics initialization failure. |
 | [tests/security/test_analyzer.py](../tests/security/test_analyzer.py) | Verify that static analysis accepts valid Qt guards and rejects real use-after-free. |
 | [tests/security/test_sarif_gate.py](../tests/security/test_sarif_gate.py) | Negative and positive SARIF gate cases. |
@@ -428,6 +437,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
 | [tests/wayland/test_customization.py](../tests/wayland/test_customization.py) | Actual custom QML replacement/fallback, Files recoloring and interactive Fish under Wayland. |
 | [tests/wayland/test_effects.py](../tests/wayland/test_effects.py) | Live blur, opacity and reduced-motion preferences; private-safe window screenshot. |
+| [tests/wayland/test_session_launcher.py](../tests/wayland/test_session_launcher.py) | Verify login preflight, environment isolation, argument handling and private logs without starting a real desktop. |
 | [tests/wayland/test_settings.py](../tests/wayland/test_settings.py) | Load all fifteen settings pages and verify real keyboard/workspace updates without modifying host services. |
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
 | [tests/wayland/test_shell_interactions.py](../tests/wayland/test_shell_interactions.py) | Click the live shell and verify workspace/app/settings/window behavior. |
@@ -468,6 +478,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [docs/EFFECTS.md](../docs/EFFECTS.md) | Default blur, window transparency, animations and limitations. |
 | [docs/GRAPHICS.md](../docs/GRAPHICS.md) | Context, shader, render-thread and graphics-failure behavior. |
 | [docs/INPUT_METHODS.md](../docs/INPUT_METHODS.md) | Language registration and honest Fcitx/IBus validation guidance. |
+| [docs/LOGIN_SESSION.md](../docs/LOGIN_SESSION.md) | Boot session installation, explicit auto-login, physical-session limits and recovery. |
 | [docs/MODULES.md](../docs/MODULES.md) | Shell module schema, QML contract, templates, trust and recovery. |
 | [docs/PLUGINS.md](../docs/PLUGINS.md) | Plugin metadata, SDK, loading and native trust boundary. |
 | [docs/SECURITY_CHECKS.md](../docs/SECURITY_CHECKS.md) | PR gates, local analysis commands and branch protection instructions. |

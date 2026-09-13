@@ -63,10 +63,27 @@ ShellRoot {
     Process {
         id: status
         command: [root.bin + "/ludashctl", "status"]
-        stdout: StdioCollector { onStreamFinished: { try { root.state = JSON.parse(text); if (root.state.shutdown && !root.stopping) { Theme.animations = false; root.stopping = true; shutdownTimer.start() } } catch (error) { console.warn(error) } } }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                // A timed-out helper has no response; the next poll retries it.
+                if (!text.trim()) return
+                try {
+                    const result = JSON.parse(text)
+                    if (result.error) return
+                    root.state = result
+                    if (result.shutdown && !root.stopping) {
+                        Theme.animations = false
+                        root.stopping = true
+                        shutdownTimer.start()
+                    }
+                } catch (error) { console.warn(error) }
+            }
+        }
     }
-    Timer { id: shutdownTimer; interval: 300; onTriggered: Qt.quit() }
-    Timer { interval: 700; running: !root.stopping; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
+    // Wait for the server to observe panel unmapping and drain helper processes.
+    // A fixed delay could destroy the Wayland renderer while work was pending.
+    Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running) Qt.quit() }
+    Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
     Overview { shell: root; opened: !root.stopping && root.overviewOpen }

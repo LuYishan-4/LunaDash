@@ -4,6 +4,7 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QFile>
+#include <QCoreApplication>
 int qInitResources_renderer_shaders();
 namespace LuDash {
 std::optional<GraphicsApi> graphicsApiFromArguments(int argc, char** argv) {
@@ -27,10 +28,16 @@ void configureGraphics(GraphicsApi api) {
     QSurfaceFormat format;
     format.setRenderableType(es ? QSurfaceFormat::OpenGLES : QSurfaceFormat::OpenGL);
     format.setVersion(3, es ? 0 : 3);
-    format.setProfile(es ? QSurfaceFormat::NoProfile : QSurfaceFormat::CoreProfile);
+    // Qt Wayland's external OES material supplies GLSL 120 on desktop GL.
+    // Compatibility keeps that shader usable alongside our GLSL 330 programs.
+    format.setProfile(es ? QSurfaceFormat::NoProfile : QSurfaceFormat::CompatibilityProfile);
+    if (!es) format.setOption(QSurfaceFormat::DeprecatedFunctions);
     // Qt Quick uses depth ordering for opaque items and stencil for clipping.
     format.setDepthBufferSize(24); format.setStencilBufferSize(8); format.setSwapInterval(1);
     QSurfaceFormat::setDefaultFormat(format);
+    // EGLStream commits can arrive on the GUI thread before scene-graph sync.
+    // Qt Wayland needs this share group to create its offscreen import context.
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 }
 LuDashGLProc resolveGLFunction(const char* name) {

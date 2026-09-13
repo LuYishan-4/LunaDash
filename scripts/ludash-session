@@ -1,8 +1,33 @@
 #!/bin/sh
 set -eu
+check_only=0
+if [ "${1:-}" = --check ]; then check_only=1; shift; fi
+session_bin=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
+if [ "$(id -u)" = 0 ]; then echo 'LuDash must run as a normal login user, not root.' >&2; exit 1; fi
+for program in dbus-run-session quickshell konsole fish; do
+    command -v "$program" >/dev/null || { echo "Missing session dependency: $program" >&2; exit 1; }
+done
+if [ ! -x "$session_bin/ludash-compositor" ]; then echo 'Install LuDash before using ludash-session.' >&2; exit 1; fi
+if [ -z "${XDG_RUNTIME_DIR:-}" ] || [ ! -d "$XDG_RUNTIME_DIR" ] || [ ! -O "$XDG_RUNTIME_DIR" ]; then
+    echo 'A user-owned XDG_RUNTIME_DIR from a PAM/logind login is required.' >&2; exit 1
+fi
+if [ "$check_only" = 1 ]; then
+    echo 'Session commands and login runtime are present. GPU, input access and VT switching still require a physical login test.'
+    exit 0
+fi
+case "${LUDASH_GRAPHICS:-gles}" in auto|opengl|gles) ;; *) echo 'LUDASH_GRAPHICS must be auto, opengl or gles.' >&2; exit 2 ;; esac
+umask 077
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/ludash
+mkdir -p -- "$state_dir"
+session_log=$(mktemp "$state_dir/session-XXXXXXXX.log")
+echo "LuDash session log: $session_log"
+exec >>"$session_log" 2>&1
+unset DISPLAY WAYLAND_DISPLAY QT_QUICK_BACKEND LIBGL_ALWAYS_SOFTWARE MESA_GL_VERSION_OVERRIDE MESA_GLSL_VERSION_OVERRIDE
 export XDG_SESSION_TYPE=wayland
 export XDG_CURRENT_DESKTOP=LuDash
+export XDG_SESSION_DESKTOP=LuDash
 export QT_QPA_PLATFORM=eglfs
+export QT_QPA_EGLFS_INTEGRATION=${QT_QPA_EGLFS_INTEGRATION:-eglfs_kms}
 export QSG_RHI_BACKEND=opengl
 # Session launch only: EGLFS/KMS owns the display; nested use runs the compositor directly.
-exec dbus-run-session -- ludash-compositor --fullscreen "$@"
+exec dbus-run-session -- "$session_bin/ludash-compositor" --fullscreen --graphics "${LUDASH_GRAPHICS:-gles}" "$@"

@@ -10,7 +10,7 @@ LuDash uses C11 for independent low-level work and C++20 for Qt/Wayland object i
 
 C functions use the `ludash_` prefix. C types use `LuDash` names, and headers expose C linkage inside namespace `LuDash` when included from C++. Each module has matching `include/LuDash/<feature>/` and `src/<feature>/` directories. Headers declare the API; implementation stays in `.c`. CMake lists every source explicitly.
 
-The renderer receives a function resolver from the active Qt OpenGL context. It does not create a second context or call a different GL implementation. The same C functions execute against OpenGL 3.3 Core and OpenGL ES 3.0+. Shader resources receive the appropriate GLSL version/precision prefix in the adapter.
+The renderer receives a function resolver from the active Qt OpenGL context. It does not create a second context or call a different GL implementation. The same C functions are tested against OpenGL 3.3 Core, OpenGL 3.3 compatibility and OpenGL ES 3.0+. The compositor requests compatibility on desktop GL so Qt can also render its legacy external-texture material. Shader resources receive the appropriate GLSL version/precision prefix in the adapter.
 
 Rendering objects must be created, used and destroyed while their owning context is current on the render thread. Allocation and shader errors return a failure value with bounded diagnostics; the C++ adapter reports render health. Geometry and metric functions do not depend on Qt or allocate memory, and do not modify output on invalid input.
 
