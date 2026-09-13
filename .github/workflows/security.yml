@@ -41,13 +41,15 @@ jobs:
         with:
           persist-credentials: false
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev ninja-build clang qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libgl1-mesa-dri xvfb xauth python3 python3-pil
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libwayland-dev ninja-build clang qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libgl1-mesa-dri xvfb xauth xwayland xdotool python3 python3-pil
       - name: Build instrumented binaries
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLUDASH_ENABLE_SANITIZERS=ON && cmake --build build --parallel 2
       - name: Run instrumented interaction tests
         run: xvfb-run -a ctest --test-dir build --output-on-failure
       - name: Run instrumented Wayland session
         run: ./scripts/test-wayland.sh
+      - name: Verify authenticated X11 lifecycle
+        run: xvfb-run -a python3 tests/wayland/test_xwayland.py build
       - name: Verify client crashes fail the session
         run: xvfb-run -a python3 tests/wayland/test_crash_detection.py build
       - name: Save test evidence

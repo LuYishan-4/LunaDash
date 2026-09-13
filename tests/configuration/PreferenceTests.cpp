@@ -2,6 +2,7 @@
 #include <LuDash/network/NetworkStatus.h>
 #include <QCoreApplication>
 #include <QSettings>
+#include <QJsonArray>
 #include <QTemporaryDir>
 #include <QtTest>
 namespace LuDash {
@@ -21,6 +22,8 @@ private slots:
         QCOMPARE(desktopPreferences(), original);
         for (const auto& invalid : {QJsonObject{{"gap", "12"}}, QJsonObject{{"gap", 4.5}}, QJsonObject{{"accent", "red; command"}},
                                   QJsonObject{{"panelHeight", -2}}, QJsonObject{{"overview", 1}}, QJsonObject{{"unknown", true}}, QJsonObject{{"blurRadius", 33}}, QJsonObject{{"windowOpacity", 101}},
+                                  QJsonObject{{"workspaceCount", 10}}, QJsonObject{{"masterRatio", 100}}, QJsonObject{{"keyRepeatDelay", 1}},
+                                  QJsonObject{{"keyboardLayout", "us; id"}}, QJsonObject{{"startupApps", QJsonArray{"notes"}}}, QJsonObject{{"startupApps", QJsonArray{"files", "files"}}},
                                   QJsonObject{{"animationDuration", -1}}, QJsonObject{{"animations", "false"}}}) {
             QVERIFY(!updateDesktopPreferences(invalid, &error));
             QCOMPARE(desktopPreferences(), original);

@@ -14,7 +14,7 @@ Existing Wayland host / experimental EGLFS-KMS session
     quickshell --path qml/shell.qml
       setup / wallpaper / panel / overview / launcher / settings / session
     ludash-desktop --app <id>
-      files / notes / console / monitor / packages / plugins / settings
+      files / console / monitor / packages / plugins / settings
 ```
 
 Quickshell/QML implements the desktop shell. Built-in applications currently use C++ Qt Widgets and tile alongside other Wayland applications. The compositor owns Wayland window lifetimes and rendering; Quickshell runs in a separate process with its own graphics context.
@@ -36,10 +36,12 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 | localization / input_method | Translation resources and input protocol registration |
 | plugins / fade_plugin / plugin_settings | Metadata discovery, explicit enablement and native example |
 | packages | Read-only queries and confirmed terminal-based pacman changes |
-| remaining app modules | Separate files, notes, console, monitor and settings tools |
+| remaining app modules | Separate files, console, monitor and application tools |
 
 The shell controls LuDash through allowlisted JSON methods. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LuDash's control socket.
 
 The current compositor uses one output. Panel height and tiling gaps define its work area; this is not a general implementation of arbitrary exclusive zones. Layer-shell popups and some double-buffered state behavior remain incomplete. Multiple outputs, locking, portals, PipeWire capture, an audio service, a polkit agent and a full input-method-v2 bridge are not implemented. The EGLFS/KMS launcher is experimental; evaluate nested sessions first.
 
 See [C core](C_CORE.md), [Effects](EFFECTS.md) and [X11 compatibility](XWAYLAND.md) for implementation boundaries.
+
+The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface.

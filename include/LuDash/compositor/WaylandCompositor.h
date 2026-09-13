@@ -14,6 +14,8 @@ class QWaylandQuickOutput;
 class QWaylandXdgToplevel;
 class QWaylandXdgSurface;
 namespace LuDash {
+class AudioSettings;
+class PowerSettings;
 class SystemStatus;
 class WindowAnimations;
 class XWaylandSupport;
@@ -41,6 +43,10 @@ private:
     WallpaperItem* wallpaper_ = nullptr;
     QWaylandQuickCompositor compositor_;
     QQuickWindow window_;
+    AudioSettings* audioSettings_ = nullptr;
+    PowerSettings* powerSettings_ = nullptr;
+    int settingsSerial_ = 0;
+    QString settingsPage_ = "general";
     SystemStatus* systemStatus_ = nullptr;
     NetworkStatus* networkStatus_ = nullptr;
     WindowAnimations* animations_ = nullptr;

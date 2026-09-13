@@ -9,7 +9,8 @@ QtObject {
     readonly property color text: "#e2e9f1"
     readonly property color muted: "#a5b4c4"
     readonly property color danger: "#f2b8b5"
-    readonly property string font: "sans-serif"
+    property string font: "sans-serif"
+    property bool clock24Hour: true
     property int barHeight: 40
     property bool animations: true
     property int animationDuration: 220

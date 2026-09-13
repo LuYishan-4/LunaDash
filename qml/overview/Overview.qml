@@ -52,7 +52,7 @@ AnimatedPanel {
                 Item { Layout.fillHeight: true }
                 RowLayout {
                     ShellButton { text: shell.tr("Files"); onClicked: shell.launch("files") }
-                    ShellButton { text: shell.tr("Notes"); onClicked: shell.launch("notes") }
+                    ShellButton { text: shell.tr("Console"); onClicked: shell.launch("console") }
                     ShellButton { text: shell.tr("Desktop settings"); onClicked: { shell.setAppearance({ overview: false }); shell.settingsOpen = true } }
                 }
             }
@@ -84,7 +84,7 @@ AnimatedPanel {
         RowLayout {
             visible: dashboard.tab === 2; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 14
             Repeater {
-                model: 4
+                model: (shell.state.appearance || {}).workspaceCount || 4
                 Rectangle {
                     required property int index
                     property int count: shell.state.clients.filter(client => client.workspace === index && client.mapped).length

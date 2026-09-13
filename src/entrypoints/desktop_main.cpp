@@ -7,10 +7,8 @@
 #include <LuDash/application_catalog/ApplicationCatalog.h>
 #include <LuDash/file_manager/FileManager.h>
 #include <LuDash/console/Console.h>
-#include <LuDash/notes/Notes.h>
 #include <LuDash/system_monitor/SystemMonitor.h>
 #include <LuDash/welcome/Welcome.h>
-#include <LuDash/settings/Settings.h>
 #include <QtWidgets>
 #include <QSurfaceFormat>
 #include <QProcess>
@@ -27,6 +25,7 @@ int main(int argc, char** argv) {
 
     if (parser.isSet("app")) {
         app.setDesktopFileName("ludash-app");
+        if (parser.value("app") == "settings") return QProcess::execute(QCoreApplication::applicationDirPath() + "/ludashctl", {"open-settings"});
         LuDash::ApplicationWindow window;
         window.setAttribute(Qt::WA_TranslucentBackground);
         window.setAttribute(Qt::WA_StyledBackground);
@@ -35,9 +34,7 @@ int main(int argc, char** argv) {
         QWidget* content = nullptr; const auto id = parser.value("app");
         if (id == "files") content = LuDash::createFileManager();
         else if (id == "console") content = LuDash::createConsole();
-        else if (id == "notes") content = LuDash::createNotes(window.canClose);
         else if (id == "monitor") content = LuDash::createSystemMonitor();
-        else if (id == "settings") content = LuDash::createSettings();
         else if (id == "packages") content = LuDash::createPackageManager();
         else if (id == "plugins") content = LuDash::createPluginSettings();
         else if (id == "launcher") content = LuDash::createLauncher();

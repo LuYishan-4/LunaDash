@@ -42,6 +42,12 @@ jobs:
       - name: Test first-run setup on Arch
         if: matrix.image == 'archlinux:latest'
         run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
+      - name: Test settings pages on Arch
+        if: matrix.image == 'archlinux:latest'
+        run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_settings.py build
+      - name: Test live window effects on Arch
+        if: matrix.image == 'archlinux:latest'
+        run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_effects.py build
       - name: Test authenticated X11 compatibility on Arch
         if: matrix.image == 'archlinux:latest'
         run: xvfb-run -a python3 tests/wayland/test_xwayland.py build

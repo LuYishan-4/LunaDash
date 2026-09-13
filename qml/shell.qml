@@ -16,14 +16,18 @@ ShellRoot {
     id: root
     property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0 })
     property string bin: Quickshell.env("LUDASH_BIN_DIR")
+    property bool stopping: false
+    property int lastSettingsSerial: 0
     property bool launcherOpen: false
     property bool settingsOpen: false
     property bool x11Open: false
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
     onStateChanged: {
+        if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
+        Theme.font = (state.appearance || {}).fontFamily || "sans-serif"; Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
         Theme.accent = (state.appearance || {}).accent || "#9ccbfb"; Theme.barHeight = (state.appearance || {}).panelHeight || 40
-        Theme.animations = (state.appearance || {}).animations ?? true; Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
+        Theme.animations = !stopping && ((state.appearance || {}).animations ?? true); Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
         if (setupPaused) {
             const mapped = state.clients.some(client => client.mapped)
             if (mapped) setupEditorMapped = true
@@ -54,20 +58,21 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: { try { const result = JSON.parse(text); if (result.error) root.errorMessage = result.error } catch (error) { root.errorMessage = "Could not contact the desktop." } } }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
-    function launch(id) { Quickshell.execDetached([bin + "/ludash-desktop", "--app", id]); launcherOpen = false }
+    function launch(id) { if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([bin + "/ludash-desktop", "--app", id]); launcherOpen = false }
     Process {
         id: status
         command: [root.bin + "/ludashctl", "status"]
-        stdout: StdioCollector { onStreamFinished: { try { root.state = JSON.parse(text); if (root.state.shutdown) Qt.quit() } catch (error) { console.warn(error) } } }
+        stdout: StdioCollector { onStreamFinished: { try { root.state = JSON.parse(text); if (root.state.shutdown && !root.stopping) { Theme.animations = false; root.stopping = true; shutdownTimer.start() } } catch (error) { console.warn(error) } } }
     }
-    Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
-    Wallpaper { shell: root }
-    TopPanel { shell: root }
-    Overview { shell: root; opened: root.overviewOpen }
-    Launcher { shell: root; opened: root.launcherOpen }
-    SettingsPanel { shell: root; opened: root.settingsOpen }
-    SetupWizard { shell: root; opened: root.state.setupComplete === false && !root.setupPaused }
-    LogoutPanel { shell: root; opened: root.logoutOpen }
-    X11Launcher { shell: root; opened: root.x11Open }
-    Message { shell: root; opened: root.errorMessage.length > 0 }
+    Timer { id: shutdownTimer; interval: 300; onTriggered: Qt.quit() }
+    Timer { interval: 700; running: !root.stopping; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
+    Wallpaper { shell: root; visible: !root.stopping }
+    TopPanel { shell: root; visible: !root.stopping }
+    Overview { shell: root; opened: !root.stopping && root.overviewOpen }
+    Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
+    SettingsPanel { id: settingsCenter; shell: root; opened: !root.stopping && root.settingsOpen }
+    SetupWizard { shell: root; opened: !root.stopping && root.state.setupComplete === false && !root.setupPaused }
+    LogoutPanel { shell: root; opened: !root.stopping && root.logoutOpen }
+    X11Launcher { shell: root; opened: !root.stopping && root.x11Open }
+    Message { shell: root; opened: !root.stopping && root.errorMessage.length > 0 }
 }

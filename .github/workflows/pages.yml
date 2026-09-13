@@ -23,7 +23,7 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: site/package-lock.json
-      - run: npm ci --ignore-scripts && npm run check && npm run build
+      - run: npm ci --include=dev --ignore-scripts && npm run check && npm run build
         working-directory: site
       - run: python3 tests/site/test_site.py site/dist
       - uses: actions/upload-artifact@v4

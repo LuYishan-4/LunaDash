@@ -54,3 +54,5 @@ For deeper customization, edit the feature QML under `qml/` and restart. This is
 Reference: [NetworkManager D-Bus API](https://networkmanager.dev/docs/api/latest/gdbus-org.freedesktop.NetworkManager.html).
 
 See [Effects](EFFECTS.md) for blur/reduced-motion behavior and [XWayland](XWAYLAND.md) for optional legacy application support. Old saved panel heights outside the supported range fall back to the new default.
+
+The dedicated settings center and its additional workspace, keyboard, font, clock and startup keys are documented in [Settings](SETTINGS.md).

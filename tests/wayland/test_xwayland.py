@@ -49,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
             display = state['xwayland']['display']
             authority = Path(state['xwayland']['authority'])
             assert authority.stat().st_mode & 0o077 == 0, 'Xauthority is not owner-only'
-            result = request('launch-x11', '"' + str(build / 'ludash-desktop') + '" --app notes')
+            result = request('launch-x11', '"' + str(build / 'ludash-desktop') + '" --app console')
             assert 'error' not in result, result
             with socket.socket(socket.AF_UNIX) as connection:
                 connection.settimeout(6)
@@ -59,7 +59,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
             deadline = time.monotonic() + 6
             while True:
                 state = request()
-                if any(client['mapped'] and client['bufferWidth'] > 0 for client in state['clients']) and subprocess.run(['xdotool', 'search', '--name', 'Notes'], env=env | {'DISPLAY': display, 'XAUTHORITY': str(authority)}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0:
+                if any(client['mapped'] and client['bufferWidth'] > 0 for client in state['clients']) and subprocess.run(['xdotool', 'search', '--name', 'console'], env=env | {'DISPLAY': display, 'XAUTHORITY': str(authority)}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0:
                     break
                 assert time.monotonic() < deadline, 'X11 client did not become a Wayland window'
                 time.sleep(.1)

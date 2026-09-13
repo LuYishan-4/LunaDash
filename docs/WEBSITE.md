@@ -5,7 +5,7 @@ The English introduction site lives in `site/`. It uses Astro components, CSS an
 Preview from the repository root:
 
 ```sh
-npm ci --prefix site --ignore-scripts
+npm ci --prefix site --include=dev --ignore-scripts
 npm run check --prefix site
 npm run build --prefix site
 python3 tests/site/test_site.py site/dist

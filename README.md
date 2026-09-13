@@ -11,7 +11,7 @@ A C++20 Wayland tiling desktop with C11 rendering, geometry and metrics cores wi
 - Saved accent colors, window gaps, panel height, wallpaper and information-card preferences.
 - English and an external Traditional Chinese language pack.
 - Existing network connection detection and a NetworkManager configuration entry point.
-- Files, notes, command console, system monitor, pacman interface and opt-in metadata plugins.
+- Files, command console, system monitor, pacman interface and opt-in metadata plugins.
 - Configurable default backdrop blur, opacity and reduced-motion-friendly window/shell transitions.
 - Optional X11 compatibility inside an authenticated XWayland window.
 - Explicit OpenGL 3.3 Core / OpenGL ES 3.0 contexts and vertex/fragment shaders.
@@ -73,3 +73,5 @@ For a staged install use `DESTDIR=/tmp/ludash-stage cmake --install build`. For 
 Missing or incomplete: multiple outputs, full layer-shell, screen locking, portals, audio controls, full system tray, native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Native plugins are disabled by default and run without a sandbox when enabled. Pacman operations require a real terminal and retain sudo/pacman confirmation; this tool is unavailable on systems without pacman.
 
 Licensed under GPL-3.0-only; see [LICENSE](LICENSE).
+
+The dedicated settings center covers desktop preferences, workspaces, input, audio, power profiles and installed system tools. See [Settings coverage](docs/SETTINGS.md) for direct controls, host integrations and missing capabilities. The bundled Notes application has been removed.

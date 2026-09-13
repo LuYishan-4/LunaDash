@@ -19,7 +19,7 @@ AnimatedPanel {
     Rectangle { anchors.fill: parent; radius: Theme.radius; color: Theme.background; border.color: Theme.border }
     property var builtins: [
         { id: "files", name: "Files" }, { id: "console", name: "Console" },
-        { id: "notes", name: "Notes" }, { id: "monitor", name: "System monitor" },
+        { id: "settings", name: "Settings" }, { id: "monitor", name: "System monitor" },
         { id: "packages", name: "Packages" }, { id: "plugins", name: "Plugins" }
     ]
     ColumnLayout {

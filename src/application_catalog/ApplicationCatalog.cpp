@@ -6,7 +6,7 @@
 namespace LuDash {
 QList<BuiltinApplication> builtinApplications() {
     return {{"welcome", "◈", LuDash::translate("Welcome")}, {"files", "▱", LuDash::translate("Files")}, {"console", "⌘", LuDash::translate("Console")},
-            {"notes", "✎", LuDash::translate("Notes")}, {"monitor", "▥", LuDash::translate("System monitor")}, {"settings", "⚙", LuDash::translate("Settings")},
+            {"monitor", "▥", LuDash::translate("System monitor")}, {"settings", "⚙", LuDash::translate("Settings")},
             {"packages", "⬡", LuDash::translate("Package manager")}, {"plugins", "◇", LuDash::translate("Plugins")}};
 }
 QList<ApplicationEntry> discoverApplications() {
@@ -29,7 +29,7 @@ QList<ApplicationEntry> discoverApplications() {
             const auto command = file.value("Exec").toString();
             auto args = QProcess::splitCommand(command);
             if (args.isEmpty()) continue;
-            const auto name = file.value("Name[zh_TW]", file.value("Name")).toString();
+            const auto name = (selectedLanguage() == "zh_TW" ? file.value("Name[zh_TW]", file.value("Name")) : file.value("Name")).toString();
             const auto icon = file.value("Icon").toString();
             QStringList expanded;
             bool unsupported = false;

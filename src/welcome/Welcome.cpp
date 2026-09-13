@@ -9,10 +9,10 @@ QWidget* createWelcome(const std::function<void(const QString&)>& launch) {
     layout->setContentsMargins(32, 26, 32, 24); layout->setSpacing(18);
     auto* eyebrow = new QLabel("YOUR SPACE. YOUR PACE."); eyebrow->setObjectName("eyebrow"); layout->addWidget(eyebrow);
     auto* title = new QLabel(LuDash::translate("Welcome to LuDash.")); title->setObjectName("heroTitle"); layout->addWidget(title);
-    auto* description = new QLabel(LuDash::translate("A quiet, focused Linux desktop.\nOpen your files, capture an idea, and start your day."));
+    auto* description = new QLabel(LuDash::translate("A quiet, focused Linux desktop.\nOpen your files, make yourself at home, and start your day."));
     description->setObjectName("description"); layout->addWidget(description);
     auto* row = new QHBoxLayout;
-    for (const auto& pair : {qMakePair(QString("files"), QString(LuDash::translate("Browse files"))), qMakePair(QString("notes"), QString(LuDash::translate("New note")))}) {
+    for (const auto& pair : {qMakePair(QString("files"), QString(LuDash::translate("Browse files"))), qMakePair(QString("settings"), QString(LuDash::translate("Desktop settings")))}) {
         auto* button = new QPushButton(pair.second); button->setMinimumHeight(46); row->addWidget(button);
         QObject::connect(button, &QPushButton::clicked, page, [launch, id = pair.first] { launch(id); });
     }

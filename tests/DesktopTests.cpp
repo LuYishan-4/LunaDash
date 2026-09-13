@@ -6,10 +6,8 @@
 #include <LuDash/application_catalog/ApplicationCatalog.h>
 #include <LuDash/file_manager/FileManager.h>
 #include <LuDash/console/Console.h>
-#include <LuDash/notes/Notes.h>
 #include <LuDash/system_monitor/SystemMonitor.h>
 #include <LuDash/welcome/Welcome.h>
-#include <LuDash/settings/Settings.h>
 #include <LuDash/tiling/TilingLayout.h>
 #include <QtTest>
 #include <QtWidgets>
@@ -24,9 +22,9 @@ private slots:
     }
     void languagePackIsExternal() {
         const auto dictionary = LuDash::languageDictionary("zh_TW");
-        QVERIFY(dictionary.contains("Notes"));
-        QVERIFY(dictionary.value("Notes").toString() != "Notes");
-        QCOMPARE(LuDash::translate("Notes"), QString("Notes"));
+        QVERIFY(dictionary.contains("Files"));
+        QVERIFY(dictionary.value("Files").toString() != "Files");
+        QCOMPARE(LuDash::translate("Files"), QString("Files"));
     }
     void wallpaperRejectsInvalidFiles() {
         QTemporaryDir directory;
@@ -78,23 +76,9 @@ private slots:
         auto* model = qobject_cast<QFileSystemModel*>(tree->model());
         QCOMPARE(model->filePath(tree->rootIndex()), directory.path());
     }
-    void unsavedNotesCanCancelClosing() {
-        std::function<bool()> canClose;
-        std::unique_ptr<QWidget> notes(LuDash::createNotes(canClose));
-        auto* editor = notes->findChild<QPlainTextEdit*>("notesEditor");
-        QVERIFY(canClose());
-        editor->insertPlainText("unsaved note");
-        QTimer::singleShot(0, [] {
-            auto* dialog = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
-            if (dialog) dialog->button(QMessageBox::Cancel)->click();
-        });
-        QVERIFY(!canClose());
-        QVERIFY(editor->document()->isModified());
-        QTimer::singleShot(0, [] {
-            auto* dialog = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
-            if (dialog) dialog->button(QMessageBox::Discard)->click();
-        });
-        QVERIFY(canClose());
+    void retiredNotesAreNotListed() {
+        const auto apps = builtinApplications();
+        QVERIFY(std::none_of(apps.begin(), apps.end(), [](const auto& app) { return app.id == "notes"; }));
     }
     void commandRunsAndReportsExit() {
         std::unique_ptr<QWidget> console(LuDash::createConsole()); console->show();

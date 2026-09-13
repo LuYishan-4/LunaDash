@@ -65,7 +65,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
                     click(980, 672)  # Appearance -> ready.
                     click(980, 672)  # Complete the guide.
                     wait_for(lambda data: data['setupComplete'] and data['layerSurfaces'] == 2)
-                    assert 'error' not in request('appearance', json.dumps({'gap': 20, 'panelHeight': 36})), 'Valid preferences rejected'
+                    assert 'error' not in request('appearance', json.dumps({'gap': 20, 'panelHeight': 36, 'startupApps': ['console'], 'fontFamily': 'monospace'})), 'Valid preferences rejected'
                     before = request()['appearance']
                     assert 'error' in request('appearance', '{"accent":"#123456","gap":99}')
                     assert request()['appearance'] == before, 'Invalid update partially changed preferences'
@@ -74,6 +74,8 @@ with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
                     assert state['appearance']['accent'] == '#c4b5fd', state
                     assert state['appearance']['gap'] == 20 and state['appearance']['panelHeight'] == 36, state
                     assert state['layerSurfaces'] == 2, state
+                    state = wait_for(lambda data: any(client['mapped'] for client in data['clients']))
+                    assert state['appearance']['startupApps'] == ['console'] and state['appearance']['fontFamily'] == 'monospace', state
                 assert process.wait(timeout=20) == 0, 'Setup session did not close cleanly'
             except BaseException:
                 log.flush(); log.seek(0); print(log.read(), file=sys.stderr)

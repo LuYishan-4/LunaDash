@@ -1,4 +1,9 @@
 #include <LuDash/renderer/WallpaperItem.h>
+#include <LuDash/audio_settings/AudioSettings.h>
+#include <LuDash/power_settings/PowerSettings.h>
+#include <LuDash/system_tools/SystemTools.h>
+#include <LuDash/input_settings/InputSettings.h>
+#include <LuDash/display_settings/DisplaySettings.h>
 #include <LuDash/blur/BlurItem.h>
 #include <LuDash/animation/WindowAnimations.h>
 #include <LuDash/xwayland/XWaylandSupport.h>
@@ -41,6 +46,7 @@
 #include <QtWaylandCompositor/QWaylandXdgShell>
 #include <QtWaylandCompositor/QWaylandXdgDecorationManagerV1>
 #include <QtWaylandCompositor/QWaylandSeat>
+#include <QtWaylandCompositor/QWaylandKeymap>
 #include <QtWaylandCompositor/QWaylandClient>
 #include <memory>
 
@@ -79,6 +85,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
     controlPath_ = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" + QString::fromUtf8(socket) + "-control";
     controlServer_ = new ControlServer(controlPath_, [this](const QJsonObject& request) { return control(request); }, this);
     systemStatus_ = new SystemStatus(this);
+    audioSettings_ = new AudioSettings(this); powerSettings_ = new PowerSettings(this);
+    applyKeyboardPreferences(compositor_.defaultSeat(), desktopPreferences());
     networkStatus_ = new NetworkStatus(this);
     pluginManager_ = new PluginManager(this);
     pluginManager_->loadEnabled();
@@ -99,7 +107,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
         auto environment = QProcessEnvironment::systemEnvironment();
         environment.insert("WAYLAND_DISPLAY", QString::fromUtf8(socket));
         environment.insert("LUDASH_CONTROL", controlPath_);
-        environment.insert("LUDASH_BIN_DIR", QCoreApplication::applicationDirPath());
+        environment.insert("XCURSOR_SIZE", QString::number(desktopPreferences().value("cursorSize").toInt()));
+    environment.insert("LUDASH_BIN_DIR", QCoreApplication::applicationDirPath());
         xwayland_->start(environment);
     }
     if (startShell) {
@@ -112,6 +121,9 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
             if (!clients_.empty()) spawn({"--session", "--no-welcome"});
         });
     }
+    if (startShell && setupComplete()) QTimer::singleShot(1200, this, [this] {
+        for (const auto& app : desktopPreferences().value("startupApps").toArray()) spawn({"--app", app.toString()});
+    });
     qInfo().noquote() << "LuDash Wayland socket:" << socket;
 }
 
@@ -173,7 +185,9 @@ QJsonObject WaylandCompositor::state() const {
         {"id", client->id}, {"title", client->toplevel ? client->toplevel->title() : ""}, {"desktop", client->desktop},
         {"workspace", client->workspace}, {"visible", client->frame->isVisible()}, {"focused", client.get() == focused_},
         {"x", client->frame->x()}, {"y", client->frame->y()}, {"width", client->frame->width()}, {"height", client->frame->height()}, {"mapped", client->mapped}});
-    return {{"blurReady", blurHealth_->ready.load()}, {"blurFailed", blurHealth_->failed.load()}, {"blurFrames", static_cast<int>(blurHealth_->frames.load())},
+    return {{"audio", audioSettings_->snapshot()}, {"power", powerSettings_->snapshot()}, {"settingsTools", systemSettingsTools()},
+            {"display", describeDisplay(&window_)}, {"settingsSerial", settingsSerial_}, {"settingsPage", settingsPage_},
+            {"input", QJsonObject{{"layout", compositor_.defaultSeat()->keymap()->layout()}, {"repeatRate", static_cast<int>(compositor_.defaultSeat()->keyboard()->repeatRate())}, {"repeatDelay", static_cast<int>(compositor_.defaultSeat()->keyboard()->repeatDelay())}}}, {"blurReady", blurHealth_->ready.load()}, {"blurFailed", blurHealth_->failed.load()}, {"blurFrames", static_cast<int>(blurHealth_->frames.load())},
             {"activeAnimations", animations_->activeCount()}, {"xwayland", xwayland_ ? xwayland_->snapshot() : QJsonObject{}}, {"appearance", desktopPreferences()}, {"setupComplete", setupComplete()}, {"network", networkStatus_->snapshot()},
             {"system", systemStatus_->snapshot()}, {"wallpaperImage", wallpaperImageUrl()},
             {"workspace", workspace_}, {"processFailure", processFailure_}, {"clients", entries},
@@ -189,14 +203,35 @@ QJsonObject WaylandCompositor::control(const QJsonObject& request) {
     const auto method = request.value("method").toString(); const auto value = request.value("value").toString();
     if (method == "status") return state();
     bool numberValid = false; const int number = value.toInt(&numberValid);
-    if (method == "workspace" && numberValid && number >= 0 && number < 4) { workspace_ = number; arrange(); focusNext(1); }
+    if (method == "workspace" && numberValid && number >= 0 && number < desktopPreferences().value("workspaceCount").toInt()) { workspace_ = number; arrange(); focusNext(1); }
     else if (method == "language" && (value == "en_US" || value == "zh_TW")) QSettings().setValue("appearance/language", value);
+    else if (method == "open-settings") {
+        if (!value.isEmpty() && !QStringList{"general", "appearance", "windows", "display", "input", "sound", "network", "bluetooth", "power", "applications", "privacy", "system", "devices", "about"}.contains(value)) return {{"error", "Unknown settings page."}};
+        settingsPage_ = value.isEmpty() ? "general" : value; settingsSerial_ = (settingsSerial_ + 1) % 1000000;
+    }
+    else if (method == "system-tool") {
+        auto command = systemSettingsCommand(value);
+        if (command.isEmpty()) return {{"error", "This settings tool is unavailable. Install the package shown in Settings."}};
+        const auto program = command.takeFirst();
+        if (systemSettingsToolUsesHost(value)) {
+            auto* process = new QProcess(this); process->setProcessEnvironment(QProcessEnvironment::systemEnvironment());
+            process->setProcessChannelMode(QProcess::ForwardedChannels); process->start(program, command); processes_ << process;
+        } else spawn(command, program);
+    }
+    else if (method == "audio") {
+        const auto document = QJsonDocument::fromJson(value.toUtf8()); QString error;
+        if (!document.isObject() || !audioSettings_->apply(document.object(), &error)) return {{"error", error.isEmpty() ? "Invalid audio setting." : error}};
+    }
+    else if (method == "power-profile") { QString error; if (!powerSettings_->apply(value, &error)) return {{"error", error}}; }
+    else if (method == "desktop-size") { QString error; if (!resizeNestedDesktop(&window_, value, &error)) return {{"error", error}}; }
+    else if (method == "reset-preferences") { QSettings settings; settings.remove("desktop"); settings.sync(); applyKeyboardPreferences(compositor_.defaultSeat(), desktopPreferences()); arrange(); }
     else if (method == "appearance") {
         QJsonParseError parseError;
         const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
         QString error;
         if (parseError.error != QJsonParseError::NoError || !document.isObject()) return {{"error", "Expected a JSON object of desktop preferences."}};
         if (!updateDesktopPreferences(document.object(), &error)) return {{"error", error}};
+        applyKeyboardPreferences(compositor_.defaultSeat(), desktopPreferences());
         arrange();
     }
     else if (method == "launch-x11") {
@@ -272,6 +307,7 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel* toplevel, QWaylandXdgSurf
     auto client = std::make_unique<ClientWindow>();
     client->id = nextWindowId_++;
     client->toplevel = toplevel; client->workspace = workspace_;
+    client->floating = desktopPreferences().value("defaultFloating").toBool();
     client->frame = new WindowFrame(window_.contentItem());
     client->frame->setVisible(false);
     client->frame->setOpacity(.999);
@@ -335,6 +371,10 @@ void WaylandCompositor::arrange() {
     if (wallpaper_) wallpaper_->setSize(window_.size());
     const auto preferences = desktopPreferences();
     animations_->setDuration(preferences.value("animations").toBool() ? preferences.value("animationDuration").toInt() : 0);
+    const int count = preferences.value("workspaceCount").toInt();
+    workspace_ = std::min(workspace_, count - 1);
+    for (const auto& client : clients_) client->workspace = std::min(client->workspace, count - 1);
+    ratio_ = preferences.value("masterRatio").toInt() / 100.0;
     const int gap = preferences.value("gap").toInt();
     const int top = preferences.value("panelHeight").toInt() + gap;
     const QRect workArea(gap, top, std::max(1, window_.width() - gap * 2), std::max(1, window_.height() - top - gap));
@@ -395,7 +435,7 @@ bool WaylandCompositor::eventFilter(QObject* watched, QEvent* event) {
         if (event->type() == QEvent::KeyRelease && consumedKeys_.remove(key->key())) return true;
         if (event->type() == QEvent::KeyPress && key->modifiers().testFlag(Qt::MetaModifier)) {
             bool handled = true;
-            if (key->key() >= Qt::Key_1 && key->key() <= Qt::Key_4) {
+            if (key->key() >= Qt::Key_1 && key->key() < Qt::Key_1 + desktopPreferences().value("workspaceCount").toInt()) {
                 const int target = key->key() - Qt::Key_1;
                 if (key->modifiers().testFlag(Qt::ShiftModifier)) { if (focused_) focused_->workspace = target; }
                 else workspace_ = target;
@@ -403,8 +443,8 @@ bool WaylandCompositor::eventFilter(QObject* watched, QEvent* event) {
             } else switch (key->key()) {
                 case Qt::Key_J: focusNext(1); break;
                 case Qt::Key_K: focusNext(-1); break;
-                case Qt::Key_H: ratio_ = std::max(.3, ratio_ - .05); arrange(); break;
-                case Qt::Key_L: ratio_ = std::min(.7, ratio_ + .05); arrange(); break;
+                case Qt::Key_H: updateDesktopPreferences({{"masterRatio", std::max(30, desktopPreferences().value("masterRatio").toInt() - 5)}}, nullptr); arrange(); break;
+                case Qt::Key_L: updateDesktopPreferences({{"masterRatio", std::min(70, desktopPreferences().value("masterRatio").toInt() + 5)}}, nullptr); arrange(); break;
                 case Qt::Key_F: if (focused_) { focused_->maximized = !focused_->maximized; arrange(); } break;
                 case Qt::Key_M: if (focused_) { focused_->minimized = true; arrange(); focusNext(1); } break;
                 case Qt::Key_Q: if (focused_ && focused_->toplevel) focused_->toplevel->sendClose(); break;

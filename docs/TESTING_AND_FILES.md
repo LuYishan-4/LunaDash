@@ -36,13 +36,14 @@ QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -
 
 | CTest | What it checks |
 | --- | --- |
-| desktop-interactions | Native tools, notes behavior, tiling, language resources, wallpaper validation, package input and plugin paths |
+| desktop-interactions | Native tools, retired-application removal, tiling, language resources, wallpaper validation, package input and plugin paths |
 | security-gate | SARIF findings and missing reports fail the security gate |
 | graphics-contexts | Actual desktop GL and GLES contexts with production C wallpaper and blur passes |
 | graphics-startup-failure | Invalid API arguments and unavailable GL 3.3 return code 2 instead of aborting |
 | c-core | C geometry, bounded parsing, arithmetic overflow and counter resets |
 | window-animations | Interrupted visibility transitions, item destruction and reduced motion |
 | desktop-preferences | Type/range validation, no partial invalid update, setup completion and link/Internet distinction |
+| system-settings | Bounded helper output/timeouts, audio arguments and power-profile parsing |
 | source-language | English C/C++/QML, Markdown documentation and website sources |
 
 Require `100% tests passed`. Graphics tests use Mesa software rendering; they are not physical GPU compatibility results.
@@ -56,6 +57,8 @@ LUDASH_TEST_OVERVIEW=1 ./scripts/test-wayland.sh
 LUDASH_TEST_SETUP=1 ./scripts/test-wayland.sh
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interactions.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
+xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_settings.py build
+xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_effects.py build
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
 xvfb-run -a python3 tests/wayland/test_crash_detection.py build
 ```
@@ -100,8 +103,8 @@ Retain the same configuration directory for a second launch to verify persistenc
 
 1. Walk through language, network, appearance and completion. Verify offline continuation. Network status must distinguish a link from confirmed Internet connectivity. If desired, manually open the network editor and close it; automated tests do not connect Wi-Fi or alter profiles.
 2. Change accent, gaps, panel height, wallpaper and card visibility. Restart with the same configuration and check those choices remain. Reopen the guide from settings.
-3. Open Files, Notes and Monitor from the launcher. Check real client content, readable translucent backgrounds and no overlap with the panel.
-4. In Notes, enter text and close the window. Cancel must preserve the text/window. Save, reopen and compare the content.
+3. Open Files, Console and Monitor from the launcher. Check real client content, readable translucent backgrounds and no overlap with the panel.
+4. Open Settings → Keyboard and pointer. Change a keyboard layout and repeat settings, then use the test field to check input. No bundled Notes application is installed.
 5. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal; use a real terminal for interactive programs.
 6. Navigate into and out of a directory in Files.
 7. Switch workspaces by clicking the panel. Test Super + Shift + 2 to move a window, Super + M to minimize, and the launcher's open-window list to restore it.
@@ -133,7 +136,7 @@ Select both Clang compilers: the renderer, tiling and metrics cores and generate
 DESTDIR=/tmp/ludash-stage cmake --install build
 ./scripts/make-source.sh
 tar -tf packaging/arch/ludash-0.1.0.tar.gz
-npm ci --prefix site --ignore-scripts
+npm ci --prefix site --include=dev --ignore-scripts
 npm run check --prefix site
 npm run build --prefix site
 python3 tests/site/test_site.py site/dist
@@ -193,15 +196,18 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/animation/WindowAnimations.h](../include/LuDash/animation/WindowAnimations.h) | Declare interfaces/types to animate window visibility and safely cancel interrupted transitions. |
 | [include/LuDash/application_catalog/ApplicationCatalog.h](../include/LuDash/application_catalog/ApplicationCatalog.h) | Declare interfaces/types to discover installed application entries and launch requests. |
 | [include/LuDash/application_window/ApplicationWindow.h](../include/LuDash/application_window/ApplicationWindow.h) | Declare interfaces/types to host built-in applications and route close requests. |
+| [include/LuDash/audio_settings/AudioSettings.h](../include/LuDash/audio_settings/AudioSettings.h) | Declare interfaces to validate audio requests and read/control default PipeWire devices. |
 | [include/LuDash/blur/BlurItem.h](../include/LuDash/blur/BlurItem.h) | Declare interfaces/types to synchronize application blur properties into the scene graph. |
 | [include/LuDash/blur/BlurNode.h](../include/LuDash/blur/BlurNode.h) | Declare interfaces/types to bridge Qt scene graph state and the C blur renderer. |
 | [include/LuDash/compositor/ClientWindow.h](../include/LuDash/compositor/ClientWindow.h) | Declare interfaces/types to track compositor-owned client state and geometry. |
 | [include/LuDash/compositor/WaylandCompositor.h](../include/LuDash/compositor/WaylandCompositor.h) | Declare interfaces/types to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [include/LuDash/configuration/DesktopPreferences.h](../include/LuDash/configuration/DesktopPreferences.h) | Declare interfaces/types to validate and persist appearance and first-run completion. |
 | [include/LuDash/console/Console.h](../include/LuDash/console/Console.h) | Declare interfaces/types to run bounded shell commands with process-group cleanup. |
+| [include/LuDash/display_settings/DisplaySettings.h](../include/LuDash/display_settings/DisplaySettings.h) | Declare interfaces to describe the output and validate nested window-size changes. |
 | [include/LuDash/fade_plugin/FadePlugin.h](../include/LuDash/fade_plugin/FadePlugin.h) | Declare interfaces/types to animate the opt-in example window effect. |
 | [include/LuDash/file_manager/FileManager.h](../include/LuDash/file_manager/FileManager.h) | Declare interfaces/types to browse the local filesystem. |
 | [include/LuDash/input_method/InputMethodSupport.h](../include/LuDash/input_method/InputMethodSupport.h) | Declare interfaces/types to register Qt and Wayland text-input protocols. |
+| [include/LuDash/input_settings/InputSettings.h](../include/LuDash/input_settings/InputSettings.h) | Declare interfaces to apply validated keyboard maps and repeat settings to the Wayland seat. |
 | [include/LuDash/ipc/ControlServer.h](../include/LuDash/ipc/ControlServer.h) | Declare interfaces/types to serve bounded user-only JSON control requests. |
 | [include/LuDash/launcher/Launcher.h](../include/LuDash/launcher/Launcher.h) | Declare interfaces/types to present the native application launcher. |
 | [include/LuDash/layer_shell/LayerShell.h](../include/LuDash/layer_shell/LayerShell.h) | Declare interfaces/types to bind and negotiate the supported layer-shell global. |
@@ -209,21 +215,22 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/localization/JsonTranslator.h](../include/LuDash/localization/JsonTranslator.h) | Declare interfaces/types to adapt the external dictionary to Qt translation. |
 | [include/LuDash/localization/Localization.h](../include/LuDash/localization/Localization.h) | Declare interfaces/types to select language and load external dictionary resources. |
 | [include/LuDash/network/NetworkStatus.h](../include/LuDash/network/NetworkStatus.h) | Declare interfaces/types to read NetworkManager asynchronously and distinguish link/Internet state. |
-| [include/LuDash/notes/Notes.h](../include/LuDash/notes/Notes.h) | Declare interfaces/types to edit notes, save atomically and guard unsaved changes. |
 | [include/LuDash/packages/PackageManager.h](../include/LuDash/packages/PackageManager.h) | Declare interfaces/types to validate package names and use confirmed terminal pacman operations. |
 | [include/LuDash/plugin_settings/PluginSettings.h](../include/LuDash/plugin_settings/PluginSettings.h) | Declare interfaces/types to show metadata and save explicit native-plugin enablement. |
 | [include/LuDash/plugins/CompositorPlugin.h](../include/LuDash/plugins/CompositorPlugin.h) | Declare interfaces/types to define the versioned window-effect plugin contract. |
 | [include/LuDash/plugins/PluginManager.h](../include/LuDash/plugins/PluginManager.h) | Declare interfaces/types to validate metadata/library paths and load enabled effects. |
+| [include/LuDash/power_settings/PowerSettings.h](../include/LuDash/power_settings/PowerSettings.h) | Declare interfaces to read supported power profiles and request allowed changes. |
+| [include/LuDash/process_runner/CommandRunner.h](../include/LuDash/process_runner/CommandRunner.h) | Declare interfaces to run bounded asynchronous helper commands with cancellation and output limits. |
 | [include/LuDash/render_core/BlurPass.h](../include/LuDash/render_core/BlurPass.h) | Declare interfaces/types to capture the backdrop and draw two Gaussian blur passes. |
 | [include/LuDash/render_core/GLDispatch.h](../include/LuDash/render_core/GLDispatch.h) | Declare interfaces/types to resolve OpenGL and GLES function pointers from the current context. |
 | [include/LuDash/render_core/ShaderProgram.h](../include/LuDash/render_core/ShaderProgram.h) | Declare interfaces/types to compile and link GLSL with bounded diagnostics and explicit ownership. |
 | [include/LuDash/renderer/RenderBackend.h](../include/LuDash/renderer/RenderBackend.h) | Declare interfaces/types to select and configure the graphics API and shared render health. |
 | [include/LuDash/renderer/WallpaperItem.h](../include/LuDash/renderer/WallpaperItem.h) | Declare interfaces/types to expose the compositor framebuffer wallpaper item. |
 | [include/LuDash/renderer/WallpaperRenderer.h](../include/LuDash/renderer/WallpaperRenderer.h) | Declare interfaces/types to compile GLSL and draw with the current render-thread context. |
-| [include/LuDash/settings/Settings.h](../include/LuDash/settings/Settings.h) | Declare interfaces/types to provide native language, input-method and system settings. |
 | [include/LuDash/system_metrics/SystemMetrics.h](../include/LuDash/system_metrics/SystemMetrics.h) | Declare interfaces/types to parse bounded CPU and memory counters with overflow validation. |
 | [include/LuDash/system_monitor/SystemMonitor.h](../include/LuDash/system_monitor/SystemMonitor.h) | Declare interfaces/types to show native process/system monitoring. |
 | [include/LuDash/system_status/SystemStatus.h](../include/LuDash/system_status/SystemStatus.h) | Declare interfaces/types to sample CPU, memory, disk and battery data for the shell. |
+| [include/LuDash/system_tools/SystemTools.h](../include/LuDash/system_tools/SystemTools.h) | Declare interfaces to resolve fixed system/host editor commands and package availability. |
 | [include/LuDash/theme/DesktopTheme.h](../include/LuDash/theme/DesktopTheme.h) | Declare interfaces/types to style the native Qt Widgets tools. |
 | [include/LuDash/tiling/TilingLayout.h](../include/LuDash/tiling/TilingLayout.h) | Declare interfaces/types to compute master/stack rectangles with bounded gaps. |
 | [include/LuDash/tiling_core/TilingGeometry.h](../include/LuDash/tiling_core/TilingGeometry.h) | Declare interfaces/types to calculate bounded master/stack rectangles without Qt. |
@@ -239,27 +246,31 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/animation/WindowAnimations.cpp](../src/animation/WindowAnimations.cpp) | Implement behavior to animate window visibility and safely cancel interrupted transitions. |
 | [src/application_catalog/ApplicationCatalog.cpp](../src/application_catalog/ApplicationCatalog.cpp) | Implement behavior to discover installed application entries and launch requests. |
 | [src/application_window/ApplicationWindow.cpp](../src/application_window/ApplicationWindow.cpp) | Implement behavior to host built-in applications and route close requests. |
+| [src/audio_settings/AudioSettings.cpp](../src/audio_settings/AudioSettings.cpp) | Implement behavior to validate audio requests and read/control default PipeWire devices. |
 | [src/blur/BlurItem.cpp](../src/blur/BlurItem.cpp) | Implement behavior to synchronize application blur properties into the scene graph. |
 | [src/blur/BlurNode.cpp](../src/blur/BlurNode.cpp) | Implement behavior to bridge Qt scene graph state and the C blur renderer. |
 | [src/compositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [src/configuration/DesktopPreferences.cpp](../src/configuration/DesktopPreferences.cpp) | Implement behavior to validate and persist appearance and first-run completion. |
 | [src/console/Console.cpp](../src/console/Console.cpp) | Implement behavior to run bounded shell commands with process-group cleanup. |
+| [src/display_settings/DisplaySettings.cpp](../src/display_settings/DisplaySettings.cpp) | Implement behavior to describe the output and validate nested window-size changes. |
 | [src/entrypoints/compositor_main.cpp](../src/entrypoints/compositor_main.cpp) | Parse compositor arguments, create the session and coordinate test shutdown. |
 | [src/entrypoints/control_main.cpp](../src/entrypoints/control_main.cpp) | Send one bounded local control request and return the response status. |
 | [src/entrypoints/desktop_main.cpp](../src/entrypoints/desktop_main.cpp) | Launch a native app or delegate desktop startup to the compositor. |
 | [src/fade_plugin/FadePlugin.cpp](../src/fade_plugin/FadePlugin.cpp) | Implement behavior to animate the opt-in example window effect. |
 | [src/file_manager/FileManager.cpp](../src/file_manager/FileManager.cpp) | Implement behavior to browse the local filesystem. |
 | [src/input_method/InputMethodSupport.cpp](../src/input_method/InputMethodSupport.cpp) | Implement behavior to register Qt and Wayland text-input protocols. |
+| [src/input_settings/InputSettings.cpp](../src/input_settings/InputSettings.cpp) | Implement behavior to apply validated keyboard maps and repeat settings to the Wayland seat. |
 | [src/ipc/ControlServer.cpp](../src/ipc/ControlServer.cpp) | Implement behavior to serve bounded user-only JSON control requests. |
 | [src/launcher/Launcher.cpp](../src/launcher/Launcher.cpp) | Implement behavior to present the native application launcher. |
 | [src/layer_shell/LayerShell.cpp](../src/layer_shell/LayerShell.cpp) | Implement behavior to bind and negotiate the supported layer-shell global. |
 | [src/layer_shell/LayerSurface.cpp](../src/layer_shell/LayerSurface.cpp) | Implement behavior to configure, place and retire layer surfaces. |
 | [src/localization/Localization.cpp](../src/localization/Localization.cpp) | Implement behavior to select language and load external dictionary resources. |
 | [src/network/NetworkStatus.cpp](../src/network/NetworkStatus.cpp) | Implement behavior to read NetworkManager asynchronously and distinguish link/Internet state. |
-| [src/notes/Notes.cpp](../src/notes/Notes.cpp) | Implement behavior to edit notes, save atomically and guard unsaved changes. |
 | [src/packages/PackageManager.cpp](../src/packages/PackageManager.cpp) | Implement behavior to validate package names and use confirmed terminal pacman operations. |
 | [src/plugin_settings/PluginSettings.cpp](../src/plugin_settings/PluginSettings.cpp) | Implement behavior to show metadata and save explicit native-plugin enablement. |
 | [src/plugins/PluginManager.cpp](../src/plugins/PluginManager.cpp) | Implement behavior to validate metadata/library paths and load enabled effects. |
+| [src/power_settings/PowerSettings.cpp](../src/power_settings/PowerSettings.cpp) | Implement behavior to read supported power profiles and request allowed changes. |
+| [src/process_runner/CommandRunner.cpp](../src/process_runner/CommandRunner.cpp) | Implement behavior to run bounded asynchronous helper commands with cancellation and output limits. |
 | [src/render_core/BlurPass.c](../src/render_core/BlurPass.c) | Implement behavior to capture the backdrop and draw two Gaussian blur passes. |
 | [src/render_core/GLDispatch.c](../src/render_core/GLDispatch.c) | Implement behavior to resolve OpenGL and GLES function pointers from the current context. |
 | [src/render_core/ShaderProgram.c](../src/render_core/ShaderProgram.c) | Implement behavior to compile and link GLSL with bounded diagnostics and explicit ownership. |
@@ -267,10 +278,10 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/renderer/RenderBackend.cpp](../src/renderer/RenderBackend.cpp) | Implement behavior to select and configure the graphics API and shared render health. |
 | [src/renderer/WallpaperItem.cpp](../src/renderer/WallpaperItem.cpp) | Implement behavior to expose the compositor framebuffer wallpaper item. |
 | [src/renderer/WallpaperRenderer.cpp](../src/renderer/WallpaperRenderer.cpp) | Implement behavior to compile GLSL and draw with the current render-thread context. |
-| [src/settings/Settings.cpp](../src/settings/Settings.cpp) | Implement behavior to provide native language, input-method and system settings. |
 | [src/system_metrics/SystemMetrics.c](../src/system_metrics/SystemMetrics.c) | Implement behavior to parse bounded CPU and memory counters with overflow validation. |
 | [src/system_monitor/SystemMonitor.cpp](../src/system_monitor/SystemMonitor.cpp) | Implement behavior to show native process/system monitoring. |
 | [src/system_status/SystemStatus.cpp](../src/system_status/SystemStatus.cpp) | Implement behavior to sample CPU, memory, disk and battery data for the shell. |
+| [src/system_tools/SystemTools.cpp](../src/system_tools/SystemTools.cpp) | Implement behavior to resolve fixed system/host editor commands and package availability. |
 | [src/theme/DesktopTheme.cpp](../src/theme/DesktopTheme.cpp) | Implement behavior to style the native Qt Widgets tools. |
 | [src/tiling/TilingLayout.cpp](../src/tiling/TilingLayout.cpp) | Implement behavior to compute master/stack rectangles with bounded gaps. |
 | [src/tiling_core/TilingGeometry.c](../src/tiling_core/TilingGeometry.c) | Implement behavior to calculate bounded master/stack rectangles without Qt. |
@@ -294,7 +305,25 @@ Generated build output, dependency caches, source archives and Git internals are
 | [qml/overview/Overview.qml](../qml/overview/Overview.qml) | Tabbed dashboard with performance and workspace controls. |
 | [qml/panel/TopPanel.qml](../qml/panel/TopPanel.qml) | Workspace/app controls, clock, CPU history, memory and battery indicators. |
 | [qml/session/LogoutPanel.qml](../qml/session/LogoutPanel.qml) | Confirm or cancel ending the desktop session. |
-| [qml/settings/SettingsPanel.qml](../qml/settings/SettingsPanel.qml) | Language, wallpaper, appearance, network and feature settings. |
+| [qml/settings/SettingsPanel.qml](../qml/settings/SettingsPanel.qml) | Dedicated settings center with searchable sidebar and dynamically loaded feature pages. |
+| [qml/settings/components/HelpText.qml](../qml/settings/components/HelpText.qml) | Wrapped localized explanatory text for settings pages. |
+| [qml/settings/components/PageTitle.qml](../qml/settings/components/PageTitle.qml) | Localized settings page title. |
+| [qml/settings/components/PreferenceSlider.qml](../qml/settings/components/PreferenceSlider.qml) | Validated preference slider with separate pending and saved values. |
+| [qml/settings/components/ToolList.qml](../qml/settings/components/ToolList.qml) | System/host tool availability, package guidance and explicit launch buttons. |
+| [qml/settings/pages/about.qml](../qml/settings/pages/about.qml) | Settings page for about; direct controls and explicit system-service availability. |
+| [qml/settings/pages/appearance.qml](../qml/settings/pages/appearance.qml) | Settings page for appearance; direct controls and explicit system-service availability. |
+| [qml/settings/pages/applications.qml](../qml/settings/pages/applications.qml) | Settings page for applications; direct controls and explicit system-service availability. |
+| [qml/settings/pages/bluetooth.qml](../qml/settings/pages/bluetooth.qml) | Settings page for bluetooth; direct controls and explicit system-service availability. |
+| [qml/settings/pages/devices.qml](../qml/settings/pages/devices.qml) | Settings page for devices; direct controls and explicit system-service availability. |
+| [qml/settings/pages/display.qml](../qml/settings/pages/display.qml) | Settings page for display; direct controls and explicit system-service availability. |
+| [qml/settings/pages/general.qml](../qml/settings/pages/general.qml) | Settings page for general; direct controls and explicit system-service availability. |
+| [qml/settings/pages/input.qml](../qml/settings/pages/input.qml) | Settings page for input; direct controls and explicit system-service availability. |
+| [qml/settings/pages/network.qml](../qml/settings/pages/network.qml) | Settings page for network; direct controls and explicit system-service availability. |
+| [qml/settings/pages/power.qml](../qml/settings/pages/power.qml) | Settings page for power; direct controls and explicit system-service availability. |
+| [qml/settings/pages/privacy.qml](../qml/settings/pages/privacy.qml) | Settings page for privacy; direct controls and explicit system-service availability. |
+| [qml/settings/pages/sound.qml](../qml/settings/pages/sound.qml) | Settings page for sound; direct controls and explicit system-service availability. |
+| [qml/settings/pages/system.qml](../qml/settings/pages/system.qml) | Settings page for system; direct controls and explicit system-service availability. |
+| [qml/settings/pages/windows.qml](../qml/settings/pages/windows.qml) | Settings page for windows; direct controls and explicit system-service availability. |
 | [qml/setup/SetupWizard.qml](../qml/setup/SetupWizard.qml) | Four-step language, network, appearance and completion guide. |
 | [qml/shell.qml](../qml/shell.qml) | Shell root, status polling, serialized commands and panel/setup visibility. |
 | [qml/style/Theme.qml](../qml/style/Theme.qml) | Shared palette, font and live accent/panel-height properties. |
@@ -335,7 +364,10 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/security/test_sarif_gate.py](../tests/security/test_sarif_gate.py) | Negative and positive SARIF gate cases. |
 | [tests/security/test_source_language.py](../tests/security/test_source_language.py) | Keep code, documentation and website text in English. |
 | [tests/site/test_site.py](../tests/site/test_site.py) | Check compiled website assets, fragments, language and image descriptions. |
+| [tests/system_settings/SettingsTests.cpp](../tests/system_settings/SettingsTests.cpp) | Audio/profile validation, command allowlists and bounded helper output/timeouts. |
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
+| [tests/wayland/test_effects.py](../tests/wayland/test_effects.py) | Live blur, opacity and reduced-motion preferences; private-safe window screenshot. |
+| [tests/wayland/test_settings.py](../tests/wayland/test_settings.py) | Load all fourteen settings pages and verify real keyboard/workspace updates without modifying host services. |
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
 | [tests/wayland/test_shell_interactions.py](../tests/wayland/test_shell_interactions.py) | Click the live shell and verify workspace/app/settings/window behavior. |
 | [tests/wayland/test_xwayland.py](../tests/wayland/test_xwayland.py) | Authenticated X11 mapping, denied unauthenticated access and shutdown cleanup. |
@@ -367,6 +399,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [docs/INPUT_METHODS.md](../docs/INPUT_METHODS.md) | Language registration and honest Fcitx/IBus validation guidance. |
 | [docs/PLUGINS.md](../docs/PLUGINS.md) | Plugin metadata, SDK, loading and native trust boundary. |
 | [docs/SECURITY_CHECKS.md](../docs/SECURITY_CHECKS.md) | PR gates, local analysis commands and branch protection instructions. |
+| [docs/SETTINGS.md](../docs/SETTINGS.md) | Settings coverage, direct controls, system/host integrations, saved keys and limitations. |
 | [docs/TESTING.md](../docs/TESTING.md) | Short entry point to the full testing guide. |
 | [docs/TESTING_AND_FILES.md](../docs/TESTING_AND_FILES.md) | This testing guide, evidence record and complete maintained-file map. |
 | [docs/WEBSITE.md](../docs/WEBSITE.md) | TypeScript site preview, build, deployment and rollback instructions. |

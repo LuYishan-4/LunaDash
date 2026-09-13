@@ -21,10 +21,10 @@ QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/ludash-compositor --socket lu
 Qt clients launched by LuDash use `QT_IM_MODULE=wayland` by default. To separately evaluate the direct Qt Fcitx module:
 
 ```sh
-WAYLAND_DISPLAY=ludash-ime QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/ludash-desktop --app notes
+WAYLAND_DISPLAY=ludash-ime QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/ludash-desktop --app console
 ```
 
-In Notes, test switching methods, preedit, candidate selection, commit, deletion, cursor movement, focus changes and candidate-window positioning. The direct-module route does not prove compositor bridge support.
+In the console input field (without running the entered text), test switching methods, preedit, candidate selection, commit, deletion, cursor movement, focus changes and candidate-window positioning. The direct-module route does not prove compositor bridge support.
 
 Complete Fcitx5/IBus behavior, candidate placement and GTK/Electron compatibility still require physical-session testing. LuDash does not automatically start or reset input-method daemons. Open input-method tools from Desktop settings when installed.
 

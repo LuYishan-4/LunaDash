@@ -58,6 +58,24 @@ target_compile_definitions(ludash-wallpaper PRIVATE LUDASH_WALLPAPER_SOURCE_DIR=
 add_library(ludash-configuration src/configuration/DesktopPreferences.cpp)
 target_include_directories(ludash-configuration PUBLIC include)
 target_link_libraries(ludash-configuration PUBLIC Qt6::Core)
+add_library(ludash-process-runner src/process_runner/CommandRunner.cpp)
+target_include_directories(ludash-process-runner PUBLIC include)
+target_link_libraries(ludash-process-runner PUBLIC Qt6::Core)
+add_library(ludash-audio-settings src/audio_settings/AudioSettings.cpp)
+target_include_directories(ludash-audio-settings PUBLIC include)
+target_link_libraries(ludash-audio-settings PUBLIC ludash-process-runner)
+add_library(ludash-power-settings src/power_settings/PowerSettings.cpp)
+target_include_directories(ludash-power-settings PUBLIC include)
+target_link_libraries(ludash-power-settings PUBLIC ludash-process-runner)
+add_library(ludash-system-tools src/system_tools/SystemTools.cpp)
+target_include_directories(ludash-system-tools PUBLIC include)
+target_link_libraries(ludash-system-tools PUBLIC Qt6::Core)
+add_library(ludash-display-settings src/display_settings/DisplaySettings.cpp)
+target_include_directories(ludash-display-settings PUBLIC include)
+target_link_libraries(ludash-display-settings PUBLIC Qt6::Gui)
+add_library(ludash-input-settings src/input_settings/InputSettings.cpp)
+target_include_directories(ludash-input-settings PUBLIC include)
+target_link_libraries(ludash-input-settings PUBLIC Qt6::WaylandCompositor)
 add_library(ludash-network src/network/NetworkStatus.cpp)
 target_include_directories(ludash-network PUBLIC include)
 target_link_libraries(ludash-network PUBLIC Qt6::Network Qt6::DBus)
@@ -77,10 +95,8 @@ add_library(ludash-apps
     src/application_window/ApplicationWindow.cpp
     src/file_manager/FileManager.cpp
     src/console/Console.cpp
-    src/notes/Notes.cpp
     src/system_monitor/SystemMonitor.cpp
     src/welcome/Welcome.cpp
-    src/settings/Settings.cpp
     src/launcher/Launcher.cpp
     src/packages/PackageManager.cpp
     src/plugin_settings/PluginSettings.cpp
@@ -107,7 +123,7 @@ add_library(ludash-wayland
 )
 target_include_directories(ludash-wayland PUBLIC include PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(ludash-wayland PRIVATE LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
-target_link_libraries(ludash-wayland PUBLIC ludash-system-metrics ludash-blur ludash-animation ludash-xwayland ludash-configuration ludash-network ludash-wallpaper ludash-renderer ludash-tiling ludash-localization ludash-plugins Qt6::Quick Qt6::Network Qt6::WaylandCompositor PkgConfig::WAYLAND_SERVER)
+target_link_libraries(ludash-wayland PUBLIC ludash-display-settings ludash-audio-settings ludash-power-settings ludash-system-tools ludash-input-settings ludash-system-metrics ludash-blur ludash-animation ludash-xwayland ludash-configuration ludash-network ludash-wallpaper ludash-renderer ludash-tiling ludash-localization ludash-plugins Qt6::Quick Qt6::Network Qt6::WaylandCompositor PkgConfig::WAYLAND_SERVER)
 target_compile_options(ludash-wayland PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(ludash-desktop src/entrypoints/desktop_main.cpp)
 target_link_libraries(ludash-desktop PRIVATE ludash-apps)
@@ -157,5 +173,9 @@ if(BUILD_TESTING)
   add_executable(ludash-preference-tests tests/configuration/PreferenceTests.cpp)
   target_link_libraries(ludash-preference-tests PRIVATE ludash-configuration ludash-network Qt6::Test)
   add_test(NAME desktop-preferences COMMAND ludash-preference-tests)
+  add_executable(ludash-settings-tests tests/system_settings/SettingsTests.cpp)
+  target_link_libraries(ludash-settings-tests PRIVATE ludash-audio-settings ludash-power-settings ludash-system-tools Qt6::Test)
+  add_test(NAME system-settings COMMAND ludash-settings-tests)
+  set_tests_properties(system-settings PROPERTIES TIMEOUT 15)
   add_test(NAME source-language COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/security/test_source_language.py)
 endif()
