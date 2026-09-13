@@ -9,6 +9,8 @@ class PreferenceTests final : public QObject {
     Q_OBJECT
 private slots:
     void validatesBeforeWriting() {
+        QCoreApplication::setOrganizationName("LuDashPreferenceTests");
+        QCoreApplication::setApplicationName("LuDash");
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         QSettings::setDefaultFormat(QSettings::IniFormat);

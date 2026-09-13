@@ -20,9 +20,9 @@ ColumnLayout {
         }
     }
     RowLayout {
-        Text { text: shell.tr("Window gaps") + "  " + (shell.state.appearance?.gap ?? 12) + " px"; color: Theme.text; Layout.fillWidth: true }
-        ShellButton { text: "−"; enabled: (shell.state.appearance?.gap ?? 12) > 4; onClicked: shell.setAppearance({ gap: Math.max(4, (shell.state.appearance?.gap ?? 12) - 4) }) }
-        ShellButton { text: "+"; enabled: (shell.state.appearance?.gap ?? 12) < 32; onClicked: shell.setAppearance({ gap: Math.min(32, (shell.state.appearance?.gap ?? 12) + 4) }) }
+        Text { text: shell.tr("Window gaps") + "  " + ((shell.state.appearance || {}).gap ?? 12) + " px"; color: Theme.text; Layout.fillWidth: true }
+        ShellButton { text: "−"; enabled: ((shell.state.appearance || {}).gap ?? 12) > 4; onClicked: shell.setAppearance({ gap: Math.max(4, ((shell.state.appearance || {}).gap ?? 12) - 4) }) }
+        ShellButton { text: "+"; enabled: ((shell.state.appearance || {}).gap ?? 12) < 32; onClicked: shell.setAppearance({ gap: Math.min(32, ((shell.state.appearance || {}).gap ?? 12) + 4) }) }
     }
     RowLayout {
         Text { text: shell.tr("Panel height") + "  " + Theme.barHeight + " px"; color: Theme.text; Layout.fillWidth: true }
@@ -31,6 +31,6 @@ ColumnLayout {
     }
     RowLayout {
         ShellButton { text: shell.tr("Desktop information"); active: shell.overviewOpen; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }
-        ShellButton { text: shell.tr("Show user and host"); active: shell.state.appearance?.showHostDetails ?? false; onClicked: shell.setAppearance({ showHostDetails: !(shell.state.appearance?.showHostDetails ?? false) }) }
+        ShellButton { text: shell.tr("Show user and host"); active: (shell.state.appearance || {}).showHostDetails ?? false; onClicked: shell.setAppearance({ showHostDetails: !((shell.state.appearance || {}).showHostDetails ?? false) }) }
     }
 }

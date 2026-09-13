@@ -17,10 +17,10 @@ ShellRoot {
     property string bin: Quickshell.env("LUDASH_BIN_DIR")
     property bool launcherOpen: false
     property bool settingsOpen: false
-    readonly property bool overviewOpen: state.appearance?.overview ?? true
+    readonly property bool overviewOpen: (state.appearance || {}).overview ?? true
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
     onStateChanged: {
-        Theme.accent = state.appearance?.accent || "#7dcccf"; Theme.barHeight = state.appearance?.panelHeight || 28
+        Theme.accent = (state.appearance || {}).accent || "#7dcccf"; Theme.barHeight = (state.appearance || {}).panelHeight || 28
         if (setupPaused) {
             const mapped = state.clients.some(client => client.mapped)
             if (mapped) setupEditorMapped = true

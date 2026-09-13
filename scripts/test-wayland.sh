@@ -6,6 +6,7 @@ project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_dir=${LUDASH_BUILD_DIR:-"$project_dir/build"}
 evidence_name=wayland
 if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ]; then evidence_name=desktop; fi
+if [ "${LUDASH_TEST_SETUP:-0}" = 1 ]; then evidence_name=setup; export LUDASH_SKIP_SETUP=0; fi
 rm -f -- "$build_dir/$evidence_name-preview.png" "$build_dir/$evidence_name-state.json"
 runtime_dir=$(mktemp -d)
 chmod 700 "$runtime_dir"
@@ -14,7 +15,7 @@ export XDG_CONFIG_HOME="$runtime_dir/config"
 trap 'find "$runtime_dir" -depth -delete' EXIT
 test_shell_args=""
 test_demo_args="--demo"
-if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ]; then test_demo_args=""; fi
+if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ] || [ "${LUDASH_TEST_SETUP:-0}" = 1 ]; then test_demo_args=""; fi
 if [ "${LUDASH_TEST_NO_SHELL:-0}" = 1 ]; then test_shell_args="--no-shell"; fi
 XDG_RUNTIME_DIR="$runtime_dir" QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl LIBGL_ALWAYS_SOFTWARE=1 \
   xvfb-run -a -s '-screen 0 1440x900x24' "$build_dir/ludash-compositor" \
@@ -29,12 +30,14 @@ assert state.get('shaderReady') and not state.get('graphicsFailed'), state
 assert 0 <= state['system']['cpuPercent'] <= 100, state['system']
 assert 0 <= state['system']['memoryPercent'] <= 100, state['system']
 assert state['system']['os'], state['system']
+if os.environ.get('LUDASH_TEST_SETUP') == '1':
+    assert state['setupComplete'] is False and state['layerSurfaces'] >= 4, state
 if os.environ.get('LUDASH_GRAPHICS') == 'gles':
     assert state['graphicsApi'] == 'OpenGL ES', state
 if os.environ.get('LUDASH_GRAPHICS') == 'opengl':
     assert state['graphicsApi'] == 'OpenGL', state
 clients = [c for c in state['clients'] if not c['desktop']]
-if os.environ.get("LUDASH_TEST_OVERVIEW") == "1":
+if os.environ.get("LUDASH_TEST_OVERVIEW") == "1" or os.environ.get("LUDASH_TEST_SETUP") == "1":
     assert not clients, state
 else:
     assert len(clients) >= (2 if os.environ.get("LUDASH_TEST_NO_SHELL") == "1" else 3), state

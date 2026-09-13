@@ -1,9 +1,10 @@
 """Validate relative assets and fragments without network requests or dependencies."""
 from html.parser import HTMLParser
 from pathlib import Path
+import sys
 from urllib.parse import urlsplit
 
-root = Path(__file__).resolve().parents[2] / 'site'
+root = (Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / 'site/dist').resolve()
 
 
 class Page(HTMLParser):

@@ -8,3 +8,6 @@
 /build-*/
 /codeql-results/
 __pycache__/
+
+/site/node_modules/
+/site/dist/

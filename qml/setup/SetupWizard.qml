@@ -13,7 +13,7 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ludash-setup"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: "transparent"
     Rectangle { anchors.fill: parent; radius: 10; color: "#f2182426"; border.color: Theme.accent }
     ColumnLayout {
@@ -31,7 +31,7 @@ PanelWindow {
         }
         ColumnLayout {
             visible: wizard.step === 1; spacing: 16
-            Text { text: shell.tr(shell.state.network?.label || "Checking network"); color: Theme.accent; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            Text { text: shell.tr((shell.state.network || {}).label || "Checking network"); color: Theme.accent; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             Text { text: shell.tr("Existing system connections are reused automatically. You can continue offline and change your network later."); color: Theme.text; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             ShellButton { text: shell.tr("Configure network"); onClicked: shell.configureNetwork() }
             Text { text: shell.tr("Connection settings open in NetworkManager's editor. Passwords stay in that editor. Close it to return here."); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }

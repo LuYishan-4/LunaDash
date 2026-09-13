@@ -9,7 +9,7 @@ PanelWindow {
     id: launcher
     required property var shell
     anchors { top: true; left: true }
-    margins { top: 40; left: 14 }
+    margins { top: Theme.barHeight + 12; left: 14 }
     implicitWidth: 480; implicitHeight: screen ? Math.min(610, screen.height - 56) : 610
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay

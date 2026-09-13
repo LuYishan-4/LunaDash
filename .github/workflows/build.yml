@@ -39,3 +39,6 @@ jobs:
       - name: Test Quickshell interactions on Arch
         if: matrix.image == 'archlinux:latest'
         run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interactions.py build
+      - name: Test first-run setup on Arch
+        if: matrix.image == 'archlinux:latest'
+        run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build

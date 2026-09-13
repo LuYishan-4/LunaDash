@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-shell-test-') as runtime:
     env = os.environ | {
         'XDG_RUNTIME_DIR': runtime, 'XDG_CONFIG_HOME': runtime,
         'QT_QPA_PLATFORM': 'xcb', 'QT_XCB_GL_INTEGRATION': 'xcb_egl',
-        'LUDASH_SKIP_SETUP': '1', 'LIBGL_ALWAYS_SOFTWARE': '1', 'QT_FORCE_STDERR_LOGGING': '1', 'LANG': 'C.UTF-8',
+        'LUDASH_SKIP_SETUP': '1', 'LIBGL_ALWAYS_SOFTWARE': '1', 'QT_FORCE_STDERR_LOGGING': '1', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8',
     }
     for name in ('MESA_GL_VERSION_OVERRIDE', 'MESA_GLSL_VERSION_OVERRIDE', 'LUDASH_LANGUAGE'):
         env.pop(name, None)
