@@ -117,14 +117,15 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
         xwayland_->start(environment);
     }
     if (startShell) {
-        auto* process = spawn({"--session"});
-        connect(process, &QProcess::finished, this, [this](int, QProcess::ExitStatus) {
-            if (shuttingDown_ || testStopping_) return;
-            if (processFailure_) { QCoreApplication::exit(2); return; }
-            // Restore the panel while applications finish their save/discard dialogs.
-            requestShutdown();
-            if (!clients_.empty()) spawn({"--session", "--no-welcome"});
-        });
+        if (auto* process = spawn({"--session"})) {
+            connect(process, &QProcess::finished, this, [this](int, QProcess::ExitStatus) {
+                if (shuttingDown_ || testStopping_) return;
+                if (processFailure_) { QCoreApplication::exit(2); return; }
+                // Restore the panel while applications finish their save/discard dialogs.
+                requestShutdown();
+                if (!clients_.empty()) spawn({"--session", "--no-welcome"});
+            });
+        }
     }
     if (startShell && setupComplete()) QTimer::singleShot(1200, this, [this] {
         if (testStopping_ || shuttingDown_) return;
@@ -149,7 +150,6 @@ WaylandCompositor::~WaylandCompositor() {
 }
 
 QProcess* WaylandCompositor::spawn(const QStringList& arguments, const QString& program) {
-    auto* process = new QProcess(this);
     auto environment = QProcessEnvironment::systemEnvironment();
     environment.insert("LUDASH_BIN_DIR", QCoreApplication::applicationDirPath());
     environment.insert("LUDASH_CONTROL", controlPath_);
@@ -164,10 +164,11 @@ QProcess* WaylandCompositor::spawn(const QStringList& arguments, const QString& 
             processFailure_ = true;
             qCritical("LUDASH_SHELL_RENDERER must be auto, opengl or software.");
             QTimer::singleShot(0, this, [] { QCoreApplication::exit(2); });
-            return process;
+            return nullptr;
         }
         qInfo().noquote() << "LuDash shell renderer:" << environment.value("LUDASH_SHELL_RENDERER");
     }
+    auto* process = new QProcess(this);
     process->setProcessEnvironment(environment); process->setProcessChannelMode(QProcess::ForwardedChannels);
     connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError) {
         if (shuttingDown_) return;
