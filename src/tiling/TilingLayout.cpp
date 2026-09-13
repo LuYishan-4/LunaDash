@@ -1,21 +1,14 @@
 #include <LuDash/tiling/TilingLayout.h>
-#include <algorithm>
+#include <LuDash/tiling_core/TilingGeometry.h>
+#include <vector>
 namespace LuDash {
 QList<QRect> tileRectangles(QRect area, int count, double masterRatio, int gap) {
+    if (count <= 0 || count > 4096) return {};
+    std::vector<LuDashRectangle> rectangles(static_cast<size_t>(count));
+    const auto size = ludash_tile_rectangles({area.x(), area.y(), area.width(), area.height()}, rectangles.size(), masterRatio, gap, rectangles.data(), rectangles.size());
     QList<QRect> result;
-    if (count <= 0 || area.width() <= 0 || area.height() <= 0) return result;
-    if (count == 1) return {area};
-    gap = std::clamp(gap, 0, std::max(0, std::min(area.width() - 2, (area.height() - count + 1) / std::max(1, count - 2))));
-    const int masterWidth = std::clamp(int((area.width() - gap) * masterRatio), 1, std::max(1, area.width() - gap - 1));
-    result << QRect(area.x(), area.y(), masterWidth, area.height());
-    const int stackCount = count - 1;
-    const int stackHeight = area.height() - gap * (stackCount - 1);
-    for (int i = 0; i < stackCount; ++i) {
-        const int begin = i * stackHeight / stackCount;
-        const int end = (i + 1) * stackHeight / stackCount;
-        result << QRect(area.x() + masterWidth + gap, area.y() + begin + gap * i,
-                        area.width() - masterWidth - gap, end - begin);
-    }
+    result.reserve(static_cast<qsizetype>(size));
+    for (size_t i = 0; i < size; ++i) { const auto& rectangle = rectangles[i]; result.append(QRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height)); }
     return result;
 }
 }

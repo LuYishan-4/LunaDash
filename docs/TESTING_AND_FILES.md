@@ -2,7 +2,7 @@
 
 This guide explains how to test LuDash, interpret failures and find the purpose of every maintained project file. Run commands from the repository root unless stated otherwise. Complete intended code, packaging and documentation edits before building.
 
-LuDash 0.1 is a development preview, not a production-ready KDE replacement. Test it inside an existing desktop first. The compositor uses C++20 and native Wayland; the shell uses Quickshell. Graphics require OpenGL 3.3 Core or OpenGL ES 3.0+.
+LuDash 0.1 is a development preview, not a production-ready KDE replacement. Test it inside an existing desktop first. The compositor uses C++20, C11 cores and native Wayland; the shell uses Quickshell. Graphics require OpenGL 3.3 Core or OpenGL ES 3.0+.
 
 ## 1. Dependencies
 
@@ -10,10 +10,10 @@ Arch Linux:
 
 ```sh
 sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland \
-  qt6-translations quickshell mesa xorg-server-xvfb xorg-xauth xdotool python python-pillow
+  qt6-translations quickshell mesa xorg-server-xvfb xorg-xauth xdotool python python-pillow xorg-xwayland
 ```
 
-Static analysis and sanitizer builds need `clang`. The TypeScript website needs Node.js and npm. Optional network tools are `networkmanager nm-connection-editor`; do not replace an existing network service just to run a test. Fonts, input methods and full terminals are listed in [the Arch package](../packaging/arch/PKGBUILD).
+Static analysis and sanitizer builds need `clang`. The Astro/TypeScript website needs Node.js 22.12+ and npm. Optional network tools are `networkmanager nm-connection-editor`; do not replace an existing network service just to run a test. Fonts, input methods and full terminals are listed in [the Arch package](../packaging/arch/PKGBUILD).
 
 Ubuntu 24.04 backend dependencies: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`; tests add `libgl1-mesa-dri xvfb xauth python3 python3-pil`. Fedora uses `gcc-c++ cmake ninja-build wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel mesa-dri-drivers xorg-x11-server-Xvfb xorg-x11-xauth python3 python3-pillow`. Install Quickshell separately where unavailable; the shell targets version 0.3 and may need newer Qt than the C++ backend's 6.4 minimum.
 
@@ -26,7 +26,7 @@ cmake --build build --parallel 4
 
 Outputs include `ludash-compositor` (Wayland server), `ludash-desktop` (native tools), `ludashctl` (local control client), test executables and the disabled-by-default fade plugin. Source QML is used automatically when an installed shell is not found. An older installation under your data search path can take precedence; remove or update that installation when validating source changes.
 
-If an existing build directory uses Unix Makefiles, omit `-G Ninja` when reconfiguring it, or choose a fresh build directory. Do not mix generators in the same directory.
+Use the existing generator when reusing a build directory: omit `-G Ninja` if it was configured with Unix Makefiles.
 
 ## 3. Automated checks
 
@@ -38,10 +38,12 @@ QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -
 | --- | --- |
 | desktop-interactions | Native tools, notes behavior, tiling, language resources, wallpaper validation, package input and plugin paths |
 | security-gate | SARIF findings and missing reports fail the security gate |
-| graphics-contexts | Actual desktop GL and GLES contexts with production shaders |
+| graphics-contexts | Actual desktop GL and GLES contexts with production C wallpaper and blur passes |
 | graphics-startup-failure | Invalid API arguments and unavailable GL 3.3 return code 2 instead of aborting |
+| c-core | C geometry, bounded parsing, arithmetic overflow and counter resets |
+| window-animations | Interrupted visibility transitions, item destruction and reduced motion |
 | desktop-preferences | Type/range validation, no partial invalid update, setup completion and link/Internet distinction |
-| source-language | English C++/QML, Markdown documentation and website sources |
+| source-language | English C/C++/QML, Markdown documentation and website sources |
 
 Require `100% tests passed`. Graphics tests use Mesa software rendering; they are not physical GPU compatibility results.
 
@@ -54,10 +56,13 @@ LUDASH_TEST_OVERVIEW=1 ./scripts/test-wayland.sh
 LUDASH_TEST_SETUP=1 ./scripts/test-wayland.sh
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interactions.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
+xvfb-run -a python3 tests/wayland/test_xwayland.py build
 xvfb-run -a python3 tests/wayland/test_crash_detection.py build
 ```
 
-Each session uses its own runtime/configuration directory. The normal demo runs for eight seconds and allows up to five seconds for clean shutdown. The script removes stale screenshots/JSON before starting. It checks actual graphics health, visible client content, non-overlapping geometry and child-process status. Pixel-diversity checks catch blank content but do not prove visual correctness; inspect the screenshot too.
+The X11 test checks a real mapped XCB client, authentication rejection and socket cleanup.
+
+Each session uses its own runtime/configuration directory. The normal demo runs for eight seconds and allows up to five seconds for clean shutdown. The script removes stale screenshots/JSON before starting. It checks actual graphics and blur health, visible client content, non-overlapping geometry and child-process status. Pixel-diversity checks catch blank content but do not prove visual correctness; inspect the screenshot too.
 
 The interaction test clicks workspace, launcher and settings controls, checks language and wallpaper changes, and minimizes/restores a native window. The setup test walks through the offline guide, changes its accent, completes it, rejects invalid mixed preference updates and restarts the compositor to verify persistence. It never changes the host network. The negative crash test deliberately signals one owned test client and requires compositor exit code 2.
 
@@ -100,7 +105,7 @@ Retain the same configuration directory for a second launch to verify persistenc
 5. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal; use a real terminal for interactive programs.
 6. Navigate into and out of a directory in Files.
 7. Switch workspaces by clicking the panel. Test Super + Shift + 2 to move a window, Super + M to minimize, and the launcher's open-window list to restore it.
-8. Choose a local wallpaper file; reject an invalid path without crashing. Test both shader palettes and return to the bundled image.
+8. Adjust blur, window opacity and animation duration in settings. Disable animations and rapidly switch workspaces or close windows. Launch an X11-only app through the compatibility dialog when XWayland is available. Choose a local wallpaper file; reject an invalid path without crashing. Test both shader palettes and return to the bundled image.
 9. Reopen native apps after a language change. Test preedit, candidates and commit following [Input methods](INPUT_METHODS.md); protocol registration alone is not end-to-end IME verification.
 10. Confirm logout can be canceled. Close all windows, then finish the session. Native plugins stay disabled unless you explicitly trust and enable one. Pacman operations require deliberate terminal confirmation and are not executed by tests.
 
@@ -120,7 +125,7 @@ ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
   LUDASH_BUILD_DIR="$PWD/build-checked" ./scripts/test-wayland.sh
 ```
 
-Select both the C and C++ Clang compilers because the Wayland scanner generates C. Use a fresh directory when changing compilers. Any sanitizer report, enabled clang-tidy warning or nonzero test exit fails validation. Leak detection is disabled; these runs do not check leaks. See [Security checks](SECURITY_CHECKS.md) for CodeQL and required PR checks.
+Select both Clang compilers: the renderer, tiling and metrics cores and generated protocol code use C. The configured clang-tidy checks also apply to C targets. Use a fresh directory when changing compilers. Any sanitizer report, enabled clang-tidy warning or nonzero test exit fails validation. Leak detection is disabled; these runs do not check leaks. See [Security checks](SECURITY_CHECKS.md) for CodeQL and required PR checks.
 
 ## 7. Packaging and website
 
@@ -132,7 +137,7 @@ npm ci --prefix site --ignore-scripts
 npm run check --prefix site
 npm run build --prefix site
 python3 tests/site/test_site.py site/dist
-python3 -m http.server 8080 --bind 127.0.0.1 --directory site/dist
+npm run preview --prefix site -- --host 127.0.0.1
 ```
 
 Review installed binaries, QML, wallpaper, translations, plugin SDK and session descriptor. The source archive should contain all CMake inputs and no build/cache files. A full Arch package can be built with `makepkg -Cfs` from `packaging/arch`; staged install success does not prove a pacman transaction or independent login session works.
@@ -181,12 +186,15 @@ Generated build output, dependency caches, source archives and Git internals are
 | [LICENSE](../LICENSE) | GPL-3.0-only license text. |
 | [README.md](../README.md) | Project introduction, dependencies, quick start and limitations. |
 
-### C++ headers
+### C and C++ headers
 
 | File | Purpose |
 | --- | --- |
+| [include/LuDash/animation/WindowAnimations.h](../include/LuDash/animation/WindowAnimations.h) | Declare interfaces/types to animate window visibility and safely cancel interrupted transitions. |
 | [include/LuDash/application_catalog/ApplicationCatalog.h](../include/LuDash/application_catalog/ApplicationCatalog.h) | Declare interfaces/types to discover installed application entries and launch requests. |
 | [include/LuDash/application_window/ApplicationWindow.h](../include/LuDash/application_window/ApplicationWindow.h) | Declare interfaces/types to host built-in applications and route close requests. |
+| [include/LuDash/blur/BlurItem.h](../include/LuDash/blur/BlurItem.h) | Declare interfaces/types to synchronize application blur properties into the scene graph. |
+| [include/LuDash/blur/BlurNode.h](../include/LuDash/blur/BlurNode.h) | Declare interfaces/types to bridge Qt scene graph state and the C blur renderer. |
 | [include/LuDash/compositor/ClientWindow.h](../include/LuDash/compositor/ClientWindow.h) | Declare interfaces/types to track compositor-owned client state and geometry. |
 | [include/LuDash/compositor/WaylandCompositor.h](../include/LuDash/compositor/WaylandCompositor.h) | Declare interfaces/types to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [include/LuDash/configuration/DesktopPreferences.h](../include/LuDash/configuration/DesktopPreferences.h) | Declare interfaces/types to validate and persist appearance and first-run completion. |
@@ -206,24 +214,33 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/plugin_settings/PluginSettings.h](../include/LuDash/plugin_settings/PluginSettings.h) | Declare interfaces/types to show metadata and save explicit native-plugin enablement. |
 | [include/LuDash/plugins/CompositorPlugin.h](../include/LuDash/plugins/CompositorPlugin.h) | Declare interfaces/types to define the versioned window-effect plugin contract. |
 | [include/LuDash/plugins/PluginManager.h](../include/LuDash/plugins/PluginManager.h) | Declare interfaces/types to validate metadata/library paths and load enabled effects. |
+| [include/LuDash/render_core/BlurPass.h](../include/LuDash/render_core/BlurPass.h) | Declare interfaces/types to capture the backdrop and draw two Gaussian blur passes. |
+| [include/LuDash/render_core/GLDispatch.h](../include/LuDash/render_core/GLDispatch.h) | Declare interfaces/types to resolve OpenGL and GLES function pointers from the current context. |
+| [include/LuDash/render_core/ShaderProgram.h](../include/LuDash/render_core/ShaderProgram.h) | Declare interfaces/types to compile and link GLSL with bounded diagnostics and explicit ownership. |
 | [include/LuDash/renderer/RenderBackend.h](../include/LuDash/renderer/RenderBackend.h) | Declare interfaces/types to select and configure the graphics API and shared render health. |
 | [include/LuDash/renderer/WallpaperItem.h](../include/LuDash/renderer/WallpaperItem.h) | Declare interfaces/types to expose the compositor framebuffer wallpaper item. |
 | [include/LuDash/renderer/WallpaperRenderer.h](../include/LuDash/renderer/WallpaperRenderer.h) | Declare interfaces/types to compile GLSL and draw with the current render-thread context. |
 | [include/LuDash/settings/Settings.h](../include/LuDash/settings/Settings.h) | Declare interfaces/types to provide native language, input-method and system settings. |
+| [include/LuDash/system_metrics/SystemMetrics.h](../include/LuDash/system_metrics/SystemMetrics.h) | Declare interfaces/types to parse bounded CPU and memory counters with overflow validation. |
 | [include/LuDash/system_monitor/SystemMonitor.h](../include/LuDash/system_monitor/SystemMonitor.h) | Declare interfaces/types to show native process/system monitoring. |
 | [include/LuDash/system_status/SystemStatus.h](../include/LuDash/system_status/SystemStatus.h) | Declare interfaces/types to sample CPU, memory, disk and battery data for the shell. |
 | [include/LuDash/theme/DesktopTheme.h](../include/LuDash/theme/DesktopTheme.h) | Declare interfaces/types to style the native Qt Widgets tools. |
 | [include/LuDash/tiling/TilingLayout.h](../include/LuDash/tiling/TilingLayout.h) | Declare interfaces/types to compute master/stack rectangles with bounded gaps. |
+| [include/LuDash/tiling_core/TilingGeometry.h](../include/LuDash/tiling_core/TilingGeometry.h) | Declare interfaces/types to calculate bounded master/stack rectangles without Qt. |
 | [include/LuDash/wallpaper/WallpaperSettings.h](../include/LuDash/wallpaper/WallpaperSettings.h) | Declare interfaces/types to validate local image paths and select image/shader wallpaper. |
 | [include/LuDash/welcome/Welcome.h](../include/LuDash/welcome/Welcome.h) | Declare interfaces/types to provide the optional native welcome/demo application. |
 | [include/LuDash/window_frame/WindowFrame.h](../include/LuDash/window_frame/WindowFrame.h) | Declare interfaces/types to paint and handle compositor window decorations. |
+| [include/LuDash/xwayland/XWaylandSupport.h](../include/LuDash/xwayland/XWaylandSupport.h) | Declare interfaces/types to manage the optional authenticated XWayland compatibility container. |
 
-### C++ implementations
+### C and C++ implementations
 
 | File | Purpose |
 | --- | --- |
+| [src/animation/WindowAnimations.cpp](../src/animation/WindowAnimations.cpp) | Implement behavior to animate window visibility and safely cancel interrupted transitions. |
 | [src/application_catalog/ApplicationCatalog.cpp](../src/application_catalog/ApplicationCatalog.cpp) | Implement behavior to discover installed application entries and launch requests. |
 | [src/application_window/ApplicationWindow.cpp](../src/application_window/ApplicationWindow.cpp) | Implement behavior to host built-in applications and route close requests. |
+| [src/blur/BlurItem.cpp](../src/blur/BlurItem.cpp) | Implement behavior to synchronize application blur properties into the scene graph. |
+| [src/blur/BlurNode.cpp](../src/blur/BlurNode.cpp) | Implement behavior to bridge Qt scene graph state and the C blur renderer. |
 | [src/compositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [src/configuration/DesktopPreferences.cpp](../src/configuration/DesktopPreferences.cpp) | Implement behavior to validate and persist appearance and first-run completion. |
 | [src/console/Console.cpp](../src/console/Console.cpp) | Implement behavior to run bounded shell commands with process-group cleanup. |
@@ -243,28 +260,38 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/packages/PackageManager.cpp](../src/packages/PackageManager.cpp) | Implement behavior to validate package names and use confirmed terminal pacman operations. |
 | [src/plugin_settings/PluginSettings.cpp](../src/plugin_settings/PluginSettings.cpp) | Implement behavior to show metadata and save explicit native-plugin enablement. |
 | [src/plugins/PluginManager.cpp](../src/plugins/PluginManager.cpp) | Implement behavior to validate metadata/library paths and load enabled effects. |
+| [src/render_core/BlurPass.c](../src/render_core/BlurPass.c) | Implement behavior to capture the backdrop and draw two Gaussian blur passes. |
+| [src/render_core/GLDispatch.c](../src/render_core/GLDispatch.c) | Implement behavior to resolve OpenGL and GLES function pointers from the current context. |
+| [src/render_core/ShaderProgram.c](../src/render_core/ShaderProgram.c) | Implement behavior to compile and link GLSL with bounded diagnostics and explicit ownership. |
+| [src/render_core/WallpaperPass.c](../src/render_core/WallpaperPass.c) | Implement behavior to draw the procedural wallpaper using the C dispatch table. |
 | [src/renderer/RenderBackend.cpp](../src/renderer/RenderBackend.cpp) | Implement behavior to select and configure the graphics API and shared render health. |
 | [src/renderer/WallpaperItem.cpp](../src/renderer/WallpaperItem.cpp) | Implement behavior to expose the compositor framebuffer wallpaper item. |
 | [src/renderer/WallpaperRenderer.cpp](../src/renderer/WallpaperRenderer.cpp) | Implement behavior to compile GLSL and draw with the current render-thread context. |
 | [src/settings/Settings.cpp](../src/settings/Settings.cpp) | Implement behavior to provide native language, input-method and system settings. |
+| [src/system_metrics/SystemMetrics.c](../src/system_metrics/SystemMetrics.c) | Implement behavior to parse bounded CPU and memory counters with overflow validation. |
 | [src/system_monitor/SystemMonitor.cpp](../src/system_monitor/SystemMonitor.cpp) | Implement behavior to show native process/system monitoring. |
 | [src/system_status/SystemStatus.cpp](../src/system_status/SystemStatus.cpp) | Implement behavior to sample CPU, memory, disk and battery data for the shell. |
 | [src/theme/DesktopTheme.cpp](../src/theme/DesktopTheme.cpp) | Implement behavior to style the native Qt Widgets tools. |
 | [src/tiling/TilingLayout.cpp](../src/tiling/TilingLayout.cpp) | Implement behavior to compute master/stack rectangles with bounded gaps. |
+| [src/tiling_core/TilingGeometry.c](../src/tiling_core/TilingGeometry.c) | Implement behavior to calculate bounded master/stack rectangles without Qt. |
 | [src/wallpaper/WallpaperSettings.cpp](../src/wallpaper/WallpaperSettings.cpp) | Implement behavior to validate local image paths and select image/shader wallpaper. |
 | [src/welcome/Welcome.cpp](../src/welcome/Welcome.cpp) | Implement behavior to provide the optional native welcome/demo application. |
 | [src/window_frame/WindowFrame.cpp](../src/window_frame/WindowFrame.cpp) | Implement behavior to paint and handle compositor window decorations. |
+| [src/xwayland/XWaylandSupport.cpp](../src/xwayland/XWaylandSupport.cpp) | Implement behavior to manage the optional authenticated XWayland compatibility container. |
 
 ### Quickshell UI
 
 | File | Purpose |
 | --- | --- |
-| [qml/components/Segment.qml](../qml/components/Segment.qml) | Arrow-ended top-panel button with keyboard access. |
+| [qml/compatibility/X11Launcher.qml](../qml/compatibility/X11Launcher.qml) | Launch an X11 executable through the compatibility service. |
+| [qml/components/AnimatedPanel.qml](../qml/components/AnimatedPanel.qml) | Shared animated layer-panel opening and closing. |
+| [qml/components/Segment.qml](../qml/components/Segment.qml) | Rounded animated top-panel button with keyboard access. |
 | [qml/components/ShellButton.qml](../qml/components/ShellButton.qml) | Reusable shell button with keyboard and accessibility labels. |
 | [qml/configuration/AppearanceControls.qml](../qml/configuration/AppearanceControls.qml) | Shared accent, gap, panel and information-card controls. |
+| [qml/effects/EffectsControls.qml](../qml/effects/EffectsControls.qml) | Live blur, transparency and animation preferences. |
 | [qml/feedback/Message.qml](../qml/feedback/Message.qml) | Dismissible IPC and validation error feedback. |
 | [qml/launcher/Launcher.qml](../qml/launcher/Launcher.qml) | Search built-in/installed apps and restore existing windows. |
-| [qml/overview/Overview.qml](../qml/overview/Overview.qml) | Translucent system card with optional user/hostname display. |
+| [qml/overview/Overview.qml](../qml/overview/Overview.qml) | Tabbed dashboard with performance and workspace controls. |
 | [qml/panel/TopPanel.qml](../qml/panel/TopPanel.qml) | Workspace/app controls, clock, CPU history, memory and battery indicators. |
 | [qml/session/LogoutPanel.qml](../qml/session/LogoutPanel.qml) | Confirm or cancel ending the desktop session. |
 | [qml/settings/SettingsPanel.qml](../qml/settings/SettingsPanel.qml) | Language, wallpaper, appearance, network and feature settings. |
@@ -280,6 +307,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | --- | --- |
 | [data/ludash.desktop.in](../data/ludash.desktop.in) | Template for the experimental Wayland login-session descriptor. |
 | [data/plugins/fade/metadata.json](../data/plugins/fade/metadata.json) | Example effect identity, library and API metadata. |
+| [data/shaders/blur/blur.frag](../data/shaders/blur/blur.frag) | Separable Gaussian sampling and alpha composition. |
+| [data/shaders/blur/blur.vert](../data/shaders/blur/blur.vert) | Full-screen blur pass vertex shader. |
 | [data/shaders/wallpaper.frag](../data/shaders/wallpaper.frag) | Dusk/Forest procedural wallpaper fragment shader. |
 | [data/shaders/wallpaper.vert](../data/shaders/wallpaper.vert) | Full-screen triangle vertex shader. |
 | [data/translations/en_US.json](../data/translations/en_US.json) | English dictionary entry; empty mappings use source strings. |
@@ -298,7 +327,9 @@ Generated build output, dependency caches, source archives and Git internals are
 | [scripts/security/check_sarif.py](../scripts/security/check_sarif.py) | Fail closed on missing SARIF or security/quality findings. |
 | [scripts/test-wayland.sh](../scripts/test-wayland.sh) | Isolated demo/overview/setup rendering tests and screenshot/state evidence. |
 | [tests/DesktopTests.cpp](../tests/DesktopTests.cpp) | Behavioral tests for native apps, layout and validated external inputs. |
+| [tests/animation/AnimationTests.cpp](../tests/animation/AnimationTests.cpp) | Interrupted transitions, item destruction and reduced-motion tests. |
 | [tests/configuration/PreferenceTests.cpp](../tests/configuration/PreferenceTests.cpp) | Preference validation and network-state classification tests. |
+| [tests/core/CoreTests.c](../tests/core/CoreTests.c) | C geometry and parser boundary, overflow and counter-reset tests. |
 | [tests/renderer/RenderTests.cpp](../tests/renderer/RenderTests.cpp) | Real GL/GLES context and production shader checks. |
 | [tests/renderer/test_startup_failure.py](../tests/renderer/test_startup_failure.py) | Regression for controlled graphics initialization failure. |
 | [tests/security/test_sarif_gate.py](../tests/security/test_sarif_gate.py) | Negative and positive SARIF gate cases. |
@@ -307,19 +338,20 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
 | [tests/wayland/test_shell_interactions.py](../tests/wayland/test_shell_interactions.py) | Click the live shell and verify workspace/app/settings/window behavior. |
+| [tests/wayland/test_xwayland.py](../tests/wayland/test_xwayland.py) | Authenticated X11 mapping, denied unauthenticated access and shutdown cleanup. |
 
 ### Website
 
 | File | Purpose |
 | --- | --- |
-| [site/assets/desktop.png](../site/assets/desktop.png) | Actual desktop screenshot, captured with identity display off. |
-| [site/assets/mark.svg](../site/assets/mark.svg) | Local LuDash diamond mark and favicon. |
-| [site/index.html](../site/index.html) | Accessible English introduction, actual desktop screenshot and documentation links. |
+| [site/astro.config.mjs](../site/astro.config.mjs) | Configure static Astro output and the GitHub Pages base path. |
 | [site/package-lock.json](../site/package-lock.json) | Reproducible npm dependency resolution and integrity metadata. |
-| [site/package.json](../site/package.json) | Pinned TypeScript dependency and check/build scripts. |
-| [site/scripts/build.mjs](../site/scripts/build.mjs) | Copy static assets into the TypeScript output directory after compilation. |
+| [site/package.json](../site/package.json) | Pinned Astro, checker and TypeScript dependencies and check/build scripts. |
+| [site/public/assets/desktop.png](../site/public/assets/desktop.png) | Actual desktop screenshot, captured with identity display off. |
+| [site/public/assets/mark.svg](../site/public/assets/mark.svg) | Local LuDash diamond mark and favicon. |
 | [site/src/app.ts](../site/src/app.ts) | Strict TypeScript for validated accent/gap controls and clipboard feedback. |
-| [site/styles.css](../site/styles.css) | Responsive desktop/mobile layout and interactive theme preview styles. |
+| [site/src/pages/index.astro](../site/src/pages/index.astro) | Accessible English introduction, actual desktop screenshot and documentation links. |
+| [site/src/styles.css](../site/src/styles.css) | Responsive desktop/mobile layout and interactive theme preview styles. |
 | [site/tsconfig.json](../site/tsconfig.json) | Strict browser TypeScript settings and generated output directory. |
 
 ### Documentation
@@ -329,6 +361,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [docs/APPEARANCE.md](../docs/APPEARANCE.md) | Shell visual design and wallpaper/appearance behavior. |
 | [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | Process, module and protocol boundaries and missing features. |
 | [docs/CONFIGURATION.md](../docs/CONFIGURATION.md) | First-run flow, network boundaries, saved keys and IPC customization. |
+| [docs/C_CORE.md](../docs/C_CORE.md) | C11 module boundaries, ownership contracts and checks. |
+| [docs/EFFECTS.md](../docs/EFFECTS.md) | Default blur, window transparency, animations and limitations. |
 | [docs/GRAPHICS.md](../docs/GRAPHICS.md) | Context, shader, render-thread and graphics-failure behavior. |
 | [docs/INPUT_METHODS.md](../docs/INPUT_METHODS.md) | Language registration and honest Fcitx/IBus validation guidance. |
 | [docs/PLUGINS.md](../docs/PLUGINS.md) | Plugin metadata, SDK, loading and native trust boundary. |
@@ -336,9 +370,10 @@ Generated build output, dependency caches, source archives and Git internals are
 | [docs/TESTING.md](../docs/TESTING.md) | Short entry point to the full testing guide. |
 | [docs/TESTING_AND_FILES.md](../docs/TESTING_AND_FILES.md) | This testing guide, evidence record and complete maintained-file map. |
 | [docs/WEBSITE.md](../docs/WEBSITE.md) | TypeScript site preview, build, deployment and rollback instructions. |
+| [docs/XWAYLAND.md](../docs/XWAYLAND.md) | Optional XWayland setup, authenticated X11 launch and verification. |
 
 ## 11. Where to make a change
 
-For panel styling, start with `qml/panel`, `qml/components` and `qml/style`. For stored appearance, use the paired `configuration` module and shared QML controls. For window layout/lifetimes, use `tiling` and `compositor`. For graphics, use `renderer` and `data/shaders`. Add each new C++ feature in a matching header/implementation directory pair and list it in CMake.
+For panel styling, start with `qml/panel`, `qml/components` and `qml/style`. For stored appearance, use the paired `configuration` module and shared QML controls. For window layout/lifetimes, use `tiling` and `compositor`. For graphics, use `render_core`, `renderer`, `blur` and `data/shaders`. For Qt-free logic, use `tiling_core` and `system_metrics`. Add each new C++ feature in a matching header/implementation directory pair and list it in CMake.
 
 Run checks appropriate to the affected behavior. Context, window-lifetime, protocol and IPC changes need integration and sanitizer coverage. Use actual GitHub job results to report remote CI, never just the presence of workflow files.

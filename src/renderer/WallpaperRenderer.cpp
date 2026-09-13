@@ -5,9 +5,7 @@
 #include <QQuickOpenGLUtils>
 namespace LuDash {
 WallpaperRenderer::WallpaperRenderer(GraphicsApi api, std::shared_ptr<RenderState> state) : api_(api), state_(std::move(state)) {}
-WallpaperRenderer::~WallpaperRenderer() {
-    if (vertexArray_ && QOpenGLContext::currentContext()) functions_->glDeleteVertexArrays(1, &vertexArray_);
-}
+WallpaperRenderer::~WallpaperRenderer() { ludash_shader_destroy(program_); }
 bool WallpaperRenderer::initialize() {
     initialized_ = true;
     auto* context = QOpenGLContext::currentContext();
@@ -19,13 +17,10 @@ bool WallpaperRenderer::initialize() {
         || format.majorVersion() < 3 || (!es && format.majorVersion() == 3 && format.minorVersion() < 3)) {
         qCritical("Requested graphics API/context version is not available."); state_->failed = true; return false;
     }
-    functions_ = context->extraFunctions(); functions_->initializeOpenGLFunctions();
-    program_ = std::make_unique<QOpenGLShaderProgram>();
-    if (!program_->addShaderFromSourceCode(QOpenGLShader::Vertex, shaderSource("wallpaper.vert", es))
-        || !program_->addShaderFromSourceCode(QOpenGLShader::Fragment, shaderSource("wallpaper.frag", es)) || !program_->link()) {
-        qCritical().noquote() << "Wallpaper shader failed:" << program_->log(); state_->failed = true; return false;
-    }
-    functions_->glGenVertexArrays(1, &vertexArray_);
+    char error[1024]{};
+    const auto vertex = shaderSource("wallpaper.vert", es), fragment = shaderSource("wallpaper.frag", es);
+    program_ = ludash_shader_create(resolveGLFunction, vertex.constData(), fragment.constData(), error, sizeof(error));
+    if (!program_) { qCritical("Wallpaper shader failed: %s", error); state_->failed = true; return false; }
     qInfo().noquote() << "LuDash graphics context:" << (es ? "OpenGL ES" : "OpenGL") << format.majorVersion() << "." << format.minorVersion();
     return true;
 }
@@ -33,11 +28,8 @@ void WallpaperRenderer::synchronize(QQuickFramebufferObject* item) { palette_ = 
 void WallpaperRenderer::render() {
     if ((!initialized_ && !initialize()) || state_->failed) return;
     const auto size = framebufferObject()->size();
-    functions_->glViewport(0, 0, size.width(), size.height());
-    functions_->glDisable(GL_DEPTH_TEST); functions_->glDisable(GL_SCISSOR_TEST); functions_->glDisable(GL_BLEND);
-    program_->bind(); program_->setUniformValue("resolution", QVector2D(static_cast<float>(size.width()), static_cast<float>(size.height()))); program_->setUniformValue("palette", palette_);
-    functions_->glBindVertexArray(vertexArray_); functions_->glDrawArrays(GL_TRIANGLES, 0, 3); functions_->glBindVertexArray(0);
-    program_->release(); state_->shaderReady = true;
+    state_->shaderReady = ludash_wallpaper_draw(program_, size.width(), size.height(), palette_) != 0;
+    if (!state_->shaderReady) state_->failed = true;
     QQuickOpenGLUtils::resetOpenGLState();
 }
 }

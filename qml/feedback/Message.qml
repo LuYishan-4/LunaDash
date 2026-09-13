@@ -1,8 +1,9 @@
 import QtQuick
+import "../components"
 import Quickshell
 import Quickshell.Wayland
 import "../style"
-PanelWindow {
+AnimatedPanel {
     required property var shell
     anchors.top: true
     margins.top: 42

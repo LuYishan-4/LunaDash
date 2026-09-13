@@ -5,7 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../components"
 import "../style"
-PanelWindow {
+AnimatedPanel {
     id: launcher
     required property var shell
     anchors { top: true; left: true }
@@ -16,7 +16,7 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "ludash-launcher"
     color: "transparent"
-    Rectangle { anchors.fill: parent; radius: 7; color: Theme.background; border.color: Theme.border }
+    Rectangle { anchors.fill: parent; radius: Theme.radius; color: Theme.background; border.color: Theme.border }
     property var builtins: [
         { id: "files", name: "Files" }, { id: "console", name: "Console" },
         { id: "notes", name: "Notes" }, { id: "monitor", name: "System monitor" },
@@ -33,6 +33,7 @@ PanelWindow {
             }
             ShellButton { text: "×"; onClicked: shell.launcherOpen = false }
         }
+        ShellButton { text: shell.tr("Run an X11 application"); Layout.fillWidth: true; onClicked: { shell.launcherOpen = false; shell.x11Open = true } }
         GridLayout {
             columns: 2; Layout.fillWidth: true; rowSpacing: 7; columnSpacing: 7
             Repeater {

@@ -10,6 +10,7 @@ import "session"
 import "feedback"
 import "setup"
 import "style"
+import "compatibility"
 
 ShellRoot {
     id: root
@@ -17,10 +18,12 @@ ShellRoot {
     property string bin: Quickshell.env("LUDASH_BIN_DIR")
     property bool launcherOpen: false
     property bool settingsOpen: false
-    readonly property bool overviewOpen: (state.appearance || {}).overview ?? true
+    property bool x11Open: false
+    readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
     onStateChanged: {
-        Theme.accent = (state.appearance || {}).accent || "#7dcccf"; Theme.barHeight = (state.appearance || {}).panelHeight || 28
+        Theme.accent = (state.appearance || {}).accent || "#9ccbfb"; Theme.barHeight = (state.appearance || {}).panelHeight || 40
+        Theme.animations = (state.appearance || {}).animations ?? true; Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
         if (setupPaused) {
             const mapped = state.clients.some(client => client.mapped)
             if (mapped) setupEditorMapped = true
@@ -60,10 +63,11 @@ ShellRoot {
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root }
     TopPanel { shell: root }
-    Overview { shell: root; visible: root.overviewOpen }
-    Launcher { shell: root; visible: root.launcherOpen }
-    SettingsPanel { shell: root; visible: root.settingsOpen }
-    SetupWizard { shell: root; visible: root.state.setupComplete === false && !root.setupPaused }
-    LogoutPanel { shell: root; visible: root.logoutOpen }
-    Message { shell: root; visible: root.errorMessage.length > 0 }
+    Overview { shell: root; opened: root.overviewOpen }
+    Launcher { shell: root; opened: root.launcherOpen }
+    SettingsPanel { shell: root; opened: root.settingsOpen }
+    SetupWizard { shell: root; opened: root.state.setupComplete === false && !root.setupPaused }
+    LogoutPanel { shell: root; opened: root.logoutOpen }
+    X11Launcher { shell: root; opened: root.x11Open }
+    Message { shell: root; opened: root.errorMessage.length > 0 }
 }

@@ -1,6 +1,6 @@
 # Website and GitHub Pages
 
-The English introduction site lives in `site/`. It uses HTML, CSS and strict TypeScript, compiled to browser JavaScript, relative asset URLs, local images and no external analytics or font services. The accent and gap controls change the website preview only; they do not connect to a desktop session. Clipboard access occurs only when Copy is clicked.
+The English introduction site lives in `site/`. It uses Astro components, CSS and strict TypeScript, base-aware asset URLs, local images and no external analytics or font services. The accent and gap controls change the website preview only; they do not connect to a desktop session. Clipboard access occurs only when Copy is clicked.
 
 Preview from the repository root:
 
@@ -9,10 +9,10 @@ npm ci --prefix site --ignore-scripts
 npm run check --prefix site
 npm run build --prefix site
 python3 tests/site/test_site.py site/dist
-python3 -m http.server 8080 --bind 127.0.0.1 --directory site/dist
+npm run preview --prefix site -- --host 127.0.0.1
 ```
 
-Open `http://127.0.0.1:8080`. Check desktop and mobile widths, keyboard focus, accent buttons, gap slider, copy feedback and documentation links. The hero image is a real LuDash screenshot captured with user/hostname display disabled.
+For the configured project base, prefer `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LuDash/` URL. Check desktop and mobile widths, keyboard focus, accent buttons, gap slider, copy feedback and documentation links. The hero image is a real LuDash screenshot captured with user/hostname display disabled.
 
 ## Publishing
 
@@ -22,6 +22,8 @@ The intended project URL is `https://luyishan-4.github.io/LuDash/`. A URL in thi
 
 After changing site files, push the reviewed changes to main or run **Documentation website** manually. Inspect the Actions result and load the published URL to confirm the deployment. For a rollback, revert the relevant website change and let the workflow redeploy; do not force-push shared history.
 
-The website links to the English Markdown guides in the main branch. The source tree includes the entire per-file map and testing instructions. The pinned TypeScript compiler is a development dependency; browsers load no framework runtime. `site/src/app.ts` is the interaction source, and `site/dist/` is ignored generated output. No user configuration, logs, credentials or native binaries belong in `site/`.
+The website links to the English Markdown guides in the main branch. The source tree includes the entire per-file map and testing instructions. Astro generates the static browser HTML during build; no handwritten `.html` page is maintained. Astro and the TypeScript checker are pinned development dependencies. `site/src/app.ts` is the interaction source, and `site/dist/` is ignored generated output. No user configuration, logs, credentials or native binaries belong in `site/`.
 
 Reference: [GitHub custom Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+Deployment is deferred while DE work is prioritized. The source page is `site/src/pages/index.astro`; `site/astro.config.mjs` configures the GitHub Pages base.

@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
         window.setAttribute(Qt::WA_TranslucentBackground);
         window.setAttribute(Qt::WA_StyledBackground);
         window.setObjectName("applicationWindow");
-        window.setStyleSheet(LuDash::desktopStyle() + "QWidget#applicationWindow { background: rgba(18, 28, 29, 218); }");
+        window.setStyleSheet(LuDash::desktopStyle() + "QWidget#applicationWindow { background: rgba(18, 26, 36, 215); border-radius: 14px; }");
         QWidget* content = nullptr; const auto id = parser.value("app");
         if (id == "files") content = LuDash::createFileManager();
         else if (id == "console") content = LuDash::createConsole();

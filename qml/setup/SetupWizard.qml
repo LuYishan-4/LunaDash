@@ -5,7 +5,7 @@ import Quickshell.Wayland
 import "../components"
 import "../configuration"
 import "../style"
-PanelWindow {
+AnimatedPanel {
     id: wizard
     required property var shell
     property int step: 0
@@ -15,7 +15,7 @@ PanelWindow {
     WlrLayershell.namespace: "ludash-setup"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: "transparent"
-    Rectangle { anchors.fill: parent; radius: 10; color: "#f2182426"; border.color: Theme.accent }
+    Rectangle { anchors.fill: parent; radius: Theme.radius; color: Theme.background; border.color: Theme.accent }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 32; spacing: 20
         Text { text: "LuDash  /  " + (wizard.step + 1) + " · 4"; color: Theme.accent; font.family: Theme.font; font.pixelSize: 14 }

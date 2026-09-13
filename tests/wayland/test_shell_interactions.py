@@ -51,19 +51,19 @@ with tempfile.TemporaryDirectory(prefix='ludash-shell-test-') as runtime:
                                     '--graphics', 'opengl', '--exit-after', '22000'],
                                    env=env, stdout=log, stderr=log)
         try:
-            wait_for(lambda state: state['layerSurfaces'] >= 3 and state['shaderReady'], 'Desktop did not map')
+            wait_for(lambda state: state['layerSurfaces'] >= 2 and state['shaderReady'], 'Desktop did not map')
             window = subprocess.check_output(['xdotool', 'search', '--onlyvisible', '--pid', str(process.pid)], text=True).splitlines()[0]
             subprocess.run(['xdotool', 'windowfocus', '--sync', window], check=True)
 
             def click(x, y):
                 subprocess.run(['xdotool', 'mousemove', '--window', window, str(x), str(y), 'click', '1'], check=True)
 
-            click(70, 14)
+            click(122, 20)
             wait_for(lambda state: state['workspace'] == 1, 'Workspace button did not switch desktops')
-            click(18, 14)
-            wait_for(lambda state: state['layerSurfaces'] >= 4, 'Launcher did not open')
+            click(30, 20)
+            wait_for(lambda state: state['layerSurfaces'] >= 3, 'Launcher did not open')
             time.sleep(.3)
-            click(135, 120)
+            click(135, 182)
             state = wait_for(lambda state: any(client['mapped'] for client in state['clients']), 'Files launcher button did not open a client')
             client = state['clients'][0]['id']
             request('minimize', client)
@@ -71,12 +71,12 @@ with tempfile.TemporaryDirectory(prefix='ludash-shell-test-') as runtime:
             request('focus', client)
             wait_for(lambda state: state['clients'][0]['visible'], 'Client did not restore')
 
-            click(1390, 14)
-            wait_for(lambda state: state['layerSurfaces'] >= 4, 'Settings did not open')
+            click(1376, 20)
+            wait_for(lambda state: state['layerSurfaces'] >= 3, 'Settings did not open')
             time.sleep(.3)
-            click(1010, 145)
+            click(1010, 165)
             wait_for(lambda state: state['language'] == 'zh_TW', 'Language button did not update the compositor')
-            click(1390, 14)
+            click(1376, 20)
             request('wallpaper', 1)
             wait_for(lambda state: not state['wallpaperImage'], 'Shader wallpaper did not activate')
             result = request('wallpaper-image', '/missing/ludash-wallpaper.png')

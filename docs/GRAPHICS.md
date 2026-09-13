@@ -11,7 +11,7 @@ QT_QPA_PLATFORM=wayland ./build/ludash-compositor --graphics gles
 
 `RenderBackend` configures `QSurfaceFormat` and Qt Quick before constructing the application. The surface keeps 24-bit depth and 8-bit stencil buffers for Qt Quick ordering and clipping; removing depth can cause parent frames to obscure client content.
 
-`WallpaperItem` exposes a Qt Quick framebuffer item. `WallpaperRenderer` uses `QOpenGLContext::currentContext()` on the render thread, validates the actual API/version and obtains that context's `QOpenGLExtraFunctions`. Shader programs, VAO and FBO stay within the render-thread context. Required Qt Quick GL state is reset after drawing. GUI/render health is exchanged through atomic fields.
+`WallpaperItem` exposes a Qt Quick framebuffer item. `WallpaperRenderer` adapts Qt to the C rendering core. It uses `QOpenGLContext::currentContext()` on the render thread, validates the actual API/version and provides that context's function resolver to C. Shader programs, VAO and FBO stay within the render-thread context. Required Qt Quick GL state is reset after drawing. GUI/render health is exchanged through atomic fields.
 
 The vertex and fragment shaders in `data/shaders/` are compiled and linked at runtime. Desktop GL uses `#version 330 core`; GLES uses `#version 300 es` and precision declarations. Quickshell displays the image wallpaper; Dusk/Forest switch its background surface to transparent so the compositor shader is visible. The shell and compositor have separate contexts.
 
@@ -32,3 +32,5 @@ env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE QT_QPA_PLATFORM=wa
 ```
 
 References: [Qt render-thread/context rules](https://doc.qt.io/qt-6/qquickframebufferobject-renderer.html), [QSurfaceFormat](https://doc.qt.io/qt-6/qsurfaceformat.html), [sceneGraphError](https://doc.qt.io/qt-6/qquickwindow.html#sceneGraphError).
+
+Shader compilation, GL dispatch, wallpaper drawing and two-pass backdrop blur now live in C11 under `render_core`. Qt-owned framebuffer items and scene-graph nodes remain C++ adapters. [C core](C_CORE.md) and [Effects](EFFECTS.md) describe ownership and validation.

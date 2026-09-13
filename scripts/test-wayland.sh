@@ -11,6 +11,10 @@ rm -f -- "$build_dir/$evidence_name-preview.png" "$build_dir/$evidence_name-stat
 runtime_dir=$(mktemp -d)
 chmod 700 "$runtime_dir"
 mkdir -p "$runtime_dir/config"
+if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ]; then
+  mkdir -p "$runtime_dir/config/LuDash"
+  printf '[desktop]\noverview=true\nshowHostDetails=false\n' > "$runtime_dir/config/LuDash/LuDash.conf"
+fi
 export XDG_CONFIG_HOME="$runtime_dir/config"
 trap 'find "$runtime_dir" -depth -delete' EXIT
 test_shell_args=""
@@ -31,7 +35,7 @@ assert 0 <= state['system']['cpuPercent'] <= 100, state['system']
 assert 0 <= state['system']['memoryPercent'] <= 100, state['system']
 assert state['system']['os'], state['system']
 if os.environ.get('LUDASH_TEST_SETUP') == '1':
-    assert state['setupComplete'] is False and state['layerSurfaces'] >= 4, state
+    assert state['setupComplete'] is False and state['layerSurfaces'] >= 3, state
 if os.environ.get('LUDASH_GRAPHICS') == 'gles':
     assert state['graphicsApi'] == 'OpenGL ES', state
 if os.environ.get('LUDASH_GRAPHICS') == 'opengl':
@@ -39,8 +43,12 @@ if os.environ.get('LUDASH_GRAPHICS') == 'opengl':
 clients = [c for c in state['clients'] if not c['desktop']]
 if os.environ.get("LUDASH_TEST_OVERVIEW") == "1" or os.environ.get("LUDASH_TEST_SETUP") == "1":
     assert not clients, state
+    if os.environ.get('LUDASH_TEST_OVERVIEW') == '1':
+        assert state['layerSurfaces'] >= 3, state
 else:
     assert len(clients) >= (2 if os.environ.get("LUDASH_TEST_NO_SHELL") == "1" else 3), state
+if clients and state['appearance']['blur']:
+    assert state.get('blurReady') and not state.get('blurFailed'), state
 assert all(c['mapped'] and c['visible'] for c in clients), state
 frame = Image.open(sys.argv[2]).convert('RGB')
 assert frame.getcolors(maxcolors=128) is None, 'Desktop screenshot is blank'
@@ -51,7 +59,7 @@ for client in clients:
     content = frame.crop((x + 8, y + 40, x + width - 8, y + height - 8))
     assert content.getcolors(maxcolors=32) is None, f'Blank client content: {client}'
 if os.environ.get('LUDASH_TEST_NO_SHELL') != '1':
-    assert state.get('layerSurfaces', 0) >= 3, state
+    assert state.get('layerSurfaces', 0) >= 2, state
 for i, a in enumerate(clients):
     for b in clients[i + 1:]:
         assert (a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x'] or

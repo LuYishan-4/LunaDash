@@ -1,0 +1,34 @@
+#include <LuDash/animation/WindowAnimations.h>
+#include <QtTest>
+#include <QQuickWindow>
+namespace LuDash {
+class AnimationTests final : public QObject {
+    Q_OBJECT
+private slots:
+    void cancellationAndDestruction() {
+        WindowAnimations animations;
+        animations.setDuration(100);
+        auto* item = new QQuickItem;
+        animations.show(item); QCOMPARE(animations.activeCount(), 1);
+        animations.hide(item); QCOMPARE(animations.activeCount(), 1);
+        animations.show(item); QCOMPARE(animations.activeCount(), 1);
+        QTRY_COMPARE_WITH_TIMEOUT(animations.activeCount(), 0, 1000);
+        QVERIFY(item->isVisible()); QCOMPARE(item->scale(), 1.0);
+        animations.hide(item); delete item;
+        QCOMPARE(animations.activeCount(), 0);
+    }
+    void reducedMotionCompletesCallbacks() {
+        WindowAnimations animations;
+        QQuickWindow window; window.show();
+        QQuickItem item(window.contentItem());
+        bool finished = false;
+        animations.show(&item);
+        animations.hide(&item, [&] { finished = true; });
+        animations.setDuration(0);
+        QVERIFY(finished); QVERIFY(!item.isVisible()); QCOMPARE(animations.activeCount(), 0);
+        animations.show(&item); QVERIFY(item.isVisible()); QCOMPARE(animations.activeCount(), 0);
+    }
+};
+}
+QTEST_MAIN(LuDash::AnimationTests)
+#include "AnimationTests.moc"

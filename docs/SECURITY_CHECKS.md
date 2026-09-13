@@ -5,10 +5,10 @@ The Linux and security workflows run on pull requests, pushes, merge groups and 
 | Check | Coverage | Failure condition |
 | --- | --- | --- |
 | Linux build | Arch, Ubuntu and Fedora backend builds and tests | Nonzero build or test exit |
-| C++ static analysis | Null/dangling pointers, suspicious memory operations, use-after-move, security APIs | Any enabled clang-tidy warning |
+| C/C++ static analysis | Null/dangling pointers, suspicious memory operations, use-after-move, security APIs | Any enabled clang-tidy warning |
 | ASan and UBSan | Executed out-of-bounds, use-after-free, double-free and undefined behavior paths | Sanitizer report or test failure |
 | CodeQL security and quality | C/C++ dataflow, security and quality queries | SARIF error/warning or security-severity finding; missing reports also fail |
-| Source language | C++/QML, documentation and website text policy | Chinese source text outside translation packs |
+| Source language | C/C++/QML, documentation and website text policy | Chinese source text outside translation packs |
 | Website validation | Assets, fragment targets, English language and image descriptions | Invalid local links or missing assets |
 
 CodeQL builds a real CMake database including Qt/moc. A completed analysis is not the same as no findings: `scripts/security/check_sarif.py` makes reported findings fail the job without printing source snippets. Public repositories or appropriately licensed private repositories are required for GitHub code scanning. Setup/licensing failures remain visible failures.
@@ -17,7 +17,7 @@ The Ubuntu sanitizer job tests native client lifetimes with `--no-shell`; the Ar
 
 ## Require checks on GitHub
 
-After the workflows have run, configure repository Rulesets / Branch protection to require the three Linux build matrix checks, **C++ static analysis**, **ASan and UBSan**, and **CodeQL security and quality**. YAML alone cannot enable branch protection. The repository includes configuration, not a claim that remote policies have been enabled.
+After the workflows have run, configure repository Rulesets / Branch protection to require the three Linux build matrix checks, **C/C++ static analysis**, **ASan and UBSan**, and **CodeQL security and quality**. YAML alone cannot enable branch protection. The repository includes configuration, not a claim that remote policies have been enabled.
 
 ## Local checks
 

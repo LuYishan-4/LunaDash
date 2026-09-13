@@ -36,7 +36,7 @@ for link in page.links:
     if url.scheme or url.netloc:
         assert url.scheme == 'https', link
     elif url.path:
-        target = (root / url.path).resolve()
+        target = (root / url.path.removeprefix("/LuDash/").lstrip("/")).resolve()
         assert target.is_relative_to(root) and target.is_file(), link
     elif url.fragment:
         assert url.fragment in page.ids, link

@@ -15,6 +15,9 @@ class QWaylandXdgToplevel;
 class QWaylandXdgSurface;
 namespace LuDash {
 class SystemStatus;
+class WindowAnimations;
+class XWaylandSupport;
+struct BlurHealth;
 class NetworkStatus;
 class WallpaperItem;
 class PluginManager;
@@ -40,6 +43,9 @@ private:
     QQuickWindow window_;
     SystemStatus* systemStatus_ = nullptr;
     NetworkStatus* networkStatus_ = nullptr;
+    WindowAnimations* animations_ = nullptr;
+    XWaylandSupport* xwayland_ = nullptr;
+    std::shared_ptr<BlurHealth> blurHealth_;
     PluginManager* pluginManager_ = nullptr;
     LayerShell* layerShell_ = nullptr;
     ControlServer* controlServer_ = nullptr;

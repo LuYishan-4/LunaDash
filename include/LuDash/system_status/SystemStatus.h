@@ -2,7 +2,7 @@
 #include <QObject>
 #include <QJsonObject>
 #include <QJsonArray>
-#include <QtGlobal>
+#include <LuDash/system_metrics/SystemMetrics.h>
 namespace LuDash {
 class SystemStatus final : public QObject {
 public:
@@ -12,7 +12,6 @@ private:
     void refresh();
     QJsonObject data_;
     QJsonArray history_;
-    quint64 previousTotal_ = 0;
-    quint64 previousIdle_ = 0;
+    LuDashCpuCounters previous_{};
 };
 }

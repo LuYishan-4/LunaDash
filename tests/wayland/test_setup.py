@@ -47,10 +47,10 @@ with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
             process = subprocess.Popen([str(binary), '--socket', 'ludash-setup', '--graphics', 'opengl',
                                         '--exit-after', '13000' if run == 0 else '4000'], env=env, stdout=log, stderr=log)
             try:
-                state = wait_for(lambda data: data['layerSurfaces'] >= 3 and data['shaderReady'])
+                state = wait_for(lambda data: data['layerSurfaces'] >= 2 and data['shaderReady'])
                 if run == 0:
                     assert not state['setupComplete'], state
-                    wait_for(lambda data: data['layerSurfaces'] >= 4)
+                    wait_for(lambda data: data['layerSurfaces'] >= 3)
                     window = subprocess.check_output(['xdotool', 'search', '--onlyvisible', '--pid', str(process.pid)], text=True).splitlines()[0]
                     subprocess.run(['xdotool', 'windowfocus', '--sync', window], check=True)
 
@@ -60,11 +60,11 @@ with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
 
                     click(980, 672)  # Language -> network; never changes host connections.
                     click(980, 672)  # Continue offline -> appearance.
-                    click(584, 350)  # Lavender preset.
+                    click(546, 352)  # Lavender preset.
                     wait_for(lambda data: data['appearance']['accent'] == '#c4b5fd')
                     click(980, 672)  # Appearance -> ready.
                     click(980, 672)  # Complete the guide.
-                    wait_for(lambda data: data['setupComplete'] and data['layerSurfaces'] == 3)
+                    wait_for(lambda data: data['setupComplete'] and data['layerSurfaces'] == 2)
                     assert 'error' not in request('appearance', json.dumps({'gap': 20, 'panelHeight': 36})), 'Valid preferences rejected'
                     before = request()['appearance']
                     assert 'error' in request('appearance', '{"accent":"#123456","gap":99}')
@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
                     assert state['setupComplete'], 'Guide completion was not persisted'
                     assert state['appearance']['accent'] == '#c4b5fd', state
                     assert state['appearance']['gap'] == 20 and state['appearance']['panelHeight'] == 36, state
-                    assert state['layerSurfaces'] == 3, state
+                    assert state['layerSurfaces'] == 2, state
                 assert process.wait(timeout=20) == 0, 'Setup session did not close cleanly'
             except BaseException:
                 log.flush(); log.seek(0); print(log.read(), file=sys.stderr)

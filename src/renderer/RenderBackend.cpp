@@ -33,6 +33,10 @@ void configureGraphics(GraphicsApi api) {
     QSurfaceFormat::setDefaultFormat(format);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 }
+LuDashGLProc resolveGLFunction(const char* name) {
+    auto* context = QOpenGLContext::currentContext();
+    return context ? context->getProcAddress(name) : nullptr;
+}
 QByteArray shaderSource(const QString& name, bool openGLES) {
     QFile file(":/LuDash/data/shaders/" + name);
     if (!file.open(QIODevice::ReadOnly)) return {};

@@ -1,5 +1,6 @@
 #pragma once
 #include <QString>
+#include <LuDash/render_core/GLDispatch.h>
 #include <QByteArray>
 #include <atomic>
 #include <memory>
@@ -15,5 +16,6 @@ struct RenderState {
 };
 std::optional<GraphicsApi> graphicsApiFromArguments(int argc, char** argv);
 void configureGraphics(GraphicsApi api);
+LuDashGLProc resolveGLFunction(const char* name);
 QByteArray shaderSource(const QString& name, bool openGLES);
 }

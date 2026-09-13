@@ -6,16 +6,18 @@
 namespace LuDash {
 namespace {
 QJsonObject defaults() {
-    return {{"accent", "#7dcccf"}, {"gap", 12}, {"panelHeight", 28},
-            {"overview", true}, {"showHostDetails", false}};
+    return {{"accent", "#9ccbfb"}, {"gap", 12}, {"panelHeight", 40},
+            {"blur", true}, {"blurRadius", 18}, {"windowOpacity", 96}, {"animations", true}, {"animationDuration", 220},
+            {"overview", false}, {"showHostDetails", false}};
 }
 bool valid(const QString& key, const QJsonValue& value) {
     if (key == "accent") return value.isString() && QRegularExpression("^#[0-9a-fA-F]{6}$").match(value.toString()).hasMatch();
-    if (key == "overview" || key == "showHostDetails") return value.isBool();
-    if (key == "gap" || key == "panelHeight") {
+    if (key == "overview" || key == "showHostDetails" || key == "blur" || key == "animations") return value.isBool();
+    if (key == "gap" || key == "panelHeight" || key == "blurRadius" || key == "windowOpacity" || key == "animationDuration") {
         const double number = value.toDouble(-1);
         return value.isDouble() && std::isfinite(number) && std::floor(number) == number &&
-               number >= (key == "gap" ? 4 : 24) && number <= (key == "gap" ? 32 : 40);
+               number >= (key == "gap" ? 4 : key == "panelHeight" ? 32 : key == "windowOpacity" ? 60 : 0) &&
+               number <= (key == "gap" || key == "blurRadius" ? 32 : key == "panelHeight" ? 56 : key == "windowOpacity" ? 100 : 600);
     }
     return false;
 }

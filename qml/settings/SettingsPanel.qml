@@ -7,7 +7,8 @@ import Quickshell.Wayland
 import "../components"
 import "../style"
 import "../configuration"
-PanelWindow {
+import "../effects"
+AnimatedPanel {
     id: settings
     required property var shell
     anchors { top: true; right: true }
@@ -17,7 +18,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "ludash-settings"
     color: "transparent"
-    Rectangle { anchors.fill: parent; color: Theme.background; border.color: Theme.border; radius: 7 }
+    Rectangle { anchors.fill: parent; color: Theme.background; border.color: Theme.border; radius: Theme.radius }
     FileDialog {
         id: wallpaperDialog
         title: shell.tr("Choose wallpaper")
@@ -47,6 +48,8 @@ PanelWindow {
             ShellButton { text: shell.tr("Forest"); onClicked: shell.command("wallpaper", 1) }
         }
         AppearanceControls { shell: settings.shell; Layout.fillWidth: true }
+        EffectsControls { shell: settings.shell; Layout.fillWidth: true }
+        ShellButton { text: shell.tr("Run an X11 application"); onClicked: { shell.settingsOpen = false; shell.x11Open = true } }
         Text { text: shell.tr((shell.state.network || {}).label || "Checking network"); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
         RowLayout {
             ShellButton { text: shell.tr("Configure network"); onClicked: shell.configureNetwork() }

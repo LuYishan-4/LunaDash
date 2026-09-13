@@ -1,6 +1,6 @@
 # LuDash
 
-A C++20 Wayland tiling desktop with an OpenGL / OpenGL ES compositor and a Quickshell interface. A quiet, segmented panel, atmospheric wallpaper and a translucent information card keep the workspace in view.
+A C++20 Wayland tiling desktop with C11 rendering, geometry and metrics cores with an OpenGL / OpenGL ES compositor and a Quickshell interface. A Caelestia-inspired rounded panel, atmospheric wallpaper and a tabbed dashboard keep the workspace in view.
 
 **0.1 development preview.** LuDash is not a production-ready KDE replacement. Start with a nested session inside your existing desktop.
 
@@ -12,6 +12,8 @@ A C++20 Wayland tiling desktop with an OpenGL / OpenGL ES compositor and a Quick
 - English and an external Traditional Chinese language pack.
 - Existing network connection detection and a NetworkManager configuration entry point.
 - Files, notes, command console, system monitor, pacman interface and opt-in metadata plugins.
+- Configurable default backdrop blur, opacity and reduced-motion-friendly window/shell transitions.
+- Optional X11 compatibility inside an authenticated XWayland window.
 - Explicit OpenGL 3.3 Core / OpenGL ES 3.0 contexts and vertex/fragment shaders.
 
 ## Build on Arch Linux
@@ -27,7 +29,7 @@ For network configuration, optionally install `networkmanager nm-connection-edit
 
 The first-run guide offers language, network and appearance settings. Offline use is supported. The gear reopens settings and the guide. Native application language changes take effect when those applications are reopened.
 
-[Quickshell is packaged for Arch](https://archlinux.org/packages/extra/x86_64/quickshell/). The C++ backend needs Qt 6.4+, CMake 3.21+, a C++20 compiler and Wayland development headers/scanner. The shell targets Quickshell 0.3; follow its [installation guide](https://quickshell.org/docs/v0.3.0/guide/install-setup/) on other distributions, where a newer Qt may be needed.
+[Quickshell is packaged for Arch](https://archlinux.org/packages/extra/x86_64/quickshell/). The C++ backend needs Qt 6.4+, CMake 3.21+, C11/C++20 compilers and Khronos GL headers and Wayland development headers/scanner. The shell targets Quickshell 0.3; follow its [installation guide](https://quickshell.org/docs/v0.3.0/guide/install-setup/) on other distributions, where a newer Qt may be needed.
 
 Ubuntu 24.04 backend packages: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`.
 Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`.
@@ -62,11 +64,12 @@ For a staged install use `DESTDIR=/tmp/ludash-stage cmake --install build`. For 
 
 - [Testing instructions and every maintained file](docs/TESTING_AND_FILES.md)
 - [First-run setup and customization](docs/CONFIGURATION.md)
+- [C core](docs/C_CORE.md), [blur and animations](docs/EFFECTS.md), [X11 compatibility](docs/XWAYLAND.md)
 - [Appearance](docs/APPEARANCE.md) and [graphics contexts](docs/GRAPHICS.md)
 - [Architecture](docs/ARCHITECTURE.md), [languages and input methods](docs/INPUT_METHODS.md)
 - [Plugin development](docs/PLUGINS.md), [security and crash checks](docs/SECURITY_CHECKS.md)
 - [Website and GitHub Pages deployment](docs/WEBSITE.md)
 
-Missing or incomplete: XWayland, multiple outputs, full layer-shell, screen locking, portals, audio controls, full system tray, native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Native plugins are disabled by default and run without a sandbox when enabled. Pacman operations require a real terminal and retain sudo/pacman confirmation; this tool is unavailable on systems without pacman.
+Missing or incomplete: multiple outputs, full layer-shell, screen locking, portals, audio controls, full system tray, native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Native plugins are disabled by default and run without a sandbox when enabled. Pacman operations require a real terminal and retain sudo/pacman confirmation; this tool is unavailable on systems without pacman.
 
 Licensed under GPL-3.0-only; see [LICENSE](LICENSE).

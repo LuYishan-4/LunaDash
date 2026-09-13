@@ -2,8 +2,9 @@
 
 ```text
 Existing Wayland host / experimental EGLFS-KMS session
-  ludash-compositor: C++20, Qt Wayland Compositor, OpenGL / GLES
-    xdg-shell: native application windows
+  ludash-compositor: C++20 Qt Wayland integration + C11 OpenGL / GLES core
+    xdg-shell: native windows and the XWayland compatibility container
+    viewporter: client viewport scaling
     layer-shell v2 subset: Quickshell desktop surfaces
     text-input v2/v3 and Qt input-method protocol
     master/stack tiling, four workspaces, focus and window effects
@@ -22,7 +23,10 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 
 | Module | Responsibility |
 | --- | --- |
-| renderer | Context selection, FBO, GLSL and atomic render health |
+| render_core / renderer / blur | C shader/FBO passes with C++ context and scene-graph adapters |
+| animation | Safe fade/scale transitions and reduced-motion controls |
+| xwayland | Optional authenticated XWayland service and X11 launcher |
+| tiling_core / system_metrics | Qt-independent C geometry and bounded proc parsers |
 | compositor / tiling / window_frame | Window lifetime, layout and decorations |
 | layer_shell | Background, panel and overlay surfaces; negotiated v2 subset |
 | ipc | User-only local socket, 64 KiB request limit, three-second timeout |
@@ -36,4 +40,6 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 
 The shell controls LuDash through allowlisted JSON methods. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LuDash's control socket.
 
-The current compositor uses one output. Panel height and tiling gaps define its work area; this is not a general implementation of arbitrary exclusive zones. Layer-shell popups and some double-buffered state behavior remain incomplete. XWayland, multiple outputs, locking, portals, PipeWire capture, an audio service, a polkit agent and a full input-method-v2 bridge are not implemented. The EGLFS/KMS launcher is experimental; evaluate nested sessions first.
+The current compositor uses one output. Panel height and tiling gaps define its work area; this is not a general implementation of arbitrary exclusive zones. Layer-shell popups and some double-buffered state behavior remain incomplete. Multiple outputs, locking, portals, PipeWire capture, an audio service, a polkit agent and a full input-method-v2 bridge are not implemented. The EGLFS/KMS launcher is experimental; evaluate nested sessions first.
+
+See [C core](C_CORE.md), [Effects](EFFECTS.md) and [X11 compatibility](XWAYLAND.md) for implementation boundaries.

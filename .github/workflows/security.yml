@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   static-analysis:
-    name: C++ static analysis
+    name: C/C++ static analysis
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

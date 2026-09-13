@@ -28,28 +28,20 @@ SystemStatus::SystemStatus(QObject* parent) : QObject(parent) {
 }
 QJsonObject SystemStatus::snapshot() const { return data_; }
 void SystemStatus::refresh() {
-    const auto fields = readStatusFile("/proc/stat").split('\n').value(0).simplified().split(' ');
-    quint64 total = 0;
-    for (qsizetype i = 1; i < std::min<qsizetype>(9, fields.size()); ++i) total += fields[i].toULongLong();
-    const quint64 idle = fields.value(4).toULongLong() + fields.value(5).toULongLong();
+    const auto cpuText = readStatusFile("/proc/stat");
+    LuDashCpuCounters counters{};
     int cpu = 0;
-    if (previousTotal_ && total > previousTotal_ && idle >= previousIdle_) {
-        const double busy = 1.0 - static_cast<double>(idle - previousIdle_) / static_cast<double>(total - previousTotal_);
-        cpu = std::clamp(static_cast<int>(busy * 100.0), 0, 100);
+    if (ludash_parse_cpu(cpuText.constData(), static_cast<size_t>(cpuText.size()), &counters)) {
+        cpu = ludash_cpu_percent(previous_, counters); previous_ = counters;
     }
-    previousTotal_ = total; previousIdle_ = idle;
     history_.append(cpu); if (history_.size() > 20) history_.removeFirst();
     data_["cpuPercent"] = cpu; data_["cpuHistory"] = history_;
-    quint64 memoryTotal = 0, available = 0;
-    for (const auto& line : readStatusFile("/proc/meminfo").split('\n')) {
-        const auto values = line.simplified().split(' ');
-        if (line.startsWith("MemTotal:")) memoryTotal = values.value(1).toULongLong();
-        if (line.startsWith("MemAvailable:")) available = values.value(1).toULongLong();
-    }
-    const quint64 used = memoryTotal - std::min(memoryTotal, available);
-    data_["memoryUsed"] = static_cast<double>(used) / (1024.0 * 1024.0);
-    data_["memoryTotal"] = static_cast<double>(memoryTotal) / (1024.0 * 1024.0);
-    data_["memoryPercent"] = memoryTotal ? static_cast<int>(100.0 * static_cast<double>(used) / static_cast<double>(memoryTotal)) : 0;
+    const auto memoryText = readStatusFile("/proc/meminfo");
+    LuDashMemoryCounters memory{};
+    ludash_parse_memory(memoryText.constData(), static_cast<size_t>(memoryText.size()), &memory);
+    data_["memoryUsed"] = static_cast<double>(ludash_memory_used(memory)) / (1024.0 * 1024.0);
+    data_["memoryTotal"] = static_cast<double>(memory.total_kib) / (1024.0 * 1024.0);
+    data_["memoryPercent"] = ludash_memory_percent(memory);
     const QStorageInfo storage(QDir::homePath());
     data_["diskUsed"] = static_cast<double>(storage.bytesTotal() - storage.bytesAvailable()) / (1024.0 * 1024.0 * 1024.0);
     data_["diskTotal"] = static_cast<double>(storage.bytesTotal()) / (1024.0 * 1024.0 * 1024.0);

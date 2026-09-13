@@ -1,4 +1,8 @@
 #include <LuDash/renderer/WallpaperItem.h>
+#include <LuDash/blur/BlurItem.h>
+#include <LuDash/animation/WindowAnimations.h>
+#include <LuDash/xwayland/XWaylandSupport.h>
+#include <QtWaylandCompositor/QWaylandViewporter>
 #include <LuDash/system_status/SystemStatus.h>
 #include <LuDash/configuration/DesktopPreferences.h>
 #include <LuDash/network/NetworkStatus.h>
@@ -57,6 +61,9 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
     window_.setColor(QColor("#171c36")); window_.installEventFilter(this);
     compositor_.setSocketName(socket);
     shell_ = new QWaylandXdgShell(&compositor_);
+    new QWaylandViewporter(&compositor_);
+    animations_ = new WindowAnimations(this);
+    blurHealth_ = std::make_shared<BlurHealth>();
     auto* decorations = new QWaylandXdgDecorationManagerV1;
     decorations->setParent(&compositor_);
     decorations->setExtensionContainer(&compositor_);
@@ -87,6 +94,14 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
 
     });
     if (fullscreen) window_.showFullScreen(); else window_.show();
+    xwayland_ = new XWaylandSupport(this);
+    if (qEnvironmentVariableIntValue("LUDASH_DISABLE_XWAYLAND") != 1) {
+        auto environment = QProcessEnvironment::systemEnvironment();
+        environment.insert("WAYLAND_DISPLAY", QString::fromUtf8(socket));
+        environment.insert("LUDASH_CONTROL", controlPath_);
+        environment.insert("LUDASH_BIN_DIR", QCoreApplication::applicationDirPath());
+        xwayland_->start(environment);
+    }
     if (startShell) {
         auto* process = spawn({"--session"});
         connect(process, &QProcess::finished, this, [this](int, QProcess::ExitStatus) {
@@ -102,6 +117,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray& socket, bool fullscreen, 
 
 WaylandCompositor::~WaylandCompositor() {
     shuttingDown_ = true;
+    delete xwayland_; xwayland_ = nullptr;
     disconnect(compositor_.defaultSeat(), nullptr, this, nullptr);
     delete layerShell_; layerShell_ = nullptr;
     // Destroy rendering items while their Wayland surfaces and output still exist.
@@ -123,7 +139,8 @@ QProcess* WaylandCompositor::spawn(const QStringList& arguments, const QString& 
     environment.insert("WAYLAND_DISPLAY", QString::fromUtf8(compositor_.socketName()));
     environment.insert("QT_IM_MODULE", "wayland");
     environment.insert("QT_QPA_PLATFORM", "wayland"); environment.insert("XDG_SESSION_TYPE", "wayland");
-    environment.insert("XDG_CURRENT_DESKTOP", "LuDash"); environment.remove("DISPLAY");
+    environment.insert("XDG_CURRENT_DESKTOP", "LuDash");
+    if (xwayland_) xwayland_->applyEnvironment(environment); else environment.remove("DISPLAY");
     process->setProcessEnvironment(environment); process->setProcessChannelMode(QProcess::ForwardedChannels);
     connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError) {
         if (shuttingDown_) return;
@@ -156,7 +173,8 @@ QJsonObject WaylandCompositor::state() const {
         {"id", client->id}, {"title", client->toplevel ? client->toplevel->title() : ""}, {"desktop", client->desktop},
         {"workspace", client->workspace}, {"visible", client->frame->isVisible()}, {"focused", client.get() == focused_},
         {"x", client->frame->x()}, {"y", client->frame->y()}, {"width", client->frame->width()}, {"height", client->frame->height()}, {"mapped", client->mapped}});
-    return {{"appearance", desktopPreferences()}, {"setupComplete", setupComplete()}, {"network", networkStatus_->snapshot()},
+    return {{"blurReady", blurHealth_->ready.load()}, {"blurFailed", blurHealth_->failed.load()}, {"blurFrames", static_cast<int>(blurHealth_->frames.load())},
+            {"activeAnimations", animations_->activeCount()}, {"xwayland", xwayland_ ? xwayland_->snapshot() : QJsonObject{}}, {"appearance", desktopPreferences()}, {"setupComplete", setupComplete()}, {"network", networkStatus_->snapshot()},
             {"system", systemStatus_->snapshot()}, {"wallpaperImage", wallpaperImageUrl()},
             {"workspace", workspace_}, {"processFailure", processFailure_}, {"clients", entries},
             {"layerSurfaces", layerShell_ ? layerShell_->mappedCount() : 0}, {"language", selectedLanguage()}, {"translations", languageDictionary(selectedLanguage())},
@@ -180,6 +198,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject& request) {
         if (parseError.error != QJsonParseError::NoError || !document.isObject()) return {{"error", "Expected a JSON object of desktop preferences."}};
         if (!updateDesktopPreferences(document.object(), &error)) return {{"error", error}};
         arrange();
+    }
+    else if (method == "launch-x11") {
+        QString error;
+        if (!xwayland_ || !xwayland_->launch(QProcess::splitCommand(value), &error)) return {{"error", error.isEmpty() ? "XWayland is unavailable." : error}};
     }
     else if (method == "finish-setup") setSetupComplete(true);
     else if (method == "setup") setSetupComplete(false);
@@ -217,7 +239,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject& request) {
     return state();
 }
 
-bool WaylandCompositor::hasProcessFailure() const { return processFailure_ || renderState_->failed || !renderState_->shaderReady; }
+bool WaylandCompositor::hasProcessFailure() const { return processFailure_ || renderState_->failed || blurHealth_->failed || !renderState_->shaderReady; }
 
 void WaylandCompositor::closeTestSession(const std::function<void(bool)>& finished) {
     testStopping_ = true;
@@ -226,10 +248,12 @@ void WaylandCompositor::closeTestSession(const std::function<void(bool)>& finish
     auto elapsed = std::make_shared<int>(0);
     connect(timer, &QTimer::timeout, this, [this, timer, elapsed, finished] {
         *elapsed += 50;
+        if (clients_.empty() && xwayland_) xwayland_->stop();
+        const bool compatibilityFinished = (!xwayland_ || xwayland_->stopped()) && animations_->activeCount() == 0;
         const bool processesFinished = std::all_of(processes_.begin(), processes_.end(), [](const auto* process) { return process->state() == QProcess::NotRunning; });
-        if ((clients_.empty() && processesFinished) || *elapsed >= 5000) {
+        if ((clients_.empty() && processesFinished && compatibilityFinished) || *elapsed >= 5000) {
             timer->stop(); timer->deleteLater();
-            const bool clean = clients_.empty() && processesFinished && !processFailure_;
+            const bool clean = clients_.empty() && processesFinished && compatibilityFinished && !processFailure_;
             if (!clean) qWarning("LuDash test session did not shut down cleanly.");
             finished(clean);
         }
@@ -250,10 +274,13 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel* toplevel, QWaylandXdgSurf
     client->toplevel = toplevel; client->workspace = workspace_;
     client->frame = new WindowFrame(window_.contentItem());
     client->frame->setVisible(false);
+    client->frame->setOpacity(.999);
+    client->blur = new BlurItem(blurHealth_, client->frame);
     client->item = new QWaylandQuickShellSurfaceItem(client->frame);
     client->item->setShellSurface(surface); client->item->setOutput(output_);
     client->item->setAutoCreatePopupItems(true);
     client->item->setFocusOnClick(true);
+    connect(client->item, &QWaylandQuickItem::surfaceDestroyed, client->item, [item = client->item] { if (item) { item->setBufferLocked(true); item->setInputEventsEnabled(false); } });
     auto* current = client.get(); clients_.push_back(std::move(client));
     current->frame->clicked = [this, current](bool close) { if (close && current->toplevel) current->toplevel->sendClose(); else focus(current); };
     connect(toplevel, &QWaylandXdgToplevel::titleChanged, this, [current] { current->frame->title = current->toplevel->title(); current->frame->update(); });
@@ -263,8 +290,10 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel* toplevel, QWaylandXdgSurf
         arrange();
     });
     connect(surface->surface(), &QWaylandSurface::hasContentChanged, this, [this, current] {
-        const bool newlyMapped = !current->mapped && current->item->surface()->hasContent();
-        current->mapped = current->item->surface()->hasContent(); arrange();
+        const auto* attached = current->item->surface();
+        const bool hasContent = attached && attached->hasContent();
+        const bool newlyMapped = !current->mapped && hasContent;
+        current->mapped = hasContent; arrange();
         if (newlyMapped && !current->desktop) { pluginManager_->windowOpened(current->frame); focus(current); }
     });
     connect(toplevel, &QWaylandXdgToplevel::parentToplevelChanged, this, [this, current] { current->floating = current->toplevel->parentToplevel(); arrange(); });
@@ -274,7 +303,11 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel* toplevel, QWaylandXdgSurf
     connect(toplevel, &QObject::destroyed, this, [this, current] {
         if (focused_ == current) focused_ = nullptr;
         if (current->item && current->item->surface()) disconnect(current->item->surface(), nullptr, this, nullptr);
-        current->frame->deleteLater();
+        current->frame->clicked = {};
+        current->item->setBufferLocked(true); current->item->setInputEventsEnabled(false);
+        auto* frame = current->frame;
+        if (frame->isVisible()) animations_->hide(frame, [frame] { frame->deleteLater(); });
+        else frame->deleteLater();
         std::erase_if(clients_, [current](const auto& entry) { return entry.get() == current; });
         arrange(); focusNext(1);
         if (logoutPending_) {
@@ -289,6 +322,7 @@ void WaylandCompositor::configure(ClientWindow* client, const QRect& rectangle) 
     const int border = client->desktop ? 0 : 1;
     const int title = client->desktop ? 0 : 24;
     client->frame->setPosition(rectangle.topLeft()); client->frame->setSize(rectangle.size());
+    client->blur->setSize(rectangle.size());
     client->item->setPosition(QPointF(border, title));
     const QSize size(std::max(1, rectangle.width() - 2 * border), std::max(1, rectangle.height() - title - border));
     if (size != client->lastSize && client->toplevel) {
@@ -300,6 +334,7 @@ void WaylandCompositor::configure(ClientWindow* client, const QRect& rectangle) 
 void WaylandCompositor::arrange() {
     if (wallpaper_) wallpaper_->setSize(window_.size());
     const auto preferences = desktopPreferences();
+    animations_->setDuration(preferences.value("animations").toBool() ? preferences.value("animationDuration").toInt() : 0);
     const int gap = preferences.value("gap").toInt();
     const int top = preferences.value("panelHeight").toInt() + gap;
     const QRect workArea(gap, top, std::max(1, window_.width() - gap * 2), std::max(1, window_.height() - top - gap));
@@ -307,7 +342,15 @@ void WaylandCompositor::arrange() {
     for (const auto& client : clients_) {
         client->frame->accent = QColor(preferences.value("accent").toString());
         client->frame->update();
-        client->frame->setVisible(client->mapped && !client->minimized && (client->desktop || client->workspace == workspace_));
+        client->blur->setRadius(preferences.value("blur").toBool() && !client->desktop ? preferences.value("blurRadius").toInt() : 0);
+        client->item->setOpacity(client->desktop ? 1 : preferences.value("windowOpacity").toInt() / 100.0);
+        const bool visible = client->mapped && !client->minimized && (client->desktop || client->workspace == workspace_);
+        if (visible != client->presented) {
+            client->presented = visible;
+            client->item->setInputEventsEnabled(visible);
+            if (visible) animations_->show(client->frame);
+            else animations_->hide(client->frame);
+        }
         if (client->desktop) {
             client->frame->setZ(-100); configure(client.get(), QRect(0, 0, window_.width(), window_.height()));
         } else if (client->workspace == workspace_ && !client->minimized) {
@@ -317,7 +360,7 @@ void WaylandCompositor::arrange() {
         }
     }
     const auto rectangles = tileRectangles(workArea, static_cast<int>(tiled.size()), ratio_, gap);
-    for (int i = 0; i < tiled.size(); ++i) configure(tiled[i], rectangles[i]);
+    for (qsizetype i = 0; i < std::min(tiled.size(), rectangles.size()); ++i) configure(tiled[i], rectangles[i]);
     for (const auto& client : clients_) if (client->maximized && !client->minimized && client->workspace == workspace_) {
         configure(client.get(), workArea); client->frame->setZ(30);
     }

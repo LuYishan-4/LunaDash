@@ -1,34 +1,24 @@
 import QtQuick
 import "../style"
-Item {
+Rectangle {
     id: root
     property string text: ""
-    property color fill: Theme.surface
+    property color fill: "transparent"
     property color ink: Theme.text
     property bool selected: false
     signal clicked()
-    implicitWidth: Math.max(28, label.implicitWidth + 30)
-    implicitHeight: Theme.barHeight
+    implicitWidth: Math.max(32, label.implicitWidth + 28)
+    implicitHeight: Theme.barHeight - 8
+    radius: height / 2
+    color: selected ? Theme.accent : mouse.containsMouse ? "#344555" : fill
+    scale: mouse.pressed ? 0.93 : 1
     activeFocusOnTab: true
-    Accessible.role: Accessible.Button
-    Accessible.name: text
-    Keys.onReturnPressed: clicked()
-    Keys.onSpacePressed: clicked()
-    onFillChanged: shape.requestPaint()
-    onSelectedChanged: shape.requestPaint()
-    Canvas {
-        id: shape
-        anchors.fill: parent
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
-        onPaint: {
-            const c = getContext("2d"); c.reset()
-            c.fillStyle = root.selected || mouse.containsMouse ? Theme.accent : root.fill
-            c.beginPath(); c.moveTo(0, height / 2); c.lineTo(10, 0)
-            c.lineTo(width - 10, 0); c.lineTo(width, height / 2)
-            c.lineTo(width - 10, height); c.lineTo(10, height); c.closePath(); c.fill()
-        }
-    }
-    Text { id: label; anchors.centerIn: parent; text: root.text; color: root.selected || mouse.containsMouse ? "#182526" : root.ink; font.family: Theme.font; font.pixelSize: 12 }
-    MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.clicked(); onContainsMouseChanged: shape.requestPaint() }
+    border.width: activeFocus ? 1 : 0; border.color: Theme.accent
+    Accessible.role: Accessible.Button; Accessible.name: text
+    Keys.onReturnPressed: clicked(); Keys.onSpacePressed: clicked()
+    Behavior on color { ColorAnimation { duration: Theme.motion } }
+    Behavior on scale { NumberAnimation { duration: Math.min(Theme.motion, 150); easing.type: Easing.OutCubic } }
+    Behavior on implicitWidth { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+    Text { id: label; anchors.centerIn: parent; text: root.text; color: root.selected ? "#102133" : root.ink; font.family: Theme.font; font.pixelSize: 13; font.weight: Font.Medium }
+    MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.clicked() }
 }

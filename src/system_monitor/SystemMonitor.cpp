@@ -2,6 +2,7 @@
 #include <LuDash/system_monitor/SystemMonitor.h>
 #include <QtWidgets>
 #include <QStorageInfo>
+#include <LuDash/system_metrics/SystemMetrics.h>
 
 namespace LuDash {
 QWidget* createSystemMonitor() {
@@ -16,17 +17,13 @@ QWidget* createSystemMonitor() {
     layout->addStretch();
     auto refresh = [=] {
         QFile file("/proc/meminfo");
-        quint64 total = 0, available = 0;
+        LuDashMemoryCounters counters{};
         if (file.open(QIODevice::ReadOnly)) {
-            const auto lines = file.readAll().split('\n');
-            for (const auto& line : lines) {
-                const auto fields = line.simplified().split(' ');
-                if (fields.size() >= 2 && fields[0] == "MemTotal:") total = fields[1].toULongLong();
-                if (fields.size() >= 2 && fields[0] == "MemAvailable:") available = fields[1].toULongLong();
-            }
+            const auto text = file.read(128 * 1024);
+            ludash_parse_memory(text.constData(), static_cast<size_t>(text.size()), &counters);
         }
-        memory->setValue(total ? int(100 * (total - available) / total) : 0);
-        memory->setFormat(QString(LuDash::translate("Memory  %1 / %2 GiB  (%p%)")).arg(static_cast<double>(total - available) / 1048576.0, 0, 'f', 1).arg(static_cast<double>(total) / 1048576.0, 0, 'f', 1));
+        memory->setValue(ludash_memory_percent(counters));
+        memory->setFormat(QString(LuDash::translate("Memory  %1 / %2 GiB  (%p%)")).arg(static_cast<double>(ludash_memory_used(counters)) / 1048576.0, 0, 'f', 1).arg(static_cast<double>(counters.total_kib) / 1048576.0, 0, 'f', 1));
         const QStorageInfo storage(QDir::homePath());
         disk->setValue(storage.bytesTotal() > 0 ? int(100.0 * static_cast<double>(storage.bytesTotal() - storage.bytesAvailable()) / static_cast<double>(storage.bytesTotal())) : 0);
         disk->setFormat(LuDash::translate("Home storage  %p%"));

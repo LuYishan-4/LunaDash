@@ -12,46 +12,32 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.namespace: "ludash-panel"
     property var stats: shell.state.system || ({})
+    Rectangle { anchors.fill: parent; color: Theme.background; radius: 18 }
     Row {
-        anchors.left: parent.left; height: parent.height; spacing: -6
-        Segment { text: "◇"; fill: "#132023"; ink: Theme.accent; onClicked: shell.launcherOpen = !shell.launcherOpen }
+        anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter } spacing: 5
+        Segment { text: "✦"; fill: Theme.accent; ink: "#102133"; onClicked: shell.launcherOpen = !shell.launcherOpen }
         Repeater {
             model: 4
-            Segment { required property int index; text: shell.state.workspace === index ? "◆" : "·"; implicitWidth: 29; selected: shell.state.workspace === index; onClicked: shell.command("workspace", index) }
+            Segment { required property int index; text: String(index + 1); implicitWidth: shell.state.workspace === index ? 44 : 30; selected: shell.state.workspace === index; onClicked: shell.command("workspace", index) }
         }
-        Segment { text: "~"; onClicked: shell.launch("console") }
-        Segment { visible: panel.width > 1250; text: shell.focusedTitle.slice(0, 20); onClicked: shell.launcherOpen = !shell.launcherOpen }
+        Segment { text: "⌘"; onClicked: shell.launch("console") }
     }
     Row {
-        anchors.horizontalCenter: parent.horizontalCenter; height: parent.height; spacing: -5
-        Segment { text: "▱"; ink: Theme.muted; onClicked: shell.launch("files") }
-        Segment { text: "✎"; fill: Theme.lavender; ink: "#293238"; onClicked: shell.launch("notes") }
-        Segment { text: "◈  LuDash"; fill: Theme.accent; ink: "#182526"; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }
+        anchors.centerIn: parent; spacing: 5
+        Segment { text: "◈"; ink: Theme.accent; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }
+        Segment { text: shell.focusedTitle.slice(0, panel.width > 1100 ? 32 : 16); fill: Theme.surface; onClicked: shell.launcherOpen = !shell.launcherOpen }
+    }
+    Row {
+        anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter } spacing: 4
+        Segment { visible: panel.width > 1250; text: "CPU  " + (panel.stats.cpuPercent || 0) + "%"; ink: Theme.muted; onClicked: shell.launch("monitor") }
         Segment {
-            id: clock; property string time: ""; text: "◷ " + time; fill: "#a8c6c4"; ink: "#243437"
+            id: clock; property string time: ""; text: time
             onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
-            Timer { interval: 1000; repeat: true; running: true; triggeredOnStart: true; onTriggered: clock.time = Qt.formatDateTime(new Date(), "HH:mm") }
+            Timer { interval: 1000; repeat: true; running: true; triggeredOnStart: true; onTriggered: clock.time = Qt.formatDateTime(new Date(), "ddd  HH:mm") }
         }
-        Rectangle {
-            width: panel.width > 1100 ? 100 : 62; height: Theme.barHeight; color: Theme.background
-            Row {
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 4 }
-                spacing: 1
-                Repeater {
-                    model: panel.stats.cpuHistory || []
-                    Rectangle { required property var modelData; width: 3; height: Math.max(2, Number(modelData) / 100 * 19); anchors.bottom: parent.bottom; color: Theme.accent }
-                }
-            }
-            MouseArea { anchors.fill: parent; onClicked: shell.launch("monitor") }
-        }
-    }
-    Row {
-        anchors.right: parent.right; height: parent.height; spacing: -5
-        Segment { visible: panel.width > 1100; text: "⬡"; ink: Theme.lavender; onClicked: shell.launch("packages") }
-        Segment { text: "CPU " + (panel.stats.cpuPercent || 0) + "%"; ink: Theme.accent; onClicked: shell.launch("monitor") }
-        Segment { text: "MEM " + (panel.stats.memoryPercent || 0) + "%"; ink: Theme.muted; onClicked: shell.launch("monitor") }
-        Segment { visible: (panel.stats.batteryPercent ?? -1) >= 0; text: "▰ " + panel.stats.batteryPercent + "%"; ink: Theme.muted; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }
-        Segment { text: "⚙"; onClicked: shell.settingsOpen = !shell.settingsOpen }
+        Segment { text: (shell.state.network || {}).connected ? "↔" : "×"; ink: (shell.state.network || {}).internet ? Theme.accent : Theme.muted; onClicked: shell.settingsOpen = !shell.settingsOpen }
+        Segment { visible: (panel.stats.batteryPercent ?? -1) >= 0; text: panel.stats.batteryPercent + "%"; onClicked: shell.launch("monitor") }
+        Segment { text: "⚙"; fill: Theme.surface; onClicked: shell.settingsOpen = !shell.settingsOpen }
         Segment { text: "⏻"; ink: Theme.danger; onClicked: shell.logoutOpen = !shell.logoutOpen }
     }
 }

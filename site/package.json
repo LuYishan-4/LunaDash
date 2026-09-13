@@ -4,10 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "tsc --noEmit",
-    "build": "tsc && node scripts/build.mjs"
+    "dev": "astro dev",
+    "check": "astro check",
+    "build": "astro build",
+    "preview": "astro preview"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "astro": "7.3.2",
+    "@astrojs/check": "0.9.10"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

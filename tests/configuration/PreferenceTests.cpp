@@ -20,7 +20,8 @@ private slots:
         QVERIFY(!updateDesktopPreferences({{"accent", "#123456"}, {"gap", 99}}, &error));
         QCOMPARE(desktopPreferences(), original);
         for (const auto& invalid : {QJsonObject{{"gap", "12"}}, QJsonObject{{"gap", 4.5}}, QJsonObject{{"accent", "red; command"}},
-                                  QJsonObject{{"panelHeight", -2}}, QJsonObject{{"overview", 1}}, QJsonObject{{"unknown", true}}}) {
+                                  QJsonObject{{"panelHeight", -2}}, QJsonObject{{"overview", 1}}, QJsonObject{{"unknown", true}}, QJsonObject{{"blurRadius", 33}}, QJsonObject{{"windowOpacity", 101}},
+                                  QJsonObject{{"animationDuration", -1}}, QJsonObject{{"animations", "false"}}}) {
             QVERIFY(!updateDesktopPreferences(invalid, &error));
             QCOMPARE(desktopPreferences(), original);
         }

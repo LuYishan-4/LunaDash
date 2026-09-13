@@ -10,7 +10,7 @@ ColumnLayout {
     Text { text: shell.tr("Accent color"); color: Theme.muted; font.family: Theme.font }
     RowLayout {
         Repeater {
-            model: ["#7dcccf", "#c4b5fd", "#e7b899", "#a8c89b"]
+            model: ["#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899"]
             ShellButton {
                 required property string modelData
                 text: modelData; active: Theme.accent.toString() === modelData
@@ -26,8 +26,8 @@ ColumnLayout {
     }
     RowLayout {
         Text { text: shell.tr("Panel height") + "  " + Theme.barHeight + " px"; color: Theme.text; Layout.fillWidth: true }
-        ShellButton { text: "−"; enabled: Theme.barHeight > 24; onClicked: shell.setAppearance({ panelHeight: Math.max(24, Theme.barHeight - 4) }) }
-        ShellButton { text: "+"; enabled: Theme.barHeight < 40; onClicked: shell.setAppearance({ panelHeight: Math.min(40, Theme.barHeight + 4) }) }
+        ShellButton { text: "−"; enabled: Theme.barHeight > 32; onClicked: shell.setAppearance({ panelHeight: Math.max(32, Theme.barHeight - 4) }) }
+        ShellButton { text: "+"; enabled: Theme.barHeight < 56; onClicked: shell.setAppearance({ panelHeight: Math.min(56, Theme.barHeight + 4) }) }
     }
     RowLayout {
         ShellButton { text: shell.tr("Desktop information"); active: shell.overviewOpen; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }

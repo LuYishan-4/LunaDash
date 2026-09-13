@@ -16,10 +16,15 @@ With normal XDG settings, the compositor stores configuration in `~/.config/LuDa
 
 | Preference | Default | Accepted values |
 | --- | --- | --- |
-| `desktop/accent` | `#7dcccf` | `#RRGGBB` |
+| `desktop/accent` | `#9ccbfb` | `#RRGGBB` |
 | `desktop/gap` | 12 | Integer, 4–32 pixels |
-| `desktop/panelHeight` | 28 | Integer, 24–40 pixels |
-| `desktop/overview` | true | Boolean |
+| `desktop/panelHeight` | 40 | Integer, 32–56 pixels |
+| `desktop/overview` | false | Boolean |
+| `desktop/blur` | true | Boolean |
+| `desktop/blurRadius` | 18 | Integer, 0–32 |
+| `desktop/windowOpacity` | 96 | Integer, 60–100 percent |
+| `desktop/animations` | true | Boolean |
+| `desktop/animationDuration` | 220 | Integer, 0–600 milliseconds |
 | `desktop/showHostDetails` | false | Boolean |
 | `appearance/language` | System locale | `en_US`, `zh_TW` |
 | `appearance/wallpaperMode` | image | image or shader |
@@ -47,3 +52,5 @@ Malformed JSON, unknown keys, wrong types and invalid ranges are rejected before
 For deeper customization, edit the feature QML under `qml/` and restart. This is trusted local code, not a sandboxed theme package. Native effect plugins are separately opt-in; see [Plugins](PLUGINS.md).
 
 Reference: [NetworkManager D-Bus API](https://networkmanager.dev/docs/api/latest/gdbus-org.freedesktop.NetworkManager.html).
+
+See [Effects](EFFECTS.md) for blur/reduced-motion behavior and [XWayland](XWAYLAND.md) for optional legacy application support. Old saved panel heights outside the supported range fall back to the new default.
