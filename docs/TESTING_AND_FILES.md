@@ -211,6 +211,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/default_applications/DefaultApplications.h](../include/LuDash/default_applications/DefaultApplications.h) | Declare interfaces to validate default app argument arrays and prepare the Konsole/Fish profile. |
 | [include/LuDash/display_settings/DisplaySettings.h](../include/LuDash/display_settings/DisplaySettings.h) | Declare interfaces to describe the output and validate nested window-size changes. |
 | [include/LuDash/fade_plugin/FadePlugin.h](../include/LuDash/fade_plugin/FadePlugin.h) | Declare interfaces/types to animate the opt-in example window effect. |
+| [include/LuDash/file_icons/FileIconDelegate.h](../include/LuDash/file_icons/FileIconDelegate.h) | Declare interfaces to decorate file rows and icon grids with themed outline icons. |
+| [include/LuDash/file_icons/FileIcons.h](../include/LuDash/file_icons/FileIcons.h) | Declare interfaces to draw a cached, consistent outline icon set. |
 | [include/LuDash/file_manager/FileManager.h](../include/LuDash/file_manager/FileManager.h) | Declare interfaces/types to browse the local filesystem. |
 | [include/LuDash/file_operations/FileOperations.h](../include/LuDash/file_operations/FileOperations.h) | Declare interfaces to perform guarded asynchronous file operations. |
 | [include/LuDash/input_method/InputMethodSupport.h](../include/LuDash/input_method/InputMethodSupport.h) | Declare interfaces/types to register Qt and Wayland text-input protocols. |
@@ -267,6 +269,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/entrypoints/control_main.cpp](../src/entrypoints/control_main.cpp) | Send one bounded local control request and return the response status. |
 | [src/entrypoints/desktop_main.cpp](../src/entrypoints/desktop_main.cpp) | Launch a native app or delegate desktop startup to the compositor. |
 | [src/fade_plugin/FadePlugin.cpp](../src/fade_plugin/FadePlugin.cpp) | Implement behavior to animate the opt-in example window effect. |
+| [src/file_icons/FileIconDelegate.cpp](../src/file_icons/FileIconDelegate.cpp) | Implement behavior to decorate file rows and icon grids with themed outline icons. |
+| [src/file_icons/FileIcons.cpp](../src/file_icons/FileIcons.cpp) | Implement behavior to draw a cached, consistent outline icon set. |
 | [src/file_manager/FileManager.cpp](../src/file_manager/FileManager.cpp) | Implement behavior to browse the local filesystem. |
 | [src/file_operations/FileOperations.cpp](../src/file_operations/FileOperations.cpp) | Implement behavior to perform guarded asynchronous file operations. |
 | [src/input_method/InputMethodSupport.cpp](../src/input_method/InputMethodSupport.cpp) | Implement behavior to register Qt and Wayland text-input protocols. |
@@ -309,8 +313,12 @@ Generated build output, dependency caches, source archives and Git internals are
 | --- | --- |
 | [qml/compatibility/X11Launcher.qml](../qml/compatibility/X11Launcher.qml) | Launch an X11 executable through the compatibility service. |
 | [qml/components/AnimatedPanel.qml](../qml/components/AnimatedPanel.qml) | Shared animated layer-panel opening and closing. |
+| [qml/components/LineIcon.qml](../qml/components/LineIcon.qml) | Scalable outline icons shared by settings categories and search. |
 | [qml/components/Segment.qml](../qml/components/Segment.qml) | Rounded animated top-panel button with keyboard access. |
 | [qml/components/ShellButton.qml](../qml/components/ShellButton.qml) | Reusable shell button with keyboard and accessibility labels. |
+| [qml/components/SoftSlider.qml](../qml/components/SoftSlider.qml) | Rounded accent slider with consistent interaction geometry. |
+| [qml/components/SoftSwitch.qml](../qml/components/SoftSwitch.qml) | Accessible compact accent switch for settings toggles. |
+| [qml/components/qmldir](../qml/components/qmldir) | Explicit shared UI type registration for dynamic settings imports. |
 | [qml/configuration/AppearanceControls.qml](../qml/configuration/AppearanceControls.qml) | Shared accent, gap, panel and information-card controls. |
 | [qml/configuration/qmldir](../qml/configuration/qmldir) | Register shared appearance controls for dynamically loaded pages. |
 | [qml/effects/EffectsControls.qml](../qml/effects/EffectsControls.qml) | Live blur, transparency and animation preferences. |
@@ -409,6 +417,15 @@ Generated build output, dependency caches, source archives and Git internals are
 | [site/public/assets/desktop.png](../site/public/assets/desktop.png) | Actual desktop screenshot, captured with identity display off. |
 | [site/public/assets/mark.svg](../site/public/assets/mark.svg) | Local LuDash diamond mark and favicon. |
 | [site/src/app.ts](../site/src/app.ts) | Strict TypeScript for validated accent/gap controls and clipboard feedback. |
+| [site/src/components/CodeBlock.astro](../site/src/components/CodeBlock.astro) | Escaped code examples with clipboard feedback. |
+| [site/src/data/api.ts](../site/src/data/api.ts) | Typed local IPC method reference and argument contracts. |
+| [site/src/data/settings.ts](../site/src/data/settings.ts) | Typed settings guide content with actual capability boundaries. |
+| [site/src/docs.css](../site/src/docs.css) | Responsive documentation typography, tables and module playground styling. |
+| [site/src/layouts/DocsLayout.astro](../site/src/layouts/DocsLayout.astro) | Shared English documentation layout and base-aware navigation. |
+| [site/src/pages/docs/api.astro](../site/src/pages/docs/api.astro) | Local socket, QML and native plugin API documentation. |
+| [site/src/pages/docs/modules.astro](../site/src/pages/docs/modules.astro) | JSON style playground, user QML contract and recovery guide. |
+| [site/src/pages/docs/settings.astro](../site/src/pages/docs/settings.astro) | Guide to desktop settings, default applications and Files. |
+| [site/src/pages/docs/start.astro](../site/src/pages/docs/start.astro) | Arch setup, nested-session instructions and test commands. |
 | [site/src/pages/index.astro](../site/src/pages/index.astro) | Accessible English introduction, actual desktop screenshot and documentation links. |
 | [site/src/styles.css](../site/src/styles.css) | Responsive desktop/mobile layout and interactive theme preview styles. |
 | [site/tsconfig.json](../site/tsconfig.json) | Strict browser TypeScript settings and generated output directory. |

@@ -9,15 +9,22 @@ ColumnLayout {
     spacing: 10
     Text { text: shell.tr("Accent color"); color: Theme.muted; font.family: Theme.font }
     RowLayout {
+        spacing: 14
         Repeater {
             model: ["#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899"]
-            ShellButton {
+            Rectangle {
                 required property string modelData
-                text: modelData; active: Theme.accent.toString() === modelData
-                onClicked: shell.setAppearance({ accent: modelData })
-                Rectangle { anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter; width: parent.width - 12; height: 3; color: modelData }
+                required property int index
+                implicitWidth: 46; implicitHeight: 46; radius: 15
+                color: modelData; border.width: Theme.accent.toString() === modelData ? 3 : 0; border.color: "#e7edf5"
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button; Accessible.name: shell.tr(["Sky", "Lavender", "Mint", "Peach"][index])
+                Keys.onReturnPressed: shell.setAppearance({accent: modelData})
+                Text { anchors.centerIn: parent; visible: Theme.accent.toString() === modelData; text: "✓"; color: "#17212e"; font.pixelSize: 20 }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: shell.setAppearance({accent: modelData}) }
             }
         }
+        Item { Layout.fillWidth: true }
     }
     RowLayout {
         Text { text: shell.tr("Window gaps") + "  " + ((shell.state.appearance || {}).gap ?? 12) + " px"; color: Theme.text; Layout.fillWidth: true }
@@ -25,9 +32,9 @@ ColumnLayout {
         ShellButton { text: "+"; enabled: ((shell.state.appearance || {}).gap ?? 12) < 32; onClicked: shell.setAppearance({ gap: Math.min(32, ((shell.state.appearance || {}).gap ?? 12) + 4) }) }
     }
     RowLayout {
-        Text { text: shell.tr("Panel height") + "  " + Theme.barHeight + " px"; color: Theme.text; Layout.fillWidth: true }
-        ShellButton { text: "−"; enabled: Theme.barHeight > 32; onClicked: shell.setAppearance({ panelHeight: Math.max(32, Theme.barHeight - 4) }) }
-        ShellButton { text: "+"; enabled: Theme.barHeight < 56; onClicked: shell.setAppearance({ panelHeight: Math.min(56, Theme.barHeight + 4) }) }
+        Text { text: shell.tr("Panel height") + "  " + ((shell.state.appearance || {}).panelHeight ?? 40) + " px"; color: Theme.text; Layout.fillWidth: true }
+        ShellButton { text: "−"; enabled: ((shell.state.appearance || {}).panelHeight ?? 40) > 32; onClicked: shell.setAppearance({ panelHeight: Math.max(32, ((shell.state.appearance || {}).panelHeight ?? 40) - 4) }) }
+        ShellButton { text: "+"; enabled: ((shell.state.appearance || {}).panelHeight ?? 40) < 56; onClicked: shell.setAppearance({ panelHeight: Math.min(56, ((shell.state.appearance || {}).panelHeight ?? 40) + 4) }) }
     }
     RowLayout {
         ShellButton { text: shell.tr("Desktop information"); active: shell.overviewOpen; onClicked: shell.setAppearance({ overview: !shell.overviewOpen }) }

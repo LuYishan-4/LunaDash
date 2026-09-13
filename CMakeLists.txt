@@ -105,6 +105,8 @@ add_library(ludash-apps
     src/application_catalog/ApplicationCatalog.cpp
     src/application_window/ApplicationWindow.cpp
     src/file_manager/FileManager.cpp
+    src/file_icons/FileIcons.cpp
+    src/file_icons/FileIconDelegate.cpp
     src/console/Console.cpp
     src/system_monitor/SystemMonitor.cpp
     src/welcome/Welcome.cpp

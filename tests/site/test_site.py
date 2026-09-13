@@ -28,17 +28,23 @@ class Page(HTMLParser):
                 self.links.append(attrs[key])
 
 
-page = Page()
-page.feed((root / 'index.html').read_text())
-assert page.english, 'The website must declare English'
-for link in page.links:
-    url = urlsplit(link)
-    if url.scheme or url.netloc:
-        assert url.scheme == 'https', link
-    elif url.path:
-        target = (root / url.path.removeprefix("/LuDash/").lstrip("/")).resolve()
-        assert target.is_relative_to(root) and target.is_file(), link
-    elif url.fragment:
-        assert url.fragment in page.ids, link
+pages = {}
+for path in root.rglob('*.html'):
+    page = Page(); page.feed(path.read_text()); assert page.english, path
+    pages[path.resolve()] = page
+for path, page in pages.items():
+    for link in page.links:
+        url = urlsplit(link)
+        if url.scheme or url.netloc:
+            assert url.scheme == 'https', link
+            continue
+        target = path
+        if url.path:
+            target = ((root / url.path.removeprefix('/LuDash/').lstrip('/')) if url.path.startswith('/') else path.parent / url.path).resolve()
+            if target.is_dir(): target /= 'index.html'
+            assert target.is_relative_to(root) and target.is_file(), (path, link)
+        if url.fragment and target in pages:
+            assert url.fragment in pages[target].ids, (path, link)
+assert len(pages) >= 5, 'Missing documentation routes'
 assert (root / 'assets/desktop.png').stat().st_size > 10000, 'Missing desktop preview'
-print('Website checks passed: English document, relative assets, fragment links and image descriptions.')
+print(f'Website checks passed: {len(pages)} English pages, assets, internal links, fragments and image descriptions.')

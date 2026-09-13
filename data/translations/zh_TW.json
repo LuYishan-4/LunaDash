@@ -276,5 +276,14 @@
   "Custom QML runs with your user permissions. It can read files and start processes; it is not sandboxed. Enable only code you trust. Loading errors fall back to the built-in block.": "自訂 QML 以你的使用者權限執行，能讀取檔案及啟動程式，並非沙箱。僅啟用信任的程式碼；載入失敗時會回到內建區塊。",
   "Templates use an Item root with required shell, style and moduleId properties. Set custom.entry to panel/Main.qml or overview/Main.qml and custom.enabled to true in JSON. See docs/MODULES.md for the full contract and recovery commands.": "範本使用 Item 根元件，需宣告 shell、style 與 moduleId。JSON 的 custom.entry 設為 panel/Main.qml 或 overview/Main.qml，並將 custom.enabled 設為 true。完整規則及還原指令請見 docs/MODULES.md。",
   "Empty arrays select LuDash Files or Konsole with the LuDash Fish profile. Custom commands are argument arrays, for example [\"kitty\", \"fish\"] or [\"dolphin\"]. They run with your user permissions; shell operators are not expanded.": "空陣列使用 LuDash 檔案管理器或 Konsole 搭配 LuDash Fish 設定。自訂指令使用參數陣列，例如 [\"kitty\", \"fish\"] 或 [\"dolphin\"]，以使用者權限執行，不展開 shell 運算子。",
-  "Files follows desktop color changes immediately. The generated Konsole palette applies to new terminals. Your login shell, Fish configuration and system MIME defaults remain under your control.": "檔案管理器立即跟隨桌面配色；Konsole 配色套用到新終端視窗。登入 shell、Fish 設定與系統 MIME 預設值由你自行管理。"
+  "Files follows desktop color changes immediately. The generated Konsole palette applies to new terminals. Your login shell, Fish configuration and system MIME defaults remain under your control.": "檔案管理器立即跟隨桌面配色；Konsole 配色套用到新終端視窗。登入 shell、Fish 設定與系統 MIME 預設值由你自行管理。",
+  "Search this folder": "搜尋此資料夾",
+  "Show hidden files": "顯示隱藏檔案",
+  "Switch view": "切換檢視",
+  "LIBRARY": "資料庫",
+  "%1 items": "%1 個項目",
+  "Sky": "天空藍",
+  "Lavender": "薰衣草紫",
+  "Mint": "薄荷綠",
+  "Peach": "蜜桃色"
 }

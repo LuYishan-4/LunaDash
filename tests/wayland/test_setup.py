@@ -60,7 +60,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-setup-') as runtime:
 
                     click(980, 672)  # Language -> network; never changes host connections.
                     click(980, 672)  # Continue offline -> appearance.
-                    click(546, 352)  # Lavender preset.
+                    click(515, 357)  # Lavender preset.
                     wait_for(lambda data: data['appearance']['accent'] == '#c4b5fd')
                     click(980, 672)  # Appearance -> ready.
                     click(980, 672)  # Complete the guide.

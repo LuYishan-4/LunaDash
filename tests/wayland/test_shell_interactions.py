@@ -74,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-shell-test-') as runtime:
             click(1376, 20)
             wait_for(lambda state: state['layerSurfaces'] >= 3, 'Settings did not open')
             time.sleep(.3)
-            click(654, 248)
+            click(690, 268)
             wait_for(lambda state: state['language'] == 'zh_TW', 'Language button did not update the compositor')
             click(1376, 20)
             request('wallpaper', 1)

@@ -10,8 +10,8 @@ ColumnLayout {
     spacing: 10
     Text { text: shell.tr("Glass and motion"); color: Theme.accent; font.pixelSize: 16; font.weight: Font.Medium }
     RowLayout {
-        ShellButton { text: shell.tr("Background blur"); active: effects.preferences.blur ?? true; onClicked: shell.setAppearance({ blur: !(effects.preferences.blur ?? true) }) }
-        ShellButton { text: shell.tr("Animations"); active: effects.preferences.animations ?? true; onClicked: shell.setAppearance({ animations: !(effects.preferences.animations ?? true) }) }
+        SoftSwitch { text: shell.tr("Background blur"); checked: effects.preferences.blur ?? true; onToggled: shell.setAppearance({ blur: !(effects.preferences.blur ?? true) }) }
+        SoftSwitch { text: shell.tr("Animations"); checked: effects.preferences.animations ?? true; onToggled: shell.setAppearance({ animations: !(effects.preferences.animations ?? true) }) }
     }
     Repeater {
         model: [
@@ -26,10 +26,12 @@ ColumnLayout {
                 Text { text: shell.tr(modelData.label); color: Theme.muted; Layout.fillWidth: true }
                 Text { text: (effects.preferences[modelData.key] ?? modelData.fallback) + modelData.suffix; color: Theme.text }
             }
-            Slider {
+            SoftSlider {
                 Layout.fillWidth: true; from: modelData.minimum; to: modelData.maximum; stepSize: modelData.step
-                value: effects.preferences[modelData.key] ?? modelData.fallback
-                onMoved: { const change = {}; change[modelData.key] = Math.round(value); shell.setAppearance(change) }
+                id: slider
+                Binding on value { value: effects.preferences[modelData.key] ?? modelData.fallback; when: !slider.pressed }
+                onPressedChanged: if (!pressed) { const change = {}; change[modelData.key] = Math.round(value); shell.setAppearance(change) }
+                Keys.onReleased: event => { if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) { const change = {}; change[modelData.key] = Math.round(value); shell.setAppearance(change) } }
                 Accessible.name: shell.tr(modelData.label)
             }
         }

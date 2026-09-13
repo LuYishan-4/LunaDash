@@ -7,7 +7,7 @@ Rectangle {
     signal clicked()
     implicitWidth: Math.max(36, label.implicitWidth + 26)
     implicitHeight: 36
-    radius: height / 2
+    radius: Math.min(12, height / 2)
     color: active ? Theme.accent : mouse.containsMouse ? "#384a5b" : "#25313e"
     scale: mouse.pressed ? 0.96 : 1
     opacity: enabled ? 1 : 0.4
