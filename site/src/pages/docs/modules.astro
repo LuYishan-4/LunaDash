@@ -1,0 +1,74 @@
+---
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+const template = `import QtQuick
+Item {
+    id: root
+    required property var shell
+    required property var style
+    required property string moduleId
+    Rectangle {
+        anchors.fill: parent
+        color: root.style.background
+        radius: root.style.radius
+    }
+    Text {
+        anchors.centerIn: parent
+        text: root.shell.focusedTitle
+        color: root.style.accent
+        font.pixelSize: root.style.fontSize
+    }
+}`;
+---
+<DocsLayout title="Your shell, one block at a time." section="modules" summary="Resize a panel, change its corners, move it to the bottom—or replace a specific component with your own QML. Start with JSON, then add code when you need it.">
+  <h2 id="blocks">Nine independent blocks</h2><p><code>panel</code>, <code>wallpaper</code>, <code>launcher</code>, <code>overview</code>, <code>settings</code>, <code>setup</code>, <code>session</code>, <code>feedback</code> and <code>compatibility</code> each have a style and an optional custom entrypoint. Settings, setup and feedback cannot be disabled, so recovery remains available.</p>
+  <h2 id="try">Try a panel style</h2><p>This playground only changes the website preview. Copy its JSON into Settings → Shell modules, validate it, then save to apply it in LuDash. A partial document resets omitted fields to defaults.</p>
+  <div class="module-playground">
+    <div class="module-preview" aria-hidden="true"><div class="module-preview-bar" id="module-bar"><span>✦ &nbsp; 1 &nbsp; 2 &nbsp; 3</span><span>LuDash</span><span>Settings</span></div></div>
+    <div class="module-form">
+      <label>Width <output id="module-width-value">1200 px</output><input id="module-width" type="range" min="640" max="1440" step="20" value="1200" /></label>
+      <label>Height <output id="module-height-value">48 px</output><input id="module-height" type="range" min="24" max="96" step="2" value="48" /></label>
+      <label>Corner radius <output id="module-radius-value">18 px</output><input id="module-radius" type="range" min="0" max="48" step="2" value="18" /></label>
+      <label>Panel color<input id="module-color" type="color" value="#c4b5fd" /></label>
+    </div>
+    <label for="module-json">Generated module JSON</label><textarea id="module-json" readonly spellcheck="false" aria-label="Generated module JSON"></textarea>
+    <button class="button primary" id="module-copy" type="button">Copy JSON</button><span id="module-copy-status" role="status" aria-live="polite"></span>
+  </div>
+  <h2 id="schema">The style contract</h2><div class="table-scroll"><table><thead><tr><th>Field</th><th>Accepted values</th></tr></thead><tbody>
+    <tr><td><code>schemaVersion</code></td><td>Exactly 1. Documents are limited to 16 KiB.</td></tr>
+    <tr><td><code>enabled</code></td><td>Boolean; recovery blocks cannot be disabled.</td></tr>
+    <tr><td><code>width / height</code></td><td>0 means built-in size. Width 320–3840 (settings minimum 800). Panel height 24–96; settings/setup 480–2160; other heights 80–2160. Sizes clamp to the screen.</td></tr>
+    <tr><td><code>margin / radius</code></td><td>Integers from 0 to 64 logical pixels.</td></tr>
+    <tr><td><code>background / foreground / accent</code></td><td>inherit, #RRGGBB, or Qt #AARRGGBB. Inherit follows the desktop palette.</td></tr>
+    <tr><td><code>fontSize</code></td><td>10–28. Applies to panel labels and is passed to custom components.</td></tr>
+    <tr><td><code>edge</code></td><td>top or bottom for panel; top for other blocks. Panel height and margins reserve tiling space.</td></tr>
+    <tr><td><code>custom</code></td><td>Boolean enabled plus relative entry, such as panel/Main.qml.</td></tr>
+  </tbody></table></div>
+  <p>The JSON file lives in <code>~/.config/LuDash/shell-modules.json</code>, respecting XDG_CONFIG_HOME. Invalid external edits retain the last valid document. Module colors affect the main built-in surface and direct labels; shared nested controls retain the desktop theme.</p>
+  <h2 id="qml">Make the component yours</h2><ol><li>In Shell modules, create a panel or dashboard template. Existing code is never overwritten.</li><li>Edit <code>~/.config/LuDash/modules/panel/Main.qml</code> in your editor.</li><li>Set <code>custom.entry</code> to <code>panel/Main.qml</code> and <code>custom.enabled</code> to true in JSON.</li><li>Review the code and imports, then explicitly allow custom code in Settings.</li></ol>
+  <CodeBlock label="MAIN.QML / MINIMAL COMPONENT" code={template} />
+  <p>The root must be an <code>Item</code> with required shell, style and moduleId properties. Use anchors and layouts; the host owns the Wayland window, dimensions and animations. Do not create another PanelWindow or ShellRoot. The entrypoint must resolve inside the module directory, match <code>module/Main.qml</code> using letters, digits, underscores or hyphens, and be at most 256 KiB.</p>
+  <p>Entry file edits trigger reload. For helper files, use explicit QML type registration where needed and touch the entrypoint after editing a dependency. Read state as a snapshot; use <code>shell.command()</code> or <code>shell.setAppearance()</code> for changes.</p>
+  <div class="doc-callout"><p><strong>Custom QML is executable, trusted code.</strong> It can access files, processes and the network with your user permissions. Syntax/load errors fall back to built-in content; runtime hangs, crashes or malicious code cannot be isolated inside the same shell process.</p></div>
+  <h2 id="recover">Always keep a way back</h2><CodeBlock code={'ludashctl module-code-trust false\nludashctl module-reset\nludashctl open-settings modules'} /><p>Reset restores built-ins, disables custom code and preserves your QML files. If the shell is hung, disable code through the compositor's IPC and restart the session. Offline, remove the modules/allowCustomCode setting and rename the module JSON before restarting.</p>
+</DocsLayout>
+<script>
+  const width = document.querySelector<HTMLInputElement>("#module-width")!;
+  const height = document.querySelector<HTMLInputElement>("#module-height")!;
+  const radius = document.querySelector<HTMLInputElement>("#module-radius")!;
+  const color = document.querySelector<HTMLInputElement>("#module-color")!;
+  const bar = document.querySelector<HTMLElement>("#module-bar")!;
+  const json = document.querySelector<HTMLTextAreaElement>("#module-json")!;
+  const update = (): void => {
+    const style = {width: width.valueAsNumber, height: height.valueAsNumber, margin: 10, radius: radius.valueAsNumber, background: color.value, foreground: "#17212e", accent: "inherit", fontSize: 13, edge: "bottom"};
+    bar.style.width = `${style.width / 1440 * 100}%`; bar.style.height = `${style.height}px`; bar.style.borderRadius = `${style.radius}px`; bar.style.backgroundColor = style.background;
+    for (const [id, value] of [["width", style.width], ["height", style.height], ["radius", style.radius]] as const) document.getElementById(`module-${id}-value`)!.textContent = `${value} px`;
+    json.value = JSON.stringify({schemaVersion: 1, modules: {panel: {enabled: true, style, custom: {enabled: false, entry: "panel/Main.qml"}}}}, null, 2);
+  };
+  [width, height, radius, color].forEach(input => input.addEventListener("input", update)); update();
+  document.getElementById("module-copy")!.addEventListener("click", async () => {
+    const status = document.getElementById("module-copy-status")!;
+    try { await navigator.clipboard.writeText(json.value); status.textContent = " JSON copied."; }
+    catch { json.select(); status.textContent = " Select and copy the JSON above."; }
+  });
+</script>

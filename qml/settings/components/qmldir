@@ -1,0 +1,5 @@
+HelpText 1.0 HelpText.qml
+PageTitle 1.0 PageTitle.qml
+PreferenceSlider 1.0 PreferenceSlider.qml
+ToolList 1.0 ToolList.qml
+DefaultAppEditor 1.0 DefaultAppEditor.qml

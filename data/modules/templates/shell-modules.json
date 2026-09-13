@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "modules": {
+    "panel": {
+      "enabled": true,
+      "style": { "width": 1200, "height": 48, "margin": 10, "radius": 24, "background": "#ee18202b", "foreground": "inherit", "accent": "inherit", "fontSize": 13, "edge": "bottom" },
+      "custom": { "enabled": false, "entry": "panel/Main.qml" }
+    }
+  }
+}

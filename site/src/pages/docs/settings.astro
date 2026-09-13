@@ -1,0 +1,16 @@
+---
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import { groups } from "../../data/settings";
+const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
+---
+<DocsLayout title="Make it feel like you." section="settings" summary="A practical guide to the settings center: change the look, shape your workspaces, choose default applications, and understand which controls belong to your host desktop.">
+  <div class="doc-callout"><p><strong>Start with the panel gear.</strong> You can also right-click the wallpaper or run <code>ludashctl open-settings</code> inside LuDash. Use the sidebar search to find a category. Most desktop preferences save immediately; JSON editors have an explicit Save button.</p></div>
+  <nav class="doc-toc" aria-label="On this page">{groups.map(group => <a href={`#${group.id}`}>{group.name.split(" & ")[0]}</a>)}</nav>
+  {groups.map(group => <section id={group.id}><h2>{group.name}</h2><p>{group.description}</p><ul>{group.details.map(detail => <li>{detail}</li>)}</ul></section>)}
+  <CodeBlock label="DEFAULT APPLICATION EXAMPLES" code={'# Use your preferred applications\nludashctl default-apps \'{"terminal":["konsole","-e","fish"],"files":["dolphin"]}\'\n\n# Restore LuDash Files and the LuDash Fish terminal profile\nludashctl default-apps \'{"terminal":[],"files":[]}\'\nludashctl launch-default terminal'} />
+  <h2 id="saved">Where preferences live</h2><p>Desktop settings use <code>~/.config/LuDash/LuDash.conf</code>, respecting <code>XDG_CONFIG_HOME</code>. Shell module JSON lives beside it as <code>shell-modules.json</code>. Custom QML belongs in the sibling <code>modules/</code> directory. Module code is disabled until explicitly trusted.</p>
+  <CodeBlock label="APPLY A DESKTOP CHANGE" code={'ludashctl appearance \'{"accent":"#c4b5fd","gap":16,"blur":true,"blurRadius":18}\'\nludashctl open-settings appearance'} />
+  <p>Each block can also have its own dimensions, color and corner radius. Follow <a href={`${base}docs/modules/`}>the module guide</a> for the JSON schema, a visual style playground, user QML and recovery commands.</p>
+  <h2 id="files">A calmer file browser</h2><p>LuDash Files uses a consistent outline icon set, a compact action toolbar, a location field and a spacious icon view. Alt+Left/Right navigates history, Alt+Up goes to the parent, Ctrl+L edits the location, and F2 renames one item. Accent changes also update open Files windows.</p><p>Copy supports regular files. Moves and Trash operations run off the UI thread; existing destinations are not overwritten. Folder copying, cross-application clipboard integration, tabs, archive tools, recursive search and network shares are still incomplete.</p>
+</DocsLayout>
