@@ -10,9 +10,10 @@ The Linux and security workflows run on pull requests, pushes, merge groups and 
 | CodeQL security and quality | C/C++ dataflow, security and quality queries | SARIF error/warning or security-severity finding; missing reports also fail |
 | Source language | C/C++/QML, documentation and website text policy | Chinese source text outside translation packs |
 | Graphics diagnostics | Qt shader selection and graphics pipeline creation logs | Missing GLSL variant or failed pipeline, including sessions that exit with zero |
+| Rendering resources | Sustained compositor/shell descriptor and GPU fence counts | Unbounded growth beyond the test tolerance, pipe exhaustion or abnormal shutdown |
 | Website validation | Assets, fragment targets, English language and image descriptions | Invalid local links or missing assets |
 
-CodeQL builds a real CMake database including Qt/moc. A completed analysis is not the same as no findings: `scripts/security/check_sarif.py` makes reported findings fail the job without printing source snippets. Public repositories or appropriately licensed private repositories are required for GitHub code scanning. Setup/licensing failures remain visible failures.
+CodeQL builds a real CMake database including Qt/moc. A completed analysis is not the same as no findings: `scripts/security/check_sarif.py` makes reported findings fail the job without printing source snippets. Public repositories or appropriately licensed private repositories are required for GitHub code scanning. Setup/licensing failures remain visible failures. The CodeQL job also grants `actions: read`, which its workflow-run lookup needs in private repositories (see the [official workflow template](https://github.com/actions/starter-workflows/blob/main/code-scanning/codeql.yml)). Exported SARIF files are checked even when the analysis upload step fails; the failed upload still fails the job.
 
 The Ubuntu sanitizer job tests native client lifetimes with `--no-shell`; the Arch job additionally tests Quickshell, first-run setup and GL/GLES integration. Leak detection is disabled because Qt/Mesa retain process-wide allocations. **This does not test memory leaks.** Other ASan checks remain active. Dynamic checks cover only executed paths; static analysis is not a proof that the application is secure.
 

@@ -1,5 +1,7 @@
 # Boot and login session
 
+[Traditional Chinese guide](LOGIN_SESSION.zh-TW.md)
+
 LuDash 0.1 is a development preview. The installer registers a real Wayland login entry, but the physical EGLFS/KMS GPU, input-seat and VT path has not been verified. Nested tests do not prove that a standalone login will work. Screen locking, complete portals, a polkit agent and multiple outputs remain incomplete. Keep a working desktop available during evaluation.
 
 ## Arch Linux installer
@@ -76,3 +78,7 @@ sudo cmake --install build-login
 This is a direct source install, not a distribution-owned package. Use your distribution's display manager and session selection controls; no automatic apt/dnf service changes are performed. Physical session support remains unverified on those platforms.
 
 References: [Qt embedded Linux/EGLFS](https://doc.qt.io/qt-6/embedded-linux.html), [SDDM configuration](https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in).
+
+## NVIDIA shell compatibility
+
+LuDash automatically selects software rendering for Quickshell when the NVIDIA driver is loaded, while retaining compositor GL/GLES effects. This avoids the observed sustained synchronization-descriptor growth on the tested host. See [Shell rendering](SHELL_RENDERING.md) for overrides, resource testing and limitations. Rebuild/reinstall and restart the session to apply changes.

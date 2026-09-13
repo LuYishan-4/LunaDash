@@ -82,6 +82,29 @@ private slots:
             const int previous = qRed(softened.pixel(x - 1, 32)), current = qRed(softened.pixel(x, 32));
             QVERIFY2(current <= previous + 1 && previous - current <= 24, "Blur contains repeated bands or abrupt sampling gaps");
         }
+        // Transposing the input must preserve the same smooth kernel in Y.
+        QVERIFY(target.bind());
+        gl->glClearColor(0, 0, 0, 1); gl->glClear(GL_COLOR_BUFFER_BIT);
+        gl->glEnable(GL_SCISSOR_TEST); gl->glScissor(0, 28, 64, 8);
+        gl->glClearColor(1, 1, 1, 1); gl->glClear(GL_COLOR_BUFFER_BIT); gl->glDisable(GL_SCISSOR_TEST);
+        QVERIFY(ludash_blur_draw(blur, &region));
+        const auto vertical = target.toImage();
+        for (int coordinate = 8; coordinate < 56; ++coordinate)
+            QVERIFY2(qAbs(qRed(vertical.pixel(32, coordinate)) - qRed(softened.pixel(coordinate, 32))) <= 2,
+                     "Horizontal and vertical Gaussian kernels differ");
+        // Normalization must preserve a constant image, including odd/max radii.
+        for (const int radius : {0, 1, 18, 31, 32}) {
+            QVERIFY(target.bind()); gl->glClearColor(.25f, .5f, .75f, 1); gl->glClear(GL_COLOR_BUFFER_BIT);
+            region.radius = radius;
+            QVERIFY(ludash_blur_draw(blur, &region));
+            const auto constant = target.toImage();
+            for (const QPoint point : {QPoint(0, 0), QPoint(32, 32), QPoint(63, 63)}) {
+                const auto pixel = constant.pixel(point);
+                QVERIFY(qAbs(qRed(pixel) - 64) <= 1);
+                QVERIFY(qAbs(qGreen(pixel) - 128) <= 1);
+                QVERIFY(qAbs(qBlue(pixel) - 191) <= 1);
+            }
+        }
         region.radius = 100; QVERIFY(!ludash_blur_draw(blur, &region));
         ludash_blur_destroy(blur); ludash_shader_destroy(wallpaper);
         // FBO destruction below still has the correct context current.

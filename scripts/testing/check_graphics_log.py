@@ -10,6 +10,10 @@ def failed_graphics_messages(text):
         "No QSGTexture provided from updateSampledImage",
         "Could not create EGL surface",
         "eglSwapBuffers failed",
+        "Too many open files",
+        "Failed to write to the pipe:",
+        "Wayland shutdown synchronization did not complete",
+        "QProcess: Cannot create pipe",
     ) if message in text]
 
 if __name__ == "__main__":

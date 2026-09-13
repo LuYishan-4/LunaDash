@@ -39,6 +39,8 @@ int ludash_gl_load(LuDashGLDispatch* gl, LuDashGLResolver resolve, char* error, 
     if (!gl->Uniform1i) { ludash_gl_error(error, capacity, "Missing OpenGL function: glUniform1i"); return 0; }
     gl->Uniform1f = (PFNGLUNIFORM1FPROC)resolve("glUniform1f");
     if (!gl->Uniform1f) { ludash_gl_error(error, capacity, "Missing OpenGL function: glUniform1f"); return 0; }
+    gl->Uniform1fv = (PFNGLUNIFORM1FVPROC)resolve("glUniform1fv");
+    if (!gl->Uniform1fv) { ludash_gl_error(error, capacity, "Missing OpenGL function: glUniform1fv"); return 0; }
     gl->Uniform2f = (PFNGLUNIFORM2FPROC)resolve("glUniform2f");
     if (!gl->Uniform2f) { ludash_gl_error(error, capacity, "Missing OpenGL function: glUniform2f"); return 0; }
     gl->GenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)resolve("glGenVertexArrays");

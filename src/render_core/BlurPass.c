@@ -37,6 +37,29 @@ static int ludash_blur_resize(LuDashBlurPass* pass, int width, int height) {
     }
     pass->width = width; pass->height = height; return 1;
 }
+static void ludash_blur_kernel(LuDashShaderProgram* shader, int radius) {
+    const float half_radius = (float)radius * 0.5f;
+    const float sigma = fmaxf(half_radius / 3.0f, 0.5f);
+    const int extent = radius / 2;
+    float taps[17] = {1.0f}, total = 1.0f;
+    for (int i = 1; i <= extent; ++i) {
+        const float distance = (float)i;
+        taps[i] = expf(-0.5f * distance * distance / (sigma * sigma));
+        total += 2.0f * taps[i];
+    }
+    float weights[9] = {1.0f / total}, offsets[9] = {0};
+    const int pairs = (extent + 1) / 2;
+    for (int i = 1; i <= pairs; ++i) {
+        const int first = 2 * i - 1;
+        const float combined = taps[first] + taps[first + 1];
+        weights[i] = combined / total;
+        offsets[i] = (float)first + taps[first + 1] / combined;
+    }
+    LuDashGLDispatch* gl = &shader->gl;
+    gl->Uniform1i(gl->GetUniformLocation(shader->program, "kernelPairs"), pairs);
+    gl->Uniform1fv(gl->GetUniformLocation(shader->program, "weights[0]"), 9, weights);
+    gl->Uniform1fv(gl->GetUniformLocation(shader->program, "offsets[0]"), 9, offsets);
+}
 int ludash_blur_draw(LuDashBlurPass* pass, const LuDashBlurRegion* region) {
     if (!pass || !region || region->width <= 0 || region->height <= 0 || region->width > 32768 || region->height > 32768 ||
         region->x < 0 || region->y < 0 || region->x > 32768 || region->y > 32768 || region->radius < 0 || region->radius > 32 ||
@@ -60,12 +83,19 @@ int ludash_blur_draw(LuDashBlurPass* pass, const LuDashBlurRegion* region) {
     gl->BindTexture(GL_TEXTURE_2D, pass->textures[0]);
     gl->UseProgram(shader->program); gl->Uniform1i(gl->GetUniformLocation(shader->program, "sourceTexture"), 0);
     gl->Uniform1f(gl->GetUniformLocation(shader->program, "opacity"), 1.0f);
-    gl->Uniform1f(gl->GetUniformLocation(shader->program, "radius"), (float)region->radius * 0.5f);
+    ludash_blur_kernel(shader, region->radius);
     gl->Uniform2f(gl->GetUniformLocation(shader->program, "direction"), 1.0f / (float)width, 0.0f);
     gl->BindVertexArray(shader->vertex_array); gl->DrawArrays(GL_TRIANGLES, 0, 3);
-    gl->BindFramebuffer(GL_FRAMEBUFFER, (GLuint)target); gl->Viewport(region->x, region->y, region->width, region->height);
+    // Keep both Gaussian passes at half resolution, then interpolate once when
+    // compositing. Full-resolution vertical convolution stalls software drivers.
+    gl->BindFramebuffer(GL_FRAMEBUFFER, pass->framebuffers[0]);
     gl->BindTexture(GL_TEXTURE_2D, pass->textures[1]);
     gl->Uniform2f(gl->GetUniformLocation(shader->program, "direction"), 0.0f, 1.0f / (float)height);
+    gl->DrawArrays(GL_TRIANGLES, 0, 3);
+    gl->BindFramebuffer(GL_FRAMEBUFFER, (GLuint)target); gl->Viewport(region->x, region->y, region->width, region->height);
+    gl->BindTexture(GL_TEXTURE_2D, pass->textures[0]);
+    gl->Uniform1i(gl->GetUniformLocation(shader->program, "kernelPairs"), 0);
+    gl->Uniform1f(gl->GetUniformLocation(shader->program, "weights[0]"), 1.0f);
     gl->Uniform1f(gl->GetUniformLocation(shader->program, "opacity"), region->opacity);
     gl->Enable(GL_BLEND); gl->BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     if (region->scissor_enabled) { gl->Enable(GL_SCISSOR_TEST); gl->Scissor(region->scissor[0], region->scissor[1], region->scissor[2], region->scissor[3]); }

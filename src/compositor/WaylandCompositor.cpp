@@ -1,4 +1,5 @@
 #include <LuDash/renderer/WallpaperItem.h>
+#include <LuDash/shell_renderer/ShellRenderer.h>
 #include <LuDash/audio_settings/AudioSettings.h>
 #include <LuDash/shell_modules/ShellModules.h>
 #include <LuDash/default_applications/DefaultApplications.h>
@@ -158,6 +159,15 @@ QProcess* WaylandCompositor::spawn(const QStringList& arguments, const QString& 
     environment.insert("QT_QPA_PLATFORM", "wayland"); environment.insert("XDG_SESSION_TYPE", "wayland");
     environment.insert("XDG_CURRENT_DESKTOP", "LuDash");
     if (xwayland_) xwayland_->applyEnvironment(environment); else environment.remove("DISPLAY");
+    if (program.isEmpty() && arguments.contains("--session")) {
+        if (!configureShellRendering(environment, QFile::exists("/proc/driver/nvidia/version"))) {
+            processFailure_ = true;
+            qCritical("LUDASH_SHELL_RENDERER must be auto, opengl or software.");
+            QTimer::singleShot(0, this, [] { QCoreApplication::exit(2); });
+            return process;
+        }
+        qInfo().noquote() << "LuDash shell renderer:" << environment.value("LUDASH_SHELL_RENDERER");
+    }
     process->setProcessEnvironment(environment); process->setProcessChannelMode(QProcess::ForwardedChannels);
     connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError) {
         if (shuttingDown_) return;
@@ -326,7 +336,7 @@ void WaylandCompositor::closeTestSession(const std::function<void(bool)>& finish
                            << "layers:" << layerShell_->mappedCount() << "XWayland stopped:" << (!xwayland_ || xwayland_->stopped())
                            << "child failure:" << processFailure_;
                 for (const auto* process : processes_) if (process->state() != QProcess::NotRunning)
-                    qWarning().noquote() << "Pending child:" << process->program() << "PID:" << process->processId() << "state:" << process->state();
+                    qWarning().noquote() << "Pending child:" << process->program() << process->arguments() << "PID:" << process->processId() << "state:" << process->state();
             }
             finished(clean);
         }

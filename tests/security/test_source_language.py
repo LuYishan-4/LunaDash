@@ -10,6 +10,9 @@ for directory in ('src', 'include', 'qml'):
             violations.append(str(path.relative_to(root)))
 for path in [root / 'README.md', root / 'AGENTS.md', *(root / 'docs').glob('*.md'),
              root / '.github/pull_request_template.md', *(root / 'site').glob('*'), *(root / 'site/src').rglob('*')]:
+    # Explicitly requested translated guide; source and primary docs stay English.
+    if path == root / 'docs/LOGIN_SESSION.zh-TW.md':
+        continue
     if path.is_file() and path.suffix in {'.md', '.html', '.css', '.js', '.ts', '.astro'} and re.search(r'[\u3400-\u9fff]', path.read_text()):
         violations.append(str(path.relative_to(root)))
 if violations:

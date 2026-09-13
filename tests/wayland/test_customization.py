@@ -27,9 +27,10 @@ with tempfile.TemporaryDirectory(prefix='ludash-customization-') as runtime:
                 if not chunk or len(data) > 1024 * 1024: raise RuntimeError('Invalid IPC response')
                 data += chunk
             return json.loads(data)
-    def wait_for(predicate):
-        deadline = time.monotonic() + 7
+    def wait_for(predicate, timeout=7):
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            assert process.poll() is None, 'Compositor exited before the expected state'
             try:
                 state = request()
                 if predicate(state): return state
@@ -39,7 +40,11 @@ with tempfile.TemporaryDirectory(prefix='ludash-customization-') as runtime:
     with open(build / 'customization.log', 'w+') as log:
         process = subprocess.Popen([str(build / 'ludash-compositor'), '--socket', 'ludash-custom', '--exit-after', '34000'], env=env, stdout=log, stderr=log)
         try:
-            state = wait_for(lambda s: s['layerSurfaces'] >= 2)
+            started = time.monotonic()
+            # This test deliberately starts with an empty Qt/Mesa cache.
+            # Only initial startup gets extra time; interaction bounds stay strict.
+            state = wait_for(lambda s: s['layerSurfaces'] >= 2, timeout=20)
+            print(f'Customization desktop ready in {time.monotonic() - started:.1f}s.', flush=True)
             assert not state['shellModules']['trusted']
             assert 'error' not in request('module-template', 'panel')
             document = {'schemaVersion': 1, 'modules': {'panel': {'style': {'height': 48, 'margin': 8, 'radius': 22, 'edge': 'bottom'}, 'custom': {'enabled': True, 'entry': 'panel/Main.qml'}}}}

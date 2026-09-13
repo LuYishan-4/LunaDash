@@ -15,6 +15,9 @@ with tempfile.TemporaryDirectory(prefix="ludash-shader-log-") as directory:
         ("No QSGTexture provided from updateSampledImage(). This is wrong.\n", 1),
         ("Could not create EGL surface (EGL error 0x321c)\n", 1),
         ("eglSwapBuffers failed with 0x300d\n", 1),
+        ("QProcess: Cannot create pipe (Too many open files)\n", 1),
+        ("Failed to write to the pipe: Bad file descriptor.\n", 1),
+        ("Wayland shutdown synchronization did not complete.\n", 1),
     ):
         log.write_text(text)
         result = subprocess.run([sys.executable, str(checker), str(log)], capture_output=True)

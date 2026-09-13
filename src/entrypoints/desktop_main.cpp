@@ -1,3 +1,4 @@
+#include <LuDash/client_lifecycle/WaylandClientShutdown.h>
 #include <LuDash/packages/PackageManager.h>
 #include <LuDash/plugin_settings/PluginSettings.h>
 #include <LuDash/localization/Localization.h>
@@ -17,6 +18,7 @@
 int main(int argc, char** argv) {
     QSurfaceFormat format; format.setVersion(2, 1); format.setSwapInterval(1); QSurfaceFormat::setDefaultFormat(format);
     QApplication app(argc, argv);
+    LuDash::WaylandClientShutdown shutdown(app);
     app.setApplicationName("LuDash"); app.setOrganizationName("LuDash"); app.setApplicationVersion("0.1.0");
     LuDash::initializeLocalization(app);
     QCommandLineParser parser; parser.setApplicationDescription("LuDash — C++ / OpenGL Wayland desktop"); parser.addHelpOption(); parser.addVersionOption();

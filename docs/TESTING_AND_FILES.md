@@ -40,12 +40,16 @@ QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -
 | security-gate | SARIF findings and missing reports fail the security gate |
 | graphics-contexts | Actual desktop GL and GLES contexts with production C wallpaper and blur passes |
 | graphics-startup-failure | Invalid API arguments and unavailable GL 3.3 return code 2 instead of aborting |
+| graphics-diagnostics | Rejection of shader/pipeline failures and descriptor/pipe exhaustion in logs |
+| login-scripts | Installer dry-run, launcher environment isolation, literal arguments and private log permissions |
+| blur-geometry | Bounded geometry and render-matrix preparation for blur |
 | c-core | C geometry, bounded parsing, arithmetic overflow and counter resets |
 | window-animations | Interrupted visibility transitions, item destruction and reduced motion |
 | desktop-preferences | Type/range validation, no partial invalid update, setup completion and link/Internet distinction |
 | system-settings | Bounded helper output/timeouts, audio arguments and power-profile parsing |
 | shell-modules | Module schema bounds, atomic preservation, template ownership, trust defaults and symlink escape rejection |
 | files-and-defaults | File overwrite protection, name validation, default application validation and literal argument preservation |
+| shell-rendering | NVIDIA auto selection, explicit overrides and invalid backend environment preservation |
 | source-language | English C/C++/QML, Markdown documentation and website sources |
 
 Require `100% tests passed`. Graphics tests use Mesa software rendering; they are not physical GPU compatibility results.
@@ -65,6 +69,8 @@ xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_customization.
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
 xvfb-run -a python3 tests/wayland/test_crash_detection.py build
 ```
+
+For a 45-second active-rendering descriptor/fence regression, run `xvfb-run -a python3 tests/wayland/test_resource_lifetime.py build`; from a real Wayland desktop use `LUDASH_TEST_HOST_WAYLAND=1 python3 tests/wayland/test_resource_lifetime.py build`. See [Shell rendering](SHELL_RENDERING.md) for compatibility defaults and evidence files.
 
 The X11 test checks a real mapped XCB client, authentication rejection and socket cleanup.
 
@@ -168,6 +174,8 @@ Review the website at desktop and mobile widths. Test keyboard navigation, accen
 | Qt 6.4 crash in `zwp_text_input_v2::handle_modifiers_map` | Rebuild with the corrected input-protocol registration order, then require the complete Wayland session test to pass. |
 | Blur reports non-finite float-to-integer conversion | Rebuild with bounded blur geometry and run `blur-geometry` plus the Wayland rendering test. |
 | `No GLSL shader code found` / `Failed to build graphics pipeline state` | Rebuild with the desktop compatibility profile; Qt's external OES material requires GLSL 120. Try `--graphics gles` if needed. Test the host GPU path with `LUDASH_TEST_HOST_WAYLAND=1`; the session checker rejects these messages even on exit code zero. |
+| `Cannot create pipe (Too many open files)` | Check descriptor/fence growth using the sustained resource test. NVIDIA defaults to software Quickshell; rebuild/restart and see [Shell rendering](SHELL_RENDERING.md). |
+| CodeQL `Resource not accessible by integration` during workflow lookup | Update the workflow with job-level `actions: read`. Exported SARIF still undergoes the findings gate; check actual rerun results. |
 | NetworkManager unavailable | Existing interfaces may still work. Install/configure the appropriate system network tools or continue offline. |
 | Guide repeats / preferences reset | Check XDG_CONFIG_HOME, write access and whether a test uses an intentionally fresh directory. |
 | Pages returns 404 | Enable Pages, verify repository/plan permissions, inspect deployment workflow and confirm the published URL. |
@@ -181,20 +189,29 @@ Verified locally on 2026-09-14 (Asia/Taipei). These results describe executed te
 
 | Environment / check | Result |
 | --- | --- |
-| Arch development host, Qt 6.11.2, GCC | Full build and all 14 CTest checks passed. |
-| Arch host, Clang 22 with clang-tidy, ASan and UBSan | Full build and all 14 CTest checks passed; enabled analyzer warnings remain errors. |
+| Arch development host, Qt 6.11.2, GCC | Full build and all 15 CTest checks passed. |
+| Arch host, Clang 22 with clang-tidy, ASan and UBSan | Full build and all 15 CTest checks passed; enabled analyzer warnings remain errors. |
+| Final native shutdown guard, Arch host ASan/UBSan | A 30-second active resource test, all 15 CTest checks, the no-shell Wayland session, authenticated X11 lifecycle and deliberate crash detection passed. No failed synchronization or bad-pipe diagnostics were accepted. |
 | Arch GL and GLES sessions with Quickshell and sanitizers | Three native clients rendered without overlap, blur rendered, and shutdown was clean for both APIs. |
-| Host Wayland GPU path, Qt 6.11.2 | OpenGL 4.6 compatibility and GLES 3.2 rendered three clients and closed cleanly after enabling the global share context. No missing-GLSL, failed-pipeline or missing-current-context diagnostics remained. Qt still reports orphaned EGLStream textures at teardown; resource-leak coverage is not claimed. |
+| Host Wayland GPU path, Qt 6.11.2 | OpenGL 4.6 compatibility and GLES 3.2 rendered three clients and closed cleanly after enabling the global share context. No missing-GLSL, failed-pipeline or missing-current-context diagnostics remained. The earlier GPU-shell path reported orphaned EGLStream textures at teardown and later sustained testing exposed descriptor growth; the compatibility-mode result below supersedes the short smoke test for that issue. |
+| NVIDIA 615.71.09 / Qt 6.11.2, automatic software shell | A 45-second active GLES resource test passed with compositor descriptors 64–79 / fences 2–3 and Quickshell descriptors 36–41 / zero fences. The OpenGL 4.6 host smoke test and final sanitized GLES session also passed. |
 | Arch settings, setup and customization | All 15 settings categories, first-run persistence (three consecutive two-session runs), shell interactions, JSON validation, custom QML replacement/error fallback, live Files palette changes and interactive Fish passed during this change. |
+| Optimized blur image regressions | GL 3.3 Core, GL compatibility and GLES tests passed smooth falloff, axis symmetry and constant-image preservation at zero, odd and maximum blur strengths. |
 | Arch live effects | Blur/opacity changes, reduced motion, minimize/restore and clean shutdown passed on the final renderer. |
 | Ubuntu 24.04.4 container, Qt 6.4.2, Clang 19 | All production translation units passed static analysis. The Qt guard / intentional use-after-free analyzer regression passed. |
 | Ubuntu container, Clang 18 ASan/UBSan | All 12 CTest checks passed. The final no-shell Wayland session rendered two clients and 15 blur frames, closed cleanly, and passed authenticated X11 lifecycle and deliberate client-crash detection. |
 | Astro/TypeScript website | Type checking: zero errors, warnings or hints. Five built English pages passed asset/link checks. Desktop/mobile browser checks passed, including generated module JSON and clipboard behavior. |
 | Packaging and source policy | Staged CMake installation, installed launcher preflight, installer dry-run, package metadata, source archive contents, English source policy and whitespace checks passed. No system installation, service changes or physical boot login were performed. |
 
-The supplied GitHub Actions logs exposed an optional Qt header failure and Clang 18's Qt pointer diagnostic. Ubuntu reproduction also exposed an Xauthority length conversion, Qt 6.4 input-protocol announcement ordering and a render-matrix lifetime bug; the final checks above include their fixes. Successful final Ubuntu session and analysis results are in `build/ci-evidence/ubuntu-final-session-and-analysis.log`; its clean final unit-test report is `build/ci-evidence/ubuntu-asan-tests.log`. Intermediate failure reproductions are under `build/ci-evidence/diagnostics/`. Other local evidence is retained under `build/ci-evidence/`; screenshots are in `build/`.
+The supplied GitHub Actions logs exposed an optional Qt header failure and Clang 18's Qt pointer diagnostic. Ubuntu reproduction also exposed an Xauthority length conversion, Qt 6.4 input-protocol announcement ordering and a render-matrix lifetime bug. The Ubuntu results above predate the latest blur optimization, shell renderer selection and native shutdown guard; the current revision has not been reverified on Ubuntu. Those earlier Ubuntu session and analysis results are in `build/ci-evidence/ubuntu-final-session-and-analysis.log`; its unit-test report is `build/ci-evidence/ubuntu-asan-tests.log`. Intermediate failure reproductions are under `build/ci-evidence/diagnostics/`. Other local evidence is retained under `build/ci-evidence/`; screenshots are in `build/`.
 
 The later Arch CI first-run failure was not reproduced by four baseline retries. Shutdown now waits for observed layer unmapping and drained control helpers rather than relying on a fixed 300 ms delay; failed shutdowns retain detailed process/layer/animation diagnostics and the workflow uploads the logs. The original GPU shader mismatch was identified in Qt source; host testing then reproduced missing EGLStream import contexts, fixed by enabling the global share group. Current evidence is in `build/ci-evidence/graphics-*.log`; before-fix host failures are in `build/ci-evidence/diagnostics/host-before-share-*.log`.
+
+During final container validation, a quota of two CPUs with affinity to twenty CPUs produced an interaction IPC timeout and a setup timeout. The interaction diagnostic retry passed; this was not treated as a code fix. Restricting affinity to two CPUs passed setup but still exposed a customization timeout. A captured stack showed the GUI thread waiting for Qt Quick while Mesa workers executed fragment code, so CPU topology alone was not the fix. The blur path now uploads precomputed Gaussian weights, pairs adjacent taps and runs both convolution passes at half resolution. Intermediate logs are retained as `build/ci-evidence/arch-final-tests.log`, `arch-final-opengl-shell-tests.log` and `arch-interaction-diagnostic.log`.
+
+The newest supplied Arch shutdown failure names a native `ludash-desktop` process. Initial short retries did not reproduce it. The sustained test later reproduced native applications waiting in `QWaylandDisplay::~QWaylandDisplay()` / `QThread::wait()`, with a remaining reader blocked in `wl_display_read_events()`. The native tools now complete a private Wayland synchronization barrier after all windows are destroyed and the GUI event loop has ended. This completes prepared reads without dispatching Qt GUI callbacks before Qt joins its readers sequentially. Qt retains ownership of the connection. The public native interface is available with Qt 6.5+; Qt 6.4 uses its existing cleanup path. The five-second compositor deadline and abnormal-exit checks remain unchanged. CodeQL now has job-level `actions: read` for private workflow lookup, with the exported SARIF gate still running after an upload failure.
+
+The final Arch sequence encountered one customization startup timeout before shell readiness. This test starts with an empty Qt/Mesa cache. Its initial readiness allowance is now 20 seconds; per-action waits remain seven seconds, IPC calls remain limited to three seconds and compositor shutdown remains limited to five seconds. The retry reached desktop readiness in 1.2 seconds and passed all customization assertions. This retry does not establish the original startup delay's cause. Evidence is in `build/ci-evidence/arch-final-sync-customization.log`.
 
 GitHub Actions and CodeQL have not been rerun remotely from this workspace. Push the reviewed changes and require the remote jobs to pass; the supplied failed runs are not a successful CI result. Fedora remains configured but was not reproduced locally in this run. Xvfb/software rendering does not verify physical GPU drivers or a complete standalone login session. Leak detection was disabled; no memory-leak coverage is claimed.
 <!-- /verification-results -->
@@ -466,6 +483,22 @@ Generated build output, dependency caches, source archives and Git internals are
 | [site/src/styles.css](../site/src/styles.css) | Responsive desktop/mobile layout and interactive theme preview styles. |
 | [site/tsconfig.json](../site/tsconfig.json) | Strict browser TypeScript settings and generated output directory. |
 
+### Native client lifecycle
+
+| File | Purpose |
+| --- | --- |
+| [include/LuDash/client_lifecycle/WaylandClientShutdown.h](../include/LuDash/client_lifecycle/WaylandClientShutdown.h) | Declares a guard ordered between application and window lifetimes. |
+| [src/client_lifecycle/WaylandClientShutdown.cpp](../src/client_lifecycle/WaylandClientShutdown.cpp) | Completes a private Wayland synchronization barrier after the event loop ends, before Qt cleanup joins its readers. |
+
+### Shell renderer compatibility and resource regression
+
+| File | Purpose |
+| --- | --- |
+| [include/LuDash/shell_renderer/ShellRenderer.h](../include/LuDash/shell_renderer/ShellRenderer.h) | Declares the isolated Quickshell renderer environment policy. |
+| [src/shell_renderer/ShellRenderer.cpp](../src/shell_renderer/ShellRenderer.cpp) | Selects NVIDIA software compatibility or explicit shell backend overrides. |
+| [tests/shell_renderer/ShellRendererTests.cpp](../tests/shell_renderer/ShellRendererTests.cpp) | Verifies automatic selection, overrides, environment isolation and invalid values. |
+| [tests/wayland/test_resource_lifetime.py](../tests/wayland/test_resource_lifetime.py) | Exercises sustained rendering and checks owned process descriptor/fence counts and clean exit. |
+
 ### Documentation
 
 | File | Purpose |
@@ -479,8 +512,10 @@ Generated build output, dependency caches, source archives and Git internals are
 | [docs/GRAPHICS.md](../docs/GRAPHICS.md) | Context, shader, render-thread and graphics-failure behavior. |
 | [docs/INPUT_METHODS.md](../docs/INPUT_METHODS.md) | Language registration and honest Fcitx/IBus validation guidance. |
 | [docs/LOGIN_SESSION.md](../docs/LOGIN_SESSION.md) | Boot session installation, explicit auto-login, physical-session limits and recovery. |
+| [docs/LOGIN_SESSION.zh-TW.md](../docs/LOGIN_SESSION.zh-TW.md) | Traditional Chinese installation, login, testing and recovery guide requested by the user. |
 | [docs/MODULES.md](../docs/MODULES.md) | Shell module schema, QML contract, templates, trust and recovery. |
 | [docs/PLUGINS.md](../docs/PLUGINS.md) | Plugin metadata, SDK, loading and native trust boundary. |
+| [docs/SHELL_RENDERING.md](../docs/SHELL_RENDERING.md) | NVIDIA compatibility policy, renderer overrides, descriptor-exhaustion diagnosis and soak-test limits. |
 | [docs/SECURITY_CHECKS.md](../docs/SECURITY_CHECKS.md) | PR gates, local analysis commands and branch protection instructions. |
 | [docs/SETTINGS.md](../docs/SETTINGS.md) | Settings coverage, direct controls, system/host integrations, saved keys and limitations. |
 | [docs/TESTING.md](../docs/TESTING.md) | Short entry point to the full testing guide. |

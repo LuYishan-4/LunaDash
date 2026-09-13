@@ -54,6 +54,9 @@ jobs:
       - name: Test authenticated X11 compatibility on Arch
         if: matrix.image == 'archlinux:latest'
         run: xvfb-run -a python3 tests/wayland/test_xwayland.py build
+      - name: Check sustained rendering resources on Arch
+        if: matrix.image == 'archlinux:latest'
+        run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_resource_lifetime.py build
       - name: Preserve Arch session diagnostics
         if: always() && matrix.image == 'archlinux:latest'
         uses: actions/upload-artifact@v4
@@ -62,5 +65,7 @@ jobs:
           path: |
             build/wayland.log
             build/ci-evidence/setup/*.log
+            build/ci-evidence/resource-*.log
+            build/ci-evidence/resource-*.json
           if-no-files-found: ignore
           retention-days: 7

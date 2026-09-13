@@ -1,6 +1,6 @@
 # Background blur and motion
 
-New application windows use background blur by default. The compositor captures the already-rendered area behind each window, downsamples it, applies horizontal and vertical densely sampled Gaussian passes, then paints the client's content. This blurs the backdrop rather than the application's text. The implementation supports desktop OpenGL and OpenGL ES through the C rendering core.
+New application windows use background blur by default. The compositor captures the already-rendered area behind each window, downsamples it, applies horizontal and vertical Gaussian passes at half resolution, interpolates the result back to the window size, then paints the client's content. This blurs the backdrop rather than the application's text. The implementation supports desktop OpenGL and OpenGL ES through the C rendering core.
 
 The default window opacity is 96%, so blur is visible behind otherwise opaque clients too. Set opacity to 100% to preserve an application's opaque pixels; its transparent regions can still reveal blur. Blur strength is 18 by default and can be set from 0 to 32 or disabled. The current effect is rectangular and does not implement KDE's per-region blur protocol. Shell panels use translucent rounded surfaces; the C blur pass currently applies to application frames.
 
@@ -22,3 +22,5 @@ Blur capture skips empty or non-finite transformed geometry and clips finite coo
 The render node copies its transformed rectangle in `prepare()`. Qt 6.4's [RHI batch renderer](https://github.com/qt/qtdeclarative/blob/v6.4.2/src/quick/scenegraph/coreapi/qsgbatchrenderer.cpp) exposes a stack-backed model-view matrix during preparation and calls `render()` later. Reading that pointer in `render()` can produce invalid geometry. LuDash retains the copied rectangle instead; both older and current Qt session tests must report rendered blur frames.
 
 Physical GPU performance and complex clipping/scaling still need broader testing. Lower blur strength or disable blur when GPU cost is a concern. This is a development implementation, not a claim of full KWin effect compatibility.
+
+Gaussian weights are computed once per draw in the C core, normalized, and uploaded as uniforms. Adjacent taps are paired using linear filtering, preserving the dense kernel while reducing texture reads. Both convolution passes run at half resolution; the full-resolution composition uses a single filtered sample and still honors opacity, scissor and stencil state. This avoids per-pixel exponential calculations and the previous full-resolution vertical convolution, which stalled Mesa rendering during two-CPU container interaction tests. GL/GLES image tests check smooth falloff in both axes, symmetry and preservation of a constant image.

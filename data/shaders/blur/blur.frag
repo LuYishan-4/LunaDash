@@ -1,20 +1,19 @@
 in vec2 uv;
 uniform sampler2D sourceTexture;
 uniform vec2 direction;
-uniform float radius;
+uniform int kernelPairs;
+uniform float weights[9];
+uniform float offsets[9];
 uniform float opacity;
 out vec4 fragColor;
 void main() {
-    // Adjacent texels keep wide blur kernels smooth instead of repeating sparse taps.
-    float sigma = max(radius / 3.0, 0.5);
-    vec3 color = vec3(0.0);
-    float totalWeight = 0.0;
-    for (int offset = -16; offset <= 16; ++offset) {
-        float distance = float(offset);
-        if (abs(distance) > radius) continue;
-        float weight = exp(-0.5 * distance * distance / (sigma * sigma));
-        color += texture(sourceTexture, uv + direction * distance).rgb * weight;
-        totalWeight += weight;
+    // Linear filtering combines adjacent Gaussian taps without sparse sampling.
+    vec3 color = texture(sourceTexture, uv).rgb * weights[0];
+    for (int index = 1; index <= 8; ++index) {
+        if (index > kernelPairs) break;
+        vec2 step = direction * offsets[index];
+        color += (texture(sourceTexture, uv + step).rgb
+                + texture(sourceTexture, uv - step).rgb) * weights[index];
     }
-    fragColor = vec4(color / totalWeight, 1.0) * opacity;
+    fragColor = vec4(color, 1.0) * opacity;
 }

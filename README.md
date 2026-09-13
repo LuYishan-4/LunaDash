@@ -65,6 +65,7 @@ On Arch, `./scripts/install-session.sh` builds and installs a pacman-managed pac
 For a staged install use `DESTDIR=/tmp/ludash-stage cmake --install build`. For a system install configure `-DCMAKE_INSTALL_PREFIX=/usr`, build, then run `sudo cmake --install build`. The Arch source package is created by `./scripts/make-source.sh`; run `makepkg -Cfs` in `packaging/arch`. The packaged EGLFS/KMS login session still needs physical GPU, seat and VT testing.
 
 - [Testing instructions and every maintained file](docs/TESTING_AND_FILES.md)
+- [Traditional Chinese boot and login guide](docs/LOGIN_SESSION.zh-TW.md)
 - [First-run setup and customization](docs/CONFIGURATION.md)
 - [C core](docs/C_CORE.md), [blur and animations](docs/EFFECTS.md), [X11 compatibility](docs/XWAYLAND.md)
 - [Appearance](docs/APPEARANCE.md) and [graphics contexts](docs/GRAPHICS.md)
@@ -79,3 +80,5 @@ Licensed under GPL-3.0-only; see [LICENSE](LICENSE).
 The dedicated settings center covers desktop preferences, workspaces, input, audio, power profiles and installed system tools. See [Settings coverage](docs/SETTINGS.md) for direct controls, host integrations and missing capabilities. The bundled Notes application has been removed.
 
 Shell blocks support validated JSON styles and optional trusted QML replacements. See [Module contract and templates](docs/MODULES.md) and [Default applications, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md). LuDash Files follows live desktop colors; the default interactive terminal is Konsole with a LuDash Fish profile.
+
+For NVIDIA descriptor exhaustion or Quickshell renderer overrides, see [Shell rendering](docs/SHELL_RENDERING.md). The NVIDIA default uses software Quickshell while retaining compositor GL/GLES effects.
