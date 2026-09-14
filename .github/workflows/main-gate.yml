@@ -32,10 +32,15 @@ jobs:
                   import json, os, sys
                   expected = set(os.environ["EXPECTED"].split("|"))
                   runs = json.load(sys.stdin)["workflow_runs"]
-                  found = {run["name"]: run["conclusion"] for run in runs if run["name"] in expected}
+                  found = {
+                      run["name"]: (run["status"], run["conclusion"])
+                      for run in runs if run["name"] in expected
+                  }
                   if set(found) != expected:
                       print("pending")
-                  elif all(found[name] == "success" for name in expected):
+                  elif any(found[name][0] != "completed" for name in expected):
+                      print("pending")
+                  elif all(found[name][1] == "success" for name in expected):
                       print("passed")
                   else:
                       print("failed")
