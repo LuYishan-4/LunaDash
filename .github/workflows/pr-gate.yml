@@ -23,14 +23,14 @@ jobs:
                   set -eu
                   expected='PR documentation scope|PR repository hygiene|PR source style|PR Qt lifetime analysis|PR C++ memory safety|PR CodeQL security analysis'
                   for attempt in $(seq 1 60); do
-                    checks=$(curl --fail-with-body --silent --show-error \
+                    runs=$(curl --fail-with-body --silent --show-error \
                       -H "Accept: application/vnd.github+json" \
                       -H "Authorization: Bearer $GH_TOKEN" \
-                      "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100")
-                    result=$(printf '%s' "$checks" | EXPECTED="$expected" python3 -c '
+                      "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${HEAD_SHA}&per_page=100")
+                    result=$(printf '%s' "$runs" | EXPECTED="$expected" python3 -c '
                   import json, os, sys
                   expected = set(os.environ["EXPECTED"].split("|"))
-                  runs = json.load(sys.stdin)["check_runs"]
+                  runs = json.load(sys.stdin)["workflow_runs"]
                   found = {run["name"]: run["conclusion"] for run in runs
                            if run["name"] in expected}
                   if set(found) != expected:
