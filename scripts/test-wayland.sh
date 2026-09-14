@@ -35,7 +35,7 @@ run_session() {
   if [ -n "$host_wayland" ]; then
     env -u LIBGL_ALWAYS_SOFTWARE XDG_RUNTIME_DIR="$runtime_dir" WAYLAND_DISPLAY="$host_wayland" QT_QPA_PLATFORM=wayland "$@"
   else
-    XDG_RUNTIME_DIR="$runtime_dir" QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl LIBGL_ALWAYS_SOFTWARE=1 \
+    XDG_RUNTIME_DIR="$runtime_dir" QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}" QT_XCB_GL_INTEGRATION=xcb_egl LIBGL_ALWAYS_SOFTWARE=1 \
       xvfb-run -a -s '-screen 0 1440x900x24' "$@"
   fi
 }

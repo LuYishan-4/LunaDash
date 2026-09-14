@@ -7,7 +7,7 @@ concurrency:
     cancel-in-progress: true
 jobs:
     build:
-        name: Ubuntu 24.04 build and OpenGL smoke test
+        name: Ubuntu 24.04 build, Qt/Wayland and OpenGL tests
         timeout-minutes: 25
         runs-on: ubuntu-24.04
         steps:
@@ -22,15 +22,22 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   persist-credentials: false
-            - name: Build
+            - name: Build C/C++ and Qt targets
               run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+            - name: Test Qt and Wayland library loading
+              run: |
+                  test -f /usr/lib/x86_64-linux-gnu/libQt6WaylandCompositor.so.6
+                  test -f /usr/lib/x86_64-linux-gnu/libwayland-server.so.0
+                  ldd build/lunadah-compositor | grep -E 'libQt6(Core|Gui|Quick|WaylandCompositor)|libwayland-server'
+                  QT_QPA_PLATFORM=offscreen LUDASH_GRAPHICS=opengl \
+                    LUDASH_TEST_NO_SHELL=1 ./scripts/test-wayland.sh
             - name: Test desktop OpenGL loading
               run: LUDASH_GRAPHICS=opengl LUDASH_TEST_NO_SHELL=1 ./scripts/test-wayland.sh
-            - name: Preserve OpenGL diagnostics
+            - name: Preserve Qt and OpenGL diagnostics
               if: always()
               uses: actions/upload-artifact@v4
               with:
-                  name: opengl-session-diagnostics
+                  name: graphics-session-diagnostics
                   path: |
                       build/wayland.log
                       build/wayland-state.json
