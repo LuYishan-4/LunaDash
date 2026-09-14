@@ -38,7 +38,7 @@ QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -
 | CTest | What it checks |
 | --- | --- |
 | scrollable-tiling | Group capacity, equal visible-member rows, minimized-member accounting, grouped focus, expulsion, column resize/reorder and workspace movement |
-| window-rules | Kitty/LunaDah Terminal starts maximized while generic windows, dialogs and the image picker remain unforced |
+| window-rules | Every window opens as its own independent full-width column; no window is forced into a maximized overlay |
 | file-picker | Supported-image eligibility and aspect-preserving bounded preview sizing |
 | default-applications | Literal argument preservation, configured command validation and recursive-launch rejection |
 | desktop-interactions | Native tools, retired-application removal, tiling, language resources, wallpaper validation, package input and plugin paths |
@@ -507,7 +507,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
 | [tests/wayland/test_shell_interactions.py](../tests/wayland/test_shell_interactions.py) | Click the live shell and verify workspace/app/settings/window behavior. |
 | [tests/wayland/test_xwayland.py](../tests/wayland/test_xwayland.py) | Authenticated X11 mapping, denied unauthenticated access and shutdown cleanup. |
-| [tests/window_rules/WindowRulesTests.cpp](../tests/window_rules/WindowRulesTests.cpp) | Verify Kitty starts maximized, generic/dialog/image-picker windows remain unforced, and application icon names resolve. |
+| [tests/window_rules/WindowRulesTests.cpp](../tests/window_rules/WindowRulesTests.cpp) | Verify windows open as independent columns and application icon names resolve. |
 
 ### Website
 

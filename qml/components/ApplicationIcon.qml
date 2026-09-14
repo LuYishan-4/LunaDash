@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../style"
 
 Item {
@@ -9,29 +10,57 @@ Item {
     property string title: ""
 
     readonly property string identity: (iconName + " " + appId + " " + title).toLowerCase()
-    readonly property string localSource: {
-        const candidate = iconName
-        if (candidate === "lunadah") return String(shell.iconSource)
-        if (/^(image:|file:|qrc:|data:)/.test(candidate) && !candidate.includes("qs-blackhole")) return candidate
-        if (candidate.startsWith("/") && /\.(png|jpe?g|webp|svg|xpm)$/i.test(candidate)) return "file://" + candidate
+    readonly property bool builtinApp: appId === "lunadah-app"
+                                       || appId === "lunadah-image-picker"
+                                       || iconName === "lunadah"
+
+    function themed(name) {
+        if (!name || name === "lunadah")
+            return ""
+        const path = String(Quickshell.iconPath(name) || "")
+        return path.length > 0 && !path.includes("qs-blackhole") ? path : ""
+    }
+
+    function desktopIcon() {
+        const candidates = [appId, title].filter(value => String(value || "").trim().length > 0)
+        for (const candidate of candidates) {
+            const entry = DesktopEntries.heuristicLookup(String(candidate).trim())
+            if (entry && entry.icon) {
+                const path = themed(entry.icon)
+                if (path.length > 0)
+                    return path
+            }
+        }
         return ""
     }
+
+    readonly property string fileSource: {
+        const candidate = String(iconName || "")
+        if (/^(image:|file:|qrc:|data:)/.test(candidate) && !candidate.includes("qs-blackhole")) return candidate
+        if (candidate.startsWith("/") && /\.(png|jpe?g|webp|svg|xpm)$/i.test(candidate)) return "file://" + candidate
+        if (candidate.startsWith("/")) return "file://" + candidate
+        return ""
+    }
+    readonly property string themeSource: {
+        if (fileSource.length > 0 || builtinApp) return ""
+        const fromDesktop = desktopIcon()
+        if (fromDesktop.length > 0) return fromDesktop
+        return themed(iconName)
+    }
+    readonly property string iconSource: fileSource.length > 0 ? fileSource : themeSource
     readonly property string vectorName: {
+        if (iconSource.length > 0) return ""
         if (identity.includes("file") || identity.includes("nautilus") || identity.includes("dolphin")) return "files"
         if (identity.includes("setting") || identity.includes("control-center") || identity.includes("preference")) return "settings"
         if (identity.includes("kitty") || identity.includes("terminal") || identity.includes("console")) return "terminal"
         if (identity.includes("monitor") || identity.includes("hwinfo")) return "monitor"
-        return ""
-    }
-    readonly property string badge: {
-        const value = title || appId || iconName || "?"
-        return value.trim().charAt(0).toUpperCase() || "?"
+        return "apps"
     }
 
     Image {
         anchors.fill: parent
-        source: root.localSource
-        visible: root.localSource.length > 0
+        source: root.iconSource
+        visible: root.iconSource.length > 0
         fillMode: Image.PreserveAspectFit
         asynchronous: true
         mipmap: true
@@ -41,21 +70,6 @@ Item {
         anchors.fill: parent
         name: root.vectorName
         ink: Theme.text
-        visible: root.localSource.length === 0 && root.vectorName.length > 0
-    }
-    Rectangle {
-        anchors.fill: parent
-        visible: root.localSource.length === 0 && root.vectorName.length === 0
-        radius: Math.min(width, height) * 0.28
-        color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-        border.width: 1
-        border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.52)
-        Text {
-            anchors.centerIn: parent
-            text: root.badge
-            color: Theme.text
-            font.pixelSize: Math.max(9, Math.min(parent.width, parent.height) * 0.54)
-            font.bold: true
-        }
+        visible: root.iconSource.length === 0
     }
 }

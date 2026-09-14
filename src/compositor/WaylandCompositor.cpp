@@ -867,7 +867,9 @@ void WaylandCompositor::configure(ClientWindow *client,
                                   const QRect &rectangle) {
   const int border = client->desktop ? 0 : 1;
   const int title = client->desktop ? 0 : 24;
-  client->frame->setPosition(rectangle.topLeft());
+  const bool animate =
+      !client->desktop && desktopPreferences().value("animations").toBool();
+  client->frame->moveTo(rectangle.topLeft(), animate);
   client->frame->setSize(rectangle.size());
   client->blur->setSize(rectangle.size());
   client->item->setPosition(QPointF(border, title));
@@ -1066,26 +1068,6 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
           if (key->modifiers().testFlag(Qt::ControlModifier)) {
             if (focused_ && !focused_->floating && !focused_->desktop)
               tiling_.reorder(focused_->id, direction);
-          } else if (key->modifiers().testFlag(Qt::ShiftModifier)) {
-            if (focused_ && !focused_->floating && !focused_->desktop) {
-              const auto snapshot = tiling_.snapshot(workspace_);
-              const auto current = std::find_if(
-                  snapshot.columns.begin(), snapshot.columns.end(),
-                  [this](const auto &entry) {
-                    return entry.window ==
-                           static_cast<TilingWindowId>(focused_->id);
-                  });
-              if (current != snapshot.columns.end()) {
-                const int targetColumn = current->columnIndex + direction;
-                const auto target = std::find_if(
-                    snapshot.columns.begin(), snapshot.columns.end(),
-                    [targetColumn](const auto &entry) {
-                      return entry.columnIndex == targetColumn;
-                    });
-                if (target != snapshot.columns.end())
-                  tiling_.groupWith(focused_->id, target->window);
-              }
-            }
           } else {
             direction < 0 ? tiling_.focusLeft(workspace_)
                           : tiling_.focusRight(workspace_);

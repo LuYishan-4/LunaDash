@@ -27,7 +27,8 @@ Item {
         files: "M3 7 H10 L12 9 H21 V20 H3 Z",
         settings: "M12 3 V6 M12 18 V21 M3 12 H6 M18 12 H21 M5.6 5.6 L7.8 7.8 M16.2 16.2 L18.4 18.4 M18.4 5.6 L16.2 7.8 M7.8 16.2 L5.6 18.4 M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8",
         terminal: "M3 5 H21 V19 H3 Z M7 9 L10 12 L7 15 M12 15 H17",
-        monitor: "M3 19 H21 M5 16 L9 11 L12 14 L17 7 L20 10"
+        monitor: "M3 19 H21 M5 16 L9 11 L12 14 L17 7 L20 10",
+        apps: "M4 4 H10 V10 H4 Z M14 4 H20 V10 H14 Z M4 14 H10 V20 H4 Z M14 14 H20 V20 H14 Z"
     })
     Shape {
         anchors.centerIn: parent; width: 24; height: 24; scale: Math.min(root.width, root.height) / 24

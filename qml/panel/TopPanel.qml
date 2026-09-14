@@ -22,6 +22,13 @@ ModuleSurface {
 
     property var stats: shell.state.system || ({})
     readonly property var groups: ((shell.state.tiling || {}).groups || [])
+    readonly property int focusedGroupIndex: {
+        for (let index = 0; index < groups.length; ++index)
+            if (groups[index].focused) return index
+        return -1
+    }
+    onFocusedGroupIndexChanged: if (focusedGroupIndex >= 0) columnTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain)
+    onGroupsChanged: Qt.callLater(() => { if (focusedGroupIndex >= 0) columnTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain) })
 
     function trayImage(item) {
         const supplied = String(item.icon || "")
@@ -125,6 +132,10 @@ ModuleSurface {
         boundsBehavior: Flickable.StopAtBounds
         model: panel.groups
         visible: count > 0
+        Behavior on contentX {
+            enabled: !columnTasks.flicking && !columnTasks.moving
+            NumberAnimation { duration: Math.max(120, Theme.motion); easing.type: Easing.OutCubic }
+        }
         delegate: ColumnCell {
             required property var modelData
             shell: panel.shell

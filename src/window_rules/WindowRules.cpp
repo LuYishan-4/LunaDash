@@ -6,7 +6,9 @@ InitialWindowPolicy initialWindowPolicy(const QString &appId,
                                         const QString &title) {
   Q_UNUSED(appId);
   Q_UNUSED(title);
-  return {.maximized = true};
+  // Every window opens as its own full-width column. Column width already
+  // equals the work area, so no separate maximized overlay is needed.
+  return {.maximized = false};
 }
 
 QString windowIconName(const QString &appId, const QString &title) {
