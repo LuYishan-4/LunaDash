@@ -5,6 +5,9 @@ The build and security workflows run on pull requests, pushes to `main`, merge g
 | Check | Coverage | Failure condition |
 | --- | --- | --- |
 | Ubuntu build | Ubuntu 24.04 backend build and desktop OpenGL smoke test | Nonzero build or graphics test exit |
+| Workflow policy and style | Workflow structure, permissions, credential persistence and unsafe triggers | Policy or style violation |
+| Credential and personal path scan | API keys, tokens, private keys and user-specific filesystem paths in source/configuration | Any high-confidence match |
+| Source language and shell style | English source policy, shell syntax and shellcheck errors | Any violation |
 | C/C++ static analysis | Null/dangling pointers, suspicious memory operations, use-after-move, security APIs | Any enabled clang-tidy warning |
 | CodeQL security and quality | C/C++ dataflow, security and quality queries | SARIF error/warning or security-severity finding; missing reports also fail |
 | Graphics diagnostics | Qt shader selection and graphics pipeline creation logs | Missing GLSL variant or failed pipeline, including sessions that exit with zero |

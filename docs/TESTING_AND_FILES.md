@@ -225,6 +225,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [.github/pull_request_template.md](../.github/pull_request_template.md) | Review template for behavior, validation and security/lifetime changes. |
 | [.github/workflows/build.yml](../.github/workflows/build.yml) | Ubuntu 24.04 build and desktop OpenGL smoke test. |
 | [.github/workflows/security.yml](../.github/workflows/security.yml) | clang-tidy and CodeQL SARIF security gates for pull requests. |
+| [scripts/security/check_repository_hygiene.py](../scripts/security/check_repository_hygiene.py) | Check workflow policy, credentials and personal filesystem paths. |
 | [.gitignore](../.gitignore) | Exclude generated builds, package artifacts and website dependencies/output. |
 | [AGENTS.md](../AGENTS.md) | Repository implementation and collaboration rules. |
 | [CMakeLists.txt](../CMakeLists.txt) | Explicit targets, dependencies, resources and installation. |
