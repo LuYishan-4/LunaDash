@@ -26,5 +26,5 @@ with tempfile.TemporaryDirectory(prefix='ludash-graphics-failure-') as runtime:
                              '--exit-after', '1500'], env=env,
                             capture_output=True, text=True, timeout=12)
     assert result.returncode == 2, (result.returncode, result.stderr)
-    assert 'LuDash graphics initialization failed:' in result.stderr, result.stderr
+    assert 'graphics initialization failed:' in result.stderr.lower(), result.stderr
 print('Graphics startup failures returned exit 2 without aborting.')

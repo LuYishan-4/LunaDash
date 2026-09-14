@@ -28,8 +28,7 @@ jobs:
               run: |
                   test -f /usr/lib/x86_64-linux-gnu/libQt6Core.so.6
                   test -f /usr/lib/x86_64-linux-gnu/libQt6WaylandCompositor.so.6
-                  ldd build-qt/
-                  -compositor | grep -E 'libQt6(Core|Gui|Quick|WaylandCompositor)'
+                  ldd build-qt/lunadah-compositor | grep -E 'libQt6(Core|Gui|Quick|WaylandCompositor)'
                   QT_QPA_PLATFORM=xcb LUDASH_BUILD_DIR="$GITHUB_WORKSPACE/build-qt" \
                     LUDASH_GRAPHICS=opengl \
                     LUDASH_TEST_NO_SHELL=1 ./scripts/test-wayland.sh
