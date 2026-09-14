@@ -5,10 +5,9 @@ pkgrel=2
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'libglvnd' 'dbus' 'kitty' 'fish')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland')
 makedepends=('cmake' 'ninja')
-optdepends=('xorg-xwayland: X11 protocol compatibility server'
-            'networkmanager: Network status and connection management'
+optdepends=('networkmanager: Network status and connection management'
             'nm-connection-editor: Graphical network setup'
             'wireplumber: Native volume and microphone controls'
             'pavucontrol: Audio device and routing settings'

@@ -519,7 +519,14 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       spawn({"--app", "files", "--builtin"});
     else {
       const auto program = command.takeFirst();
-      spawn(command, program);
+      if (value == "terminal" && QFileInfo(program).fileName() == "kitty" &&
+          xwayland_) {
+        QString launchError;
+        if (!xwayland_->launch(QStringList{program} + command, &launchError))
+          return {{"error", launchError}};
+      } else {
+        spawn(command, program);
+      }
     }
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);

@@ -23,13 +23,19 @@ ModuleSurface {
     property var stats: shell.state.system || ({})
     readonly property var groups: ((shell.state.tiling || {}).groups || [])
 
-    function trayIcon(item) {
-        const identity = String((item.id || "") + " " + (item.title || "")).toLowerCase()
-        if (identity.includes("fcitx")) return Quickshell.iconPath("fcitx")
-        if (identity.includes("discord")) return Quickshell.iconPath("discord")
-        if (identity.includes("docker")) return Quickshell.iconPath("docker-desktop")
+    function trayImage(item) {
         const supplied = String(item.icon || "")
-        return supplied.length > 0 ? supplied : Quickshell.iconPath("application-x-executable")
+        if (/^(image:|file:|qrc:|data:)/.test(supplied) && !supplied.includes("qs-blackhole")) return supplied
+        if (supplied.startsWith("/") && /\.(png|jpe?g|webp|svg|xpm)$/i.test(supplied)) return "file://" + supplied
+        return ""
+    }
+    function trayBadge(item) {
+        const identity = String((item.id || "") + " " + (item.title || "")).toLowerCase()
+        if (identity.includes("fcitx")) return "F"
+        if (identity.includes("discord")) return "D"
+        if (identity.includes("docker")) return "◇"
+        const label = String(item.title || item.id || "?").trim()
+        return label.charAt(0).toUpperCase() || "?"
     }
 
     Rectangle {
@@ -147,11 +153,21 @@ ModuleSurface {
                     radius: 5
                     color: trayMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16) : "transparent"
                 }
+                readonly property string iconSource: panel.trayImage(item)
                 IconImage {
                     anchors.centerIn: parent
                     width: Math.min(19, parent.width - 4)
                     height: width
-                    source: panel.trayIcon(trayDelegate.item)
+                    source: trayDelegate.iconSource
+                    visible: trayDelegate.iconSource.length > 0
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: trayDelegate.iconSource.length === 0
+                    text: panel.trayBadge(trayDelegate.item)
+                    color: Theme.text
+                    font.pixelSize: 12
+                    font.bold: true
                 }
                 MouseArea {
                     id: trayMouse

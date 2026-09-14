@@ -8,7 +8,10 @@ InitialWindowPolicy initialWindowPolicy(const QString &appId,
                      appId.startsWith("kitty.", Qt::CaseInsensitive);
   const bool lunaDahTerminal =
       title.contains("LunaDah Terminal", Qt::CaseInsensitive);
-  return {.maximized = kitty || lunaDahTerminal};
+  const bool xwaylandContainer =
+      appId.contains("xwayland", Qt::CaseInsensitive) ||
+      title.contains("xwayland", Qt::CaseInsensitive);
+  return {.maximized = kitty || lunaDahTerminal || xwaylandContainer};
 }
 
 QString windowIconName(const QString &appId, const QString &title) {

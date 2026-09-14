@@ -34,6 +34,11 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("LUDASH_BIN_DIR", binaryDirectory);
   environment.insert("LUDASH_CONTROL", controlPath);
   environment.insert("QSG_RHI_BACKEND", "opengl");
+  auto loggingRules = environment.value("QT_LOGGING_RULES");
+  if (!loggingRules.isEmpty())
+    loggingRules += ";";
+  loggingRules += "quickshell.desktopentry.warning=false";
+  environment.insert("QT_LOGGING_RULES", loggingRules);
   return environment;
 }
 

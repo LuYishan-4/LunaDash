@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Widgets
+import "../components"
 import "../style"
 
 Item {
@@ -81,11 +82,14 @@ Item {
         Drag.hotSpot.x: width / 2
         Drag.hotSpot.y: height / 2
 
-        IconImage {
+        ApplicationIcon {
+            shell: memberIcon.shell
             anchors.centerIn: parent
             width: 18
             height: 18
-            source: Quickshell.iconPath(String(memberIcon.member.icon || memberIcon.member.appId || "application-x-executable"))
+            iconName: String(memberIcon.member.icon || "")
+            appId: String(memberIcon.member.appId || "")
+            title: String(memberIcon.member.title || "")
         }
 
         MouseArea {

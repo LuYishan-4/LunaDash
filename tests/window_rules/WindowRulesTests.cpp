@@ -12,6 +12,8 @@ private slots:
     QVERIFY(initialWindowPolicy("kitty.lunadah", {}).maximized);
     QVERIFY(initialWindowPolicy("org.example.Terminal", "LunaDah Terminal")
                 .maximized);
+    QVERIFY(
+        initialWindowPolicy("Xwayland", "Xwayland compatibility").maximized);
   }
 
   void resolvesApplicationIcons() {
