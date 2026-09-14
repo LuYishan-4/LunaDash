@@ -14,7 +14,7 @@ Detection is deliberately conservative on hybrid systems with a loaded NVIDIA dr
 # Nested session from an existing Wayland desktop:
 env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE \
   LUDASH_SHELL_RENDERER=software QT_QPA_PLATFORM=wayland \
-  ./build/ludash-compositor --graphics gles
+  ./build/lunadah-compositor --graphics gles
 
 # Manual GPU-shell comparison on a driver that supports it:
 LUDASH_SHELL_RENDERER=opengl LUDASH_TEST_HOST_WAYLAND=1 \
@@ -25,9 +25,9 @@ Software rendering can increase CPU usage. Custom QML modules using GPU-only eff
 
 ## Why the default changed
 
-On the tested NVIDIA 615.71.09 / Qt 6.11.2 host, GPU-backed Quickshell and the compositor accumulated `anon_inode:sync_file` descriptors during sustained rendering. Eventually, helpers could no longer create pipes. Quickshell's generic `likely because the binary could not be found` message was accompanied by `QProcess: Cannot create pipe (Too many open files)`; reinstalling `ludashctl` would not fix descriptor exhaustion.
+On the tested NVIDIA 615.71.09 / Qt 6.11.2 host, GPU-backed Quickshell and the compositor accumulated `anon_inode:sync_file` descriptors during sustained rendering. Eventually, helpers could no longer create pipes. Quickshell's generic `likely because the binary could not be found` message was accompanied by `QProcess: Cannot create pipe (Too many open files)`; reinstalling `lunadahctl` would not fix descriptor exhaustion.
 
-A 40-second diagnostic comparison with software Quickshell kept its fence count at zero and the compositor at two or three fences before teardown. Disabling explicit synchronization alone did not prevent growth in the longer comparison, so LuDash does not set that driver workaround. These observations establish an effective workaround on the tested configuration, not the exact defect inside the driver or Qt. Raising the descriptor limit only delays exhaustion. Rebuild and restart LuDash to apply the fix to an existing session.
+A 40-second diagnostic comparison with software Quickshell kept its fence count at zero and the compositor at two or three fences before teardown. Disabling explicit synchronization alone did not prevent growth in the longer comparison, so LunaDah does not set that driver workaround. These observations establish an effective workaround on the tested configuration, not the exact defect inside the driver or Qt. Raising the descriptor limit only delays exhaustion. Rebuild and restart LunaDah to apply the fix to an existing session.
 
 ## Sustained resource regression
 

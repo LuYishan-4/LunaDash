@@ -11,7 +11,7 @@ ModuleSurface {
     implicitWidth: moduleWidth(460); implicitHeight: moduleHeight(74)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "ludash-message"
+    WlrLayershell.namespace: "lunadah-message"
     color: "transparent"
     Rectangle { anchors.fill: parent; radius: 6; color: moduleBackground; border.color: Theme.danger }
     Text { anchors.fill: parent; anchors.margins: 16; text: shell.tr(shell.errorMessage); wrapMode: Text.WordWrap; color: moduleForeground; font.family: Theme.font; font.pixelSize: 12 }

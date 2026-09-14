@@ -13,13 +13,18 @@ ModuleSurface {
     implicitWidth: moduleWidth(640); implicitHeight: moduleHeight(540)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "ludash-setup"
+    WlrLayershell.namespace: "lunadah-setup"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: "transparent"
     Rectangle { anchors.fill: parent; radius: moduleRadius; color: moduleBackground; border.color: moduleAccent }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 32; spacing: 20
-        Text { text: "LuDash  /  " + (wizard.step + 1) + " · 4"; color: moduleAccent; font.family: Theme.font; font.pixelSize: 14 }
+        RowLayout {
+                    Layout.fillWidth: true; spacing: 12
+                    LunaDahLogo { width: 42; height: 42; animated: Theme.animations }
+                    Text { text: "LunaDah  /  " + (wizard.step + 1) + " · 4"; color: moduleAccent; font.family: Theme.font; font.pixelSize: 14 }
+                    Item { Layout.fillWidth: true }
+                }
         Text { text: shell.tr(["Make yourself at home", "Connect your desktop", "Make it yours", "Ready when you are"][wizard.step]); color: moduleForeground; font.pixelSize: 27; Layout.fillWidth: true; wrapMode: Text.WordWrap }
         ColumnLayout {
             visible: wizard.step === 0; spacing: 16

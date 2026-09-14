@@ -1,6 +1,6 @@
 # Native plugins
 
-LuDash uses metadata inspired by KDE's `KPlugin` structure. **It does not implement KWin's ABI and cannot load KWin plugins.**
+LunaDah uses metadata inspired by KDE's `KPlugin` structure. **It does not implement KWin's ABI and cannot load KWin plugins.**
 
 Place a plugin in `~/.local/share/ludash/plugins/<id>/` or `$prefix/share/ludash/plugins/<id>/`. Development builds also scan `plugins/` next to the executable. Each directory contains `metadata.json` and a shared library.
 
@@ -14,7 +14,7 @@ Place a plugin in `~/.local/share/ludash/plugins/<id>/` or `$prefix/share/ludash
     "License": "GPL-3.0-only",
     "EnabledByDefault": false
   },
-  "LuDash": {
+  "LunaDah": {
     "ApiVersion": 1,
     "Type": "WindowEffect",
     "Library": "libexample-effect.so"

@@ -18,7 +18,7 @@ ColumnLayout {
             ShellButton { required property string modelData; text: modelData; enabled: page.output.nested && !page.output.fullscreen; onClicked: shell.command("desktop-size", modelData) }
         }
     }
-    HelpText { shell: page.shell; message: "In a nested session, physical monitor resolution, refresh rate, scaling, rotation and night light are controlled by your host desktop. These buttons resize only LuDash's window." }
+    HelpText { shell: page.shell; message: "In a nested session, physical monitor resolution, refresh rate, scaling, rotation and night light are controlled by your host desktop. These buttons resize only LunaDah's window." }
     HelpText { shell: page.shell; message: "Standalone multi-monitor configuration, HDR, color profiles and night light are not available yet." }
     ToolList { shell: page.shell; category: "display" }
 }

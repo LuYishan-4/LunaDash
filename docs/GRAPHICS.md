@@ -1,21 +1,21 @@
 # OpenGL and OpenGL ES
 
-LuDash requires OpenGL 3.3 compatibility or OpenGL ES 3.0 or newer. GLES 2 is not supported.
+LunaDah requires OpenGL 3.3 compatibility or OpenGL ES 3.0 or newer. GLES 2 is not supported.
 
 ```sh
-QT_QPA_PLATFORM=wayland ./build/ludash-compositor --graphics opengl
-QT_QPA_PLATFORM=wayland ./build/ludash-compositor --graphics gles
+QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --graphics opengl
+QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --graphics gles
 ```
 
 `auto` chooses according to Qt's OpenGL module type. It is not a restart-based GPU recovery mechanism. An unavailable requested API produces an error; desktop OpenGL is never reported as GLES.
 
 `RenderBackend` configures `QSurfaceFormat` and Qt Quick before constructing the application. The surface keeps 24-bit depth and 8-bit stencil buffers for Qt Quick ordering and clipping; removing depth can cause parent frames to obscure client content.
 
-It also enables `Qt::AA_ShareOpenGLContexts` before constructing `QGuiApplication`. Qt Wayland imports EGLStream buffers during GUI-thread commits using an offscreen context in the global share group. Without that group, imports can fail with `creating texture with no current context`, missing QSG textures and client EGL-surface errors even though LuDash's own shaders rendered successfully. This path is implemented by Qt's [EGL client buffer integration](https://github.com/qt/qtwayland/blob/v6.11.2/src/hardwareintegration/compositor/wayland-egl/waylandeglclientbufferintegration.cpp).
+It also enables `Qt::AA_ShareOpenGLContexts` before constructing `QGuiApplication`. Qt Wayland imports EGLStream buffers during GUI-thread commits using an offscreen context in the global share group. Without that group, imports can fail with `creating texture with no current context`, missing QSG textures and client EGL-surface errors even though LunaDah's own shaders rendered successfully. This path is implemented by Qt's [EGL client buffer integration](https://github.com/qt/qtwayland/blob/v6.11.2/src/hardwareintegration/compositor/wayland-egl/waylandeglclientbufferintegration.cpp).
 
-Desktop GL requests a compatibility profile with deprecated functions enabled. Qt Wayland's external OES buffer material supplies only GLSL 120 and GLSL ES 100 variants. Qt's RHI excludes GLSL 120 when the context is Core Profile, producing `No GLSL shader code found` and `Failed to build graphics pipeline state` for affected GPU buffers. Compatibility allows Qt's GLSL 120 material and LuDash's GLSL 330 shaders to coexist; it does not lower the OpenGL 3.3 requirement. GLES still requests version 3.0 and uses LuDash's GLSL ES 300 shaders. The C renderer is also tested independently in a Core Profile context.
+Desktop GL requests a compatibility profile with deprecated functions enabled. Qt Wayland's external OES buffer material supplies only GLSL 120 and GLSL ES 100 variants. Qt's RHI excludes GLSL 120 when the context is Core Profile, producing `No GLSL shader code found` and `Failed to build graphics pipeline state` for affected GPU buffers. Compatibility allows Qt's GLSL 120 material and LunaDah's GLSL 330 shaders to coexist; it does not lower the OpenGL 3.3 requirement. GLES still requests version 3.0 and uses LunaDah's GLSL ES 300 shaders. The C renderer is also tested independently in a Core Profile context.
 
-If a driver cannot provide the requested desktop compatibility profile, LuDash reports the mismatch; try `--graphics gles` with an ES 3 capable driver. See Qt's [external OES material](https://github.com/qt/qtwayland/blob/v6.11.2/src/compositor/compositor_api/qwaylandquickitem.cpp) and [RHI shader selection](https://github.com/qt/qtbase/blob/v6.11.2/src/gui/rhi/qrhigles2.cpp).
+If a driver cannot provide the requested desktop compatibility profile, LunaDah reports the mismatch; try `--graphics gles` with an ES 3 capable driver. See Qt's [external OES material](https://github.com/qt/qtwayland/blob/v6.11.2/src/compositor/compositor_api/qwaylandquickitem.cpp) and [RHI shader selection](https://github.com/qt/qtbase/blob/v6.11.2/src/gui/rhi/qrhigles2.cpp).
 
 `WallpaperItem` exposes a Qt Quick framebuffer item. `WallpaperRenderer` adapts Qt to the C rendering core. It uses `QOpenGLContext::currentContext()` on the render thread, validates the actual API/version and provides that context's function resolver to C. Shader programs, VAO and FBO stay within the render-thread context. Required Qt Quick GL state is reset after drawing. GUI/render health is exchanged through atomic fields.
 
@@ -39,7 +39,7 @@ A `QQuickWindow::sceneGraphError` handler reports initialization failure and exi
 For manual diagnosis, remove incompatible overrides only from the launched process:
 
 ```sh
-env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE QT_QPA_PLATFORM=wayland ./build/ludash-compositor --graphics opengl
+env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --graphics opengl
 ```
 
 References: [Qt render-thread/context rules](https://doc.qt.io/qt-6/qquickframebufferobject-renderer.html), [QSurfaceFormat](https://doc.qt.io/qt-6/qsurfaceformat.html), [sceneGraphError](https://doc.qt.io/qt-6/qquickwindow.html#sceneGraphError).

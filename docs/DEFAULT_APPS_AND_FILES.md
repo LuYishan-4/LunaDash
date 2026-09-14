@@ -1,39 +1,59 @@
-# Default applications, Fish and Files
+# Default applications, Fish, Files, and image selection
 
-Settings > Applications and startup lets users select a default terminal and file manager using JSON argument arrays. `[]` selects the LuDash profile. Examples are `["kitty", "fish"]`, `["konsole", "-e", "fish"]`, and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LuDash settings file.
+Settings > Applications and startup lets users select a default terminal and file manager using JSON argument arrays. `[]` selects the LunaDah default. Examples are `["kitty", "fish"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDah settings file.
 
-Super+Return and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `ludash-desktop --app files` also respects the preference; `--builtin` explicitly opens LuDash Files for recovery. `--path /absolute/folder` navigates the built-in manager or appends the folder as one argument for a custom manager. These choices apply to LuDash launchers, not system-wide MIME associations or every third-party application's embedded terminal. Use the system default-application editor for those associations.
+Super+Return and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadah-desktop --app files` also respects the preference; `--builtin` explicitly opens LunaDah Files for recovery. `--path /absolute/folder` navigates the built-in manager or appends the folder as one argument for a custom manager. These choices apply to LunaDah launchers, not system-wide MIME associations or every third-party application's embedded terminal.
 
-## Terminal profile
+## Kitty and Fish
 
-The default is **Konsole with interactive Fish**, requiring both `konsole` and `fish` (Arch package dependencies). Fish is a shell; Konsole supplies the terminal emulator, PTY, resizing, colors, and interactive application support. The profile adds a LuDash prompt, working-directory display, exit status, restrained colors and spacing. It is loaded with Fish's `--init-command` after user configuration. It does not run `chsh`, set universal variables, or overwrite `~/.config/fish/`. Selecting a custom command lets you retain your own prompt and profile entirely.
+The default is **Kitty with interactive Fish**, and the Arch package requires both `kitty` and `fish`. The launch argument vector is equivalent to:
 
-The generated `~/.local/share/konsole/LuDashGenerated.colorscheme` follows the desktop accent on **new terminal windows**. Existing Konsole windows are not recolored live. The Fish source template is `data/terminal/ludash.fish`; the same file is installed in `/usr/share/ludash/terminal/`. LuDash's old Command Console remains a separate non-interactive diagnostic tool (`--app console`), not the default terminal.
-
-```sh
-ludashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'
-ludashctl launch-default terminal
-ludashctl default-apps '{"terminal":[],"files":[]}'
+```text
+kitty fish --interactive --init-command <LunaDah profile source>
 ```
 
-The current Qt compositor exposes `wl_seat` v4 and `wl_data_device_manager` v1. Recent Foot requires v5 and v3 respectively, so it is not a supported default in this preview. Konsole uses the tested Qt Wayland client path.
+The executable paths are resolved before launch. The profile source comes from the embedded `data/terminal/ludash.fish` resource and is passed as one argument, so shell operators are not re-parsed by an intermediate shell. Fish loads it with `--init-command` after user configuration. LunaDah does not run `chsh`, set universal variables, overwrite `~/.config/fish/`, generate a Kitty or Konsole color scheme, or modify the user's Kitty configuration. A configured non-empty command remains supported and takes precedence after the existing executable and recursive-launch validation.
 
-## LuDash Files
+LunaDah's Command Console remains a separate non-interactive diagnostic tool (`--app console`), not the default terminal.
 
-The native Qt application has a Windows Explorer-inspired layout: a quiet outline-icon toolbar, common locations and mounted-volume sidebar, back/forward/up navigation, editable address bar, current-folder filter, sortable details and a default spacious icon view, hidden-file toggle, and a command toolbar. Desktop color/font changes update already-open Files windows through the shared native application theme. Third-party applications use their own theme integrations.
+```sh
+lunadahctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'
+lunadahctl launch-default terminal
+lunadahctl default-apps '{"terminal":[],"files":[]}'
+```
 
-Available operations: create folder, rename, copy regular files, move files/folders on a filesystem, and move selections to Trash after confirmation. Existing destinations are never overwritten. Copy/move/trash batches run off the UI thread. Operations stop on the first error and report that earlier items may have completed; there is no rollback. Clipboard selection is local to each Files window. Trash restoration, recursive folder copying, cross-filesystem folder moves, archive management, recursive search, network shares, general mounting, cross-application drag/drop and tabs are not implemented. Large operations can continue after closing their window; wait for completion before ending the session.
+## Image picker API
 
-Shortcuts: Alt+Left/Right for history, Alt+Up for parent, Ctrl+L for location, F2 for rename. Files open with system MIME handlers; executable files require explicitly running them in a terminal. Mounted-volume entries are a startup snapshot of `/run/media`, `/media`, and `/mnt` volumes, not a mount/unmount service.
+The C++20 QWidget feature is declared in `include/LuDash/file_picker/FilePicker.h`:
+
+```cpp
+QString LuDash::selectImageFile(QWidget* parent, const QString& initialPath = {});
+bool LuDash::isEligibleImageFile(const QString& path);
+QSize LuDash::boundedPreviewSize(const QSize& sourceSize, const QSize& bounds);
+```
+
+`selectImageFile` opens a dedicated modal image-selection dialog and returns an absolute local path, or an empty string after cancellation. It does not use `QFileDialog`. The dialog supports typed and parent-directory navigation, PNG/JPEG/WebP-only filtering, list and grid views, filename/path/dimension details, and a preview. Selection rejects missing files, directories, symlinks, unsupported extensions, unreadable image data, files larger than 64 MiB, and images larger than 32 megapixels. Preview decoding requests a maximum 512 × 512 scaled image from `QImageReader`, preventing an unbounded full-resolution preview allocation. `isEligibleImageFile` and `boundedPreviewSize` are public, unit-testable policy helpers.
+
+The parent build must add `src/file_picker/FilePicker.cpp` to a Qt Widgets-linked target (or a dedicated library), expose `include`, and add `tests/file_picker/FilePickerTests.cpp` to a Qt Test executable. The compositor or another QWidget-capable integration layer owns the picker call and must keep GUI work on the GUI thread.
+
+## Appearance shell integration
+
+Quickshell QML cannot call the QWidget API directly. The Appearance page therefore requests:
+
+```qml
+shell.command("choose-wallpaper", "")
+```
+
+The parent compositor integration must wire `choose-wallpaper` to a QWidget-capable process or bridge that calls `LuDash::selectImageFile(parent, initialPath)`. On a non-empty result it should pass the validated local path through the existing wallpaper-image validation/application path; cancellation must make no change. Do not pass the result through a command shell or reinterpret it as a URL. Until this command handler is wired, the button only emits the request and no picker appears.
+
+## LunaDah Files
+
+The native Qt application provides back/forward/up navigation, an editable address bar, filtering, sortable details and icon views, hidden-file control, and file operations. Existing destinations are never overwritten. Copy/move/trash batches run off the UI thread and stop on the first error; there is no rollback. Trash restoration, recursive folder copying, cross-filesystem folder moves, archive management, recursive search, network shares, general mounting, cross-application drag/drop and tabs are not implemented.
+
+Files open with system MIME handlers; executable files require explicitly running them in a terminal. The image picker is a separate, intentionally image-only API and does not replace Files or system MIME selection.
 
 ## Verification
 
-After completing source changes, build and run `ctest --test-dir build --output-on-failure` under Xvfb as described in the testing guide. `files-and-defaults` verifies overwrite prevention, name validation, argument preservation, and rejected recursive launchers. `desktop-interactions` exercises folder navigation. On a system with Quickshell, Konsole, Fish, Xvfb, xdotool and Pillow:
+The parent CMake integration should build and run the focused default-application and file-picker Qt tests under `tests/default_applications/` and `tests/file_picker/`. The picker helper tests cover aspect-ratio-bounded sizing and rejection of directories, missing paths, and supported image data with a disguised unsupported extension. Existing `files-and-defaults` coverage continues to verify argument preservation and rejected recursive launchers.
 
-```sh
-xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_customization.py build
-```
-
-This uses temporary settings, tests module load failure and recovery, launches the actual default Files window, changes its palette, and types a command into interactive Fish. It does not change host defaults, the login shell, or user files.
-
-Profile interfaces follow the [Fish command documentation](https://fishshell.com/docs/4.1/cmds/fish.html) and [Konsole color-scheme format](https://github.com/KDE/konsole/blob/master/data/color-schemes/Breeze.colorscheme).
+Manual acceptance should confirm Kitty starts interactive Fish with the LunaDah profile, no `LuDashGenerated.colorscheme` is created, list/grid navigation works, oversized or unsupported images cannot be selected, previews remain bounded, cancellation preserves the wallpaper, and the compositor applies a valid selected path only after wiring `choose-wallpaper`.

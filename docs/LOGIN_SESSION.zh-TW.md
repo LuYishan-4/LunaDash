@@ -1,17 +1,17 @@
-# LuDash 開機登入與安裝指南
+# LunaDah 開機登入與安裝指南
 
-這份文件說明如何安裝 LuDash，讓電腦開機後能從登入畫面進入 LuDash，以及如何選擇自動登入。
+這份文件說明如何安裝 LunaDah，讓電腦開機後能從登入畫面進入 LunaDah，以及如何選擇自動登入。
 
-**目前 LuDash 仍是開發預覽版。** 已有巢狀 Wayland 測試結果，但實體 GPU 的 EGLFS/KMS 啟動、輸入裝置權限與 VT 切換尚未完成驗證。鎖定畫面、多螢幕、完整桌面 portal 與 polkit 驗證代理也尚未完成。測試期間請保留原本可使用的桌面。
+**目前 LunaDah 仍是開發預覽版。** 已有巢狀 Wayland 測試結果，但實體 GPU 的 EGLFS/KMS 啟動、輸入裝置權限與 VT 切換尚未完成驗證。鎖定畫面、多螢幕、完整桌面 portal 與 polkit 驗證代理也尚未完成。測試期間請保留原本可使用的桌面。
 
 ## 1. 先選擇你的使用方式
 
 | 需求 | 使用方式 |
 | --- | --- |
-| 在目前桌面裡先試用 LuDash | 執行巢狀 Wayland 工作階段 |
-| 開機後輸入密碼，再進入 LuDash | 安裝套件，在登入畫面選擇 LuDash |
+| 在目前桌面裡先試用 LunaDah | 執行巢狀 Wayland 工作階段 |
+| 開機後輸入密碼，再進入 LunaDah | 安裝套件，在登入畫面選擇 LunaDah |
 | 沒有登入管理器，希望開機出現登入畫面 | 安裝時加上 `--enable-sddm` |
-| 開機直接進入 LuDash，不輸入密碼 | 另外明確指定 `--autologin` |
+| 開機直接進入 LunaDah，不輸入密碼 | 另外明確指定 `--autologin` |
 
 安裝腳本目前以 Arch Linux／pacman 系統為目標。其他發行版的手動安裝方式在本文最後。
 
@@ -25,7 +25,7 @@
 ./scripts/install-session.sh --dry-run
 ```
 
-確認後安裝：
+確認後安裝。安裝完成後，先執行 `lunadah-session --check`，並確認 `/usr/share/wayland-sessions/lunadah.desktop` 與 `/usr/share/lunadah/data/assets/icon.png` 已存在：
 
 ```sh
 ./scripts/install-session.sh
@@ -33,7 +33,7 @@
 
 腳本會依序安裝建置工具、產生原始碼封裝，再透過 `makepkg --syncdeps --force --install` 編譯並安裝。安裝檔案由 pacman 管理，之後可以使用 pacman 移除。
 
-如果已經有登入管理器，安裝完成後儲存工作並登出，在登入畫面的工作階段選單選擇 **LuDash (Wayland)**，再登入即可。SDDM 預設會記住上次選擇的工作階段；若你的系統改過相關設定，請以實際設定為準。
+如果已經有登入管理器，安裝完成後儲存工作並登出，在登入畫面的工作階段選單選擇 **LunaDah (Wayland)**，再登入即可。SDDM 預設會記住上次選擇的工作階段；若你的系統改過相關設定，請以實際設定為準。
 
 ### 沒有登入管理器時
 
@@ -43,13 +43,13 @@
 ./scripts/install-session.sh --enable-sddm
 ```
 
-它會啟用 `sddm.service`，並將下次開機的預設目標設為 `graphical.target`。腳本不會立即啟動或重啟登入管理器，也不會自動登出或重新開機；請儲存工作後自行重開機。
+它會啟用 `sddm.service`，並將下次開機的預設目標設為 `graphical.target`。腳本不會立即啟動或重啟登入管理器，也不會自動登出或重新開機；請儲存工作後自行重開機。實際測試時，依序執行 `./scripts/install-session.sh --dry-run` 與 `./scripts/install-session.sh --enable-sddm`，用 `systemctl is-enabled sddm.service` 確認啟用狀態，但不要在目前桌面中立即啟動 SDDM。自行重新開機後，先手動選擇 **LunaDah (Wayland)** 登入及登出；確認成功後才考慮自動登入。若登入畫面立即返回，請保留工作階段日誌並改從原桌面或 TTY 排查。
 
 如果系統已啟用其他登入管理器，這個選項會停止並提示你保留現有管理器。此時改用不帶 `--enable-sddm` 的安裝指令即可。
 
-SDDM 的登入畫面與 LuDash 工作階段各自有顯示後端；腳本會保留 SDDM 原有的登入畫面設定，LuDash 本身使用 Wayland。
+SDDM 的登入畫面與 LunaDah 工作階段各自有顯示後端；腳本會保留 SDDM 原有的登入畫面設定，LunaDah 本身使用 Wayland。
 
-## 3. 開機自動進入 LuDash
+## 3. 開機自動進入 LunaDah
 
 先確認手動登入成功，再使用目前帳號啟用自動登入：
 
@@ -70,7 +70,7 @@ SDDM 的登入畫面與 LuDash 工作階段各自有顯示後端；腳本會保�
 ```ini
 [Autologin]
 User=your-user
-Session=ludash.desktop
+Session=lunadah.desktop
 Relogin=false
 ```
 
@@ -81,44 +81,46 @@ Relogin=false
 先檢查必要指令與登入執行期目錄：
 
 ```sh
-ludash-session --check
+lunadah-session --check
 ```
 
-這只檢查基本啟動條件，**不會取得顯示卡控制權，也不代表實體登入測試已通過**。
+安裝後的 `lunadah-session` 刻意不使用 `.sh` 副檔名，與原始碼中的 `scripts/install-session.sh`、`scripts/test-wayland.sh` 等輔助腳本不同。這只檢查基本啟動條件，**不會取得顯示卡控制權，也不代表實體登入測試已通過**。
 
 Arch 套件會安裝這些入口：
 
 | 檔案 | 用途 |
 | --- | --- |
-| `/usr/share/wayland-sessions/ludash.desktop` | 讓登入管理器列出 LuDash 工作階段 |
-| `/usr/bin/ludash-session` | 檢查環境、建立日誌，透過 EGLFS/KMS 與 D-Bus 啟動桌面 |
-| `/usr/bin/ludash-compositor` | 管理 Wayland 視窗、平鋪與合成繪製 |
-| `/usr/bin/ludash-desktop` | 啟動 LuDash 內建應用程式 |
-| `/usr/bin/ludashctl` | 向執行中的桌面傳送控制指令 |
+| `/usr/share/wayland-sessions/lunadah.desktop` | 讓登入管理器列出 LunaDah 工作階段 |
+| `/usr/bin/lunadah-session` | 檢查環境、建立日誌，透過 EGLFS/KMS 與 D-Bus 啟動桌面 |
+| `/usr/bin/lunadah-compositor` | 管理 Wayland 視窗、平鋪與合成繪製 |
+| `/usr/bin/lunadah-desktop` | 啟動 LunaDah 內建應用程式 |
+| `/usr/bin/lunadahctl` | 向執行中的桌面傳送控制指令 |
+| `/usr/share/applications/lunadah-app.desktop` | 一般應用程式的桌面識別碼 |
+| `/usr/share/lunadah/shell/` | 安裝後的 Quickshell QML |
 
-獨立登入預設使用 OpenGL ES 3。需要桌面 OpenGL 時，可以在工作階段環境中設定 `LUDASH_GRAPHICS=opengl`；這要求 OpenGL 3.3 相容設定檔。不同登入管理器載入環境設定的方式不同，單純在另一個終端機執行 `export` 不一定會影響下次登入。
+Wayland socket 建立後，合成器會將用戶端環境發布到 D-Bus 啟動環境與 systemd 使用者管理器，再啟動 Quickshell、選用的 Fcitx5 與應用程式。獨立登入預設使用 OpenGL ES 3。需要桌面 OpenGL 時，可以在工作階段環境中設定 `LUDASH_GRAPHICS=opengl`；這要求 OpenGL 3.3 相容設定檔。不同登入管理器載入環境設定的方式不同，單純在另一個終端機執行 `export` 不一定會影響下次登入。
 
 ## 5. 先在現有 Wayland 桌面試用
 
-不要在正在執行的桌面裡直接啟動 `ludash-session`；它是獨立登入入口。巢狀試用請執行：
+不要在正在執行的桌面裡直接啟動 `lunadah-session`；它是獨立登入入口。巢狀試用請執行：
 
 ```sh
-QT_QPA_PLATFORM=wayland ludash-compositor --socket ludash-test
+LUNADAH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland lunadah-compositor --socket ludash-test
 ```
 
 尚未安裝、但已完成本機編譯時：
 
 ```sh
-QT_QPA_PLATFORM=wayland ./build/ludash-compositor --socket ludash-test
+LUNADAH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --socket ludash-test
 ```
 
-這會在目前桌面內開啟 LuDash 視窗，方便先確認介面、設定與應用程式。宿主桌面可能攔截部分 Super 快捷鍵，可改用 LuDash 面板上的按鈕。
+這會在目前桌面內開啟 LunaDah 視窗，方便先確認介面、設定與應用程式。`LUNADAH_DISABLE_FCITX=1` 可避免巢狀測試啟動或取代宿主的 Fcitx；只有刻意測試 Fcitx／SNI 時才移除此變數。請確認左側面板可切換工作區並開啟工作階段選單；中央裁切顯示品牌圖示，按下後啟動器從面板中央向下展開；啟動器只有一份應用程式清單；右側顯示精簡狀態與可用的 StatusNotifier 圖示。Fcitx 圖示能顯示不代表候選字視窗或 input-method-v2 橋接已完成驗證。宿主桌面可能攔截部分 Super 快捷鍵，可改用 LunaDah 面板上的按鈕。
 
 ## 6. 第一次登入與自訂
 
-首次啟動的設定精靈提供語言、網路與外觀設定，也允許離線繼續。LuDash 會使用系統既有網路連線，安裝腳本不會替換網路服務。
+首次啟動的設定精靈提供語言、網路與外觀設定，也允許離線繼續。LunaDah 會使用系統既有網路連線，安裝腳本不會替換網路服務。
 
-之後可從面板齒輪開啟設定，調整主題色、模糊、視窗間距、動畫、工作區與預設應用程式。預設終端機為 Konsole，搭配 LuDash 的 Fish 設定；內建檔案管理器會跟隨桌面色彩。
+之後可開啟設定，使用以設定項目為單位的斷詞搜尋，並查看擴充後的「關於」頁面；也可調整主題色、模糊、視窗間距、動畫、工作區與預設應用程式。工作階段選單支援登出，並透過 logind D-Bus 執行系統允許的暫停、重新開機與關機；破壞性操作會先確認並檢查可用性，不會執行 shell 指令。預設終端機為 Konsole，搭配 LunaDah 的 Fish 設定；內建檔案管理器會跟隨桌面色彩。
 
 進階功能請參考以下英文文件：
 
@@ -167,10 +169,10 @@ xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
 登入日誌預設位於：
 
 ```text
-~/.local/state/ludash/session-*.log
+~/.local/state/lunadah/session-*.log
 ```
 
-若有設定 `XDG_STATE_HOME`，則位於該目錄下的 `ludash/`。每次登入會建立新的私人日誌，舊日誌可自行清理。
+若有設定 `XDG_STATE_HOME`，則位於該目錄下的 `lunadah/`。每次登入會建立新的私人日誌，舊日誌可自行清理。
 
 檢查日誌中的 EGL、DRM、輸入裝置或權限錯誤，也可以查看 SDDM 日誌：
 
@@ -186,7 +188,7 @@ journalctl -b -u sddm.service
 
 一般情況下，登出後在登入畫面選回原本的桌面即可。
 
-如果自動登入導致無法停在登入畫面，可切換到其他 TTY，登入後移除 LuDash 的自動登入設定：
+如果自動登入導致無法停在登入畫面，可切換到其他 TTY，登入後移除 LunaDah 的自動登入設定：
 
 ```sh
 sudo rm -- /etc/sddm.conf.d/90-ludash-autologin.conf
@@ -194,7 +196,7 @@ sudo rm -- /etc/sddm.conf.d/90-ludash-autologin.conf
 
 儲存工作後自行重新開機。如果無法切換 VT，請使用發行版的救援開機方式處理。
 
-要移除 LuDash，先登入另一個桌面，再執行：
+要移除 LunaDah，先登入另一個桌面，再執行：
 
 ```sh
 sudo pacman -R ludash
@@ -226,7 +228,7 @@ sudo cmake --install build-login
 
 ## NVIDIA 相容模式
 
-新版偵測到 NVIDIA 驅動時，預設讓 Quickshell 使用軟體繪圖，合成器仍使用 OpenGL／GLES 和模糊效果。這是針對長時間執行後同步描述符累積、導致 `Too many open files` 的相容處理；可能增加 CPU 使用量，也不代表其他 GPU 應用程式的驅動問題已修復。更新後需要重新啟動 LuDash 工作階段。
+新版偵測到 NVIDIA 驅動時，預設讓 Quickshell 使用軟體繪圖，合成器仍使用 OpenGL／GLES 和模糊效果。這是針對長時間執行後同步描述符累積、導致 `Too many open files` 的相容處理；可能增加 CPU 使用量，也不代表其他 GPU 應用程式的驅動問題已修復。更新後需要重新啟動 LunaDah 工作階段。
 
 在現有 Wayland 桌面執行持續測試：
 
@@ -235,3 +237,6 @@ LUDASH_TEST_HOST_WAYLAND=1 python3 tests/wayland/test_resource_lifetime.py build
 ```
 
 測試約需一分鐘，紀錄在 `build/ci-evidence/resource-host.log` 和 `.json`。需要手動指定時，在啟動指令前加上 `LUDASH_SHELL_RENDERER=software`；`opengl` 可強制使用 GPU，`auto` 為預設。詳細限制見 [英文說明](SHELL_RENDERING.md)。
+
+
+舊有的 `ludash-compositor`、`ludash-desktop`、`ludashctl`、`ludash-session` 與 `ludash.desktop` 僅為相容別名；新的整合應使用上述 LunaDah 名稱。目前沒有宣稱已完成實體 SDDM 或 Fcitx 驗證。

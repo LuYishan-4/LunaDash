@@ -17,7 +17,7 @@ ModuleSurface {
     implicitWidth: moduleWidth(760); implicitHeight: moduleHeight(390)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.namespace: "ludash-overview"
+    WlrLayershell.namespace: "lunadah-overview"
     color: "transparent"
     Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: { dashboard.time = Qt.formatDateTime(new Date(), "HH:mm"); dashboard.date = Qt.formatDateTime(new Date(), "dddd, d MMMM") } }
     Rectangle { anchors.fill: parent; color: moduleBackground; radius: moduleRadius }
@@ -39,7 +39,7 @@ ModuleSurface {
                 Rectangle { anchors.fill: parent; color: "#50101418" }
                 Column {
                     anchors { left: parent.left; bottom: parent.bottom; margins: 18 } spacing: 3
-                    Text { text: "LuDash"; color: "white"; font.pixelSize: 28; font.weight: Font.Medium }
+                    Text { text: "LunaDah"; color: "white"; font.pixelSize: 28; font.weight: Font.Medium }
                     Text { text: "WAYLAND / 0.1"; color: moduleAccent; font.pixelSize: 10 }
                 }
             }

@@ -12,7 +12,7 @@ python3 tests/site/test_site.py site/dist
 npm run preview --prefix site -- --host 127.0.0.1
 ```
 
-The default port is 4321; open `http://localhost:4321/LuDash/` while the local server is running. For the configured project base, use `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LuDash/` URL. Check desktop and mobile widths, keyboard focus, accent buttons, gap slider, copy feedback and documentation links. The hero image is a real LuDash screenshot captured with user/hostname display disabled.
+The default port is 4321; open `http://localhost:4321/LuDash/` while the local server is running. For the configured project base, use `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LuDash/` URL. Check desktop and mobile widths, keyboard focus, accent buttons, gap slider, copy feedback and documentation links. The hero image is a real LunaDah screenshot captured with user/hostname display disabled.
 
 ## Publishing
 
@@ -24,7 +24,7 @@ After changing site files, push the reviewed changes to main or run **Documentat
 
 First deployment:
 
-1. Open the LuDash repository on GitHub, then **Settings → Pages → Build and deployment**.
+1. Open the LunaDah repository on GitHub, then **Settings → Pages → Build and deployment**.
 2. Set **Source** to **GitHub Actions**. The repository already contains the workflow; no additional starter template is needed.
 3. Push the website and workflow to `main`. To deploy an existing main revision, open **Actions → Documentation website → Run workflow**, select `main`, and run it.
 4. Wait for both `validate` and `deploy` to succeed. Open the deployment URL shown by the `github-pages` environment.

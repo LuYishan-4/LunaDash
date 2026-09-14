@@ -1,11 +1,11 @@
 # C core and C++ integration
 
-LuDash uses C11 for independent low-level work and C++20 for Qt/Wayland object integration. The shell is Quickshell/QML; the website source is Astro and TypeScript.
+LunaDah uses C11 for independent low-level work and C++20 for Qt/Wayland object integration. The shell is Quickshell/QML; the website source is Astro and TypeScript.
 
 | C module | Responsibility | C++ adapter |
 | --- | --- | --- |
 | `render_core` | Resolve GL functions, compile/link shaders, draw wallpaper, manage blur textures/FBOs and run two blur passes | `renderer` and `blur` own current-context/render-thread integration |
-| `tiling_core` | Compute master/stack rectangles into a caller-owned buffer, validate sizes and prevent arithmetic overflow | `tiling` converts QRect/QList values |
+| `tiling_core` | Compute one full-height rectangle per horizontal column into a caller-owned buffer, validate sizes and prevent arithmetic overflow | `tiling` converts QRect/QList values |
 | `system_metrics` | Parse bounded CPU/memory records, reject counter overflow and calculate percentages | `system_status` and `system_monitor` read files and present results |
 
 C functions use the `ludash_` prefix. C types use `LuDash` names, and headers expose C linkage inside namespace `LuDash` when included from C++. Each module has matching `include/LuDash/<feature>/` and `src/<feature>/` directories. Headers declare the API; implementation stays in `.c`. CMake lists every source explicitly.

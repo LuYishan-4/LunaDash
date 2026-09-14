@@ -11,17 +11,25 @@ import "feedback"
 import "setup"
 import "style"
 import "compatibility"
+import "startup"
+import "columns"
 
 ShellRoot {
     id: root
     property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0 })
-    property string bin: Quickshell.env("LUDASH_BIN_DIR")
+    readonly property string bin: Quickshell.env("LUNADAH_BIN_DIR") || Quickshell.env("LUDASH_BIN_DIR")
+    readonly property string controlExecutable: bin ? bin + "/lunadahctl" : "lunadahctl"
+    readonly property string desktopExecutable: bin ? bin + "/lunadah-desktop" : "lunadah-desktop"
+    readonly property url iconSource: Qt.resolvedUrl("../data/assets/icon.png")
     signal commandCompleted(string method, var result)
     property bool stopping: false
     property int lastSettingsSerial: 0
     property bool launcherOpen: false
     property bool settingsOpen: false
+    onLauncherOpenChanged: if (launcherOpen) settingsOpen = false
+    onSettingsOpenChanged: if (settingsOpen) launcherOpen = false
     property bool x11Open: false
+    property bool startupLogoVisible: true
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
     onStateChanged: {
@@ -44,14 +52,14 @@ ShellRoot {
         if (state.setupComplete === false) { setupPaused = true; setupEditorMapped = false; setupWaitTicks = 0 }
     }
     property string errorMessage: ""
-    property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LuDash"
+    property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LunaDah"
     function tr(source) { return (state.translations || {})[source] || source }
     function command(method, value) {
         action.queue.push([method, String(value ?? "")]); dispatch()
     }
     function dispatch() {
         if (action.running || action.queue.length === 0) return
-        action.command = [bin + "/ludashctl"].concat(action.queue.shift()); action.running = true
+        action.command = [controlExecutable].concat(action.queue.shift()); action.running = true
     }
     Process {
         id: action
@@ -59,10 +67,10 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: { try { const result = JSON.parse(text); if (result.error) root.errorMessage = result.error; root.commandCompleted(action.command[1], result) } catch (error) { root.errorMessage = "Could not contact the desktop." } } }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
-    function launch(id) { if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return } if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([bin + "/ludash-desktop", "--app", id]); launcherOpen = false }
+    function launch(id) { if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return } if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false }
     Process {
         id: status
-        command: [root.bin + "/ludashctl", "status"]
+        command: [root.controlExecutable, "status"]
         stdout: StdioCollector {
             onStreamFinished: {
                 // A timed-out helper has no response; the next poll retries it.
@@ -86,6 +94,7 @@ ShellRoot {
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
+    ColumnStrip { shell: root; opened: !root.stopping && (((root.state.tiling || {}).groups || []).length > 0) }
     Overview { shell: root; opened: !root.stopping && root.overviewOpen }
     Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
     SettingsPanel { id: settingsCenter; shell: root; opened: !root.stopping && root.settingsOpen }
@@ -93,4 +102,5 @@ ShellRoot {
     LogoutPanel { shell: root; opened: !root.stopping && root.logoutOpen }
     X11Launcher { shell: root; opened: !root.stopping && root.x11Open }
     Message { shell: root; opened: !root.stopping && root.errorMessage.length > 0 }
+    StartupLogoOverlay { shell: root; opened: !root.stopping && root.startupLogoVisible; onFinished: root.startupLogoVisible = false }
 }

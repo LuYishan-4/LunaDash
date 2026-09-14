@@ -8,9 +8,9 @@ Open Desktop settings → Glass and motion to change blur, opacity, animations a
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
-./build/ludashctl appearance '{"blur":true,"blurRadius":18,"windowOpacity":96}'
-./build/ludashctl appearance '{"animations":true,"animationDuration":220}'
-./build/ludashctl appearance '{"blur":false,"windowOpacity":100,"animations":false}'
+./build/lunadahctl appearance '{"blur":true,"blurRadius":18,"windowOpacity":96}'
+./build/lunadahctl appearance '{"animations":true,"animationDuration":220}'
+./build/lunadahctl appearance '{"blur":false,"windowOpacity":100,"animations":false}'
 ```
 
 `blurReady`, `blurFailed`, `blurFrames` and `activeAnimations` in status JSON provide test evidence. A disabled effect is not a renderer failure. Image inspection still matters: successful shader compilation alone does not prove the backdrop is visually correct.
@@ -19,7 +19,7 @@ Resources belong to the current Qt render-thread context. The C++ adapters relea
 
 Blur capture skips empty or non-finite transformed geometry and clips finite coordinates to the framebuffer before integer conversion. This avoids undefined float-to-integer conversions during transient scene-graph states. The `blur-geometry` regression covers infinity, NaN, huge coordinates, pixel scaling and partial clipping; session tests still require successful blur rendering after startup.
 
-The render node copies its transformed rectangle in `prepare()`. Qt 6.4's [RHI batch renderer](https://github.com/qt/qtdeclarative/blob/v6.4.2/src/quick/scenegraph/coreapi/qsgbatchrenderer.cpp) exposes a stack-backed model-view matrix during preparation and calls `render()` later. Reading that pointer in `render()` can produce invalid geometry. LuDash retains the copied rectangle instead; both older and current Qt session tests must report rendered blur frames.
+The render node copies its transformed rectangle in `prepare()`. Qt 6.4's [RHI batch renderer](https://github.com/qt/qtdeclarative/blob/v6.4.2/src/quick/scenegraph/coreapi/qsgbatchrenderer.cpp) exposes a stack-backed model-view matrix during preparation and calls `render()` later. Reading that pointer in `render()` can produce invalid geometry. LunaDah retains the copied rectangle instead; both older and current Qt session tests must report rendered blur frames.
 
 Physical GPU performance and complex clipping/scaling still need broader testing. Lower blur strength or disable blur when GPU cost is a concern. This is a development implementation, not a claim of full KWin effect compatibility.
 

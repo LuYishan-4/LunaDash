@@ -20,7 +20,7 @@ ColumnLayout {
     }
     RowLayout {
         ShellButton { text: shell.tr("Save command"); enabled: editor.dirty && !editor.saving; onClicked: { try { const value = JSON.parse(command.text); editor.saving = true; shell.command("default-apps", JSON.stringify({[editor.role]: value})) } catch (error) { shell.errorMessage = "Enter a JSON argument array." } } }
-        ShellButton { text: shell.tr("Use LuDash default"); onClicked: { command.text = "[]"; shell.command("default-apps", JSON.stringify({[editor.role]: []})); editor.dirty = false } }
+        ShellButton { text: shell.tr("Use LunaDah default"); onClicked: { command.text = "[]"; shell.command("default-apps", JSON.stringify({[editor.role]: []})); editor.dirty = false } }
         ShellButton { text: shell.tr("Open"); onClicked: shell.launch(editor.role) }
     }
     Connections {

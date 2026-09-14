@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=LunaDah (Wayland)
+Comment=Scrollable Wayland desktop
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/lunadah-session
+TryExec=@CMAKE_INSTALL_FULL_BINDIR@/lunadah-session
+Type=Application
+DesktopNames=LunaDah

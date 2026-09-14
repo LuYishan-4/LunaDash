@@ -9,14 +9,14 @@ ColumnLayout {
     PageTitle { shell: page.shell; title: "Applications and startup" }
     DefaultAppEditor { shell: page.shell; role: "terminal"; title: "Default terminal"; Layout.fillWidth: true }
     DefaultAppEditor { shell: page.shell; role: "files"; title: "Default file manager"; Layout.fillWidth: true }
-    HelpText { shell: page.shell; message: "Empty arrays select LuDash Files or Konsole with the LuDash Fish profile. Custom commands are argument arrays, for example [\"kitty\", \"fish\"] or [\"dolphin\"]. They run with your user permissions; shell operators are not expanded." }
-    HelpText { shell: page.shell; message: "Files follows desktop color changes immediately. The generated Konsole palette applies to new terminals. Your login shell, Fish configuration and system MIME defaults remain under your control." }
+    HelpText { shell: page.shell; message: "Empty arrays select LunaDah Files or Kitty with the LunaDah Fish profile. Custom commands are argument arrays, for example [\"kitty\", \"fish\"] or [\"dolphin\"]. They run with your user permissions; shell operators are not expanded." }
+    HelpText { shell: page.shell; message: "The default terminal requires Kitty and Fish. Your Kitty settings, login shell, Fish configuration and system MIME defaults remain under your control." }
     RowLayout {
         ShellButton { text: shell.tr("Package manager"); onClicked: shell.launch("packages") }
         ShellButton { text: shell.tr("Manage metadata plugins"); onClicked: shell.launch("plugins") }
         ShellButton { text: "X11"; onClicked: { shell.settingsOpen = false; shell.x11Open = true } }
     }
-    HelpText { shell: page.shell; message: "Start these built-in apps with the next LuDash session" }
+    HelpText { shell: page.shell; message: "Start these built-in apps with the next LunaDah session" }
     Flow {
         Layout.fillWidth: true; spacing: 8
         Repeater {
@@ -28,6 +28,6 @@ ColumnLayout {
             }
         }
     }
-    HelpText { shell: page.shell; message: "Startup selection currently covers LuDash tools. General desktop-entry autostart and session restoration are not implemented." }
+    HelpText { shell: page.shell; message: "Startup selection currently covers LunaDah tools. General desktop-entry autostart and session restoration are not implemented." }
     ToolList { shell: page.shell; category: "applications" }
 }

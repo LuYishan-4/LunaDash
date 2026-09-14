@@ -10,7 +10,7 @@ ModuleSurface {
     implicitHeight: moduleHeight(screen ? screen.height : 900)
     margins { top: moduleMargin; bottom: moduleMargin; left: moduleMargin; right: moduleMargin }
     WlrLayershell.layer: WlrLayer.Background
-    WlrLayershell.namespace: "ludash-wallpaper"
+    WlrLayershell.namespace: "lunadah-wallpaper"
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     Rectangle { anchors.fill: parent; color: moduleStyle.background === "inherit" ? "transparent" : moduleBackground; radius: moduleRadius }
