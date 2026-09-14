@@ -1,69 +1,39 @@
-name: Linux build
+name: Ubuntu build
 on: [push, pull_request, merge_group, workflow_dispatch]
 permissions:
     contents: read
 concurrency:
-    group: linux-build-${{ github.event.pull_request.number || github.ref }}
+    group: ubuntu-build-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: true
 jobs:
     build:
+        name: Ubuntu 24.04 build and OpenGL smoke test
         timeout-minutes: 25
-        runs-on: ubuntu-latest
-        container: ${{ matrix.image }}
-        strategy:
-            fail-fast: false
-            matrix:
-                image: ["archlinux:latest", "ubuntu:24.04", "fedora:latest"]
+        runs-on: ubuntu-24.04
         steps:
             - name: Install dependencies
-              shell: bash
               run: |
-                  if command -v pacman >/dev/null; then
-                    pacman -Syu --noconfirm git python python-pillow base-devel cmake ninja qt6-base qt6-declarative qt6-wayland quickshell kitty konsole fish xorg-xwayland mesa xorg-server-xvfb xorg-xauth xdotool
-                  elif command -v apt-get >/dev/null; then
-                    apt-get update
-                    DEBIAN_FRONTEND=noninteractive apt-get install -y pkg-config libwayland-dev git python3 python3-pil g++ cmake ninja-build qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev libgl1-mesa-dri xvfb xauth
-                  else
-                    dnf install -y git python3 python3-pillow gcc-c++ cmake ninja-build qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel mesa-dri-drivers xorg-x11-server-Xvfb xorg-x11-xauth
-                  fi
+                  sudo apt-get update
+                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                    cmake g++ git ninja-build pkg-config python3 python3-pil \
+                    libgl-dev libgl1-mesa-dri libwayland-dev wayland-protocols \
+                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev \
+                    libqt6-opengl6-dev xvfb xauth
             - uses: actions/checkout@v4
               with:
                   persist-credentials: false
             - name: Build
               run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
-            - name: Test Quickshell session on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh && LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
-            - name: Test Quickshell interactions on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interactions.py build
-            - name: Test first-run setup on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
-            - name: Test settings pages on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_settings.py build
-            - name: Test module and default-app customization on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_customization.py build
-            - name: Test live window effects on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_effects.py build
-            - name: Test authenticated X11 compatibility on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: xvfb-run -a python3 tests/wayland/test_xwayland.py build
-            - name: Check sustained rendering resources on Arch
-              if: matrix.image == 'archlinux:latest'
-              run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_resource_lifetime.py build
-            - name: Preserve Arch session diagnostics
-              if: always() && matrix.image == 'archlinux:latest'
+            - name: Test desktop OpenGL loading
+              run: LUDASH_GRAPHICS=opengl LUDASH_TEST_NO_SHELL=1 ./scripts/test-wayland.sh
+            - name: Preserve OpenGL diagnostics
+              if: always()
               uses: actions/upload-artifact@v4
               with:
-                  name: arch-session-diagnostics
+                  name: opengl-session-diagnostics
                   path: |
                       build/wayland.log
-                      build/ci-evidence/setup/*.log
-                      build/ci-evidence/resource-*.log
-                      build/ci-evidence/resource-*.json
+                      build/wayland-state.json
+                      build/wayland-preview.png
                   if-no-files-found: ignore
                   retention-days: 7

@@ -36,7 +36,7 @@ The first-run guide offers language, network and appearance settings. Offline us
 Ubuntu 24.04 backend packages: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`.
 Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`. Install Kitty and Fish from the distribution's runtime packages to use LunaDah's default terminal.
 
-Arch, Ubuntu and Fedora builds are configured in CI. Configuration is not evidence that a remote job ran or that every distribution was verified. See the dated local results in the testing guide.
+Ubuntu 24.04 build and desktop OpenGL smoke tests are configured in CI. Configuration is not evidence that a remote job ran or that every platform was verified. See the dated local results in the testing guide.
 
 ## Test and explore
 

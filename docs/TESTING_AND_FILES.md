@@ -223,9 +223,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [.github/codeql/config.yml](../.github/codeql/config.yml) | CodeQL C/C++ security and quality query configuration. |
 | [.github/dependabot.yml](../.github/dependabot.yml) | Weekly GitHub Actions and website npm dependency update configuration. |
 | [.github/pull_request_template.md](../.github/pull_request_template.md) | Review template for behavior, validation and security/lifetime changes. |
-| [.github/workflows/build.yml](../.github/workflows/build.yml) | Arch/Ubuntu/Fedora builds; Arch shell, graphics and first-run integration. |
-| [.github/workflows/pages.yml](../.github/workflows/pages.yml) | TypeScript/site PR checks and main-only GitHub Pages deployment. |
-| [.github/workflows/security.yml](../.github/workflows/security.yml) | clang-tidy, ASan/UBSan, negative crash test and CodeQL SARIF gate. |
+| [.github/workflows/build.yml](../.github/workflows/build.yml) | Ubuntu 24.04 build and desktop OpenGL smoke test. |
+| [.github/workflows/security.yml](../.github/workflows/security.yml) | clang-tidy and CodeQL SARIF security gates for pull requests. |
 | [.gitignore](../.gitignore) | Exclude generated builds, package artifacts and website dependencies/output. |
 | [AGENTS.md](../AGENTS.md) | Repository implementation and collaboration rules. |
 | [CMakeLists.txt](../CMakeLists.txt) | Explicit targets, dependencies, resources and installation. |
