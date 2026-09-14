@@ -27,7 +27,12 @@ def source_files():
     for path in ROOT.rglob("*"):
         if not path.is_file() or path.suffix not in SOURCE_SUFFIXES:
             continue
-        if any(part in {".git", ".cache", "build", "node_modules", "__pycache__"} for part in path.parts):
+        if any(
+            part == "build"
+            or part.startswith("build-")
+            or part in {".git", ".cache", "node_modules", "__pycache__"}
+            for part in path.parts
+        ):
             continue
         yield path
 

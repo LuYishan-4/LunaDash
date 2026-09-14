@@ -17,7 +17,7 @@ constexpr qsizetype kMaximumReplyBytes = 256 * 1024;
 
 QList<int> versionParts(QString version) {
   if (version.startsWith('v'))
-    version.removeFirst();
+    version.remove(0, 1);
   QList<int> parts;
   for (const auto &part : version.split('.')) {
     bool ok = false;

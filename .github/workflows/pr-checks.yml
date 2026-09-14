@@ -1,88 +1,98 @@
-name: PR security checks
+name: Pull request checks
 on:
     pull_request:
-    push:
-        branches: [main]
     merge_group:
     workflow_dispatch:
 permissions:
     contents: read
 concurrency:
-    group: security-${{ github.event.pull_request.number || github.ref }}
+    group: pr-checks-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: true
 jobs:
-    workflow-policy:
-        name: Workflow policy and style
+    documentation-scope:
+        name: Reject documentation changes
         runs-on: ubuntu-24.04
-        timeout-minutes: 10
         steps:
             - uses: actions/checkout@v4
               with:
+                  fetch-depth: 0
                   persist-credentials: false
-            - name: Check workflow policy
-              run: python3 scripts/security/check_repository_hygiene.py workflows
+            - name: Reject documentation changes
+              env:
+                  GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+              run: python3 scripts/security/check_pr_scope.py
 
-    secret-scan:
-        name: Credential and personal path scan
+    repository-hygiene:
+        name: Repository hygiene and workflow policy
         runs-on: ubuntu-24.04
-        timeout-minutes: 10
         steps:
             - uses: actions/checkout@v4
               with:
                   persist-credentials: false
-            - name: Reject credentials
+            - name: Check workflows
+              run: python3 scripts/security/check_repository_hygiene.py workflows
+            - name: Scan credentials
               run: python3 scripts/security/check_repository_hygiene.py secrets
-            - name: Reject personal filesystem paths
+            - name: Scan personal paths
               run: python3 scripts/security/check_repository_hygiene.py paths
 
     source-style:
         name: Source language and shell style
         runs-on: ubuntu-24.04
-        timeout-minutes: 10
         steps:
             - uses: actions/checkout@v4
               with:
                   persist-credentials: false
             - name: Install style tools
-              run: sudo apt-get update && sudo apt-get install -y python3 shellcheck
-            - name: Check source language policy
+              run: sudo apt-get update && sudo apt-get install -y shellcheck
+            - name: Check source language
               run: python3 tests/security/test_source_language.py
-            - name: Check shell syntax and style
+            - name: Check shell scripts
               run: |
                   find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 sh -n
                   find scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck --severity=error
 
-    static-analysis:
-        name: C/C++ static analysis
+    qt-pointer-analysis:
+        name: Qt pointer and lifetime analysis
         runs-on: ubuntu-24.04
-        timeout-minutes: 20
         steps:
             - uses: actions/checkout@v4
               with:
                   persist-credentials: false
-            - name: Install dependencies
+            - name: Install Qt analysis dependencies
               run: |
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                    clang clang-tidy cmake g++ ninja-build pkg-config python3 \
+                    clang-tidy pkg-config qt6-base-dev
+            - name: Check Qt guards and use-after-free detection
+              run: python3 tests/security/test_analyzer.py clang-tidy
+
+    clang-tidy:
+        name: C/C++ null and memory safety analysis
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Install C/C++ dependencies
+              run: |
+                  sudo apt-get update
+                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                    clang clang-tidy cmake g++ ninja-build pkg-config \
                     libwayland-dev qt6-base-dev qt6-declarative-dev \
                     qt6-wayland-dev libqt6opengl6-dev
-            - name: Verify analyzer behavior
-              run: python3 tests/security/test_analyzer.py clang-tidy
-            - name: Configure clang-tidy
-              run: >
-                  cmake -S . -B build -G Ninja
-                  -DCMAKE_BUILD_TYPE=Debug
-                  -DCMAKE_C_COMPILER=clang
-                  -DCMAKE_CXX_COMPILER=clang++
-                  -DCMAKE_CXX_CLANG_TIDY=clang-tidy
             - name: Analyze production code
-              run: cmake --build build --parallel 2
+              run: |
+                  cmake -S . -B build-pr -G Ninja \
+                    -DCMAKE_BUILD_TYPE=Debug \
+                    -DCMAKE_C_COMPILER=clang \
+                    -DCMAKE_CXX_COMPILER=clang++ \
+                    -DCMAKE_CXX_CLANG_TIDY=clang-tidy
+                  cmake --build build-pr --parallel 2
 
     codeql:
         name: CodeQL security analysis
         runs-on: ubuntu-24.04
-        timeout-minutes: 30
         permissions:
             actions: read
             contents: read
@@ -91,7 +101,7 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   persist-credentials: false
-            - name: Install dependencies
+            - name: Install C/C++ dependencies
               run: |
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -104,7 +114,7 @@ jobs:
                   build-mode: manual
                   config-file: ./.github/codeql/config.yml
             - name: Build for CodeQL
-              run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build --parallel 2
+              run: cmake -S . -B build-codeql -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build-codeql --parallel 2
             - uses: github/codeql-action/analyze@v4
               id: codeql
               with:
