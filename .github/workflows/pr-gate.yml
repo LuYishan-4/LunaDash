@@ -1,20 +1,14 @@
 name: PR required checks gate
 on:
-    workflow_run:
-        workflows:
-            - PR documentation scope
-            - PR repository hygiene
-            - PR source style
-            - PR Qt lifetime analysis
-            - PR C++ memory safety
-            - PR CodeQL security analysis
-        types: [completed]
+    pull_request:
+    merge_group:
+    workflow_dispatch:
 permissions:
     actions: read
     checks: read
     contents: read
 concurrency:
-    group: pr-gate-${{ github.event.workflow_run.head_sha }}
+    group: pr-gate-${{ github.event.pull_request.head.sha || github.sha }}
     cancel-in-progress: true
 jobs:
     gate:
@@ -24,7 +18,7 @@ jobs:
             - name: Wait for all six PR workflows
               env:
                   GH_TOKEN: ${{ github.token }}
-                  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
               run: |
                   set -eu
                   expected='PR documentation scope|PR repository hygiene|PR source style|PR Qt lifetime analysis|PR C++ memory safety|PR CodeQL security analysis'
