@@ -60,8 +60,11 @@ int main() {
   grouped = layout.layout(1, QRect(0, 0, 900, 600));
   CHECK(grouped[2].minimized && grouped[2].rowIndex == -1);
   CHECK(grouped[2].geometry.isNull());
-  CHECK(grouped[0].geometry.height() == 194);
+  CHECK(grouped[0].geometry.height() == 145);
+  CHECK(grouped[1].geometry.height() == 145);
+  CHECK(grouped[3].geometry.height() == 290);
   CHECK(grouped[1].geometry.top() == grouped[0].geometry.bottom() + 11);
+  CHECK(grouped[3].geometry.top() == grouped[1].geometry.bottom() + 11);
   CHECK(!layout.groupWith(105, 101));
   CHECK(layout.setMinimized(103, false));
   CHECK(layout.snapshot(1).columns[4].width == 225);

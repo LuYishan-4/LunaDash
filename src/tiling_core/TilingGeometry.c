@@ -45,7 +45,7 @@ size_t ludash_layout_columns(LuDashRectangle area, const int *widths,
 size_t ludash_layout_column_windows(LuDashRectangle column, size_t count,
                                     int gap, LuDashRectangle *output,
                                     size_t capacity) {
-  if (!output || count == 0 || count > capacity || count > LUDASH_MAX_COLUMNS ||
+  if (!output || count == 0 || count > capacity || count > 4 ||
       !ludash_valid_area(column) || gap < 0)
     return 0;
 
@@ -53,16 +53,18 @@ size_t ludash_layout_column_windows(LuDashRectangle column, size_t count,
   if (gaps >= column.height)
     return 0;
   const int available = column.height - (int)gaps;
-  const int base_height = available / (int)count;
-  const int remainder = available % (int)count;
-  if (base_height <= 0)
-    return 0;
-
-  int64_t y = column.y;
+  const int units = count == 3 ? 4 : (int)count;
+  int consumed_units = 0;
   for (size_t i = 0; i < count; ++i) {
-    const int height = base_height + ((int)i < remainder ? 1 : 0);
-    output[i] = (LuDashRectangle){column.x, (int)y, column.width, height};
-    y += (int64_t)height + gap;
+    const int weight = count == 3 && i == 2 ? 2 : 1;
+    const int begin = (int)((int64_t)available * consumed_units / units);
+    consumed_units += weight;
+    const int end = (int)((int64_t)available * consumed_units / units);
+    const int height = end - begin;
+    if (height <= 0)
+      return 0;
+    output[i] = (LuDashRectangle){column.x, column.y + begin + gap * (int)i,
+                                  column.width, height};
   }
   return count;
 }

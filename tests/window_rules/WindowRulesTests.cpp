@@ -26,12 +26,12 @@ private slots:
              QString("org.example.Editor"));
   }
 
-  void leavesGenericWindowsUnforced() {
-    QVERIFY(!initialWindowPolicy("org.example.Editor", "Document").maximized);
-    QVERIFY(!initialWindowPolicy("org.example.Dialog", "Open Image").maximized);
+  void maximizesAllInitialWindows() {
+    QVERIFY(initialWindowPolicy("org.example.Editor", "Document").maximized);
+    QVERIFY(initialWindowPolicy("org.example.Dialog", "Open Image").maximized);
     QVERIFY(
-        !initialWindowPolicy("lunadah-image-picker", "Choose image").maximized);
-    QVERIFY(!initialWindowPolicy("org.example.Terminal", "Terminal").maximized);
+        initialWindowPolicy("lunadah-image-picker", "Choose image").maximized);
+    QVERIFY(initialWindowPolicy("org.example.Terminal", "Terminal").maximized);
   }
 };
 } // namespace LuDash

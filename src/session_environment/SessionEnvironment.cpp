@@ -4,8 +4,8 @@
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QDebug>
+#include <QMap>
 #include <QStandardPaths>
-#include <QVariantMap>
 
 namespace LuDash {
 QProcessEnvironment createClientEnvironment(const QString &socketName,
@@ -43,7 +43,7 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
 }
 
 bool publishClientEnvironment(const QProcessEnvironment &environment) {
-  QVariantMap activation;
+  QMap<QString, QString> activation;
   QStringList systemd;
   for (const auto &name : environment.keys()) {
     const auto value = environment.value(name);
@@ -66,7 +66,7 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
     auto dbus = QDBusMessage::createMethodCall(
         "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
         "UpdateActivationEnvironment");
-    dbus << activation;
+    dbus << QVariant::fromValue(activation);
     const auto dbusReply =
         QDBusConnection::sessionBus().call(dbus, QDBus::Block, 2000);
     if (dbusReply.type() == QDBusMessage::ErrorMessage) {

@@ -873,13 +873,15 @@ void WaylandCompositor::configure(ClientWindow *client,
   client->item->setPosition(QPointF(border, title));
   const QSize size(std::max(1, rectangle.width() - 2 * border),
                    std::max(1, rectangle.height() - title - border));
+  const bool configuredMaximized =
+      client->maximized && rectangle.size() == workArea().size();
   if ((size != client->lastSize ||
-       client->maximized != client->lastConfiguredMaximized) &&
+       configuredMaximized != client->lastConfiguredMaximized) &&
       client->toplevel) {
     client->lastSize = size;
-    client->lastConfiguredMaximized = client->maximized;
+    client->lastConfiguredMaximized = configuredMaximized;
     QList<QWaylandXdgToplevel::State> states;
-    if (client->maximized)
+    if (configuredMaximized)
       states.append(QWaylandXdgToplevel::MaximizedState);
     client->toplevel->sendConfigure(size, states);
   }
@@ -912,8 +914,7 @@ void WaylandCompositor::arrange() {
     client->workspace = std::min(client->workspace, count - 1);
   const QRect workArea = this->workArea();
   const int gap = preferences.value("gap").toInt();
-  const int defaultColumnWidth = std::max(
-      1, workArea.width() * preferences.value("masterRatio").toInt() / 100);
+  const int defaultColumnWidth = workArea.width();
   tiling_.setGap(gap);
   for (const auto &client : clients_) {
     const bool tiled = client->mapped && !client->desktop && !client->floating;
@@ -923,6 +924,8 @@ void WaylandCompositor::arrange() {
       tiling_.moveToWorkspace(
           client->id, static_cast<TilingWorkspaceId>(client->workspace));
       tiling_.setMinimized(client->id, client->minimized);
+      if (client->maximized)
+        tiling_.resize(client->id, workArea.width());
     } else
       tiling_.remove(client->id);
   }
@@ -968,12 +971,6 @@ void WaylandCompositor::arrange() {
     if (found != clients_.end() && !(*found)->minimized)
       configure(found->get(), placement.geometry);
   }
-  for (const auto &client : clients_)
-    if (client->maximized && !client->minimized &&
-        client->workspace == workspace_) {
-      configure(client.get(), workArea);
-      client->frame->setZ(30);
-    }
   window_.setTitle(
       QString("LunaDah Wayland · workspace %1").arg(workspace_ + 1));
 }
@@ -987,7 +984,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
     tiling_.focus(client->id);
   client->item->takeFocus();
   pluginManager_->windowFocused(client->frame);
-  client->frame->setZ(client->maximized ? 30 : (client->floating ? 20 : 2));
+  client->frame->setZ(client->floating ? 20 : 2);
 }
 
 void WaylandCompositor::focusNext(int direction) {
@@ -1122,9 +1119,31 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
           }
           break;
         case Qt::Key_F:
-          if (focused_) {
-            focused_->maximized = !focused_->maximized;
-            arrange();
+          if (focused_ && !focused_->floating && !focused_->desktop) {
+            const auto snapshot = tiling_.snapshot(workspace_);
+            const auto placement =
+                std::find_if(snapshot.columns.begin(), snapshot.columns.end(),
+                             [this](const auto &entry) {
+                               return entry.window ==
+                                      static_cast<TilingWindowId>(focused_->id);
+                             });
+            if (placement != snapshot.columns.end()) {
+              const bool maximized = !focused_->maximized;
+              for (const auto member : placement->columnMembers)
+                for (const auto &client : clients_)
+                  if (client->id == static_cast<int>(member))
+                    client->maximized = maximized;
+              const auto preferences = desktopPreferences();
+              const int width =
+                  maximized
+                      ? workArea().width()
+                      : std::max(1,
+                                 workArea().width() *
+                                     preferences.value("masterRatio").toInt() /
+                                     100);
+              tiling_.resize(focused_->id, width);
+              arrange();
+            }
           }
           break;
         case Qt::Key_M:

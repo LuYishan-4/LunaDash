@@ -50,15 +50,23 @@ int main(void) {
 
   CHECK(ludash_layout_column_windows((LuDashRectangle){10, 20, 400, 603}, 4, 10,
                                      rectangles, 32) == 4);
-  CHECK(rectangles[0].height == 144);
+  CHECK(rectangles[0].height == 143);
   CHECK(rectangles[1].height == 143);
+  CHECK(rectangles[2].height == 143);
+  CHECK(rectangles[3].height == 144);
   for (size_t i = 1; i < 4; ++i) {
     CHECK(rectangles[i].x == 10 && rectangles[i].width == 400);
     CHECK(rectangles[i].y ==
           rectangles[i - 1].y + rectangles[i - 1].height + 10);
   }
+  CHECK(ludash_layout_column_windows((LuDashRectangle){10, 20, 400, 603}, 3, 10,
+                                     rectangles, 32) == 3);
+  CHECK(rectangles[0].height == 145);
+  CHECK(rectangles[1].height == 146);
+  CHECK(rectangles[2].height == 292);
   rectangles[0].x = 42;
   CHECK(!ludash_layout_column_windows(area, 4, 10, rectangles, 3));
+  CHECK(!ludash_layout_column_windows(area, 5, 10, rectangles, 32));
   CHECK(rectangles[0].x == 42);
   CHECK(!ludash_layout_column_windows((LuDashRectangle){0, 0, 10, 3}, 4, 1,
                                       rectangles, 32));
