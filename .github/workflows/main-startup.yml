@@ -25,4 +25,5 @@ jobs:
             - name: Build startup target
               run: cmake -S . -B build-startup -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build-startup --parallel 2
             - name: Verify controlled graphics startup errors
-              run: python3 tests/renderer/test_startup_failure.py build-startup/lunadah-compositor
+              run: xvfb-run -a -s '-screen 0 1440x900x24' \
+                python3 tests/renderer/test_startup_failure.py build-startup/lunadah-compositor
