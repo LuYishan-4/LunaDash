@@ -1,0 +1,23 @@
+name: PR documentation scope
+on:
+    pull_request:
+    merge_group:
+    workflow_dispatch:
+permissions:
+    contents: read
+concurrency:
+    group: pr-documentation-scope-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    documentation-scope:
+        name: Reject documentation changes
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Reject documentation changes
+              env:
+                  GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+              run: python3 scripts/security/check_pr_scope.py

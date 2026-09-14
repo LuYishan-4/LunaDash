@@ -1,0 +1,25 @@
+name: PR Qt lifetime analysis
+on:
+    pull_request:
+    merge_group:
+    workflow_dispatch:
+permissions:
+    contents: read
+concurrency:
+    group: pr-qt-lifetime-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    qt-pointer-analysis:
+        name: Qt pointer and lifetime analysis
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Install Qt analysis dependencies
+              run: |
+                  sudo apt-get update
+                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                    clang-tidy pkg-config qt6-base-dev
+            - name: Check Qt guards and use-after-free detection
+              run: python3 tests/security/test_analyzer.py clang-tidy

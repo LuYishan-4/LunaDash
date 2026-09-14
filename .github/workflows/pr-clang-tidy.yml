@@ -1,0 +1,33 @@
+name: PR C++ memory safety
+on:
+    pull_request:
+    merge_group:
+    workflow_dispatch:
+permissions:
+    contents: read
+concurrency:
+    group: pr-clang-tidy-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    clang-tidy:
+        name: C/C++ null and memory safety analysis
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Install C/C++ dependencies
+              run: |
+                  sudo apt-get update
+                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                    clang clang-tidy cmake g++ ninja-build pkg-config \
+                    libwayland-dev qt6-base-dev qt6-declarative-dev \
+                    qt6-wayland-dev libqt6opengl6-dev
+            - name: Analyze production code
+              run: |
+                  cmake -S . -B build-pr -G Ninja \
+                    -DCMAKE_BUILD_TYPE=Debug \
+                    -DCMAKE_C_COMPILER=clang \
+                    -DCMAKE_CXX_COMPILER=clang++ \
+                    -DCMAKE_CXX_CLANG_TIDY=clang-tidy
+                  cmake --build build-pr --parallel 2

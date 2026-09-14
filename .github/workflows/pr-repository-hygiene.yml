@@ -1,0 +1,24 @@
+name: PR repository hygiene
+on:
+    pull_request:
+    merge_group:
+    workflow_dispatch:
+permissions:
+    contents: read
+concurrency:
+    group: pr-repository-hygiene-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    repository-hygiene:
+        name: Repository hygiene and workflow policy
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Check workflows
+              run: python3 scripts/security/check_repository_hygiene.py workflows
+            - name: Scan credentials
+              run: python3 scripts/security/check_repository_hygiene.py secrets
+            - name: Scan personal paths
+              run: python3 scripts/security/check_repository_hygiene.py paths

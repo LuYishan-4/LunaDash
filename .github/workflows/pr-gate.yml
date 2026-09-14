@@ -1,0 +1,56 @@
+name: PR required checks gate
+on:
+    workflow_run:
+        workflows:
+            - PR documentation scope
+            - PR repository hygiene
+            - PR source style
+            - PR Qt lifetime analysis
+            - PR C++ memory safety
+            - PR CodeQL security analysis
+        types: [completed]
+permissions:
+    actions: read
+    checks: read
+    contents: read
+concurrency:
+    group: pr-gate-${{ github.event.workflow_run.head_sha }}
+    cancel-in-progress: true
+jobs:
+    gate:
+        name: All six PR checks passed
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Wait for all six PR workflows
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+              run: |
+                  set -eu
+                  expected='PR documentation scope|PR repository hygiene|PR source style|PR Qt lifetime analysis|PR C++ memory safety|PR CodeQL security analysis'
+                  for attempt in $(seq 1 60); do
+                    checks=$(curl --fail-with-body --silent --show-error \
+                      -H "Accept: application/vnd.github+json" \
+                      -H "Authorization: Bearer $GH_TOKEN" \
+                      "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100")
+                    result=$(printf '%s' "$checks" | EXPECTED="$expected" python3 -c '
+                  import json, os, sys
+                  expected = set(os.environ["EXPECTED"].split("|"))
+                  runs = json.load(sys.stdin)["check_runs"]
+                  found = {run["name"]: run["conclusion"] for run in runs
+                           if run["name"] in expected}
+                  if set(found) != expected:
+                      print("pending")
+                  elif all(found[name] == "success" for name in expected):
+                      print("passed")
+                  else:
+                      print("failed")
+                  ')
+                    case "$result" in
+                      passed) echo "All six PR checks passed."; exit 0 ;;
+                      failed) echo "At least one PR check failed."; exit 1 ;;
+                    esac
+                    sleep 30
+                  done
+                  echo "Timed out waiting for all six PR checks."
+                  exit 1

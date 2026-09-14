@@ -1,0 +1,26 @@
+name: PR source style
+on:
+    pull_request:
+    merge_group:
+    workflow_dispatch:
+permissions:
+    contents: read
+concurrency:
+    group: pr-source-style-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    source-style:
+        name: Source language and shell style
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Install style tools
+              run: sudo apt-get update && sudo apt-get install -y shellcheck
+            - name: Check source language
+              run: python3 tests/security/test_source_language.py
+            - name: Check shell scripts
+              run: |
+                  find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 sh -n
+                  find scripts -type f -name '*.sh' -print0 | xargs -0 -r shellcheck --severity=error
