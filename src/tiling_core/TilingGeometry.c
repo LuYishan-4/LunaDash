@@ -8,8 +8,11 @@
 #define LUDASH_MAX_COLUMNS 4096U
 
 static int ludash_valid_area(LuDashRectangle area) {
-  return area.width > 0 && area.height > 0 && area.x >= 0 && area.y >= 0 &&
-         area.x <= INT_MAX - area.width && area.y <= INT_MAX - area.height;
+  // Off-screen columns legitimately have negative x/y when the strip is
+  // scrolled; only reject empty sizes and upper overflow, not negative
+  // coordinates. Lower overflow is guarded by ludash_layout_columns.
+  return area.width > 0 && area.height > 0 && area.x <= INT_MAX - area.width &&
+         area.y <= INT_MAX - area.height;
 }
 
 size_t ludash_layout_columns(LuDashRectangle area, const int *widths,

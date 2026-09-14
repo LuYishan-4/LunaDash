@@ -22,7 +22,6 @@ If a driver cannot provide the requested desktop compatibility profile, LunaDah 
 The vertex and fragment shaders in `data/shaders/` are compiled and linked at runtime. Desktop GL uses `#version 330 core`; GLES uses `#version 300 es` and precision declarations. Quickshell displays the image wallpaper; Dusk/Forest switch its background surface to transparent so the compositor shader is visible. The shell and compositor have separate contexts.
 
 ```sh
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build -R graphics-contexts --output-on-failure
 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
 # From an existing Wayland desktop, open a temporary nested GPU-backed session:

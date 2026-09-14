@@ -37,15 +37,29 @@ Item {
 
         onEntered: drag => {
             invalidSource = isSameWindow(drag)
-            drag.accepted = hasWindowSource(drag) && !invalidSource
+            const ok = hasWindowSource(drag) && !invalidSource
+            if (ok) {
+                drag.accept(Qt.MoveAction)
+                memberIcon.shell.dropTarget = memberIcon.windowId
+            } else {
+                drag.accepted = false
+            }
         }
-        onExited: invalidSource = false
-        onDropped: drop => {
-            const valid = hasWindowSource(drop) && !isSameWindow(drop)
-            if (valid)
-                memberIcon.shell.command("group-window", JSON.stringify({window: drop.source["windowId"], target: memberIcon.windowId}))
-            drop.accepted = valid
+        onPositionChanged: drag => {
+            const ok = hasWindowSource(drag) && !isSameWindow(drag)
+            if (ok) {
+                drag.accept(Qt.MoveAction)
+                memberIcon.shell.dropTarget = memberIcon.windowId
+            } else {
+                drag.accepted = false
+            }
+        }
+        onExited: {
             invalidSource = false
+            Qt.callLater(() => {
+                if (memberIcon.shell.dropTarget === memberIcon.windowId)
+                    memberIcon.shell.dropTarget = 0
+            })
         }
     }
 
@@ -106,7 +120,13 @@ Item {
                 else
                     memberIcon.shell.command("focus", memberIcon.windowId)
             }
-            onReleased: Qt.callLater(memberIcon.resetGlyph)
+            onReleased: {
+                const target = memberIcon.shell.dropTarget
+                memberIcon.shell.dropTarget = 0
+                if (target && String(target) !== String(memberIcon.windowId))
+                    memberIcon.shell.command("group-window", JSON.stringify({window: memberIcon.windowId, target: target}))
+                memberIcon.resetGlyph()
+            }
         }
 
         Behavior on color { ColorAnimation { duration: Theme.motion } }

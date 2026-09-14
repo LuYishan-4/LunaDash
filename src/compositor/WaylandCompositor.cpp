@@ -299,13 +299,19 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
             [this, process] { shellProcessIds_.insert(process->processId()); });
   }
   if (program.isEmpty() && arguments.contains("--session")) {
-    auto config = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                         "lunadah/shell/shell.qml");
+    // Prefer the source-tree shell during development so a local build always
+    // exercises the current QML. A packaged install falls back to the data
+    // directories because the compile-time source path does not exist there.
+    const QString sourceConfig =
+        QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
+    QString config =
+        QFileInfo::exists(sourceConfig)
+            ? sourceConfig
+            : QStandardPaths::locate(QStandardPaths::GenericDataLocation,
+                                     "lunadah/shell/shell.qml");
     if (config.isEmpty())
       config = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
                                       "ludash/shell/shell.qml");
-    if (config.isEmpty())
-      config = QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
     process->start(QStandardPaths::findExecutable("quickshell"),
                    {"--path", config, "--no-color"});
   } else {
@@ -617,10 +623,15 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   } else if (method == "group-window") {
     int window = 0;
     int target = 0;
-    if (!groupWindowIds(value, &window, &target))
+    if (!groupWindowIds(value, &window, &target)) {
+      qInfo().noquote() << "LunaDah group-window parse fail:" << value;
       return {
           {"error", "Expected bounded JSON {\"window\":ID,\"target\":ID}."}};
-    if (!tiling_.groupWith(window, target))
+    }
+    const bool grouped = tiling_.groupWith(window, target);
+    qInfo().noquote() << "LunaDah group-window:" << window << "->" << target
+                      << "ok" << grouped;
+    if (!grouped)
       return {{"error",
                "Windows must be distinct tiled windows in the same "
                "workspace, and the target column must have capacity."}};
@@ -658,6 +669,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                  "The tiled group has no capacity to restore this window."}};
           workspace_ = client->workspace;
           client->minimized = false;
+          if (!client->floating && !client->desktop)
+            tiling_.focus(client->id);
           arrange();
           focus(client.get());
         }
@@ -815,6 +828,16 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
             current->mapped = hasContent;
             if (!hasContent)
               tiling_.remove(current->id);
+            if (newlyMapped && !current->desktop) {
+              // Start the new column one full column to the right so the
+              // reveal is a horizontal carousel: the previous column slides
+              // out to the left while this one slides in from the right.
+              const QRect area = workArea();
+              const int gap = desktopPreferences().value("gap").toInt();
+              current->frame->setX(area.x() + area.width() + gap);
+              current->frame->setY(area.y());
+              current->frame->setSize(area.size());
+            }
             arrange();
             if (newlyMapped && !current->desktop) {
               pluginManager_->windowOpened(current->frame);

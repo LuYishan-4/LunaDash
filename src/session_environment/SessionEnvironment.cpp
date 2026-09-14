@@ -2,6 +2,7 @@
 
 #include <QDBusConnection>
 #include <QDBusMessage>
+#include <QDBusMetaType>
 #include <QDBusPendingCall>
 #include <QDebug>
 #include <QMap>
@@ -43,6 +44,7 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
 }
 
 bool publishClientEnvironment(const QProcessEnvironment &environment) {
+  qDBusRegisterMetaType<QMap<QString, QString>>();
   QMap<QString, QString> activation;
   QStringList systemd;
   for (const auto &name : environment.keys()) {

@@ -24,6 +24,7 @@ ShellRoot {
     signal commandCompleted(string method, var result)
     property bool stopping: false
     property int lastSettingsSerial: 0
+    property int dropTarget: 0
     property bool launcherOpen: false
     property bool settingsOpen: false
     onLauncherOpenChanged: if (launcherOpen) settingsOpen = false

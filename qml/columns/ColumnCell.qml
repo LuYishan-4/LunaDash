@@ -17,6 +17,16 @@ Rectangle {
         ? Theme.accent
         : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.30)
 
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton
+        onClicked: {
+            const members = cell.group.members || []
+            if (members.length > 0)
+                cell.shell.command("focus", members[0].window)
+        }
+    }
+
     Row {
         anchors.centerIn: parent
         spacing: 4

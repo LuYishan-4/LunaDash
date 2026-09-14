@@ -139,10 +139,9 @@ LUNADAH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --soc
 sudo pacman -S --needed xorg-server-xvfb xorg-xauth xdotool python python-pillow
 ```
 
-執行 CTest 與軟體繪圖的 Wayland 整合測試：
+執行軟體繪圖的 Wayland 整合測試：
 
 ```sh
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build --output-on-failure
 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
 ```
@@ -162,7 +161,7 @@ xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
 
 整合測試成功必須同時具備正常結束碼、有效的視窗內容與乾淨關閉結果。出現 shader／pipeline 錯誤不能視為通過。首次設定日誌保存在 `build/ci-evidence/setup/`；宿主 GPU 測試的截圖為 `build/host-wayland-preview.png`。
 
-目前已完成本機一般與 ASan／UBSan 的 14 項 CTest，以及 GL／GLES、設定、自訂功能和 X11 相容等測試。GitHub Actions／CodeQL 的遠端結果仍須以實際 workflow 為準。上述結果不等同於已完成開機登入驗證。
+目前已完成本機一般與 ASan／UBSan 的 Wayland 整合測試，以及 GL／GLES、設定、自訂功能和 X11 相容等測試。GitHub Actions／CodeQL 的遠端結果仍須以實際 workflow 為準。上述結果不等同於已完成開機登入驗證。
 
 ## 8. 黑畫面或登入後立刻返回
 

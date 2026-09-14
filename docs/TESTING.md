@@ -1,6 +1,6 @@
 # Testing LunaDah
 
-The complete, maintained instructions are in [Testing and file reference](TESTING_AND_FILES.md). They cover dependencies, build commands, CTest, OpenGL/GLES sessions, first-run setup, interactive checks, sanitizer runs, packaging, failure diagnosis and the purpose of every maintained project file.
+The complete, maintained instructions are in [Testing and file reference](TESTING_AND_FILES.md). They cover dependencies, build commands, OpenGL/GLES sessions, first-run setup, interactive checks, sanitizer runs, packaging, failure diagnosis and the purpose of every maintained project file.
 
 One-shot window test from an existing Wayland desktop:
 
@@ -8,14 +8,13 @@ One-shot window test from an existing Wayland desktop:
 ./scripts/test-once.sh
 ```
 
-It configures `build-once`, builds LunaDah, runs the non-display CTest set, lints QML, starts a nested host-Wayland compositor, opens demonstration windows, validates scrollable geometry and rendered content, and writes `host-wayland.log`, `host-wayland-state.json`, and `host-wayland-preview.png` under `build-once`. It sets `LUNADAH_DISABLE_FCITX=1` so the nested session cannot replace the host input-method daemon. Override with `LUDASH_GRAPHICS=opengl ./scripts/test-once.sh` or choose another build directory with `LUNADAH_TEST_BUILD_DIR=/absolute/path ./scripts/test-once.sh`.
+It configures `build-once`, builds LunaDah, lints QML, starts a nested host-Wayland compositor, opens demonstration windows, validates scrollable geometry and rendered content, and writes `host-wayland.log`, `host-wayland-state.json`, and `host-wayland-preview.png` under `build-once`. It sets `LUNADAH_DISABLE_FCITX=1` so the nested session cannot replace the host input-method daemon. Override with `LUDASH_GRAPHICS=opengl ./scripts/test-once.sh` or choose another build directory with `LUNADAH_TEST_BUILD_DIR=/absolute/path ./scripts/test-once.sh`.
 
 Manual quick start after installing the dependencies:
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel 4
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build --output-on-failure
 LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
 LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
 ```

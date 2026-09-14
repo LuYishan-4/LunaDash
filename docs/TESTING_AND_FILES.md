@@ -25,40 +25,13 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel 4
 ```
 
-CMake target names remain `ludash-compositor`, `ludash-desktop`, and `ludashctl`, while their canonical output executables are `lunadah-compositor`, `lunadah-desktop`, and `lunadahctl`. Legacy `ludash-*` output names are compatibility symlinks. Outputs also include test executables and the disabled-by-default fade plugin. Source QML is used automatically when an installed shell is not found. An older installation under your data search path can take precedence; remove or update that installation when validating source changes.
+CMake target names remain `ludash-compositor`, `ludash-desktop`, and `ludashctl`, while their canonical output executables are `lunadah-compositor`, `lunadah-desktop`, and `lunadahctl`. Legacy `ludash-*` output names are compatibility symlinks. Outputs also include the disabled-by-default fade plugin. Source QML is used automatically when an installed shell is not found. An older installation under your data search path can take precedence; remove or update that installation when validating source changes.
 
 Use the existing generator when reusing a build directory: omit `-G Ninja` if it was configured with Unix Makefiles.
 
 ## 3. Automated checks
 
-```sh
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build --output-on-failure
-```
-
-| CTest | What it checks |
-| --- | --- |
-| scrollable-tiling | Group capacity, equal visible-member rows, minimized-member accounting, grouped focus, expulsion, column resize/reorder and workspace movement |
-| window-rules | Every window opens as its own independent full-width column; no window is forced into a maximized overlay |
-| file-picker | Supported-image eligibility and aspect-preserving bounded preview sizing |
-| default-applications | Literal argument preservation, configured command validation and recursive-launch rejection |
-| desktop-interactions | Native tools, retired-application removal, tiling, language resources, wallpaper validation, package input and plugin paths |
-| security-gate | SARIF findings and missing reports fail the security gate |
-| graphics-contexts | Actual desktop GL and GLES contexts with production C wallpaper and blur passes |
-| graphics-startup-failure | Invalid API arguments and unavailable GL 3.3 return code 2 instead of aborting |
-| graphics-diagnostics | Rejection of shader/pipeline failures and descriptor/pipe exhaustion in logs |
-| login-scripts | Installer dry-run, launcher environment isolation, literal arguments and private log permissions |
-| blur-geometry | Bounded geometry and render-matrix preparation for blur |
-| c-core | C geometry, bounded parsing, arithmetic overflow and counter resets |
-| window-animations | Interrupted visibility transitions, item destruction and reduced motion |
-| desktop-preferences | Type/range validation, no partial invalid update, setup completion and link/Internet distinction |
-| system-settings | Bounded helper output/timeouts, audio arguments and power-profile parsing |
-| session-actions | Logind capability parsing and allowlisted session-action requests |
-| shell-modules | Module schema bounds, atomic preservation, template ownership, trust defaults and symlink escape rejection |
-| files-and-defaults | File overwrite protection, name validation, default application validation and literal argument preservation |
-| shell-rendering | NVIDIA auto selection, explicit overrides and invalid backend environment preservation |
-| source-language | English C/C++/QML, Markdown documentation and website sources |
-
-Require `100% tests passed`. Graphics tests use Mesa software rendering; they are not physical GPU compatibility results.
+There is no separate CTest unit-test suite. Automated validation runs through the Wayland session scripts and the Python integration checks listed in [Full Wayland sessions](#4-full-wayland-sessions); CI invokes those scripts directly. Physical GPU coverage remains a manual check.
 
 ## 4. Full Wayland sessions
 
@@ -68,7 +41,7 @@ From an existing Wayland desktop, the one-shot path is:
 ./scripts/test-once.sh
 ```
 
-It configures and builds `build-once`, runs the focused non-display CTest set, lints every QML file when `qmllint` is available, and then invokes the host-Wayland rendering test with Fcitx replacement disabled. Evidence is written to `build-once/host-wayland.log`, `build-once/host-wayland-state.json`, and `build-once/host-wayland-preview.png`. Use `LUDASH_GRAPHICS=opengl ./scripts/test-once.sh` to select desktop OpenGL or `LUNADAH_TEST_BUILD_DIR=/absolute/path ./scripts/test-once.sh` to choose another build directory.
+It configures and builds `build-once`, lints every QML file when `qmllint` is available, and then invokes the host-Wayland rendering test with Fcitx replacement disabled. Evidence is written to `build-once/host-wayland.log`, `build-once/host-wayland-state.json`, and `build-once/host-wayland-preview.png`. Use `LUDASH_GRAPHICS=opengl ./scripts/test-once.sh` to select desktop OpenGL or `LUNADAH_TEST_BUILD_DIR=/absolute/path ./scripts/test-once.sh` to choose another build directory.
 
 Individual session commands remain available:
 
@@ -103,7 +76,6 @@ The interaction test clicks workspace, launcher and settings controls, checks la
 | `build/wayland.log` | Full session output |
 | `build/desktop-preview.png` / `desktop-state.json` / `desktop.log` | Default desktop without demo apps |
 | `build/setup-preview.png` / `setup-state.json` / `setup.log` | First-run guide screenshot and state |
-| `build/Testing/Temporary/LastTest.log` | CTest output |
 
 Check `$?` immediately after a command. Success requires exit code zero and the final `clean shutdown` message. A success line followed by crashed processes is a failure, not a partial pass. Do not publish raw state/log files without reviewing local paths and system identifiers.
 
@@ -150,9 +122,6 @@ cmake -S . -B build-checked -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_CXX_CLANG_TIDY=clang-tidy -DLUDASH_ENABLE_SANITIZERS=ON
 cmake --build build-checked --parallel 4
-ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
-  QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 \
-  xvfb-run -a ctest --test-dir build-checked --output-on-failure
 ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
   LUDASH_BUILD_DIR="$PWD/build-checked" ./scripts/test-wayland.sh
 ```
@@ -204,7 +173,7 @@ For boot login installation, optional SDDM auto-login and recovery, see [Login s
 
 ## 9. Verification record
 
-CMake currently registers 20 CTests, including the grouped tiling, window-rule, file-picker, default-application and session-action checks listed above. Historical entries that report 15 or 12 checks describe the suite size at the time they were run; they do not claim that the five newer checks ran in those older sessions.
+There is no CTest unit-test suite in the current build; validation runs through the Wayland session scripts and the Python integration checks referenced above. Historical entries that report 15 or 12 CTest checks describe an earlier suite that has since been removed.
 
 <!-- verification-results -->
 Verified locally on 2026-09-14 (Asia/Taipei). These results describe executed tests, not merely workflow configuration.
@@ -257,7 +226,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [.github/workflows/security.yml](../.github/workflows/security.yml) | clang-tidy, ASan/UBSan, negative crash test and CodeQL SARIF gate. |
 | [.gitignore](../.gitignore) | Exclude generated builds, package artifacts and website dependencies/output. |
 | [AGENTS.md](../AGENTS.md) | Repository implementation and collaboration rules. |
-| [CMakeLists.txt](../CMakeLists.txt) | Explicit targets, dependencies, resources, installation and CTest registration. |
+| [CMakeLists.txt](../CMakeLists.txt) | Explicit targets, dependencies, resources and installation. |
 | [LICENSE](../LICENSE) | GPL-3.0-only license text. |
 | [README.md](../README.md) | Project introduction, dependencies, quick start and limitations. |
 
@@ -477,28 +446,15 @@ Generated build output, dependency caches, source archives and Git internals are
 | [scripts/ludash-session](../scripts/ludash-session) | Legacy-named session implementation retained for compatibility. |
 | [scripts/make-source.sh](../scripts/make-source.sh) | Create the local Arch source archive without build/Python caches. |
 | [scripts/security/check_sarif.py](../scripts/security/check_sarif.py) | Fail closed on missing SARIF or security/quality findings. |
-| [scripts/test-once.sh](../scripts/test-once.sh) | Configure, build, run focused tests and execute one nested host-Wayland window test in one command. |
+| [scripts/test-once.sh](../scripts/test-once.sh) | Configure, build, lint QML and execute one nested host-Wayland window test in one command. |
 | [scripts/test-wayland.sh](../scripts/test-wayland.sh) | Isolated demo/overview/setup rendering tests and screenshot/state evidence, including scrollable off-screen geometry. |
 | [scripts/testing/check_graphics_log.py](../scripts/testing/check_graphics_log.py) | Reject missing GLSL and failed Qt pipeline diagnostics in session logs. |
-| [tests/DesktopTests.cpp](../tests/DesktopTests.cpp) | Behavioral tests for native apps, layout and validated external inputs. |
-| [tests/animation/AnimationTests.cpp](../tests/animation/AnimationTests.cpp) | Interrupted transitions, item destruction and reduced-motion tests. |
-| [tests/blur/BlurGeometryTests.cpp](../tests/blur/BlurGeometryTests.cpp) | Verify blur capture bounds, pixel scaling and rejection of non-finite coordinates. |
-| [tests/configuration/PreferenceTests.cpp](../tests/configuration/PreferenceTests.cpp) | Preference validation and network-state classification tests. |
-| [tests/core/CoreTests.c](../tests/core/CoreTests.c) | C geometry and parser boundary, overflow and counter-reset tests. |
-| [tests/default_applications/DefaultApplicationsTests.cpp](../tests/default_applications/DefaultApplicationsTests.cpp) | Validate literal configured arguments and reject recursive LunaDah launch commands. |
-| [tests/file_operations/FileTests.cpp](../tests/file_operations/FileTests.cpp) | Overwrite prevention and literal default-app argument tests. |
-| [tests/file_picker/FilePickerTests.cpp](../tests/file_picker/FilePickerTests.cpp) | Verify supported image eligibility and bounded aspect-preserving preview dimensions. |
-| [tests/renderer/RenderTests.cpp](../tests/renderer/RenderTests.cpp) | Real GL/GLES context and production shader checks. |
 | [tests/renderer/test_shader_diagnostics.py](../tests/renderer/test_shader_diagnostics.py) | Verify that pipeline errors cannot yield a passing integration result. |
 | [tests/renderer/test_startup_failure.py](../tests/renderer/test_startup_failure.py) | Regression for controlled graphics initialization failure. |
 | [tests/security/test_analyzer.py](../tests/security/test_analyzer.py) | Verify that static analysis accepts valid Qt guards and rejects real use-after-free. |
 | [tests/security/test_sarif_gate.py](../tests/security/test_sarif_gate.py) | Negative and positive SARIF gate cases. |
 | [tests/security/test_source_language.py](../tests/security/test_source_language.py) | Keep source/primary docs English while allowing the explicitly requested zh-TW login guide and external translation pack. |
-| [tests/session_actions/SessionActionsTests.cpp](../tests/session_actions/SessionActionsTests.cpp) | Verify logind capability parsing and allowlisted session-action requests. |
-| [tests/shell_modules/ModuleTests.cpp](../tests/shell_modules/ModuleTests.cpp) | Module bounds, trust defaults, atomic preservation and symlink escape tests. |
 | [tests/site/test_site.py](../tests/site/test_site.py) | Check compiled website assets, fragments, language and image descriptions. |
-| [tests/system_settings/SettingsTests.cpp](../tests/system_settings/SettingsTests.cpp) | Audio/profile validation, command allowlists and bounded helper output/timeouts. |
-| [tests/tiling/ScrollableTilingTests.cpp](../tests/tiling/ScrollableTilingTests.cpp) | Exercise grouped-column capacity, equal rows, minimized members, focus, expulsion, reorder, resize and workspace movement. |
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
 | [tests/wayland/test_customization.py](../tests/wayland/test_customization.py) | Actual custom QML replacement/fallback, Files recoloring and interactive Fish under Wayland. |
 | [tests/wayland/test_effects.py](../tests/wayland/test_effects.py) | Live blur, opacity and reduced-motion preferences; private-safe window screenshot. |
@@ -507,7 +463,6 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
 | [tests/wayland/test_shell_interactions.py](../tests/wayland/test_shell_interactions.py) | Click the live shell and verify workspace/app/settings/window behavior. |
 | [tests/wayland/test_xwayland.py](../tests/wayland/test_xwayland.py) | Authenticated X11 mapping, denied unauthenticated access and shutdown cleanup. |
-| [tests/window_rules/WindowRulesTests.cpp](../tests/window_rules/WindowRulesTests.cpp) | Verify windows open as independent columns and application icon names resolve. |
 
 ### Website
 
@@ -545,7 +500,6 @@ Generated build output, dependency caches, source archives and Git internals are
 | --- | --- |
 | [include/LuDash/shell_renderer/ShellRenderer.h](../include/LuDash/shell_renderer/ShellRenderer.h) | Declares the isolated Quickshell renderer environment policy. |
 | [src/shell_renderer/ShellRenderer.cpp](../src/shell_renderer/ShellRenderer.cpp) | Selects NVIDIA software compatibility or explicit shell backend overrides. |
-| [tests/shell_renderer/ShellRendererTests.cpp](../tests/shell_renderer/ShellRendererTests.cpp) | Verifies automatic selection, overrides, environment isolation and invalid values. |
 | [tests/wayland/test_resource_lifetime.py](../tests/wayland/test_resource_lifetime.py) | Exercises sustained rendering and checks owned process descriptor/fence counts and clean exit. |
 
 ### Documentation

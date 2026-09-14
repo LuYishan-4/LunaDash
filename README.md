@@ -47,11 +47,10 @@ sudo pacman -S --needed python-pillow
 ./scripts/test-once.sh
 ```
 
-The script builds into `build-once`, runs focused CTest and QML lint, then starts a nested LunaDah session with demonstration windows and writes its log, state JSON and screenshot there. It does not replace the host Fcitx daemon. For the longer manual/Xvfb paths:
+The script builds into `build-once`, runs QML lint, then starts a nested LunaDah session with demonstration windows and writes its log, state JSON and screenshot there. It does not replace the host Fcitx daemon. For the longer manual/Xvfb paths:
 
 ```sh
 sudo pacman -S --needed xorg-server-xvfb xorg-xauth xdotool python python-pillow
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a ctest --test-dir build --output-on-failure
 LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
 LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
 ```

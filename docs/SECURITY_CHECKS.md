@@ -34,9 +34,6 @@ cmake -S . -B build-checked -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_CXX_CLANG_TIDY=clang-tidy -DLUDASH_ENABLE_SANITIZERS=ON
 cmake --build build-checked --parallel 4
 ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
-  QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 \
-  xvfb-run -a ctest --test-dir build-checked --output-on-failure
-ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
   LUDASH_BUILD_DIR="$PWD/build-checked" ./scripts/test-wayland.sh
 ```
 

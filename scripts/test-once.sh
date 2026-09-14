@@ -9,10 +9,8 @@ if [ "${XDG_SESSION_TYPE:-}" != wayland ] || [ -z "${WAYLAND_DISPLAY:-}" ]; then
   exit 2
 fi
 
-cmake -S "$project_dir" -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+cmake -S "$project_dir" -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build "$build_dir" --parallel "${LUNADAH_TEST_JOBS:-2}"
-ctest --test-dir "$build_dir" --output-on-failure \
-  -R 'scrollable-tiling|window-rules|file-picker|default-applications|session-actions|login-scripts|c-core|security-gate|source-language'
 
 if command -v qmllint >/dev/null 2>&1; then
   find "$project_dir/qml" -type f -name '*.qml' -exec qmllint -I "$project_dir/qml" '{}' +

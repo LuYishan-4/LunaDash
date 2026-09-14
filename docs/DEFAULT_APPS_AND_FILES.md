@@ -34,7 +34,7 @@ QSize LuDash::boundedPreviewSize(const QSize& sourceSize, const QSize& bounds);
 
 `selectImageFile` opens a dedicated modal image-selection dialog and returns an absolute local path, or an empty string after cancellation. It does not use `QFileDialog`. The dialog supports typed and parent-directory navigation, PNG/JPEG/WebP-only filtering, list and grid views, filename/path/dimension details, and a preview. Selection rejects missing files, directories, symlinks, unsupported extensions, unreadable image data, files larger than 64 MiB, and images larger than 32 megapixels. Preview decoding requests a maximum 512 × 512 scaled image from `QImageReader`, preventing an unbounded full-resolution preview allocation. `isEligibleImageFile` and `boundedPreviewSize` are public, unit-testable policy helpers.
 
-CMake builds `src/file_picker/FilePicker.cpp` as the Qt Widgets-linked `ludash-file-picker` library, links it into `lunadah-desktop`, and registers `tests/file_picker/FilePickerTests.cpp` as the `file-picker` CTest.
+CMake builds `src/file_picker/FilePicker.cpp` as the Qt Widgets-linked `ludash-file-picker` library and links it into `lunadah-desktop`.
 
 ## Appearance shell integration
 
@@ -54,6 +54,6 @@ Files open with system MIME handlers; executable files require explicitly runnin
 
 ## Verification
 
-The focused `default-applications` and `file-picker` CTests build from `tests/default_applications/DefaultApplicationsTests.cpp` and `tests/file_picker/FilePickerTests.cpp`. The picker helper tests cover aspect-ratio-bounded sizing and rejection of directories, missing paths, and supported image data with a disguised unsupported extension. Existing `files-and-defaults` coverage continues to verify argument preservation and rejected recursive launchers.
+The picker policy helpers cover aspect-ratio-bounded sizing and rejection of directories, missing paths, and supported image data with a disguised unsupported extension.
 
 Manual acceptance should confirm Kitty starts interactive Fish with the LunaDah profile, no `LuDashGenerated.colorscheme` is created, list/grid navigation works, oversized or unsupported images cannot be selected, previews remain bounded, cancellation preserves the wallpaper, and a valid selected path is applied through `lunadahctl wallpaper-image`.

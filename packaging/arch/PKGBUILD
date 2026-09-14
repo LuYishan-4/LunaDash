@@ -27,7 +27,7 @@ sha256sums=('SKIP') # Local generated source, not a downloaded release.
 
 build() {
   cmake -S "ludash-${pkgver}" -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=OFF
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
   cmake --build build
 }
 
