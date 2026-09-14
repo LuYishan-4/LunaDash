@@ -60,7 +60,7 @@ UpdateChecker::UpdateChecker(QObject *parent)
 
 QJsonObject UpdateChecker::snapshot() const {
   return {{"status", status_},
-          {"currentVersion", QStringLiteral(LUNADAH_VERSION)},
+          {"currentVersion", QStringLiteral(LUNADASH_VERSION)},
           {"latestVersion", latestVersion_},
           {"releaseUrl", releaseUrl_},
           {"repositoryUrl", QString::fromLatin1(kRepositoryUrl)},
@@ -79,7 +79,7 @@ void UpdateChecker::check() {
 
   QNetworkRequest request{QUrl(QString::fromLatin1(kReleaseApi))};
   request.setHeader(QNetworkRequest::UserAgentHeader,
-                    QStringLiteral("LunaDah/%1").arg(LUNADAH_VERSION));
+                    QStringLiteral("LunaDash/%1").arg(LUNADASH_VERSION));
   request.setRawHeader("Accept", "application/vnd.github+json");
   request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);
@@ -139,7 +139,7 @@ void UpdateChecker::finishReply() {
     finishWithError("GitHub returned unexpected release information.");
     return;
   }
-  status_ = isNewer(latestVersion_, QStringLiteral(LUNADAH_VERSION))
+  status_ = isNewer(latestVersion_, QStringLiteral(LUNADASH_VERSION))
                 ? "available"
                 : "upToDate";
   error_.clear();

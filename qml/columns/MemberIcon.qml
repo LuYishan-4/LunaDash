@@ -24,7 +24,7 @@ Item {
     DropArea {
         id: dropArea
         anchors.fill: parent
-        keys: ["application/x-lunadah-window"]
+        keys: ["application/x-lunadash-window"]
         property bool invalidSource: false
 
         function hasWindowSource(event) {
@@ -91,7 +91,7 @@ Item {
         scale: memberMouse.pressed ? 0.92 : 1
         Drag.active: memberMouse.drag.active
         Drag.source: memberIcon
-        Drag.keys: ["application/x-lunadah-window"]
+        Drag.keys: ["application/x-lunadash-window"]
         Drag.supportedActions: Qt.MoveAction
         Drag.hotSpot.x: width / 2
         Drag.hotSpot.y: height / 2

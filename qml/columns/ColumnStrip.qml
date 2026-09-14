@@ -35,7 +35,7 @@ ModuleSurface {
     implicitHeight: moduleHeight(48)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.namespace: "lunadah-columns"
+    WlrLayershell.namespace: "lunadash-columns"
     color: "transparent"
 
     Rectangle {

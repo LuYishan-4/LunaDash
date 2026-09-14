@@ -18,7 +18,7 @@ ModuleSurface {
         {id:"shortcuts", name:"Keyboard shortcuts"}, {id:"modules", name:"Shell modules"}, {id:"display", name:"Display"}, {id:"input", name:"Keyboard and pointer"}, {id:"sound", name:"Sound"},
         {id:"network", name:"Network"}, {id:"bluetooth", name:"Bluetooth"}, {id:"power", name:"Power and battery"},
         {id:"applications", name:"Applications and startup"}, {id:"privacy", name:"Privacy and accessibility"},
-        {id:"system", name:"Users, date and time"}, {id:"devices", name:"Printers and storage"}, {id:"about", name:"About LunaDah"}
+        {id:"system", name:"Users, date and time"}, {id:"devices", name:"Printers and storage"}, {id:"about", name:"About LunaDash"}
     ]
     SettingsCatalog { id: catalog }
     readonly property var searchResults: catalog.matches(search.text, shell.tr)
@@ -33,7 +33,7 @@ ModuleSurface {
     margins { top: Theme.barHeight + overlayMargin; bottom: overlayMargin; left: overlayMargin; right: overlayMargin }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "lunadah-settings"
+    WlrLayershell.namespace: "lunadash-settings"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: "transparent"
     Rectangle { anchors.fill: parent; color: moduleBackground; border.color: Theme.border; radius: moduleRadius }
@@ -41,7 +41,7 @@ ModuleSurface {
         anchors.fill: parent; anchors.margins: 24; spacing: 20
         RowLayout {
             SettingsComponents.PageTitle { shell: settings.shell; title: "Settings"; color: moduleForeground; font.pixelSize: 23; Layout.fillWidth: true }
-            Text { text: "LunaDah"; color: moduleAccent; font.pixelSize: 12 }
+            Text { text: "LunaDash"; color: moduleAccent; font.pixelSize: 12 }
             ShellButton { text: "×"; Accessible.name: shell.tr("Quick hide settings"); onClicked: shell.settingsOpen = false }
         }
         RowLayout {

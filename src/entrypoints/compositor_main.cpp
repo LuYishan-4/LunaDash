@@ -14,18 +14,18 @@ int main(int argc, char **argv) {
   }
   LuDash::configureGraphics(*graphics);
   QGuiApplication app(argc, argv);
-  app.setApplicationName("LunaDah");
-  app.setOrganizationName("LunaDah");
-  app.setDesktopFileName("lunadah-app");
+  app.setApplicationName("LunaDash");
+  app.setOrganizationName("LunaDash");
+  app.setDesktopFileName("lunadash-app");
   LuDash::initializeLocalization(app);
   QCommandLineParser parser;
   parser.setApplicationDescription(
-      "LunaDah native Wayland tiling compositor (OpenGL)");
+      "LunaDash native Wayland tiling compositor (OpenGL)");
   parser.addHelpOption();
   parser.addOption({"graphics",
                     "Graphics context: auto, opengl (3.3+), or gles (3.0+).",
                     "api", "auto"});
-  parser.addOption({"socket", "Wayland socket name.", "name", "lunadah-0"});
+  parser.addOption({"socket", "Wayland socket name.", "name", "lunadash-0"});
   parser.addOption({"fullscreen", "Use the entire host output."});
   parser.addOption({"no-shell", "Do not start the desktop shell."});
   parser.addOption({"demo", "Start two demonstration clients."});

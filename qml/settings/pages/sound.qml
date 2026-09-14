@@ -32,6 +32,6 @@ ColumnLayout {
             }
         }
     }
-    HelpText { shell: page.shell; message: (shell.state.audio || {}).error || "Volume changes affect the current system audio device. LunaDah limits gain to 100%." }
+    HelpText { shell: page.shell; message: (shell.state.audio || {}).error || "Volume changes affect the current system audio device. LunaDash limits gain to 100%." }
     ToolList { shell: page.shell; category: "sound" }
 }

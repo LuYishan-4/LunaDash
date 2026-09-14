@@ -12,7 +12,7 @@ ModuleSurface {
     implicitWidth: moduleWidth(520); implicitHeight: moduleHeight(270)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "lunadah-x11-launcher"
+    WlrLayershell.namespace: "lunadash-x11-launcher"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: "transparent"
     Rectangle { anchors.fill: parent; color: moduleBackground; radius: moduleRadius }

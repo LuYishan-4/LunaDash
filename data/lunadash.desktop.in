@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=LunaDah (Wayland)
+Name=LunaDash (Wayland)
 Comment=Scrollable Wayland desktop
-Exec=@CMAKE_INSTALL_FULL_BINDIR@/lunadah-session
-TryExec=@CMAKE_INSTALL_FULL_BINDIR@/lunadah-session
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/lunadash-session
+TryExec=@CMAKE_INSTALL_FULL_BINDIR@/lunadash-session
 Type=Application
-DesktopNames=LunaDah
+DesktopNames=LunaDash

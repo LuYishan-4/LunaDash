@@ -20,7 +20,7 @@ ModuleSurface {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-    WlrLayershell.namespace: "lunadah-launcher"
+    WlrLayershell.namespace: "lunadash-launcher"
     color: "transparent"
     contentItem.transformOrigin: Item.Top
     contentItem.scale: 0.92 + 0.08 * reveal

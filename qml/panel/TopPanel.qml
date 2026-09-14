@@ -19,7 +19,7 @@ ModuleSurface {
     implicitHeight: moduleHeight((shell.state.appearance || {}).panelHeight || 40)
     exclusiveZone: implicitHeight + moduleMargin * 2
     color: "transparent"
-    WlrLayershell.namespace: "lunadah-panel"
+    WlrLayershell.namespace: "lunadash-panel"
 
     property var stats: shell.state.system || ({})
     readonly property var groups: ((shell.state.tiling || {}).groups || [])

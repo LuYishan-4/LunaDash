@@ -28,6 +28,6 @@ jobs:
               run: |
                   test -f /usr/lib/x86_64-linux-gnu/libwayland-server.so.0
                   test -f /usr/lib/x86_64-linux-gnu/libwayland-client.so.0
-                  ldd build-wayland/lunadah-compositor | grep -E 'libQt6WaylandCompositor|libwayland-server'
+                  ldd build-wayland/lunadash-compositor | grep -E 'libQt6WaylandCompositor|libwayland-server'
             - name: Run Wayland session
               run: LUDASH_GRAPHICS=gles LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh

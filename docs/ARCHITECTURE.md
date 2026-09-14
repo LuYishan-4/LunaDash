@@ -2,7 +2,7 @@
 
 ```text
 Existing Wayland host / experimental EGLFS-KMS session
-  lunadah-compositor: C++20 Qt Wayland integration + C11 OpenGL / GLES core
+  lunadash-compositor: C++20 Qt Wayland integration + C11 OpenGL / GLES core
     xdg-shell: native windows and the XWayland compatibility container
     viewporter: client viewport scaling
     layer-shell v2 subset: Quickshell desktop surfaces
@@ -10,10 +10,10 @@ Existing Wayland host / experimental EGLFS-KMS session
     niri-inspired scrollable grouped columns, four workspaces, focus and window effects
     asynchronous NetworkManager status and saved desktop preferences
     user-only local JSON control socket
-      lunadahctl <-> Quickshell status and commands
-    quickshell --path qml/shell.qml (source) or /usr/share/lunadah/shell/shell.qml (installed)
+      lunadashctl <-> Quickshell status and commands
+    quickshell --path qml/shell.qml (source) or /usr/share/lunadash/shell/shell.qml (installed)
       setup / wallpaper / single panel with inline grouped cells / overview / launcher / fullscreen settings / wallpaper picker / session
-    lunadah-desktop --app <id>
+    lunadash-desktop --app <id>
       files / console / monitor / packages / plugins / settings
 ```
 
@@ -42,10 +42,10 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 | packages | Read-only queries and confirmed terminal-based pacman changes |
 | remaining app modules | Separate files, console, monitor and application tools |
 
-The shell controls LunaDah through allowlisted JSON methods. It instantiates one compact, niri-inspired `TopPanel`: workspace/session controls and inline grouped-application cells on the left, a centered three-part overview / accent launcher / settings selector with a Lambda (`Λ`) glyph, and StatusNotifier items plus clock/network/battery on the right. The former `ColumnStrip` is not instantiated as a second layer; `TopPanel` embeds `ColumnCell`/`MemberIcon` behavior inline. One cell represents each column and one icon represents each member. Exact-member focus, cross-column drag/drop grouping and right-click/minus expulsion route through compositor IPC. The launcher merges four built-ins with installed `DesktopEntries` into one metadata-ranked, token-searchable list. Settings uses a fullscreen QML overlay with quick hide and a top margin below `Theme.barHeight`. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LunaDah's control socket.
+The shell controls LunaDash through allowlisted JSON methods. It instantiates one compact, niri-inspired `TopPanel`: workspace/session controls and inline grouped-application cells on the left, a centered three-part overview / accent launcher / settings selector with a Lambda (`Λ`) glyph, and StatusNotifier items plus clock/network/battery on the right. The former `ColumnStrip` is not instantiated as a second layer; `TopPanel` embeds `ColumnCell`/`MemberIcon` behavior inline. One cell represents each column and one icon represents each member. Exact-member focus, cross-column drag/drop grouping and right-click/minus expulsion route through compositor IPC. The launcher merges four built-ins with installed `DesktopEntries` into one metadata-ranked, token-searchable list. Settings uses a fullscreen QML overlay with quick hide and a top margin below `Theme.barHeight`. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LunaDash's control socket.
 
 The current compositor uses one output. `ShellModules::panelExtent()` reports the active panel's total reserved extent, corresponding to `TopPanel`'s layer-shell exclusive area. `WaylandCompositor::workArea()` starts application geometry below that extent for a top panel (then applies the configured gap), so tiled, maximized and normally placed windows do not cover it. `SettingsPanel` independently starts below `Theme.barHeight`, keeping the overlay off the panel. This is not a general implementation of arbitrary exclusive zones. Layer-shell popups and some double-buffered state behavior remain incomplete. Multiple outputs, locking, portals, PipeWire capture, an audio service, a polkit agent and a full input-method-v2 bridge are not implemented. StatusNotifier hosting is implemented through Quickshell with Fcitx/Discord/Docker icon fallbacks; this does not imply a notification daemon or complete input-method integration. The EGLFS/KMS launcher is experimental; evaluate nested sessions first.
 
 See [C core](C_CORE.md), [Effects](EFFECTS.md) and [X11 compatibility](XWAYLAND.md) for implementation boundaries.
 
-The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface. Wallpaper selection opens the in-shell picker inside the settings surface (`qml/imagepicker`); accepted local paths are returned through `lunadahctl wallpaper-image`, while cancellation leaves the wallpaper unchanged.
+The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface. Wallpaper selection opens the in-shell picker inside the settings surface (`qml/imagepicker`); accepted local paths are returned through `lunadashctl wallpaper-image`, while cancellation leaves the wallpaper unchanged.

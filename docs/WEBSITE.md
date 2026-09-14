@@ -12,7 +12,7 @@ python3 tests/site/test_site.py site/dist
 npm run preview --prefix site -- --host 127.0.0.1
 ```
 
-The default port is 4321; open `http://localhost:4321/LuDash/` while the local server is running. For the configured project base, use `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LuDash/` URL. Check desktop and mobile widths, keyboard focus, accent buttons, gap slider, copy feedback and documentation links. The hero image is a real LunaDah screenshot captured with user/hostname display disabled.
+The default port is 4321; open `http://localhost:4321/LuDash/` while the local server is running. For the configured project base, use `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LuDash/` URL. Check desktop and mobile widths, keyboard focus, accent buttons, gap slider, copy feedback and documentation links. The hero image is a real LunaDash screenshot captured with user/hostname display disabled.
 
 ## Publishing
 
@@ -24,7 +24,7 @@ After changing site files, run the local validation commands below and inspect t
 
 When deployment automation is restored:
 
-1. Open the LunaDah repository on GitHub, then **Settings → Pages → Build and deployment**.
+1. Open the LunaDash repository on GitHub, then **Settings → Pages → Build and deployment**.
 2. Set **Source** to **GitHub Actions** and add a dedicated, reviewed deployment workflow.
 3. Push the website and deployment workflow to `main`.
 4. Wait for validation and deployment to succeed. Open the deployment URL shown by the configured environment.

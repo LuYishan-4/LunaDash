@@ -1,8 +1,8 @@
 # Testing and file reference
 
-This guide explains how to test LunaDah, interpret failures and find the purpose of every maintained project file. Run commands from the repository root unless stated otherwise. Complete intended code, packaging and documentation edits before building.
+This guide explains how to test LunaDash, interpret failures and find the purpose of every maintained project file. Run commands from the repository root unless stated otherwise. Complete intended code, packaging and documentation edits before building.
 
-LunaDah 0.1 is a development preview, not a production-ready KDE replacement. Test it inside an existing desktop first. The compositor uses C++20, C11 cores and native Wayland; the shell uses Quickshell. Graphics require OpenGL 3.3 compatibility or OpenGL ES 3.0+.
+LunaDash 0.1 is a development preview, not a production-ready KDE replacement. Test it inside an existing desktop first. The compositor uses C++20, C11 cores and native Wayland; the shell uses Quickshell. Graphics require OpenGL 3.3 compatibility or OpenGL ES 3.0+.
 
 ## 1. Dependencies
 
@@ -25,7 +25,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel 4
 ```
 
-CMake target names remain `ludash-compositor`, `ludash-desktop`, and `ludashctl`, while their canonical output executables are `lunadah-compositor`, `lunadah-desktop`, and `lunadahctl`. Legacy `ludash-*` output names are compatibility symlinks. Outputs also include the disabled-by-default fade plugin. Source QML is used automatically when an installed shell is not found. An older installation under your data search path can take precedence; remove or update that installation when validating source changes.
+CMake target names remain `ludash-compositor`, `ludash-desktop`, and `ludashctl`, while their canonical output executables are `lunadash-compositor`, `lunadash-desktop`, and `lunadashctl`. Legacy `ludash-*` output names are compatibility symlinks. Outputs also include the disabled-by-default fade plugin. Source QML is used automatically when an installed shell is not found. An older installation under your data search path can take precedence; remove or update that installation when validating source changes.
 
 Use the existing generator when reusing a build directory: omit `-G Ninja` if it was configured with Unix Makefiles.
 
@@ -41,15 +41,15 @@ From an existing Wayland desktop, the one-shot path is:
 ./scripts/test-once.sh
 ```
 
-It configures and builds `build-once`, lints every QML file when `qmllint` is available, and then invokes the host-Wayland rendering test with Fcitx replacement disabled. Evidence is written to `build-once/host-wayland.log`, `build-once/host-wayland-state.json`, and `build-once/host-wayland-preview.png`. Use `LUDASH_GRAPHICS=opengl ./scripts/test-once.sh` to select desktop OpenGL or `LUNADAH_TEST_BUILD_DIR=/absolute/path ./scripts/test-once.sh` to choose another build directory.
+It configures and builds `build-once`, lints every QML file when `qmllint` is available, and then invokes the host-Wayland rendering test with Fcitx replacement disabled. Evidence is written to `build-once/host-wayland.log`, `build-once/host-wayland-state.json`, and `build-once/host-wayland-preview.png`. Use `LUDASH_GRAPHICS=opengl ./scripts/test-once.sh` to select desktop OpenGL or `LUNADASH_TEST_BUILD_DIR=/absolute/path ./scripts/test-once.sh` to choose another build directory.
 
 Individual session commands remain available:
 
 ```sh
-LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
-LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
-LUNADAH_DISABLE_FCITX=1 LUDASH_TEST_OVERVIEW=1 ./scripts/test-wayland.sh
-LUNADAH_DISABLE_FCITX=1 LUDASH_TEST_SETUP=1 ./scripts/test-wayland.sh
+LUNADASH_DISABLE_FCITX=1 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
+LUNADASH_DISABLE_FCITX=1 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
+LUNADASH_DISABLE_FCITX=1 LUDASH_TEST_OVERVIEW=1 ./scripts/test-wayland.sh
+LUNADASH_DISABLE_FCITX=1 LUDASH_TEST_SETUP=1 ./scripts/test-wayland.sh
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interactions.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_settings.py build
@@ -69,7 +69,7 @@ The interaction test clicks the live panel: the second workspace button, the lau
 
 The settings test opens all sixteen pages and exercises every option each page can change: the twenty desktop preferences, all thirty-eight shortcuts, language, workspaces, audio, power profiles, session actions, the system tool catalogue, default applications, wallpapers, shell modules, display presets and the preference reset. Each option is applied with an accepted value and several rejected ones, and a rejection must leave the stored value untouched. Before starting the compositor it also checks that the page list matches `qml/settings/pages` and that every control method the QML calls is implemented by the compositor. Audio, power and system-tool requests are validated but never executed against the host, and session actions are only tested with invalid values so a test run can never reboot the machine. The customization test needs Kitty and Fish for the default terminal and Pillow for its screenshot comparisons.
 
-`LUNADAH_DISABLE_FCITX=1` prevents the nested compositor from replacing or starting Fcitx while UI behavior is under test; omit it only for a deliberate IME/tray integration check. `LUDASH_TEST_NO_SHELL=1` tests native clients without Quickshell. `LUDASH_BUILD_DIR=/absolute/build-directory` selects another build. Demo/overview tests bypass first-run setup; `LUDASH_TEST_SETUP=1` explicitly enables it.
+`LUNADASH_DISABLE_FCITX=1` prevents the nested compositor from replacing or starting Fcitx while UI behavior is under test; omit it only for a deliberate IME/tray integration check. `LUDASH_TEST_NO_SHELL=1` tests native clients without Quickshell. `LUDASH_BUILD_DIR=/absolute/build-directory` selects another build. Demo/overview tests bypass first-run setup; `LUDASH_TEST_SETUP=1` explicitly enables it.
 
 | Evidence | Contents |
 | --- | --- |
@@ -87,7 +87,7 @@ Inside your existing Wayland desktop:
 
 ```sh
 env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE \
-  QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --socket ludash-test
+  QT_QPA_PLATFORM=wayland ./build/lunadash-compositor --socket ludash-test
 ```
 
 To get an isolated first-run configuration without changing your normal settings:
@@ -95,7 +95,7 @@ To get an isolated first-run configuration without changing your normal settings
 ```sh
 LUDASH_TEST_CONFIG=$(mktemp -d)
 XDG_CONFIG_HOME="$LUDASH_TEST_CONFIG" QT_QPA_PLATFORM=wayland \
-  ./build/lunadah-compositor --socket ludash-first-run
+  ./build/lunadash-compositor --socket ludash-first-run
 ```
 
 Retain the same configuration directory for a second launch to verify persistence. Remove the temporary directory after both sessions have exited.
@@ -103,19 +103,19 @@ Retain the same configuration directory for a second launch to verify persistenc
 1. Walk through language, network, appearance and completion. Verify offline continuation. Network status must distinguish a link from confirmed Internet connectivity. If desired, manually open the network editor and close it; automated tests do not connect Wi-Fi or alter profiles.
 2. Change accent, gaps, panel height, wallpaper and card visibility. Restart with the same configuration and check those choices remain. Reopen the guide from settings.
 3. Inspect the single compact top `TopPanel`. Verify workspace/session controls and inline grouped-app cells on the left, the centered three-part overview / accent launcher / settings selector with its Lambda (`Λ`) glyph, and the StatusNotifier tray plus clock/network/battery on the right. Confirm there is no separately mapped `ColumnStrip` layer. Click the Lambda and confirm the launcher reveals downward from panel center. Verify one list containing Settings, Files, Terminal, Monitor and installed desktop entries, each with icon, name and description. Try multi-token queries from names, descriptions, generic names and keywords; relevant metadata matches should rank first. Confirm there are no category tabs or separate open-window section.
-4. After a system/package install, confirm `/usr/share/icons/hicolor/512x512/apps/lunadah.png` exists and the installed `lunadah-app.desktop` contains `Icon=lunadah`. If the distribution's packaging hooks did not refresh the icon cache, run `gtk-update-icon-cache -f /usr/share/icons/hicolor`.
+4. After a system/package install, confirm `/usr/share/icons/hicolor/512x512/apps/lunadash.png` exists and the installed `lunadash-app.desktop` contains `Icon=lunadash`. If the distribution's packaging hooks did not refresh the icon cache, run `gtk-update-icon-cache -f /usr/share/icons/hicolor`.
 5. Open Settings through the center selector and confirm its overlay starts below the panel instead of covering it. Open Settings → Keyboard and pointer, change a keyboard layout and repeat settings, then use the test field to check input. No bundled Notes application is installed.
-6. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal. Open the default Terminal with Super + Return and confirm Kitty starts interactive Fish with the LunaDah profile. Kitty should initially occupy the full LunaDah compositor `workArea`; Super + F must restore its column size and maximize it again. Open a generic built-in window and confirm it is not initially forced maximized. Inspect `lunadahctl status` and verify mapped window y geometry starts below the top panel's reported `panelExtent`/exclusive area.
-7. Navigate into and out of a directory in Files. Open Files, Kitty, LunaDah Settings or an available host system-settings window, and Monitor, then inspect `lunadahctl status`: `clients[].icon` and `tiling.groups[].members[].icon` should resolve to appropriate values (`system-file-manager`, `kitty`, `preferences-system`, and `utilities-system-monitor` for the built-in cases). On disposable windows, verify the frame's top-right minus control minimizes and × requests close.
+6. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal. Open the default Terminal with Super + Return and confirm Kitty starts interactive Fish with the LunaDash profile. Kitty should initially occupy the full LunaDash compositor `workArea`; Super + F must restore its column size and maximize it again. Open a generic built-in window and confirm it is not initially forced maximized. Inspect `lunadashctl status` and verify mapped window y geometry starts below the top panel's reported `panelExtent`/exclusive area.
+7. Navigate into and out of a directory in Files. Open Files, Kitty, LunaDash Settings or an available host system-settings window, and Monitor, then inspect `lunadashctl status`: `clients[].icon` and `tiling.groups[].members[].icon` should resolve to appropriate values (`system-file-manager`, `kitty`, `preferences-system`, and `utilities-system-monitor` for the built-in cases). On disposable windows, verify the frame's top-right minus control minimizes and × requests close.
 8. Open at least five non-floating windows and use Super + F as needed to leave Kitty windows unmaximized. Confirm the theme-accented grouped-application cells are embedded inline in the left side of `TopPanel`, with one cell per tiled column and one app icon per member. Use Super + Shift + H/L to group the focused member into the adjacent column. Build a four-member column, minimize one member, and confirm a fifth member still cannot be added: the limit is four total, not four visible. Verify the remaining visible members always receive equal vertical space.
 9. In the panel's inline grouped cells, click each exact icon and confirm that member is focused, restored if minimized and scrolled/revealed. Drag one member icon onto a member in another column and confirm it moves into the target column. Right-click a grouped icon, then separately use its minus badge, and confirm each expels that exact member into its own adjacent column. Check Super + J/K within a group, Super + H/L between columns, Super + Shift + E to expel, Super + Ctrl + H/L to reorder, Super plus +/− to resize, and Super + C to center.
 10. Use the left panel controls to switch workspaces. Test Super + Shift + 2 to move a window and Super + M to minimize it. The launcher is application-only and has no open-window restore section.
 11. Open Appearance and choose a local wallpaper. Confirm the in-shell picker appears inside the settings surface instead of a separate window or `QFileDialog`; test Home/Pictures/up navigation, list/grid switching, PNG/JPEG/WebP filtering and a large image whose preview remains bounded without distortion. Oversized, unsupported or unreadable images must not become selectable. Cancel and confirm the wallpaper is unchanged, then select a valid image and confirm it is applied through the normal wallpaper path. In Applications and startup, select a different installed application for both the default terminal and file manager, then confirm the reported command and that Open uses it; switch back to Custom command… and enter `["kitty", "fish"]` to confirm the argument-array path still works.
 12. Adjust blur, window opacity and animation duration in settings. Disable animations and rapidly switch workspaces or close windows. Launch an X11-only app through the compatibility dialog when XWayland is available. Test both shader palettes and return to the bundled image.
 13. Start Fcitx for a deliberate integration check and verify its tray icon uses the fallback correctly; if available, similarly inspect Discord and Docker. Test preedit, candidates and commit following [Input methods](INPUT_METHODS.md). The Fcitx tray icon is fixed, but candidate popup behavior still depends on the incomplete input-method bridge; protocol registration and a visible tray icon are not end-to-end IME verification.
-14. Reopen native apps after a language change. Open the left session menu, verify unavailable logind actions are disabled, cancel logout/reboot/poweroff confirmation, and only then test a safe action in a disposable session. Logout is handled by LunaDah; suspend, reboot and poweroff call logind over D-Bus and never execute shell commands. Close all windows, then finish the session. Native plugins stay disabled unless you explicitly trust and enable one. Pacman operations require deliberate terminal confirmation and are not executed by tests.
+14. Reopen native apps after a language change. Open the left session menu, verify unavailable logind actions are disabled, cancel logout/reboot/poweroff confirmation, and only then test a safe action in a disposable session. Logout is handled by LunaDash; suspend, reboot and poweroff call logind over D-Bus and never execute shell commands. Close all windows, then finish the session. Native plugins stay disabled unless you explicitly trust and enable one. Pacman operations require deliberate terminal confirmation and are not executed by tests.
 
-The host desktop may intercept Super combinations. Use shell buttons or adjust host shortcuts before concluding input is broken. An X11 host can run the nested compositor through `QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl`; LunaDah's clients still use Wayland, not an X11 window manager.
+The host desktop may intercept Super combinations. Use shell buttons or adjust host shortcuts before concluding input is broken. An X11 host can run the nested compositor through `QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl`; LunaDash's clients still use Wayland, not an X11 window manager.
 
 ## 6. Static analysis and sanitizers
 
@@ -230,7 +230,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [AGENTS.md](../AGENTS.md) | Repository implementation and collaboration rules. |
 | [CMakeLists.txt](../CMakeLists.txt) | Explicit targets, dependencies, resources and installation. |
 | [LICENSE](../LICENSE) | GPL-3.0-only license text. |
-| [README.md](../README.md) | Project introduction, dependencies, quick start and limitations. |
+| [README.md](../README.md) | Project introduction with the README banner and icon, highlights, dependencies, quick start and limitations. |
 
 ### C and C++ headers
 
@@ -277,7 +277,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/renderer/WallpaperRenderer.h](../include/LuDash/renderer/WallpaperRenderer.h) | Declare interfaces/types to compile GLSL and draw with the current render-thread context. |
 | [include/LuDash/shell_modules/ModuleSchema.h](../include/LuDash/shell_modules/ModuleSchema.h) | Declare interfaces to validate and normalize versioned shell module metadata. |
 | [include/LuDash/session_actions/SessionActions.h](../include/LuDash/session_actions/SessionActions.h) | Declare interfaces to query logind availability and request session power actions over D-Bus. |
-| [include/LuDash/session_environment/SessionEnvironment.h](../include/LuDash/session_environment/SessionEnvironment.h) | Declare interfaces to publish the LunaDah client environment to D-Bus activation and the systemd user manager. |
+| [include/LuDash/session_environment/SessionEnvironment.h](../include/LuDash/session_environment/SessionEnvironment.h) | Declare interfaces to publish the LunaDash client environment to D-Bus activation and the systemd user manager. |
 | [include/LuDash/shell_modules/ShellModules.h](../include/LuDash/shell_modules/ShellModules.h) | Declare interfaces to persist module configuration, enforce trust and watch custom entrypoints. |
 | [include/LuDash/system_metrics/SystemMetrics.h](../include/LuDash/system_metrics/SystemMetrics.h) | Declare interfaces/types to parse bounded CPU and memory counters with overflow validation. |
 | [include/LuDash/system_monitor/SystemMonitor.h](../include/LuDash/system_monitor/SystemMonitor.h) | Declare interfaces/types to show native process/system monitoring. |
@@ -350,7 +350,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/wallpaper/WallpaperSettings.cpp](../src/wallpaper/WallpaperSettings.cpp) | Implement behavior to validate local image paths and select image/shader wallpaper. |
 | [src/welcome/Welcome.cpp](../src/welcome/Welcome.cpp) | Implement behavior to provide the optional native welcome/demo application. |
 | [src/window_frame/WindowFrame.cpp](../src/window_frame/WindowFrame.cpp) | Implement focused borders, title painting and top-right quick minimize/close controls. |
-| [src/window_rules/WindowRules.cpp](../src/window_rules/WindowRules.cpp) | Implement initial Kitty/LunaDah Terminal maximization and resolved icon names while leaving generic windows unforced. |
+| [src/window_rules/WindowRules.cpp](../src/window_rules/WindowRules.cpp) | Implement initial Kitty/LunaDash Terminal maximization and resolved icon names while leaving generic windows unforced. |
 | [src/xwayland/XWaylandSupport.cpp](../src/xwayland/XWaylandSupport.cpp) | Implement behavior to manage the optional authenticated XWayland compatibility container. |
 
 ### Quickshell UI
@@ -364,7 +364,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [qml/components/AnimatedPanel.qml](../qml/components/AnimatedPanel.qml) | Shared animated layer-panel opening and closing. |
 | [qml/components/BrandIcon.qml](../qml/components/BrandIcon.qml) | Display the generated cropped brand asset where an image logo is needed; the top-panel launcher itself uses the Lambda glyph. |
 | [qml/components/LineIcon.qml](../qml/components/LineIcon.qml) | Outline icons shared by settings categories, the launcher and search; each path is rasterized through QtSvg because Qt Quick Shapes leaves stale pixels when it moves on the software shell backend. |
-| [qml/components/LunaDahLogo.qml](../qml/components/LunaDahLogo.qml) | Animated reusable LunaDah logo used by startup UI, rasterized through QtSvg; reveals with opacity only on the software shell backend. |
+| [qml/components/LunaDashLogo.qml](../qml/components/LunaDashLogo.qml) | Animated reusable LunaDash logo used by startup UI, rasterized through QtSvg; reveals with opacity only on the software shell backend. |
 | [qml/components/Segment.qml](../qml/components/Segment.qml) | Rounded animated top-panel button with keyboard access. |
 | [qml/components/ShellButton.qml](../qml/components/ShellButton.qml) | Reusable shell button with keyboard and accessibility labels. |
 | [qml/components/SoftSlider.qml](../qml/components/SoftSlider.qml) | Rounded accent slider with consistent interaction geometry. |
@@ -420,9 +420,9 @@ Generated build output, dependency caches, source archives and Git internals are
 | File | Purpose |
 | --- | --- |
 | [data/assets/icon.png](../data/assets/icon.png) | Original uncropped brand source retained with the packaged shell assets. |
-| [data/assets/lunadah.png](../data/assets/lunadah.png) | Generated cropped 512×512 shell/application icon, also installed as `/usr/share/icons/hicolor/512x512/apps/lunadah.png`. |
-| [data/lunadah.desktop.in](../data/lunadah.desktop.in) | Canonical LunaDah Wayland login-session descriptor template. |
-| [data/lunadah-app.desktop.in](../data/lunadah-app.desktop.in) | Hidden normal-application desktop entry using ID `lunadah-app.desktop` and `Icon=lunadah`. |
+| [data/assets/lunadash.png](../data/assets/lunadash.png) | Generated cropped 512×512 shell/application icon, also installed as `/usr/share/icons/hicolor/512x512/apps/lunadash.png`. |
+| [data/lunadash.desktop.in](../data/lunadash.desktop.in) | Canonical LunaDash Wayland login-session descriptor template. |
+| [data/lunadash-app.desktop.in](../data/lunadash-app.desktop.in) | Hidden normal-application desktop entry using ID `lunadash-app.desktop` and `Icon=lunadash`. |
 | [data/ludash.desktop.in](../data/ludash.desktop.in) | Legacy compatibility login-session descriptor template. |
 | [data/modules/templates/overview/Main.qml](../data/modules/templates/overview/Main.qml) | Original custom dashboard template displaying actual session statistics. |
 | [data/modules/templates/panel/Main.qml](../data/modules/templates/panel/Main.qml) | Original custom taskbar template with workspace and settings controls. |
@@ -438,14 +438,14 @@ Generated build output, dependency caches, source archives and Git internals are
 | [data/wallpapers/README.md](../data/wallpapers/README.md) | Bundled wallpaper provenance and usage notes. |
 | [data/wallpapers/florist.png](../data/wallpapers/florist.png) | Original generated florist wallpaper without baked-in UI. |
 | [packaging/arch/PKGBUILD](../packaging/arch/PKGBUILD) | Arch dependencies and local source build/package instructions. |
-| [protocols/wlr-layer-shell-unstable-v1.xml](../protocols/wlr-layer-shell-unstable-v1.xml) | Upstream layer-shell wire definition; LunaDah implements a negotiated v2 subset. |
+| [protocols/wlr-layer-shell-unstable-v1.xml](../protocols/wlr-layer-shell-unstable-v1.xml) | Upstream layer-shell wire definition; LunaDash implements a negotiated v2 subset. |
 
 ### Scripts and tests
 
 | File | Purpose |
 | --- | --- |
 | [scripts/install-session.sh](../scripts/install-session.sh) | Build and install the Arch package; optionally enable SDDM and explicit boot auto-login. |
-| [scripts/lunadah-session](../scripts/lunadah-session) | Canonical extensionless installed session entry; delegates to the implementation helper. |
+| [scripts/lunadash-session](../scripts/lunadash-session) | Canonical extensionless installed session entry; delegates to the implementation helper. |
 | [scripts/ludash-session](../scripts/ludash-session) | Legacy-named session implementation retained for compatibility. |
 | [scripts/make-source.sh](../scripts/make-source.sh) | Create the local Arch source archive without build/Python caches. |
 | [scripts/security/check_sarif.py](../scripts/security/check_sarif.py) | Fail closed on missing SARIF or security/quality findings. |
@@ -475,7 +475,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [site/package-lock.json](../site/package-lock.json) | Reproducible npm dependency resolution and integrity metadata. |
 | [site/package.json](../site/package.json) | Pinned Astro, checker and TypeScript dependencies and check/build scripts. |
 | [site/public/assets/desktop.png](../site/public/assets/desktop.png) | Actual desktop screenshot, captured with identity display off. |
-| [site/public/assets/mark.svg](../site/public/assets/mark.svg) | Local LunaDah diamond mark and favicon. |
+| [site/public/assets/mark.svg](../site/public/assets/mark.svg) | Local LunaDash diamond mark and favicon. |
 | [site/src/app.ts](../site/src/app.ts) | Strict TypeScript for validated accent/gap controls and clipboard feedback. |
 | [site/src/components/CodeBlock.astro](../site/src/components/CodeBlock.astro) | Escaped code examples with clipboard feedback. |
 | [site/src/data/api.ts](../site/src/data/api.ts) | Typed local IPC method reference and argument contracts. |
@@ -511,6 +511,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | --- | --- |
 | [docs/APPEARANCE.md](../docs/APPEARANCE.md) | Shell visual design and wallpaper/appearance behavior. |
 | [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | Process, module and protocol boundaries and missing features. |
+| [docs/brand/banner.svg](../docs/brand/banner.svg) | README banner: the app mark beside the wordmark, centred on the shell palette. |
+| [docs/brand/icon.svg](../docs/brand/icon.svg) | Repository icon built from the same crescent, orbit and star paths as `qml/components/LunaDashLogo.qml`. |
 | [docs/CONFIGURATION.md](../docs/CONFIGURATION.md) | First-run flow, network boundaries, saved keys and IPC customization. |
 | [docs/C_CORE.md](../docs/C_CORE.md) | C11 module boundaries, ownership contracts and checks. |
 | [docs/DEFAULT_APPS_AND_FILES.md](../docs/DEFAULT_APPS_AND_FILES.md) | Default terminal and file-manager setup, Fish profile and Files features/limits. |

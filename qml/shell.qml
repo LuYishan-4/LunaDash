@@ -17,11 +17,11 @@ import "startup"
 ShellRoot {
     id: root
     property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0 })
-    readonly property string bin: Quickshell.env("LUNADAH_BIN_DIR") || Quickshell.env("LUDASH_BIN_DIR")
-    readonly property string controlExecutable: bin ? bin + "/lunadahctl" : "lunadahctl"
-    readonly property string desktopExecutable: bin ? bin + "/lunadah-desktop" : "lunadah-desktop"
-    readonly property string assetDirectory: Quickshell.env("LUNADAH_ASSET_DIR")
-    readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadah.png" : ""
+    readonly property string bin: Quickshell.env("LUNADASH_BIN_DIR") || Quickshell.env("LUDASH_BIN_DIR")
+    readonly property string controlExecutable: bin ? bin + "/lunadashctl" : "lunadashctl"
+    readonly property string desktopExecutable: bin ? bin + "/lunadash-desktop" : "lunadash-desktop"
+    readonly property string assetDirectory: Quickshell.env("LUNADASH_ASSET_DIR")
+    readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadash.png" : ""
     signal commandCompleted(string method, var result)
     property bool stopping: false
     property int lastSettingsSerial: 0
@@ -62,7 +62,7 @@ ShellRoot {
         if (state.setupComplete === false) { setupPaused = true; setupEditorMapped = false; setupWaitTicks = 0 }
     }
     property string errorMessage: ""
-    property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LunaDah"
+    property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LunaDash"
     function tr(source) { return (state.translations || {})[source] || source }
     function command(method, value) {
         action.queue.push([method, String(value ?? "")]); dispatch()

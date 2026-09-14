@@ -22,12 +22,12 @@ int main(int argc, char **argv) {
   QSurfaceFormat::setDefaultFormat(format);
   QApplication app(argc, argv);
   LuDash::WaylandClientShutdown shutdown(app);
-  app.setApplicationName("LunaDah");
-  app.setOrganizationName("LunaDah");
+  app.setApplicationName("LunaDash");
+  app.setOrganizationName("LunaDash");
   app.setApplicationVersion("0.1.0");
   LuDash::initializeLocalization(app);
   QCommandLineParser parser;
-  parser.setApplicationDescription("LunaDah — C++ / OpenGL Wayland desktop");
+  parser.setApplicationDescription("LunaDash — C++ / OpenGL Wayland desktop");
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addOption(
@@ -43,10 +43,10 @@ int main(int argc, char **argv) {
 
   if (parser.isSet("app")) {
     const auto requested = parser.value("app");
-    app.setDesktopFileName("lunadah-app");
+    app.setDesktopFileName("lunadash-app");
     if (requested == "settings")
       return QProcess::execute(QCoreApplication::applicationDirPath() +
-                                   "/lunadahctl",
+                                   "/lunadashctl",
                                {"open-settings"});
     if (requested == "terminal" ||
         (requested == "files" && !parser.isSet("builtin"))) {
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
       location->setText(QFileInfo(parser.value("path")).absoluteFilePath());
       QMetaObject::invokeMethod(location, "returnPressed");
     }
-    window.setWindowTitle("LunaDah · " + id);
+    window.setWindowTitle("LunaDash · " + id);
     window.resize(id == "files" ? 1040 : 760, id == "files" ? 680 : 520);
     window.show();
     if (parser.isSet("screenshot"))
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     return app.exec();
   }
   auto compositor =
-      QCoreApplication::applicationDirPath() + "/lunadah-compositor";
+      QCoreApplication::applicationDirPath() + "/lunadash-compositor";
   if (!QFileInfo::exists(compositor))
     compositor = QCoreApplication::applicationDirPath() + "/ludash-compositor";
   return QProcess::execute(compositor, {});

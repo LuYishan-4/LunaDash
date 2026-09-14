@@ -3,13 +3,13 @@ set -eu
 check_only=0
 if [ "${1:-}" = --check ]; then check_only=1; shift; fi
 session_bin=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
-if [ "$(id -u)" = 0 ]; then echo 'LunaDah must run as a normal login user, not root.' >&2; exit 1; fi
+if [ "$(id -u)" = 0 ]; then echo 'LunaDash must run as a normal login user, not root.' >&2; exit 1; fi
 for program in dbus-run-session quickshell konsole fish; do
     command -v "$program" >/dev/null || { echo "Missing session dependency: $program" >&2; exit 1; }
 done
-compositor="$session_bin/lunadah-compositor"
+compositor="$session_bin/lunadash-compositor"
 if [ ! -x "$compositor" ]; then compositor="$session_bin/ludash-compositor"; fi
-if [ ! -x "$compositor" ]; then echo 'Install LunaDah before using lunadah-session.' >&2; exit 1; fi
+if [ ! -x "$compositor" ]; then echo 'Install LunaDash before using lunadash-session.' >&2; exit 1; fi
 if [ -z "${XDG_RUNTIME_DIR:-}" ] || [ ! -d "$XDG_RUNTIME_DIR" ] || [ ! -O "$XDG_RUNTIME_DIR" ]; then
     echo 'A user-owned XDG_RUNTIME_DIR from a PAM/logind login is required.' >&2; exit 1
 fi
@@ -19,17 +19,17 @@ if [ "$check_only" = 1 ]; then
 fi
 case "${LUDASH_GRAPHICS:-gles}" in auto|opengl|gles) ;; *) echo 'LUDASH_GRAPHICS must be auto, opengl or gles.' >&2; exit 2 ;; esac
 umask 077
-state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/lunadah
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/lunadash
 mkdir -p -- "$state_dir"
 session_log=$(mktemp "$state_dir/session-XXXXXXXX.log")
-echo "LunaDah session log: $session_log"
+echo "LunaDash session log: $session_log"
 exec >>"$session_log" 2>&1
 unset DISPLAY WAYLAND_DISPLAY QT_QUICK_BACKEND LIBGL_ALWAYS_SOFTWARE MESA_GL_VERSION_OVERRIDE MESA_GLSL_VERSION_OVERRIDE
 eglfs_integration=${QT_QPA_EGLFS_INTEGRATION:-eglfs_kms}
 unset QT_QPA_PLATFORM QT_QPA_EGLFS_INTEGRATION
 export XDG_SESSION_TYPE=wayland
-export XDG_CURRENT_DESKTOP=LunaDah
-export XDG_SESSION_DESKTOP=LunaDah
+export XDG_CURRENT_DESKTOP=LunaDash
+export XDG_SESSION_DESKTOP=LunaDash
 export XMODIFIERS=@im=fcitx
 export QT_IM_MODULE=fcitx
 export QT_IM_MODULES='wayland;fcitx;ibus'

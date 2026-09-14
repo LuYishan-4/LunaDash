@@ -12,7 +12,7 @@ ModuleSurface {
     anchors { top: true; right: true; bottom: true; left: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "lunadah-startup"
+    WlrLayershell.namespace: "lunadash-startup"
     implicitWidth: moduleWidth(screen ? screen.width : 1440)
     implicitHeight: moduleHeight(screen ? screen.height : 900)
     color: "#f5101418"
@@ -33,10 +33,10 @@ ModuleSurface {
         anchors.centerIn: parent
         width: 260; height: 210
         opacity: 0; scale: 0.92
-        LunaDahLogo { id: mark; anchors.horizontalCenter: parent.horizontalCenter; width: 132; height: 132; animated: overlay.motionEnabled }
+        LunaDashLogo { id: mark; anchors.horizontalCenter: parent.horizontalCenter; width: 132; height: 132; animated: overlay.motionEnabled }
         Text {
             anchors.top: mark.bottom; anchors.topMargin: 16; anchors.horizontalCenter: parent.horizontalCenter
-            text: "LunaDah"; color: Theme.text; font.family: Theme.font; font.pixelSize: 25; font.letterSpacing: 3
+            text: "LunaDash"; color: Theme.text; font.family: Theme.font; font.pixelSize: 25; font.letterSpacing: 3
         }
     }
     ParallelAnimation {

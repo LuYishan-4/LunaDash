@@ -8,7 +8,7 @@ The compositor registers text-input v2 and Qt's input-method protocol. Text-inpu
 
 Qt's preferred input-method extension is announced before the text-input fallbacks. Qt 6.4 clients can otherwise replace a newly bound v2 object during registry discovery while its initial events are queued, causing a startup crash in `zwp_text_input_v2::handle_modifiers_map`. The Ubuntu Wayland session test covers native client startup and clean shutdown with both managers advertised. The preference and replacement logic is in [Qt 6.4's client registry handler](https://github.com/qt/qtwayland/blob/v6.4.2/src/client/qwaylanddisplay.cpp).
 
-Fcitx5 remains optional; LunaDah does not require it as a session dependency. When Fcitx exports a StatusNotifier item, the right side of the single top panel renders it through Quickshell `SystemTray`. The tray draws a supplied icon with a bounded decode size, and when that icon is missing or unusable it draws LunaDah's own vector glyph for the identity (keyboard/input, Discord, Docker and similar) instead of a theme lookup or a letter. The Fcitx tray icon is fixed, but candidate popup behavior still depends on the incomplete compositor input-method-v2 bridge. Optional Arch packages:
+Fcitx5 remains optional; LunaDash does not require it as a session dependency. When Fcitx exports a StatusNotifier item, the right side of the single top panel renders it through Quickshell `SystemTray`. The tray draws a supplied icon with a bounded decode size, and when that icon is missing or unusable it draws LunaDash's own vector glyph for the identity (keyboard/input, Discord, Docker and similar) instead of a theme lookup or a letter. The Fcitx tray icon is fixed, but candidate popup behavior still depends on the incomplete compositor input-method-v2 bridge. Optional Arch packages:
 
 ```sh
 sudo pacman -S --needed fcitx5 fcitx5-qt fcitx5-configtool fcitx5-chinese-addons
@@ -17,13 +17,13 @@ sudo pacman -S --needed fcitx5 fcitx5-qt fcitx5-configtool fcitx5-chinese-addons
 First verify Fcitx5 in the host desktop. Then evaluate:
 
 ```sh
-QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/lunadah-compositor --socket lunadah-ime
+QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/lunadash-compositor --socket lunadash-ime
 ```
 
-Until LunaDah has a complete compositor-side input-method-v2 bridge, the session selects the Fcitx client modules with `QT_IM_MODULE=fcitx`, `GTK_IM_MODULE=fcitx`, and `SDL_IM_MODULE=fcitx`. Qt 6.7 and newer also receive `QT_IM_MODULES=wayland;fcitx;ibus`, while `XMODIFIERS=@im=fcitx` supports XWayland clients. When installed, `fcitx5` is started after the LunaDah Wayland socket and D-Bus activation environment are ready; it remains an optional dependency. To separately evaluate the direct Qt Fcitx module:
+Until LunaDash has a complete compositor-side input-method-v2 bridge, the session selects the Fcitx client modules with `QT_IM_MODULE=fcitx`, `GTK_IM_MODULE=fcitx`, and `SDL_IM_MODULE=fcitx`. Qt 6.7 and newer also receive `QT_IM_MODULES=wayland;fcitx;ibus`, while `XMODIFIERS=@im=fcitx` supports XWayland clients. When installed, `fcitx5` is started after the LunaDash Wayland socket and D-Bus activation environment are ready; it remains an optional dependency. To separately evaluate the direct Qt Fcitx module:
 
 ```sh
-WAYLAND_DISPLAY=lunadah-ime QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/lunadah-desktop --app console
+WAYLAND_DISPLAY=lunadash-ime QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/lunadash-desktop --app console
 ```
 
 In the console input field (without running the entered text), test switching methods, preedit, candidate selection, commit, deletion, cursor movement, focus changes and candidate-window positioning. The direct-module route does not prove compositor bridge support.

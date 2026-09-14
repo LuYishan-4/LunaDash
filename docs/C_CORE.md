@@ -1,6 +1,6 @@
 # C core and C++ integration
 
-LunaDah uses C11 for independent low-level work and C++20 for Qt/Wayland object integration. The shell is Quickshell/QML; the website source is Astro and TypeScript.
+LunaDash uses C11 for independent low-level work and C++20 for Qt/Wayland object integration. The shell is Quickshell/QML; the website source is Astro and TypeScript.
 
 | C module | Responsibility | C++ adapter |
 | --- | --- | --- |

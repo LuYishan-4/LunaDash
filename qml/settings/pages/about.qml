@@ -13,14 +13,14 @@ ColumnLayout {
     readonly property var update: shell.state.update || ({status:"idle", currentVersion:"0.1.0"})
     spacing: 16
 
-    PageTitle { shell: page.shell; title: "About LunaDah" }
+    PageTitle { shell: page.shell; title: "About LunaDash" }
 
     SettingsComponents.SettingsCard {
         title: ""
         RowLayout {
             Layout.fillWidth: true
             spacing: 22
-            LunaDahLogo {
+            LunaDashLogo {
                 Layout.preferredWidth: 126
                 Layout.preferredHeight: 126
                 animated: Theme.animations
@@ -28,7 +28,7 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                Text { text: "LunaDah " + (page.update.currentVersion || "0.1.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.bold: true }
+                Text { text: "LunaDash " + (page.update.currentVersion || "0.1.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.bold: true }
                 Text { text: shell.tr("A moonlit, focused Linux desktop."); color: Theme.muted; font.family: Theme.font; font.pixelSize: 13 }
                 Rectangle {
                     implicitWidth: previewLabel.implicitWidth + 18
@@ -77,7 +77,7 @@ ColumnLayout {
                     color: Theme.text
                     text: page.update.status === "checking" ? shell.tr("Checking for updates…")
                         : page.update.status === "available" ? shell.tr("A new upstream release is available: ") + page.update.latestVersion
-                        : page.update.status === "upToDate" ? shell.tr("LunaDah is up to date with the latest upstream release.")
+                        : page.update.status === "upToDate" ? shell.tr("LunaDash is up to date with the latest upstream release.")
                         : page.update.status === "error" ? shell.tr(page.update.error || "The update check failed.")
                         : shell.tr("No update check has been run yet.")
                     wrapMode: Text.WordWrap

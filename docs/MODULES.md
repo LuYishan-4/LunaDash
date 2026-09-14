@@ -1,6 +1,6 @@
 # Shell modules
 
-LunaDah's Quickshell shell has nine independently replaceable blocks: `panel`, `wallpaper`, `launcher`, `overview`, `settings`, `setup`, `session`, `feedback`, and `compatibility`. Settings > Shell modules contains a JSON editor, validation, template creation, explicit custom-code trust, and recovery controls. Each block keeps its built-in behavior unless you replace it. Settings, setup, and feedback cannot be disabled, but trusted code can replace their content.
+LunaDash's Quickshell shell has nine independently replaceable blocks: `panel`, `wallpaper`, `launcher`, `overview`, `settings`, `setup`, `session`, `feedback`, and `compatibility`. Settings > Shell modules contains a JSON editor, validation, template creation, explicit custom-code trust, and recovery controls. Each block keeps its built-in behavior unless you replace it. Settings, setup, and feedback cannot be disabled, but trusted code can replace their content.
 
 ## JSON styles
 
@@ -29,7 +29,7 @@ The active file is `$XDG_CONFIG_HOME/LuDash/shell-modules.json` (normally `~/.co
 }
 ```
 
-Omitted modules and fields receive defaults; saving a partial document resets omitted settings to those defaults. `0` width/height uses the built-in size. Width is 320–3840 logical pixels (settings minimum 800); panel height is 24–96; settings/setup height is 480–2160; other explicit heights are 80–2160. All dimensions clamp to the screen. Margin and radius accept 0–64, font size 10–28. Colors accept `inherit`, `#RRGGBB`, or Qt's `#AARRGGBB` notation. Only panel supports bottom anchoring. Its height and margins form the reported `panelExtent` and layer-shell exclusive area; the compositor's `workArea` excludes that extent so windows do not cover the panel. For a top panel, settings also begins below `Theme.barHeight`. Disabling panel releases the reserved window space; use Super+D or `lunadahctl open-settings modules` to recover.
+Omitted modules and fields receive defaults; saving a partial document resets omitted settings to those defaults. `0` width/height uses the built-in size. Width is 320–3840 logical pixels (settings minimum 800); panel height is 24–96; settings/setup height is 480–2160; other explicit heights are 80–2160. All dimensions clamp to the screen. Margin and radius accept 0–64, font size 10–28. Colors accept `inherit`, `#RRGGBB`, or Qt's `#AARRGGBB` notation. Only panel supports bottom anchoring. Its height and margins form the reported `panelExtent` and layer-shell exclusive area; the compositor's `workArea` excludes that extent so windows do not cover the panel. For a top panel, settings also begins below `Theme.barHeight`. Disabling panel releases the reserved window space; use Super+D or `lunadashctl open-settings modules` to recover.
 
 The background/foreground/accent style applies to a built-in block's main surface and direct text; internal shared controls retain the global theme. Font size applies to panel segments and is provided to custom components; individual built-in headings retain their typographic hierarchy. Wallpaper keeps its image; its background color is visible behind a transparent/missing image. Rounded image clipping and independent styles for every nested button are not implemented. Small custom dimensions can reduce usable content space.
 
@@ -73,10 +73,10 @@ Contract version 1:
 With `LUDASH_CONTROL` pointing at this session's owner-only control socket:
 
 ```sh
-lunadahctl open-settings modules
-lunadahctl module-validate "$(cat ~/.config/LunaDah/shell-modules.json)"
-lunadahctl module-code-trust false
-lunadahctl module-reset
+lunadashctl open-settings modules
+lunadashctl module-validate "$(cat ~/.config/LunaDash/shell-modules.json)"
+lunadashctl module-code-trust false
+lunadashctl module-reset
 ```
 
-`module-save` accepts the same JSON string as validate. `module-template panel` creates a starter file; `module-template overview` creates the other. `module-reset` restores built-ins and disables custom code, preserving user QML files. IPC remains available if custom shell content is broken, provided the compositor is running. If the shell is hung, disable custom code through IPC and restart the LunaDah session. Offline, remove `modules/allowCustomCode=true` from LunaDah's settings file and rename the module JSON before restarting. Module JSON and native plugin settings are independent.
+`module-save` accepts the same JSON string as validate. `module-template panel` creates a starter file; `module-template overview` creates the other. `module-reset` restores built-ins and disables custom code, preserving user QML files. IPC remains available if custom shell content is broken, provided the compositor is running. If the shell is hung, disable custom code through IPC and restart the LunaDash session. Offline, remove `modules/allowCustomCode=true` from LunaDash's settings file and rename the module JSON before restarting. Module JSON and native plugin settings are independent.

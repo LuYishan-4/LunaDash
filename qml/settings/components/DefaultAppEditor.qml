@@ -23,7 +23,7 @@ ColumnLayout {
     // Built once: the desktop-entry scan is asynchronous, and rebuilding the
     // model on every state poll would reset the selector to its first entry.
     function buildChoices() {
-        const list = [{ label: editor.shell.tr("LunaDah default"), command: [], custom: false }]
+        const list = [{ label: editor.shell.tr("LunaDash default"), command: [], custom: false }]
         const seen = {}
         for (const entry of DesktopEntries.applications.values) {
             if (entry.noDisplay) continue
@@ -129,7 +129,7 @@ ColumnLayout {
             }
         }
         ShellButton {
-            text: editor.shell.tr("Use LunaDah default")
+            text: editor.shell.tr("Use LunaDash default")
             onClicked: { editor.dirty = false; editor.custom = false; editor.apply([]) }
         }
     }

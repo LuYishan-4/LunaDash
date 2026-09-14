@@ -1,107 +1,134 @@
-# LunaDah
+<div align="center">
 
-A C++20 Wayland tiling desktop with C11 rendering, geometry and metrics cores with an OpenGL / OpenGL ES compositor and a Quickshell interface. A compact niri-inspired top panel, atmospheric wallpaper and a tabbed dashboard keep the workspace in view.
+<a href="https://github.com/LuYishan-4/LunaDash">
+  <img src="docs/brand/banner.svg" alt="LunaDash — a moonlit, focused Linux desktop" width="880">
+</a>
 
-**0.1 development preview.** LunaDah is not a production-ready KDE replacement. Start with a nested session inside your existing desktop.
+<br>
 
-## What works
+<img src="docs/brand/icon.svg" alt="LunaDash icon" width="96">
 
-- Native Wayland windows with niri-inspired scrollable columns, four workspaces, floating and minimized windows. A column can contain up to four windows total, including minimized members; visible members share its height equally.
-- Quickshell wallpaper and one compact niri-inspired `TopPanel`: workspace/session controls plus inline grouped-application cells on the left, a centered three-part overview / accent launcher / settings selector with a Lambda (`Λ`) glyph, and the StatusNotifier tray plus clock, network and battery on the right.
-- Grouped cells show one app icon per member, including minimized members; click a member to focus and reveal it, drag it onto another column member to group it, or use right-click/the minus badge to expel it. The former separate `ColumnStrip` is not instantiated as a second layer.
-- Saved accent colors, window gaps, panel height, wallpaper and information-card preferences. Settings opens as a fullscreen QML overlay with a quick-hide control, positioned below the panel.
-- English and an external Traditional Chinese language pack.
-- One ranked, token-searchable launcher list containing Settings, Files, Terminal, Monitor and installed desktop entries, with icon, name and description.
-- Setting-level tokenized search, an expanded About page, and existing network connection detection with a NetworkManager configuration entry point.
-- Files, command console, system monitor, pacman interface and opt-in metadata plugins.
-- Configurable default backdrop blur, opacity and reduced-motion-friendly window/shell transitions.
-- Optional X11 compatibility inside an authenticated XWayland window.
-- Explicit OpenGL 3.3 compatibility / OpenGL ES 3.0 contexts and vertex/fragment shaders.
+### A moonlit, focused Linux desktop
 
-## Build on Arch Linux
+<p>
+  <img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only">
+  <img src="https://img.shields.io/badge/platform-Arch%20Linux%20first-9ccbfb?style=flat-square" alt="Arch Linux first">
+  <img src="https://img.shields.io/badge/stack-C%2B%2B20%20%C2%B7%20Qt%206%20%C2%B7%20Wayland-9ccbfb?style=flat-square" alt="C++20, Qt 6, Wayland">
+  <img src="https://img.shields.io/badge/shell-Quickshell%20QML-9ccbfb?style=flat-square" alt="Quickshell QML shell">
+  <a href="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-gate.yml">
+    <img src="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-gate.yml/badge.svg" alt="Main required checks">
+  </a>
+</p>
+
+</div>
+
+LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland Compositor, C11 cores for rendering, tiling and metrics, and a Quickshell/QML shell. Windows live in niri-inspired scrollable columns across four workspaces, and the shell keeps the workspace, the launcher and the settings in one compact top panel.
+
+> **0.1 development preview.** LunaDash is not a production-ready KDE replacement. Start with a nested session inside your existing desktop, and read [Project status](#project-status) before relying on it.
+
+## Highlights
+
+- **Scrollable columns.** Every window opens as its own full-height column below the panel, and the column strip slides horizontally when focus changes instead of covering other windows. A column holds up to four windows; visible members split its height as one full tile, two halves, or three or four quarters.
+- **One compact top panel.** Workspace and session controls plus one icon per open column on the left, the centred overview / accent launcher / settings selector in the middle, and the StatusNotifier tray with clock, network and battery on the right.
+- **Grouping from the panel.** Drag one column icon onto another to merge them, click a member to focus it, right-click to expel it. Window frames themselves are not draggable.
+- **A real settings centre.** Sixteen pages in a fullscreen QML overlay with tokenized search, a shortcut recorder that rejects duplicate or invalid combinations, an in-shell wallpaper picker, and a manual update check against the official release feed.
+- **Launcher.** One ranked, token-searchable list with icon, name and description for the built-in tools and installed desktop entries.
+- **Appearance.** Accent colour, window gaps, panel height, backdrop blur, window opacity, animation duration and a reduced-motion mode, plus an external Traditional Chinese language pack.
+- **Built-in tools.** Files, command console, system monitor, a pacman interface and opt-in metadata plugins.
+- **X11 compatibility.** Applications run inside an authenticated XWayland instance, which the default Kitty path already uses.
+- **Explicit graphics.** OpenGL 3.3 compatibility or OpenGL ES 3.0 contexts with version-specific shaders, plus a software-friendly shell renderer path for problematic drivers.
+
+## Requirements
+
+Arch Linux is the first target. The backend needs CMake 3.21+, a C11/C++20 compiler, Qt 6.4+, Wayland development headers and the Khronos GL headers. The shell targets [Quickshell 0.3](https://quickshell.org/docs/v0.3.0/guide/install-setup/), which may need a newer Qt than the backend's 6.4 minimum.
 
 ```sh
-sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland qt6-translations quickshell kitty fish wayland libglvnd dbus mesa
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --parallel 4
-QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --socket ludash-test
+sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland \
+  qt6-translations quickshell kitty fish wayland libglvnd dbus mesa
 ```
-
-For network configuration, optionally install `networkmanager nm-connection-editor`. LunaDah reuses existing connections; installing a package does not enable a network service. Avoid replacing an existing network manager without reviewing your distribution's configuration.
-
-The first-run guide offers language, network and appearance settings. Offline use is supported. The launcher’s Settings entry reopens settings and the guide. Native application language changes take effect when those applications are reopened.
-
-[Quickshell is packaged for Arch](https://archlinux.org/packages/extra/x86_64/quickshell/). The C++ backend needs Qt 6.4+, CMake 3.21+, C11/C++20 compilers and Khronos GL headers and Wayland development headers/scanner. The shell targets Quickshell 0.3; follow its [installation guide](https://quickshell.org/docs/v0.3.0/guide/install-setup/) on other distributions, where a newer Qt may be needed.
 
 Ubuntu 24.04 backend packages: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`.
-Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`. Install Kitty and Fish from the distribution's runtime packages to use LunaDah's default terminal.
+Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`.
 
-Ubuntu 24.04 build and desktop OpenGL smoke tests are configured in CI. Configuration is not evidence that a remote job ran or that every platform was verified. See the dated local results in the testing guide.
+Install Kitty and Fish to use the default terminal, and optionally `networkmanager nm-connection-editor` to configure network profiles. LunaDash reuses your existing connections; installing a package never enables a service.
 
-## Test and explore
-
-For one build-and-window-test pass from an existing Wayland desktop:
+## Build and run
 
 ```sh
-sudo pacman -S --needed python-pillow
-./scripts/test-once.sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel 4
+QT_QPA_PLATFORM=wayland ./build/lunadash-compositor --socket ludash-test
 ```
 
-The script builds into `build-once`, runs QML lint, then starts a nested LunaDah session with demonstration windows and writes its log, state JSON and screenshot there. It does not replace the host Fcitx daemon. For the longer manual/Xvfb paths:
+Run it from inside an existing Wayland or X11 desktop and it opens as a nested desktop in a window. The first-run guide covers language, network and appearance, and works fully offline. The canonical executables are `lunadash-compositor`, `lunadash-desktop`, `lunadashctl` and `lunadash-session`; the older `ludash-*` names remain compatibility aliases.
 
-```sh
-sudo pacman -S --needed xorg-server-xvfb xorg-xauth xdotool python python-pillow
-LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
-LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
-```
+To register a real login session, `./scripts/install-session.sh` builds and installs a pacman-managed package and adds the session entry. Use `--enable-sddm` only when you want SDDM enabled for the next boot, and `--autologin USER` to enable passwordless login explicitly. See [Boot and login session](docs/LOGIN_SESSION.md) for preflight checks, limits and recovery.
 
-The integration script requires rendered client content, non-overlapping geometry and clean shutdown. An old success line followed by crashed processes is not a passing result.
+## Keyboard shortcuts
+
+`Super` is the Meta key. Every binding below can be changed or disabled in **Settings → Keyboard shortcuts**.
 
 | Shortcut | Action |
 | --- | --- |
-| Super + Enter / E / D | Default terminal / file manager / launcher |
-| Super + H / L | Focus the column to the left / right |
-| Super + J / K | Focus the next / previous visible member within the column |
-| Super + Shift + H / L | Merge the focused window into the adjacent left / right column |
-| Super + Shift + E | Expel the focused member into its own adjacent column |
-| Super + Ctrl + H / L | Reorder the focused column left / right |
-| Super + + / - | Widen / narrow the focused column |
-| Super + Shift + C | Center the focused column |
-| Super + C | Close the focused window |
-| Super + F | Maximize / restore the window under the pointer |
-| Super + 1–4 | Switch workspace |
-| Super + Shift + 1–4 | Move focused window to workspace |
-| Super + Space / M / Q | Toggle floating / minimize / close |
+| `Super` + `Return` / `E` / `D` | Default terminal / file manager / launcher |
+| `Super` + `H` / `L` | Focus the column to the left / right |
+| `Super` + `K` / `J` | Focus the previous / next member inside the column |
+| `Super` + `Shift` + `H` / `L` | Merge the focused window into the left / right column |
+| `Super` + `Shift` + `E` | Expel the focused member into its own column |
+| `Super` + `Ctrl` + `H` / `L` | Move the focused column left / right |
+| `Super` + `=` / `-` | Widen / narrow the focused column |
+| `Super` + `Shift` + `C` | Center the focused column |
+| `Super` + `F` | Maximize or restore the window under the pointer |
+| `Super` + `C` / `Q` | Close the focused window |
+| `Super` + `M` | Minimize the focused window |
+| `Super` + `Space` | Toggle floating for the focused window |
+| `Super` + `1`–`9` | Switch workspace |
+| `Super` + `Shift` + `1`–`9` | Move the focused window to a workspace |
 
-All listed bindings can be changed or disabled from **Settings → Keyboard shortcuts**; duplicate and invalid combinations are rejected. Your host desktop may intercept Super shortcuts. The shell provides clickable workspace and launcher controls. The accent-colored Lambda (`Λ`) in the center three-part selector opens a launcher that reveals downward from the panel center; the adjacent controls open overview and settings. The launcher has one application list, not separate categories or an open-window section. The top-right frame controls provide quick minimize and close actions. Application frames themselves are not draggable; only top-panel application icons can be dragged to group windows.
+The settings overlay takes exclusive keyboard focus and closes with `Escape` from search or its quick-hide control. Your host desktop may intercept `Super` shortcuts while you are testing in a nested session.
 
-The About page uses LunaDah's animated moon mark, links to the official GitHub repository, and can manually check the fixed GitHub Releases endpoint without downloading or installing anything. The Discord icon remains inactive until an official invitation is published.
+## Settings and the control socket
 
-The default terminal is Kitty with interactive Fish. The built-in Kitty path uses LunaDah's authenticated XWayland service because Qt Wayland Compositor currently advertises only `wl_data_device_manager` v1 while Kitty requests v3. Every window opens as its own full-width column below the top panel, and the strip slides horizontally when focus changes instead of covering other windows. Appearance uses LunaDah's own in-shell QML PNG/JPEG/WebP picker rather than `QFileDialog`: `choose-wallpaper` opens it inside the settings surface, and a confirmed path is applied through `lunadahctl wallpaper-image`. Files are limited to 64 MiB and 32 megapixels, and previews are bounded.
+`lunadashctl` talks to the running compositor, and the settings overlay drives exactly the same methods:
 
-## Installation and documentation
+```sh
+export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
+./build/lunadashctl open-settings appearance
+./build/lunadashctl appearance '{"gap":16,"panelHeight":44}'
+./build/lunadashctl shortcuts '{"focusLeft":"Meta+U"}'
+./build/lunadashctl check-update
+```
 
-On Arch, `./scripts/install-session.sh` builds and installs a pacman-managed package and registers the login session. Use `--enable-sddm` only when you want SDDM enabled for the next boot; optional `--autologin USER` explicitly enables passwordless login. See [Boot and login session](docs/LOGIN_SESSION.md) for preflight, limitations and recovery.
+Preferences are saved automatically as you change them. Resetting desktop preferences does not delete documents, reset the language or wallpaper, or modify system-service configuration. See [Settings coverage](docs/SETTINGS.md) for every page and its limits.
 
-For a staged install use `DESTDIR=/tmp/ludash-stage cmake --install build`. For a system install configure `-DCMAKE_INSTALL_PREFIX=/usr`, build, then run `sudo cmake --install build`. The Arch source package is created by `./scripts/make-source.sh`; run `makepkg -Cfs` in `packaging/arch`. The generated cropped application icon is `data/assets/lunadah.png`, installed as `/usr/share/icons/hicolor/512x512/apps/lunadah.png`; `lunadah-app.desktop` uses `Icon=lunadah`. The packaged EGLFS/KMS login session, physical SDDM login, and complete Fcitx behavior still need physical-session testing; no such verification is claimed.
+## Testing
 
-- [Testing instructions and every maintained file](docs/TESTING_AND_FILES.md)
-- [Traditional Chinese boot and login guide](docs/LOGIN_SESSION.zh-TW.md)
-- [First-run setup and customization](docs/CONFIGURATION.md)
-- [C core](docs/C_CORE.md), [blur and animations](docs/EFFECTS.md), [X11 compatibility](docs/XWAYLAND.md)
-- [Appearance](docs/APPEARANCE.md) and [graphics contexts](docs/GRAPHICS.md)
-- [Architecture](docs/ARCHITECTURE.md), [languages and input methods](docs/INPUT_METHODS.md)
-- [Plugin development](docs/PLUGINS.md), [security and crash checks](docs/SECURITY_CHECKS.md)
-- [Website and GitHub Pages deployment](docs/WEBSITE.md)
+```sh
+sudo pacman -S --needed pkgconf python-pillow xorg-server-xvfb xorg-xauth xdotool
+./scripts/test-once.sh
+```
 
-Missing or incomplete: multiple outputs, full layer-shell, screen locking, portals, notification hosting, native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. StatusNotifier tray hosting is implemented with identity-based icon fallbacks for Fcitx, Discord and Docker when supplied tray icons are missing or unusable. The Fcitx tray icon is fixed, but its candidate popup still depends on the incomplete input-method bridge. Native plugins are disabled by default and run without a sandbox when enabled. Pacman operations require a real terminal and retain sudo/pacman confirmation; this tool is unavailable on systems without pacman.
+`test-once.sh` builds, lints QML, then runs a nested session with demonstration windows and writes its log, state JSON and screenshot to `build-once`. The Xvfb integration checks are documented in the [testing guide](docs/TESTING_AND_FILES.md): the settings test alone opens all sixteen pages and applies an accepted and several rejected values to every option each page can change.
 
-Licensed under GPL-3.0-only; see [LICENSE](LICENSE).
+A passing software-rendered session proves rendering, geometry and clean shutdown, not physical GPU behaviour or a standalone login. CI configuration is never reported as evidence that a job ran.
 
-The dedicated settings center covers desktop preferences, workspaces, input, audio, power profiles and installed system tools. See [Settings coverage](docs/SETTINGS.md) for direct controls, host integrations and missing capabilities. The bundled Notes application has been removed.
+## Documentation
 
-Canonical installed commands are `lunadah-compositor`, `lunadah-desktop`, `lunadahctl`, and the extensionless `lunadah-session`; legacy `ludash-*` command names are compatibility aliases only. The normal application desktop ID is `lunadah-app.desktop`, installed shell QML is under `/usr/share/lunadah/shell/`, the generated cropped shell icon is `/usr/share/lunadah/data/assets/lunadah.png`, its hicolor application-icon copy is `/usr/share/icons/hicolor/512x512/apps/lunadah.png`, and session logs are under `~/.local/state/lunadah/` by default.
+- [Testing guide and every maintained file](docs/TESTING_AND_FILES.md)
+- [Architecture](docs/ARCHITECTURE.md) · [C core](docs/C_CORE.md) · [Graphics contexts](docs/GRAPHICS.md)
+- [Appearance](docs/APPEARANCE.md) · [Blur and animations](docs/EFFECTS.md) · [Shell rendering](docs/SHELL_RENDERING.md)
+- [First-run setup and configuration](docs/CONFIGURATION.md) · [Settings coverage](docs/SETTINGS.md)
+- [Shell modules and templates](docs/MODULES.md) · [Default apps, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md)
+- [Input methods and languages](docs/INPUT_METHODS.md) · [X11 compatibility](docs/XWAYLAND.md)
+- [Plugin development](docs/PLUGINS.md) · [Security and crash checks](docs/SECURITY_CHECKS.md)
+- [Traditional Chinese boot and login guide](docs/LOGIN_SESSION.zh-TW.md) · [Website](docs/WEBSITE.md)
 
-Shell blocks support validated JSON styles and optional trusted QML replacements. See [Module contract and templates](docs/MODULES.md) and [Default applications, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md). LunaDah Files follows live desktop colors; the default interactive terminal is Kitty with a LunaDah Fish profile.
+## Project status
 
-For NVIDIA descriptor exhaustion or Quickshell renderer overrides, see [Shell rendering](docs/SHELL_RENDERING.md). The NVIDIA default uses software Quickshell while retaining compositor GL/GLES effects.
+Working and tested in nested sessions: window management and grouping, the panel, launcher, all sixteen settings pages, wallpapers, built-in applications, the Traditional Chinese language pack, and authenticated X11 compatibility.
+
+Missing or incomplete: multiple outputs, full layer-shell coverage, screen locking, portals, notification hosting, a native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. The Fcitx tray icon works, but its candidate popup still depends on the incomplete input-method bridge. Native plugins are disabled by default and run without a sandbox when enabled. The packaged EGLFS/KMS login session and a physical SDDM login still need physical-session testing, and no such verification is claimed.
+
+## License
+
+GPL-3.0-only. See [LICENSE](LICENSE).

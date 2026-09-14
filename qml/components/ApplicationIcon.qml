@@ -11,8 +11,8 @@ Item {
     property string title: ""
 
     readonly property string identity: (iconName + " " + appId + " " + title).toLowerCase()
-    readonly property bool builtinApp: appId === "lunadah-app"
-                                       || iconName === "lunadah"
+    readonly property bool builtinApp: appId === "lunadash-app"
+                                       || iconName === "lunadash"
     readonly property bool internalAlias: ["preferences-system", "applications-system", "preferences-desktop-theme", "preferences-desktop-emoticons", "system-file-manager", "utilities-terminal", "utilities-system-monitor", "hwinfo", "input-keyboard"].includes(iconName)
 
     // Only a bare theme icon name can be resolved by the icon theme. Desktop
@@ -21,7 +21,7 @@ Item {
     // values fall through to the bundled vector icon instead.
     function isThemeIconName(name) {
         const value = String(name || "").trim()
-        if (value.length === 0 || value === "lunadah") return false
+        if (value.length === 0 || value === "lunadash") return false
         if (value.includes("/")) return false
         return !/\.[a-z0-9]{2,5}$/i.test(value)
     }

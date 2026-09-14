@@ -12,7 +12,7 @@
 
 namespace LuDash {
 namespace {
-// The shell inherits LunaDah's own desktop identity, so Qt cannot infer the
+// The shell inherits LunaDash's own desktop identity, so Qt cannot infer the
 // host icon theme and every themed icon lookup fails. Resolve a theme
 // explicitly and let Quickshell use it. An explicit QS_ICON_THEME always wins.
 QString detectedIconTheme() {
@@ -53,21 +53,21 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("WAYLAND_DISPLAY", socketName);
   environment.insert("QT_QPA_PLATFORM", "wayland");
   environment.insert("XDG_SESSION_TYPE", "wayland");
-  environment.insert("XDG_CURRENT_DESKTOP", "LunaDah");
-  environment.insert("XDG_SESSION_DESKTOP", "LunaDah");
+  environment.insert("XDG_CURRENT_DESKTOP", "LunaDash");
+  environment.insert("XDG_SESSION_DESKTOP", "LunaDash");
   environment.insert("XMODIFIERS", "@im=fcitx");
   environment.insert("QT_IM_MODULE", "fcitx");
   environment.insert("QT_IM_MODULES", "wayland;fcitx;ibus");
   environment.insert("GTK_IM_MODULE", "fcitx");
   environment.insert("SDL_IM_MODULE", "fcitx");
   auto assetDirectory = QStandardPaths::locate(
-      QStandardPaths::GenericDataLocation, "lunadah/data/assets",
+      QStandardPaths::GenericDataLocation, "lunadash/data/assets",
       QStandardPaths::LocateDirectory);
   if (assetDirectory.isEmpty())
     assetDirectory = QStringLiteral(LUDASH_ASSET_SOURCE_DIR);
-  environment.insert("LUNADAH_ASSET_DIR", assetDirectory);
-  environment.insert("LUNADAH_BIN_DIR", binaryDirectory);
-  environment.insert("LUNADAH_CONTROL", controlPath);
+  environment.insert("LUNADASH_ASSET_DIR", assetDirectory);
+  environment.insert("LUNADASH_BIN_DIR", binaryDirectory);
+  environment.insert("LUNADASH_CONTROL", controlPath);
   environment.insert("LUDASH_BIN_DIR", binaryDirectory);
   environment.insert("LUDASH_CONTROL", controlPath);
   const QString iconTheme = detectedIconTheme();
@@ -94,8 +94,8 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
         name == "XDG_SESSION_DESKTOP" || name == "XMODIFIERS" ||
         name == "QT_IM_MODULE" || name == "QT_IM_MODULES" ||
         name == "GTK_IM_MODULE" || name == "SDL_IM_MODULE" ||
-        name == "LUNADAH_ASSET_DIR" || name == "LUNADAH_BIN_DIR" ||
-        name == "LUNADAH_CONTROL" || name == "LUDASH_BIN_DIR" ||
+        name == "LUNADASH_ASSET_DIR" || name == "LUNADASH_BIN_DIR" ||
+        name == "LUNADASH_CONTROL" || name == "LUDASH_BIN_DIR" ||
         name == "LUDASH_CONTROL") {
       activation.insert(name, value);
       systemd.append(name + "=" + value);
@@ -113,7 +113,7 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
     if (dbusReply.type() == QDBusMessage::ErrorMessage) {
       published = false;
       qWarning().noquote()
-          << "LunaDah could not update the D-Bus activation environment:"
+          << "LunaDash could not update the D-Bus activation environment:"
           << dbusReply.errorMessage();
     }
 

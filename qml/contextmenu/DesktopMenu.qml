@@ -19,7 +19,7 @@ ModuleSurface {
     margins { top: moduleMargin; bottom: moduleMargin; left: moduleMargin; right: moduleMargin }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "lunadah-menu"
+    WlrLayershell.namespace: "lunadash-menu"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: "transparent"
 
@@ -88,7 +88,7 @@ ModuleSurface {
             Rectangle { width: column.width; height: 1; color: Theme.border }
             MenuEntry {
                 width: column.width
-                text: shell.tr("About LunaDah")
+                text: shell.tr("About LunaDash")
                 glyph: "about"
                 onTriggered: menu.run("open-settings", "about")
             }

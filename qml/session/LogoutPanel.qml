@@ -18,7 +18,7 @@ ModuleSurface {
     implicitHeight: moduleHeight(pendingAction === "" ? 292 : 170)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "lunadah-logout"
+    WlrLayershell.namespace: "lunadash-logout"
     color: "transparent"
 
     Rectangle { anchors.fill: parent; radius: moduleRadius; color: moduleBackground; border.color: Theme.border }

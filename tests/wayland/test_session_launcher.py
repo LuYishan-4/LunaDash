@@ -77,8 +77,8 @@ os.execvp(sys.argv[2], sys.argv[2:])
     assert launch["args"] == ["--fullscreen", "--graphics", "gles", "--socket", literal]
     assert launch["env"]["QT_QPA_PLATFORM"] == "eglfs"
     assert launch["env"]["QT_QPA_EGLFS_INTEGRATION"] == "eglfs_kms"
-    assert launch["env"]["XDG_CURRENT_DESKTOP"] == "LunaDah"
-    assert launch["env"]["XDG_SESSION_DESKTOP"] == "LunaDah"
+    assert launch["env"]["XDG_CURRENT_DESKTOP"] == "LunaDash"
+    assert launch["env"]["XDG_SESSION_DESKTOP"] == "LunaDash"
     assert launch["env"]["XMODIFIERS"] == "@im=fcitx"
     assert launch["env"]["QT_IM_MODULE"] == "fcitx"
     assert launch["env"]["QT_IM_MODULES"] == "wayland;fcitx;ibus"
@@ -96,7 +96,7 @@ os.execvp(sys.argv[2], sys.argv[2:])
         "QT_QUICK_BACKEND",
     ):
         assert name not in launch["env"], name
-    logs = list((folder / "state/lunadah").glob("session-*.log"))
+    logs = list((folder / "state/lunadash").glob("session-*.log"))
     assert len(logs) == 1 and logs[0].stat().st_mode & 0o777 == 0o600
     result = subprocess.run(
         [str(installer), "--dry-run"], env=env, capture_output=True, text=True

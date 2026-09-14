@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
   const auto args = application.arguments();
   if (args.size() < 2) {
     QTextStream(stderr)
-        << "Usage: lunadahctl "
+        << "Usage: lunadashctl "
            "status|workspace|focus|group-window|expel-window|minimize|close|"
            "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
@@ -22,11 +22,11 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  auto path = qEnvironmentVariable("LUNADAH_CONTROL");
+  auto path = qEnvironmentVariable("LUNADASH_CONTROL");
   if (path.isEmpty())
     path = qEnvironmentVariable("LUDASH_CONTROL");
   if (path.isEmpty()) {
-    QTextStream(stderr) << "LUNADAH_CONTROL is not set.\n";
+    QTextStream(stderr) << "LUNADASH_CONTROL is not set.\n";
     return 2;
   }
 

@@ -110,7 +110,7 @@ bool groupWindowIds(const QString &value, int *window, int *target) {
 } // namespace
 WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell, GraphicsApi graphics) {
-  window_.setTitle("LunaDah Wayland · workspace 1");
+  window_.setTitle("LunaDash Wayland · workspace 1");
   window_.resize(1440, 900);
   window_.setMinimumSize({960, 640});
   renderState_ = std::make_shared<RenderState>();
@@ -118,7 +118,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
           [this](QQuickWindow::SceneGraphError, const QString &message) {
             renderState_->failed = true;
             qCritical().noquote()
-                << "LunaDah graphics initialization failed:" << message;
+                << "LunaDash graphics initialization failed:" << message;
             qCritical("Requires OpenGL 3.3 compatibility or OpenGL ES 3.0. "
                       "Check the driver and MESA_GL_VERSION_OVERRIDE.");
             QTimer::singleShot(0, this, [] { QCoreApplication::exit(2); });
@@ -141,8 +141,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   decorations->setPreferredMode(QWaylandXdgToplevel::ServerSideDecoration);
   output_ = new QWaylandQuickOutput(&compositor_, &window_);
   output_->setSizeFollowsWindow(true);
-  output_->setManufacturer("LunaDah");
-  output_->setModel("LunaDah desktop");
+  output_->setManufacturer("LunaDash");
+  output_->setModel("LunaDash desktop");
   connect(shell_, &QWaylandXdgShell::toplevelCreated, this,
           &WaylandCompositor::addWindow);
   installInputMethodProtocols(&compositor_);
@@ -198,7 +198,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     xwayland_->start(environment);
   }
   const auto inputMethod = QStandardPaths::findExecutable("fcitx5");
-  if (qEnvironmentVariableIntValue("LUNADAH_DISABLE_FCITX") != 1 &&
+  if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
       !inputMethod.isEmpty())
     spawn({"--replace"}, inputMethod, false);
   if (startShell) {
@@ -227,7 +227,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
            desktopPreferences().value("startupApps").toArray())
         spawn({"--app", app.toString()});
     });
-  qInfo().noquote() << "LunaDah Wayland socket:" << socket;
+  qInfo().noquote() << "LunaDash Wayland socket:" << socket;
 }
 
 WaylandCompositor::~WaylandCompositor() {
@@ -274,7 +274,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       QTimer::singleShot(0, this, [] { QCoreApplication::exit(2); });
       return nullptr;
     }
-    qInfo().noquote() << "LunaDah shell renderer:"
+    qInfo().noquote() << "LunaDash shell renderer:"
                       << environment.value("LUDASH_SHELL_RENDERER");
   }
   auto *process = new QProcess(this);
@@ -287,7 +287,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
             if (required)
               processFailure_ = true;
             qWarning().noquote()
-                << "LunaDah child process error:" << process->errorString();
+                << "LunaDash child process error:" << process->errorString();
           });
   connect(process, &QProcess::finished, this,
           [this, process, required](int code, QProcess::ExitStatus status) {
@@ -296,7 +296,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
               if (required)
                 processFailure_ = true;
               qWarning().noquote()
-                  << "LunaDah child exited abnormally:" << process->program()
+                  << "LunaDash child exited abnormally:" << process->program()
                   << "code" << code << "status" << status;
             }
           });
@@ -314,7 +314,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
         QFileInfo::exists(sourceConfig)
             ? sourceConfig
             : QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                     "lunadah/shell/shell.qml");
+                                     "lunadash/shell/shell.qml");
     if (config.isEmpty())
       config = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
                                       "ludash/shell/shell.qml");
@@ -323,7 +323,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
   } else {
     auto executable = program;
     if (executable.isEmpty()) {
-      executable = QCoreApplication::applicationDirPath() + "/lunadah-desktop";
+      executable = QCoreApplication::applicationDirPath() + "/lunadash-desktop";
       if (!QFileInfo::exists(executable))
         executable = QCoreApplication::applicationDirPath() + "/ludash-desktop";
     }
@@ -1087,7 +1087,7 @@ void WaylandCompositor::arrange() {
     focused_->frame->setZ(focused_->maximized ? 30
                                               : (focused_->floating ? 20 : 2));
   window_.setTitle(
-      QString("LunaDah Wayland · workspace %1").arg(workspace_ + 1));
+      QString("LunaDash Wayland · workspace %1").arg(workspace_ + 1));
 }
 
 void WaylandCompositor::focus(ClientWindow *client) {

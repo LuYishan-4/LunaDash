@@ -20,7 +20,7 @@ QtObject {
         {page:"privacy", pageName:"Privacy and accessibility", name:"Reduced motion", keywords:"animations lock screen screen reader plugins user host"},
         {page:"system", pageName:"Users, date and time", name:"User accounts", keywords:"clock authorization accounts"},
         {page:"devices", pageName:"Printers and storage", name:"Printers and scanners", keywords:"disks storage devices"},
-        {page:"about", pageName:"About LunaDah", name:"About LunaDah", keywords:"version Wayland graphics system update GitHub Discord community release"}
+        {page:"about", pageName:"About LunaDash", name:"About LunaDash", keywords:"version Wayland graphics system update GitHub Discord community release"}
     ]
 
     function matches(query, translate) {
