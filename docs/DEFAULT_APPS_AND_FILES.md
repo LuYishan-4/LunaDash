@@ -4,22 +4,31 @@ Settings > Applications and startup lets users select a default terminal and fil
 
 Super+Return and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadash-desktop --app files` also respects the preference; `--builtin` explicitly opens LunaDash Files for recovery. `--path /absolute/folder` navigates the built-in manager or appends the folder as one argument for a custom manager. These choices apply to LunaDash launchers, not system-wide MIME associations or every third-party application's embedded terminal.
 
-## Kitty and Fish
+## Terminal and Fish
 
-The default is **Kitty with interactive Fish**, and the Arch package requires both `kitty` and `fish`. The launch argument vector is equivalent to:
+The default terminal is the built-in **LunaDash Terminal**: an interactive Fish shell in a pseudo-terminal, drawn as a translucent window that follows the desktop accent. Only `fish` is required; the terminal ships with LunaDash itself.
 
-```text
-kitty fish --interactive --init-command <LunaDash profile source>
+The terminal writes the embedded `data/terminal/ludash.fish` resource to a temporary file and runs it with `fish -C "source <file>"`, then runs `fastfetch` when it is installed. LunaDash does not run `chsh`, set universal variables, overwrite `~/.config/fish/`, or generate a Kitty or Konsole colour scheme. A user-configured non-empty command remains supported and takes precedence after the existing executable and recursive-launch validation.
+
+The palette follows the desktop accent by default, and the blue terminal slots map directly to the accent so `ls --color` directory listings track the theme. Users can override the base colours and window opacity in the LunaDash settings file:
+
+```ini
+[terminal]
+font=JetBrainsMono Nerd Font Mono
+fontSize=11
+background=#0d1218
+foreground=#e2e9f1
+opacity=84
 ```
 
-The executable paths are resolved before launch. Because Qt Wayland Compositor 6.11 currently exposes `wl_data_device_manager` version 1 while Kitty requests version 3, the built-in default-terminal path launches Kitty through LunaDash's authenticated XWayland compatibility service. The container opens as its own full-width column like any other window. A user-configured terminal command still uses the normal launch path. The profile source comes from the embedded `data/terminal/ludash.fish` resource and is passed as one argument, so shell operators are not re-parsed by an intermediate shell. Fish loads it with `--init-command` after user configuration. LunaDash does not run `chsh`, set universal variables, overwrite `~/.config/fish/`, generate a Kitty or Konsole color scheme, or modify the user's Kitty configuration. A configured non-empty command remains supported and takes precedence after the existing executable and recursive-launch validation.
+`font` is any installed monospace family and `fontSize` its point size. `opacity` is a whole percentage between 40 and 100. The sixteen ANSI colours are derived from the accent and these two base colours, so Fish prompts and `ls --color` stay readable while tracking the theme.
 
 LunaDash's Command Console remains a separate non-interactive diagnostic tool (`--app console`), not the default terminal.
 
 ```sh
-lunadashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'
+lunadashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'  # custom command example
 lunadashctl launch-default terminal
-lunadashctl default-apps '{"terminal":[],"files":[]}'
+lunadashctl default-apps '{"terminal":[],"files":[]}'                            # built-in terminal and Files
 ```
 
 ## Wallpaper picker
@@ -38,4 +47,4 @@ Files open with system MIME handlers; executable files require explicitly runnin
 
 ## Verification
 
-Manual acceptance should confirm Kitty starts interactive Fish with the LunaDash profile, no `LuDashGenerated.colorscheme` is created, the default-application selector lists installed applications and switches between them and the custom command array, list/grid navigation and bounded previews work in the wallpaper picker, oversized or unsupported images cannot be selected, cancellation preserves the wallpaper, and a valid selected path is applied through `lunadashctl wallpaper-image`.
+Manual acceptance should confirm the built-in Terminal starts interactive Fish with the LunaDash profile, the default-application selector lists installed applications and switches between them and the custom command array, list/grid navigation and bounded previews work in the wallpaper picker, oversized or unsupported images cannot be selected, cancellation preserves the wallpaper, and a valid selected path is applied through `lunadashctl wallpaper-image`.

@@ -80,12 +80,19 @@ ModuleSurface {
     }
     readonly property var results: rankedEntries(search.text)
     function activate(entry) {
-        if (entry.builtin)
+        if (entry.builtin) {
             shell.launch(entry.id)
-        else {
-            entry.desktopEntry.execute()
-            shell.launcherOpen = false
+            return
         }
+        // Electron/Chromium apps default to an X11 backend; forcing XWayland keeps
+        // them from probing the Wayland ozone path and failing to open.
+        const program = String(entry.desktopEntry.command[0] || "").toLowerCase()
+        const x11Apps = ["discord", "electron", "chromium", "chrome", "google-chrome", "google-chrome-stable", "microsoft-edge", "brave", "vivaldi", "opera", "spotify", "slack", "code", "codium", "steam"]
+        if (x11Apps.some(name => program.includes(name)))
+            shell.command("launch-command", JSON.stringify(entry.desktopEntry.command))
+        else
+            entry.desktopEntry.execute()
+        shell.launcherOpen = false
     }
 
     Rectangle { anchors.fill: parent; radius: moduleRadius; color: moduleBackground; border.color: Theme.border }

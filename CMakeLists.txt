@@ -131,6 +131,7 @@ add_library(ludash-apps
     src/file_icons/FileIconDelegate.cpp
     src/console/Console.cpp
     src/system_monitor/SystemMonitor.cpp
+    src/terminal/Terminal.cpp
     src/welcome/Welcome.cpp
     src/launcher/Launcher.cpp
     src/packages/PackageManager.cpp

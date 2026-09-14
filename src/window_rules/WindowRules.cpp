@@ -13,9 +13,8 @@ InitialWindowPolicy initialWindowPolicy(const QString &appId,
 
 QString windowIconName(const QString &appId, const QString &title) {
   const auto identity = (appId + " " + title).toLower();
-  if (identity.contains("kitty") || identity.contains("terminal") ||
-      identity.contains("console"))
-    return "kitty";
+  if (identity.contains("terminal") || identity.contains("console"))
+    return "utilities-terminal";
   if (identity.contains("file") || identity.contains("nautilus") ||
       identity.contains("dolphin"))
     return "system-file-manager";

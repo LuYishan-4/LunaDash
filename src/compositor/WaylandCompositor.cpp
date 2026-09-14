@@ -195,7 +195,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     environment.insert(
         "XCURSOR_SIZE",
         QString::number(desktopPreferences().value("cursorSize").toInt()));
-    xwayland_->start(environment);
+    xwayland_->start(environment, window_.size());
   }
   const auto inputMethod = QStandardPaths::findExecutable("fcitx5");
   if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
@@ -564,7 +564,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!error.isEmpty())
       return {{"error", error}};
     if (command.isEmpty())
-      spawn({"--app", "files", "--builtin"});
+      spawn({"--app", value, "--builtin"});
     else {
       const auto program = command.takeFirst();
       if (value == "terminal" && QFileInfo(program).fileName() == "kitty" &&
@@ -622,6 +622,34 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     QString error;
     if (!xwayland_ || !xwayland_->launch(QProcess::splitCommand(value), &error))
       return {{"error", error.isEmpty() ? "XWayland is unavailable." : error}};
+  } else if (method == "launch-command") {
+    // Desktop-entry activation forwarded by the shell. Electron/Chromium-based
+    // applications are routed through XWayland so they never probe the Wayland
+    // backend and fail; everything else uses the normal Wayland spawn path.
+    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    if (!document.isArray() || document.array().isEmpty())
+      return {{"error", "Expected a non-empty command array."}};
+    QStringList command;
+    for (const auto &entry : document.array()) {
+      if (!entry.isString() || entry.toString().size() > 1024)
+        return {{"error", "Command arguments must be short strings."}};
+      command << entry.toString();
+    }
+    const auto program = QFileInfo(command.first()).fileName().toLower();
+    static const QStringList x11Applications = {
+        "discord",        "electron",      "chromium",
+        "chrome",         "google-chrome", "google-chrome-stable",
+        "microsoft-edge", "brave",         "vivaldi",
+        "opera",          "spotify",       "slack",
+        "code",           "codium",        "steam"};
+    if (x11Applications.contains(program) && xwayland_) {
+      QString error;
+      if (!xwayland_->launch(command, &error))
+        return {{"error", error}};
+    } else {
+      const auto executable = command.takeFirst();
+      spawn(command, executable);
+    }
   } else if (method == "finish-setup")
     setSetupComplete(true);
   else if (method == "setup")
@@ -949,8 +977,8 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
 
 void WaylandCompositor::configure(ClientWindow *client,
                                   const QRect &rectangle) {
-  const int border = client->desktop ? 0 : 1;
-  const int title = client->desktop ? 0 : 24;
+  const int border = 0;
+  const int title = 0;
   const bool animate =
       !client->desktop && desktopPreferences().value("animations").toBool();
   client->frame->moveTo(rectangle.topLeft(), animate);

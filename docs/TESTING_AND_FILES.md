@@ -247,7 +247,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/compositor/WaylandCompositor.h](../include/LuDash/compositor/WaylandCompositor.h) | Declare interfaces/types to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [include/LuDash/configuration/DesktopPreferences.h](../include/LuDash/configuration/DesktopPreferences.h) | Declare interfaces/types to validate and persist appearance and first-run completion. |
 | [include/LuDash/console/Console.h](../include/LuDash/console/Console.h) | Declare interfaces/types to run bounded shell commands with process-group cleanup. |
-| [include/LuDash/default_applications/DefaultApplications.h](../include/LuDash/default_applications/DefaultApplications.h) | Declare interfaces to validate default app argument arrays and prepare the Kitty/Fish profile. |
+| [include/LuDash/default_applications/DefaultApplications.h](../include/LuDash/default_applications/DefaultApplications.h) | Declare interfaces to validate default app argument arrays and resolve the built-in terminal and Files defaults. |
 | [include/LuDash/display_settings/DisplaySettings.h](../include/LuDash/display_settings/DisplaySettings.h) | Declare interfaces to describe the output and validate nested window-size changes. |
 | [include/LuDash/fade_plugin/FadePlugin.h](../include/LuDash/fade_plugin/FadePlugin.h) | Declare interfaces/types to animate the opt-in example window effect. |
 | [include/LuDash/file_icons/FileIconDelegate.h](../include/LuDash/file_icons/FileIconDelegate.h) | Declare interfaces to decorate file rows and icon grids with themed outline icons. |
@@ -281,6 +281,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/shell_modules/ShellModules.h](../include/LuDash/shell_modules/ShellModules.h) | Declare interfaces to persist module configuration, enforce trust and watch custom entrypoints. |
 | [include/LuDash/system_metrics/SystemMetrics.h](../include/LuDash/system_metrics/SystemMetrics.h) | Declare interfaces/types to parse bounded CPU and memory counters with overflow validation. |
 | [include/LuDash/system_monitor/SystemMonitor.h](../include/LuDash/system_monitor/SystemMonitor.h) | Declare interfaces/types to show native process/system monitoring. |
+| [include/LuDash/terminal/Terminal.h](../include/LuDash/terminal/Terminal.h) | Declare the built-in translucent Fish terminal used by the default terminal action. |
 | [include/LuDash/system_status/SystemStatus.h](../include/LuDash/system_status/SystemStatus.h) | Declare interfaces/types to sample CPU, memory, disk and battery data for the shell. |
 | [include/LuDash/system_tools/SystemTools.h](../include/LuDash/system_tools/SystemTools.h) | Declare interfaces to resolve fixed system/host editor commands and package availability. |
 | [include/LuDash/theme/DesktopTheme.h](../include/LuDash/theme/DesktopTheme.h) | Declare interfaces/types to style the native Qt Widgets tools. |
@@ -289,7 +290,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/wallpaper/WallpaperSettings.h](../include/LuDash/wallpaper/WallpaperSettings.h) | Declare interfaces/types to validate local image paths and select image/shader wallpaper. |
 | [include/LuDash/welcome/Welcome.h](../include/LuDash/welcome/Welcome.h) | Declare interfaces/types to provide the optional native welcome/demo application. |
 | [include/LuDash/window_frame/WindowFrame.h](../include/LuDash/window_frame/WindowFrame.h) | Declare interfaces/types to paint and handle compositor window decorations. |
-| [include/LuDash/window_rules/WindowRules.h](../include/LuDash/window_rules/WindowRules.h) | Declare initial-window policy and per-window icon resolution for Files, Settings, Kitty, Monitor and fallback applications. |
+| [include/LuDash/window_rules/WindowRules.h](../include/LuDash/window_rules/WindowRules.h) | Declare initial-window policy and per-window icon resolution for Files, Settings, Terminal, Monitor and fallback applications. |
 | [include/LuDash/xwayland/XWaylandSupport.h](../include/LuDash/xwayland/XWaylandSupport.h) | Declare interfaces/types to manage the optional authenticated XWayland compatibility container. |
 
 ### C and C++ implementations
@@ -306,7 +307,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/compositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [src/configuration/DesktopPreferences.cpp](../src/configuration/DesktopPreferences.cpp) | Implement behavior to validate and persist appearance and first-run completion. |
 | [src/console/Console.cpp](../src/console/Console.cpp) | Implement behavior to run bounded shell commands with process-group cleanup. |
-| [src/default_applications/DefaultApplications.cpp](../src/default_applications/DefaultApplications.cpp) | Implement behavior to validate default app argument arrays and prepare the Kitty/Fish profile. |
+| [src/default_applications/DefaultApplications.cpp](../src/default_applications/DefaultApplications.cpp) | Implement behavior to validate default app argument arrays and resolve the built-in terminal and Files defaults. |
 | [src/display_settings/DisplaySettings.cpp](../src/display_settings/DisplaySettings.cpp) | Implement behavior to describe the output and validate nested window-size changes. |
 | [src/entrypoints/compositor_main.cpp](../src/entrypoints/compositor_main.cpp) | Parse compositor arguments, create the session and coordinate test shutdown. |
 | [src/entrypoints/control_main.cpp](../src/entrypoints/control_main.cpp) | Send one bounded local control request and return the response status. |
@@ -342,6 +343,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/shell_modules/ShellModules.cpp](../src/shell_modules/ShellModules.cpp) | Implement behavior to persist module configuration, enforce trust and watch custom entrypoints. |
 | [src/system_metrics/SystemMetrics.c](../src/system_metrics/SystemMetrics.c) | Implement behavior to parse bounded CPU and memory counters with overflow validation. |
 | [src/system_monitor/SystemMonitor.cpp](../src/system_monitor/SystemMonitor.cpp) | Implement behavior to show native process/system monitoring. |
+| [src/terminal/Terminal.cpp](../src/terminal/Terminal.cpp) | Implement the pseudo-terminal Fish session, VT parsing, accent-following palette and translucent rendering. |
 | [src/system_status/SystemStatus.cpp](../src/system_status/SystemStatus.cpp) | Implement behavior to sample CPU, memory, disk and battery data for the shell. |
 | [src/system_tools/SystemTools.cpp](../src/system_tools/SystemTools.cpp) | Implement behavior to resolve fixed system/host editor commands and package availability. |
 | [src/theme/DesktopTheme.cpp](../src/theme/DesktopTheme.cpp) | Implement behavior to style the native Qt Widgets tools. |
@@ -350,7 +352,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/wallpaper/WallpaperSettings.cpp](../src/wallpaper/WallpaperSettings.cpp) | Implement behavior to validate local image paths and select image/shader wallpaper. |
 | [src/welcome/Welcome.cpp](../src/welcome/Welcome.cpp) | Implement behavior to provide the optional native welcome/demo application. |
 | [src/window_frame/WindowFrame.cpp](../src/window_frame/WindowFrame.cpp) | Implement focused borders, title painting and top-right quick minimize/close controls. |
-| [src/window_rules/WindowRules.cpp](../src/window_rules/WindowRules.cpp) | Implement initial Kitty/LunaDash Terminal maximization and resolved icon names while leaving generic windows unforced. |
+| [src/window_rules/WindowRules.cpp](../src/window_rules/WindowRules.cpp) | Implement initial window policy and resolved icon names while leaving generic windows unforced. |
 | [src/xwayland/XWaylandSupport.cpp](../src/xwayland/XWaylandSupport.cpp) | Implement behavior to manage the optional authenticated XWayland compatibility container. |
 
 ### Quickshell UI

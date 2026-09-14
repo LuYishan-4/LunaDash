@@ -32,8 +32,8 @@ LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland C
 - **A real settings centre.** Sixteen pages in a fullscreen QML overlay with tokenized search, a shortcut recorder that rejects duplicate or invalid combinations, an in-shell wallpaper picker, and a manual update check against the official release feed.
 - **Launcher.** One ranked, token-searchable list with icon, name and description for the built-in tools and installed desktop entries.
 - **Appearance.** Accent colour, window gaps, panel height, backdrop blur, window opacity, animation duration and a reduced-motion mode, plus an external Traditional Chinese language pack.
-- **Built-in tools.** Files, command console, system monitor, a pacman interface and opt-in metadata plugins.
-- **X11 compatibility.** Applications run inside an authenticated XWayland instance, which the default Kitty path already uses.
+- **Built-in tools.** A translucent Fish terminal, Files, command console, system monitor, a pacman interface and opt-in metadata plugins.
+- **X11 compatibility.** Applications run inside an authenticated XWayland instance, which the default terminal and other X11 applications use automatically.
 - **Explicit graphics.** OpenGL 3.3 compatibility or OpenGL ES 3.0 contexts with version-specific shaders, plus a software-friendly shell renderer path for problematic drivers.
 
 ## Requirements
@@ -42,13 +42,13 @@ Arch Linux is the first target. The backend needs CMake 3.21+, a C11/C++20 compi
 
 ```sh
 sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland \
-  qt6-translations quickshell kitty fish wayland libglvnd dbus mesa
+  qt6-translations quickshell fish wayland libglvnd dbus mesa
 ```
 
 Ubuntu 24.04 backend packages: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`.
 Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`.
 
-Install Kitty and Fish to use the default terminal, and optionally `networkmanager nm-connection-editor` to configure network profiles. LunaDash reuses your existing connections; installing a package never enables a service.
+Install Fish to use the bundled terminal, and optionally `networkmanager nm-connection-editor` to configure network profiles. LunaDash reuses your existing connections; installing a package never enables a service.
 
 ## Build and run
 

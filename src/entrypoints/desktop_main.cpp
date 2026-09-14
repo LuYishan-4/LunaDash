@@ -9,6 +9,7 @@
 #include <LuDash/packages/PackageManager.h>
 #include <LuDash/plugin_settings/PluginSettings.h>
 #include <LuDash/system_monitor/SystemMonitor.h>
+#include <LuDash/terminal/Terminal.h>
 #include <LuDash/theme/DesktopTheme.h>
 #include <LuDash/welcome/Welcome.h>
 #include <QProcess>
@@ -67,6 +68,7 @@ int main(int argc, char **argv) {
     window.setAttribute(Qt::WA_TranslucentBackground);
     window.setAttribute(Qt::WA_StyledBackground);
     window.setObjectName("applicationWindow");
+    window.setProperty("ludashFrosted", requested == "terminal");
     LuDash::watchDesktopTheme(&window);
     QWidget *content = nullptr;
     const auto id = parser.value("app");
@@ -76,6 +78,8 @@ int main(int argc, char **argv) {
       content = LuDash::createConsole();
     else if (id == "monitor")
       content = LuDash::createSystemMonitor();
+    else if (id == "terminal")
+      content = LuDash::createTerminal();
     else if (id == "packages")
       content = LuDash::createPackageManager();
     else if (id == "plugins")

@@ -1,10 +1,8 @@
 #include <LuDash/default_applications/DefaultApplications.h>
-#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QSettings>
 #include <QStandardPaths>
-int qInitResources_terminal_profile();
 namespace LuDash {
 namespace {
 bool validCommand(const QJsonValue &value) {
@@ -73,24 +71,11 @@ QStringList defaultApplicationCommand(const QString &role, QString *error) {
     result << argument.toString();
   if (!result.isEmpty())
     return result;
-  if (role == "files")
+  // Both built-in defaults are shipped inside LunaDash: Files and the bundled
+  // Fish terminal. An empty command asks the compositor to open the matching
+  // built-in application instead of an external executable.
+  if (role == "files" || role == "terminal")
     return {};
-  const auto terminal = QStandardPaths::findExecutable("kitty"),
-             fish = QStandardPaths::findExecutable("fish");
-  if (terminal.isEmpty() || fish.isEmpty()) {
-    if (error)
-      *error = "Install kitty and fish, or select another terminal command in "
-               "Settings > Applications.";
-    return {};
-  }
-  ::qInitResources_terminal_profile();
-  QFile profile(":/LuDash/data/terminal/ludash.fish");
-  if (!profile.open(QIODevice::ReadOnly)) {
-    if (error)
-      *error = "Could not read the LuDash Fish profile.";
-    return {};
-  }
-  return {terminal, fish, "--interactive", "--init-command",
-          QString::fromUtf8(profile.readAll())};
+  return {};
 }
 } // namespace LuDash
