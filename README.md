@@ -6,8 +6,6 @@
 
 <br>
 
-<img src="docs/brand/icon.svg" alt="LunaDash icon" width="96">
-
 ### A moonlit, focused Linux desktop
 
 <p>
