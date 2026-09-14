@@ -23,7 +23,11 @@ Item {
         devices: "M5 3 H19 V21 H5 Z M5 15 H19 M9 18 H9.1 M15 18 H15.1",
         about: "M12 3 A9 9 0 1 1 12 21 A9 9 0 1 1 12 3 M12 10 V17 M12 7 H12.1",
         search: "M10 3 A7 7 0 1 1 10 17 A7 7 0 1 1 10 3 M16 16 L22 22",
-        close: "M6 6 L18 18 M18 6 L6 18"
+        close: "M6 6 L18 18 M18 6 L6 18",
+        files: "M3 7 H10 L12 9 H21 V20 H3 Z",
+        settings: "M12 3 V6 M12 18 V21 M3 12 H6 M18 12 H21 M5.6 5.6 L7.8 7.8 M16.2 16.2 L18.4 18.4 M18.4 5.6 L16.2 7.8 M7.8 16.2 L5.6 18.4 M12 8 A4 4 0 1 1 12 16 A4 4 0 1 1 12 8",
+        terminal: "M3 5 H21 V19 H3 Z M7 9 L10 12 L7 15 M12 15 H17",
+        monitor: "M3 19 H21 M5 16 L9 11 L12 14 L17 7 L20 10"
     })
     Shape {
         anchors.centerIn: parent; width: 24; height: 24; scale: Math.min(root.width, root.height) / 24

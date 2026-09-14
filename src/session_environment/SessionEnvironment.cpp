@@ -4,6 +4,7 @@
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QDebug>
+#include <QStandardPaths>
 #include <QVariantMap>
 
 namespace LuDash {
@@ -22,6 +23,12 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("QT_IM_MODULES", "wayland;fcitx;ibus");
   environment.insert("GTK_IM_MODULE", "fcitx");
   environment.insert("SDL_IM_MODULE", "fcitx");
+  auto assetDirectory = QStandardPaths::locate(
+      QStandardPaths::GenericDataLocation, "lunadah/data/assets",
+      QStandardPaths::LocateDirectory);
+  if (assetDirectory.isEmpty())
+    assetDirectory = QStringLiteral(LUDASH_ASSET_SOURCE_DIR);
+  environment.insert("LUNADAH_ASSET_DIR", assetDirectory);
   environment.insert("LUNADAH_BIN_DIR", binaryDirectory);
   environment.insert("LUNADAH_CONTROL", controlPath);
   environment.insert("LUDASH_BIN_DIR", binaryDirectory);
@@ -41,8 +48,9 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
         name == "XDG_SESSION_DESKTOP" || name == "XMODIFIERS" ||
         name == "QT_IM_MODULE" || name == "QT_IM_MODULES" ||
         name == "GTK_IM_MODULE" || name == "SDL_IM_MODULE" ||
-        name == "LUNADAH_BIN_DIR" || name == "LUNADAH_CONTROL" ||
-        name == "LUDASH_BIN_DIR" || name == "LUDASH_CONTROL") {
+        name == "LUNADAH_ASSET_DIR" || name == "LUNADAH_BIN_DIR" ||
+        name == "LUNADAH_CONTROL" || name == "LUDASH_BIN_DIR" ||
+        name == "LUDASH_CONTROL") {
       activation.insert(name, value);
       systemd.append(name + "=" + value);
     }

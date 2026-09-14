@@ -15,7 +15,7 @@ Run from the checkout as your normal user:
 
 The script installs build tools with pacman, creates the local source archive, then uses `makepkg --syncdeps --force --install`. Pacman owns the installed files. sudo and pacman retain their normal authorization prompts. The script never runs the desktop as root, stops the current desktop, reboots, changes the default shell or changes network services.
 
-If you already have an enabled display manager, keep it. Before logging out, run `lunadah-session --check`, confirm `/usr/share/wayland-sessions/lunadah.desktop` and `/usr/share/lunadah/data/assets/icon.png` exist, and keep another desktop or TTY available. Log out, choose **LunaDah (Wayland)** in its session menu, then log in. SDDM normally remembers the selected session. For a system without an enabled display manager, install and enable SDDM for the next boot:
+If you already have an enabled display manager, keep it. Before logging out, run `lunadah-session --check`, confirm `/usr/share/wayland-sessions/lunadah.desktop` and `/usr/share/icons/hicolor/512x512/apps/lunadah.png` exist, and keep another desktop or TTY available. Log out, choose **LunaDah (Wayland)** in its session menu, then log in. SDDM normally remembers the selected session. For a system without an enabled display manager, install and enable SDDM for the next boot:
 
 ```sh
 ./scripts/install-session.sh --enable-sddm
@@ -41,7 +41,7 @@ From a normal login, check installed commands and the runtime directory:
 lunadah-session --check
 ```
 
-The installed `lunadah-session` command is intentionally extensionless and is distinct from source helpers such as `scripts/install-session.sh` and `scripts/test-wayland.sh`. Its check does not acquire DRM devices or test display output. Do not start `lunadah-session` inside another running desktop; use the login entry. For a nested check, run `LUNADAH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland lunadah-compositor --socket ludash-test` instead. In that window, check the left workspace/session controls, centered cropped BrandIcon and downward launcher reveal, unified launcher rows/search, and right compact status. Omit `LUNADAH_DISABLE_FCITX=1` only for a deliberate Fcitx/SNI check; tray icon rendering does not verify candidate popups.
+The installed `lunadah-session` command is intentionally extensionless and is distinct from source helpers such as `scripts/install-session.sh` and `scripts/test-wayland.sh`. Its check does not acquire DRM devices or test display output. Do not start `lunadah-session` inside another running desktop; use the login entry. For a nested check, run `LUNADAH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland lunadah-compositor --socket ludash-test` instead. In that window, check the single compact top panel: left workspace/session and inline grouped-app controls, the centered overview / Lambda (`Λ`) launcher / settings selector and downward launcher reveal, unified launcher rows/search, and the right tray plus clock/network/battery status. Omit `LUNADAH_DISABLE_FCITX=1` only for a deliberate Fcitx/SNI check; the fixed tray icon does not verify candidate popups.
 
 Logs are owner-readable files under `${XDG_STATE_HOME:-$HOME/.local/state}/lunadah/session-*.log`. A new file is created for each login; remove old logs when no longer needed. Inspect EGL/DRM/input errors there and the display-manager journal if login returns immediately. `QT_QPA_EGLFS_INTEGRATION` can select a different installed Qt device integration for hardware that requires it; there is no universal vendor override.
 

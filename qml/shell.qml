@@ -12,7 +12,6 @@ import "setup"
 import "style"
 import "compatibility"
 import "startup"
-import "columns"
 
 ShellRoot {
     id: root
@@ -20,7 +19,8 @@ ShellRoot {
     readonly property string bin: Quickshell.env("LUNADAH_BIN_DIR") || Quickshell.env("LUDASH_BIN_DIR")
     readonly property string controlExecutable: bin ? bin + "/lunadahctl" : "lunadahctl"
     readonly property string desktopExecutable: bin ? bin + "/lunadah-desktop" : "lunadah-desktop"
-    readonly property url iconSource: Qt.resolvedUrl("../data/assets/icon.png")
+    readonly property string assetDirectory: Quickshell.env("LUNADAH_ASSET_DIR")
+    readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadah.png" : ""
     signal commandCompleted(string method, var result)
     property bool stopping: false
     property int lastSettingsSerial: 0
@@ -94,7 +94,6 @@ ShellRoot {
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
-    ColumnStrip { shell: root; opened: !root.stopping && (((root.state.tiling || {}).groups || []).length > 0) }
     Overview { shell: root; opened: !root.stopping && root.overviewOpen }
     Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
     SettingsPanel { id: settingsCenter; shell: root; opened: !root.stopping && root.settingsOpen }

@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=LunaDah
 Exec=@CMAKE_INSTALL_FULL_BINDIR@/lunadah-desktop --app launcher
+Icon=lunadah
 Type=Application
 NoDisplay=true

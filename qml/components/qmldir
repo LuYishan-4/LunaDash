@@ -5,4 +5,5 @@ LineIcon 1.0 LineIcon.qml
 SoftSlider 1.0 SoftSlider.qml
 SoftSwitch 1.0 SoftSwitch.qml
 LunaDahLogo 1.0 LunaDahLogo.qml
+ApplicationIcon 1.0 ApplicationIcon.qml
 BrandIcon 1.0 BrandIcon.qml

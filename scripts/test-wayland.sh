@@ -72,13 +72,23 @@ frame = Image.open(sys.argv[2]).convert('RGB')
 assert frame.getcolors(maxcolors=128) is None, 'Desktop screenshot is blank'
 logical_width, logical_height = state['display']['width'], state['display']['height']
 scale_x, scale_y = frame.width / logical_width, frame.height / logical_height
+onscreen = []
 for client in clients:
     assert client['contentWidth'] > 0 and client['contentHeight'] > 0, client
     x, y, width, height = (int(client[key]) for key in ('x', 'y', 'width', 'height'))
-    assert 0 <= x < x + width <= logical_width and 0 <= y < y + height <= logical_height, client
-    content = frame.crop((int((x + 8) * scale_x), int((y + 40) * scale_y),
-                          int((x + width - 8) * scale_x), int((y + height - 8) * scale_y)))
-    assert content.getcolors(maxcolors=32) is None, f'Blank client content: {client}'
+    assert width > 0 and height > 0 and 0 <= y < y + height <= logical_height, client
+    if x < logical_width and x + width > 0:
+        onscreen.append(client)
+assert onscreen, 'Scrollable layout has no client intersecting the viewport'
+for client in onscreen:
+    x, y, width, height = (int(client[key]) for key in ('x', 'y', 'width', 'height'))
+    left, right = max(0, x + 8), min(logical_width, x + width - 8)
+    top, bottom = y + 40, min(logical_height, y + height - 8)
+    if right - left < 16 or bottom - top < 16:
+        continue
+    content = frame.crop((int(left * scale_x), int(top * scale_y),
+                          int(right * scale_x), int(bottom * scale_y)))
+    assert content.getcolors(maxcolors=32) is None, f'Blank onscreen client content: {client}'
 if os.environ.get('LUDASH_TEST_NO_SHELL') != '1':
     assert state.get('layerSurfaces', 0) >= 2, state
 for i, a in enumerate(clients):

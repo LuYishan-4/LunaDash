@@ -18,6 +18,8 @@ ModuleSurface {
     color: "#f5101418"
     property bool motionEnabled: Theme.animations && ((shell.state.appearance || {}).animations ?? true)
     property bool finishing: false
+    property real fadeOpacity: 1
+    contentItem.opacity: fadeOpacity
 
     function finish() {
         if (finishing) return
@@ -45,7 +47,7 @@ ModuleSurface {
     }
     PauseAnimation { id: hold; duration: overlay.motionEnabled ? Math.max(260, Theme.animationDuration) : 0; onFinished: overlay.finish() }
     NumberAnimation {
-        id: fadeOut; target: overlay; property: "opacity"; from: 1; to: 0
+        id: fadeOut; target: overlay; property: "fadeOpacity"; from: 1; to: 0
         duration: overlay.motionEnabled ? Math.max(120, Theme.animationDuration) : 0; easing.type: Easing.InCubic
         onFinished: overlay.finished()
     }

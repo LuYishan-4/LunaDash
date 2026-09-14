@@ -25,7 +25,7 @@
 ./scripts/install-session.sh --dry-run
 ```
 
-確認後安裝。安裝完成後，先執行 `lunadah-session --check`，並確認 `/usr/share/wayland-sessions/lunadah.desktop` 與 `/usr/share/lunadah/data/assets/icon.png` 已存在：
+確認後安裝。安裝完成後，先執行 `lunadah-session --check`，並確認 `/usr/share/wayland-sessions/lunadah.desktop` 與 `/usr/share/icons/hicolor/512x512/apps/lunadah.png` 已存在：
 
 ```sh
 ./scripts/install-session.sh

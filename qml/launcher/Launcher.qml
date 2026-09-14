@@ -53,6 +53,15 @@ ModuleSurface {
                 desktopEntry: entry
             }))
     }
+    function iconSource(entry) {
+        const identity = String((entry.id || "") + " " + (entry.name || "") + " " + (entry.genericName || "")).toLowerCase()
+        let icon = String(entry.icon || "")
+        if (!icon && (identity.includes("file") || identity.includes("nautilus") || identity.includes("dolphin"))) icon = "system-file-manager"
+        else if (!icon && identity.includes("setting")) icon = "preferences-system"
+        else if (!icon && (identity.includes("terminal") || identity.includes("console"))) icon = "utilities-terminal"
+        else if (!icon && identity.includes("monitor")) icon = "utilities-system-monitor"
+        return Quickshell.iconPath(icon || "application-x-executable")
+    }
     function rank(entry, tokens) {
         const fields = [entry.name, entry.description, entry.genericName, entry.id, entry.keywords]
             .map(field => String(field || "").toLocaleLowerCase())
@@ -132,11 +141,14 @@ ModuleSurface {
                 }
                 contentItem: Row {
                     spacing: 14
-                    IconImage {
+                    ApplicationIcon {
+                        shell: launcher.shell
                         width: 36
                         height: 36
                         anchors.verticalCenter: parent.verticalCenter
-                        source: Quickshell.iconPath(applicationRow.modelData.icon || "application-x-executable")
+                        iconName: String(applicationRow.modelData.icon || "")
+                        appId: String(applicationRow.modelData.id || "")
+                        title: String(applicationRow.modelData.name || "")
                     }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter

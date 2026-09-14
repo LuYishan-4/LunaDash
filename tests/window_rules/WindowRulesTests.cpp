@@ -14,6 +14,16 @@ private slots:
                 .maximized);
   }
 
+  void resolvesApplicationIcons() {
+    QCOMPARE(windowIconName("lunadah-app", "LunaDah · files"),
+             QString("system-file-manager"));
+    QCOMPARE(windowIconName("lunadah-app", "LunaDah · settings"),
+             QString("preferences-system"));
+    QCOMPARE(windowIconName("kitty", "Terminal"), QString("kitty"));
+    QCOMPARE(windowIconName("org.example.Editor", "Document"),
+             QString("org.example.Editor"));
+  }
+
   void leavesGenericWindowsUnforced() {
     QVERIFY(!initialWindowPolicy("org.example.Editor", "Document").maximized);
     QVERIFY(!initialWindowPolicy("org.example.Dialog", "Open Image").maximized);

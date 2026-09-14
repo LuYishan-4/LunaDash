@@ -338,6 +338,7 @@ QJsonObject WaylandCompositor::state() const {
         {"id", client->id},
         {"title", client->toplevel ? client->toplevel->title() : ""},
         {"appId", client->appId},
+        {"icon", client->iconName},
         {"desktop", client->desktop},
         {"workspace", client->workspace},
         {"visible", client->frame->isVisible()},
@@ -388,6 +389,9 @@ QJsonObject WaylandCompositor::state() const {
                         ? (*client)->toplevel->title()
                         : QString{}},
           {"appId", client != clients_.end() ? (*client)->appId : QString{}},
+          {"icon", client != clients_.end()
+                       ? (*client)->iconName
+                       : QStringLiteral("application-x-executable")},
           {"minimized", placement != tilingSnapshot.columns.end()
                             ? placement->minimized
                             : false},
@@ -729,6 +733,7 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   client->floating = desktopPreferences().value("defaultFloating").toBool();
   client->frame = new WindowFrame(window_.contentItem());
   client->frame->title = toplevel->title();
+  client->iconName = windowIconName(client->appId, client->frame->title);
   const auto initialPolicy =
       initialWindowPolicy(client->appId, client->frame->title);
   client->maximized = initialPolicy.maximized;
@@ -767,6 +772,7 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   };
   connect(toplevel, &QWaylandXdgToplevel::titleChanged, this, [this, current] {
     current->frame->title = current->toplevel->title();
+    current->iconName = windowIconName(current->appId, current->frame->title);
     if (!current->mapped) {
       current->maximized =
           initialWindowPolicy(current->appId, current->frame->title).maximized;
@@ -776,6 +782,7 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   });
   connect(toplevel, &QWaylandXdgToplevel::appIdChanged, this, [this, current] {
     current->appId = current->toplevel->appId();
+    current->iconName = windowIconName(current->appId, current->frame->title);
     current->desktop = current->appId == "ludash-shell" &&
                        shellProcessIds_.contains(
                            current->item->surface()->client()->processId());

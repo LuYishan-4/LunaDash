@@ -13,7 +13,6 @@ Item {
         id: image
         anchors.fill: parent
         source: root.shell.iconSource
-        sourceClipRect: Qt.rect(610, 520, 440, 330)
         fillMode: Image.PreserveAspectFit
         asynchronous: true
         mipmap: true

@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Services.SystemTray
 import Quickshell.Wayland
 import Quickshell.Widgets
+import "../columns"
 import "../components"
 import "../style"
 
@@ -18,20 +19,38 @@ ModuleSurface {
     exclusiveZone: implicitHeight + moduleMargin * 2
     color: "transparent"
     WlrLayershell.namespace: "lunadah-panel"
-    property var stats: shell.state.system || ({})
 
-    Rectangle { anchors.fill: parent; color: moduleBackground; radius: moduleRadius }
+    property var stats: shell.state.system || ({})
+    readonly property var groups: ((shell.state.tiling || {}).groups || [])
+
+    function trayIcon(item) {
+        const identity = String((item.id || "") + " " + (item.title || "")).toLowerCase()
+        if (identity.includes("fcitx")) return Quickshell.iconPath("fcitx")
+        if (identity.includes("discord")) return Quickshell.iconPath("discord")
+        if (identity.includes("docker")) return Quickshell.iconPath("docker-desktop")
+        const supplied = String(item.icon || "")
+        return supplied.length > 0 ? supplied : Quickshell.iconPath("application-x-executable")
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        radius: Math.min(8, height / 2)
+        color: moduleBackground
+        border.width: 1
+        border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.28)
+    }
 
     Row {
-        anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
-        spacing: 5
+        id: workspaceControls
+        anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+        spacing: 3
         Repeater {
             model: (shell.state.appearance || {}).workspaceCount || 4
             PanelSegment {
                 moduleHost: panel
                 required property int index
                 text: String(index + 1)
-                implicitWidth: panel.moduleWidth(panel.width < 1100 ? 24 : panel.shell.state.workspace === index ? 44 : 30)
+                implicitWidth: panel.moduleWidth(shell.state.workspace === index ? 32 : 24)
                 selected: shell.state.workspace === index
                 onClicked: shell.command("workspace", index)
             }
@@ -39,28 +58,79 @@ ModuleSurface {
         PanelSegment {
             moduleHost: panel
             text: "⏻"
+            implicitWidth: 26
             ink: Theme.danger
             Accessible.name: shell.tr("Session controls")
             onClicked: shell.logoutOpen = !shell.logoutOpen
         }
     }
 
-    Item {
+    Row {
+        id: centerSelector
         anchors.centerIn: parent
-        width: 44
         height: Math.max(28, panel.height - 6)
-        BrandIcon { shell: panel.shell; anchors.centerIn: parent; width: 34; height: 26 }
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: shell.launcherOpen = !shell.launcherOpen
+        spacing: 2
+
+        PanelSegment {
+            moduleHost: panel
+            text: "◈"
+            implicitWidth: 28
+            Accessible.name: shell.tr("Overview")
+            onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
+        }
+        Rectangle {
+            width: 54
+            height: centerSelector.height
+            radius: 4
+            color: Theme.accent
+            border.width: 1
+            border.color: Qt.lighter(Theme.accent, 1.18)
+            Text {
+                anchors.centerIn: parent
+                text: "Λ"
+                color: "#13212a"
+                font.pixelSize: 20
+                font.bold: true
+            }
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: shell.launcherOpen = !shell.launcherOpen
+            }
+            Behavior on color { ColorAnimation { duration: Theme.motion } }
+        }
+        PanelSegment {
+            moduleHost: panel
+            text: "⚙"
+            implicitWidth: 28
+            Accessible.name: shell.tr("Settings")
+            onClicked: shell.settingsOpen = !shell.settingsOpen
+        }
+    }
+
+    ListView {
+        id: columnTasks
+        anchors { left: workspaceControls.right; leftMargin: 6; right: centerSelector.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+        height: Math.max(28, panel.height - 8)
+        orientation: ListView.Horizontal
+        spacing: 3
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        model: panel.groups
+        visible: count > 0
+        delegate: ColumnCell {
+            required property var modelData
+            shell: panel.shell
+            group: modelData
+            height: columnTasks.height
+            width: Math.max(38, Math.min(142, ((modelData.members || []).length * 30) + 12))
         }
     }
 
     Row {
-        anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
-        spacing: 4
+        anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+        spacing: 3
 
         Repeater {
             model: SystemTray.items
@@ -69,14 +139,19 @@ ModuleSurface {
                 required property var modelData
                 readonly property var item: modelData
                 visible: item.status !== Status.Passive
-                width: visible ? Math.min(30, panel.height - 6) : 0
-                height: Math.min(30, panel.height - 6)
+                width: visible ? Math.min(28, panel.height - 8) : 0
+                height: Math.min(28, panel.height - 8)
 
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 5
+                    color: trayMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16) : "transparent"
+                }
                 IconImage {
                     anchors.centerIn: parent
-                    width: Math.min(20, parent.width)
+                    width: Math.min(19, parent.width - 4)
                     height: width
-                    source: trayDelegate.item.icon
+                    source: panel.trayIcon(trayDelegate.item)
                 }
                 MouseArea {
                     id: trayMouse
@@ -85,10 +160,8 @@ ModuleSurface {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: mouse => {
-                        if (mouse.button === Qt.LeftButton)
-                            trayDelegate.item.activate()
-                        else
-                            trayDelegate.item.secondaryActivate()
+                        if (mouse.button === Qt.LeftButton) trayDelegate.item.activate()
+                        else trayDelegate.item.secondaryActivate()
                     }
                     onWheel: wheel => trayDelegate.item.scroll(wheel.angleDelta.y || wheel.angleDelta.x, wheel.angleDelta.x !== 0)
                 }
@@ -103,18 +176,19 @@ ModuleSurface {
             id: clock
             property string time: ""
             text: time
+            implicitWidth: panel.moduleWidth(panel.width > 850 ? 76 : 52)
             onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
             Timer {
                 interval: 1000
                 repeat: true
                 running: true
                 triggeredOnStart: true
-                onTriggered: clock.time = Qt.formatDateTime(new Date(), panel.width > 850 ? (Theme.clock24Hour ? "ddd  HH:mm" : "ddd  h:mm AP") : (Theme.clock24Hour ? "HH:mm" : "h:mm AP"))
+                onTriggered: clock.time = Qt.formatDateTime(new Date(), panel.width > 850 ? (Theme.clock24Hour ? "HH:mm:ss" : "h:mm AP") : (Theme.clock24Hour ? "HH:mm" : "h:mm"))
             }
         }
         PanelSegment {
             moduleHost: panel
-            visible: panel.width > 620
+            visible: panel.width > 720
             text: (shell.state.network || {}).connected ? "↔" : "×"
             ink: (shell.state.network || {}).internet ? Theme.accent : Theme.muted
             Accessible.name: shell.tr("Network")
@@ -122,7 +196,7 @@ ModuleSurface {
         }
         PanelSegment {
             moduleHost: panel
-            visible: panel.width > 760 && (panel.stats.batteryPercent ?? -1) >= 0
+            visible: panel.width > 860 && (panel.stats.batteryPercent ?? -1) >= 0
             text: panel.stats.batteryPercent + "%"
             Accessible.name: shell.tr("Battery")
             onClicked: shell.launch("monitor")

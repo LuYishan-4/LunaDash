@@ -29,7 +29,7 @@ ModuleSurface {
     function openResult(entry) { showCategory(entry.page) }
     readonly property int overlayMargin: Math.max(8, Math.min(moduleMargin, 24))
     anchors { top: true; bottom: true; left: true; right: true }
-    margins { top: overlayMargin; bottom: overlayMargin; left: overlayMargin; right: overlayMargin }
+    margins { top: Theme.barHeight + overlayMargin; bottom: overlayMargin; left: overlayMargin; right: overlayMargin }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "lunadah-settings"

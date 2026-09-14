@@ -62,6 +62,16 @@ Require `100% tests passed`. Graphics tests use Mesa software rendering; they ar
 
 ## 4. Full Wayland sessions
 
+From an existing Wayland desktop, the one-shot path is:
+
+```sh
+./scripts/test-once.sh
+```
+
+It configures and builds `build-once`, runs the focused non-display CTest set, lints every QML file when `qmllint` is available, and then invokes the host-Wayland rendering test with Fcitx replacement disabled. Evidence is written to `build-once/host-wayland.log`, `build-once/host-wayland-state.json`, and `build-once/host-wayland-preview.png`. Use `LUDASH_GRAPHICS=opengl ./scripts/test-once.sh` to select desktop OpenGL or `LUNADAH_TEST_BUILD_DIR=/absolute/path ./scripts/test-once.sh` to choose another build directory.
+
+Individual session commands remain available:
+
 ```sh
 LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=opengl ./scripts/test-wayland.sh
 LUNADAH_DISABLE_FCITX=1 LUDASH_GRAPHICS=gles ./scripts/test-wayland.sh
@@ -118,17 +128,18 @@ Retain the same configuration directory for a second launch to verify persistenc
 
 1. Walk through language, network, appearance and completion. Verify offline continuation. Network status must distinguish a link from confirmed Internet connectivity. If desired, manually open the network editor and close it; automated tests do not connect Wi-Fi or alter profiles.
 2. Change accent, gaps, panel height, wallpaper and card visibility. Restart with the same configuration and check those choices remain. Reopen the guide from settings.
-3. Click the cropped BrandIcon at panel center and confirm the launcher reveals downward from that center. Verify one list containing Settings, Files, Terminal, Monitor and installed desktop entries, each with icon, name and description. Try multi-token queries from names, descriptions, generic names and keywords; relevant metadata matches should rank first. Confirm there are no category tabs or separate open-window section.
-4. Open Settings → Keyboard and pointer. Change a keyboard layout and repeat settings, then use the test field to check input. No bundled Notes application is installed.
-5. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal. Open the default Terminal with Super + Return and confirm Kitty starts interactive Fish with the LunaDah profile. Kitty should initially occupy the full LunaDah work area; Super + F must restore its column size and maximize it again. Open a generic built-in window and the wallpaper image picker and confirm neither is initially forced maximized.
-6. Navigate into and out of a directory in Files. On disposable windows, verify the frame's top-right minus control minimizes and × requests close.
-7. Open at least five non-floating windows and use Super + F as needed to leave Kitty windows unmaximized. Confirm the theme-accented `ColumnStrip` appears at top-left with one cell per tiled column and one app icon per member. Use Super + Shift + H/L to group the focused member into the adjacent column. Build a four-member column, minimize one member, and confirm a fifth member still cannot be added: the limit is four total, not four visible. Verify the remaining visible members always receive equal vertical space.
-8. In `ColumnStrip`, click each exact icon and confirm that member is focused, restored if minimized and scrolled/revealed. Drag one member icon onto a member in another column and confirm it moves into the target column. Right-click a grouped icon, then separately use its minus badge, and confirm each expels that exact member into its own adjacent column. Check Super + J/K within a group, Super + H/L between columns, Super + Shift + E to expel, Super + Ctrl + H/L to reorder, Super plus +/− to resize, and Super + C to center.
-9. Use the left panel to switch workspaces. Test Super + Shift + 2 to move a window and Super + M to minimize it. The launcher is application-only and has no open-window restore section.
-10. Open Appearance and choose a local wallpaper. Confirm LunaDah's own image picker appears rather than `QFileDialog`; test typed/up directory navigation, list/grid switching, PNG/JPEG/WebP filtering, filename/path/dimension metadata and a large image whose preview remains bounded without distortion. Oversized, unsupported, unreadable or over-32-megapixel images must not become selectable. Cancel and confirm the wallpaper is unchanged, then select a valid image and confirm it is applied through the normal wallpaper path.
-11. Adjust blur, window opacity and animation duration in settings. Disable animations and rapidly switch workspaces or close windows. Launch an X11-only app through the compatibility dialog when XWayland is available. Test both shader palettes and return to the bundled image.
-12. Reopen native apps after a language change. Test preedit, candidates and commit following [Input methods](INPUT_METHODS.md); protocol registration alone is not end-to-end IME verification.
-13. Open the left session menu. Verify unavailable logind actions are disabled, cancel logout/reboot/poweroff confirmation, and only then test a safe action in a disposable session. Logout is handled by LunaDah; suspend, reboot and poweroff call logind over D-Bus and never execute shell commands. Close all windows, then finish the session. Native plugins stay disabled unless you explicitly trust and enable one. Pacman operations require deliberate terminal confirmation and are not executed by tests.
+3. Inspect the single compact top `TopPanel`. Verify workspace/session controls and inline grouped-app cells on the left, the centered three-part overview / accent launcher / settings selector with its Lambda (`Λ`) glyph, and the StatusNotifier tray plus clock/network/battery on the right. Confirm there is no separately mapped `ColumnStrip` layer. Click the Lambda and confirm the launcher reveals downward from panel center. Verify one list containing Settings, Files, Terminal, Monitor and installed desktop entries, each with icon, name and description. Try multi-token queries from names, descriptions, generic names and keywords; relevant metadata matches should rank first. Confirm there are no category tabs or separate open-window section.
+4. After a system/package install, confirm `/usr/share/icons/hicolor/512x512/apps/lunadah.png` exists and the installed `lunadah-app.desktop` contains `Icon=lunadah`. If the distribution's packaging hooks did not refresh the icon cache, run `gtk-update-icon-cache -f /usr/share/icons/hicolor`.
+5. Open Settings through the center selector and confirm its overlay starts below the panel instead of covering it. Open Settings → Keyboard and pointer, change a keyboard layout and repeat settings, then use the test field to check input. No bundled Notes application is installed.
+6. In Console, run `printf 'hello\n'; exit 7`; expect hello and exit code 7. This console is not a PTY terminal. Open the default Terminal with Super + Return and confirm Kitty starts interactive Fish with the LunaDah profile. Kitty should initially occupy the full LunaDah compositor `workArea`; Super + F must restore its column size and maximize it again. Open a generic built-in window and the wallpaper image picker and confirm neither is initially forced maximized. Inspect `lunadahctl status` and verify mapped window y geometry starts below the top panel's reported `panelExtent`/exclusive area.
+7. Navigate into and out of a directory in Files. Open Files, Kitty, LunaDah Settings or an available host system-settings window, and Monitor, then inspect `lunadahctl status`: `clients[].icon` and `tiling.groups[].members[].icon` should resolve to appropriate values (`system-file-manager`, `kitty`, `preferences-system`, and `utilities-system-monitor` for the built-in cases). On disposable windows, verify the frame's top-right minus control minimizes and × requests close.
+8. Open at least five non-floating windows and use Super + F as needed to leave Kitty windows unmaximized. Confirm the theme-accented grouped-application cells are embedded inline in the left side of `TopPanel`, with one cell per tiled column and one app icon per member. Use Super + Shift + H/L to group the focused member into the adjacent column. Build a four-member column, minimize one member, and confirm a fifth member still cannot be added: the limit is four total, not four visible. Verify the remaining visible members always receive equal vertical space.
+9. In the panel's inline grouped cells, click each exact icon and confirm that member is focused, restored if minimized and scrolled/revealed. Drag one member icon onto a member in another column and confirm it moves into the target column. Right-click a grouped icon, then separately use its minus badge, and confirm each expels that exact member into its own adjacent column. Check Super + J/K within a group, Super + H/L between columns, Super + Shift + E to expel, Super + Ctrl + H/L to reorder, Super plus +/− to resize, and Super + C to center.
+10. Use the left panel controls to switch workspaces. Test Super + Shift + 2 to move a window and Super + M to minimize it. The launcher is application-only and has no open-window restore section.
+11. Open Appearance and choose a local wallpaper. Confirm LunaDah's own image picker appears rather than `QFileDialog`; test typed/up directory navigation, list/grid switching, PNG/JPEG/WebP filtering, filename/path/dimension metadata and a large image whose preview remains bounded without distortion. Oversized, unsupported, unreadable or over-32-megapixel images must not become selectable. Cancel and confirm the wallpaper is unchanged, then select a valid image and confirm it is applied through the normal wallpaper path.
+12. Adjust blur, window opacity and animation duration in settings. Disable animations and rapidly switch workspaces or close windows. Launch an X11-only app through the compatibility dialog when XWayland is available. Test both shader palettes and return to the bundled image.
+13. Start Fcitx for a deliberate integration check and verify its tray icon uses the fallback correctly; if available, similarly inspect Discord and Docker. Test preedit, candidates and commit following [Input methods](INPUT_METHODS.md). The Fcitx tray icon is fixed, but candidate popup behavior still depends on the incomplete input-method bridge; protocol registration and a visible tray icon are not end-to-end IME verification.
+14. Reopen native apps after a language change. Open the left session menu, verify unavailable logind actions are disabled, cancel logout/reboot/poweroff confirmation, and only then test a safe action in a disposable session. Logout is handled by LunaDah; suspend, reboot and poweroff call logind over D-Bus and never execute shell commands. Close all windows, then finish the session. Native plugins stay disabled unless you explicitly trust and enable one. Pacman operations require deliberate terminal confirmation and are not executed by tests.
 
 The host desktop may intercept Super combinations. Use shell buttons or adjust host shortcuts before concluding input is broken. An X11 host can run the nested compositor through `QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl`; LunaDah's clients still use Wayland, not an X11 window manager.
 
@@ -261,7 +272,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/blur/BlurGeometry.h](../include/LuDash/blur/BlurGeometry.h) | Declare interfaces to clip finite blur capture coordinates before integer conversion. |
 | [include/LuDash/blur/BlurItem.h](../include/LuDash/blur/BlurItem.h) | Declare interfaces/types to synchronize application blur properties into the scene graph. |
 | [include/LuDash/blur/BlurNode.h](../include/LuDash/blur/BlurNode.h) | Declare interfaces/types to bridge Qt scene graph state and the C blur renderer. |
-| [include/LuDash/compositor/ClientWindow.h](../include/LuDash/compositor/ClientWindow.h) | Declare interfaces/types to track compositor-owned client state and geometry. |
+| [include/LuDash/compositor/ClientWindow.h](../include/LuDash/compositor/ClientWindow.h) | Declare interfaces/types to track compositor-owned client state, geometry and resolved icon name. |
 | [include/LuDash/compositor/WaylandCompositor.h](../include/LuDash/compositor/WaylandCompositor.h) | Declare interfaces/types to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [include/LuDash/configuration/DesktopPreferences.h](../include/LuDash/configuration/DesktopPreferences.h) | Declare interfaces/types to validate and persist appearance and first-run completion. |
 | [include/LuDash/console/Console.h](../include/LuDash/console/Console.h) | Declare interfaces/types to run bounded shell commands with process-group cleanup. |
@@ -308,7 +319,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/wallpaper/WallpaperSettings.h](../include/LuDash/wallpaper/WallpaperSettings.h) | Declare interfaces/types to validate local image paths and select image/shader wallpaper. |
 | [include/LuDash/welcome/Welcome.h](../include/LuDash/welcome/Welcome.h) | Declare interfaces/types to provide the optional native welcome/demo application. |
 | [include/LuDash/window_frame/WindowFrame.h](../include/LuDash/window_frame/WindowFrame.h) | Declare interfaces/types to paint and handle compositor window decorations. |
-| [include/LuDash/window_rules/WindowRules.h](../include/LuDash/window_rules/WindowRules.h) | Declare initial-window policy for Kitty maximize behavior without forcing generic/dialog windows. |
+| [include/LuDash/window_rules/WindowRules.h](../include/LuDash/window_rules/WindowRules.h) | Declare initial-window policy and per-window icon resolution for Files, Settings, Kitty, Monitor and fallback applications. |
 | [include/LuDash/xwayland/XWaylandSupport.h](../include/LuDash/xwayland/XWaylandSupport.h) | Declare interfaces/types to manage the optional authenticated XWayland compatibility container. |
 
 ### C and C++ implementations
@@ -370,19 +381,19 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/wallpaper/WallpaperSettings.cpp](../src/wallpaper/WallpaperSettings.cpp) | Implement behavior to validate local image paths and select image/shader wallpaper. |
 | [src/welcome/Welcome.cpp](../src/welcome/Welcome.cpp) | Implement behavior to provide the optional native welcome/demo application. |
 | [src/window_frame/WindowFrame.cpp](../src/window_frame/WindowFrame.cpp) | Implement focused borders, title painting and top-right quick minimize/close controls. |
-| [src/window_rules/WindowRules.cpp](../src/window_rules/WindowRules.cpp) | Implement initial Kitty/LunaDah Terminal maximization while leaving generic windows and the image picker unforced. |
+| [src/window_rules/WindowRules.cpp](../src/window_rules/WindowRules.cpp) | Implement initial Kitty/LunaDah Terminal maximization and resolved icon names while leaving generic windows and the image picker unforced. |
 | [src/xwayland/XWaylandSupport.cpp](../src/xwayland/XWaylandSupport.cpp) | Implement behavior to manage the optional authenticated XWayland compatibility container. |
 
 ### Quickshell UI
 
 | File | Purpose |
 | --- | --- |
-| [qml/columns/ColumnCell.qml](../qml/columns/ColumnCell.qml) | Draw one theme-accented strip cell per tiled column and lay out up to four member icons. |
-| [qml/columns/ColumnStrip.qml](../qml/columns/ColumnStrip.qml) | Present the top-left niri-inspired column strip while tiled groups exist. |
+| [qml/columns/ColumnCell.qml](../qml/columns/ColumnCell.qml) | Draw one theme-accented grouped-app cell per tiled column and lay out up to four member icons inline in `TopPanel`. |
+| [qml/columns/ColumnStrip.qml](../qml/columns/ColumnStrip.qml) | Retain the former standalone strip component; `shell.qml` no longer instantiates it as a second layer. |
 | [qml/columns/MemberIcon.qml](../qml/columns/MemberIcon.qml) | Focus/restore exact members, drag/drop them between columns and expose right-click/minus expulsion. |
 | [qml/compatibility/X11Launcher.qml](../qml/compatibility/X11Launcher.qml) | Launch an X11 executable through the compatibility service. |
 | [qml/components/AnimatedPanel.qml](../qml/components/AnimatedPanel.qml) | Shared animated layer-panel opening and closing. |
-| [qml/components/BrandIcon.qml](../qml/components/BrandIcon.qml) | Aspect-fill and crop the packaged brand asset for the panel launcher and About page. |
+| [qml/components/BrandIcon.qml](../qml/components/BrandIcon.qml) | Display the generated cropped brand asset where an image logo is needed; the top-panel launcher itself uses the Lambda glyph. |
 | [qml/components/LineIcon.qml](../qml/components/LineIcon.qml) | Scalable outline icons shared by settings categories and search. |
 | [qml/components/LunaDahLogo.qml](../qml/components/LunaDahLogo.qml) | Animated reusable LunaDah logo used by startup UI. |
 | [qml/components/Segment.qml](../qml/components/Segment.qml) | Rounded animated top-panel button with keyboard access. |
@@ -399,11 +410,11 @@ Generated build output, dependency caches, source archives and Git internals are
 | [qml/modules/ModuleSurface.qml](../qml/modules/ModuleSurface.qml) | Host built-in or trusted user QML content with style overrides, animations and loading fallback. |
 | [qml/overview/Overview.qml](../qml/overview/Overview.qml) | Tabbed dashboard with performance and workspace controls. |
 | [qml/panel/PanelSegment.qml](../qml/panel/PanelSegment.qml) | Panel button adapter for per-module height, typography and accent colors. |
-| [qml/panel/TopPanel.qml](../qml/panel/TopPanel.qml) | Arrange left workspace/session controls, centered BrandIcon launcher and right StatusNotifier/compact status items. |
+| [qml/panel/TopPanel.qml](../qml/panel/TopPanel.qml) | Implement the single compact panel: left workspace/session plus inline grouped-app cells, center overview/Lambda launcher/settings selector, and right StatusNotifier/clock/network/battery items with Fcitx/Discord/Docker fallbacks. |
 | [qml/session/LogoutPanel.qml](../qml/session/LogoutPanel.qml) | Check availability and confirm logout, suspend, reboot and poweroff session actions. |
 | [qml/settings/SearchResultDelegate.qml](../qml/settings/SearchResultDelegate.qml) | Render keyboard/pointer-accessible setting-level search results. |
 | [qml/settings/SettingsCatalog.qml](../qml/settings/SettingsCatalog.qml) | Define and rank tokenized setting-level search metadata. |
-| [qml/settings/SettingsPanel.qml](../qml/settings/SettingsPanel.qml) | Fullscreen settings overlay with quick hide, searchable sidebar and dynamically loaded feature pages. |
+| [qml/settings/SettingsPanel.qml](../qml/settings/SettingsPanel.qml) | Fullscreen settings overlay beginning below `Theme.barHeight`, with quick hide, searchable sidebar and dynamically loaded feature pages. |
 | [qml/settings/components/DefaultAppEditor.qml](../qml/settings/components/DefaultAppEditor.qml) | Editor for validated terminal/file-manager argument arrays. |
 | [qml/settings/components/HelpText.qml](../qml/settings/components/HelpText.qml) | Wrapped localized explanatory text for settings pages. |
 | [qml/settings/components/PageTitle.qml](../qml/settings/components/PageTitle.qml) | Localized settings page title. |
@@ -426,7 +437,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [qml/settings/pages/system.qml](../qml/settings/pages/system.qml) | Settings page for system; direct controls and explicit system-service availability. |
 | [qml/settings/pages/windows.qml](../qml/settings/pages/windows.qml) | Settings page for windows; direct controls and explicit system-service availability. |
 | [qml/setup/SetupWizard.qml](../qml/setup/SetupWizard.qml) | Four-step language, network, appearance and completion guide. |
-| [qml/shell.qml](../qml/shell.qml) | Shell root, status polling, serialized commands and panel/setup visibility. |
+| [qml/shell.qml](../qml/shell.qml) | Shell root, status polling, serialized commands and single-`TopPanel`/setup visibility; it does not instantiate the former standalone `ColumnStrip`. |
 | [qml/style/Theme.qml](../qml/style/Theme.qml) | Shared palette, font and live accent/panel-height properties. |
 | [qml/style/qmldir](../qml/style/qmldir) | Register the Theme singleton. |
 | [qml/startup/StartupLogoOverlay.qml](../qml/startup/StartupLogoOverlay.qml) | Display and dismiss the animated startup logo overlay. |
@@ -436,9 +447,10 @@ Generated build output, dependency caches, source archives and Git internals are
 
 | File | Purpose |
 | --- | --- |
-| [data/assets/icon.png](../data/assets/icon.png) | BrandIcon source image, installed as `/usr/share/lunadah/data/assets/icon.png`. |
+| [data/assets/icon.png](../data/assets/icon.png) | Original uncropped brand source retained with the packaged shell assets. |
+| [data/assets/lunadah.png](../data/assets/lunadah.png) | Generated cropped 512×512 shell/application icon, also installed as `/usr/share/icons/hicolor/512x512/apps/lunadah.png`. |
 | [data/lunadah.desktop.in](../data/lunadah.desktop.in) | Canonical LunaDah Wayland login-session descriptor template. |
-| [data/lunadah-app.desktop.in](../data/lunadah-app.desktop.in) | Hidden normal-application desktop entry using ID `lunadah-app.desktop`. |
+| [data/lunadah-app.desktop.in](../data/lunadah-app.desktop.in) | Hidden normal-application desktop entry using ID `lunadah-app.desktop` and `Icon=lunadah`. |
 | [data/ludash.desktop.in](../data/ludash.desktop.in) | Legacy compatibility login-session descriptor template. |
 | [data/modules/templates/overview/Main.qml](../data/modules/templates/overview/Main.qml) | Original custom dashboard template displaying actual session statistics. |
 | [data/modules/templates/panel/Main.qml](../data/modules/templates/panel/Main.qml) | Original custom taskbar template with workspace and settings controls. |
@@ -465,7 +477,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [scripts/ludash-session](../scripts/ludash-session) | Legacy-named session implementation retained for compatibility. |
 | [scripts/make-source.sh](../scripts/make-source.sh) | Create the local Arch source archive without build/Python caches. |
 | [scripts/security/check_sarif.py](../scripts/security/check_sarif.py) | Fail closed on missing SARIF or security/quality findings. |
-| [scripts/test-wayland.sh](../scripts/test-wayland.sh) | Isolated demo/overview/setup rendering tests and screenshot/state evidence. |
+| [scripts/test-once.sh](../scripts/test-once.sh) | Configure, build, run focused tests and execute one nested host-Wayland window test in one command. |
+| [scripts/test-wayland.sh](../scripts/test-wayland.sh) | Isolated demo/overview/setup rendering tests and screenshot/state evidence, including scrollable off-screen geometry. |
 | [scripts/testing/check_graphics_log.py](../scripts/testing/check_graphics_log.py) | Reject missing GLSL and failed Qt pipeline diagnostics in session logs. |
 | [tests/DesktopTests.cpp](../tests/DesktopTests.cpp) | Behavioral tests for native apps, layout and validated external inputs. |
 | [tests/animation/AnimationTests.cpp](../tests/animation/AnimationTests.cpp) | Interrupted transitions, item destruction and reduced-motion tests. |
@@ -494,7 +507,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
 | [tests/wayland/test_shell_interactions.py](../tests/wayland/test_shell_interactions.py) | Click the live shell and verify workspace/app/settings/window behavior. |
 | [tests/wayland/test_xwayland.py](../tests/wayland/test_xwayland.py) | Authenticated X11 mapping, denied unauthenticated access and shutdown cleanup. |
-| [tests/window_rules/WindowRulesTests.cpp](../tests/window_rules/WindowRulesTests.cpp) | Verify Kitty starts maximized and generic/dialog/image-picker windows remain unforced. |
+| [tests/window_rules/WindowRulesTests.cpp](../tests/window_rules/WindowRulesTests.cpp) | Verify Kitty starts maximized, generic/dialog/image-picker windows remain unforced, and application icon names resolve. |
 
 ### Website
 
@@ -561,6 +574,6 @@ Generated build output, dependency caches, source archives and Git internals are
 
 ## 11. Where to make a change
 
-For panel styling, start with `qml/panel`, `qml/components` and `qml/style`; use `qml/columns` for the `ColumnStrip`. For stored appearance, use the paired `configuration` module and shared QML controls. For window layout/lifetimes and initial placement, use `tiling`, `compositor` and `window_rules`. Wallpaper selection lives in `file_picker` and returns through the existing wallpaper IPC. For graphics, use `render_core`, `renderer`, `blur` and `data/shaders`. For Qt-free logic, use `tiling_core` and `system_metrics`. Add each new C++ feature in a matching header/implementation directory pair and list it in CMake.
+For panel styling, start with `qml/panel`, `qml/components` and `qml/style`; use `qml/columns` for the grouped cells and member icons embedded by `TopPanel`. The retained `ColumnStrip.qml` is not instantiated by `shell.qml`. For stored appearance, use the paired `configuration` module and shared QML controls. For window layout/lifetimes and initial placement, use `tiling`, `compositor` and `window_rules`. Wallpaper selection lives in `file_picker` and returns through the existing wallpaper IPC. For graphics, use `render_core`, `renderer`, `blur` and `data/shaders`. For Qt-free logic, use `tiling_core` and `system_metrics`. Add each new C++ feature in a matching header/implementation directory pair and list it in CMake.
 
 Run checks appropriate to the affected behavior. Context, window-lifetime, protocol and IPC changes need integration and sanitizer coverage. Use actual GitHub job results to report remote CI, never just the presence of workflow files.

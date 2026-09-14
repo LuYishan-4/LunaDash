@@ -10,5 +10,6 @@ struct InitialWindowPolicy {
 
 InitialWindowPolicy initialWindowPolicy(const QString &appId,
                                         const QString &title);
+QString windowIconName(const QString &appId, const QString &title);
 
 } // namespace LuDash

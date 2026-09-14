@@ -85,7 +85,7 @@ Item {
             anchors.centerIn: parent
             width: 18
             height: 18
-            source: Quickshell.iconPath(String(memberIcon.member.appId || "application-x-executable"))
+            source: Quickshell.iconPath(String(memberIcon.member.icon || memberIcon.member.appId || "application-x-executable"))
         }
 
         MouseArea {

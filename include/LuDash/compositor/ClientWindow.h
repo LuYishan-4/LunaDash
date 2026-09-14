@@ -23,6 +23,7 @@ struct ClientWindow {
   bool initialRuleApplied = false;
   bool lastConfiguredMaximized = false;
   QString appId;
+  QString iconName;
   QSize lastSize;
 };
 } // namespace LuDash
