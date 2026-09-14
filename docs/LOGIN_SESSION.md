@@ -67,7 +67,7 @@ If you intentionally want console-only boot again, use `sudo systemctl set-defau
 
 ## Other Linux distributions
 
-The convenience installer currently targets Arch and pacman-based systems. On other distributions install the dependencies from the README plus Quickshell, D-Bus, Konsole and Fish, then use CMake:
+The convenience installer currently targets Arch and pacman-based systems. On other distributions install the dependencies from the README plus Quickshell, D-Bus, Kitty and Fish, then use CMake:
 
 ```sh
 cmake -S . -B build-login -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr

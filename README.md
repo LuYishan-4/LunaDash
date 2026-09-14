@@ -6,9 +6,10 @@ A C++20 Wayland tiling desktop with C11 rendering, geometry and metrics cores wi
 
 ## What works
 
-- Native Wayland windows with niri-inspired, one-window-per-column scrollable tiling, four workspaces, floating and minimized windows.
+- Native Wayland windows with niri-inspired scrollable columns, four workspaces, floating and minimized windows. A column can contain up to four windows total, including minimized members; visible members share its height equally.
 - Quickshell wallpaper and three-part panel: workspace/session controls on the left, a cropped BrandIcon launcher control in the center, and StatusNotifier tray icons plus compact status on the right.
-- Saved accent colors, window gaps, panel height, wallpaper and information-card preferences.
+- A theme-accented top-left `ColumnStrip` appears whenever tiled columns exist. It shows one cell per column and one app icon per member; click a member to focus and reveal it, drag it onto another column member to group it, or use right-click/the minus badge to expel it.
+- Saved accent colors, window gaps, panel height, wallpaper and information-card preferences. Settings opens as a fullscreen QML overlay with a quick-hide control.
 - English and an external Traditional Chinese language pack.
 - One ranked, token-searchable launcher list containing Settings, Files, Terminal, Monitor and installed desktop entries, with icon, name and description.
 - Setting-level tokenized search, an expanded About page, and existing network connection detection with a NetworkManager configuration entry point.
@@ -20,7 +21,7 @@ A C++20 Wayland tiling desktop with C11 rendering, geometry and metrics cores wi
 ## Build on Arch Linux
 
 ```sh
-sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland qt6-translations quickshell konsole fish mesa
+sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland qt6-translations quickshell kitty fish wayland libglvnd dbus mesa
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --parallel 4
 QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --socket ludash-test
@@ -33,7 +34,7 @@ The first-run guide offers language, network and appearance settings. Offline us
 [Quickshell is packaged for Arch](https://archlinux.org/packages/extra/x86_64/quickshell/). The C++ backend needs Qt 6.4+, CMake 3.21+, C11/C++20 compilers and Khronos GL headers and Wayland development headers/scanner. The shell targets Quickshell 0.3; follow its [installation guide](https://quickshell.org/docs/v0.3.0/guide/install-setup/) on other distributions, where a newer Qt may be needed.
 
 Ubuntu 24.04 backend packages: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`.
-Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`.
+Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`. Install Kitty and Fish from the distribution's runtime packages to use LunaDah's default terminal.
 
 Arch, Ubuntu and Fedora builds are configured in CI. Configuration is not evidence that a remote job ran or that every distribution was verified. See the dated local results in the testing guide.
 
@@ -51,16 +52,21 @@ The integration script requires rendered client content, non-overlapping geometr
 | Shortcut | Action |
 | --- | --- |
 | Super + Enter / E / D | Default terminal / file manager / launcher |
-| Super + J / K | Focus next / previous window |
 | Super + H / L | Focus the column to the left / right |
-| Super + Ctrl + H / L | Move the focused column left / right |
-| Super + = / - | Widen / narrow the focused column |
+| Super + J / K | Focus the next / previous visible member within the column |
+| Super + Shift + H / L | Group the focused member into the adjacent left / right column |
+| Super + Shift + E | Expel the focused member into its own adjacent column |
+| Super + Ctrl + H / L | Reorder the focused column left / right |
+| Super + + / - | Widen / narrow the focused column |
 | Super + C | Center the focused column |
+| Super + F | Toggle maximized state in the full work area |
 | Super + 1–4 | Switch workspace |
 | Super + Shift + 1–4 | Move focused window to workspace |
-| Super + Space / F / M / Q | Toggle floating / fill / minimize / close |
+| Super + Space / M / Q | Toggle floating / minimize / close |
 
-Your host desktop may intercept Super shortcuts. The shell provides clickable workspace and launcher controls. The center BrandIcon opens a launcher that reveals downward from the panel center; the launcher has one application list, not separate categories or an open-window section.
+Your host desktop may intercept Super shortcuts. The shell provides clickable workspace and launcher controls. The center BrandIcon opens a launcher that reveals downward from the panel center; the launcher has one application list, not separate categories or an open-window section. The top-right frame controls provide quick minimize and close actions.
+
+The default terminal is Kitty with interactive Fish. Kitty windows start maximized to LunaDah's full work area; generic windows, dialogs and the LunaDah image picker are not forced maximized. Appearance uses LunaDah's own QWidget PNG/JPEG/WebP picker rather than `QFileDialog`: `choose-wallpaper` launches `lunadah-desktop --app image-picker`, and a confirmed path returns through `lunadahctl wallpaper-image`. Files are limited to 64 MiB and 32 megapixels, and previews are bounded.
 
 ## Installation and documentation
 
@@ -85,6 +91,6 @@ The dedicated settings center covers desktop preferences, workspaces, input, aud
 
 Canonical installed commands are `lunadah-compositor`, `lunadah-desktop`, `lunadahctl`, and the extensionless `lunadah-session`; legacy `ludash-*` command names are compatibility aliases only. The normal application desktop ID is `lunadah-app.desktop`, installed shell QML is under `/usr/share/lunadah/shell/`, the BrandIcon source asset is `/usr/share/lunadah/data/assets/icon.png`, and session logs are under `~/.local/state/lunadah/` by default.
 
-Shell blocks support validated JSON styles and optional trusted QML replacements. See [Module contract and templates](docs/MODULES.md) and [Default applications, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md). LunaDah Files follows live desktop colors; the default interactive terminal is Konsole with a LunaDah Fish profile.
+Shell blocks support validated JSON styles and optional trusted QML replacements. See [Module contract and templates](docs/MODULES.md) and [Default applications, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md). LunaDah Files follows live desktop colors; the default interactive terminal is Kitty with a LunaDah Fish profile.
 
 For NVIDIA descriptor exhaustion or Quickshell renderer overrides, see [Shell rendering](docs/SHELL_RENDERING.md). The NVIDIA default uses software Quickshell while retaining compositor GL/GLES effects.

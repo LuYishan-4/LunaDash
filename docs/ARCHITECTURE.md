@@ -7,17 +7,17 @@ Existing Wayland host / experimental EGLFS-KMS session
     viewporter: client viewport scaling
     layer-shell v2 subset: Quickshell desktop surfaces
     text-input v2, optional v3 and Qt input-method protocol
-    niri-inspired one-window-per-column scrollable tiling, four workspaces, focus and window effects
+    niri-inspired scrollable grouped columns, four workspaces, focus and window effects
     asynchronous NetworkManager status and saved desktop preferences
     user-only local JSON control socket
       lunadahctl <-> Quickshell status and commands
     quickshell --path qml/shell.qml (source) or /usr/share/lunadah/shell/shell.qml (installed)
-      setup / wallpaper / panel / overview / launcher / settings / session
+      setup / wallpaper / panel / columns / overview / launcher / fullscreen settings / session
     lunadah-desktop --app <id>
-      files / console / monitor / packages / plugins / settings
+      files / console / monitor / packages / plugins / settings / image-picker
 ```
 
-Quickshell/QML implements the desktop shell. Built-in applications currently use C++ Qt Widgets and tile alongside other Wayland applications. Each tiled window occupies a full-height horizontal column with an independently resizable width; focus scrolls columns into view, and columns can be reordered or centered. The compositor owns Wayland window lifetimes and rendering; Quickshell runs in a separate process with its own graphics context.
+Quickshell/QML implements the desktop shell. Built-in applications currently use C++ Qt Widgets and tile alongside other Wayland applications. A tiled column has an independently resizable width and can contain up to four total members, including minimized windows. The C layout divides the vertical work area equally among visible members; focus scrolls the selected column/member into view, and columns can be grouped, expelled, reordered or centered. The compositor owns Wayland window lifetimes and rendering; Quickshell runs in a separate process with its own graphics context.
 
 Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/` directory. Headers declare types and interfaces; `.cpp` files implement them. Entry points live in `src/entrypoints/`; CMake lists sources explicitly. QML features live under `qml/<feature>/`. Project code is English and uses namespace `LuDash`, except `main`, Qt-generated resource initialization and scanner-generated C protocol symbols.
 
@@ -27,7 +27,8 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 | animation | Safe fade/scale transitions and reduced-motion controls |
 | xwayland | Optional authenticated XWayland service and X11 launcher |
 | tiling_core / system_metrics | Qt-independent C geometry and bounded proc parsers |
-| compositor / tiling / window_frame | Window lifetime, layout and decorations |
+| compositor / tiling / window_frame / window_rules | Window lifetime, grouped-column layout, initial Kitty maximize policy and decorations |
+| file_picker / default_applications | Bounded QWidget image selection and Kitty/Fish or user-selected launch commands |
 | layer_shell | Background, panel and overlay surfaces; negotiated v2 subset |
 | ipc | User-only local socket, 64 KiB request limit, three-second timeout |
 | configuration | Validated saved appearance and first-run completion |
@@ -40,10 +41,10 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 | packages | Read-only queries and confirmed terminal-based pacman changes |
 | remaining app modules | Separate files, console, monitor and application tools |
 
-The shell controls LunaDah through allowlisted JSON methods. Its panel places workspace and session controls on the left, the cropped asset-backed `BrandIcon` launcher control in the center, and StatusNotifier items plus compact status on the right. The launcher merges four built-ins with installed `DesktopEntries` into one metadata-ranked, token-searchable list. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LunaDah's control socket.
+The shell controls LunaDah through allowlisted JSON methods. Its panel places workspace and session controls on the left, the cropped asset-backed `BrandIcon` launcher control in the center, and StatusNotifier items plus compact status on the right. The accent-colored top-left `ColumnStrip` is a Quickshell layer surface created only while tiled groups exist; one cell represents each column and one icon represents each member. Exact-member focus, cross-column drag/drop grouping and right-click/minus expulsion route through compositor IPC. The launcher merges four built-ins with installed `DesktopEntries` into one metadata-ranked, token-searchable list. Settings uses a fullscreen QML overlay with quick hide. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LunaDah's control socket.
 
 The current compositor uses one output. Panel height and tiling gaps define its work area; this is not a general implementation of arbitrary exclusive zones. Layer-shell popups and some double-buffered state behavior remain incomplete. Multiple outputs, locking, portals, PipeWire capture, an audio service, a polkit agent and a full input-method-v2 bridge are not implemented. StatusNotifier hosting is implemented through Quickshell; this does not imply a notification daemon or complete input-method integration. The EGLFS/KMS launcher is experimental; evaluate nested sessions first.
 
 See [C core](C_CORE.md), [Effects](EFFECTS.md) and [X11 compatibility](XWAYLAND.md) for implementation boundaries.
 
-The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface.
+The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface. Wallpaper selection starts the separate QWidget-capable `lunadah-desktop --app image-picker`; accepted local paths are encoded and returned through `lunadahctl wallpaper-image`, while cancellation leaves the wallpaper unchanged.

@@ -1,14 +1,14 @@
 # Settings center
 
-Right-click the wallpaper, choose Settings in the launcher, or run `lunadah-desktop --app settings` inside LunaDah. All entries lead to the same Quickshell settings center. The sidebar uses consistent outline icons. Search tokenizes the query and indexes translated category names, individual setting names, descriptions and keywords. Ranked setting-level results open the matching page directly with keyboard or pointer input. Selected pages sit in a separate content card; switches, sliders, spacing and color swatches share the shell theme. Changes to LunaDah preferences are saved automatically; destructive system operations remain in the external tools that perform them.
+Right-click the wallpaper, choose Settings in the launcher, or run `lunadah-desktop --app settings` inside LunaDah. All entries lead to the same fullscreen Quickshell/QML settings overlay. It takes exclusive keyboard focus, keeps a small theme-controlled margin around the surface, closes with Escape from search, and provides a top-right quick-hide × control. The sidebar uses consistent outline icons. Search tokenizes the query and indexes translated category names, individual setting names, descriptions and keywords. Ranked setting-level results open the matching page directly with keyboard or pointer input. Selected pages sit in a separate content card; switches, sliders, spacing and color swatches share the shell theme. Changes to LunaDah preferences are saved automatically; destructive system operations remain in the external tools that perform them.
 
 ## Coverage
 
 | Page | Direct LunaDah controls | System or host integration / limits |
 | --- | --- | --- |
 | General | Language, shell font, 12/24-hour clock, first-run guide, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
-| Appearance | Wallpaper image/palettes, accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Blur applies to application frames; no KDE blur protocol |
-| Windows and workspaces | 1–9 workspaces, per-column widths, window gaps, default floating mode | Reducing the count moves windows to a remaining workspace; no arbitrary shortcut editor yet |
+| Appearance | Wallpaper image/palettes, LunaDah PNG/JPEG/WebP picker, accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Picker uses a bounded QWidget preview and no `QFileDialog`; blur applies to application frames, with no KDE blur protocol |
+| Windows and workspaces | 1–9 workspaces, grouped columns, per-column widths, window gaps, default floating mode | Reducing the count moves windows to a remaining workspace; no arbitrary shortcut editor yet |
 | Shell modules | JSON styles, templates, code trust and built-in recovery | [Module schema and contract](MODULES.md); custom QML is not sandboxed |
 | Display | Current output information and three nested window sizes | Physical modes, scale, rotation and refresh are managed by the host; host monitor settings can be opened when available. Standalone multi-monitor, HDR and night light remain unavailable |
 | Keyboard and pointer | Seven keyboard layouts, repeat rate/delay, cursor size for the next session, input test field | Input-method editor and host mouse/touchpad settings; standalone libinput device configuration remains unavailable |
@@ -60,4 +60,10 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 References: [WirePlumber wpctl](https://pipewire.pages.freedesktop.org/wireplumber/man/wpctl.html) and the installed system tools' own help/documentation.
 
-Default terminal and file-manager argument arrays are edited under Applications and startup. Empty arrays select Konsole/Fish and LunaDah Files. See [Default apps and Files](DEFAULT_APPS_AND_FILES.md).
+Default terminal and file-manager argument arrays are edited under Applications and startup. Empty arrays select Kitty/Fish and LunaDah Files. See [Default apps and Files](DEFAULT_APPS_AND_FILES.md).
+
+## Window and column controls
+
+The top-left theme-accented `ColumnStrip` appears whenever tiled columns exist. It has one cell per column and app icons for all members, including minimized ones. Click an exact icon to restore, focus and reveal that member; drag it onto a member in another column to group it; right-click it or click its minus badge to expel it. A column accepts at most four total windows, including minimized members, and visible members receive equal vertical space.
+
+Use `Super+H/L` between columns, `Super+J/K` within a grouped column, `Super+Shift+H/L` to group into the adjacent column, `Super+Shift+E` to expel, `Super+Ctrl+H/L` to reorder columns, Super plus `+`/`-` to resize, and `Super+C` to center. `Super+F` toggles maximize across the full work area. Kitty receives this maximize state on initial mapping; generic windows, dialogs and the image picker do not. The frame's top-right minus and × controls provide quick minimize and close actions.

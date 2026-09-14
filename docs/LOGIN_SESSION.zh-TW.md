@@ -120,7 +120,7 @@ LUNADAH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland ./build/lunadah-compositor --soc
 
 首次啟動的設定精靈提供語言、網路與外觀設定，也允許離線繼續。LunaDah 會使用系統既有網路連線，安裝腳本不會替換網路服務。
 
-之後可開啟設定，使用以設定項目為單位的斷詞搜尋，並查看擴充後的「關於」頁面；也可調整主題色、模糊、視窗間距、動畫、工作區與預設應用程式。工作階段選單支援登出，並透過 logind D-Bus 執行系統允許的暫停、重新開機與關機；破壞性操作會先確認並檢查可用性，不會執行 shell 指令。預設終端機為 Konsole，搭配 LunaDah 的 Fish 設定；內建檔案管理器會跟隨桌面色彩。
+之後可開啟設定，使用以設定項目為單位的斷詞搜尋，並查看擴充後的「關於」頁面；也可調整主題色、模糊、視窗間距、動畫、工作區與預設應用程式。工作階段選單支援登出，並透過 logind D-Bus 執行系統允許的暫停、重新開機與關機；破壞性操作會先確認並檢查可用性，不會執行 shell 指令。預設終端機為 Kitty，搭配 LunaDah 的 Fish 設定；內建檔案管理器會跟隨桌面色彩。
 
 進階功能請參考以下英文文件：
 
@@ -214,7 +214,7 @@ sudo systemctl set-default multi-user.target
 
 ## 10. 其他 Linux 發行版
 
-安裝 [README](../README.md) 所列的編譯依賴，以及 Quickshell、D-Bus、Konsole、Fish 後，可以使用 CMake 手動安裝：
+安裝 [README](../README.md) 所列的編譯依賴，以及 Quickshell、D-Bus、Kitty、Fish 後，可以使用 CMake 手動安裝：
 
 ```sh
 cmake -S . -B build-login -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr

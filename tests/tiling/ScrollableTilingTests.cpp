@@ -62,22 +62,23 @@ int main() {
   CHECK(grouped[2].geometry.isNull());
   CHECK(grouped[0].geometry.height() == 194);
   CHECK(grouped[1].geometry.top() == grouped[0].geometry.bottom() + 11);
-  CHECK(layout.groupWith(105, 101));
-  CHECK(!layout.setMinimized(103, false));
-  CHECK(layout.snapshot(1).columns[4].width == 500);
+  CHECK(!layout.groupWith(105, 101));
+  CHECK(layout.setMinimized(103, false));
+  CHECK(layout.snapshot(1).columns[4].width == 225);
   CHECK(layout.snapshot(1).columns[0].width == 500);
 
   CHECK(layout.resize(102, 420));
   const auto resized = layout.snapshot(1);
-  CHECK(resized.columns[0].width == 420 && resized.columns[4].width == 420);
+  CHECK(resized.columns[0].width == 420 && resized.columns[3].width == 420);
+  CHECK(resized.columns[4].width == 225);
   CHECK(resized.columns[5].width == 190);
 
   CHECK(layout.expel(102));
   auto expelled = layout.snapshot(1);
-  CHECK(expelled.columns[0].columnMembers.size() == 4);
-  CHECK(expelled.columns[4].window == 102);
-  CHECK(expelled.columns[4].columnIndex == 1);
-  CHECK(expelled.columns[4].width == 420);
+  CHECK(expelled.columns[0].columnMembers.size() == 3);
+  CHECK(expelled.columns[3].window == 102);
+  CHECK(expelled.columns[3].columnIndex == 1);
+  CHECK(expelled.columns[3].width == 420);
   CHECK(!layout.expel(102));
 
   CHECK(layout.reorder(101, 1));
@@ -87,7 +88,7 @@ int main() {
   CHECK(layout.moveToWorkspace(105, 2));
   CHECK(layout.snapshot(2).columns.size() == 1);
   CHECK(layout.snapshot(2).columns[0].columnMembers.size() == 1);
-  CHECK(layout.snapshot(2).columns[0].width == 420);
+  CHECK(layout.snapshot(2).columns[0].width == 225);
   CHECK(layout.remove(105));
   CHECK(layout.snapshot(2).columns.isEmpty());
   CHECK(!layout.remove(999));

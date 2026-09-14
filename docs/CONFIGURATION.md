@@ -41,13 +41,14 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadahctl status
 ./build/lunadahctl appearance '{"accent":"#c4b5fd","gap":20,"panelHeight":32}'
 ./build/lunadahctl appearance '{"overview":true,"showHostDetails":false}'
+./build/lunadahctl choose-wallpaper
 ./build/lunadahctl wallpaper-image /absolute/path/wallpaper.png
 ./build/lunadahctl wallpaper-default
 ./build/lunadahctl language en_US
 ./build/lunadahctl setup
 ```
 
-Malformed JSON, unknown keys, wrong types and invalid ranges are rejected before any preference is changed. `finish-setup` completes the guide; `configure-network` opens the available editor. Shell state updates within about 700 ms. Native application colors are currently fixed; accent customization applies to the shell and compositor frame borders.
+Malformed JSON, unknown keys, wrong types and invalid ranges are rejected before any preference is changed. `finish-setup` completes the guide; `configure-network` opens the available editor. `choose-wallpaper` launches `lunadah-desktop --app image-picker`; a confirmed PNG/JPEG/WebP path returns through `lunadahctl wallpaper-image`, while cancellation makes no change. LunaDah's QWidget picker uses list/grid directory navigation, metadata and a bounded preview; it does not use `QFileDialog` and rejects files over 64 MiB or images over 32 megapixels. Shell state updates within about 700 ms. Native application colors are currently fixed; accent customization applies to the shell, `ColumnStrip` and compositor frame borders.
 
 For deeper customization, edit the feature QML under `qml/` and restart. This is trusted local code, not a sandboxed theme package. Native effect plugins are separately opt-in; see [Plugins](PLUGINS.md).
 

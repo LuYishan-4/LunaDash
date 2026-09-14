@@ -292,7 +292,7 @@ bool ScrollableTilingLayout::groupWith(TilingWindowId window,
   const Member moving =
       source->columns[sourceLocation.column].members[sourceLocation.member];
   auto &targetColumn = source->columns[targetLocation.column];
-  if (!moving.minimized && activeCount(targetColumn) >= kMaximumActiveMembers)
+  if (targetColumn.members.size() >= kMaximumActiveMembers)
     return false;
   source->columns[sourceLocation.column].members.erase(
       source->columns[sourceLocation.column].members.begin() +
