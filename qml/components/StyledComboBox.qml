@@ -48,7 +48,11 @@ ComboBox {
     }
 
     delegate: ItemDelegate {
+        // Qt 6 no longer exposes the delegate's index as an implicit context
+        // property. Without the required declaration every opened popup logs
+        // "ReferenceError: index is not defined" once per item.
         required property var modelData
+        required property int index
         width: control.popup.width - 12
         height: 38
         leftPadding: 12

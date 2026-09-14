@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Shapes
+import QtQuick.Window
 import "../style"
+
 Item {
     id: root
     property string name: "general"
@@ -34,10 +36,39 @@ Item {
         discord: "M7 7 C10 5 14 5 17 7 C19 10 20 14 19 17 C17 19 16 19 14 18 L13 16 C15 16 16 15 17 14 C14 16 10 16 7 14 C8 15 9 16 11 16 L10 18 C8 19 7 19 5 17 C4 14 5 10 7 7 M9 11 H9.1 M15 11 H15.1",
         moon: "M15 3 C9 4 6 9 8 15 C10 20 16 22 21 18 C16 18 12 14 12 9 C12 6 13 4 15 3",
         chevronDown: "M6 9 L12 15 L18 9",
+        copy: "M8 8 H19 V19 H8 Z M5 16 V5 H16 V6",
+        paste: "M6 5 H18 V21 H6 Z M9 5 V3 H15 V5 Z M9 11 H15 M9 15 H14",
         apps: "M4 4 H10 V10 H4 Z M14 4 H20 V10 H14 Z M4 14 H10 V20 H4 Z M14 14 H20 V20 H14 Z"
     })
+    readonly property string pathData: root.paths[root.name] || root.paths.general
+
+    function hexColor(value) {
+        const part = component => Math.max(0, Math.min(255, Math.round(component * 255))).toString(16).padStart(2, "0")
+        return "#" + part(value.r) + part(value.g) + part(value.b)
+    }
+
+    // Qt Quick Shapes leaves stale pixels behind on the software shell backend
+    // whenever a shape moves: its render node does not cover the previous
+    // bounds, so an icon that scrolls or changes overlaps its neighbours. The
+    // same path rasterized by QtSvg has well-defined bounds, so icons are drawn
+    // as an image. The shape stays as a fallback for builds without QtSvg.
+    readonly property string svgData: "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'>" +
+        "<path d='" + root.pathData + "' fill='none' stroke='" + root.hexColor(root.ink) + "' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
+
+    Image {
+        id: raster
+        anchors.fill: parent
+        source: root.svgData
+        sourceSize.width: Math.max(1, Math.round(root.width * Screen.devicePixelRatio))
+        sourceSize.height: Math.max(1, Math.round(root.height * Screen.devicePixelRatio))
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+    }
+
     Shape {
         anchors.centerIn: parent; width: 24; height: 24; scale: Math.min(root.width, root.height) / 24
-        ShapePath { strokeColor: root.ink; strokeWidth: 1.6; fillColor: "transparent"; capStyle: ShapePath.RoundCap; joinStyle: ShapePath.RoundJoin; PathSvg { path: root.paths[root.name] || root.paths.general } }
+        visible: raster.status === Image.Error
+        ShapePath { strokeColor: root.ink; strokeWidth: 1.6; fillColor: "transparent"; capStyle: ShapePath.RoundCap; joinStyle: ShapePath.RoundJoin; PathSvg { path: root.pathData } }
     }
 }

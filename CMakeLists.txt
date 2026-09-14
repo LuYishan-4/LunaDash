@@ -122,9 +122,6 @@ qt_add_resources(ludash-default-applications terminal_profile PREFIX /LuDash FIL
 add_library(ludash-file-operations src/file_operations/FileOperations.cpp)
 target_include_directories(ludash-file-operations PUBLIC include)
 target_link_libraries(ludash-file-operations PUBLIC Qt6::Core)
-add_library(ludash-file-picker src/file_picker/FilePicker.cpp)
-target_include_directories(ludash-file-picker PUBLIC include)
-target_link_libraries(ludash-file-picker PUBLIC Qt6::Widgets)
 add_library(ludash-apps
     src/theme/DesktopTheme.cpp
     src/application_catalog/ApplicationCatalog.cpp
@@ -168,7 +165,7 @@ add_library(ludash-client-lifecycle src/client_lifecycle/WaylandClientShutdown.c
 target_include_directories(ludash-client-lifecycle PUBLIC include)
 target_link_libraries(ludash-client-lifecycle PUBLIC Qt6::Gui PRIVATE PkgConfig::WAYLAND_CLIENT)
 add_executable(ludash-desktop src/entrypoints/desktop_main.cpp)
-target_link_libraries(ludash-desktop PRIVATE ludash-apps ludash-client-lifecycle ludash-file-picker)
+target_link_libraries(ludash-desktop PRIVATE ludash-apps ludash-client-lifecycle)
 set_target_properties(ludash-desktop PROPERTIES OUTPUT_NAME lunadah-desktop)
 add_custom_command(TARGET ludash-desktop POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-desktop> ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop)

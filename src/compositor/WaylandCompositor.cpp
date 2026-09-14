@@ -430,6 +430,7 @@ QJsonObject WaylandCompositor::state() const {
       {"display", describeDisplay(&window_)},
       {"settingsSerial", settingsSerial_},
       {"settingsPage", settingsPage_},
+      {"pickerSerial", pickerSerial_},
       {"input",
        QJsonObject{
            {"layout", compositor_.defaultSeat()->keymap()->layout()},
@@ -501,6 +502,24 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     shortcutSettings_->reset();
   } else if (method == "check-update") {
     updateChecker_->check();
+  } else if (method == "send-key") {
+    // Forward a clipboard shortcut to the focused client. The desktop context
+    // menu has no text widget of its own, so Copy and Paste act on whatever the
+    // focused application currently has selected.
+    const int key = value == "copy"        ? Qt::Key_C
+                    : value == "paste"     ? Qt::Key_V
+                    : value == "cut"       ? Qt::Key_X
+                    : value == "selectAll" ? Qt::Key_A
+                                           : 0;
+    if (key == 0)
+      return {{"error", "Unknown key action."}};
+    auto *seat = compositor_.defaultSeat();
+    if (!seat || !seat->keyboardFocus())
+      return {{"error", "No application has keyboard focus."}};
+    seat->sendKeyEvent(Qt::Key_Control, true);
+    seat->sendKeyEvent(key, true);
+    seat->sendKeyEvent(key, false);
+    seat->sendKeyEvent(Qt::Key_Control, false);
   } else if (method == "open-settings") {
     if (!value.isEmpty() &&
         !QStringList{"general", "appearance", "windows", "shortcuts", "display",
@@ -625,9 +644,14 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                         "with foot, konsole or alacritty."}};
     spawn(arguments, program);
   } else if (method == "choose-wallpaper") {
+    // The interactive picker lives inside the settings surface so it is always
+    // drawn above the settings content. Ask the shell to open it instead of
+    // launching a separate native window behind the overlay.
     if (!value.isEmpty())
       return {{"error", "choose-wallpaper does not accept a value."}};
-    spawn({"--app", "image-picker"}, {}, false);
+    settingsPage_ = "appearance";
+    settingsSerial_ = (settingsSerial_ + 1) % 1000000;
+    pickerSerial_ = (pickerSerial_ + 1) % 1000000;
   } else if (method == "wallpaper-image") {
     QString error;
     const QUrl url(value);

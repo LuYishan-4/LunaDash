@@ -6,9 +6,45 @@
 #include <QDBusPendingCall>
 #include <QDebug>
 #include <QMap>
+#include <QSettings>
 #include <QStandardPaths>
+#include <QStringList>
 
 namespace LuDash {
+namespace {
+// The shell inherits LunaDah's own desktop identity, so Qt cannot infer the
+// host icon theme and every themed icon lookup fails. Resolve a theme
+// explicitly and let Quickshell use it. An explicit QS_ICON_THEME always wins.
+QString detectedIconTheme() {
+  if (!qEnvironmentVariableIsEmpty("QS_ICON_THEME"))
+    return {};
+  const QString configLocation =
+      QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+  QStringList candidates;
+  const QString kdeTheme =
+      QSettings(configLocation + "/kdeglobals", QSettings::IniFormat)
+          .value("Icons/Theme")
+          .toString();
+  if (!kdeTheme.isEmpty())
+    candidates.append(kdeTheme);
+  const QString gtkTheme =
+      QSettings(configLocation + "/gtk-3.0/settings.ini", QSettings::IniFormat)
+          .value("Settings/gtk-icon-theme-name")
+          .toString();
+  if (!gtkTheme.isEmpty())
+    candidates.append(gtkTheme);
+  candidates.append({"breeze", "Adwaita", "Papirus", "hicolor"});
+  candidates.removeDuplicates();
+  for (const auto &name : candidates) {
+    if (QStandardPaths::locate(QStandardPaths::GenericDataLocation,
+                               "icons/" + name + "/index.theme")
+            .isEmpty())
+      continue;
+    return name;
+  }
+  return {};
+}
+} // namespace
 QProcessEnvironment createClientEnvironment(const QString &socketName,
                                             const QString &controlPath,
                                             const QString &binaryDirectory) {
@@ -34,6 +70,9 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("LUNADAH_CONTROL", controlPath);
   environment.insert("LUDASH_BIN_DIR", binaryDirectory);
   environment.insert("LUDASH_CONTROL", controlPath);
+  const QString iconTheme = detectedIconTheme();
+  if (!iconTheme.isEmpty())
+    environment.insert("QS_ICON_THEME", iconTheme);
   environment.insert("QSG_RHI_BACKEND", "opengl");
   auto loggingRules = environment.value("QT_LOGGING_RULES");
   if (!loggingRules.isEmpty())

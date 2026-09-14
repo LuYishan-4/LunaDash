@@ -8,7 +8,7 @@ The compositor registers text-input v2 and Qt's input-method protocol. Text-inpu
 
 Qt's preferred input-method extension is announced before the text-input fallbacks. Qt 6.4 clients can otherwise replace a newly bound v2 object during registry discovery while its initial events are queued, causing a startup crash in `zwp_text_input_v2::handle_modifiers_map`. The Ubuntu Wayland session test covers native client startup and clean shutdown with both managers advertised. The preference and replacement logic is in [Qt 6.4's client registry handler](https://github.com/qt/qtwayland/blob/v6.4.2/src/client/qwaylanddisplay.cpp).
 
-Fcitx5 remains optional; LunaDah does not require it as a session dependency. When Fcitx exports a StatusNotifier item, the right side of the single top panel renders it through Quickshell `SystemTray` and `IconImage`; identity-based fallback selects the `fcitx` theme icon when the supplied icon is missing or unusable. Equivalent fallbacks use `discord` and `docker-desktop` for those tray identities. The Fcitx tray icon is fixed, but candidate popup behavior still depends on the incomplete compositor input-method-v2 bridge. Optional Arch packages:
+Fcitx5 remains optional; LunaDah does not require it as a session dependency. When Fcitx exports a StatusNotifier item, the right side of the single top panel renders it through Quickshell `SystemTray`. The tray draws a supplied icon with a bounded decode size, and when that icon is missing or unusable it draws LunaDah's own vector glyph for the identity (keyboard/input, Discord, Docker and similar) instead of a theme lookup or a letter. The Fcitx tray icon is fixed, but candidate popup behavior still depends on the incomplete compositor input-method-v2 bridge. Optional Arch packages:
 
 ```sh
 sudo pacman -S --needed fcitx5 fcitx5-qt fcitx5-configtool fcitx5-chinese-addons
@@ -28,6 +28,6 @@ WAYLAND_DISPLAY=lunadah-ime QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/l
 
 In the console input field (without running the entered text), test switching methods, preedit, candidate selection, commit, deletion, cursor movement, focus changes and candidate-window positioning. The direct-module route does not prove compositor bridge support.
 
-Complete Fcitx5/IBus behavior, candidate popup placement and GTK/Electron compatibility still require physical-session testing. Candidate popup behavior remains unverified even though the tray icon now resolves correctly. The full compositor input-method-v2 bridge is not yet implemented, so current support uses toolkit client modules and cannot yet provide every native Wayland input-method feature.
+Complete Fcitx5/IBus behavior, candidate popup placement and GTK/Electron compatibility still require physical-session testing. Candidate popup behavior remains unverified even though the tray falls back to a bundled glyph when the toolkit's icon cannot be decoded. The full compositor input-method-v2 bridge is not yet implemented, so current support uses toolkit client modules and cannot yet provide every native Wayland input-method feature.
 
 Reference: [Fcitx5 on Wayland](https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland/en).

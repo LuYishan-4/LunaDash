@@ -12,9 +12,9 @@ Existing Wayland host / experimental EGLFS-KMS session
     user-only local JSON control socket
       lunadahctl <-> Quickshell status and commands
     quickshell --path qml/shell.qml (source) or /usr/share/lunadah/shell/shell.qml (installed)
-      setup / wallpaper / single panel with inline grouped cells / overview / launcher / fullscreen settings / session
+      setup / wallpaper / single panel with inline grouped cells / overview / launcher / fullscreen settings / wallpaper picker / session
     lunadah-desktop --app <id>
-      files / console / monitor / packages / plugins / settings / image-picker
+      files / console / monitor / packages / plugins / settings
 ```
 
 Quickshell/QML implements the desktop shell. Built-in applications currently use C++ Qt Widgets and tile alongside other Wayland applications. A tiled column has an independently resizable width and can contain up to four total members, including minimized windows. The C layout divides the compositor `workArea` equally among visible members; focus scrolls the selected column/member into view, and columns can be grouped, expelled, reordered or centered. The compositor owns Wayland window lifetimes, resolved per-window icon names and rendering; Quickshell runs in a separate process with its own graphics context.
@@ -28,7 +28,8 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 | xwayland | Optional authenticated XWayland service and X11 launcher |
 | tiling_core / system_metrics | Qt-independent C geometry and bounded proc parsers |
 | compositor / tiling / window_frame / window_rules | Window lifetime, grouped-column layout, initial Kitty maximize policy and decorations |
-| file_picker / default_applications | Bounded QWidget image selection and Kitty/Fish or user-selected launch commands |
+| file_manager / file_operations | Local filesystem browsing and guarded asynchronous file operations for the built-in Files app |
+| default_applications | Kitty/Fish or user-selected launch commands |
 | layer_shell | Background, panel and overlay surfaces; negotiated v2 subset |
 | ipc | User-only local socket, 64 KiB request limit, three-second timeout |
 | configuration | Validated saved appearance and first-run completion |
@@ -47,4 +48,4 @@ The current compositor uses one output. `ShellModules::panelExtent()` reports th
 
 See [C core](C_CORE.md), [Effects](EFFECTS.md) and [X11 compatibility](XWAYLAND.md) for implementation boundaries.
 
-The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface. Wallpaper selection starts the separate QWidget-capable `lunadah-desktop --app image-picker`; accepted local paths are encoded and returned through `lunadahctl wallpaper-image`, while cancellation leaves the wallpaper unchanged.
+The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface. Wallpaper selection opens the in-shell picker inside the settings surface (`qml/imagepicker`); accepted local paths are returned through `lunadahctl wallpaper-image`, while cancellation leaves the wallpaper unchanged.

@@ -7,6 +7,7 @@ import Quickshell.Wayland
 import "../components"
 import "../style"
 import "components" as SettingsComponents
+import "../imagepicker"
 
 ModuleSurface {
     id: settings
@@ -135,10 +136,28 @@ ModuleSurface {
                 ScrollView {
                     id: scroll; anchors.fill: parent; anchors.margins: 24; clip: true
                     contentWidth: availableWidth
-                    Loader { id: pageLoader; width: scroll.availableWidth - 12; onLoaded: { scroll.contentItem.contentY = 0; if (Quickshell.env("LUDASH_TEST_SETTINGS") === "1") console.info("Settings page loaded: " + settings.category) } }
+                    Loader {
+                        id: pageLoader
+                        width: scroll.availableWidth - 12
+                        onLoaded: {
+                            // Every page starts at the top. Re-apply after the loaded
+                            // item has been sized; a retained offset would clip the
+                            // page heading above the viewport.
+                            scroll.contentItem.contentY = 0
+                            Qt.callLater(function() { if (scroll.contentItem) scroll.contentItem.contentY = 0 })
+                            if (Quickshell.env("LUDASH_TEST_SETTINGS") === "1") console.info("Settings page loaded: " + settings.category)
+                        }
+                    }
                 }
             }
         }
+    }
+    ImagePicker {
+        anchors.fill: parent
+        cornerRadius: settings.moduleRadius
+        shell: settings.shell
+        opened: settings.shell.pickerOpen
+        onClosed: settings.shell.pickerOpen = false
     }
     Component.onCompleted: showCategory("general")
 }

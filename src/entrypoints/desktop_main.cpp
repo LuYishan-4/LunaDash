@@ -4,7 +4,6 @@
 #include <LuDash/console/Console.h>
 #include <LuDash/default_applications/DefaultApplications.h>
 #include <LuDash/file_manager/FileManager.h>
-#include <LuDash/file_picker/FilePicker.h>
 #include <LuDash/launcher/Launcher.h>
 #include <LuDash/localization/Localization.h>
 #include <LuDash/packages/PackageManager.h>
@@ -14,7 +13,6 @@
 #include <LuDash/welcome/Welcome.h>
 #include <QProcess>
 #include <QSurfaceFormat>
-#include <QUrl>
 #include <QtWidgets>
 
 int main(int argc, char **argv) {
@@ -46,22 +44,6 @@ int main(int argc, char **argv) {
   if (parser.isSet("app")) {
     const auto requested = parser.value("app");
     app.setDesktopFileName("lunadah-app");
-    if (requested == "image-picker") {
-      app.setDesktopFileName("lunadah-image-picker");
-      const QString selected = LuDash::selectImageFile(nullptr);
-      if (selected.isEmpty())
-        return 0;
-      auto control = QCoreApplication::applicationDirPath() + "/lunadahctl";
-      if (!QFileInfo::exists(control))
-        control = QCoreApplication::applicationDirPath() + "/ludashctl";
-      if (!QFileInfo::exists(control)) {
-        qCritical("Could not find lunadahctl or ludashctl.");
-        return 2;
-      }
-      return QProcess::execute(
-          control, {"wallpaper-image", QUrl::fromLocalFile(selected).toString(
-                                           QUrl::FullyEncoded)});
-    }
     if (requested == "settings")
       return QProcess::execute(QCoreApplication::applicationDirPath() +
                                    "/lunadahctl",

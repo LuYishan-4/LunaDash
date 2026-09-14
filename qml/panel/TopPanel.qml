@@ -1,6 +1,7 @@
 import "../modules"
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 import Quickshell
 import Quickshell.Services.SystemTray
 import Quickshell.Wayland
@@ -36,13 +37,16 @@ ModuleSurface {
         if (supplied.startsWith("/") && /\.(png|jpe?g|webp|svg|xpm)$/i.test(supplied)) return "file://" + supplied
         return ""
     }
-    function trayBadge(item) {
-        const identity = String((item.id || "") + " " + (item.title || "")).toLowerCase()
-        if (identity.includes("fcitx")) return "F"
-        if (identity.includes("discord")) return "D"
-        if (identity.includes("docker")) return "◇"
-        const label = String(item.title || item.id || "?").trim()
-        return label.charAt(0).toUpperCase() || "?"
+    function trayGlyph(item) {
+        const identity = (String(item.id || "") + " " + String(item.title || "")).toLowerCase()
+        if (identity.includes("fcitx") || identity.includes("input") || identity.includes("keyboard")) return "input"
+        if (identity.includes("discord")) return "discord"
+        if (identity.includes("docker")) return "apps"
+        if (identity.includes("network") || identity.includes("wifi")) return "network"
+        if (identity.includes("bluetooth")) return "bluetooth"
+        if (identity.includes("sound") || identity.includes("audio") || identity.includes("volume")) return "sound"
+        if (identity.includes("battery") || identity.includes("power")) return "power"
+        return "apps"
     }
 
     Rectangle {
@@ -165,20 +169,32 @@ ModuleSurface {
                     color: trayMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16) : "transparent"
                 }
                 readonly property string iconSource: panel.trayImage(item)
-                IconImage {
+                readonly property string glyph: panel.trayGlyph(item)
+                // A plain Image with a bounded sourceSize rasterizes an SVG icon at
+                // exactly the requested size. Asking for the icon's intrinsic size
+                // made QtSvg reject oversized masks and left undecoded pixels in the
+                // tray cell. When the supplied icon cannot be resolved the shell
+                // draws its own vector glyph instead of a broken or empty cell.
+                Image {
+                    id: trayIcon
                     anchors.centerIn: parent
-                    width: Math.min(19, parent.width - 4)
+                    width: Math.max(10, Math.min(19, parent.width - 4))
                     height: width
                     source: trayDelegate.iconSource
-                    visible: trayDelegate.iconSource.length > 0
+                    sourceSize.width: Math.max(1, Math.round(width * Screen.devicePixelRatio))
+                    sourceSize.height: Math.max(1, Math.round(height * Screen.devicePixelRatio))
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    mipmap: true
+                    visible: trayDelegate.iconSource.length > 0 && status === Image.Ready
                 }
-                Text {
+                LineIcon {
                     anchors.centerIn: parent
-                    visible: trayDelegate.iconSource.length === 0
-                    text: panel.trayBadge(trayDelegate.item)
-                    color: Theme.text
-                    font.pixelSize: 12
-                    font.bold: true
+                    width: 17
+                    height: 17
+                    visible: !trayIcon.visible
+                    name: trayDelegate.glyph
+                    ink: Theme.text
                 }
                 MouseArea {
                     id: trayMouse

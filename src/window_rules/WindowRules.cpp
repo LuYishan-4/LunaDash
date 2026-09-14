@@ -23,8 +23,6 @@ QString windowIconName(const QString &appId, const QString &title) {
     return "preferences-system";
   if (identity.contains("monitor"))
     return "utilities-system-monitor";
-  if (identity.contains("image-picker"))
-    return "image-x-generic";
   if (appId == "lunadah-app")
     return "lunadah";
   return appId.isEmpty() ? QStringLiteral("application-x-executable") : appId;

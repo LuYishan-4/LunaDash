@@ -24,5 +24,5 @@ ModuleSurface {
         cache: false
     }
     Rectangle { anchors.fill: parent; color: "#0b1720"; opacity: 0.12; visible: Boolean(wallpaper.shell.state.wallpaperImage) }
-    MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton; onClicked: wallpaper.shell.settingsOpen = !wallpaper.shell.settingsOpen }
+    MouseArea { anchors.fill: parent; acceptedButtons: Qt.RightButton; onClicked: mouse => wallpaper.shell.openMenu(mouse.x, mouse.y) }
 }

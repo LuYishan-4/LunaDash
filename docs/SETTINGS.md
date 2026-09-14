@@ -7,7 +7,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | Page | Direct LunaDah controls | System or host integration / limits |
 | --- | --- | --- |
 | General | Extensible language drop-down, shell font, 12/24-hour clock, first-run guide, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
-| Appearance | Wallpaper image/palettes, LunaDah PNG/JPEG/WebP picker, accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Picker uses a bounded QWidget preview and no `QFileDialog`; blur applies to application frames, with no KDE blur protocol |
+| Appearance | Wallpaper image/palettes, in-shell PNG/JPEG/WebP picker, accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | The picker is drawn inside the settings surface with a bounded preview; blur applies to application frames, with no KDE blur protocol |
 | Windows and workspaces | 1–9 workspaces, grouped columns, per-column widths, window gaps, default floating mode | Reducing the count moves windows to a remaining workspace |
 | Keyboard shortcuts | Click a binding and press the desired Meta-key combination for launch, focus, grouping, resizing, window actions, and all nine workspace switch/move actions | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Shell modules | JSON styles, templates, code trust and built-in recovery | [Module schema and contract](MODULES.md); custom QML is not sandboxed |
@@ -17,7 +17,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | Network | Current connection state | NetworkManager editor handles Wi-Fi, Ethernet, VPN and saved profiles; LunaDah does not store network passwords |
 | Bluetooth | Tool availability and package guidance | Blueman handles pairing and adapters |
 | Power and battery | Reported battery charge and supported power profiles | Host power tool handles lid/idle policy. No standalone suspend policy or backlight controls yet |
-| Applications and startup | Built-in startup selection, package/plugin/X11 launchers | Default-application editor when installed; arbitrary desktop-entry autostart/session restore is not implemented |
+| Applications and startup | Built-in startup selection, package/plugin/X11 launchers | Default terminal and file manager chosen from installed applications or a custom argument array; arbitrary desktop-entry autostart/session restore is not implemented |
 | Privacy and accessibility | Host-identity visibility, reduced motion, native-plugin access | Optional host accessibility/locking settings. LunaDah has no secure lock screen, notification service, screen reader integration or portal permission UI yet |
 | Users, date and time | Settings-tool discovery | Installed account/time editors handle authorization; LunaDah does not create users or retain passwords |
 | Printers and storage | Settings-tool discovery | system-config-printer and GNOME Disks; their confirmation flows govern destructive actions |
@@ -57,10 +57,13 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadahctl shortcuts '{"focusLeft":"Meta+U"}'
 ./build/lunadahctl reset-shortcuts
 ./build/lunadahctl check-update
+./build/lunadahctl send-key copy
 ./build/lunadahctl desktop-size 1280x720
 ```
 
-`audio`, `power-profile` and `system-tool` are explicit user actions. Integration tests load every page and reject invalid service commands; they do not alter the host volume, microphone, network, power profile, users or storage. Unit tests cover command validation and helper limits. The old Notes source, entry points and tests are removed; existing user text files are left untouched. IME testing can use the settings input field or Console.
+`send-key` accepts `copy`, `paste`, `cut` or `selectAll` and forwards the shortcut with Control to the focused client. It requires a connected client with keyboard focus and is used by the desktop context menu; it never synthesizes keys without a focused application.
+
+`audio`, `power-profile` and `system-tool` are explicit user actions. Integration tests load every page, exercise every option each page can change and reject invalid service commands; they do not alter the host volume, microphone, network, power profile, users or storage. The settings test applies an accepted value and several rejected values to each of the twenty desktop preferences and each of the thirty-eight shortcuts, and requires a rejected value to leave the stored value unchanged. Session actions are only tested with invalid values, so a test run can never suspend or restart the machine. Unit tests cover command validation and helper limits. The old Notes source, entry points and tests are removed; existing user text files are left untouched. IME testing can use the settings input field or Console.
 
 References: [WirePlumber wpctl](https://pipewire.pages.freedesktop.org/wireplumber/man/wpctl.html) and the installed system tools' own help/documentation.
 

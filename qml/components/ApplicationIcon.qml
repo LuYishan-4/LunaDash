@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import Quickshell
 import "../style"
 
@@ -11,12 +12,22 @@ Item {
 
     readonly property string identity: (iconName + " " + appId + " " + title).toLowerCase()
     readonly property bool builtinApp: appId === "lunadah-app"
-                                       || appId === "lunadah-image-picker"
                                        || iconName === "lunadah"
     readonly property bool internalAlias: ["preferences-system", "applications-system", "preferences-desktop-theme", "preferences-desktop-emoticons", "system-file-manager", "utilities-terminal", "utilities-system-monitor", "hwinfo", "input-keyboard"].includes(iconName)
 
+    // Only a bare theme icon name can be resolved by the icon theme. Desktop
+    // entries sometimes point Icon= at an executable path or a missing file;
+    // passing that through logs a failed icon request on every draw, so those
+    // values fall through to the bundled vector icon instead.
+    function isThemeIconName(name) {
+        const value = String(name || "").trim()
+        if (value.length === 0 || value === "lunadah") return false
+        if (value.includes("/")) return false
+        return !/\.[a-z0-9]{2,5}$/i.test(value)
+    }
+
     function themed(name) {
-        if (!name || name === "lunadah")
+        if (!isThemeIconName(name))
             return ""
         const path = String(Quickshell.iconPath(name) || "")
         return path.length > 0 && !path.includes("qs-blackhole") ? path : ""
@@ -61,6 +72,11 @@ Item {
         anchors.fill: parent
         source: root.iconSource
         visible: root.iconSource.length > 0
+        // Bound the raster size. Without it an SVG icon is decoded at its
+        // intrinsic size, and QtSvg refuses oversized masks, leaving the icon
+        // blank or showing undecoded pixels.
+        sourceSize.width: Math.max(1, Math.round(width * Screen.devicePixelRatio))
+        sourceSize.height: Math.max(1, Math.round(height * Screen.devicePixelRatio))
         fillMode: Image.PreserveAspectFit
         asynchronous: true
         mipmap: true

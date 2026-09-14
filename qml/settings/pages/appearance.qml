@@ -12,7 +12,7 @@ ColumnLayout {
     PageTitle { shell: page.shell; title: "Appearance" }
 
     RowLayout {
-        ShellButton { text: shell.tr("Choose wallpaper"); onClicked: shell.command("choose-wallpaper", "") }
+        ShellButton { text: shell.tr("Choose wallpaper"); onClicked: shell.pickerOpen = true }
         ShellButton { text: shell.tr("Florist"); onClicked: shell.command("wallpaper-default", "") }
         ShellButton { text: shell.tr("Dusk"); onClicked: shell.command("wallpaper", 0) }
         ShellButton { text: shell.tr("Forest"); onClicked: shell.command("wallpaper", 1) }

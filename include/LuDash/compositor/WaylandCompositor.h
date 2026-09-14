@@ -61,6 +61,7 @@ private:
   UpdateChecker *updateChecker_ = nullptr;
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
+  int pickerSerial_ = 0;
   SystemStatus *systemStatus_ = nullptr;
   NetworkStatus *networkStatus_ = nullptr;
   WindowAnimations *animations_ = nullptr;

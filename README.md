@@ -77,7 +77,7 @@ All listed bindings can be changed or disabled from **Settings → Keyboard shor
 
 The About page uses LunaDah's animated moon mark, links to the official GitHub repository, and can manually check the fixed GitHub Releases endpoint without downloading or installing anything. The Discord icon remains inactive until an official invitation is published.
 
-The default terminal is Kitty with interactive Fish. The built-in Kitty path uses LunaDah's authenticated XWayland service because Qt Wayland Compositor currently advertises only `wl_data_device_manager` v1 while Kitty requests v3. Every window opens as its own full-width column below the top panel, and the strip slides horizontally when focus changes instead of covering other windows. Appearance uses LunaDah's own QWidget PNG/JPEG/WebP picker rather than `QFileDialog`: `choose-wallpaper` launches `lunadah-desktop --app image-picker`, and a confirmed path returns through `lunadahctl wallpaper-image`. Files are limited to 64 MiB and 32 megapixels, and previews are bounded.
+The default terminal is Kitty with interactive Fish. The built-in Kitty path uses LunaDah's authenticated XWayland service because Qt Wayland Compositor currently advertises only `wl_data_device_manager` v1 while Kitty requests v3. Every window opens as its own full-width column below the top panel, and the strip slides horizontally when focus changes instead of covering other windows. Appearance uses LunaDah's own in-shell QML PNG/JPEG/WebP picker rather than `QFileDialog`: `choose-wallpaper` opens it inside the settings surface, and a confirmed path is applied through `lunadahctl wallpaper-image`. Files are limited to 64 MiB and 32 megapixels, and previews are bounded.
 
 ## Installation and documentation
 

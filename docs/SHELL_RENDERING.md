@@ -21,7 +21,7 @@ LUDASH_SHELL_RENDERER=opengl LUDASH_TEST_HOST_WAYLAND=1 \
   python3 tests/wayland/test_resource_lifetime.py build
 ```
 
-Software rendering can increase CPU usage. Custom QML modules using GPU-only effects must provide their own software fallback. This compatibility mode limits the affected shell buffer path; it does not repair the driver or guarantee resource safety for other GPU-rendered Wayland applications.
+Software rendering can increase CPU usage. Custom QML modules using GPU-only effects must provide their own software fallback. The bundled LunaDah logo therefore reveals with opacity only in this mode: an animated scale or rotation leaves stale pixels behind because the software renderer's damage tracking does not cover the old transformed bounds. This compatibility mode limits the affected shell buffer path; it does not repair the driver or guarantee resource safety for other GPU-rendered Wayland applications.
 
 ## Why the default changed
 

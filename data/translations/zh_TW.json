@@ -342,5 +342,20 @@
     "System information": "系統資訊",
     "A moonlit, focused Linux desktop.": "月光般寧靜、專注的 Linux 桌面。",
     "Input test": "輸入測試",
-    "Use this field to verify the keyboard layout and Fcitx input path.": "使用此欄位確認鍵盤配置與 Fcitx 輸入路徑。"
+    "Use this field to verify the keyboard layout and Fcitx input path.": "使用此欄位確認鍵盤配置與 Fcitx 輸入路徑。",
+    "Open terminal": "開啟終端機",
+    "Choose a wallpaper image": "選擇桌布圖片",
+    "List view": "清單檢視",
+    "Grid view": "網格檢視",
+    "Preview": "預覽",
+    "Select an image": "選擇一張圖片",
+    "No file selected": "尚未選擇檔案",
+    "Use this image": "使用這張圖片",
+    "Readable PNG, JPEG or WebP files up to 64 MiB. Larger or corrupt images are rejected when applied.": "可讀取的 PNG、JPEG 或 WebP 檔案，上限 64 MiB。過大或損壞的圖片會在套用時被拒絕。",
+    "No folders or supported images here.": "這裡沒有資料夾或支援的圖片。",
+    "Choose an application to run for this action.": "選擇要為此動作執行的應用程式。",
+    "Custom command…": "自訂命令…",
+    "Command: ": "命令：",
+    " (built-in)": "（內建）",
+    "Enter a JSON array of command arguments.": "請輸入命令參數的 JSON 陣列。"
 }
