@@ -36,12 +36,13 @@ int main() {
     CHECK(grouped[i].rowIndex == i);
     CHECK(grouped[i].columnMembers.size() == 4);
     CHECK(grouped[i].width == 500);
-    CHECK(grouped[i].geometry.width() == 500);
-    CHECK(grouped[i].geometry.height() == 142 ||
-          grouped[i].geometry.height() == 143);
-    if (i)
-      CHECK(grouped[i].geometry.top() == grouped[i - 1].geometry.bottom() + 11);
+    CHECK(grouped[i].geometry.width() == 245);
+    CHECK(grouped[i].geometry.height() == 295);
   }
+  CHECK(grouped[0].geometry.x() == 0 && grouped[0].geometry.y() == 0);
+  CHECK(grouped[1].geometry.x() == 255 && grouped[1].geometry.y() == 0);
+  CHECK(grouped[2].geometry.x() == 0 && grouped[2].geometry.y() == 305);
+  CHECK(grouped[3].geometry.x() == 255 && grouped[3].geometry.y() == 305);
   CHECK(grouped[4].columnIndex == 1 && grouped[4].width == 225);
   CHECK(grouped[5].columnIndex == 2 && grouped[5].width == 190);
 
@@ -60,11 +61,15 @@ int main() {
   grouped = layout.layout(1, QRect(0, 0, 900, 600));
   CHECK(grouped[2].minimized && grouped[2].rowIndex == -1);
   CHECK(grouped[2].geometry.isNull());
-  CHECK(grouped[0].geometry.height() == 145);
-  CHECK(grouped[1].geometry.height() == 145);
-  CHECK(grouped[3].geometry.height() == 290);
-  CHECK(grouped[1].geometry.top() == grouped[0].geometry.bottom() + 11);
-  CHECK(grouped[3].geometry.top() == grouped[1].geometry.bottom() + 11);
+  CHECK(grouped[0].geometry.x() == 0 && grouped[0].geometry.y() == 0);
+  CHECK(grouped[0].geometry.width() == 245 &&
+        grouped[0].geometry.height() == 600);
+  CHECK(grouped[1].geometry.x() == 255 && grouped[1].geometry.y() == 0);
+  CHECK(grouped[1].geometry.width() == 245 &&
+        grouped[1].geometry.height() == 295);
+  CHECK(grouped[3].geometry.x() == 255 && grouped[3].geometry.y() == 305);
+  CHECK(grouped[3].geometry.width() == 245 &&
+        grouped[3].geometry.height() == 295);
   CHECK(!layout.groupWith(105, 101));
   CHECK(layout.setMinimized(103, false));
   CHECK(layout.snapshot(1).columns[4].width == 225);

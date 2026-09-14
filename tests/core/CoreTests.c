@@ -50,25 +50,28 @@ int main(void) {
 
   CHECK(ludash_layout_column_windows((LuDashRectangle){10, 20, 400, 603}, 4, 10,
                                      rectangles, 32) == 4);
-  CHECK(rectangles[0].height == 143);
-  CHECK(rectangles[1].height == 143);
-  CHECK(rectangles[2].height == 143);
-  CHECK(rectangles[3].height == 144);
-  for (size_t i = 1; i < 4; ++i) {
-    CHECK(rectangles[i].x == 10 && rectangles[i].width == 400);
-    CHECK(rectangles[i].y ==
-          rectangles[i - 1].y + rectangles[i - 1].height + 10);
-  }
+  CHECK(rectangles[0].x == 10 && rectangles[0].y == 20);
+  CHECK(rectangles[0].width == 195 && rectangles[0].height == 296);
+  CHECK(rectangles[1].x == 215 && rectangles[1].y == 20);
+  CHECK(rectangles[1].width == 195 && rectangles[1].height == 296);
+  CHECK(rectangles[2].x == 10 && rectangles[2].y == 326);
+  CHECK(rectangles[2].width == 195 && rectangles[2].height == 297);
+  CHECK(rectangles[3].x == 215 && rectangles[3].y == 326);
+  CHECK(rectangles[3].width == 195 && rectangles[3].height == 297);
+
   CHECK(ludash_layout_column_windows((LuDashRectangle){10, 20, 400, 603}, 3, 10,
                                      rectangles, 32) == 3);
-  CHECK(rectangles[0].height == 145);
-  CHECK(rectangles[1].height == 146);
-  CHECK(rectangles[2].height == 292);
+  CHECK(rectangles[0].x == 10 && rectangles[0].width == 195 &&
+        rectangles[0].height == 603);
+  CHECK(rectangles[1].x == 215 && rectangles[1].width == 195 &&
+        rectangles[1].height == 296);
+  CHECK(rectangles[2].x == 215 && rectangles[2].y == 326 &&
+        rectangles[2].height == 297);
   rectangles[0].x = 42;
   CHECK(!ludash_layout_column_windows(area, 4, 10, rectangles, 3));
   CHECK(!ludash_layout_column_windows(area, 5, 10, rectangles, 32));
   CHECK(rectangles[0].x == 42);
-  CHECK(!ludash_layout_column_windows((LuDashRectangle){0, 0, 10, 3}, 4, 1,
+  CHECK(!ludash_layout_column_windows((LuDashRectangle){0, 0, 1, 3}, 2, 1,
                                       rectangles, 32));
   CHECK(rectangles[0].x == 42);
   CHECK(!ludash_tile_rectangles(area, 3, NAN, 12, rectangles, 32));

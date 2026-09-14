@@ -34,6 +34,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
 #include <QProcess>
@@ -973,6 +974,15 @@ void WaylandCompositor::arrange() {
     if (found != clients_.end() && !(*found)->minimized)
       configure(found->get(), placement.geometry);
   }
+  // An explicitly maximized window covers the work area on top of the strip.
+  // This only happens after a user action (Meta+F); new windows never start
+  // here.
+  for (const auto &client : clients_)
+    if (client->maximized && client->mapped && !client->minimized &&
+        !client->desktop && client->workspace == workspace_) {
+      configure(client.get(), workArea);
+      client->frame->setZ(30);
+    }
   window_.setTitle(
       QString("LunaDah Wayland · workspace %1").arg(workspace_ + 1));
 }
@@ -986,7 +996,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
     tiling_.focus(client->id);
   client->item->takeFocus();
   pluginManager_->windowFocused(client->frame);
-  client->frame->setZ(client->floating ? 20 : 2);
+  client->frame->setZ(client->maximized ? 30 : (client->floating ? 20 : 2));
 }
 
 void WaylandCompositor::focusNext(int direction) {
@@ -1025,7 +1035,24 @@ void WaylandCompositor::synchronizeTilingFocus() {
   focusNext(1);
 }
 
+ClientWindow *WaylandCompositor::clientAt(const QPointF &position) const {
+  for (auto it = clients_.rbegin(); it != clients_.rend(); ++it) {
+    auto *client = it->get();
+    if (!client->frame || client->desktop || !client->mapped ||
+        client->minimized || !client->frame->isVisible())
+      continue;
+    const QRectF geometry(client->frame->x(), client->frame->y(),
+                          client->frame->width(), client->frame->height());
+    if (geometry.contains(position))
+      return client;
+  }
+  return nullptr;
+}
+
 bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
+  if (watched == &window_ && (event->type() == QEvent::MouseMove ||
+                              event->type() == QEvent::HoverMove))
+    pointerPosition_ = static_cast<QMouseEvent *>(event)->position();
   if (watched == &window_ && event->type() == QEvent::Close) {
     event->ignore();
     requestShutdown();
@@ -1068,6 +1095,26 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
           if (key->modifiers().testFlag(Qt::ControlModifier)) {
             if (focused_ && !focused_->floating && !focused_->desktop)
               tiling_.reorder(focused_->id, direction);
+          } else if (key->modifiers().testFlag(Qt::ShiftModifier)) {
+            if (focused_ && !focused_->floating && !focused_->desktop) {
+              const auto snapshot = tiling_.snapshot(workspace_);
+              const auto current = std::find_if(
+                  snapshot.columns.begin(), snapshot.columns.end(),
+                  [this](const auto &entry) {
+                    return entry.window ==
+                           static_cast<TilingWindowId>(focused_->id);
+                  });
+              if (current != snapshot.columns.end()) {
+                const int targetColumn = current->columnIndex + direction;
+                const auto target = std::find_if(
+                    snapshot.columns.begin(), snapshot.columns.end(),
+                    [targetColumn](const auto &entry) {
+                      return entry.columnIndex == targetColumn;
+                    });
+                if (target != snapshot.columns.end())
+                  tiling_.groupWith(focused_->id, target->window);
+              }
+            }
           } else {
             direction < 0 ? tiling_.focusLeft(workspace_)
                           : tiling_.focusRight(workspace_);
@@ -1095,37 +1142,22 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
           }
           break;
         case Qt::Key_C:
-          if (focused_ && !focused_->floating) {
-            tiling_.center(focused_->id, workArea());
-            arrange();
+          if (key->modifiers().testFlag(Qt::ShiftModifier)) {
+            if (focused_ && !focused_->floating) {
+              tiling_.center(focused_->id, workArea());
+              arrange();
+            }
+          } else if (focused_ && focused_->toplevel) {
+            focused_->toplevel->sendClose();
           }
           break;
         case Qt::Key_F:
-          if (focused_ && !focused_->floating && !focused_->desktop) {
-            const auto snapshot = tiling_.snapshot(workspace_);
-            const auto placement =
-                std::find_if(snapshot.columns.begin(), snapshot.columns.end(),
-                             [this](const auto &entry) {
-                               return entry.window ==
-                                      static_cast<TilingWindowId>(focused_->id);
-                             });
-            if (placement != snapshot.columns.end()) {
-              const bool maximized = !focused_->maximized;
-              for (const auto member : placement->columnMembers)
-                for (const auto &client : clients_)
-                  if (client->id == static_cast<int>(member))
-                    client->maximized = maximized;
-              const auto preferences = desktopPreferences();
-              const int width =
-                  maximized
-                      ? workArea().width()
-                      : std::max(1,
-                                 workArea().width() *
-                                     preferences.value("masterRatio").toInt() /
-                                     100);
-              tiling_.resize(focused_->id, width);
-              arrange();
-            }
+          if (auto *target = clientAt(pointerPosition_)) {
+            target->maximized = !target->maximized;
+            arrange();
+          } else if (focused_) {
+            focused_->maximized = !focused_->maximized;
+            arrange();
           }
           break;
         case Qt::Key_M:

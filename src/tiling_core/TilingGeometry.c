@@ -48,25 +48,44 @@ size_t ludash_layout_column_windows(LuDashRectangle column, size_t count,
   if (!output || count == 0 || count > capacity || count > 4 ||
       !ludash_valid_area(column) || gap < 0)
     return 0;
-
-  const int64_t gaps = (int64_t)gap * (int64_t)(count - 1);
-  if (gaps >= column.height)
-    return 0;
-  const int available = column.height - (int)gaps;
-  const int units = count == 3 ? 4 : (int)count;
-  int consumed_units = 0;
-  for (size_t i = 0; i < count; ++i) {
-    const int weight = count == 3 && i == 2 ? 2 : 1;
-    const int begin = (int)((int64_t)available * consumed_units / units);
-    consumed_units += weight;
-    const int end = (int)((int64_t)available * consumed_units / units);
-    const int height = end - begin;
-    if (height <= 0)
-      return 0;
-    output[i] = (LuDashRectangle){column.x, column.y + begin + gap * (int)i,
-                                  column.width, height};
+  if (count == 1) {
+    output[0] = column;
+    return 1;
   }
-  return count;
+  if (gap >= column.width)
+    return 0;
+  const int left_width = (column.width - gap) / 2;
+  const int right_width = column.width - left_width - gap;
+  if (left_width <= 0 || right_width <= 0)
+    return 0;
+  const int right_x = column.x + left_width + gap;
+  if (count == 2) {
+    output[0] =
+        (LuDashRectangle){column.x, column.y, left_width, column.height};
+    output[1] =
+        (LuDashRectangle){right_x, column.y, right_width, column.height};
+    return 2;
+  }
+  if (gap >= column.height)
+    return 0;
+  const int top_height = (column.height - gap) / 2;
+  const int bottom_height = column.height - top_height - gap;
+  if (top_height <= 0 || bottom_height <= 0)
+    return 0;
+  const int bottom_y = column.y + top_height + gap;
+  if (count == 3) {
+    output[0] =
+        (LuDashRectangle){column.x, column.y, left_width, column.height};
+    output[1] = (LuDashRectangle){right_x, column.y, right_width, top_height};
+    output[2] =
+        (LuDashRectangle){right_x, bottom_y, right_width, bottom_height};
+    return 3;
+  }
+  output[0] = (LuDashRectangle){column.x, column.y, left_width, top_height};
+  output[1] = (LuDashRectangle){right_x, column.y, right_width, top_height};
+  output[2] = (LuDashRectangle){column.x, bottom_y, left_width, bottom_height};
+  output[3] = (LuDashRectangle){right_x, bottom_y, right_width, bottom_height};
+  return 4;
 }
 
 size_t ludash_tile_rectangles(LuDashRectangle area, size_t count, double ratio,

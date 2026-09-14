@@ -63,12 +63,13 @@ The integration script requires rendered client content, non-overlapping geometr
 | Super + Enter / E / D | Default terminal / file manager / launcher |
 | Super + H / L | Focus the column to the left / right |
 | Super + J / K | Focus the next / previous visible member within the column |
-| Super + Shift + H / L | Group the focused member into the adjacent left / right column |
+| Super + Shift + H / L | Merge the focused window into the adjacent left / right column |
 | Super + Shift + E | Expel the focused member into its own adjacent column |
 | Super + Ctrl + H / L | Reorder the focused column left / right |
 | Super + + / - | Widen / narrow the focused column |
-| Super + C | Center the focused column |
-| Super + F | Toggle maximized state in the full work area |
+| Super + Shift + C | Center the focused column |
+| Super + C | Close the focused window |
+| Super + F | Maximize / restore the window under the pointer |
 | Super + 1–4 | Switch workspace |
 | Super + Shift + 1–4 | Move focused window to workspace |
 | Super + Space / M / Q | Toggle floating / minimize / close |

@@ -3,6 +3,7 @@
 #include <LuDash/tiling/TilingLayout.h>
 #include <QJsonObject>
 #include <QObject>
+#include <QPointF>
 #include <QProcess>
 #include <QQuickWindow>
 #include <QSet>
@@ -76,6 +77,7 @@ private:
   int workspace_ = 0;
   ScrollableTilingLayout tiling_;
   QSet<int> consumedKeys_;
+  QPointF pointerPosition_;
   bool shuttingDown_ = false;
   bool logoutPending_ = false;
   bool testStopping_ = false;
@@ -90,5 +92,6 @@ private:
   void focus(ClientWindow *client);
   void focusNext(int direction);
   void synchronizeTilingFocus();
+  ClientWindow *clientAt(const QPointF &position) const;
 };
 } // namespace LuDash
