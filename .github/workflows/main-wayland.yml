@@ -1,0 +1,33 @@
+name: Main Wayland loading
+on: [push, pull_request, merge_group, workflow_dispatch]
+permissions:
+    contents: read
+concurrency:
+    group: main-wayland-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    wayland:
+        name: Wayland protocol and compositor loading
+        runs-on: ubuntu-24.04
+        timeout-minutes: 25
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update
+                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                    cmake g++ ninja-build pkg-config libgl-dev \
+                    libwayland-dev wayland-protocols qt6-base-dev \
+                    qt6-declarative-dev qt6-wayland-dev libqt6opengl6-dev \
+                    xvfb xauth python3 python3-pil
+            - name: Build Wayland compositor
+              run: cmake -S . -B build-wayland -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-wayland --parallel 2
+            - name: Verify Wayland libraries
+              run: |
+                  test -f /usr/lib/x86_64-linux-gnu/libwayland-server.so.0
+                  test -f /usr/lib/x86_64-linux-gnu/libwayland-client.so.0
+                  ldd build-wayland/lunadah-compositor | grep -E 'libQt6WaylandCompositor|libwayland-server'
+            - name: Run Wayland session
+              run: LUDASH_GRAPHICS=gles LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh

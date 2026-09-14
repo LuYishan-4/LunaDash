@@ -1,0 +1,26 @@
+name: Main Ubuntu build
+on: [push, pull_request, merge_group, workflow_dispatch]
+permissions:
+    contents: read
+concurrency:
+    group: main-build-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    build:
+        name: Ubuntu 24.04 C/C++ build
+        runs-on: ubuntu-24.04
+        timeout-minutes: 25
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update
+                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                    cmake g++ git ninja-build pkg-config \
+                    libgl-dev libwayland-dev wayland-protocols \
+                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev \
+                    libqt6opengl6-dev
+            - name: Build
+              run: cmake -S . -B build-main -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-main --parallel 2
