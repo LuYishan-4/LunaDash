@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import "../style"
 
 Item {
@@ -14,53 +15,46 @@ Item {
     function restart() {
         reveal.stop()
         progress = animated ? 0 : 1
-        if (animated)
-            reveal.start()
+        if (animated) reveal.start()
     }
 
-    Rectangle {
-        id: orbit
-        anchors.centerIn: parent
-        width: Math.min(parent.width, parent.height) * 0.76
-        height: width
-        radius: width / 2
-        color: "transparent"
-        border.width: Math.max(2, width * 0.035)
-        border.color: logo.primaryColor
-        opacity: 0.22 + 0.78 * logo.progress
-        scale: 0.72 + 0.28 * logo.progress
-        rotation: -38 + 38 * logo.progress
-    }
-
-    Rectangle {
-        anchors.centerIn: parent
-        width: orbit.width * 0.58
-        height: width
-        radius: width * 0.16
-        rotation: 45 + 90 * (1 - logo.progress)
-        color: logo.secondaryColor
-        opacity: 0.16 + 0.84 * logo.progress
-        scale: 0.55 + 0.45 * logo.progress
-    }
-
-    Rectangle {
-        anchors.centerIn: parent
-        width: orbit.width * 0.27
-        height: width
-        radius: width * 0.18
-        rotation: 45
-        color: logo.inkColor
+    Item {
+        id: artwork
+        anchors.fill: parent
         opacity: logo.progress
-        scale: 0.6 + 0.4 * logo.progress
-    }
+        scale: 0.72 + logo.progress * 0.28
+        rotation: -22 * (1 - logo.progress)
 
-    Rectangle {
-        anchors.centerIn: parent
-        width: orbit.width * 0.11
-        height: width
-        radius: width / 2
-        color: logo.primaryColor
-        opacity: logo.progress
+        Shape {
+            anchors.fill: parent
+            ShapePath {
+                strokeColor: Qt.rgba(logo.primaryColor.r, logo.primaryColor.g, logo.primaryColor.b, 0.45)
+                strokeWidth: 2
+                fillColor: "transparent"
+                PathSvg { path: "M18 72 C24 103 58 119 88 104 C111 93 121 67 112 43" }
+            }
+            ShapePath {
+                strokeColor: logo.primaryColor
+                strokeWidth: 1.5
+                fillColor: logo.primaryColor
+                PathSvg { path: "M65 11 C38 17 23 43 31 69 C39 96 70 110 95 97 C77 96 60 85 53 68 C44 47 50 25 65 11 Z" }
+            }
+            ShapePath {
+                strokeColor: "transparent"
+                fillColor: logo.secondaryColor
+                PathSvg { path: "M92 19 L95 27 L103 30 L95 33 L92 41 L89 33 L81 30 L89 27 Z" }
+            }
+            ShapePath {
+                strokeColor: "transparent"
+                fillColor: logo.inkColor
+                PathSvg { path: "M105 54 L107 59 L112 61 L107 63 L105 68 L103 63 L98 61 L103 59 Z" }
+            }
+            ShapePath {
+                strokeColor: "transparent"
+                fillColor: logo.primaryColor
+                PathSvg { path: "M78 8 L80 12 L84 14 L80 16 L78 20 L76 16 L72 14 L76 12 Z" }
+            }
+        }
     }
 
     NumberAnimation {
@@ -69,8 +63,8 @@ Item {
         property: "progress"
         from: 0
         to: 1
-        duration: Theme.animations ? Math.max(240, Theme.animationDuration * 3) : 0
-        easing.type: Easing.OutCubic
+        duration: Theme.animations ? Math.max(320, Theme.animationDuration * 3) : 0
+        easing.type: Easing.OutBack
     }
 
     Component.onCompleted: restart()

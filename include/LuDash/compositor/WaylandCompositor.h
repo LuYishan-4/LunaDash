@@ -30,6 +30,8 @@ class WindowFrame;
 class LayerShell;
 class ControlServer;
 class SessionActions;
+class ShortcutSettings;
+class UpdateChecker;
 struct ClientWindow;
 class WaylandCompositor final : public QObject {
 public:
@@ -55,6 +57,8 @@ private:
   AudioSettings *audioSettings_ = nullptr;
   PowerSettings *powerSettings_ = nullptr;
   SessionActions *sessionActions_ = nullptr;
+  ShortcutSettings *shortcutSettings_ = nullptr;
+  UpdateChecker *updateChecker_ = nullptr;
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
   SystemStatus *systemStatus_ = nullptr;
@@ -82,6 +86,7 @@ private:
   bool logoutPending_ = false;
   bool testStopping_ = false;
   bool processFailure_ = false;
+  bool shortcutCapture_ = false;
   void requestShutdown();
   void addWindow(QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *surface);
   void configure(ClientWindow *client, const QRect &rectangle);

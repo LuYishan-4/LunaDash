@@ -428,25 +428,39 @@ ScrollableTilingLayout::layout(TilingWorkspaceId workspaceId, QRect area) {
   }
   const auto focused = findWindow(workspace, workspace.focused);
   if (focused.found) {
-    const auto &geometry =
-        workspace.columns[focused.column].members[focused.member].geometry;
-    const int left = geometry.left();
-    const int right = geometry.right();
-    bool changed = false;
-    if (geometry.width() >= area.width() && left != area.left()) {
-      workspace.scrollOffset =
-          std::max(0, workspace.scrollOffset + left - area.left());
-      changed = true;
-    } else if (geometry.width() < area.width() && left < area.left()) {
-      workspace.scrollOffset =
-          std::max(0, workspace.scrollOffset - (area.left() - left));
-      changed = true;
-    } else if (geometry.width() < area.width() && right > area.right()) {
-      workspace.scrollOffset += right - area.right();
-      changed = true;
+    std::size_t focusedVisible = visible.size();
+    for (std::size_t i = 0; i < visible.size(); ++i)
+      if (visible[i] == &workspace.columns[focused.column]) {
+        focusedVisible = i;
+        break;
+      }
+    qint64 desired = workspace.scrollOffset;
+    if (focusedVisible < visible.size()) {
+      if (columns[focusedVisible].width <= area.width()) {
+        // The whole column fits in the strip. Align its left edge with the work
+        // area so every member of a split column stays on screen instead of
+        // scrolling a half-width member into view and hiding its siblings.
+        qint64 prefix = 0;
+        for (std::size_t i = 0; i < focusedVisible; ++i)
+          prefix += static_cast<qint64>(widths[i]) + d->gap;
+        desired = prefix;
+      } else {
+        // Wider than the strip: bring the focused member into view.
+        const auto &geometry =
+            workspace.columns[focused.column].members[focused.member].geometry;
+        if (geometry.left() < area.left())
+          desired = static_cast<qint64>(workspace.scrollOffset) -
+                    (area.left() - geometry.left());
+        else if (geometry.right() > area.right())
+          desired = static_cast<qint64>(workspace.scrollOffset) +
+                    (geometry.right() - area.right());
+      }
     }
-    if (changed)
+    desired = std::clamp<qint64>(desired, 0, std::numeric_limits<int>::max());
+    if (desired != workspace.scrollOffset) {
+      workspace.scrollOffset = static_cast<int>(desired);
       return layout(workspaceId, area);
+    }
   }
   return snapshot(workspaceId).columns;
 }

@@ -14,7 +14,7 @@ ModuleSurface {
     property string category: "general"
     property var categories: [
         {id:"general", name:"General"}, {id:"appearance", name:"Appearance"}, {id:"windows", name:"Windows and workspaces"},
-        {id:"modules", name:"Shell modules"}, {id:"display", name:"Display"}, {id:"input", name:"Keyboard and pointer"}, {id:"sound", name:"Sound"},
+        {id:"shortcuts", name:"Keyboard shortcuts"}, {id:"modules", name:"Shell modules"}, {id:"display", name:"Display"}, {id:"input", name:"Keyboard and pointer"}, {id:"sound", name:"Sound"},
         {id:"network", name:"Network"}, {id:"bluetooth", name:"Bluetooth"}, {id:"power", name:"Power and battery"},
         {id:"applications", name:"Applications and startup"}, {id:"privacy", name:"Privacy and accessibility"},
         {id:"system", name:"Users, date and time"}, {id:"devices", name:"Printers and storage"}, {id:"about", name:"About LunaDah"}

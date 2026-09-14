@@ -6,9 +6,10 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 
 | Page | Direct LunaDah controls | System or host integration / limits |
 | --- | --- | --- |
-| General | Language, shell font, 12/24-hour clock, first-run guide, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
+| General | Extensible language drop-down, shell font, 12/24-hour clock, first-run guide, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
 | Appearance | Wallpaper image/palettes, LunaDah PNG/JPEG/WebP picker, accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Picker uses a bounded QWidget preview and no `QFileDialog`; blur applies to application frames, with no KDE blur protocol |
-| Windows and workspaces | 1–9 workspaces, grouped columns, per-column widths, window gaps, default floating mode | Reducing the count moves windows to a remaining workspace; no arbitrary shortcut editor yet |
+| Windows and workspaces | 1–9 workspaces, grouped columns, per-column widths, window gaps, default floating mode | Reducing the count moves windows to a remaining workspace |
+| Keyboard shortcuts | Click a binding and press the desired Meta-key combination for launch, focus, grouping, resizing, window actions, and all nine workspace switch/move actions | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Shell modules | JSON styles, templates, code trust and built-in recovery | [Module schema and contract](MODULES.md); custom QML is not sandboxed |
 | Display | Current output information and three nested window sizes | Physical modes, scale, rotation and refresh are managed by the host; host monitor settings can be opened when available. Standalone multi-monitor, HDR and night light remain unavailable |
 | Keyboard and pointer | Seven keyboard layouts, repeat rate/delay, cursor size for the next session, input test field | Input-method editor and host mouse/touchpad settings; standalone libinput device configuration remains unavailable |
@@ -20,7 +21,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | Privacy and accessibility | Host-identity visibility, reduced motion, native-plugin access | Optional host accessibility/locking settings. LunaDah has no secure lock screen, notification service, screen reader integration or portal permission UI yet |
 | Users, date and time | Settings-tool discovery | Installed account/time editors handle authorization; LunaDah does not create users or retain passwords |
 | Printers and storage | Settings-tool discovery | system-config-printer and GNOME Disks; their confirmation flows govern destructive actions |
-| About | Brand artwork, version, development status, OS, kernel, architecture, session/desktop identity and actual graphics API | Expanded capability/limitation summary and documentation entry points |
+| About | Animated moon artwork, version, development status, OS, kernel, architecture, actual graphics API, GitHub link, and manual update check | Update checks contact the fixed official GitHub Releases endpoint and never install packages; the Discord icon remains disabled until an official invite is published |
 
 An installed executable means the editor can be launched, not that every system service or authorization agent is present. KDE module providers are offered only when their plugin file exists. Host-only tools use the original host environment and are not advertised as native LunaDah hardware controls. They are unavailable in standalone EGLFS sessions.
 
@@ -53,6 +54,9 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadahctl appearance '{"workspaceCount":6,"masterRatio":60}'
 ./build/lunadahctl appearance '{"keyboardLayout":"us","keyRepeatRate":25,"keyRepeatDelay":600}'
 ./build/lunadahctl appearance '{"startupApps":["files"]}'
+./build/lunadahctl shortcuts '{"focusLeft":"Meta+U"}'
+./build/lunadahctl reset-shortcuts
+./build/lunadahctl check-update
 ./build/lunadahctl desktop-size 1280x720
 ```
 
@@ -66,4 +70,4 @@ Default terminal and file-manager argument arrays are edited under Applications 
 
 The compact top `TopPanel` embeds theme-accented grouped-application cells inline after the workspace/session controls; the former separate `ColumnStrip` is not instantiated as a second layer. The inline area has one cell per column and app icons for all members, including minimized ones. Click an exact icon to restore, focus and reveal that member; drag it onto a member in another column to group it; right-click it or click its minus badge to expel it. A column accepts at most four total windows, including minimized members, and visible members receive equal vertical space.
 
-Use `Super+H/L` between columns, `Super+J/K` within a grouped column, `Super+Shift+H/L` to merge the focused window into the adjacent column, `Super+Shift+E` to expel, `Super+Ctrl+H/L` to reorder columns, Super plus `+`/`-` to resize, and `Super+Shift+C` to center. `Super+C` closes the focused window and the remaining members immediately re-apply the 1/2/3/4 split. `Super+F` maximizes or restores the window under the pointer across the compositor `workArea`, whose top edge is below the top panel's `panelExtent`/exclusive area. Every new window otherwise opens as its own full-width column and the strip slides horizontally to reveal it. The frame's top-right minus and × controls provide quick minimize and close actions.
+Defaults use `Super+H/L` between columns, `Super+J/K` within a grouped column, `Super+Shift+H/L` to merge the focused window into the adjacent column, `Super+Shift+E` to expel, `Super+Ctrl+H/L` to reorder columns, Super plus `+`/`-` to resize, and `Super+Shift+C` to center. `Super+C` closes the focused window and the remaining members immediately re-apply the 1/2/3/4 split. `Super+F` maximizes or restores the window under the pointer across the compositor `workArea`, whose top edge is below the top panel's `panelExtent`/exclusive area. Every new window otherwise opens as its own full-width column and the strip slides horizontally to reveal it. The frame's top-right minus and × controls provide quick minimize and close actions.

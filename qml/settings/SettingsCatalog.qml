@@ -8,6 +8,7 @@ QtObject {
         {page:"appearance", pageName:"Appearance", name:"Wallpaper", keywords:"background image accent color font panel height"},
         {page:"appearance", pageName:"Appearance", name:"Animations", keywords:"motion blur opacity duration effects"},
         {page:"windows", pageName:"Windows and workspaces", name:"Number of workspaces", keywords:"tiling floating master window gap"},
+        {page:"shortcuts", pageName:"Keyboard shortcuts", name:"Global shortcuts", keywords:"keys Meta bind launch focus group workspace close maximize"},
         {page:"modules", pageName:"Shell modules", name:"Custom QML", keywords:"panel overview dashboard JSON modules"},
         {page:"display", pageName:"Display", name:"Nested desktop size", keywords:"monitor resolution scaling HDR night light"},
         {page:"input", pageName:"Keyboard and pointer", name:"Keyboard layout", keywords:"repeat delay cursor input method mouse touchpad"},
@@ -19,7 +20,7 @@ QtObject {
         {page:"privacy", pageName:"Privacy and accessibility", name:"Reduced motion", keywords:"animations lock screen screen reader plugins user host"},
         {page:"system", pageName:"Users, date and time", name:"User accounts", keywords:"clock authorization accounts"},
         {page:"devices", pageName:"Printers and storage", name:"Printers and scanners", keywords:"disks storage devices"},
-        {page:"about", pageName:"About LunaDah", name:"About LunaDah", keywords:"version Wayland graphics system information"}
+        {page:"about", pageName:"About LunaDah", name:"About LunaDah", keywords:"version Wayland graphics system update GitHub Discord community release"}
     ]
 
     function matches(query, translate) {

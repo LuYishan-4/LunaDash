@@ -1,5 +1,6 @@
 import "../modules"
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
@@ -30,8 +31,15 @@ ModuleSurface {
             visible: wizard.step === 0; spacing: 16
             Text { text: shell.tr("A quiet workspace, built around your windows. Choose a language to begin."); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
             RowLayout {
-                ShellButton { text: "English"; active: shell.state.language === "en_US"; onClicked: shell.command("language", "en_US") }
-                ShellButton { text: shell.tr("Traditional Chinese"); active: shell.state.language === "zh_TW"; onClicked: shell.command("language", "zh_TW") }
+                Layout.fillWidth: true
+                Text { text: shell.tr("Interface language"); color: moduleForeground; Layout.fillWidth: true }
+                StyledComboBox {
+                    model: [{code:"en_US", name:"English"}, {code:"zh_TW", name:"Traditional Chinese"}]
+                    textRole: "name"
+                    valueRole: "code"
+                    currentIndex: shell.state.language === "zh_TW" ? 1 : 0
+                    onActivated: shell.command("language", currentValue)
+                }
             }
             Text { text: shell.tr("This is a development preview. Start in a nested session while evaluating it."); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
         }

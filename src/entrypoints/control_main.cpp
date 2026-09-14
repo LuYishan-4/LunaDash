@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QLocalSocket>
 #include <QTextStream>
+
 int main(int argc, char **argv) {
   QCoreApplication application(argc, argv);
   const auto args = application.arguments();
@@ -10,15 +11,17 @@ int main(int argc, char **argv) {
     QTextStream(stderr)
         << "Usage: lunadahctl "
            "status|workspace|focus|group-window|expel-window|minimize|close|"
-           "language|wallpaper|choose-wallpaper|wallpaper-image|wallpaper-"
-           "default|appearance|setup|finish-setup|configure-network|launch-x11|"
-           "open-settings|system-tool|audio|power-profile|desktop-size|reset-"
-           "preferences|default-apps|launch-default|module-validate|module-"
-           "save|"
-           "module-template|module-code-trust|module-reset|quit [value]\n"
+           "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
+           "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
+           "appearance|setup|finish-setup|configure-network|launch-x11|"
+           "open-settings|system-tool|audio|power-profile|desktop-size|"
+           "reset-preferences|default-apps|launch-default|module-validate|"
+           "module-save|module-template|module-code-trust|module-reset|quit "
+           "[value]\n"
            "  group-window value: {\"window\":ID,\"target\":ID}\n";
     return 2;
   }
+
   auto path = qEnvironmentVariable("LUNADAH_CONTROL");
   if (path.isEmpty())
     path = qEnvironmentVariable("LUDASH_CONTROL");
@@ -26,6 +29,7 @@ int main(int argc, char **argv) {
     QTextStream(stderr) << "LUNADAH_CONTROL is not set.\n";
     return 2;
   }
+
   QLocalSocket socket;
   socket.connectToServer(path);
   if (!socket.waitForConnected(1500))
@@ -35,6 +39,7 @@ int main(int argc, char **argv) {
           .toJson(QJsonDocument::Compact) +
       '\n');
   socket.flush();
+
   QByteArray result;
   while (!result.contains('\n')) {
     if (!socket.bytesAvailable() && !socket.waitForReadyRead(1500))

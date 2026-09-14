@@ -19,9 +19,11 @@
 #include <LuDash/session_environment/SessionEnvironment.h>
 #include <LuDash/shell_modules/ShellModules.h>
 #include <LuDash/shell_renderer/ShellRenderer.h>
+#include <LuDash/shortcut_settings/ShortcutSettings.h>
 #include <LuDash/system_status/SystemStatus.h>
 #include <LuDash/system_tools/SystemTools.h>
 #include <LuDash/tiling/TilingLayout.h>
+#include <LuDash/update_check/UpdateChecker.h>
 #include <LuDash/wallpaper/WallpaperSettings.h>
 #include <LuDash/window_frame/WindowFrame.h>
 #include <LuDash/window_rules/WindowRules.h>
@@ -163,6 +165,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   audioSettings_ = new AudioSettings(this);
   powerSettings_ = new PowerSettings(this);
   sessionActions_ = new SessionActions(this);
+  shortcutSettings_ = new ShortcutSettings;
+  updateChecker_ = new UpdateChecker(this);
   applyKeyboardPreferences(compositor_.defaultSeat(), desktopPreferences());
   networkStatus_ = new NetworkStatus(this);
   pluginManager_ = new PluginManager(this);
@@ -251,6 +255,8 @@ WaylandCompositor::~WaylandCompositor() {
         process->waitForFinished(800);
       }
     }
+  delete shortcutSettings_;
+  shortcutSettings_ = nullptr;
 }
 
 QProcess *WaylandCompositor::spawn(const QStringList &arguments,
@@ -418,6 +424,8 @@ QJsonObject WaylandCompositor::state() const {
       {"audio", audioSettings_->snapshot()},
       {"power", powerSettings_->snapshot()},
       {"sessionActions", sessionActions_->snapshot()},
+      {"shortcuts", shortcutSettings_->snapshot()},
+      {"update", updateChecker_->snapshot()},
       {"settingsTools", systemSettingsTools()},
       {"display", describeDisplay(&window_)},
       {"settingsSerial", settingsSerial_},
@@ -480,11 +488,25 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     synchronizeTilingFocus();
   } else if (method == "language" && (value == "en_US" || value == "zh_TW"))
     QSettings().setValue("appearance/language", value);
-  else if (method == "open-settings") {
+  else if (method == "shortcut-capture" &&
+           (value == "true" || value == "false")) {
+    shortcutCapture_ = value == "true";
+  } else if (method == "shortcuts") {
+    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    QString error;
+    if (!document.isObject() ||
+        !shortcutSettings_->apply(document.object(), &error))
+      return {{"error", error.isEmpty() ? "Expected shortcut JSON." : error}};
+  } else if (method == "reset-shortcuts") {
+    shortcutSettings_->reset();
+  } else if (method == "check-update") {
+    updateChecker_->check();
+  } else if (method == "open-settings") {
     if (!value.isEmpty() &&
-        !QStringList{"general", "appearance", "windows", "display", "input",
-                     "sound", "network", "bluetooth", "power", "applications",
-                     "privacy", "system", "devices", "about", "modules"}
+        !QStringList{"general", "appearance", "windows", "shortcuts", "display",
+                     "input", "sound", "network", "bluetooth", "power",
+                     "applications", "privacy", "system", "devices", "about",
+                     "modules"}
              .contains(value))
       return {{"error", "Unknown settings page."}};
     settingsPage_ = value.isEmpty() ? "general" : value;
@@ -623,20 +645,34 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   } else if (method == "group-window") {
     int window = 0;
     int target = 0;
-    if (!groupWindowIds(value, &window, &target)) {
-      qInfo().noquote() << "LunaDah group-window parse fail:" << value;
+    if (!groupWindowIds(value, &window, &target))
       return {
           {"error", "Expected bounded JSON {\"window\":ID,\"target\":ID}."}};
-    }
-    const bool grouped = tiling_.groupWith(window, target);
-    qInfo().noquote() << "LunaDah group-window:" << window << "->" << target
-                      << "ok" << grouped;
-    if (!grouped)
+    if (!tiling_.groupWith(window, target))
       return {{"error",
                "Windows must be distinct tiled windows in the same "
                "workspace, and the target column must have capacity."}};
+    const auto groupedClient = std::find_if(
+        clients_.begin(), clients_.end(),
+        [window](const auto &entry) { return entry->id == window; });
+    // Activate the dragged client before sending its smaller grouped configure.
+    // Some clients do not commit the resized buffer while inactive, leaving an
+    // apparently blank tile until the user clicks it.
+    if (groupedClient != clients_.end()) {
+      (*groupedClient)->item->setPrimary();
+      focus(groupedClient->get());
+    }
     arrange();
-    synchronizeTilingFocus();
+    QTimer::singleShot(0, this, [this] { arrange(); });
+    // Once the slide animation has finished, re-send a configure for both
+    // members in case a client ignored the resize while it was still inactive.
+    // Clearing lastSize forces configure() to emit the request again.
+    QTimer::singleShot(260, this, [this, window, target] {
+      for (const auto &client : clients_)
+        if (client->id == window || client->id == target)
+          client->lastSize = QSize();
+      arrange();
+    });
   } else if (method == "expel-window") {
     const auto window = textWindowId(value);
     if (!window)
@@ -899,6 +935,17 @@ void WaylandCompositor::configure(ClientWindow *client,
   client->item->setPosition(QPointF(border, title));
   const QSize size(std::max(1, rectangle.width() - 2 * border),
                    std::max(1, rectangle.height() - title - border));
+  // A client applies xdg_toplevel resize asynchronously. Constrain its current
+  // buffer immediately so an old full-column buffer cannot cover another
+  // member while a grouped layout waits for the client's next commit. Clip only
+  // split tiles: a window that still fills the work area never overflows, and
+  // clipping would cut off menus that legitimately extend past the frame.
+  client->item->setSize(QSizeF(size));
+  const QRect area = workArea();
+  const bool splitTile =
+      !client->floating && !client->desktop &&
+      (rectangle.width() < area.width() || rectangle.height() < area.height());
+  client->frame->setClip(splitTile);
   const bool configuredMaximized =
       client->maximized && rectangle.size() == workArea().size();
   if ((size != client->lastSize ||
@@ -909,6 +956,8 @@ void WaylandCompositor::configure(ClientWindow *client,
     QList<QWaylandXdgToplevel::State> states;
     if (configuredMaximized)
       states.append(QWaylandXdgToplevel::MaximizedState);
+    if (compositor_.defaultSeat()->keyboardFocus() == client->item->surface())
+      states.append(QWaylandXdgToplevel::ActivatedState);
     client->toplevel->sendConfigure(size, states);
   }
 }
@@ -1006,6 +1055,13 @@ void WaylandCompositor::arrange() {
       configure(client.get(), workArea);
       client->frame->setZ(30);
     }
+  // Keep the focused window above its column siblings. The loop above resets
+  // every tiled frame to a base z, which would otherwise drop a freshly grouped
+  // window behind its new neighbours while its client commits a resized buffer.
+  if (focused_ && focused_->frame && focused_->mapped && !focused_->minimized &&
+      !focused_->desktop && focused_->workspace == workspace_)
+    focused_->frame->setZ(focused_->maximized ? 30
+                                              : (focused_->floating ? 20 : 2));
   window_.setTitle(
       QString("LunaDah Wayland · workspace %1").arg(workspace_ + 1));
 }
@@ -1086,148 +1142,127 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
     auto *key = static_cast<QKeyEvent *>(event);
     if (event->type() == QEvent::KeyRelease && consumedKeys_.remove(key->key()))
       return true;
-    if (event->type() == QEvent::KeyPress &&
-        key->modifiers().testFlag(Qt::MetaModifier)) {
-      bool handled = true;
-      if (key->key() >= Qt::Key_1 &&
-          key->key() <
-              Qt::Key_1 +
-                  desktopPreferences().value("workspaceCount").toInt()) {
-        const int target = key->key() - Qt::Key_1;
-        if (key->modifiers().testFlag(Qt::ShiftModifier)) {
-          if (focused_)
-            focused_->workspace = target;
-        } else
-          workspace_ = target;
+    if (shortcutCapture_)
+      return QObject::eventFilter(watched, event);
+    if (event->type() != QEvent::KeyPress || key->isAutoRepeat())
+      return QObject::eventFilter(watched, event);
+
+    const QString action = shortcutSettings_->actionFor(*key);
+    if (action.isEmpty())
+      return QObject::eventFilter(watched, event);
+
+    auto groupAdjacent = [this](int direction) {
+      if (!focused_ || focused_->floating || focused_->desktop)
+        return;
+      const auto snapshot = tiling_.snapshot(workspace_);
+      const auto current = std::find_if(
+          snapshot.columns.begin(), snapshot.columns.end(),
+          [this](const auto &entry) {
+            return entry.window == static_cast<TilingWindowId>(focused_->id);
+          });
+      if (current == snapshot.columns.end())
+        return;
+      const int targetColumn = current->columnIndex + direction;
+      const auto target =
+          std::find_if(snapshot.columns.begin(), snapshot.columns.end(),
+                       [targetColumn](const auto &entry) {
+                         return entry.columnIndex == targetColumn;
+                       });
+      if (target != snapshot.columns.end())
+        tiling_.groupWith(focused_->id, target->window);
+    };
+
+    if (action.startsWith("moveToWorkspace")) {
+      const int target = action.mid(15).toInt() - 1;
+      if (focused_ && target >= 0 &&
+          target < desktopPreferences().value("workspaceCount").toInt())
+        focused_->workspace = target;
+      arrange();
+      synchronizeTilingFocus();
+    } else if (action.startsWith("workspace")) {
+      const int target = action.mid(9).toInt() - 1;
+      if (target >= 0 &&
+          target < desktopPreferences().value("workspaceCount").toInt())
+        workspace_ = target;
+      arrange();
+      synchronizeTilingFocus();
+    } else if (action == "focusLeft" || action == "focusRight") {
+      action == "focusLeft" ? tiling_.focusLeft(workspace_)
+                            : tiling_.focusRight(workspace_);
+      arrange();
+      synchronizeTilingFocus();
+    } else if (action == "focusUp" || action == "focusDown") {
+      action == "focusUp" ? tiling_.focusUp(workspace_)
+                          : tiling_.focusDown(workspace_);
+      arrange();
+      synchronizeTilingFocus();
+    } else if (action == "groupLeft" || action == "groupRight") {
+      groupAdjacent(action == "groupLeft" ? -1 : 1);
+      arrange();
+      synchronizeTilingFocus();
+    } else if (action == "reorderLeft" || action == "reorderRight") {
+      if (focused_ && !focused_->floating && !focused_->desktop)
+        tiling_.reorder(focused_->id, action == "reorderLeft" ? -1 : 1);
+      arrange();
+      synchronizeTilingFocus();
+    } else if (action == "widenColumn" || action == "narrowColumn") {
+      if (focused_ && !focused_->floating) {
+        const auto snapshot = tiling_.snapshot(workspace_);
+        const auto column = std::find_if(
+            snapshot.columns.begin(), snapshot.columns.end(),
+            [this](const auto &entry) {
+              return entry.window == static_cast<TilingWindowId>(focused_->id);
+            });
+        if (column != snapshot.columns.end())
+          tiling_.resize(focused_->id,
+                         column->width + (action == "narrowColumn" ? -60 : 60));
+        arrange();
+      }
+    } else if (action == "centerColumn") {
+      if (focused_ && !focused_->floating) {
+        tiling_.center(focused_->id, workArea());
+        arrange();
+      }
+    } else if (action == "maximizeWindow") {
+      auto *target = clientAt(pointerPosition_);
+      if (!target)
+        target = focused_;
+      if (target) {
+        target->maximized = !target->maximized;
+        arrange();
+      }
+    } else if (action == "closeWindow" || action == "closeWindowAlternate") {
+      if (focused_ && focused_->toplevel)
+        focused_->toplevel->sendClose();
+    } else if (action == "minimizeWindow") {
+      if (focused_) {
+        focused_->minimized = true;
+        tiling_.setMinimized(focused_->id, true);
         arrange();
         synchronizeTilingFocus();
-      } else
-        switch (key->key()) {
-        case Qt::Key_J:
-        case Qt::Key_K:
-          if (focused_ && !focused_->floating && !focused_->desktop) {
-            key->key() == Qt::Key_J ? tiling_.focusDown(workspace_)
-                                    : tiling_.focusUp(workspace_);
-            arrange();
-            synchronizeTilingFocus();
-          }
-          break;
-        case Qt::Key_H:
-        case Qt::Key_L: {
-          const int direction = key->key() == Qt::Key_H ? -1 : 1;
-          if (key->modifiers().testFlag(Qt::ControlModifier)) {
-            if (focused_ && !focused_->floating && !focused_->desktop)
-              tiling_.reorder(focused_->id, direction);
-          } else if (key->modifiers().testFlag(Qt::ShiftModifier)) {
-            if (focused_ && !focused_->floating && !focused_->desktop) {
-              const auto snapshot = tiling_.snapshot(workspace_);
-              const auto current = std::find_if(
-                  snapshot.columns.begin(), snapshot.columns.end(),
-                  [this](const auto &entry) {
-                    return entry.window ==
-                           static_cast<TilingWindowId>(focused_->id);
-                  });
-              if (current != snapshot.columns.end()) {
-                const int targetColumn = current->columnIndex + direction;
-                const auto target = std::find_if(
-                    snapshot.columns.begin(), snapshot.columns.end(),
-                    [targetColumn](const auto &entry) {
-                      return entry.columnIndex == targetColumn;
-                    });
-                if (target != snapshot.columns.end())
-                  tiling_.groupWith(focused_->id, target->window);
-              }
-            }
-          } else {
-            direction < 0 ? tiling_.focusLeft(workspace_)
-                          : tiling_.focusRight(workspace_);
-          }
-          arrange();
-          synchronizeTilingFocus();
-          break;
-        }
-        case Qt::Key_Plus:
-        case Qt::Key_Equal:
-        case Qt::Key_Minus:
-          if (focused_ && !focused_->floating) {
-            const auto snapshot = tiling_.snapshot(workspace_);
-            const auto column =
-                std::find_if(snapshot.columns.begin(), snapshot.columns.end(),
-                             [this](const auto &entry) {
-                               return entry.window ==
-                                      static_cast<TilingWindowId>(focused_->id);
-                             });
-            if (column != snapshot.columns.end())
-              tiling_.resize(focused_->id,
-                             column->width +
-                                 (key->key() == Qt::Key_Minus ? -60 : 60));
-            arrange();
-          }
-          break;
-        case Qt::Key_C:
-          if (key->modifiers().testFlag(Qt::ShiftModifier)) {
-            if (focused_ && !focused_->floating) {
-              tiling_.center(focused_->id, workArea());
-              arrange();
-            }
-          } else if (focused_ && focused_->toplevel) {
-            focused_->toplevel->sendClose();
-          }
-          break;
-        case Qt::Key_F:
-          if (auto *target = clientAt(pointerPosition_)) {
-            target->maximized = !target->maximized;
-            arrange();
-          } else if (focused_) {
-            focused_->maximized = !focused_->maximized;
-            arrange();
-          }
-          break;
-        case Qt::Key_M:
-          if (focused_) {
-            focused_->minimized = true;
-            tiling_.setMinimized(focused_->id, true);
-            arrange();
-            synchronizeTilingFocus();
-          }
-          break;
-        case Qt::Key_Q:
-          if (focused_ && focused_->toplevel)
-            focused_->toplevel->sendClose();
-          break;
-        case Qt::Key_Space:
-          if (focused_) {
-            focused_->floating = !focused_->floating;
-            if (focused_->floating)
-              tiling_.remove(focused_->id);
-            arrange();
-          }
-          break;
-        case Qt::Key_Return:
-          control({{"method", "launch-default"}, {"value", "terminal"}});
-          break;
-        case Qt::Key_E:
-          if (key->modifiers().testFlag(Qt::ShiftModifier)) {
-            if (focused_ && !focused_->floating && !focused_->desktop) {
-              tiling_.expel(focused_->id);
-              arrange();
-              synchronizeTilingFocus();
-            }
-          } else {
-            control({{"method", "launch-default"}, {"value", "files"}});
-          }
-          break;
-        case Qt::Key_D:
-          spawn({"--app", "launcher"});
-          break;
-        default:
-          handled = false;
-        }
-      if (handled) {
-        consumedKeys_.insert(key->key());
-        return true;
       }
+    } else if (action == "toggleFloating") {
+      if (focused_) {
+        focused_->floating = !focused_->floating;
+        if (focused_->floating)
+          tiling_.remove(focused_->id);
+        arrange();
+      }
+    } else if (action == "expelWindow") {
+      if (focused_ && !focused_->floating && !focused_->desktop) {
+        tiling_.expel(focused_->id);
+        arrange();
+        synchronizeTilingFocus();
+      }
+    } else if (action == "launchTerminal") {
+      control({{"method", "launch-default"}, {"value", "terminal"}});
+    } else if (action == "launchFiles") {
+      control({{"method", "launch-default"}, {"value", "files"}});
+    } else if (action == "launchLauncher") {
+      spawn({"--app", "launcher"});
     }
+    consumedKeys_.insert(key->key());
+    return true;
   }
   return QObject::eventFilter(watched, event);
 }

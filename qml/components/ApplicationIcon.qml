@@ -13,6 +13,7 @@ Item {
     readonly property bool builtinApp: appId === "lunadah-app"
                                        || appId === "lunadah-image-picker"
                                        || iconName === "lunadah"
+    readonly property bool internalAlias: ["preferences-system", "applications-system", "preferences-desktop-theme", "preferences-desktop-emoticons", "system-file-manager", "utilities-terminal", "utilities-system-monitor", "hwinfo", "input-keyboard"].includes(iconName)
 
     function themed(name) {
         if (!name || name === "lunadah")
@@ -38,11 +39,10 @@ Item {
         const candidate = String(iconName || "")
         if (/^(image:|file:|qrc:|data:)/.test(candidate) && !candidate.includes("qs-blackhole")) return candidate
         if (candidate.startsWith("/") && /\.(png|jpe?g|webp|svg|xpm)$/i.test(candidate)) return "file://" + candidate
-        if (candidate.startsWith("/")) return "file://" + candidate
         return ""
     }
     readonly property string themeSource: {
-        if (fileSource.length > 0 || builtinApp) return ""
+        if (fileSource.length > 0 || builtinApp || internalAlias) return ""
         const fromDesktop = desktopIcon()
         if (fromDesktop.length > 0) return fromDesktop
         return themed(iconName)
