@@ -124,6 +124,12 @@ QString clipboardBridgePath() {
                          QStringLiteral("/lunadash-clipboard-bridge");
   return QFileInfo::exists(source) ? source : QString();
 }
+
+// Clipboard helpers create hidden 1x1 toplevels just to own the selection;
+// these must never be tiled or shown in the panel.
+bool isUtilityWindow(const QString &appId) {
+  return appId == QLatin1String("io.github.bugaevc.wl-clipboard");
+}
 } // namespace
 WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell, GraphicsApi graphics) {
@@ -163,10 +169,17 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   connect(shell_, &QWaylandXdgShell::toplevelCreated, this,
           &WaylandCompositor::addWindow);
   installInputMethodProtocols(&compositor_);
-  // Advertise wl_drm / zwp_linux_dmabuf_v1 so GPU-accelerated clients (kitty,
-  // mpv, games) can create EGL surfaces, and keep the clipboard selection
-  // alive after the source client disconnects.
-  compositor_.setUseHardwareIntegrationExtension(true);
+  // Advertise wl_drm / zwp_linux_dmabuf_v1 only on a real DRM session (eglfs
+  // and friends). In a nested session there is no shareable DRM device, so
+  // forcing the extension advertises a broken global and breaks EGL clients
+  // such as kitty and XWayland-based apps. Keep the clipboard selection alive
+  // after the source client disconnects regardless of the renderer.
+  const QString platform = QGuiApplication::platformName();
+  const bool bareMetal = platform == QLatin1String("eglfs") ||
+                         platform == QLatin1String("linuxfb") ||
+                         platform == QLatin1String("kms") ||
+                         platform == QLatin1String("vkkhrdisplay");
+  compositor_.setUseHardwareIntegrationExtension(bareMetal);
   compositor_.setRetainedSelectionEnabled(true);
   compositor_.create();
   layerShell_ = new LayerShell(&compositor_, output_, &window_);
@@ -179,7 +192,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   clientEnvironment_ =
       createClientEnvironment(QString::fromUtf8(socket), controlPath_,
                               QCoreApplication::applicationDirPath());
-  publishClientEnvironment(clientEnvironment_);
+  publishClientEnvironment(clientEnvironment_, bareMetal);
   shellModules_ = new ShellModules(this);
   connect(shellModules_, &ShellModules::changed, this,
           &WaylandCompositor::arrange);
@@ -217,7 +230,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     environment.insert(
         "XCURSOR_SIZE",
         QString::number(desktopPreferences().value("cursorSize").toInt()));
-    xwayland_->start(environment, window_.size());
+    xwayland_->start(environment, workArea().size());
   }
   const auto inputMethod = QStandardPaths::findExecutable("fcitx5");
   if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
@@ -370,29 +383,30 @@ bool WaylandCompositor::saveScreenshot(const QString &path) {
 QJsonObject WaylandCompositor::state() const {
   QJsonArray entries;
   for (const auto &client : clients_)
-    entries.append(QJsonObject{
-        {"contentWidth", client->item->width()},
-        {"contentHeight", client->item->height()},
-        {"contentVisible", client->item->isVisible()},
-        {"contentPaintEnabled", client->item->isPaintEnabled()},
-        {"bufferWidth", client->item->surface()
-                            ? client->item->surface()->bufferSize().width()
-                            : 0},
-        {"id", client->id},
-        {"title", client->toplevel ? client->toplevel->title() : ""},
-        {"appId", client->appId},
-        {"icon", client->iconName},
-        {"desktop", client->desktop},
-        {"workspace", client->workspace},
-        {"visible", client->frame->isVisible()},
-        {"focused", client.get() == focused_},
-        {"x", client->frame->x()},
-        {"y", client->frame->y()},
-        {"width", client->frame->width()},
-        {"height", client->frame->height()},
-        {"minimized", client->minimized},
-        {"maximized", client->maximized},
-        {"mapped", client->mapped}});
+    if (!client->utility)
+      entries.append(QJsonObject{
+          {"contentWidth", client->item->width()},
+          {"contentHeight", client->item->height()},
+          {"contentVisible", client->item->isVisible()},
+          {"contentPaintEnabled", client->item->isPaintEnabled()},
+          {"bufferWidth", client->item->surface()
+                              ? client->item->surface()->bufferSize().width()
+                              : 0},
+          {"id", client->id},
+          {"title", client->toplevel ? client->toplevel->title() : ""},
+          {"appId", client->appId},
+          {"icon", client->iconName},
+          {"desktop", client->desktop},
+          {"workspace", client->workspace},
+          {"visible", client->frame->isVisible()},
+          {"focused", client.get() == focused_},
+          {"x", client->frame->x()},
+          {"y", client->frame->y()},
+          {"width", client->frame->width()},
+          {"height", client->frame->height()},
+          {"minimized", client->minimized},
+          {"maximized", client->maximized},
+          {"mapped", client->mapped}});
   const auto tilingSnapshot =
       tiling_.snapshot(static_cast<TilingWorkspaceId>(workspace_));
   QJsonArray tilingColumns;
@@ -868,11 +882,14 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   client->id = nextWindowId_++;
   client->toplevel = toplevel;
   client->appId = toplevel->appId();
+  client->utility = isUtilityWindow(client->appId);
   client->workspace = workspace_;
   client->floating = desktopPreferences().value("defaultFloating").toBool();
   client->frame = new WindowFrame(window_.contentItem());
   client->frame->title = toplevel->title();
-  client->iconName = windowIconName(client->appId, client->frame->title);
+  client->iconName = client->utility
+                         ? QString()
+                         : windowIconName(client->appId, client->frame->title);
   const auto initialPolicy =
       initialWindowPolicy(client->appId, client->frame->title);
   client->maximized = initialPolicy.maximized;
@@ -921,6 +938,7 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   });
   connect(toplevel, &QWaylandXdgToplevel::appIdChanged, this, [this, current] {
     current->appId = current->toplevel->appId();
+    current->utility = isUtilityWindow(current->appId);
     current->iconName = windowIconName(current->appId, current->frame->title);
     current->desktop = current->appId == "ludash-shell" &&
                        shellProcessIds_.contains(
@@ -946,15 +964,23 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
             current->mapped = hasContent;
             if (!hasContent)
               tiling_.remove(current->id);
-            if (newlyMapped && !current->desktop) {
+            if (current->utility) {
+              current->item->setInputEventsEnabled(false);
+              current->frame->setVisible(false);
+              return;
+            }
+            if (newlyMapped && !current->desktop && !current->revealed) {
               // Start the new column one full column to the right so the
               // reveal is a horizontal carousel: the previous column slides
               // out to the left while this one slides in from the right.
+              // Only the first map animates; XWayland toggles hasContent on
+              // every buffer update, which would otherwise replay the reveal.
               const QRect area = workArea();
               const int gap = desktopPreferences().value("gap").toInt();
               current->frame->setX(area.x() + area.width() + gap);
               current->frame->setY(area.y());
               current->frame->setSize(area.size());
+              current->revealed = true;
             }
             arrange();
             if (newlyMapped && !current->desktop) {
@@ -1074,7 +1100,8 @@ void WaylandCompositor::arrange() {
   const int defaultColumnWidth = workArea.width();
   tiling_.setGap(gap);
   for (const auto &client : clients_) {
-    const bool tiled = client->mapped && !client->desktop && !client->floating;
+    const bool tiled = client->mapped && !client->desktop &&
+                       !client->floating && !client->utility;
     if (tiled) {
       tiling_.insert(static_cast<TilingWorkspaceId>(client->workspace),
                      client->id, defaultColumnWidth);
@@ -1087,6 +1114,12 @@ void WaylandCompositor::arrange() {
       tiling_.remove(client->id);
   }
   for (const auto &client : clients_) {
+    if (client->utility) {
+      client->item->setInputEventsEnabled(false);
+      client->frame->setVisible(false);
+      client->presented = false;
+      continue;
+    }
     client->frame->accent = QColor(preferences.value("accent").toString());
     client->frame->update();
     client->blur->setRadius(preferences.value("blur").toBool() &&

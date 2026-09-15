@@ -24,6 +24,8 @@ QString windowIconName(const QString &appId, const QString &title) {
     return "utilities-system-monitor";
   if (appId == "lunadash-app")
     return "lunadash";
+  if (appId == "org.freedesktop.Xwayland")
+    return "application-x-executable";
   return appId.isEmpty() ? QStringLiteral("application-x-executable") : appId;
 }
 

@@ -175,8 +175,8 @@ bool XWaylandSupport::start(const QProcessEnvironment &environment,
   QStringList arguments{display_, "-listenfd", QString::number(descriptor_),
                         "-auth",  authority_,  "-nolisten",
                         "tcp",    "-shm"};
-  // Match the compositor window so the rootful screen is not rescaled into the
-  // tiled column, which would squash X11 windows such as Discord's updater.
+  // Match the tiled work area so the rootful screen is not rescaled into the
+  // column, which would squash X11 windows such as Discord's updater.
   arguments << "-geometry"
             << QString("%1x%2")
                    .arg(qMax(320, screenSize.width()))

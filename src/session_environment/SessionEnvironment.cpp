@@ -82,25 +82,30 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   return environment;
 }
 
-bool publishClientEnvironment(const QProcessEnvironment &environment) {
+bool publishClientEnvironment(const QProcessEnvironment &environment,
+                              bool publishToSession) {
   qDBusRegisterMetaType<QMap<QString, QString>>();
   QMap<QString, QString> activation;
   QStringList systemd;
   for (const auto &name : environment.keys()) {
     const auto value = environment.value(name);
     qputenv(name.toUtf8(), value.toUtf8());
-    if (name == "WAYLAND_DISPLAY" || name == "QT_QPA_PLATFORM" ||
-        name == "XDG_SESSION_TYPE" || name == "XDG_CURRENT_DESKTOP" ||
-        name == "XDG_SESSION_DESKTOP" || name == "XMODIFIERS" ||
-        name == "QT_IM_MODULE" || name == "QT_IM_MODULES" ||
-        name == "GTK_IM_MODULE" || name == "SDL_IM_MODULE" ||
-        name == "LUNADASH_ASSET_DIR" || name == "LUNADASH_BIN_DIR" ||
-        name == "LUNADASH_CONTROL" || name == "LUDASH_BIN_DIR" ||
-        name == "LUDASH_CONTROL") {
+    if (publishToSession &&
+        (name == "WAYLAND_DISPLAY" || name == "QT_QPA_PLATFORM" ||
+         name == "XDG_SESSION_TYPE" || name == "XDG_CURRENT_DESKTOP" ||
+         name == "XDG_SESSION_DESKTOP" || name == "XMODIFIERS" ||
+         name == "QT_IM_MODULE" || name == "QT_IM_MODULES" ||
+         name == "GTK_IM_MODULE" || name == "SDL_IM_MODULE" ||
+         name == "LUNADASH_ASSET_DIR" || name == "LUNADASH_BIN_DIR" ||
+         name == "LUNADASH_CONTROL" || name == "LUDASH_BIN_DIR" ||
+         name == "LUDASH_CONTROL")) {
       activation.insert(name, value);
       systemd.append(name + "=" + value);
     }
   }
+
+  if (!publishToSession)
+    return true;
 
   bool published = true;
   if (QDBusConnection::sessionBus().isConnected()) {

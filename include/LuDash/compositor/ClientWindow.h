@@ -21,6 +21,8 @@ struct ClientWindow {
   bool minimized = false;
   bool maximized = false;
   bool initialRuleApplied = false;
+  bool revealed = false;
+  bool utility = false;
   bool lastConfiguredMaximized = false;
   QString appId;
   QString iconName;
