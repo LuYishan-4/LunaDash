@@ -15,6 +15,22 @@ ModuleSurface {
     WlrLayershell.namespace: "lunadash-x11-launcher"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     color: "transparent"
+    Timer {
+        id: dismissTimer
+        interval: 2000
+        running: panel.opened
+        repeat: false
+        onTriggered: if (!panelMouse.containsMouse) shell.x11Open = false
+    }
+    MouseArea {
+        id: panelMouse
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        onEntered: dismissTimer.stop()
+        onExited: dismissTimer.restart()
+        onPositionChanged: dismissTimer.stop()
+    }
     Rectangle { anchors.fill: parent; color: moduleBackground; radius: moduleRadius }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 28; spacing: 15

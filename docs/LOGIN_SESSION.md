@@ -33,7 +33,7 @@ Auto-login skips password authentication at boot. It writes only `/etc/sddm.conf
 
 ## Startup and configuration
 
-The installed entry is `/usr/share/wayland-sessions/lunadash.desktop`. It calls `/usr/bin/lunadash-session`, which starts a private D-Bus session and the compositor using Qt EGLFS/KMS. After the Wayland socket exists, the compositor publishes its client environment to both D-Bus activation (`UpdateActivationEnvironment`) and the systemd user manager (`SetEnvironment`), then starts Quickshell, optional Fcitx5 and applications. Quickshell and applications connect to LunaDash through Wayland. GLES 3 is the standalone default; `LUDASH_GRAPHICS=opengl` requests OpenGL 3.3 compatibility instead. A GPU driver and Qt's EGLFS/KMS platform integration are required. Package installation does not establish GPU/input permissions; these depend on the active PAM/logind seat and the Qt backend. Do not solve permission errors by running the desktop as root or making device nodes world-writable.
+The installed entry is `/usr/share/wayland-sessions/lunadash.desktop`. It calls `/usr/bin/lunadash-session`, which starts a private D-Bus session and the compositor using Qt EGLFS/KMS. After the Wayland socket exists, the compositor prepares an environment for Quickshell, optional Fcitx5 and applications without modifying the host D-Bus activation or systemd user environment. Quickshell and applications connect to LunaDash through Wayland. GLES 3 is the standalone default; `LUDASH_GRAPHICS=opengl` requests OpenGL 3.3 compatibility instead. A GPU driver and Qt's EGLFS/KMS platform integration are required. Package installation does not establish GPU/input permissions; these depend on the active PAM/logind seat and the Qt backend. Do not solve permission errors by running the desktop as root or making device nodes world-writable.
 
 From a normal login, check installed commands and the runtime directory:
 
@@ -67,7 +67,7 @@ If you intentionally want console-only boot again, use `sudo systemctl set-defau
 
 ## Other Linux distributions
 
-The convenience installer currently targets Arch and pacman-based systems. On other distributions install the dependencies from the README plus Quickshell, D-Bus, Kitty and Fish, then use CMake:
+The convenience installer currently targets Arch and pacman-based systems. On other distributions install the dependencies from the README plus Quickshell, D-Bus and Konsole, then use CMake:
 
 ```sh
 cmake -S . -B build-login -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr

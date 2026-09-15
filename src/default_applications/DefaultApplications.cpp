@@ -1,10 +1,75 @@
 #include <LuDash/default_applications/DefaultApplications.h>
+#include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QSettings>
 #include <QStandardPaths>
 namespace LuDash {
 namespace {
+QStringList konsoleCommandForProfile(const QString &configDirectory,
+                                     const QString &launcher,
+                                     const QStringList &launcherArguments) {
+  const auto config = configDirectory + QStringLiteral("/konsolerc");
+  const auto profile =
+      QSettings(config, QSettings::IniFormat)
+          .value(QStringLiteral("Desktop Entry/DefaultProfile"))
+          .toString()
+          .trimmed();
+  if (profile.isEmpty())
+    return {};
+
+  const auto profilePath = configDirectory + QStringLiteral("/../data/konsole/") +
+                           profile;
+  if (!QFileInfo::exists(profilePath))
+    return {};
+
+  QStringList command{launcher};
+  command += launcherArguments;
+  command << "--profile" << QFileInfo(profile).completeBaseName() << "--separate";
+  return command;
+}
+
+QStringList userKonsoleCommand() {
+  const auto configDirectory =
+      QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+  const auto flatpakConfig =
+      QDir::homePath() + QStringLiteral("/.var/app/org.kde.konsole/config");
+  if (!QStandardPaths::findExecutable("flatpak").isEmpty()) {
+    const auto flatpakCommand = konsoleCommandForProfile(
+        flatpakConfig, "flatpak", {"run", "org.kde.konsole"});
+    if (!flatpakCommand.isEmpty())
+      return flatpakCommand;
+  }
+
+  const auto nativeProfile = QSettings(
+      configDirectory + QStringLiteral("/konsolerc"), QSettings::IniFormat)
+                                 .value(
+                                     QStringLiteral("Desktop Entry/DefaultProfile"))
+                                 .toString()
+                                 .trimmed();
+  if (nativeProfile.isEmpty())
+    return {"konsole", "--separate"};
+  const auto nativeProfilePath =
+      QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) +
+      QStringLiteral("/konsole/") + nativeProfile;
+  if (QFileInfo::exists(nativeProfilePath))
+    return {"konsole", "--profile",
+            QFileInfo(nativeProfile).completeBaseName(), "--separate"};
+  return {"konsole", "--profile", nativeProfile, "--separate"};
+}
+
+QStringList normalizeKonsoleCommand(const QStringList &command) {
+  if (command.isEmpty() ||
+      QFileInfo(command.first()).fileName().compare("konsole",
+                                                     Qt::CaseInsensitive) != 0 ||
+      command.contains("--profile") || command.contains("--separate") ||
+      command.contains("-e"))
+    return command;
+  auto result = userKonsoleCommand();
+  result += command.mid(1);
+  return result;
+}
+
 bool validCommand(const QJsonValue &value) {
   if (!value.isArray() || value.toArray().size() > 24)
     return false;
@@ -70,12 +135,13 @@ QStringList defaultApplicationCommand(const QString &role, QString *error) {
   for (const auto &argument : configured)
     result << argument.toString();
   if (!result.isEmpty())
-    return result;
-  // Both built-in defaults are shipped inside LunaDash: Files and the bundled
-  // Fish terminal. An empty command asks the compositor to open the matching
-  // built-in application instead of an external executable.
-  if (role == "files" || role == "terminal")
+    return role == "terminal" ? normalizeKonsoleCommand(result) : result;
+  if (role == "terminal")
+    return userKonsoleCommand();
+  if (role == "files")
     return {};
   return {};
 }
+
+QStringList konsoleCommand() { return userKonsoleCommand(); }
 } // namespace LuDash

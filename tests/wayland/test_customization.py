@@ -1,4 +1,4 @@
-"""Verify module fallback, real default apps, Fish and live Files colors in isolation."""
+"""Verify module fallback, real default apps and live Files colors in isolation."""
 
 import json
 import os
@@ -203,8 +203,8 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
                 ],
                 check=True,
             )
-            marker = Path(runtime) / "fish-version"
-            command = 'printf "%s" $version > ' + shlex.quote(str(marker))
+            marker = Path(runtime) / "terminal-shell"
+            command = 'printf "%s" "$SHELL" > ' + shlex.quote(str(marker))
             subprocess.run(
                 ["xdotool", "type", "--clearmodifiers", "--delay", "2", command],
                 check=True,
@@ -216,7 +216,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
             ):
                 time.sleep(0.1)
             assert marker.exists() and marker.read_text().strip(), (
-                "Interactive Fish did not execute the command"
+                "Interactive Konsole did not execute the command"
             )
             subprocess.run(["xdotool", "type", "--clearmodifiers", "exit"], check=True)
             subprocess.run(["xdotool", "key", "Return"], check=True)
@@ -225,7 +225,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
                 "Customization session did not close cleanly"
             )
             print(
-                "Customization passed: JSON validation, template replacement, error fallback, reset, live Files palette and interactive Fish."
+                "Customization passed: JSON validation, template replacement, error fallback, reset, live Files palette and interactive Konsole."
             )
         except BaseException:
             ImageGrab.grab().save(build / "customization-failure.png")

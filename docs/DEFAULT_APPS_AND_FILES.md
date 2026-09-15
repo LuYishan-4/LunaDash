@@ -1,34 +1,19 @@
 # Default applications, Fish, Files, and image selection
 
-Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of installed desktop applications, the LunaDash default (empty array), and a Custom command… option for JSON argument arrays. `[]` selects the LunaDash default. Examples are `["kitty", "fish"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
+Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of installed desktop applications, the default terminal (Konsole), the LunaDash Files default, and a Custom command… option for JSON argument arrays. `[]` selects the role default. Examples are `["konsole"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
 
 Super+Return and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadash-desktop --app files` also respects the preference; `--builtin` explicitly opens LunaDash Files for recovery. `--path /absolute/folder` navigates the built-in manager or appends the folder as one argument for a custom manager. These choices apply to LunaDash launchers, not system-wide MIME associations or every third-party application's embedded terminal.
 
 ## Terminal and Fish
 
-The default terminal is the built-in **LunaDash Terminal**: an interactive Fish shell in a pseudo-terminal, drawn as a translucent window that follows the desktop accent. Only `fish` is required; the terminal ships with LunaDash itself.
-
-The terminal writes the embedded `data/terminal/ludash.fish` resource to a temporary file and runs it with `fish -C "source <file>"`, then runs `fastfetch` when it is installed. LunaDash does not run `chsh`, set universal variables, overwrite `~/.config/fish/`, or generate a Kitty or Konsole colour scheme. A user-configured non-empty command remains supported and takes precedence after the existing executable and recursive-launch validation.
-
-The palette follows the desktop accent by default, and the blue terminal slots map directly to the accent so `ls --color` directory listings track the theme. Users can override the base colours and window opacity in the LunaDash settings file:
-
-```ini
-[terminal]
-font=JetBrainsMono Nerd Font Mono
-fontSize=11
-background=#0d1218
-foreground=#e2e9f1
-opacity=84
-```
-
-`font` is any installed monospace family and `fontSize` its point size. `opacity` is a whole percentage between 40 and 100. The sixteen ANSI colours are derived from the accent and these two base colours, so Fish prompts and `ls --color` stay readable while tracking the theme.
+The default terminal is **Konsole**. LunaDash reads Konsole's user `konsolerc` `DefaultProfile`, starts a separate Konsole process with that profile, and does not replace its shell, colours, or other user configuration. A user-configured non-empty command remains supported after the existing executable and recursive-launch validation; a plain `["konsole"]` command is normalized to the same user profile.
 
 LunaDash's Command Console remains a separate non-interactive diagnostic tool (`--app console`), not the default terminal.
 
 ```sh
 lunadashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'  # custom command example
 lunadashctl launch-default terminal
-lunadashctl default-apps '{"terminal":[],"files":[]}'                            # built-in terminal and Files
+lunadashctl default-apps '{"terminal":[],"files":[]}'                            # Konsole and built-in Files
 ```
 
 ## Wallpaper picker

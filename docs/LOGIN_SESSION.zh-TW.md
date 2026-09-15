@@ -98,7 +98,7 @@ Arch 套件會安裝這些入口：
 | `/usr/share/applications/lunadash-app.desktop` | 一般應用程式的桌面識別碼 |
 | `/usr/share/lunadash/shell/` | 安裝後的 Quickshell QML |
 
-Wayland socket 建立後，合成器會將用戶端環境發布到 D-Bus 啟動環境與 systemd 使用者管理器，再啟動 Quickshell、選用的 Fcitx5 與應用程式。獨立登入預設使用 OpenGL ES 3。需要桌面 OpenGL 時，可以在工作階段環境中設定 `LUDASH_GRAPHICS=opengl`；這要求 OpenGL 3.3 相容設定檔。不同登入管理器載入環境設定的方式不同，單純在另一個終端機執行 `export` 不一定會影響下次登入。
+Wayland socket 建立後，合成器會準備只供 Quickshell、選用的 Fcitx5 與應用程式使用的環境，不會修改宿主桌面的 D-Bus 啟動環境或 systemd 使用者環境。獨立登入預設使用 OpenGL ES 3。需要桌面 OpenGL 時，可以在工作階段環境中設定 `LUDASH_GRAPHICS=opengl`；這要求 OpenGL 3.3 相容設定檔。不同登入管理器載入環境設定的方式不同，單純在另一個終端機執行 `export` 不一定會影響下次登入。
 
 ## 5. 先在現有 Wayland 桌面試用
 

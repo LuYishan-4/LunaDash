@@ -20,7 +20,7 @@ First verify Fcitx5 in the host desktop. Then evaluate:
 QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/lunadash-compositor --socket lunadash-ime
 ```
 
-Until LunaDash has a complete compositor-side input-method-v2 bridge, the session selects the Fcitx client modules with `QT_IM_MODULE=fcitx`, `GTK_IM_MODULE=fcitx`, and `SDL_IM_MODULE=fcitx`. Qt 6.7 and newer also receive `QT_IM_MODULES=wayland;fcitx;ibus`, while `XMODIFIERS=@im=fcitx` supports XWayland clients. When installed, `fcitx5` is started after the LunaDash Wayland socket and D-Bus activation environment are ready; it remains an optional dependency. To separately evaluate the direct Qt Fcitx module:
+Until LunaDash has a complete compositor-side input-method-v2 bridge, the session selects the Fcitx client modules with `QT_IM_MODULE=fcitx`, `GTK_IM_MODULE=fcitx`, and `SDL_IM_MODULE=fcitx`. Qt 6.7 and newer also receive `QT_IM_MODULES=wayland;fcitx;ibus`, while `XMODIFIERS=@im=fcitx` supports XWayland clients. When installed, `fcitx5` is started after the LunaDash Wayland socket is ready; the client environment remains scoped to LunaDash and does not modify the host desktop. It remains an optional dependency. To separately evaluate the direct Qt Fcitx module:
 
 ```sh
 WAYLAND_DISPLAY=lunadash-ime QT_QPA_PLATFORM=wayland QT_IM_MODULE=fcitx ./build/lunadash-desktop --app console

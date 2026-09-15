@@ -29,7 +29,6 @@ ModuleSurface {
     property var builtins: [
         { builtin: true, id: "settings", name: "Settings", description: "Configure the desktop and system", genericName: "Preferences", keywords: "appearance network power applications", icon: "preferences-system" },
         { builtin: true, id: "files", name: "Files", description: "Browse files and folders", genericName: "File manager", keywords: "home documents downloads", icon: "system-file-manager" },
-        { builtin: true, id: "terminal", name: "Terminal", description: "Run commands in a terminal", genericName: "Terminal emulator", keywords: "console shell command", icon: "utilities-terminal" },
         { builtin: true, id: "monitor", name: "System monitor", description: "View system resources and performance", genericName: "Monitor", keywords: "cpu memory performance processes", icon: "utilities-system-monitor" }
     ]
 
@@ -84,10 +83,8 @@ ModuleSurface {
             shell.launch(entry.id)
             return
         }
-        // Electron/Chromium apps default to an X11 backend; forcing XWayland keeps
-        // them from probing the Wayland ozone path and failing to open.
         const program = String(entry.desktopEntry.command[0] || "").toLowerCase()
-        const x11Apps = ["discord", "electron", "chromium", "chrome", "google-chrome", "google-chrome-stable", "microsoft-edge", "brave", "vivaldi", "opera", "spotify", "slack", "code", "codium", "steam"]
+        const x11Apps = ["discord", "electron", "chrome", "chromium", "google-chrome", "microsoft-edge", "brave", "vivaldi", "opera", "spotify", "slack", "code", "codium", "steam"]
         if (x11Apps.some(name => program.includes(name)))
             shell.command("launch-command", JSON.stringify(entry.desktopEntry.command))
         else

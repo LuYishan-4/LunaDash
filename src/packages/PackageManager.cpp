@@ -1,5 +1,6 @@
 #include <LuDash/localization/Localization.h>
 #include <LuDash/packages/PackageManager.h>
+#include <LuDash/default_applications/DefaultApplications.h>
 #include <QtWidgets>
 #include <QProcess>
 namespace LuDash {
@@ -47,7 +48,17 @@ QWidget* createPackageManager() {
             const auto path = QStandardPaths::findExecutable(terminal);
             if (path.isEmpty()) continue;
             if (QMessageBox::question(page, LuDash::translate("Confirm in terminal"), LuDash::translate("The terminal will run:\n") + sudo + " " + pacman + " " + arguments.join(' ')) != QMessageBox::Yes) return;
-            if (!QProcess::startDetached(path, QStringList{"-e", sudo, pacman} + arguments)) QMessageBox::warning(page, LuDash::translate("Launch failed"), path);
+            QStringList terminalArguments;
+            if (terminal == "konsole") {
+                terminalArguments = LuDash::konsoleCommand();
+                terminalArguments.removeFirst();
+                terminalArguments << "-e";
+            } else {
+                terminalArguments << "-e";
+            }
+            terminalArguments << sudo << pacman;
+            terminalArguments += arguments;
+            if (!QProcess::startDetached(path, terminalArguments)) QMessageBox::warning(page, LuDash::translate("Launch failed"), path);
             return;
         }
         QMessageBox::information(page, LuDash::translate("Terminal required"), LuDash::translate("Install Konsole, foot, or Alacritty to manage packages."));

@@ -108,9 +108,6 @@ bool groupWindowIds(const QString &value, int *window, int *target) {
   return true;
 }
 
-// Locates the Wayland <-> X11 clipboard bridge. It ships beside the compositor
-// binary, but during development it also resolves from the source-tree scripts
-// directory so a local build works without installing.
 QString clipboardBridgePath() {
   const QString beside = QCoreApplication::applicationDirPath() +
                          QStringLiteral("/lunadash-clipboard-bridge");
@@ -125,10 +122,24 @@ QString clipboardBridgePath() {
   return QFileInfo::exists(source) ? source : QString();
 }
 
-// Clipboard helpers create hidden 1x1 toplevels just to own the selection;
-// these must never be tiled or shown in the panel.
 bool isUtilityWindow(const QString &appId) {
-  return appId == QLatin1String("io.github.bugaevc.wl-clipboard");
+  return appId == QLatin1String("io.github.bugaevc.wl-clipboard") ||
+         appId == QLatin1String("org.freedesktop.Xwayland");
+}
+
+bool isChromiumApplication(const QString &program) {
+  const auto name = QFileInfo(program).fileName().toLower();
+  return name == "chrome" || name == "google-chrome" ||
+         name == "google-chrome-stable" || name == "chromium" ||
+         name == "chromium-browser" || name == "microsoft-edge" ||
+         name == "brave" || name == "vivaldi" || name == "opera";
+}
+
+void ensureWaylandChromiumFlags(QStringList &command) {
+  if (!command.contains("--ozone-platform=wayland"))
+    command.append("--ozone-platform=wayland");
+  if (!command.contains("--enable-features=UseOzonePlatform"))
+    command.append("--enable-features=UseOzonePlatform");
 }
 } // namespace
 WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
@@ -169,11 +180,6 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   connect(shell_, &QWaylandXdgShell::toplevelCreated, this,
           &WaylandCompositor::addWindow);
   installInputMethodProtocols(&compositor_);
-  // Advertise wl_drm / zwp_linux_dmabuf_v1 only on a real DRM session (eglfs
-  // and friends). In a nested session there is no shareable DRM device, so
-  // forcing the extension advertises a broken global and breaks EGL clients
-  // such as kitty and XWayland-based apps. Keep the clipboard selection alive
-  // after the source client disconnects regardless of the renderer.
   const QString platform = QGuiApplication::platformName();
   const bool bareMetal = platform == QLatin1String("eglfs") ||
                          platform == QLatin1String("linuxfb") ||
@@ -192,7 +198,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   clientEnvironment_ =
       createClientEnvironment(QString::fromUtf8(socket), controlPath_,
                               QCoreApplication::applicationDirPath());
-  publishClientEnvironment(clientEnvironment_, bareMetal);
+  publishClientEnvironment(clientEnvironment_);
   shellModules_ = new ShellModules(this);
   connect(shellModules_, &ShellModules::changed, this,
           &WaylandCompositor::arrange);
@@ -230,7 +236,10 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     environment.insert(
         "XCURSOR_SIZE",
         QString::number(desktopPreferences().value("cursorSize").toInt()));
-    xwayland_->start(environment, workArea().size());
+    if (xwayland_->start(environment, window_.size()) &&
+        !xwayland_->startServer()) {
+      qWarning("XWayland could not start; X11 clients will remain unavailable.");
+    }
   }
   const auto inputMethod = QStandardPaths::findExecutable("fcitx5");
   if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
@@ -239,6 +248,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   if (qEnvironmentVariableIntValue("LUDASH_DISABLE_XWAYLAND") != 1 &&
       qEnvironmentVariableIntValue("LUNADASH_DISABLE_CLIPBOARD_BRIDGE") != 1 &&
       !QStandardPaths::findExecutable(QStringLiteral("wl-paste")).isEmpty() &&
+      !QStandardPaths::findExecutable(QStringLiteral("wl-copy")).isEmpty() &&
       !QStandardPaths::findExecutable(QStringLiteral("xclip")).isEmpty()) {
     const QString bridge = clipboardBridgePath();
     if (!bridge.isEmpty())
@@ -385,28 +395,28 @@ QJsonObject WaylandCompositor::state() const {
   for (const auto &client : clients_)
     if (!client->utility)
       entries.append(QJsonObject{
-          {"contentWidth", client->item->width()},
-          {"contentHeight", client->item->height()},
-          {"contentVisible", client->item->isVisible()},
-          {"contentPaintEnabled", client->item->isPaintEnabled()},
-          {"bufferWidth", client->item->surface()
-                              ? client->item->surface()->bufferSize().width()
-                              : 0},
-          {"id", client->id},
-          {"title", client->toplevel ? client->toplevel->title() : ""},
-          {"appId", client->appId},
-          {"icon", client->iconName},
-          {"desktop", client->desktop},
-          {"workspace", client->workspace},
-          {"visible", client->frame->isVisible()},
-          {"focused", client.get() == focused_},
-          {"x", client->frame->x()},
-          {"y", client->frame->y()},
-          {"width", client->frame->width()},
-          {"height", client->frame->height()},
-          {"minimized", client->minimized},
-          {"maximized", client->maximized},
-          {"mapped", client->mapped}});
+        {"contentWidth", client->item->width()},
+        {"contentHeight", client->item->height()},
+        {"contentVisible", client->item->isVisible()},
+        {"contentPaintEnabled", client->item->isPaintEnabled()},
+        {"bufferWidth", client->item->surface()
+                            ? client->item->surface()->bufferSize().width()
+                            : 0},
+        {"id", client->id},
+        {"title", client->toplevel ? client->toplevel->title() : ""},
+        {"appId", client->appId},
+        {"icon", client->iconName},
+        {"desktop", client->desktop},
+        {"workspace", client->workspace},
+        {"visible", client->frame->isVisible()},
+        {"focused", client.get() == focused_},
+        {"x", client->frame->x()},
+        {"y", client->frame->y()},
+        {"width", client->frame->width()},
+        {"height", client->frame->height()},
+        {"minimized", client->minimized},
+        {"maximized", client->maximized},
+        {"mapped", client->mapped}});
   const auto tilingSnapshot =
       tiling_.snapshot(static_cast<TilingWorkspaceId>(workspace_));
   QJsonArray tilingColumns;
@@ -667,9 +677,9 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!xwayland_ || !xwayland_->launch(QProcess::splitCommand(value), &error))
       return {{"error", error.isEmpty() ? "XWayland is unavailable." : error}};
   } else if (method == "launch-command") {
-    // Desktop-entry activation forwarded by the shell. Electron/Chromium-based
-    // applications are routed through XWayland so they never probe the Wayland
-    // backend and fail; everything else uses the normal Wayland spawn path.
+    // Desktop-entry activation forwarded by the shell. Chromium uses native
+    // Wayland with explicit Ozone flags; Electron and legacy X11 clients use
+    // the authenticated XWayland instance.
     const auto document = QJsonDocument::fromJson(value.toUtf8());
     if (!document.isArray() || document.array().isEmpty())
       return {{"error", "Expected a non-empty command array."}};
@@ -681,12 +691,13 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     }
     const auto program = QFileInfo(command.first()).fileName().toLower();
     static const QStringList x11Applications = {
-        "discord",        "electron",      "chromium",
-        "chrome",         "google-chrome", "google-chrome-stable",
-        "microsoft-edge", "brave",         "vivaldi",
-        "opera",          "spotify",       "slack",
-        "code",           "codium",        "steam"};
-    if (x11Applications.contains(program) && xwayland_) {
+        "discord", "electron", "spotify", "slack",
+        "code",    "codium",   "steam"};
+    if (isChromiumApplication(program)) {
+      ensureWaylandChromiumFlags(command);
+      const auto executable = command.takeFirst();
+      spawn(command, executable);
+    } else if (x11Applications.contains(program) && xwayland_) {
       QString error;
       if (!xwayland_->launch(command, &error))
         return {{"error", error}};
@@ -928,7 +939,9 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   };
   connect(toplevel, &QWaylandXdgToplevel::titleChanged, this, [this, current] {
     current->frame->title = current->toplevel->title();
-    current->iconName = windowIconName(current->appId, current->frame->title);
+    current->iconName = current->utility
+                            ? QString()
+                            : windowIconName(current->appId, current->frame->title);
     if (!current->mapped) {
       current->maximized =
           initialWindowPolicy(current->appId, current->frame->title).maximized;
@@ -939,7 +952,9 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   connect(toplevel, &QWaylandXdgToplevel::appIdChanged, this, [this, current] {
     current->appId = current->toplevel->appId();
     current->utility = isUtilityWindow(current->appId);
-    current->iconName = windowIconName(current->appId, current->frame->title);
+    current->iconName = current->utility
+                            ? QString()
+                            : windowIconName(current->appId, current->frame->title);
     current->desktop = current->appId == "ludash-shell" &&
                        shellProcessIds_.contains(
                            current->item->surface()->client()->processId());
@@ -973,8 +988,6 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
               // Start the new column one full column to the right so the
               // reveal is a horizontal carousel: the previous column slides
               // out to the left while this one slides in from the right.
-              // Only the first map animates; XWayland toggles hasContent on
-              // every buffer update, which would otherwise replay the reveal.
               const QRect area = workArea();
               const int gap = desktopPreferences().value("gap").toInt();
               current->frame->setX(area.x() + area.width() + gap);
@@ -1100,8 +1113,8 @@ void WaylandCompositor::arrange() {
   const int defaultColumnWidth = workArea.width();
   tiling_.setGap(gap);
   for (const auto &client : clients_) {
-    const bool tiled = client->mapped && !client->desktop &&
-                       !client->floating && !client->utility;
+    const bool tiled = client->mapped && !client->desktop && !client->floating &&
+                       !client->utility;
     if (tiled) {
       tiling_.insert(static_cast<TilingWorkspaceId>(client->workspace),
                      client->id, defaultColumnWidth);

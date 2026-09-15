@@ -34,7 +34,7 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 | ipc | User-only local socket, 64 KiB request limit, three-second timeout |
 | configuration | Validated saved appearance and first-run completion |
 | network | Nonblocking NetworkManager D-Bus reads, interface fallback |
-| session_environment | Publish Wayland, desktop and toolkit-module variables to D-Bus activation and the systemd user manager |
+| session_environment | Prepare isolated Wayland, desktop and toolkit-module variables for compositor children |
 | session_actions | Query logind action availability and request suspend, reboot or poweroff over D-Bus without shell execution |
 | system_status / wallpaper | Local system statistics and validated local images |
 | localization / input_method | Translation resources and input protocol registration |

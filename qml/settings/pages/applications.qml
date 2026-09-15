@@ -9,8 +9,7 @@ ColumnLayout {
     PageTitle { shell: page.shell; title: "Applications and startup" }
     DefaultAppEditor { shell: page.shell; role: "terminal"; title: "Default terminal"; Layout.fillWidth: true }
     DefaultAppEditor { shell: page.shell; role: "files"; title: "Default file manager"; Layout.fillWidth: true }
-    HelpText { shell: page.shell; message: "Choose an installed application for each action, or Custom command… to enter an argument array such as [\"kitty\", \"fish\"] or [\"dolphin\"]. LunaDash default uses the built-in Files or Kitty with the LunaDash Fish profile. Commands run with your user permissions; shell operators are not expanded." }
-    HelpText { shell: page.shell; message: "The default terminal requires Kitty and Fish. Your Kitty settings, login shell, Fish configuration and system MIME defaults remain under your control." }
+    HelpText { shell: page.shell; message: "Choose an installed application for each action, or Custom command… to enter an argument array such as [\"konsole\"] or [\"dolphin\"]. LunaDash default uses Konsole for terminals and the built-in Files manager. Commands run with your user permissions; shell operators are not expanded." }
     RowLayout {
         ShellButton { text: shell.tr("Package manager"); onClicked: shell.launch("packages") }
         ShellButton { text: shell.tr("Manage metadata plugins"); onClicked: shell.launch("plugins") }

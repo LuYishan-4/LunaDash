@@ -23,7 +23,10 @@ ColumnLayout {
     // Built once: the desktop-entry scan is asynchronous, and rebuilding the
     // model on every state poll would reset the selector to its first entry.
     function buildChoices() {
-        const list = [{ label: editor.shell.tr("LunaDash default"), command: [], custom: false }]
+        const defaultLabel = editor.role === "terminal"
+            ? editor.shell.tr("Konsole (default)")
+            : editor.shell.tr("LunaDash default")
+        const list = [{ label: defaultLabel, command: [], custom: false }]
         const seen = {}
         for (const entry of DesktopEntries.applications.values) {
             if (entry.noDisplay) continue
@@ -107,7 +110,7 @@ ColumnLayout {
         color: Theme.text
         font.family: "monospace"
         font.pixelSize: 12
-        placeholderText: editor.role === "terminal" ? '["kitty", "fish"]' : '["dolphin"]'
+        placeholderText: editor.role === "terminal" ? '["konsole"]' : '["dolphin"]'
         background: Rectangle { color: Theme.surface; radius: 10; border.color: Theme.border }
         onTextEdited: editor.dirty = true
     }

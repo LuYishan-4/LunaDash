@@ -118,7 +118,6 @@ target_link_libraries(ludash-plugins PUBLIC Qt6::Quick)
 add_library(ludash-default-applications src/default_applications/DefaultApplications.cpp)
 target_include_directories(ludash-default-applications PUBLIC include)
 target_link_libraries(ludash-default-applications PUBLIC ludash-configuration Qt6::Core)
-qt_add_resources(ludash-default-applications terminal_profile PREFIX /LuDash FILES data/terminal/ludash.fish)
 add_library(ludash-file-operations src/file_operations/FileOperations.cpp)
 target_include_directories(ludash-file-operations PUBLIC include)
 target_link_libraries(ludash-file-operations PUBLIC Qt6::Core)
@@ -131,7 +130,6 @@ add_library(ludash-apps
     src/file_icons/FileIconDelegate.cpp
     src/console/Console.cpp
     src/system_monitor/SystemMonitor.cpp
-    src/terminal/Terminal.cpp
     src/welcome/Welcome.cpp
     src/launcher/Launcher.cpp
     src/packages/PackageManager.cpp
@@ -202,7 +200,6 @@ install(DIRECTORY qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/shell)
 install(DIRECTORY data/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/data/assets)
 install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps)
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)
-install(DIRECTORY data/terminal/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/terminal)
 install(DIRECTORY data/modules/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/modules)
 install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)
 install(FILES include/LuDash/plugins/CompositorPlugin.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/LuDash/plugins)

@@ -15,6 +15,7 @@ public:
              const QSize &screenSize = QSize(1440, 900));
   void stop();
   bool stopped() const;
+  bool startServer(QString *error = nullptr);
   QJsonObject snapshot() const;
   void applyEnvironment(QProcessEnvironment &environment) const;
   bool launch(const QStringList &command, QString *error);

@@ -175,8 +175,8 @@ bool XWaylandSupport::start(const QProcessEnvironment &environment,
   QStringList arguments{display_, "-listenfd", QString::number(descriptor_),
                         "-auth",  authority_,  "-nolisten",
                         "tcp",    "-shm"};
-  // Match the tiled work area so the rootful screen is not rescaled into the
-  // column, which would squash X11 windows such as Discord's updater.
+  // Match the compositor window so the rootful screen is not rescaled into the
+  // tiled column, which would squash X11 windows such as Discord's updater.
   arguments << "-geometry"
             << QString("%1x%2")
                    .arg(qMax(320, screenSize.width()))
@@ -199,6 +199,23 @@ void XWaylandSupport::stop() {
 }
 bool XWaylandSupport::stopped() const {
   return server_.state() == QProcess::NotRunning;
+}
+bool XWaylandSupport::startServer(QString *error) {
+  if (stopping_ || server_.program().isEmpty() || !error_.isEmpty()) {
+    if (error)
+      *error = error_.isEmpty() ? "XWayland is not configured." : error_;
+    return false;
+  }
+  if (server_.state() == QProcess::NotRunning) {
+    server_.start();
+    if (!server_.waitForStarted(1000)) {
+      error_ = server_.errorString();
+      if (error)
+        *error = error_;
+      return false;
+    }
+  }
+  return true;
 }
 QJsonObject XWaylandSupport::snapshot() const {
   return {{"available",
@@ -235,19 +252,13 @@ bool XWaylandSupport::launch(const QStringList &command, QString *error) {
       *error = "Executable not found: " + command.first();
     return false;
   }
-  if (server_.state() == QProcess::NotRunning) {
-    if (descriptor_ < 0 && !start(environment_)) {
-      if (error)
-        *error = error_;
-      return false;
-    }
-    server_.start();
-    if (!server_.waitForStarted(1000)) {
-      if (error)
-        *error = server_.errorString();
-      return false;
-    }
+  if (descriptor_ < 0 && !start(environment_)) {
+    if (error)
+      *error = error_;
+    return false;
   }
+  if (!startServer(error))
+    return false;
   auto *process = new QProcess(this);
   auto environment = environment_;
   applyEnvironment(environment);

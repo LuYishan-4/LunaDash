@@ -1,11 +1,5 @@
 #include <LuDash/session_environment/SessionEnvironment.h>
 
-#include <QDBusConnection>
-#include <QDBusMessage>
-#include <QDBusMetaType>
-#include <QDBusPendingCall>
-#include <QDebug>
-#include <QMap>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStringList>
@@ -49,6 +43,8 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
                                             const QString &controlPath,
                                             const QString &binaryDirectory) {
   auto environment = QProcessEnvironment::systemEnvironment();
+  environment.remove("DISPLAY");
+  environment.remove("XAUTHORITY");
   environment.remove("QT_QPA_EGLFS_INTEGRATION");
   environment.insert("WAYLAND_DISPLAY", socketName);
   environment.insert("QT_QPA_PLATFORM", "wayland");
@@ -60,6 +56,12 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("QT_IM_MODULES", "wayland;fcitx;ibus");
   environment.insert("GTK_IM_MODULE", "fcitx");
   environment.insert("SDL_IM_MODULE", "fcitx");
+  // kitty 0.48 still requests wl_data_device_manager v3 even though its
+  // generated protocol supports only v1. Use XWayland for kitty until that
+  // client-side protocol mismatch is fixed; the clipboard bridge keeps it
+  // interoperable with native Wayland clients.
+  if (environment.value("KITTY_DISABLE_WAYLAND").isEmpty())
+    environment.insert("KITTY_DISABLE_WAYLAND", "1");
   auto assetDirectory = QStandardPaths::locate(
       QStandardPaths::GenericDataLocation, "lunadash/data/assets",
       QStandardPaths::LocateDirectory);
@@ -82,52 +84,13 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   return environment;
 }
 
-bool publishClientEnvironment(const QProcessEnvironment &environment,
-                              bool publishToSession) {
-  qDBusRegisterMetaType<QMap<QString, QString>>();
-  QMap<QString, QString> activation;
-  QStringList systemd;
+bool publishClientEnvironment(const QProcessEnvironment &environment) {
+  // Keep these variables local to the compositor and its children. Publishing
+  // them to the host D-Bus or systemd user manager breaks other desktops.
   for (const auto &name : environment.keys()) {
     const auto value = environment.value(name);
     qputenv(name.toUtf8(), value.toUtf8());
-    if (publishToSession &&
-        (name == "WAYLAND_DISPLAY" || name == "QT_QPA_PLATFORM" ||
-         name == "XDG_SESSION_TYPE" || name == "XDG_CURRENT_DESKTOP" ||
-         name == "XDG_SESSION_DESKTOP" || name == "XMODIFIERS" ||
-         name == "QT_IM_MODULE" || name == "QT_IM_MODULES" ||
-         name == "GTK_IM_MODULE" || name == "SDL_IM_MODULE" ||
-         name == "LUNADASH_ASSET_DIR" || name == "LUNADASH_BIN_DIR" ||
-         name == "LUNADASH_CONTROL" || name == "LUDASH_BIN_DIR" ||
-         name == "LUDASH_CONTROL")) {
-      activation.insert(name, value);
-      systemd.append(name + "=" + value);
-    }
   }
-
-  if (!publishToSession)
-    return true;
-
-  bool published = true;
-  if (QDBusConnection::sessionBus().isConnected()) {
-    auto dbus = QDBusMessage::createMethodCall(
-        "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
-        "UpdateActivationEnvironment");
-    dbus << QVariant::fromValue(activation);
-    const auto dbusReply =
-        QDBusConnection::sessionBus().call(dbus, QDBus::Block, 2000);
-    if (dbusReply.type() == QDBusMessage::ErrorMessage) {
-      published = false;
-      qWarning().noquote()
-          << "LunaDash could not update the D-Bus activation environment:"
-          << dbusReply.errorMessage();
-    }
-
-    auto manager = QDBusMessage::createMethodCall(
-        "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
-        "org.freedesktop.systemd1.Manager", "SetEnvironment");
-    manager << systemd;
-    QDBusConnection::sessionBus().asyncCall(manager);
-  }
-  return published;
+  return true;
 }
 } // namespace LuDash
