@@ -1,0 +1,43 @@
+#!/bin/sh
+# LunaDash clipboard bridge
+#
+# Keeps the Wayland clipboard and the X11 (XWayland) CLIPBOARD selection in
+# sync so text copied in a Wayland application can be pasted into an X11
+# application and vice versa. QtWayland's data-device implementation does not
+# bridge the two itself, so this small helper mirrors them.
+#
+# Requires: wl-clipboard (wl-paste / wl-copy), xclip, and timeout (coreutils).
+
+set -u
+
+: "${WAYLAND_DISPLAY:=}"
+: "${DISPLAY:=}"
+
+# The last value mirrored, used to stop an echo loop where one side re-syncs
+# the value the other side just copied back.
+last=""
+
+while :; do
+  # wl-paste blocks while the clipboard is empty, so bound it with timeout.
+  wl="$(timeout 0.4 wl-paste --no-newline 2>/dev/null || true)"
+
+  # xclip returns immediately (empty) while XWayland is not reachable yet.
+  x=""
+  if [ -n "$DISPLAY" ]; then
+    x="$(xclip -selection clipboard -o 2>/dev/null || true)"
+  fi
+
+  if [ -n "$wl" ] && [ "$wl" != "$last" ]; then
+    # Wayland -> X11
+    if [ -n "$DISPLAY" ]; then
+      printf '%s' "$wl" | xclip -selection clipboard -i 2>/dev/null || true
+    fi
+    last="$wl"
+  elif [ -n "$x" ] && [ "$x" != "$last" ]; then
+    # X11 -> Wayland
+    printf '%s' "$x" | wl-copy --no-newline 2>/dev/null || true
+    last="$x"
+  fi
+
+  sleep 0.4
+done

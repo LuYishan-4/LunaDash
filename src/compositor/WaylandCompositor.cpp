@@ -107,6 +107,23 @@ bool groupWindowIds(const QString &value, int *window, int *target) {
   *target = *parsedTarget;
   return true;
 }
+
+// Locates the Wayland <-> X11 clipboard bridge. It ships beside the compositor
+// binary, but during development it also resolves from the source-tree scripts
+// directory so a local build works without installing.
+QString clipboardBridgePath() {
+  const QString beside = QCoreApplication::applicationDirPath() +
+                         QStringLiteral("/lunadash-clipboard-bridge");
+  if (QFileInfo::exists(beside))
+    return beside;
+  const QString installed = QStandardPaths::findExecutable(
+      QStringLiteral("lunadash-clipboard-bridge"));
+  if (!installed.isEmpty())
+    return installed;
+  const QString source = QStringLiteral(LUDASH_SCRIPT_SOURCE_DIR) +
+                         QStringLiteral("/lunadash-clipboard-bridge");
+  return QFileInfo::exists(source) ? source : QString();
+}
 } // namespace
 WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell, GraphicsApi graphics) {
@@ -146,6 +163,11 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   connect(shell_, &QWaylandXdgShell::toplevelCreated, this,
           &WaylandCompositor::addWindow);
   installInputMethodProtocols(&compositor_);
+  // Advertise wl_drm / zwp_linux_dmabuf_v1 so GPU-accelerated clients (kitty,
+  // mpv, games) can create EGL surfaces, and keep the clipboard selection
+  // alive after the source client disconnects.
+  compositor_.setUseHardwareIntegrationExtension(true);
+  compositor_.setRetainedSelectionEnabled(true);
   compositor_.create();
   layerShell_ = new LayerShell(&compositor_, output_, &window_);
   controlPath_ =
@@ -201,6 +223,14 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
       !inputMethod.isEmpty())
     spawn({"--replace"}, inputMethod, false);
+  if (qEnvironmentVariableIntValue("LUDASH_DISABLE_XWAYLAND") != 1 &&
+      qEnvironmentVariableIntValue("LUNADASH_DISABLE_CLIPBOARD_BRIDGE") != 1 &&
+      !QStandardPaths::findExecutable(QStringLiteral("wl-paste")).isEmpty() &&
+      !QStandardPaths::findExecutable(QStringLiteral("xclip")).isEmpty()) {
+    const QString bridge = clipboardBridgePath();
+    if (!bridge.isEmpty())
+      spawn({}, bridge, false);
+  }
   if (startShell) {
     if (auto *process = spawn({"--session"})) {
       connect(process, &QProcess::finished, this,
