@@ -1,14 +1,22 @@
 """Validate relative assets and fragments without network requests or dependencies."""
 
+import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 
+repository_root = Path(__file__).resolve().parents[2]
+# Absolute links in the built pages start with the configured Astro base, which
+# is the repository name GitHub Pages serves the project site under.
+_base_match = re.search(
+    r'base:\s*"([^"]*)"', (repository_root / "site/astro.config.mjs").read_text()
+)
+_base_slug = _base_match.group(1).strip("/") if _base_match else ""
+base_prefix = f"/{_base_slug}/" if _base_slug else "/"
+
 root = (
-    Path(sys.argv[1])
-    if len(sys.argv) > 1
-    else Path(__file__).resolve().parents[2] / "site/dist"
+    Path(sys.argv[1]) if len(sys.argv) > 1 else repository_root / "site/dist"
 ).resolve()
 
 
@@ -47,11 +55,14 @@ for path, page in pages.items():
             continue
         target = path
         if url.path:
-            target = (
-                (root / url.path.removeprefix("/LuDash/").lstrip("/"))
-                if url.path.startswith("/")
-                else path.parent / url.path
-            ).resolve()
+            if url.path.startswith("/"):
+                assert url.path == base_prefix.rstrip("/") or url.path.startswith(
+                    base_prefix
+                ), (path, link)
+                relative = url.path[len(base_prefix) :]
+                target = (root / relative).resolve()
+            else:
+                target = (path.parent / url.path).resolve()
             if target.is_dir():
                 target /= "index.html"
             assert target.is_relative_to(root) and target.is_file(), (path, link)
@@ -60,7 +71,7 @@ for path, page in pages.items():
 assert len(pages) >= 5, "Missing documentation routes"
 banner = root / "assets/banner.svg"
 assert banner.is_file() and banner.stat().st_size > 1000, "Missing website banner"
-readme_banner = Path(__file__).resolve().parents[2] / "docs/brand/banner.svg"
+readme_banner = repository_root / "docs/brand/banner.svg"
 assert banner.read_bytes() == readme_banner.read_bytes(), (
     "Website banner differs from docs/brand/banner.svg"
 )

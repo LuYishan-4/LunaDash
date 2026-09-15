@@ -1,6 +1,6 @@
 # Security and crash checks
 
-The build and security workflows run on pull requests, pushes to `main`, merge groups and manual dispatch. Core checks have no path filter. Pull-request code executes on GitHub-hosted runners, never through `pull_request_target`; checkout does not retain credentials. Only CodeQL has `security-events: write`.
+The build and security workflows run on pull requests, pushes to `main`, merge groups and manual dispatch. Core checks have no path filter. Pull-request code executes on GitHub-hosted runners, never through `pull_request_target`; checkout does not retain credentials. Only CodeQL has `security-events: write`. The website deployment workflow is the only one with `pages: write` and `id-token: write`; it is path-filtered to website changes and runs on `main` pushes and manual dispatch, never on pull requests.
 
 | Check | Coverage | Failure condition |
 | --- | --- | --- |

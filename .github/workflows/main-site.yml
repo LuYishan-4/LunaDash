@@ -1,0 +1,30 @@
+name: Main website build
+on: [push, pull_request, merge_group, workflow_dispatch]
+permissions:
+    contents: read
+concurrency:
+    group: main-site-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+jobs:
+    build:
+        name: Website check, build and tests
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+                  cache: npm
+                  cache-dependency-path: site/package-lock.json
+            - name: Install website dependencies
+              run: npm ci --prefix site --include=dev --ignore-scripts
+            - name: Check the website
+              run: npm run check --prefix site
+            - name: Build the website
+              run: npm run build --prefix site
+            - name: Test the built website
+              run: python3 tests/site/test_site.py site/dist

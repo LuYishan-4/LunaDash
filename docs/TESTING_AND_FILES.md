@@ -223,8 +223,21 @@ Generated build output, dependency caches, source archives and Git internals are
 | [.github/codeql/config.yml](../.github/codeql/config.yml) | CodeQL C/C++ security and quality query configuration. |
 | [.github/dependabot.yml](../.github/dependabot.yml) | Weekly GitHub Actions and website npm dependency update configuration. |
 | [.github/pull_request_template.md](../.github/pull_request_template.md) | Review template for behavior, validation and security/lifetime changes. |
-| [.github/workflows/build.yml](../.github/workflows/build.yml) | Ubuntu 24.04 build and desktop OpenGL smoke test. |
-| [.github/workflows/security.yml](../.github/workflows/security.yml) | clang-tidy and CodeQL SARIF security gates for pull requests. |
+| [.github/workflows/main-build.yml](../.github/workflows/main-build.yml) | Ubuntu 24.04 C/C++ build for pushes, pull requests, merge groups and manual runs. |
+| [.github/workflows/main-gate.yml](../.github/workflows/main-gate.yml) | Wait for the five required main checks and fail unless every one of them succeeds. |
+| [.github/workflows/main-opengl.yml](../.github/workflows/main-opengl.yml) | Desktop OpenGL shader and context loading check. |
+| [.github/workflows/main-qt.yml](../.github/workflows/main-qt.yml) | Qt module and compositor loading check. |
+| [.github/workflows/main-site.yml](../.github/workflows/main-site.yml) | Type-check, build and test the Astro website with read-only permissions. |
+| [.github/workflows/main-startup.yml](../.github/workflows/main-startup.yml) | Graphics startup failure-handling regression check. |
+| [.github/workflows/main-wayland.yml](../.github/workflows/main-wayland.yml) | Wayland protocol and compositor loading check. |
+| [.github/workflows/pr-clang-tidy.yml](../.github/workflows/pr-clang-tidy.yml) | clang-tidy null and memory-safety analysis for pull requests. |
+| [.github/workflows/pr-codeql.yml](../.github/workflows/pr-codeql.yml) | CodeQL security analysis and SARIF findings gate for pull requests. |
+| [.github/workflows/pr-documentation-scope.yml](../.github/workflows/pr-documentation-scope.yml) | Reject pull requests that modify documentation or website files. |
+| [.github/workflows/pr-gate.yml](../.github/workflows/pr-gate.yml) | Wait for the six required pull-request checks and fail unless every one of them succeeds. |
+| [.github/workflows/pr-qt-lifetime.yml](../.github/workflows/pr-qt-lifetime.yml) | Qt pointer and object-lifetime analysis for pull requests. |
+| [.github/workflows/pr-repository-hygiene.yml](../.github/workflows/pr-repository-hygiene.yml) | Credential, personal-path and workflow-policy checks for pull requests. |
+| [.github/workflows/pr-source-style.yml](../.github/workflows/pr-source-style.yml) | Source-language and shell-style checks for pull requests. |
+| [.github/workflows/site-pages.yml](../.github/workflows/site-pages.yml) | Dedicated GitHub Pages deployment; only this workflow receives `pages: write` and `id-token: write`. |
 | [scripts/security/check_repository_hygiene.py](../scripts/security/check_repository_hygiene.py) | Check workflow policy, credentials and personal filesystem paths. |
 | [.gitignore](../.gitignore) | Exclude generated builds, package artifacts and website dependencies/output. |
 | [AGENTS.md](../AGENTS.md) | Repository implementation and collaboration rules. |

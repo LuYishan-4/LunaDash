@@ -1,0 +1,52 @@
+name: Website Pages deployment
+on:
+    push:
+        branches: [main]
+        paths:
+            - "site/**"
+            - "docs/brand/**"
+            - "tests/site/**"
+            - ".github/workflows/site-pages.yml"
+    workflow_dispatch:
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+concurrency:
+    group: pages
+    cancel-in-progress: false
+jobs:
+    deploy:
+        name: Deploy the website to GitHub Pages
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+                  cache: npm
+                  cache-dependency-path: site/package-lock.json
+            - name: Install website dependencies
+              run: npm ci --prefix site --include=dev --ignore-scripts
+            - name: Check the website
+              run: npm run check --prefix site
+            - name: Build the website
+              run: npm run build --prefix site
+            - name: Test the built website
+              run: python3 tests/site/test_site.py site/dist
+            - name: Configure Pages
+              uses: actions/configure-pages@v5
+            - name: Upload the Pages artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: site/dist
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v4

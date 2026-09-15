@@ -51,7 +51,7 @@ ColumnLayout {
                 width: 46; height: 46; radius: 14
                 color: githubMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Theme.surface
                 LineIcon { anchors.centerIn: parent; width: 25; height: 25; name: "github"; ink: Theme.text }
-                MouseArea { id: githubMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Qt.openUrlExternally(page.update.repositoryUrl || "https://github.com/LuYishan-4/LuDash") }
+                MouseArea { id: githubMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Qt.openUrlExternally(page.update.repositoryUrl || "https://github.com/LuYishan-4/LunaDash") }
                 ToolTip.visible: githubMouse.containsMouse; ToolTip.text: "GitHub"
             }
             Text {
