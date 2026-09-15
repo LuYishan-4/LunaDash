@@ -1,26 +1,139 @@
-export interface Method { name: string; value: string; behavior: string; }
+export interface Method {
+  name: string;
+  value: string;
+  behavior: string;
+}
 export const methods: Method[] = [
-  {name:"status",value:"Empty",behavior:"Read the session, clients, graphics health, preferences, module state and available services."},
-  {name:"appearance",value:"JSON object encoded as a string",behavior:"Validate and save a partial desktop-preference update. Invalid fields reject the entire update."},
-  {name:"open-settings",value:"Category ID or empty",behavior:"Open the settings center. IDs include general, appearance, windows, modules, display, input, sound, network, bluetooth, power, applications, privacy, system, devices and about."},
-  {name:"workspace",value:"Zero-based workspace index",behavior:"Switch to an existing workspace (0 to workspaceCount−1)."},
-  {name:"focus / minimize / close",value:"Client ID from status",behavior:"Restore and focus, minimize, or request normal close of a window. Close can trigger an application's save dialog."},
-  {name:"language",value:"en_US or zh_TW",behavior:"Save the UI language. The shell refreshes its translation dictionary; reopen native applications."},
-  {name:"wallpaper-image",value:"Local absolute path or file URL",behavior:"Validate and select an image wallpaper."},
-  {name:"wallpaper / wallpaper-default",value:"0 or 1 / empty",behavior:"Select a shader palette or restore the bundled image."},
-  {name:"default-apps",value:'JSON object: {"terminal":[],"files":[]}',behavior:"Save literal executable/argument arrays. Empty arrays select LuDash defaults; executables must be available."},
-  {name:"launch-default",value:"terminal or files",behavior:"Launch the selected default application in this Wayland session."},
-  {name:"module-validate / module-save",value:"Versioned module JSON string",behavior:"Validate without writing, or atomically save and apply a module document (maximum 16 KiB)."},
-  {name:"module-template",value:"panel or overview",behavior:"Create a starter QML file without overwriting existing code."},
-  {name:"module-code-trust",value:'Literal string "true" or "false"',behavior:"Allow or disable custom QML execution for this user. Code is not sandboxed."},
-  {name:"module-reset",value:"Empty",behavior:"Restore built-in module settings and disable custom code; keep user QML files."},
-  {name:"audio",value:'JSON string: {"device":"output","volume":50}',behavior:"Request default input/output volume 0–100, or use a boolean mute field. Requires WirePlumber."},
-  {name:"power-profile",value:"Advertised profile ID from status",behavior:"Request a supported power-profiles-daemon profile; check status for completion or errors."},
-  {name:"system-tool",value:"Available tool ID from status.settingsTools",behavior:"Open a fixed, validated settings helper. Host tools are explicitly marked in the snapshot."},
-  {name:"desktop-size",value:"1280x720, 1440x900 or 1920x1080",behavior:"Resize a nested window. Fullscreen and standalone EGLFS are rejected."},
-  {name:"configure-network",value:"Empty",behavior:"Open the available system network editor. Credentials remain in that tool."},
-  {name:"setup / finish-setup",value:"Empty",behavior:"Reopen the first-run guide or mark it complete."},
-  {name:"reset-preferences",value:"Empty",behavior:"Reset LuDash desktop preferences; module JSON and default-app commands have separate reset controls."},
-  {name:"launch-x11",value:"Program and quoted arguments",behavior:"Launch an X11 program in the authenticated rootful compatibility container. Shell operators are not evaluated."},
-  {name:"quit",value:"Empty",behavior:"Request session shutdown and normal client close."}
+  {
+    name: "status",
+    value: "Empty",
+    behavior:
+      "Read the session, clients, graphics health, preferences, module state and available services.",
+  },
+  {
+    name: "appearance",
+    value: "JSON object encoded as a string",
+    behavior:
+      "Validate and save a partial desktop-preference update. Invalid fields reject the entire update.",
+  },
+  {
+    name: "open-settings",
+    value: "Category ID or empty",
+    behavior:
+      "Open the settings center. IDs include general, appearance, windows, modules, display, input, sound, network, bluetooth, power, applications, privacy, system, devices and about.",
+  },
+  {
+    name: "workspace",
+    value: "Zero-based workspace index",
+    behavior: "Switch to an existing workspace (0 to workspaceCount−1).",
+  },
+  {
+    name: "focus / minimize / close",
+    value: "Client ID from status",
+    behavior:
+      "Restore and focus, minimize, or request normal close of a window. Close can trigger an application's save dialog.",
+  },
+  {
+    name: "language",
+    value: "en_US or zh_TW",
+    behavior:
+      "Save the UI language. The shell refreshes its translation dictionary; reopen native applications.",
+  },
+  {
+    name: "wallpaper-image",
+    value: "Local absolute path or file URL",
+    behavior: "Validate and select an image wallpaper.",
+  },
+  {
+    name: "wallpaper / wallpaper-default",
+    value: "0 or 1 / empty",
+    behavior: "Select a shader palette or restore the bundled image.",
+  },
+  {
+    name: "default-apps",
+    value: 'JSON object: {"terminal":[],"files":[]}',
+    behavior:
+      "Save literal executable/argument arrays. Empty arrays select LunaDash defaults; executables must be available.",
+  },
+  {
+    name: "launch-default",
+    value: "terminal or files",
+    behavior:
+      "Launch the selected default application in this Wayland session.",
+  },
+  {
+    name: "module-validate / module-save",
+    value: "Versioned module JSON string",
+    behavior:
+      "Validate without writing, or atomically save and apply a module document (maximum 16 KiB).",
+  },
+  {
+    name: "module-template",
+    value: "panel or overview",
+    behavior: "Create a starter QML file without overwriting existing code.",
+  },
+  {
+    name: "module-code-trust",
+    value: 'Literal string "true" or "false"',
+    behavior:
+      "Allow or disable custom QML execution for this user. Code is not sandboxed.",
+  },
+  {
+    name: "module-reset",
+    value: "Empty",
+    behavior:
+      "Restore built-in module settings and disable custom code; keep user QML files.",
+  },
+  {
+    name: "audio",
+    value: 'JSON string: {"device":"output","volume":50}',
+    behavior:
+      "Request default input/output volume 0–100, or use a boolean mute field. Requires WirePlumber.",
+  },
+  {
+    name: "power-profile",
+    value: "Advertised profile ID from status",
+    behavior:
+      "Request a supported power-profiles-daemon profile; check status for completion or errors.",
+  },
+  {
+    name: "system-tool",
+    value: "Available tool ID from status.settingsTools",
+    behavior:
+      "Open a fixed, validated settings helper. Host tools are explicitly marked in the snapshot.",
+  },
+  {
+    name: "desktop-size",
+    value: "1280x720, 1440x900 or 1920x1080",
+    behavior:
+      "Resize a nested window. Fullscreen and standalone EGLFS are rejected.",
+  },
+  {
+    name: "configure-network",
+    value: "Empty",
+    behavior:
+      "Open the available system network editor. Credentials remain in that tool.",
+  },
+  {
+    name: "setup / finish-setup",
+    value: "Empty",
+    behavior: "Reopen the first-run guide or mark it complete.",
+  },
+  {
+    name: "reset-preferences",
+    value: "Empty",
+    behavior:
+      "Reset LunaDash desktop preferences; module JSON and default-app commands have separate reset controls.",
+  },
+  {
+    name: "launch-x11",
+    value: "Program and quoted arguments",
+    behavior:
+      "Launch an X11 program in the authenticated rootful compatibility container. Shell operators are not evaluated.",
+  },
+  {
+    name: "quit",
+    value: "Empty",
+    behavior: "Request session shutdown and normal client close.",
+  },
 ];

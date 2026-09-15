@@ -12,30 +12,35 @@ ColumnLayout {
     required property string title
     property bool saving: false
     property var choices: []
+    property int knownApplicationCount: -1
     spacing: 10
 
     readonly property var stored: (shell.state.defaultApps || {})[role] || []
     readonly property string storedKey: JSON.stringify(stored)
 
-    // Built once: the desktop-entry scan is asynchronous, and rebuilding the
-    // model on every state poll would reset the selector to its first entry.
+    // Build the model from the same DesktopEntries index the launcher searches,
+    // so every installed application is selectable. The desktop-entry scan is
+    // asynchronous, so the timer below rebuilds only when the entry count
+    // changes; rebuilding on every poll would reset an open selector.
     function buildChoices() {
+        const applications = DesktopEntries.applications.values
         const defaultLabel = editor.role === "terminal"
             ? editor.shell.tr("Konsole (default)")
             : editor.shell.tr("LunaDash default")
-        const list = [{ label: defaultLabel, command: [] }]
+        const entries = []
         const seen = {}
-        for (const entry of DesktopEntries.applications.values) {
-            if (entry.noDisplay) continue
-            const raw = entry.command || (entry.desktopEntry || {}).command
-            const command = Array.isArray(raw) ? raw.slice() : (typeof raw === "string" && raw.length > 0 ? [raw] : [])
-            if (command.length === 0) continue
-            const key = command.join(" ")
+        for (const entry of applications) {
+            const command = entry.command
+            if (!command || command.length === 0) continue
+            const argv = Array.from(command)
+            const key = argv.join(" ")
             if (seen[key]) continue
             seen[key] = true
-            list.push({ label: String(entry.name || entry.id), command: command })
+            entries.push({ label: String(entry.name || entry.id), command: argv })
         }
-        editor.choices = list
+        entries.sort((left, right) => left.label.localeCompare(right.label))
+        editor.knownApplicationCount = applications.length
+        editor.choices = [{ label: defaultLabel, command: [] }].concat(entries)
         editor.syncSelector()
     }
     function describe(command) {
@@ -50,8 +55,7 @@ ColumnLayout {
         return 0
     }
     function syncSelector() {
-        const index = editor.indexForStored()
-        selector.currentIndex = index
+        selector.currentIndex = editor.indexForStored()
     }
     function apply(command) {
         editor.saving = true
@@ -86,7 +90,7 @@ ColumnLayout {
         visible: true
         text: editor.stored.length > 0
             ? editor.shell.tr("Command: ") + editor.describe(editor.stored)
-            : editor.shell.tr("Command: ") + editor.describe(editor.choices.length > 0 ? editor.choices[0].command : []) + editor.shell.tr(" (built-in)")
+            : editor.shell.tr("Using the built-in default.")
         color: Theme.muted; font.pixelSize: 11; font.family: Theme.font; elide: Text.ElideRight
     }
 
@@ -108,8 +112,7 @@ ColumnLayout {
         repeat: true
         running: true
         onTriggered: {
-            const installed = DesktopEntries.applications.values.filter(entry => !entry.noDisplay).length
-            if (editor.choices.length !== installed + 1)
+            if (editor.knownApplicationCount !== DesktopEntries.applications.values.length)
                 editor.buildChoices()
         }
     }

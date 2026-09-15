@@ -1,6 +1,6 @@
 # Default applications, Fish, Files, and image selection
 
-Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of installed desktop applications, the default terminal (Konsole), the LunaDash Files default, and a Custom command… option for JSON argument arrays. `[]` selects the role default. Examples are `["konsole"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
+Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of every installed desktop application that the launcher can also find, with a role default pinned at the top (`Konsole (default)` for the terminal, `LunaDash default` for files). `[]` selects the role default. Examples are `["konsole"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
 
 Super+Return and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadash-desktop --app files` also respects the preference; `--builtin` explicitly opens LunaDash Files for recovery. `--path /absolute/folder` navigates the built-in manager or appends the folder as one argument for a custom manager. These choices apply to LunaDash launchers, not system-wide MIME associations or every third-party application's embedded terminal.
 
@@ -11,7 +11,7 @@ The default terminal is **Konsole**. LunaDash reads Konsole's user `konsolerc` `
 LunaDash's Command Console remains a separate non-interactive diagnostic tool (`--app console`), not the default terminal.
 
 ```sh
-lunadashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'  # custom command example
+lunadashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'  # explicit command example
 lunadashctl launch-default terminal
 lunadashctl default-apps '{"terminal":[],"files":[]}'                            # Konsole and built-in Files
 ```
@@ -32,4 +32,4 @@ Files open with system MIME handlers; executable files require explicitly runnin
 
 ## Verification
 
-Manual acceptance should confirm the built-in Terminal starts interactive Fish with the LunaDash profile, the default-application selector lists installed applications and switches between them and the custom command array, list/grid navigation and bounded previews work in the wallpaper picker, oversized or unsupported images cannot be selected, cancellation preserves the wallpaper, and a valid selected path is applied through `lunadashctl wallpaper-image`.
+Manual acceptance should confirm the built-in Terminal starts interactive Fish with the LunaDash profile, the default-application selector lists every installed application and switches between them and the pinned role default, list/grid navigation and bounded previews work in the wallpaper picker, oversized or unsupported images cannot be selected, cancellation preserves the wallpaper, and a valid selected path is applied through `lunadashctl wallpaper-image`.

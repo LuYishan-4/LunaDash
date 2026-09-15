@@ -45,7 +45,8 @@ ColumnLayout {
         title: shell.tr("Community and source")
         description: shell.tr("Follow development, report issues, and review the source code.")
         RowLayout {
-            spacing: 10
+            Layout.fillWidth: true
+            spacing: 12
             Rectangle {
                 width: 46; height: 46; radius: 14
                 color: githubMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Theme.surface
@@ -53,15 +54,11 @@ ColumnLayout {
                 MouseArea { id: githubMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Qt.openUrlExternally(page.update.repositoryUrl || "https://github.com/LuYishan-4/LuDash") }
                 ToolTip.visible: githubMouse.containsMouse; ToolTip.text: "GitHub"
             }
-            Rectangle {
-                width: 46; height: 46; radius: 14
-                opacity: 0.5
-                color: Theme.surface
-                LineIcon { anchors.centerIn: parent; width: 25; height: 25; name: "discord"; ink: Theme.text }
-                MouseArea { id: discordMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.ForbiddenCursor }
-                ToolTip.visible: discordMouse.containsMouse; ToolTip.text: shell.tr("Discord invitation has not been published yet")
+            Text {
+                Layout.fillWidth: true
+                text: shell.tr("Open the LunaDash repository on GitHub to follow development, report issues and review the source code.")
+                color: Theme.muted; wrapMode: Text.WordWrap; font.pixelSize: 11
             }
-            Text { Layout.fillWidth: true; text: shell.tr("The Discord icon is reserved for the official invitation. No unverified invite is opened."); color: Theme.muted; wrapMode: Text.WordWrap; font.pixelSize: 11 }
         }
     }
 

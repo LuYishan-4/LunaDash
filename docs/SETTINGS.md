@@ -21,7 +21,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | Privacy and accessibility | Host-identity visibility, reduced motion, native-plugin access | Optional host accessibility/locking settings. LunaDash has no secure lock screen, notification service, screen reader integration or portal permission UI yet |
 | Users, date and time | Settings-tool discovery | Installed account/time editors handle authorization; LunaDash does not create users or retain passwords |
 | Printers and storage | Settings-tool discovery | system-config-printer and GNOME Disks; their confirmation flows govern destructive actions |
-| About | Animated moon artwork, version, development status, OS, kernel, architecture, actual graphics API, GitHub link, and manual update check | Update checks contact the fixed official GitHub Releases endpoint and never install packages; the Discord icon remains disabled until an official invite is published |
+| About | Animated moon artwork, version, development status, OS, kernel, architecture, actual graphics API, GitHub link, and manual update check | Update checks contact the fixed official GitHub Releases endpoint and never install packages |
 
 An installed executable means the editor can be launched, not that every system service or authorization agent is present. KDE module providers are offered only when their plugin file exists. Host-only tools use the original host environment and are not advertised as native LunaDash hardware controls. They are unavailable in standalone EGLFS sessions.
 

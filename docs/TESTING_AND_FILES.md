@@ -110,7 +110,7 @@ Retain the same configuration directory for a second launch to verify persistenc
 8. Open at least five non-floating windows and use Super + F as needed to leave Kitty windows unmaximized. Confirm the theme-accented grouped-application cells are embedded inline in the left side of `TopPanel`, with one cell per tiled column and one app icon per member. Use Super + Shift + H/L to group the focused member into the adjacent column. Build a four-member column, minimize one member, and confirm a fifth member still cannot be added: the limit is four total, not four visible. Verify the remaining visible members always receive equal vertical space.
 9. In the panel's inline grouped cells, click each exact icon and confirm that member is focused, restored if minimized and scrolled/revealed. Drag one member icon onto a member in another column and confirm it moves into the target column. Right-click a grouped icon, then separately use its minus badge, and confirm each expels that exact member into its own adjacent column. Check Super + J/K within a group, Super + H/L between columns, Super + Shift + E to expel, Super + Ctrl + H/L to reorder, Super plus +/− to resize, and Super + C to center.
 10. Use the left panel controls to switch workspaces. Test Super + Shift + 2 to move a window and Super + M to minimize it. The launcher is application-only and has no open-window restore section.
-11. Open Appearance and choose a local wallpaper. Confirm the in-shell picker appears inside the settings surface instead of a separate window or `QFileDialog`; test Home/Pictures/up navigation, list/grid switching, PNG/JPEG/WebP filtering and a large image whose preview remains bounded without distortion. Oversized, unsupported or unreadable images must not become selectable. Cancel and confirm the wallpaper is unchanged, then select a valid image and confirm it is applied through the normal wallpaper path. In Applications and startup, select a different installed application for both the default terminal and file manager, then confirm the reported command and that Open uses it; switch back to Custom command… and enter `["kitty", "fish"]` to confirm the argument-array path still works.
+11. Open Appearance and choose a local wallpaper. Confirm the in-shell picker appears inside the settings surface instead of a separate window or `QFileDialog`; test Home/Pictures/up navigation, list/grid switching, PNG/JPEG/WebP filtering and a large image whose preview remains bounded without distortion. Oversized, unsupported or unreadable images must not become selectable. Cancel and confirm the wallpaper is unchanged, then select a valid image and confirm it is applied through the normal wallpaper path. In Applications and startup, select a different installed application for both the default terminal and file manager, then confirm the reported command and that Open uses it; switch back to the pinned role default and confirm the built-in command is restored.
 12. Adjust blur, window opacity and animation duration in settings. Disable animations and rapidly switch workspaces or close windows. Launch an X11-only app through the compatibility dialog when XWayland is available. Test both shader palettes and return to the bundled image.
 13. Start Fcitx for a deliberate integration check and verify its tray icon uses the fallback correctly; if available, similarly inspect Discord and Docker. Test preedit, candidates and commit following [Input methods](INPUT_METHODS.md). The Fcitx tray icon is fixed, but candidate popup behavior still depends on the incomplete input-method bridge; protocol registration and a visible tray icon are not end-to-end IME verification.
 14. Reopen native apps after a language change. Open the left session menu, verify unavailable logind actions are disabled, cancel logout/reboot/poweroff confirmation, and only then test a safe action in a disposable session. Logout is handled by LunaDash; suspend, reboot and poweroff call logind over D-Bus and never execute shell commands. Close all windows, then finish the session. Native plugins stay disabled unless you explicitly trust and enable one. Pacman operations require deliberate terminal confirmation and are not executed by tests.
@@ -147,7 +147,7 @@ npm run preview --prefix site -- --host 127.0.0.1
 
 Review installed binaries, QML, wallpaper, translations, plugin SDK and session descriptor. The source archive should contain all CMake inputs and no build/cache files. A full Arch package can be built with `makepkg -Cfs` from `packaging/arch`; staged install success does not prove a pacman transaction or independent login session works.
 
-Review the website at desktop and mobile widths. Test keyboard navigation, accent/gap controls and copy feedback. TypeScript uses strict checking; generated output stays in ignored `site/dist/`. See [Website deployment](WEBSITE.md) for GitHub Pages prerequisites and deployment verification.
+Review the website at desktop and mobile widths. Test keyboard navigation, the boot animation, copy feedback and documentation links, then repeat with reduced motion enabled to confirm the animation is skipped. TypeScript uses strict checking; generated output stays in ignored `site/dist/`. See [Website deployment](WEBSITE.md) for GitHub Pages prerequisites and deployment verification.
 
 ## 8. Diagnose failures
 
@@ -458,7 +458,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/security/test_analyzer.py](../tests/security/test_analyzer.py) | Verify that static analysis accepts valid Qt guards and rejects real use-after-free. |
 | [tests/security/test_sarif_gate.py](../tests/security/test_sarif_gate.py) | Negative and positive SARIF gate cases. |
 | [tests/security/test_source_language.py](../tests/security/test_source_language.py) | Keep source/primary docs English while allowing the explicitly requested zh-TW login guide and external translation pack. |
-| [tests/site/test_site.py](../tests/site/test_site.py) | Check compiled website assets, fragments, language and image descriptions. |
+| [tests/site/test_site.py](../tests/site/test_site.py) | Check compiled website assets, the README banner copy, fragments, language and image descriptions. |
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
 | [tests/wayland/test_customization.py](../tests/wayland/test_customization.py) | Actual custom QML replacement/fallback, built-in Files recoloring and an interactive Kitty/Fish terminal under Wayland. |
 | [tests/wayland/test_effects.py](../tests/wayland/test_effects.py) | Live blur, opacity and reduced-motion preferences; private-safe window screenshot. |
@@ -475,9 +475,9 @@ Generated build output, dependency caches, source archives and Git internals are
 | [site/astro.config.mjs](../site/astro.config.mjs) | Configure static Astro output and the GitHub Pages base path. |
 | [site/package-lock.json](../site/package-lock.json) | Reproducible npm dependency resolution and integrity metadata. |
 | [site/package.json](../site/package.json) | Pinned Astro, checker and TypeScript dependencies and check/build scripts. |
-| [site/public/assets/desktop.png](../site/public/assets/desktop.png) | Actual desktop screenshot, captured with identity display off. |
+| [site/public/assets/banner.svg](../site/public/assets/banner.svg) | README banner copied from `docs/brand/banner.svg`; the site test fails if the two differ. |
 | [site/public/assets/mark.svg](../site/public/assets/mark.svg) | Local LunaDash diamond mark and favicon. |
-| [site/src/app.ts](../site/src/app.ts) | Strict TypeScript for validated accent/gap controls and clipboard feedback. |
+| [site/src/app.ts](../site/src/app.ts) | Strict TypeScript that dismisses the landing page boot animation once it has played. |
 | [site/src/components/CodeBlock.astro](../site/src/components/CodeBlock.astro) | Escaped code examples with clipboard feedback. |
 | [site/src/data/api.ts](../site/src/data/api.ts) | Typed local IPC method reference and argument contracts. |
 | [site/src/data/settings.ts](../site/src/data/settings.ts) | Typed settings guide content with actual capability boundaries. |
@@ -487,8 +487,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [site/src/pages/docs/modules.astro](../site/src/pages/docs/modules.astro) | JSON style playground, user QML contract and recovery guide. |
 | [site/src/pages/docs/settings.astro](../site/src/pages/docs/settings.astro) | Guide to desktop settings, default applications and Files. |
 | [site/src/pages/docs/start.astro](../site/src/pages/docs/start.astro) | Arch setup, nested-session instructions and test commands. |
-| [site/src/pages/index.astro](../site/src/pages/index.astro) | Accessible English introduction, actual desktop screenshot and documentation links. |
-| [site/src/styles.css](../site/src/styles.css) | Responsive desktop/mobile layout and interactive theme preview styles. |
+| [site/src/pages/index.astro](../site/src/pages/index.astro) | Accessible English landing page: boot animation, README banner, installation, getting started, source links and contributors. |
+| [site/src/styles.css](../site/src/styles.css) | Responsive desktop/mobile layout, boot animation and the chrome shared with the documentation pages. |
 | [site/tsconfig.json](../site/tsconfig.json) | Strict browser TypeScript settings and generated output directory. |
 
 ### Native client lifecycle

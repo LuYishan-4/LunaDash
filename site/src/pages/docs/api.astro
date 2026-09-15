@@ -17,7 +17,7 @@ with socket.socket(socket.AF_UNIX) as client:
     while b"\\n" not in data:
         chunk = client.recv(65536)
         if not chunk or len(data) + len(chunk) > 1024 * 1024:
-            raise RuntimeError("Invalid LuDash response")
+            raise RuntimeError("Invalid LunaDash response")
         data += chunk
     response = json.loads(data)
     if "error" in response:
@@ -27,7 +27,7 @@ with socket.socket(socket.AF_UNIX) as client:
 <DocsLayout title="Talk to your desktop." section="api" summary="Use the local control socket, write a Quickshell component, or build an opt-in native effect. Each interface has a different scope and trust boundary.">
   <nav class="doc-toc" aria-label="On this page"><a href="#ipc">Local IPC</a><a href="#methods">Methods</a><a href="#qml">QML interface</a><a href="#native">Native plugins</a></nav>
   <div class="doc-callout"><p><strong>This is a local API, not an HTTP service.</strong> The website documents and previews configuration; it does not control your desktop. The compositor's Unix socket is restricted to the session user.</p></div>
-  <h2 id="ipc">Start with ludashctl</h2><p>Applications launched inside LuDash inherit <code>LUDASH_CONTROL</code>. For an external terminal, point it at your running session's socket. The default session name is <code>ludash-0</code>; substitute the name passed to <code>--socket</code>.</p>
+  <h2 id="ipc">Start with ludashctl</h2><p>Applications launched inside LunaDash inherit <code>LUDASH_CONTROL</code>. For an external terminal, point it at your running session's socket. The default session name is <code>ludash-0</code>; substitute the name passed to <code>--socket</code>.</p>
   <CodeBlock code={'export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"\n./build/ludashctl status\n./build/ludashctl appearance \'{"gap":16,"animations":true}\'\n./build/ludashctl open-settings modules'} />
   <p>Send one UTF-8 JSON object followed by a newline. <code>method</code> and <code>value</code> are strings; JSON-valued settings are encoded inside <code>value</code>. Numeric IDs are also sent as strings.</p>
   <CodeBlock label="WIRE REQUEST" code={'{"method":"appearance","value":"{\\"gap\\":16}"}\n'} />
@@ -41,6 +41,6 @@ with socket.socket(socket.AF_UNIX) as client:
   <CodeBlock label="METADATA.JSON" code={JSON.stringify({KPlugin:{Id:"org.example.effect",Name:"Example effect",Version:"1.0.0",License:"GPL-3.0-only",EnabledByDefault:false},LuDash:{ApiVersion:1,Type:"WindowEffect",Library:"libexample-effect.so"}},null,2)} />
   <CodeBlock label="C++ / HEADER INTERFACE" code={'#include <QObject>\n#include <LuDash/plugins/CompositorPlugin.h>\n\nnamespace LuDash {\nclass ExampleEffect final : public QObject, public CompositorPlugin {\n    Q_OBJECT\n    Q_PLUGIN_METADATA(IID LUDASH_COMPOSITOR_PLUGIN_IID FILE "metadata.json")\n    Q_INTERFACES(LuDash::CompositorPlugin)\npublic:\n    void windowOpened(QQuickItem* frame) override;\n    void windowFocused(QQuickItem* frame) override;\n};\n}'} />
   <p>Put implementations in a matching <code>.cpp</code> file and build a CMake <code>MODULE</code> library linked to Qt Quick. Store the library and metadata together in <code>~/.local/share/ludash/plugins/&lt;id&gt;/</code>, enable it in Plugins, then restart the compositor. Keep retained window references in <code>QPointer</code> and never access a destroyed frame.</p>
-  <div class="doc-callout"><p><strong>Native code runs inside the compositor.</strong> Plugins are disabled by default. There is no sandbox or signing system, and a faulty plugin can crash the session. The metadata resembles KDE's structure; LuDash does not implement KWin's ABI or load KWin plugins.</p></div>
+  <div class="doc-callout"><p><strong>Native code runs inside the compositor.</strong> Plugins are disabled by default. There is no sandbox or signing system, and a faulty plugin can crash the session. The metadata resembles KDE's structure; LunaDash does not implement KWin's ABI or load KWin plugins.</p></div>
   <p>The repository contains a complete <a href="https://github.com/LuYishan-4/LuDash/tree/main/src/fade_plugin">fade effect implementation</a>, <a href="https://github.com/LuYishan-4/LuDash/tree/main/include/LuDash/fade_plugin">its header</a>, and <a href="https://github.com/LuYishan-4/LuDash/blob/main/docs/PLUGINS.md">packaging instructions</a>.</p>
 </DocsLayout>

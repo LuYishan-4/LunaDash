@@ -1,6 +1,6 @@
 # Website and GitHub Pages
 
-The English introduction site lives in `site/`. It uses Astro components, CSS and strict TypeScript, base-aware asset URLs, local images and no external analytics or font services. The accent and gap controls change the website preview only; they do not connect to a desktop session. Clipboard access occurs only when Copy is clicked.
+The English site lives in `site/`. It uses Astro components, CSS and strict TypeScript, base-aware asset URLs and local images. The landing page opens with a short boot animation that mirrors the shell's startup overlay, then shows the README banner, Installation, Getting started, the source links and the contributors. It has no analytics, font services or cookies, and clipboard access occurs only when Copy is clicked. The single external request is the contributor avatar, which is loaded from the maintainer's own host.
 
 Preview from the repository root:
 
@@ -12,7 +12,7 @@ python3 tests/site/test_site.py site/dist
 npm run preview --prefix site -- --host 127.0.0.1
 ```
 
-The default port is 4321; open `http://localhost:4321/LuDash/` while the local server is running. For the configured project base, use `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LuDash/` URL. Check desktop and mobile widths, keyboard focus, accent buttons, gap slider, copy feedback and documentation links. The hero image is a real LunaDash screenshot captured with user/hostname display disabled.
+The default port is 4321; open `http://localhost:4321/LuDash/` while the local server is running. For the configured project base, use `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LuDash/` URL. Check desktop and mobile widths, keyboard focus, the boot animation, copy feedback and documentation links. Reduced motion skips the boot animation. `site/public/assets/banner.svg` is a copy of `docs/brand/banner.svg`, and `tests/site/test_site.py` fails if the two ever differ.
 
 ## Publishing
 
