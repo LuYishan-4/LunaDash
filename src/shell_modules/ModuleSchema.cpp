@@ -9,7 +9,8 @@ QJsonObject defaultModuleDocument() {
     for (const auto& id : shellModuleIds()) modules[id] = QJsonObject{{"enabled", true},
         {"style", QJsonObject{{"width", 0}, {"height", 0}, {"margin", id == "panel" || id == "wallpaper" ? 0 : 12},
                              {"radius", id == "panel" ? 18 : id == "wallpaper" ? 0 : 24}, {"background", "inherit"},
-                             {"foreground", "inherit"}, {"accent", "inherit"}, {"fontSize", 13}, {"edge", "top"}}},
+                             {"foreground", "inherit"}, {"accent", "inherit"}, {"fontSize", 13},
+                             {"edge", "top"}, {"x", 0}, {"y", 0}}},
         {"custom", QJsonObject{{"enabled", false}, {"entry", ""}}}};
     return {{"schemaVersion", 1}, {"modules", modules}};
 }
@@ -45,6 +46,7 @@ bool validateModuleDocument(const QByteArray& text, QJsonObject* normalized, QSt
                 const auto key = field.key(); const auto value = field.value(); bool valid = false;
                 if (key == "width") valid = integer(value, 0, 0) || integer(value, id == "settings" ? 800 : 320, 3840);
                 else if (key == "height") valid = integer(value, 0, 0) || integer(value, id == "panel" ? 24 : id == "settings" || id == "setup" ? 480 : 80, id == "panel" ? 96 : 2160);
+                else if (key == "x" || key == "y") valid = integer(value, 0, 3840);
                 else if (key == "margin" || key == "radius") valid = integer(value, 0, 64);
                 else if (key == "fontSize") valid = integer(value, 10, 28);
                 else if (key == "background" || key == "foreground" || key == "accent") valid = value.isString() && (value.toString() == "inherit" || color.match(value.toString()).hasMatch());

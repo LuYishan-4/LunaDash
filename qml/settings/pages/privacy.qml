@@ -5,7 +5,7 @@ import "../../components"
 ColumnLayout {
     id: page
     required property var shell
-    spacing: 20
+    spacing: 16
     PageTitle { shell: page.shell; title: "Privacy and accessibility" }
     ShellButton { text: shell.tr("Show user and host"); active: (shell.state.appearance || {}).showHostDetails ?? false; onClicked: shell.setAppearance({showHostDetails: !((shell.state.appearance || {}).showHostDetails ?? false)}) }
     ShellButton { text: shell.tr("Reduced motion"); active: !((shell.state.appearance || {}).animations ?? true); onClicked: shell.setAppearance({animations: !((shell.state.appearance || {}).animations ?? true)}) }

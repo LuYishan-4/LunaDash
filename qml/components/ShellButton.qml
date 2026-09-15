@@ -8,7 +8,7 @@ Rectangle {
     implicitWidth: Math.max(36, label.implicitWidth + 26)
     implicitHeight: 36
     radius: Math.min(12, height / 2)
-    color: active ? Theme.accent : mouse.containsMouse ? "#384a5b" : "#25313e"
+    color: active ? Theme.accent : mouse.containsMouse ? Theme.controlHover : Theme.control
     scale: mouse.pressed ? 0.96 : 1
     opacity: enabled ? 1 : 0.4
     border.width: activeFocus ? 1 : 0
@@ -18,6 +18,6 @@ Rectangle {
     Keys.onReturnPressed: clicked(); Keys.onSpacePressed: clicked()
     Behavior on color { ColorAnimation { duration: Theme.motion } }
     Behavior on scale { NumberAnimation { duration: Math.min(Theme.motion, 150); easing.type: Easing.OutCubic } }
-    Text { id: label; anchors.centerIn: parent; text: root.text; color: root.active ? "#102133" : Theme.text; font.family: Theme.font; font.pixelSize: 12 }
+    Text { id: label; anchors.centerIn: parent; text: root.text; color: root.active ? Theme.accentInk : Theme.text; font.family: Theme.font; font.pixelSize: 12 }
     MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.clicked() }
 }

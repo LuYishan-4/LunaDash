@@ -34,12 +34,11 @@ ColumnLayout {
         title: shell.tr("Pointer and input method")
         description: shell.tr("Pointer acceleration, natural scrolling, and touchpad gestures are supplied by the host in nested sessions. Standalone libinput controls are not available yet.")
         PreferenceSlider { shell: page.shell; preference: "cursorSize"; label: "Cursor size after session restart"; minimum: 16; maximum: 64; step: 8; suffix: " px" }
-        ToolList { shell: page.shell; category: "input" }
     }
 
     SettingsComponents.SettingsCard {
         title: shell.tr("Input test")
         description: shell.tr("Use this field to verify the keyboard layout and Fcitx input path.")
-        TextField { Layout.fillWidth: true; placeholderText: shell.tr("Type here to test your keyboard or input method"); color: Theme.text; Accessible.name: placeholderText }
+        SoftField { Layout.fillWidth: true; placeholderText: shell.tr("Type here to test your keyboard or input method"); Accessible.name: placeholderText }
     }
 }

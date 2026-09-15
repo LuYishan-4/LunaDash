@@ -145,7 +145,7 @@ Item {
         z: 3
         color: Theme.danger
         opacity: expelMouse.containsMouse ? 1 : 0.72
-        Text { anchors.centerIn: parent; text: "−"; color: "#17212e"; font.pixelSize: 10; font.bold: true }
+        Text { anchors.centerIn: parent; text: "−"; color: Theme.accentInk; font.pixelSize: 10; font.bold: true }
         MouseArea {
             id: expelMouse
             anchors.fill: parent

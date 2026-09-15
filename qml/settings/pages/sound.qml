@@ -2,36 +2,74 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../components"
+import "../components" as SettingsComponents
 import "../../components"
 import "../../style"
+
 ColumnLayout {
     id: page
     required property var shell
-    spacing: 22
+
+    readonly property var audio: shell.state.audio || ({})
+
+    spacing: 16
+
     PageTitle { shell: page.shell; title: "Sound" }
-    Repeater {
-        model: ["output", "input"]
-        ColumnLayout {
-            id: device
-            required property string modelData
-            property var data: (shell.state.audio || {})[modelData] || ({})
+
+    SettingsComponents.SettingsCard {
+        title: shell.tr("Playback device")
+        description: shell.tr("Choose the PipeWire output used by the desktop.")
+        StyledComboBox {
             Layout.fillWidth: true
-            Text { text: shell.tr(device.modelData === "output" ? "Output volume" : "Microphone volume"); color: Theme.text; font.pixelSize: 17 }
-            HelpText { shell: page.shell; visible: !device.data.available; message: "No default device is available. Check PipeWire and WirePlumber, or open the audio device settings below." }
-            RowLayout {
-                enabled: Boolean(device.data.available) && !(shell.state.audio || {}).busy
-                SoftSlider {
-                    id: level; Layout.fillWidth: true; from: 0; to: 100; stepSize: 1
-                    Binding on value { value: device.data.volume || 0; when: !level.pressed }
-                    Accessible.name: shell.tr(device.modelData === "output" ? "Output volume" : "Microphone volume")
-                    onPressedChanged: if (!pressed) shell.command("audio", JSON.stringify({device: device.modelData, volume: Math.round(value)}))
-                    Keys.onReleased: event => { if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) shell.command("audio", JSON.stringify({device: device.modelData, volume: Math.round(value)})) }
+            model: page.audio.outputDevices || []
+            textRole: "name"
+            currentIndex: Math.max(0, model.findIndex(device => device.default))
+            enabled: model.length > 0 && !page.audio.busy
+            onActivated: index => shell.command("audio", JSON.stringify({device: "output", id: model[index].id}))
+        }
+    }
+
+    SettingsComponents.SettingsCard {
+        title: shell.tr("Volume")
+        description: shell.tr("Adjust output and microphone levels for the current session.")
+        Repeater {
+            model: ["output", "input"]
+            ColumnLayout {
+                id: device
+                required property string modelData
+                readonly property var data: (page.audio)[device.modelData] || ({})
+                readonly property bool ready: Boolean(device.data.available) && !page.audio.busy
+
+                Layout.fillWidth: true
+                spacing: 2
+
+                SettingsComponents.SettingsSlider {
+                    Layout.fillWidth: true
+                    enabled: device.ready
+                    label: shell.tr(device.modelData === "output" ? "Output volume" : "Microphone volume")
+                    value: device.data.volume || 0
+                    minimum: 0
+                    maximum: 100
+                    step: 1
+                    suffix: "%"
+                    onMoved: value => shell.command("audio", JSON.stringify({device: device.modelData, volume: Math.round(value)}))
                 }
-                Text { text: Math.round(level.value) + "%"; color: Theme.accent }
-                ShellButton { text: shell.tr("Mute"); active: device.data.muted ?? false; onClicked: shell.command("audio", JSON.stringify({device: device.modelData, mute: !device.data.muted})) }
+                HelpText {
+                    shell: page.shell
+                    visible: !device.data.available
+                    message: "No default device is available. Check PipeWire and WirePlumber."
+                }
+                ShellButton {
+                    Layout.alignment: Qt.AlignRight
+                    text: device.data.muted ? shell.tr("Unmute") : shell.tr("Mute")
+                    active: device.data.muted ?? false
+                    enabled: device.ready
+                    Accessible.name: shell.tr(device.modelData === "output" ? "Mute output" : "Mute microphone")
+                    onClicked: shell.command("audio", JSON.stringify({device: device.modelData, mute: !device.data.muted}))
+                }
             }
         }
     }
-    HelpText { shell: page.shell; message: (shell.state.audio || {}).error || "Volume changes affect the current system audio device. LunaDash limits gain to 100%." }
-    ToolList { shell: page.shell; category: "sound" }
+
+    HelpText { shell: page.shell; message: page.audio.error || "Volume changes affect the current system audio device. LunaDash limits gain to 100%." }
 }

@@ -15,7 +15,7 @@ ModuleSurface {
     WlrLayershell.namespace: "lunadash-startup"
     implicitWidth: moduleWidth(screen ? screen.width : 1440)
     implicitHeight: moduleHeight(screen ? screen.height : 900)
-    color: "#f5101418"
+    color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.96)
     property bool motionEnabled: Theme.animations && ((shell.state.appearance || {}).animations ?? true)
     property bool finishing: false
     property real fadeOpacity: 1

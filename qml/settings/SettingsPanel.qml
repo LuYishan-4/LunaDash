@@ -14,14 +14,17 @@ ModuleSurface {
     moduleId: "settings"
     property string category: "general"
     property var categories: [
-        {id:"general", name:"General"}, {id:"appearance", name:"Appearance"}, {id:"windows", name:"Windows and workspaces"},
-        {id:"shortcuts", name:"Keyboard shortcuts"}, {id:"modules", name:"Shell modules"}, {id:"display", name:"Display"}, {id:"input", name:"Keyboard and pointer"}, {id:"sound", name:"Sound"},
-        {id:"network", name:"Network"}, {id:"bluetooth", name:"Bluetooth"}, {id:"power", name:"Power and battery"},
-        {id:"applications", name:"Applications and startup"}, {id:"privacy", name:"Privacy and accessibility"},
-        {id:"system", name:"Users, date and time"}, {id:"devices", name:"Printers and storage"}, {id:"about", name:"About LunaDash"}
+        {id:"general", name:"General"}, {id:"appearance", name:"Appearance"},
+        {id:"windows", name:"Windows and workspaces"}, {id:"shortcuts", name:"Keyboard shortcuts"},
+        {id:"modules", name:"Shell modules"}, {id:"display", name:"Display"},
+        {id:"input", name:"Keyboard and pointer"}, {id:"sound", name:"Sound"},
+        {id:"network", name:"Network"}, {id:"bluetooth", name:"Bluetooth"},
+        {id:"power", name:"Power and battery"}, {id:"applications", name:"Applications and startup"},
+        {id:"about", name:"About LunaDash"}
     ]
     SettingsCatalog { id: catalog }
     readonly property var searchResults: catalog.matches(search.text, shell.tr)
+        .filter(result => settings.categories.some(category => category.id === result.page))
     function showCategory(id) {
         category = id
         search.clear()
@@ -29,8 +32,12 @@ ModuleSurface {
     }
     function openResult(entry) { showCategory(entry.page) }
     readonly property int overlayMargin: Math.max(8, Math.min(moduleMargin, 24))
-    anchors { top: true; bottom: true; left: true; right: true }
-    margins { top: Theme.barHeight + overlayMargin; bottom: overlayMargin; left: overlayMargin; right: overlayMargin }
+    anchors.top: true
+    anchors.left: true
+    margins.left: moduleStyle.x === 0 ? overlayMargin : moduleStyle.x
+    margins.top: moduleStyle.y === 0 ? Theme.barHeight + overlayMargin : moduleStyle.y
+    implicitWidth: moduleWidth(1120)
+    implicitHeight: moduleHeight(720)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "lunadash-settings"
@@ -107,7 +114,7 @@ ModuleSurface {
                         required property int index
                         readonly property bool selected: settings.category === modelData.id
                         width: ListView.view.width - 12; height: 38; radius: 10
-                        color: selected ? Qt.rgba(settings.moduleAccent.r, settings.moduleAccent.g, settings.moduleAccent.b, 0.14) : categoryMouse.containsMouse ? "#263340" : "transparent"
+                        color: selected ? Qt.rgba(settings.moduleAccent.r, settings.moduleAccent.g, settings.moduleAccent.b, 0.14) : categoryMouse.containsMouse ? Theme.controlHover : "transparent"
                         activeFocusOnTab: true; border.width: activeFocus ? 1 : 0; border.color: settings.moduleAccent
                         Accessible.role: Accessible.Button; Accessible.name: shell.tr(modelData.name)
                         Keys.onReturnPressed: settings.showCategory(modelData.id)
@@ -132,13 +139,17 @@ ModuleSurface {
             }
             Rectangle { Layout.fillHeight: true; width: 1; color: Theme.border }
             Rectangle {
-                Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 300; radius: 18; color: "#b51c2631"
+                Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumWidth: 300
+                radius: moduleRadius; color: Qt.rgba(moduleBackground.r, moduleBackground.g, moduleBackground.b, 0.94)
                 ScrollView {
                     id: scroll; anchors.fill: parent; anchors.margins: 24; clip: true
                     contentWidth: availableWidth
                     Loader {
                         id: pageLoader
                         width: scroll.availableWidth - 12
+                        height: item ? item.implicitHeight : 0
+                        onStatusChanged: if (status === Loader.Error)
+                            console.warn("Settings page failed to load: " + settings.category)
                         onLoaded: {
                             // Every page starts at the top. Re-apply after the loaded
                             // item has been sized; a retained offset would clip the

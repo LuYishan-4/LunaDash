@@ -16,15 +16,42 @@ ColumnLayout {
                 required property string modelData
                 required property int index
                 implicitWidth: 46; implicitHeight: 46; radius: 15
-                color: modelData; border.width: Theme.accent.toString() === modelData ? 3 : 0; border.color: "#e7edf5"
+                color: modelData; border.width: Theme.accent.toString() === modelData ? 3 : 0; border.color: Theme.focusRing
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: shell.tr(["Sky", "Lavender", "Mint", "Peach"][index])
                 Keys.onReturnPressed: shell.setAppearance({accent: modelData})
-                Text { anchors.centerIn: parent; visible: Theme.accent.toString() === modelData; text: "✓"; color: "#17212e"; font.pixelSize: 20 }
+                Text { anchors.centerIn: parent; visible: Theme.accent.toString() === modelData; text: "✓"; color: Theme.accentInk; font.pixelSize: 20 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: shell.setAppearance({accent: modelData}) }
             }
         }
         Item { Layout.fillWidth: true }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        SoftField {
+            id: customAccent
+            Layout.fillWidth: true
+            text: (shell.state.appearance || {}).accent || Theme.defaultAccent
+            placeholderText: "#RRGGBB"
+            invalid: !acceptableInput
+            font.family: "monospace"
+            inputMethodHints: Qt.ImhNoPredictiveText
+            validator: RegularExpressionValidator { regularExpression: /^#[0-9a-fA-F]{6}$/ }
+            onAccepted: if (acceptableInput) shell.setAppearance({accent: text.toLowerCase()})
+        }
+        Rectangle {
+            implicitWidth: 36
+            implicitHeight: 36
+            radius: 10
+            color: customAccent.acceptableInput ? customAccent.text : Theme.accent
+            border.color: Theme.border
+        }
+        ShellButton {
+            text: shell.tr("Apply")
+            enabled: customAccent.acceptableInput &&
+                     customAccent.text.toLowerCase() !== ((shell.state.appearance || {}).accent || "").toLowerCase()
+            onClicked: shell.setAppearance({accent: customAccent.text.toLowerCase()})
+        }
     }
     RowLayout {
         Text { text: shell.tr("Window gaps") + "  " + ((shell.state.appearance || {}).gap ?? 12) + " px"; color: Theme.text; Layout.fillWidth: true }

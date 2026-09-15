@@ -40,7 +40,7 @@ ComboBox {
         radius: 12
         color: control.down || control.popup.visible
             ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14)
-            : control.hovered ? "#334353" : "#25313e"
+            : control.hovered ? Theme.controlHover : Theme.control
         border.width: control.activeFocus || control.popup.visible ? 1.5 : 1
         border.color: control.activeFocus || control.popup.visible ? Theme.accent : Theme.border
         Behavior on color { ColorAnimation { duration: Theme.motion } }
@@ -86,7 +86,7 @@ ComboBox {
         }
         background: Rectangle {
             radius: 14
-            color: "#f21c252e"
+            color: Theme.surfaceOpaque
             border.width: 1
             border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.32)
         }

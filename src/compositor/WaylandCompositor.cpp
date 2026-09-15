@@ -643,6 +643,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!document.isObject() ||
         !audioSettings_->apply(document.object(), &error))
       return {{"error", error.isEmpty() ? "Invalid audio setting." : error}};
+  } else if (method == "network") {
+    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    QString error;
+    if (!document.isObject() ||
+        !networkStatus_->execute(document.object(), &error))
+      return {{"error", error.isEmpty() ? "Invalid network request." : error}};
   } else if (method == "power-profile") {
     QString error;
     if (!powerSettings_->apply(value, &error))

@@ -45,7 +45,7 @@ ShellRoot {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
         if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; settingsCenter.showCategory("appearance"); settingsOpen = true; pickerOpen = true }
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"; Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
-        Theme.accent = (state.appearance || {}).accent || "#9ccbfb"; Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
+        Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent; Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true); Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
         if (setupPaused) {
             const mapped = state.clients.some(client => client.mapped)

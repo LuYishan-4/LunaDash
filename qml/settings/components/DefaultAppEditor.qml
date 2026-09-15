@@ -10,11 +10,8 @@ ColumnLayout {
     required property var shell
     required property string role
     required property string title
-    property bool dirty: false
     property bool saving: false
-    property bool custom: false
     property var choices: []
-    property int customIndex: 0
     spacing: 10
 
     readonly property var stored: (shell.state.defaultApps || {})[role] || []
@@ -26,21 +23,20 @@ ColumnLayout {
         const defaultLabel = editor.role === "terminal"
             ? editor.shell.tr("Konsole (default)")
             : editor.shell.tr("LunaDash default")
-        const list = [{ label: defaultLabel, command: [], custom: false }]
+        const list = [{ label: defaultLabel, command: [] }]
         const seen = {}
         for (const entry of DesktopEntries.applications.values) {
             if (entry.noDisplay) continue
-            const raw = entry.command
+            const raw = entry.command || (entry.desktopEntry || {}).command
             const command = Array.isArray(raw) ? raw.slice() : (typeof raw === "string" && raw.length > 0 ? [raw] : [])
             if (command.length === 0) continue
             const key = command.join(" ")
             if (seen[key]) continue
             seen[key] = true
-            list.push({ label: String(entry.name || entry.id), command: command, custom: false })
+            list.push({ label: String(entry.name || entry.id), command: command })
         }
-        list.push({ label: editor.shell.tr("Custom command…"), command: [], custom: true })
         editor.choices = list
-        editor.customIndex = list.length - 1
+        editor.syncSelector()
     }
     function describe(command) {
         return Array.isArray(command) ? command.join(" ") : String(command || "")
@@ -48,15 +44,14 @@ ColumnLayout {
     function indexForStored() {
         for (let i = 0; i < editor.choices.length; i++) {
             const choice = editor.choices[i]
-            if (!choice.custom && JSON.stringify(choice.command) === editor.storedKey)
+            if (JSON.stringify(choice.command) === editor.storedKey)
                 return i
         }
-        return editor.customIndex
+        return 0
     }
     function syncSelector() {
         const index = editor.indexForStored()
         selector.currentIndex = index
-        editor.custom = index === editor.customIndex
     }
     function apply(command) {
         editor.saving = true
@@ -81,60 +76,18 @@ ColumnLayout {
             enabled: !editor.saving
             onActivated: index => {
                 const choice = editor.choices[index]
-                if (choice.custom) {
-                    editor.custom = true
-                } else {
-                    editor.custom = false
-                    editor.apply(Array.from(choice.command))
-                }
+                if (choice) editor.apply(Array.from(choice.command))
             }
         }
         ShellButton { text: editor.shell.tr("Open"); onClicked: editor.shell.launch(editor.role) }
     }
-
     Text {
         Layout.fillWidth: true
-        visible: !editor.custom
+        visible: true
         text: editor.stored.length > 0
             ? editor.shell.tr("Command: ") + editor.describe(editor.stored)
             : editor.shell.tr("Command: ") + editor.describe(editor.choices.length > 0 ? editor.choices[0].command : []) + editor.shell.tr(" (built-in)")
         color: Theme.muted; font.pixelSize: 11; font.family: Theme.font; elide: Text.ElideRight
-    }
-
-    TextField {
-        id: command
-        visible: editor.custom
-        readOnly: editor.saving
-        Layout.fillWidth: true
-        Layout.preferredHeight: 38
-        color: Theme.text
-        font.family: "monospace"
-        font.pixelSize: 12
-        placeholderText: editor.role === "terminal" ? '["konsole"]' : '["dolphin"]'
-        background: Rectangle { color: Theme.surface; radius: 10; border.color: Theme.border }
-        onTextEdited: editor.dirty = true
-    }
-    RowLayout {
-        visible: editor.custom
-        ShellButton {
-            text: editor.shell.tr("Save command")
-            enabled: editor.dirty && !editor.saving
-            onClicked: {
-                try {
-                    const value = JSON.parse(command.text)
-                    if (!Array.isArray(value) || value.some(item => typeof item !== "string"))
-                        throw new Error("not a string array")
-                    editor.dirty = false
-                    editor.apply(value)
-                } catch (error) {
-                    editor.shell.errorMessage = editor.shell.tr("Enter a JSON array of command arguments.")
-                }
-            }
-        }
-        ShellButton {
-            text: editor.shell.tr("Use LunaDash default")
-            onClicked: { editor.dirty = false; editor.custom = false; editor.apply([]) }
-        }
     }
 
     Connections {
@@ -143,16 +96,21 @@ ColumnLayout {
             if (method !== "default-apps" || !editor.saving) return
             editor.saving = false
             if (result.error) return
-            const value = (result.defaultApps || {})[editor.role] || []
-            command.text = JSON.stringify(value)
-            editor.dirty = false
             editor.syncSelector()
         }
     }
 
     Component.onCompleted: {
         editor.buildChoices()
-        command.text = JSON.stringify(editor.stored)
-        editor.syncSelector()
+    }
+    Timer {
+        interval: 500
+        repeat: true
+        running: true
+        onTriggered: {
+            const installed = DesktopEntries.applications.values.filter(entry => !entry.noDisplay).length
+            if (editor.choices.length !== installed + 1)
+                editor.buildChoices()
+        }
     }
 }

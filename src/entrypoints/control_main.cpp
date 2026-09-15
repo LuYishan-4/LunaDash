@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
            "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
            "appearance|setup|finish-setup|configure-network|launch-x11|"
-           "open-settings|system-tool|audio|power-profile|desktop-size|"
+           "open-settings|system-tool|audio|network|power-profile|desktop-size|"
            "reset-preferences|default-apps|launch-default|module-validate|"
            "module-save|module-template|module-code-trust|module-reset|quit "
            "[value]\n"

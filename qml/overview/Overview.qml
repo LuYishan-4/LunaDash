@@ -19,6 +19,21 @@ ModuleSurface {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "lunadash-overview"
     color: "transparent"
+    Timer {
+        id: idleTimer
+        interval: 2000
+        running: dashboard.opened
+        repeat: false
+        onTriggered: shell.setAppearance({ overview: false })
+    }
+    MouseArea {
+        anchors.fill: parent
+        z: 10
+        acceptedButtons: Qt.NoButton
+        hoverEnabled: true
+        onEntered: idleTimer.restart()
+        onPositionChanged: idleTimer.restart()
+    }
     Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: { dashboard.time = Qt.formatDateTime(new Date(), "HH:mm"); dashboard.date = Qt.formatDateTime(new Date(), "dddd, d MMMM") } }
     Rectangle { anchors.fill: parent; color: moduleBackground; radius: moduleRadius }
     ColumnLayout {
@@ -36,7 +51,7 @@ ModuleSurface {
             Rectangle {
                 Layout.preferredWidth: 195; Layout.fillHeight: true; radius: 24; color: Theme.surface; clip: true
                 Image { anchors.fill: parent; source: shell.state.wallpaperImage || ""; fillMode: Image.PreserveAspectCrop; sourceSize: Qt.size(390, 520); asynchronous: true }
-                Rectangle { anchors.fill: parent; color: "#50101418" }
+                Rectangle { anchors.fill: parent; color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.31) }
                 Column {
                     anchors { left: parent.left; bottom: parent.bottom; margins: 18 } spacing: 3
                     Text { text: "LunaDash"; color: "white"; font.pixelSize: 28; font.weight: Font.Medium }

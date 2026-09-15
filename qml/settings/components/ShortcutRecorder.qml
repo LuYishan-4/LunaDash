@@ -13,7 +13,7 @@ Rectangle {
     radius: 12
     activeFocusOnTab: true
     color: recording ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
-                     : mouse.containsMouse ? "#334353" : "#25313e"
+                     : mouse.containsMouse ? Theme.controlHover : Theme.control
     border.width: activeFocus || recording ? 1.5 : 1
     border.color: activeFocus || recording ? Theme.accent : Theme.border
 

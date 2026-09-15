@@ -105,7 +105,7 @@ ModuleSurface {
             Text {
                 anchors.centerIn: parent
                 text: "Λ"
-                color: "#13212a"
+                color: Theme.accentInk
                 font.pixelSize: 20
                 font.bold: true
             }

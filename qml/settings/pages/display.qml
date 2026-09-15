@@ -7,7 +7,7 @@ ColumnLayout {
     id: page
     required property var shell
     property var output: shell.state.display || ({})
-    spacing: 20
+    spacing: 16
     PageTitle { shell: page.shell; title: "Display" }
     Text { text: (page.output.output || "") + "  ·  " + (page.output.width || 0) + " × " + (page.output.height || 0); color: Theme.text; font.pixelSize: 18 }
     Text { text: "Scale  " + (page.output.scale || 1) + "×   /   " + Math.round(page.output.refreshRate || 0) + " Hz"; color: Theme.muted }
@@ -20,5 +20,4 @@ ColumnLayout {
     }
     HelpText { shell: page.shell; message: "In a nested session, physical monitor resolution, refresh rate, scaling, rotation and night light are controlled by your host desktop. These buttons resize only LunaDash's window." }
     HelpText { shell: page.shell; message: "Standalone multi-monitor configuration, HDR, color profiles and night light are not available yet." }
-    ToolList { shell: page.shell; category: "display" }
 }

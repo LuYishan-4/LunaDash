@@ -3,6 +3,7 @@ Segment 1.0 Segment.qml
 ShellButton 1.0 ShellButton.qml
 LineIcon 1.0 LineIcon.qml
 SoftSlider 1.0 SoftSlider.qml
+SoftField 1.0 SoftField.qml
 SoftSwitch 1.0 SoftSwitch.qml
 LunaDashLogo 1.0 LunaDashLogo.qml
 ApplicationIcon 1.0 ApplicationIcon.qml

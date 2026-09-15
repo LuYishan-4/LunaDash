@@ -5,7 +5,7 @@ import "../../components"
 ColumnLayout {
     id: page
     required property var shell
-    spacing: 20
+    spacing: 16
     PageTitle { shell: page.shell; title: "Windows and workspaces" }
     PreferenceSlider { shell: page.shell; preference: "workspaceCount"; label: "Number of workspaces"; minimum: 1; maximum: 9 }
     PreferenceSlider { shell: page.shell; preference: "masterRatio"; label: "Default column width"; minimum: 30; maximum: 70; suffix: "%" }

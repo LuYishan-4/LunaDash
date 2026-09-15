@@ -8,7 +8,7 @@ import "../../effects"
 ColumnLayout {
     id: page
     required property var shell
-    spacing: 20
+    spacing: 16
     PageTitle { shell: page.shell; title: "Appearance" }
 
     RowLayout {

@@ -9,7 +9,7 @@ QtObject {
         {page:"appearance", pageName:"Appearance", name:"Animations", keywords:"motion blur opacity duration effects"},
         {page:"windows", pageName:"Windows and workspaces", name:"Number of workspaces", keywords:"tiling floating master window gap"},
         {page:"shortcuts", pageName:"Keyboard shortcuts", name:"Global shortcuts", keywords:"keys Meta bind launch focus group workspace close maximize"},
-        {page:"modules", pageName:"Shell modules", name:"Custom QML", keywords:"panel overview dashboard JSON modules"},
+        {page:"modules", pageName:"Shell modules", name:"Module layout", keywords:"panel overview dashboard JSON size position color"},
         {page:"display", pageName:"Display", name:"Nested desktop size", keywords:"monitor resolution scaling HDR night light"},
         {page:"input", pageName:"Keyboard and pointer", name:"Keyboard layout", keywords:"repeat delay cursor input method mouse touchpad"},
         {page:"sound", pageName:"Sound", name:"Output volume", keywords:"microphone mute PipeWire audio devices routing"},
