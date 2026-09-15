@@ -22,7 +22,17 @@
 
 LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland Compositor, C11 cores for rendering, tiling and metrics, and a Quickshell/QML shell. Windows live in niri-inspired scrollable columns across four workspaces, and the shell keeps the workspace, the launcher and the settings in one compact top panel.
 
-> **0.1 development preview.** LunaDash is not a production-ready KDE replacement. Start with a nested session inside your existing desktop, and read [Project status](#project-status) before relying on it.
+> **⚠️ Not yet officially released.** LunaDash is still in active pre-release development. If you download and run it now, expect instability, breaking changes and rough edges — it is not a production-ready KDE replacement. Start with a nested session inside your existing desktop, and read [Project status](#project-status) before relying on it.
+
+## Screenshots
+
+<div align="center">
+  <img src="docs/image/1.png" alt="LunaDash screenshot 1" width="420">
+  <img src="docs/image/2.png" alt="LunaDash screenshot 2" width="420">
+  <br>
+  <img src="docs/image/5.png" alt="LunaDash screenshot 3" width="420">
+  <img src="docs/image/6.png" alt="LunaDash screenshot 4" width="420">
+</div>
 
 ## Highlights
 
