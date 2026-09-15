@@ -35,37 +35,38 @@ ColumnLayout {
         Repeater {
             model: ["output", "input"]
             ColumnLayout {
-                id: device
+                id: deviceRow
                 required property string modelData
-                readonly property var data: (page.audio)[device.modelData] || ({})
-                readonly property bool ready: Boolean(device.data.available) && !page.audio.busy
+                // "data" would shadow the read-only Item.data property.
+                readonly property var deviceInfo: page.audio[deviceRow.modelData] || ({})
+                readonly property bool ready: Boolean(deviceRow.deviceInfo.available) && !page.audio.busy
 
                 Layout.fillWidth: true
                 spacing: 2
 
                 SettingsComponents.SettingsSlider {
                     Layout.fillWidth: true
-                    enabled: device.ready
-                    label: shell.tr(device.modelData === "output" ? "Output volume" : "Microphone volume")
-                    value: device.data.volume || 0
+                    enabled: deviceRow.ready
+                    label: shell.tr(deviceRow.modelData === "output" ? "Output volume" : "Microphone volume")
+                    value: deviceRow.deviceInfo.volume || 0
                     minimum: 0
                     maximum: 100
                     step: 1
                     suffix: "%"
-                    onMoved: value => shell.command("audio", JSON.stringify({device: device.modelData, volume: Math.round(value)}))
+                    onMoved: value => shell.command("audio", JSON.stringify({device: deviceRow.modelData, volume: Math.round(value)}))
                 }
                 HelpText {
                     shell: page.shell
-                    visible: !device.data.available
+                    visible: !deviceRow.deviceInfo.available
                     message: "No default device is available. Check PipeWire and WirePlumber."
                 }
                 ShellButton {
                     Layout.alignment: Qt.AlignRight
-                    text: device.data.muted ? shell.tr("Unmute") : shell.tr("Mute")
-                    active: device.data.muted ?? false
-                    enabled: device.ready
-                    Accessible.name: shell.tr(device.modelData === "output" ? "Mute output" : "Mute microphone")
-                    onClicked: shell.command("audio", JSON.stringify({device: device.modelData, mute: !device.data.muted}))
+                    text: deviceRow.deviceInfo.muted ? shell.tr("Unmute") : shell.tr("Mute")
+                    active: deviceRow.deviceInfo.muted ?? false
+                    enabled: deviceRow.ready
+                    Accessible.name: shell.tr(deviceRow.modelData === "output" ? "Mute output" : "Mute microphone")
+                    onClicked: shell.command("audio", JSON.stringify({device: deviceRow.modelData, mute: !deviceRow.deviceInfo.muted}))
                 }
             }
         }
