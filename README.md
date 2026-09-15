@@ -50,12 +50,12 @@ Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-d
 
 Install Fish to use the bundled terminal, and optionally `networkmanager nm-connection-editor` to configure network profiles. LunaDash reuses your existing connections; installing a package never enables a service.
 
-## Build and run
+## install
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --parallel 4
-QT_QPA_PLATFORM=wayland ./build/lunadash-compositor --socket ludash-test
+git clone https://github.com/LuYishan-4/LunaDash.git
+cd LunaDash
+./scripts/install-session.sh
 ```
 
 Run it from inside an existing Wayland or X11 desktop and it opens as a nested desktop in a window. The first-run guide covers language, network and appearance, and works fully offline. The canonical executables are `lunadash-compositor`, `lunadash-desktop`, `lunadashctl` and `lunadash-session`; the older `ludash-*` names remain compatibility aliases.
