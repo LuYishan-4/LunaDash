@@ -27,16 +27,16 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
+execute_process(COMMAND git rev-parse --verify HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE LUNADASH_GIT_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(NOT LUNADASH_GIT_COMMIT)
+    set(LUNADASH_GIT_COMMIT "unknown")
+endif()
 
 add_library(ludash-localization src/localization/Localization.cpp)
 target_include_directories(ludash-localization PUBLIC include)
 target_link_libraries(ludash-localization PUBLIC Qt6::Core)
 qt_add_resources(ludash-localization translations PREFIX /LuDash FILES data/translations/en_US.json data/translations/zh_TW.json)
-add_library(ludash-render-core
-    src/render_core/GLDispatch.c
-    src/render_core/ShaderProgram.c
-    src/render_core/WallpaperPass.c
-    src/render_core/BlurPass.c)
+add_library(ludash-render-core src/render_core/GLDispatch.c src/render_core/ShaderProgram.c src/render_core/WallpaperPass.c src/render_core/BlurPass.c)
 target_include_directories(ludash-render-core PUBLIC include ${LUDASH_GL_INCLUDE_DIR})
 target_link_libraries(ludash-render-core PRIVATE m)
 target_compile_options(ludash-render-core PRIVATE -Wall -Wextra -Wpedantic)
@@ -101,7 +101,7 @@ target_link_libraries(ludash-shortcut-settings PUBLIC Qt6::Gui)
 add_library(ludash-update-check include/LuDash/update_check/UpdateChecker.h src/update_check/UpdateChecker.cpp)
 target_include_directories(ludash-update-check PUBLIC include)
 target_link_libraries(ludash-update-check PUBLIC Qt6::Network)
-target_compile_definitions(ludash-update-check PRIVATE LUNADASH_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(ludash-update-check PRIVATE LUNADASH_VERSION="${PROJECT_VERSION}" LUNADASH_GIT_COMMIT="${LUNADASH_GIT_COMMIT}")
 add_library(ludash-tiling-core src/tiling_core/TilingGeometry.c)
 target_include_directories(ludash-tiling-core PUBLIC include)
 add_library(ludash-system-metrics src/system_metrics/SystemMetrics.c)
@@ -121,50 +121,17 @@ target_link_libraries(ludash-default-applications PUBLIC ludash-configuration Qt
 add_library(ludash-file-operations src/file_operations/FileOperations.cpp)
 target_include_directories(ludash-file-operations PUBLIC include)
 target_link_libraries(ludash-file-operations PUBLIC Qt6::Core)
-add_library(ludash-apps
-    src/theme/DesktopTheme.cpp
-    src/application_catalog/ApplicationCatalog.cpp
-    src/application_window/ApplicationWindow.cpp
-    src/file_manager/FileManager.cpp
-    src/file_icons/FileIcons.cpp
-    src/file_icons/FileIconDelegate.cpp
-    src/console/Console.cpp
-    src/system_monitor/SystemMonitor.cpp
-    src/welcome/Welcome.cpp
-    src/launcher/Launcher.cpp
-    src/packages/PackageManager.cpp
-    src/plugin_settings/PluginSettings.cpp
-)
+add_library(ludash-apps src/theme/DesktopTheme.cpp src/application_catalog/ApplicationCatalog.cpp src/application_window/ApplicationWindow.cpp src/file_manager/FileManager.cpp src/file_icons/FileIcons.cpp src/file_icons/FileIconDelegate.cpp src/console/Console.cpp src/system_monitor/SystemMonitor.cpp src/welcome/Welcome.cpp src/launcher/Launcher.cpp src/packages/PackageManager.cpp src/plugin_settings/PluginSettings.cpp)
 target_include_directories(ludash-apps PUBLIC include)
 target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-file-operations Qt6::Concurrent ludash-system-metrics ludash-localization ludash-plugins ludash-wallpaper Qt6::Widgets)
 target_compile_options(ludash-apps PRIVATE -Wall -Wextra -Wpedantic)
-
 set(LAYER_HEADER ${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-server.h)
 set(LAYER_CODE ${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-protocol.c)
-add_custom_command(OUTPUT ${LAYER_HEADER} ${LAYER_CODE}
-    COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_HEADER}
-    COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_CODE}
-    DEPENDS protocols/wlr-layer-shell-unstable-v1.xml VERBATIM)
+add_custom_command(OUTPUT ${LAYER_HEADER} ${LAYER_CODE} COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_HEADER} COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_CODE} DEPENDS protocols/wlr-layer-shell-unstable-v1.xml VERBATIM)
 set(SCREENCOPY_HEADER ${CMAKE_CURRENT_BINARY_DIR}/wlr-screencopy-server.h)
 set(SCREENCOPY_CODE ${CMAKE_CURRENT_BINARY_DIR}/wlr-screencopy-protocol.c)
-add_custom_command(OUTPUT ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE}
-    COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_HEADER}
-    COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_CODE}
-    DEPENDS protocols/wlr-screencopy-unstable-v1.xml VERBATIM)
-add_library(ludash-wayland
-    src/compositor/WaylandCompositor.cpp
-    src/compositor_extensions/ProtocolExtensions.cpp
-    src/window_frame/WindowFrame.cpp
-    src/input_method/InputMethodSupport.cpp
-    src/layer_shell/LayerShell.cpp
-    src/layer_shell/LayerSurface.cpp
-    src/screen_capture/ScreenCapture.cpp
-    src/screen_capture/ScreenCaptureFrame.cpp
-    src/ipc/ControlServer.cpp
-    src/system_status/SystemStatus.cpp
-    ${LAYER_HEADER} ${LAYER_CODE}
-    ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE}
-)
+add_custom_command(OUTPUT ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE} COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_HEADER} COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_CODE} DEPENDS protocols/wlr-screencopy-unstable-v1.xml VERBATIM)
+add_library(ludash-wayland src/compositor/WaylandCompositor.cpp src/compositor_extensions/ProtocolExtensions.cpp src/window_frame/WindowFrame.cpp src/input_method/InputMethodSupport.cpp src/layer_shell/LayerShell.cpp src/layer_shell/LayerSurface.cpp src/screen_capture/ScreenCapture.cpp src/screen_capture/ScreenCaptureFrame.cpp src/ipc/ControlServer.cpp src/system_status/SystemStatus.cpp ${LAYER_HEADER} ${LAYER_CODE} ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE})
 target_include_directories(ludash-wayland PUBLIC include PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(ludash-wayland PRIVATE LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml" LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
 target_link_libraries(ludash-wayland PUBLIC ludash-session-environment ludash-session-actions ludash-shortcut-settings ludash-update-check ludash-default-applications ludash-shell-modules ludash-display-settings ludash-audio-settings ludash-power-settings ludash-system-tools ludash-input-settings ludash-system-metrics ludash-blur ludash-animation ludash-xwayland ludash-configuration ludash-network ludash-wallpaper ludash-renderer ludash-tiling ludash-window-rules ludash-localization ludash-plugins Qt6::Quick Qt6::Network Qt6::WaylandCompositor PkgConfig::WAYLAND_SERVER)
@@ -176,19 +143,15 @@ target_link_libraries(ludash-client-lifecycle PUBLIC Qt6::Gui PRIVATE PkgConfig:
 add_executable(ludash-desktop src/entrypoints/desktop_main.cpp)
 target_link_libraries(ludash-desktop PRIVATE ludash-apps ludash-client-lifecycle)
 set_target_properties(ludash-desktop PROPERTIES OUTPUT_NAME lunadash-desktop)
-add_custom_command(TARGET ludash-desktop POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-desktop> ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop)
+add_custom_command(TARGET ludash-desktop POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-desktop> ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop)
 add_executable(ludash-compositor src/entrypoints/compositor_main.cpp)
 target_link_libraries(ludash-compositor PRIVATE ludash-wayland)
 set_target_properties(ludash-compositor PROPERTIES OUTPUT_NAME lunadash-compositor)
-add_custom_command(TARGET ludash-compositor POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-compositor> ${CMAKE_CURRENT_BINARY_DIR}/ludash-compositor)
+add_custom_command(TARGET ludash-compositor POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-compositor> ${CMAKE_CURRENT_BINARY_DIR}/ludash-compositor)
 add_executable(ludashctl src/entrypoints/control_main.cpp)
 target_link_libraries(ludashctl PRIVATE Qt6::Network)
 set_target_properties(ludashctl PROPERTIES OUTPUT_NAME lunadashctl)
-add_custom_command(TARGET ludashctl POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludashctl> ${CMAKE_CURRENT_BINARY_DIR}/ludashctl)
-
+add_custom_command(TARGET ludashctl POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludashctl> ${CMAKE_CURRENT_BINARY_DIR}/ludashctl)
 if(LUDASH_BUILD_EXAMPLE_PLUGIN)
     add_library(ludash-fade MODULE include/LuDash/fade_plugin/FadePlugin.h src/fade_plugin/FadePlugin.cpp)
     target_include_directories(ludash-fade PRIVATE include)
