@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Notifications
 import "contextmenu"
 import "wallpaper"
 import "panel"
@@ -32,13 +33,26 @@ ShellRoot {
     property bool settingsOpen: false
     property bool pickerOpen: false
     property bool notificationVisible: false
-    property var notification: ({title:"", body:"", kind:"info", details:""})
+    property bool notificationDetailsExpanded: false
+    property var notification: ({title:"", body:"", kind:"info", details:"", actions:[]})
+    property var activeExternalNotification: null
     property string notificationDetails: ""
     function notify(title, body, kind, details) {
         if (!((state.appearance || {}).notificationsEnabled ?? true)) return
-        notification = {title:String(title||"LunaDash"), body:String(body||""), kind:String(kind||"info"), details:String(details||"")}
+        activeExternalNotification = null
+        notificationDetailsExpanded = false
+        notification = {title:String(title||"LunaDash"), body:String(body||""), kind:String(kind||"info"), details:String(details||""), actions:[]}
         notificationVisible = true
         notificationTimer.restart()
+    }
+    function clearNotification(explicitDismiss) {
+        notificationVisible = false
+        notificationDetailsExpanded = false
+        if (activeExternalNotification) {
+            if (explicitDismiss) activeExternalNotification.dismiss()
+            else activeExternalNotification.expire()
+            activeExternalNotification = null
+        }
     }
     function installUpdate(channel, ref) {
         if (updateAction.running || !ref) return
@@ -55,6 +69,44 @@ ShellRoot {
         updateAction.command = [updaterExecutable, "--rollback"]
         updateAction.running = true
         notify(tr("LunaDash rollback"), tr("Restoring the previous installation…"), "info", "")
+    }
+    NotificationServer {
+        id: notificationServer
+        bodySupported: true
+        actionsSupported: true
+        imageSupported: true
+        persistenceSupported: true
+        keepOnReload: true
+        onNotification: incoming => {
+            if (!((root.state.appearance || {}).notificationsEnabled ?? true)) {
+                incoming.dismiss()
+                return
+            }
+            incoming.tracked = true
+            root.activeExternalNotification = incoming
+            root.notificationDetailsExpanded = false
+            const combined = (String(incoming.summary || "") + " " + String(incoming.body || "")).toLowerCase()
+            const crash = combined.includes("crash") || combined.includes("segfault") || combined.includes("core dumped")
+            if (crash && !((root.state.appearance || {}).crashNotifications ?? true)) {
+                incoming.tracked = false
+                root.activeExternalNotification = null
+                return
+            }
+            const detail = crash
+                ? [String(incoming.appName || ""), String(incoming.desktopEntry || ""), String(incoming.body || "")].filter(Boolean).join("\n")
+                : ""
+            root.notification = {
+                title: String(incoming.summary || incoming.appName || "Notification"),
+                body: String(incoming.body || ""),
+                kind: crash ? "crash" : "info",
+                details: detail,
+                actions: incoming.actions || []
+            }
+            root.notificationVisible = true
+            const requested = Number(incoming.expireTimeout || 0) * 1000
+            notificationTimer.interval = requested > 0 ? Math.max(2500, Math.min(requested, 30000)) : 6500
+            notificationTimer.restart()
+        }
     }
     onLauncherOpenChanged: if (launcherOpen) settingsOpen = false
     onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false } else { pickerOpen = false }
@@ -111,7 +163,7 @@ ShellRoot {
         command: [root.controlExecutable, "status"]
         stdout: StdioCollector { onStreamFinished: { if(!text.trim())return;try{const result=JSON.parse(text);if(result.error)return;root.state=result;if(result.shutdown&&!root.stopping){Theme.animations=false;root.stopping=true;shutdownTimer.start()}}catch(error){console.warn(error)} } }
     }
-    Timer { id: notificationTimer; interval: 6500; onTriggered: root.notificationVisible = false }
+    Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
     Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running) Qt.quit() }
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root; opened: !root.stopping }
