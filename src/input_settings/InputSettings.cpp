@@ -5,6 +5,7 @@
 
 #ifdef LUDASH_USE_LIBINPUT
 #include <QSocketNotifier>
+#include <QTimer>
 #include <algorithm>
 #include <fcntl.h>
 #include <libinput.h>
@@ -31,7 +32,6 @@ public:
     notifier_.reset();
     for (auto *device : keyboards_)
       libinput_device_unref(device);
-    keyboards_.clear();
     if (input_)
       libinput_unref(input_);
     if (udev_)
@@ -49,27 +49,24 @@ public:
       context_ = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
     if (!context_)
       return;
-    if (state_) {
+    if (state_)
       xkb_state_unref(state_);
-      state_ = nullptr;
-    }
-    if (keymap_) {
+    if (keymap_)
       xkb_keymap_unref(keymap_);
-      keymap_ = nullptr;
-    }
-    const QByteArray layoutName =
-        layout.isEmpty() ? QByteArray("us") : layout.toUtf8();
-    const xkb_rule_names names = {"evdev", "pc105", layoutName.constData(),
-                                  nullptr, nullptr};
-    keymap_ = xkb_keymap_new_from_names(context_, &names,
-                                        XKB_KEYMAP_COMPILE_NO_FLAGS);
+    state_ = nullptr;
+    keymap_ = nullptr;
+    const QByteArray layoutName = layout.isEmpty() ? QByteArray("us") : layout.toUtf8();
+    const xkb_rule_names names = {"evdev", "pc105", layoutName.constData(), nullptr, nullptr};
+    keymap_ = xkb_keymap_new_from_names(context_, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
     if (keymap_)
       state_ = xkb_state_new(keymap_);
     ensureInput();
-    syncLeds();
+    syncLeds(true);
   }
 
 private:
+  static constexpr int kMaxEventsPerTurn = 32;
+
   void ensureInput() {
     if (input_)
       return;
@@ -78,32 +75,44 @@ private:
       return;
     input_ = libinput_udev_create_context(&kLibinputInterface, nullptr, udev_);
     if (!input_ || libinput_udev_assign_seat(input_, "seat0") != 0) {
-      if (input_) {
+      if (input_)
         libinput_unref(input_);
-        input_ = nullptr;
-      }
+      input_ = nullptr;
       return;
     }
-    notifier_ = std::make_unique<QSocketNotifier>(libinput_get_fd(input_),
-                                                   QSocketNotifier::Read, this);
-    connect(notifier_.get(), &QSocketNotifier::activated, this,
-            [this] { dispatch(); });
-    dispatch();
+    notifier_ = std::make_unique<QSocketNotifier>(libinput_get_fd(input_), QSocketNotifier::Read, this);
+    connect(notifier_.get(), &QSocketNotifier::activated, this, [this] { scheduleDispatch(); });
+    scheduleDispatch();
   }
 
-  void dispatch() {
+  void scheduleDispatch() {
+    if (dispatchScheduled_)
+      return;
+    dispatchScheduled_ = true;
+    QTimer::singleShot(0, this, [this] {
+      dispatchScheduled_ = false;
+      dispatchBatch();
+    });
+  }
+
+  void dispatchBatch() {
     if (!input_ || libinput_dispatch(input_) != 0)
       return;
-    while (libinput_event *event = libinput_get_event(input_)) {
+    bool ledsDirty = false;
+    int processed = 0;
+    while (processed < kMaxEventsPerTurn) {
+      libinput_event *event = libinput_get_event(input_);
+      if (!event)
+        break;
+      ++processed;
       const auto type = libinput_event_get_type(event);
       if (type == LIBINPUT_EVENT_DEVICE_ADDED) {
         auto *device = libinput_event_get_device(event);
         if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_KEYBOARD) &&
-            std::find(keyboards_.begin(), keyboards_.end(), device) ==
-                keyboards_.end()) {
+            std::find(keyboards_.begin(), keyboards_.end(), device) == keyboards_.end()) {
           libinput_device_ref(device);
           keyboards_.push_back(device);
-          syncLeds();
+          ledsDirty = true;
         }
       } else if (type == LIBINPUT_EVENT_DEVICE_REMOVED) {
         auto *device = libinput_event_get_device(event);
@@ -115,20 +124,22 @@ private:
       } else if (type == LIBINPUT_EVENT_KEYBOARD_KEY && state_) {
         auto *keyboard = libinput_event_get_keyboard_event(event);
         const uint32_t key = libinput_event_keyboard_get_key(keyboard) + 8;
-        xkb_state_update_key(
-            state_, key,
-            libinput_event_keyboard_get_key_state(keyboard) ==
-                    LIBINPUT_KEY_STATE_PRESSED
-                ? XKB_KEY_DOWN
-                : XKB_KEY_UP);
-        syncLeds();
+        xkb_state_update_key(state_, key,
+                             libinput_event_keyboard_get_key_state(keyboard) == LIBINPUT_KEY_STATE_PRESSED
+                                 ? XKB_KEY_DOWN : XKB_KEY_UP);
+        ledsDirty = true;
       }
       libinput_event_destroy(event);
-      libinput_dispatch(input_);
     }
+    if (ledsDirty)
+      syncLeds(false);
+    // Yield back to Qt after a bounded batch. This prevents a busy keyboard or
+    // device hotplug burst from monopolising the compositor GUI/render thread.
+    if (processed == kMaxEventsPerTurn)
+      scheduleDispatch();
   }
 
-  void syncLeds() {
+  void syncLeds(bool force) {
     if (!state_)
       return;
     libinput_led leds = static_cast<libinput_led>(0);
@@ -138,6 +149,10 @@ private:
       leds = static_cast<libinput_led>(leds | LIBINPUT_LED_NUM_LOCK);
     if (xkb_state_led_name_is_active(state_, XKB_LED_NAME_SCROLL) > 0)
       leds = static_cast<libinput_led>(leds | LIBINPUT_LED_SCROLL_LOCK);
+    if (!force && ledStateValid_ && leds == lastLeds_)
+      return;
+    lastLeds_ = leds;
+    ledStateValid_ = true;
     for (auto *device : keyboards_)
       libinput_device_led_update(device, leds);
   }
@@ -149,6 +164,9 @@ private:
   xkb_state *state_ = nullptr;
   std::unique_ptr<QSocketNotifier> notifier_;
   std::vector<libinput_device *> keyboards_;
+  libinput_led lastLeds_ = static_cast<libinput_led>(0);
+  bool ledStateValid_ = false;
+  bool dispatchScheduled_ = false;
 };
 
 NativeKeyboardState &nativeKeyboardState() {
@@ -158,8 +176,7 @@ NativeKeyboardState &nativeKeyboardState() {
 } // namespace
 #endif
 
-void applyKeyboardPreferences(QWaylandSeat *seat,
-                              const QJsonObject &preferences) {
+void applyKeyboardPreferences(QWaylandSeat *seat, const QJsonObject &preferences) {
   if (!seat || !seat->keyboard())
     return;
   auto *keymap = seat->keymap();
@@ -167,14 +184,9 @@ void applyKeyboardPreferences(QWaylandSeat *seat,
   keymap->setModel(QStringLiteral("pc105"));
   const QString layout = preferences.value("keyboardLayout").toString();
   keymap->setLayout(layout);
-  seat->keyboard()->setRepeatRate(
-      static_cast<quint32>(preferences.value("keyRepeatRate").toInt()));
-  seat->keyboard()->setRepeatDelay(
-      static_cast<quint32>(preferences.value("keyRepeatDelay").toInt()));
+  seat->keyboard()->setRepeatRate(static_cast<quint32>(preferences.value("keyRepeatRate").toInt()));
+  seat->keyboard()->setRepeatDelay(static_cast<quint32>(preferences.value("keyRepeatDelay").toInt()));
 #ifdef LUDASH_USE_LIBINPUT
-  // Native builds track the physical xkb lock state and write it back to every
-  // libinput keyboard LED. Qt remains the wl_keyboard event source so a device
-  // is never forwarded twice. Nested builds compile this entire backend out.
   nativeKeyboardState().configure(layout);
 #endif
 }
