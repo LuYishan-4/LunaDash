@@ -58,7 +58,7 @@ ModuleSurface {
                 ShellButton {
                     visible: Boolean(shell.notification.details)
                     text: shell.notificationDetailsExpanded ? shell.tr("Hide details") : shell.tr("View details")
-                    onClicked: { shell.notificationDetailsExpanded = !shell.notificationDetailsExpanded; notificationTimer.stop() }
+                    onClicked: shell.notificationDetailsExpanded = !shell.notificationDetailsExpanded
                 }
                 Repeater {
                     model: shell.notification.actions || []
