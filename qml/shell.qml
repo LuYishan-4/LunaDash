@@ -30,6 +30,15 @@ ShellRoot {
     property bool launcherOpen: false
     property bool settingsOpen: false
     property bool pickerOpen: false
+    property bool notificationVisible: false
+    property var notification: ({title:"", body:"", kind:"info", details:""})
+    property string notificationDetails: ""
+    function notify(title, body, kind, details) {
+        if (!((state.appearance || {}).notificationsEnabled ?? true)) return
+        notification = {title:String(title||"LunaDash"), body:String(body||""), kind:String(kind||"info"), details:String(details||"")}
+        notificationVisible = true
+        notificationTimer.restart()
+    }
     onLauncherOpenChanged: if (launcherOpen) settingsOpen = false
     onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false } else { pickerOpen = false }
     property bool menuOpen: false
@@ -47,59 +56,31 @@ ShellRoot {
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"; Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
         Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent; Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true); Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
-        if (setupPaused) {
-            const mapped = state.clients.some(client => client.mapped)
-            if (mapped) setupEditorMapped = true
-            if ((!mapped && setupEditorMapped) || (!setupEditorMapped && ++setupWaitTicks >= 15)) setupPaused = false
-        }
+        if (setupPaused) { const mapped = state.clients.some(client => client.mapped); if (mapped) setupEditorMapped = true; if ((!mapped && setupEditorMapped) || (!setupEditorMapped && ++setupWaitTicks >= 15)) setupPaused = false }
     }
     property bool logoutOpen: false
     property bool setupPaused: false
     property bool setupEditorMapped: false
     property int setupWaitTicks: 0
-    function configureNetwork() {
-        command("configure-network", "")
-        if (state.setupComplete === false) { setupPaused = true; setupEditorMapped = false; setupWaitTicks = 0 }
-    }
+    function configureNetwork() { command("configure-network", ""); if (state.setupComplete === false) { setupPaused = true; setupEditorMapped = false; setupWaitTicks = 0 } }
     property string errorMessage: ""
     property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LunaDash"
     function tr(source) { return (state.translations || {})[source] || source }
-    function command(method, value) {
-        action.queue.push([method, String(value ?? "")]); dispatch()
-    }
-    function dispatch() {
-        if (action.running || action.queue.length === 0) return
-        action.command = [controlExecutable].concat(action.queue.shift()); action.running = true
-    }
+    function command(method, value) { action.queue.push([method, String(value ?? "")]); dispatch() }
+    function dispatch() { if (action.running || action.queue.length === 0) return; action.command = [controlExecutable].concat(action.queue.shift()); action.running = true }
     Process {
         id: action
         property var queue: []
-        stdout: StdioCollector { onStreamFinished: { try { const result = JSON.parse(text); if (result.error) root.errorMessage = result.error; root.commandCompleted(action.command[1], result) } catch (error) { root.errorMessage = "Could not contact the desktop." } } }
+        stdout: StdioCollector { onStreamFinished: { try { const result=JSON.parse(text); if(result.error){root.errorMessage=result.error;root.notify(root.tr("System action failed"),result.error,"error",result.error)} root.commandCompleted(action.command[1],result) } catch(error){root.errorMessage="Could not contact the desktop."} } }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
     function launch(id) { if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return } if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false }
     Process {
         id: status
         command: [root.controlExecutable, "status"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // A timed-out helper has no response; the next poll retries it.
-                if (!text.trim()) return
-                try {
-                    const result = JSON.parse(text)
-                    if (result.error) return
-                    root.state = result
-                    if (result.shutdown && !root.stopping) {
-                        Theme.animations = false
-                        root.stopping = true
-                        shutdownTimer.start()
-                    }
-                } catch (error) { console.warn(error) }
-            }
-        }
+        stdout: StdioCollector { onStreamFinished: { if(!text.trim())return;try{const result=JSON.parse(text);if(result.error)return;root.state=result;if(result.shutdown&&!root.stopping){Theme.animations=false;root.stopping=true;shutdownTimer.start()}}catch(error){console.warn(error)} } }
     }
-    // Wait for the server to observe panel unmapping and drain helper processes.
-    // A fixed delay could destroy the Wayland renderer while work was pending.
+    Timer { id: notificationTimer; interval: 6500; onTriggered: root.notificationVisible = false }
     Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running) Qt.quit() }
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root; opened: !root.stopping }
@@ -112,5 +93,6 @@ ShellRoot {
     LogoutPanel { shell: root; opened: !root.stopping && root.logoutOpen }
     X11Launcher { shell: root; opened: !root.stopping && root.x11Open }
     Message { shell: root; opened: !root.stopping && root.errorMessage.length > 0 }
+    NotificationToast { shell: root; opened: !root.stopping && root.notificationVisible }
     StartupLogoOverlay { shell: root; opened: !root.stopping && root.startupLogoVisible; onFinished: root.startupLogoVisible = false }
 }
