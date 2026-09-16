@@ -1,0 +1,17 @@
+name: QML design system review
+on: [push, pull_request, merge_group, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: qml-design-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  review:
+    name: Unified QML controls and typography
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Review QML design system
+        run: python3 scripts/ci/check_qml_style.py
