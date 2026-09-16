@@ -495,14 +495,15 @@ QJsonObject WaylandCompositor::state() const {
       {"settingsPage", settingsPage_},
       {"pickerSerial", pickerSerial_},
       {"input",
-       QJsonObject{
-           {"layout", compositor_.defaultSeat()->keymap()->layout()},
-           {"repeatRate",
-            static_cast<int>(
-                compositor_.defaultSeat()->keyboard()->repeatRate())},
-           {"repeatDelay",
-            static_cast<int>(
-                compositor_.defaultSeat()->keyboard()->repeatDelay())}}},
+       QJsonObject{{"layout", compositor_.defaultSeat()->keymap()->layout()},
+                   {"repeatRate",
+                    static_cast<int>(
+                        compositor_.defaultSeat()->keyboard()->repeatRate())},
+                   {"repeatDelay",
+                    static_cast<int>(
+                        compositor_.defaultSeat()->keyboard()->repeatDelay())},
+                   {"modifierResends", modifierResends_},
+                   {"keypadKeyForwards", keypadKeyForwards_}}},
       {"blurReady", blurHealth_->ready.load()},
       {"blurFailed", blurHealth_->failed.load()},
       {"blurFrames", static_cast<int>(blurHealth_->frames.load())},
@@ -542,6 +543,26 @@ QJsonObject WaylandCompositor::state() const {
       {"graphicsFailed", renderState_->failed.load()},
       {"graphicsMajor", renderState_->majorVersion.load()},
       {"graphicsMinor", renderState_->minorVersion.load()}};
+}
+void WaylandCompositor::resendKeyboardModifiers() {
+  // Qt Wayland Compositor repairs its own modifier tracking by sending a
+  // modifiers event whose latched and locked masks are both zero. It does that
+  // whenever a key event's Qt modifiers differ from the state it tracks, so a
+  // repair can clear NumLock and CapsLock for the focused client. The tracked
+  // state itself stays correct, so re-asserting it restores both locks. Keypad
+  // keys never reach that path: they are forwarded from their scan code
+  // instead.
+  auto *seat = compositor_.defaultSeat();
+  auto *keyboard = seat ? seat->keyboard() : nullptr;
+  auto *surface = seat ? seat->keyboardFocus() : nullptr;
+  if (!keyboard || !surface)
+    return;
+  auto *client =
+      QWaylandClient::fromWlClient(&compositor_, surface->waylandClient());
+  if (!client)
+    return;
+  keyboard->sendKeyModifiers(client, compositor_.nextSerial());
+  ++modifierResends_;
 }
 void WaylandCompositor::publishSessionActivationEnvironment() {
   // Only a real login session asks for this. Nested test runs keep the host
@@ -1370,6 +1391,33 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
   if (watched == &window_ && (event->type() == QEvent::KeyPress ||
                               event->type() == QEvent::KeyRelease)) {
     auto *key = static_cast<QKeyEvent *>(event);
+    // Qt Wayland Compositor sends a repair event with zeroed latched and locked
+    // masks whenever a key event's Qt modifiers differ from the state it
+    // tracks, and its tracking never contains Qt::KeypadModifier. Every keypad
+    // key would therefore clear NumLock and CapsLock for the focused client.
+    // Forwarding a keypad key from its scan code keeps that repair from
+    // running, so the lock state survives both the key itself and the keys that
+    // follow it.
+    if (key->modifiers().testFlag(Qt::KeypadModifier)) {
+      auto *seat = compositor_.defaultSeat();
+      const auto scanCode = static_cast<uint>(key->nativeScanCode());
+      if (seat && seat->keyboardFocus() && scanCode > 0) {
+        if (event->type() == QEvent::KeyPress)
+          seat->sendKeyPressEvent(scanCode);
+        else
+          seat->sendKeyReleaseEvent(scanCode);
+        ++keypadKeyForwards_;
+        return true;
+      }
+    }
+    // Lock keys, Meta and AltGr reach Qt's tracking as a mismatch as well, so
+    // re-assert the state it tracks after those events are delivered.
+    const bool clearsLockedMask =
+        key->key() == Qt::Key_NumLock || key->key() == Qt::Key_CapsLock ||
+        key->key() == Qt::Key_ScrollLock || key->key() == Qt::Key_Meta ||
+        key->key() == Qt::Key_AltGr;
+    if (clearsLockedMask)
+      QTimer::singleShot(0, this, &WaylandCompositor::resendKeyboardModifiers);
     if (event->type() == QEvent::KeyRelease && consumedKeys_.remove(key->key()))
       return true;
     if (shortcutCapture_)

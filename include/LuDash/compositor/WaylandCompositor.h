@@ -94,9 +94,12 @@ private:
   QString activationEnvironmentError_;
   QString lastCapture_;
   QString captureError_;
+  int modifierResends_ = 0;
+  int keypadKeyForwards_ = 0;
   void requestShutdown();
   void publishSessionActivationEnvironment();
   void captureScreen();
+  void resendKeyboardModifiers();
   QString nextCapturePath() const;
   void addWindow(QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *surface);
   void configure(ClientWindow *client, const QRect &rectangle);

@@ -7,6 +7,7 @@ Existing Wayland host / experimental EGLFS-KMS session
     viewporter: client viewport scaling
     layer-shell v2 subset: Quickshell desktop surfaces
     text-input v2, optional v3 and Qt input-method protocol
+    keyboard: evdev rules, pc105 model, configured layout, keypad keys forwarded from their scan code
     niri-inspired scrollable grouped columns, four workspaces, focus and window effects
     asynchronous NetworkManager status and saved desktop preferences
     user-only local JSON control socket
@@ -21,6 +22,8 @@ Quickshell/QML implements the desktop shell. Built-in applications currently use
 
 Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/` directory. Headers declare types and interfaces; `.cpp` files implement them. Entry points live in `src/entrypoints/`; CMake lists sources explicitly. QML features live under `qml/<feature>/`. Project code is English and uses namespace `LuDash`, except `main`, Qt-generated resource initialization and scanner-generated C protocol symbols.
 
+Qt Wayland Compositor forwards key events to the focused client and repairs its own modifier tracking by sending a modifiers event with both the latched and locked masks set to zero. That repair runs whenever a key event's Qt modifiers differ from the state Qt tracks, and its tracking never contains `Qt::KeypadModifier`, which every numeric keypad key carries. Left alone, the first keypad key after a modifier transition clears NumLock and CapsLock for the focused client, and the key that follows a keypad key clears them again. The compositor therefore consumes keypad key events and forwards them from their native scan code with `QWaylandSeat::sendKeyPressEvent()`, which keeps the repair from running; lock keys, Meta and AltGr still go through Qt's path, and the compositor re-asserts the tracked modifier state after those with `QWaylandKeyboard::sendKeyModifiers()`. `input.keypadKeyForwards` and `input.modifierResends` report both counters in the status output. Qt's evdev keyboard handler drives the `NumLock`, `CapsLock` and `ScrollLock` LEDs itself in a standalone EGLFS session, so the compositor does not touch them.
+
 | Module | Responsibility |
 | --- | --- |
 | render_core / renderer / blur | C shader/FBO passes with C++ context and scene-graph adapters |
@@ -28,6 +31,7 @@ Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/`
 | xwayland | Optional authenticated XWayland service and X11 launcher |
 | tiling_core / system_metrics | Qt-independent C geometry and bounded proc parsers |
 | compositor / tiling / window_frame / window_rules | Window lifetime, grouped-column layout, initial window policy and decorations |
+| input_settings | Client keymap rules, model and layout, repeat rate and delay, and the keypad forwarding that keeps lock modifiers intact |
 | file_manager / file_operations | Local filesystem browsing and guarded asynchronous file operations for the built-in Files app |
 | default_applications | Built-in Fish terminal or user-selected launch commands |
 | layer_shell | Background, panel and overlay surfaces; negotiated v2 subset |

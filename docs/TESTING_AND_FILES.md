@@ -54,6 +54,7 @@ xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interact
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_settings.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_effects.py build
+xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_keyboard_locks.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_screen_capture.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_customization.py build
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
@@ -483,6 +484,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
 | [tests/wayland/test_customization.py](../tests/wayland/test_customization.py) | Actual custom QML replacement/fallback, built-in Files recoloring and an interactive Kitty/Fish terminal under Wayland. |
 | [tests/wayland/test_effects.py](../tests/wayland/test_effects.py) | Live blur, opacity and reduced-motion preferences; private-safe window screenshot. |
+| [tests/wayland/test_keyboard_locks.py](../tests/wayland/test_keyboard_locks.py) | A numeric keypad key keeps CapsLock for the focused Wayland client, with the keypad forwarding counter. |
 | [tests/wayland/test_screen_capture.py](../tests/wayland/test_screen_capture.py) | Announced capture globals, the Alt+Shift+F5 shortcut capture, the explicit capture path and its overwrite refusal. |
 | [tests/wayland/test_session_launcher.py](../tests/wayland/test_session_launcher.py) | Verify login preflight, environment isolation, argument handling and private logs without starting a real desktop. |
 | [tests/wayland/test_settings.py](../tests/wayland/test_settings.py) | Open every settings page and exercise every option each page can change, accepting valid values and rejecting the rest without touching host services. |
