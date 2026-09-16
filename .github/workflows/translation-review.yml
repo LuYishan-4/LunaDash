@@ -1,0 +1,32 @@
+name: Traditional Chinese translation review
+on: [push, pull_request, merge_group, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: translations-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  coverage:
+    name: Translation coverage and placeholders
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 scripts/check-translations.py
+  resources:
+    name: Compiled translation resource and English fallback
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Qt Core build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build g++ qt6-base-dev
+      - name: Build and test real localization implementation
+        run: |
+          cmake -S tests/localization -B build-translations -G Ninja
+          cmake --build build-translations --parallel 2
+          ctest --test-dir build-translations --output-on-failure

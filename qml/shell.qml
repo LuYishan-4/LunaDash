@@ -96,7 +96,7 @@ ShellRoot {
                 ? [String(incoming.appName || ""), String(incoming.desktopEntry || ""), String(incoming.body || "")].filter(Boolean).join("\n")
                 : ""
             root.notification = {
-                title: String(incoming.summary || incoming.appName || "Notification"),
+                title: String(incoming.summary || incoming.appName || root.tr("Notification")),
                 body: String(incoming.body || ""),
                 kind: crash ? "crash" : "info",
                 details: detail,
@@ -140,7 +140,7 @@ ShellRoot {
     Process {
         id: action
         property var queue: []
-        stdout: StdioCollector { onStreamFinished: { try { const result=JSON.parse(text); if(result.error){root.errorMessage=result.error;root.notify(root.tr("System action failed"),result.error,"error",result.error)} root.commandCompleted(action.command[1],result) } catch(error){root.errorMessage="Could not contact the desktop."} } }
+        stdout: StdioCollector { onStreamFinished: { try { const result=JSON.parse(text); if(result.error){root.errorMessage=root.tr(result.error);root.notify(root.tr("System action failed"),root.tr(result.error),"error",result.error)} root.commandCompleted(action.command[1],result) } catch(error){root.errorMessage="Could not contact the desktop."} } }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
     Process {
@@ -150,11 +150,13 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: updateAction.output = text.trim() }
         stderr: StdioCollector { onStreamFinished: updateAction.errorOutput = text.trim() }
         onExited: (exitCode, exitStatus) => {
-            const detail = updateAction.errorOutput || updateAction.output
+            // Keep diagnostic output intact in details, not as the UI summary.
+            const detail = [updateAction.errorOutput, updateAction.output].filter(Boolean).join("\n")
+            const rollback = updateAction.command[1] === "--rollback"
             if (exitCode === 0)
-                root.notify(root.tr("LunaDash update"), updateAction.output || root.tr("Update completed. Start a new session to use it."), "success", detail)
+                root.notify(root.tr(rollback ? "LunaDash rollback" : "LunaDash update"), root.tr(rollback ? "Rollback completed. Start a new session to use it." : "Update completed. Start a new session to use it."), "success", detail)
             else
-                root.notify(root.tr("Update failed"), detail || root.tr("The updater exited unexpectedly."), "error", detail)
+                root.notify(root.tr("Update failed"), root.tr("The update could not be completed. Open details to view the log."), "error", detail)
         }
     }
     function launch(id) { if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return } if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false }

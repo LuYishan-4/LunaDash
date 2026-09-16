@@ -19,7 +19,7 @@ ColumnLayout {
         description: shell.tr("Choose the interface language. More language packs can be added later without changing this layout.")
         RowLayout { Layout.fillWidth: true
             Text { text: shell.tr("Interface language"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
-            StyledComboBox { id: language; model: page.languages; textRole:"name"; valueRole:"code"; currentIndex:Math.max(0,page.languages.findIndex(item=>item.code===shell.state.language)); onActivated:shell.command("language",currentValue); Accessible.name:shell.tr("Interface language") }
+            StyledComboBox { id: language; translationContext: page.shell; model: page.languages; textRole:"name"; valueRole:"code"; currentIndex:Math.max(0,page.languages.findIndex(item=>item.code===shell.state.language)); onActivated:shell.command("language",currentValue); Accessible.name:shell.tr("Interface language") }
         }
     }
     SettingsComponents.SettingsCard {
@@ -27,7 +27,7 @@ ColumnLayout {
         description: shell.tr("Adjust the shell typeface and clock format.")
         RowLayout { Layout.fillWidth:true
             Text { text:shell.tr("Shell font"); color:Theme.text; font.family:Theme.font; Layout.fillWidth:true }
-            StyledComboBox { model:["sans-serif","serif","monospace"]; currentIndex:model.indexOf(page.appearance.fontFamily||"sans-serif"); onActivated:shell.setAppearance({fontFamily:currentText}) }
+            StyledComboBox { translationContext: page.shell; model:["sans-serif","serif","monospace"]; currentIndex:model.indexOf(page.appearance.fontFamily||"sans-serif"); onActivated:shell.setAppearance({fontFamily:currentText}) }
         }
         ShellButton { text:shell.tr("24-hour clock"); active:page.appearance.clock24Hour??true; onClicked:shell.setAppearance({clock24Hour:!(page.appearance.clock24Hour??true)}) }
     }

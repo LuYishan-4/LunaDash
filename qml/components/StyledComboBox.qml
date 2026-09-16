@@ -4,6 +4,12 @@ import "../style"
 
 ComboBox {
     id: control
+    // Translate presentation only. Models and saved values stay stable when the
+    // shell publishes a new status snapshot or the interface language changes.
+    property var translationContext: null
+    function translated(text) {
+        return translationContext ? translationContext.tr(String(text)) : String(text)
+    }
     implicitWidth: Math.max(150, contentItem.implicitWidth + 54)
     implicitHeight: 40
     leftPadding: 14
@@ -14,7 +20,7 @@ ComboBox {
     contentItem: Text {
         leftPadding: control.leftPadding
         rightPadding: control.rightPadding
-        text: control.displayText
+        text: control.translated(control.displayText)
         color: Theme.text
         font: control.font
         verticalAlignment: Text.AlignVCenter
@@ -48,16 +54,17 @@ ComboBox {
     }
 
     delegate: ItemDelegate {
-        required property var modelData
+        id: option
         required property int index
         width: control.popup.width - 12
         height: 38
         leftPadding: 12
         highlighted: control.highlightedIndex === index
+        text: control.translated(control.textAt(index))
+        Accessible.name: text
         contentItem: Text {
-            text: control.textRole.length > 0 && modelData && modelData[control.textRole] !== undefined
-                ? modelData[control.textRole] : String(modelData)
-            color: parent.highlighted ? Theme.accent : Theme.text
+            text: option.text
+            color: option.highlighted ? Theme.accent : Theme.text
             font.family: Theme.font
             font.pixelSize: 12
             verticalAlignment: Text.AlignVCenter
@@ -65,7 +72,7 @@ ComboBox {
         }
         background: Rectangle {
             radius: 9
-            color: parent.highlighted ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14) : "transparent"
+            color: option.highlighted ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14) : "transparent"
         }
     }
 
@@ -87,10 +94,7 @@ ComboBox {
             clip: true
             implicitHeight: contentHeight
             model: control.delegateModel
-            // Do not bind ListView.currentIndex to ComboBox.highlightedIndex. A
-            // rapidly moving pointer/wheel changes highlightedIndex and ListView
-            // then auto-scrolls the highlighted delegate back into view, which
-            // feels like the menu snapping to an older position.
+            // Keep pointer highlighting independent from scroll positioning.
             currentIndex: -1
             boundsBehavior: Flickable.StopAtBounds
             flickDeceleration: 7000

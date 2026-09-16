@@ -16,3 +16,4 @@ if(LUDASH_USE_LIBINPUT)
 endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashExtras.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashTranslations.cmake)

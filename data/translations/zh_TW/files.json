@@ -1,0 +1,11 @@
+{
+    "Unknown file operation.": "未知的檔案操作。",
+    "Select between 1 and 256 items.": "請選取 1 至 256 個項目。",
+    "Destination folder does not exist.": "目的地資料夾不存在。",
+    "Source no longer exists: %1": "來源已不存在：%1",
+    "An item already exists; nothing will be overwritten: %1": "已有同名項目，不會覆寫任何內容：%1",
+    "Copy supports regular files. Folder and symbolic-link copying is not implemented.": "目前僅支援複製一般檔案，尚未實作資料夾與符號連結的複製功能。",
+    "Operation stopped at: %1. Earlier items may have completed. Cross-filesystem moves may require copy and trash.": "操作在 %1 停止。先前的項目可能已完成；跨檔案系統移動可能需要先複製，再將來源移至垃圾桶。",
+    "Rollback completed. Start a new session to use it.": "版本回復完成。請重新登入工作階段以使用還原的版本。",
+    "The update could not be completed. Open details to view the log.": "無法完成更新，請開啟詳細資訊查看記錄。"
+}
