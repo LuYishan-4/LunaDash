@@ -5,12 +5,14 @@
 
 #ifdef LUDASH_USE_LIBINPUT
 #include <QSocketNotifier>
+#include <algorithm>
+#include <fcntl.h>
 #include <libinput.h>
 #include <libudev.h>
-#include <xkbcommon/xkbcommon.h>
-#include <fcntl.h>
 #include <memory>
 #include <unistd.h>
+#include <vector>
+#include <xkbcommon/xkbcommon.h>
 #endif
 
 namespace LuDash {
@@ -27,6 +29,9 @@ public:
   explicit NativeKeyboardState(QObject *parent = nullptr) : QObject(parent) {}
   ~NativeKeyboardState() override {
     notifier_.reset();
+    for (auto *device : keyboards_)
+      libinput_device_unref(device);
+    keyboards_.clear();
     if (input_)
       libinput_unref(input_);
     if (udev_)
@@ -52,9 +57,10 @@ public:
       xkb_keymap_unref(keymap_);
       keymap_ = nullptr;
     }
-    const QByteArray layoutName = layout.isEmpty() ? QByteArray("us") : layout.toUtf8();
-    const xkb_rule_names names = {"evdev", "pc105", layoutName.constData(), nullptr,
-                                  nullptr};
+    const QByteArray layoutName =
+        layout.isEmpty() ? QByteArray("us") : layout.toUtf8();
+    const xkb_rule_names names = {"evdev", "pc105", layoutName.constData(),
+                                  nullptr, nullptr};
     keymap_ = xkb_keymap_new_from_names(context_, &names,
                                         XKB_KEYMAP_COMPILE_NO_FLAGS);
     if (keymap_)
@@ -92,9 +98,12 @@ private:
       const auto type = libinput_event_get_type(event);
       if (type == LIBINPUT_EVENT_DEVICE_ADDED) {
         auto *device = libinput_event_get_device(event);
-        if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_KEYBOARD)) {
+        if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_KEYBOARD) &&
+            std::find(keyboards_.begin(), keyboards_.end(), device) ==
+                keyboards_.end()) {
           libinput_device_ref(device);
           keyboards_.push_back(device);
+          syncLeds();
         }
       } else if (type == LIBINPUT_EVENT_DEVICE_REMOVED) {
         auto *device = libinput_event_get_device(event);
@@ -106,11 +115,12 @@ private:
       } else if (type == LIBINPUT_EVENT_KEYBOARD_KEY && state_) {
         auto *keyboard = libinput_event_get_keyboard_event(event);
         const uint32_t key = libinput_event_keyboard_get_key(keyboard) + 8;
-        const auto keyState = libinput_event_keyboard_get_key_state(keyboard);
-        xkb_state_update_key(state_, key,
-                             keyState == LIBINPUT_KEY_STATE_PRESSED
-                                 ? XKB_KEY_DOWN
-                                 : XKB_KEY_UP);
+        xkb_state_update_key(
+            state_, key,
+            libinput_event_keyboard_get_key_state(keyboard) ==
+                    LIBINPUT_KEY_STATE_PRESSED
+                ? XKB_KEY_DOWN
+                : XKB_KEY_UP);
         syncLeds();
       }
       libinput_event_destroy(event);
@@ -162,10 +172,9 @@ void applyKeyboardPreferences(QWaylandSeat *seat,
   seat->keyboard()->setRepeatDelay(
       static_cast<quint32>(preferences.value("keyRepeatDelay").toInt()));
 #ifdef LUDASH_USE_LIBINPUT
-  // Qt continues forwarding key events to Wayland clients, while this native
-  // state tracker owns the physical lock state and LEDs. Keeping protocol
-  // forwarding in one place avoids duplicate key events from two libinput
-  // consumers and leaves pointer/touch handling with the active QPA backend.
+  // Native builds track the physical xkb lock state and write it back to every
+  // libinput keyboard LED. Qt remains the wl_keyboard event source so a device
+  // is never forwarded twice. Nested builds compile this entire backend out.
   nativeKeyboardState().configure(layout);
 #endif
 }
