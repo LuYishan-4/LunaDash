@@ -48,9 +48,6 @@ ComboBox {
     }
 
     delegate: ItemDelegate {
-        // Qt 6 no longer exposes the delegate's index as an implicit context
-        // property. Without the required declaration every opened popup logs
-        // "ReferenceError: index is not defined" once per item.
         required property var modelData
         required property int index
         width: control.popup.width - 12
@@ -73,16 +70,34 @@ ComboBox {
     }
 
     popup: Popup {
+        id: menuPopup
         y: control.height + 6
         width: Math.max(control.width, 180)
-        implicitHeight: Math.min(contentItem.implicitHeight + 12, 320)
+        implicitHeight: Math.min(menuList.contentHeight + 12, 320)
         padding: 6
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        onOpened: Qt.callLater(function() {
+            if (control.currentIndex >= 0)
+                menuList.positionViewAtIndex(control.currentIndex, ListView.Contain)
+        })
+
         contentItem: ListView {
+            id: menuList
             clip: true
             implicitHeight: contentHeight
-            model: control.popup.visible ? control.delegateModel : null
-            currentIndex: control.highlightedIndex
-            ScrollIndicator.vertical: ScrollIndicator {}
+            model: control.delegateModel
+            // Do not bind ListView.currentIndex to ComboBox.highlightedIndex. A
+            // rapidly moving pointer/wheel changes highlightedIndex and ListView
+            // then auto-scrolls the highlighted delegate back into view, which
+            // feels like the menu snapping to an older position.
+            currentIndex: -1
+            boundsBehavior: Flickable.StopAtBounds
+            flickDeceleration: 7000
+            maximumFlickVelocity: 4200
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+            }
         }
         background: Rectangle {
             radius: 14
