@@ -20,6 +20,7 @@ jobs:
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
                     cmake g++ git ninja-build pkg-config \
                     libgl-dev libwayland-dev wayland-protocols \
+                    libinput-dev libxkbcommon-dev libudev-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland-dev \
                     libqt6opengl6-dev
             - name: Build
