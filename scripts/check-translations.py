@@ -20,8 +20,13 @@ def literals(source, model_fields=()):
     tokens = [m.group() for m in TOKEN.finditer(source)
               if not m.group().startswith(('//', '/*'))]
     found = set()
+    owners = []
     fields = {'title', 'description', 'label', 'message', 'placeholderText', *model_fields}
     for i, token in enumerate(tokens[:-1]):
+        if token == '{':
+            owners.append(tokens[i - 1] if i else '')
+        elif token == '}' and owners:
+            owners.pop()
         if token == 'translate' and tokens[max(0, i - 3):i] == ['QCoreApplication', ':', ':']:
             continue  # Qt's first argument is a context, not a source string.
         if token in ('tr', 'translate', 'finishWithError') and tokens[i + 1] == '(':
@@ -43,6 +48,8 @@ def literals(source, model_fields=()):
                     found.add(value)
                 j += 1
         if token in fields:
+            if token == 'name' and owners and owners[-1] == 'LineIcon':
+                continue  # Icon identifiers are assets, not translated labels.
             if i + 2 < len(tokens) and tokens[i + 1] == ':' and tokens[i + 2].startswith(('"', "'")):
                 found.add(ast.literal_eval(tokens[i + 2]))
     return {text for text in found if re.search(r'[A-Za-z]', text)}

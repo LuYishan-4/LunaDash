@@ -27,6 +27,10 @@ class TranslationChecks(unittest.TestCase):
         self.assertEqual(checker.literals('HelpText { message: "Help" }'), {'Help'})
         self.assertEqual(checker.literals('{name:"Action", keywords:"key binding"}', ('name', 'keywords')), {'Action', 'key binding'})
 
+    def test_icon_names_are_not_ui_labels(self):
+        source = 'LineIcon { name: "search" } property var entries: [{name:"Search"}]'
+        self.assertEqual(checker.literals(source, ('name',)), {'Search'})
+
     def validate(self, content):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'catalog.json'
