@@ -57,6 +57,13 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("XDG_SESSION_TYPE", "wayland");
   environment.insert("XDG_CURRENT_DESKTOP", "LunaDash");
   environment.insert("XDG_SESSION_DESKTOP", "LunaDash");
+  // Native Wayland is the primary client path. XWayland remains available for
+  // applications that explicitly need it, but Chromium/Electron applications
+  // should not be sent through the software-only XWayland backend by default.
+  // WaylandCompositor::control("launch-command") reads the first variable and
+  // adds Chromium's explicit Ozone flags; Electron understands the second one.
+  environment.insert("LUNADASH_CHROMIUM_WAYLAND", "1");
+  environment.insert("ELECTRON_OZONE_PLATFORM_HINT", "wayland");
   environment.insert("XMODIFIERS", "@im=fcitx");
   environment.insert("QT_IM_MODULE", "fcitx");
   environment.insert("QT_IM_MODULES", "wayland;fcitx;ibus");
@@ -118,6 +125,8 @@ bool publishActivationEnvironment(const QProcessEnvironment &environment,
                                     QStringLiteral("QT_QPA_PLATFORM"),
                                     QStringLiteral("GDK_BACKEND"),
                                     QStringLiteral("SDL_VIDEODRIVER"),
+                                    QStringLiteral("LUNADASH_CHROMIUM_WAYLAND"),
+                                    QStringLiteral("ELECTRON_OZONE_PLATFORM_HINT"),
                                     QStringLiteral("XMODIFIERS"),
                                     QStringLiteral("QT_IM_MODULE"),
                                     QStringLiteral("QT_IM_MODULES"),
