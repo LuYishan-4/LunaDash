@@ -35,6 +35,7 @@ QIcon fileIcon(FileIcon icon, const QColor& color) {
     case FileIcon::Trash: line(4, 6, 20, 6); line(9, 3, 15, 3); line(6, 6, 7, 21); line(7, 21, 17, 21); line(17, 21, 18, 6); line(10, 10, 10, 17); line(14, 10, 14, 17); break;
     case FileIcon::Search: painter.drawEllipse(QRectF(3, 3, 12, 12)); line(14, 14, 21, 21); break;
     case FileIcon::Eye: { QPainterPath path; path.moveTo(2, 12); path.quadTo(12, 1, 22, 12); path.quadTo(12, 23, 2, 12); painter.drawPath(path); painter.drawEllipse(QPointF(12, 12), 3, 3); break; }
+    case FileIcon::Terminal: box(3, 4, 18, 16); line(7, 9, 10, 12); line(10, 12, 7, 15); line(12, 15, 17, 15); break;
     }
     painter.end(); QPixmapCache::insert(key, pixmap); return QIcon(pixmap);
 }

@@ -18,15 +18,13 @@ ColumnLayout {
     readonly property var stored: (shell.state.defaultApps || {})[role] || []
     readonly property string storedKey: JSON.stringify(stored)
 
-    // Build the model from the same DesktopEntries index the launcher searches,
-    // so every installed application is selectable. The desktop-entry scan is
-    // asynchronous, so the timer below rebuilds only when the entry count
-    // changes; rebuilding on every poll would reset an open selector.
+    // Store source labels, not their translations. The selector translates only
+    // its presentation, so changing language never rebuilds an open model.
     function buildChoices() {
         const applications = DesktopEntries.applications.values
         const defaultLabel = editor.role === "terminal"
-            ? editor.shell.tr("Konsole (default)")
-            : editor.shell.tr("LunaDash default")
+            ? "Konsole (default)"
+            : "LunaDash default"
         const entries = []
         const seen = {}
         for (const entry of applications) {
@@ -75,6 +73,7 @@ ColumnLayout {
         StyledComboBox {
             id: selector
             Layout.fillWidth: true
+            translationContext: editor.shell
             model: editor.choices
             textRole: "label"
             enabled: !editor.saving
@@ -104,9 +103,7 @@ ColumnLayout {
         }
     }
 
-    Component.onCompleted: {
-        editor.buildChoices()
-    }
+    Component.onCompleted: editor.buildChoices()
     Timer {
         interval: 500
         repeat: true

@@ -27,8 +27,7 @@ ModuleSurface {
             Item { Layout.fillWidth: true }
         }
         Text { text: shell.tr(["Make yourself at home", "Connect your desktop", "Make it yours", "Ready when you are"][wizard.step]); color: moduleForeground; font.pixelSize: 27; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-        // The step content scrolls on its own so the Back / Continue row is
-        // always visible, even on the taller appearance step.
+        // Keep navigation visible while the step content scrolls independently.
         Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -47,6 +46,7 @@ ModuleSurface {
                         Layout.fillWidth: true
                         Text { text: shell.tr("Interface language"); color: moduleForeground; Layout.fillWidth: true }
                         StyledComboBox {
+                            translationContext: wizard.shell
                             model: [{code:"en_US", name:"English"}, {code:"zh_TW", name:"Traditional Chinese"}]
                             textRole: "name"
                             valueRole: "code"
@@ -61,7 +61,7 @@ ModuleSurface {
                     Text { text: shell.tr((shell.state.network || {}).label || "Checking network"); color: moduleAccent; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     Text { text: shell.tr("Existing system connections are reused automatically. You can continue offline and change your network later."); color: moduleForeground; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     ShellButton { text: shell.tr("Configure network"); onClicked: shell.configureNetwork() }
-                    Text { text: shell.tr("Connection settings open in NetworkManager's editor. Passwords stay in that editor. Close it to return here."); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    Text { text: shell.tr("Connection settings open in NetworkManager's editor. Passwords stay in its editor. Close it to return here."); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                 }
                 ColumnLayout {
                     visible: wizard.step === 2; spacing: 16

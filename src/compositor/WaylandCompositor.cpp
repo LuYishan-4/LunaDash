@@ -3,6 +3,7 @@
 #include <LuDash/blur/BlurItem.h>
 #include <LuDash/compositor/ClientWindow.h>
 #include <LuDash/compositor/WaylandCompositor.h>
+#include <LuDash/compositor_extensions/ProtocolExtensions.h>
 #include <LuDash/configuration/DesktopPreferences.h>
 #include <LuDash/default_applications/DefaultApplications.h>
 #include <LuDash/display_settings/DisplaySettings.h>
@@ -15,6 +16,7 @@
 #include <LuDash/plugins/PluginManager.h>
 #include <LuDash/power_settings/PowerSettings.h>
 #include <LuDash/renderer/WallpaperItem.h>
+#include <LuDash/screen_capture/ScreenCapture.h>
 #include <LuDash/session_actions/SessionActions.h>
 #include <LuDash/session_environment/SessionEnvironment.h>
 #include <LuDash/shell_modules/ShellModules.h>
@@ -29,6 +31,7 @@
 #include <LuDash/window_rules/WindowRules.h>
 #include <LuDash/xwayland/XWaylandSupport.h>
 #include <QCommandLineParser>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
@@ -180,6 +183,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   connect(shell_, &QWaylandXdgShell::toplevelCreated, this,
           &WaylandCompositor::addWindow);
   installInputMethodProtocols(&compositor_);
+  installCoreProtocolExtensions(&compositor_, output_, &window_);
   const QString platform = QGuiApplication::platformName();
   const bool bareMetal = platform == QLatin1String("eglfs") ||
                          platform == QLatin1String("linuxfb") ||
@@ -189,6 +193,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   compositor_.setRetainedSelectionEnabled(true);
   compositor_.create();
   layerShell_ = new LayerShell(&compositor_, output_, &window_);
+  screenCapture_ = new ScreenCapture(&compositor_, output_, &window_);
   controlPath_ =
       QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
       QString::fromUtf8(socket) + "-control";
@@ -238,9 +243,11 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
         QString::number(desktopPreferences().value("cursorSize").toInt()));
     if (xwayland_->start(environment, window_.size()) &&
         !xwayland_->startServer()) {
-      qWarning("XWayland could not start; X11 clients will remain unavailable.");
+      qWarning(
+          "XWayland could not start; X11 clients will remain unavailable.");
     }
   }
+  publishSessionActivationEnvironment();
   const auto inputMethod = QStandardPaths::findExecutable("fcitx5");
   if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
       !inputMethod.isEmpty())
@@ -285,6 +292,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
 
 WaylandCompositor::~WaylandCompositor() {
   shuttingDown_ = true;
+  delete screenCapture_;
+  screenCapture_ = nullptr;
   delete xwayland_;
   xwayland_ = nullptr;
   disconnect(compositor_.defaultSeat(), nullptr, this, nullptr);
@@ -395,28 +404,28 @@ QJsonObject WaylandCompositor::state() const {
   for (const auto &client : clients_)
     if (!client->utility)
       entries.append(QJsonObject{
-        {"contentWidth", client->item->width()},
-        {"contentHeight", client->item->height()},
-        {"contentVisible", client->item->isVisible()},
-        {"contentPaintEnabled", client->item->isPaintEnabled()},
-        {"bufferWidth", client->item->surface()
-                            ? client->item->surface()->bufferSize().width()
-                            : 0},
-        {"id", client->id},
-        {"title", client->toplevel ? client->toplevel->title() : ""},
-        {"appId", client->appId},
-        {"icon", client->iconName},
-        {"desktop", client->desktop},
-        {"workspace", client->workspace},
-        {"visible", client->frame->isVisible()},
-        {"focused", client.get() == focused_},
-        {"x", client->frame->x()},
-        {"y", client->frame->y()},
-        {"width", client->frame->width()},
-        {"height", client->frame->height()},
-        {"minimized", client->minimized},
-        {"maximized", client->maximized},
-        {"mapped", client->mapped}});
+          {"contentWidth", client->item->width()},
+          {"contentHeight", client->item->height()},
+          {"contentVisible", client->item->isVisible()},
+          {"contentPaintEnabled", client->item->isPaintEnabled()},
+          {"bufferWidth", client->item->surface()
+                              ? client->item->surface()->bufferSize().width()
+                              : 0},
+          {"id", client->id},
+          {"title", client->toplevel ? client->toplevel->title() : ""},
+          {"appId", client->appId},
+          {"icon", client->iconName},
+          {"desktop", client->desktop},
+          {"workspace", client->workspace},
+          {"visible", client->frame->isVisible()},
+          {"focused", client.get() == focused_},
+          {"x", client->frame->x()},
+          {"y", client->frame->y()},
+          {"width", client->frame->width()},
+          {"height", client->frame->height()},
+          {"minimized", client->minimized},
+          {"maximized", client->maximized},
+          {"mapped", client->mapped}});
   const auto tilingSnapshot =
       tiling_.snapshot(static_cast<TilingWorkspaceId>(workspace_));
   QJsonArray tilingColumns;
@@ -486,19 +495,30 @@ QJsonObject WaylandCompositor::state() const {
       {"settingsPage", settingsPage_},
       {"pickerSerial", pickerSerial_},
       {"input",
-       QJsonObject{
-           {"layout", compositor_.defaultSeat()->keymap()->layout()},
-           {"repeatRate",
-            static_cast<int>(
-                compositor_.defaultSeat()->keyboard()->repeatRate())},
-           {"repeatDelay",
-            static_cast<int>(
-                compositor_.defaultSeat()->keyboard()->repeatDelay())}}},
+       QJsonObject{{"layout", compositor_.defaultSeat()->keymap()->layout()},
+                   {"repeatRate",
+                    static_cast<int>(
+                        compositor_.defaultSeat()->keyboard()->repeatRate())},
+                   {"repeatDelay",
+                    static_cast<int>(
+                        compositor_.defaultSeat()->keyboard()->repeatDelay())},
+                   {"modifierResends", modifierResends_},
+                   {"keypadKeyForwards", keypadKeyForwards_}}},
       {"blurReady", blurHealth_->ready.load()},
       {"blurFailed", blurHealth_->failed.load()},
       {"blurFrames", static_cast<int>(blurHealth_->frames.load())},
       {"activeAnimations", animations_->activeCount()},
       {"xwayland", xwayland_ ? xwayland_->snapshot() : QJsonObject{}},
+      {"screenCapture",
+       QJsonObject{
+           {"protocol", "zwlr_screencopy_manager_v1"},
+           {"version", 3},
+           {"frames", screenCapture_ ? screenCapture_->capturedFrames() : 0},
+           {"lastCapture", lastCapture_},
+           {"error", captureError_}}},
+      {"activationEnvironment",
+       QJsonObject{{"published", activationEnvironmentPublished_},
+                   {"error", activationEnvironmentError_}}},
       {"appearance", desktopPreferences()},
       {"setupComplete", setupComplete()},
       {"network", networkStatus_->snapshot()},
@@ -523,6 +543,81 @@ QJsonObject WaylandCompositor::state() const {
       {"graphicsFailed", renderState_->failed.load()},
       {"graphicsMajor", renderState_->majorVersion.load()},
       {"graphicsMinor", renderState_->minorVersion.load()}};
+}
+void WaylandCompositor::resendKeyboardModifiers() {
+  // Qt Wayland Compositor repairs its own modifier tracking by sending a
+  // modifiers event whose latched and locked masks are both zero. It does that
+  // whenever a key event's Qt modifiers differ from the state it tracks, so a
+  // repair can clear NumLock and CapsLock for the focused client. The tracked
+  // state itself stays correct, so re-asserting it restores both locks. Keypad
+  // keys never reach that path: they are forwarded from their scan code
+  // instead.
+  auto *seat = compositor_.defaultSeat();
+  auto *keyboard = seat ? seat->keyboard() : nullptr;
+  auto *surface = seat ? seat->keyboardFocus() : nullptr;
+  if (!keyboard || !surface)
+    return;
+  auto *client =
+      QWaylandClient::fromWlClient(&compositor_, surface->waylandClient());
+  if (!client)
+    return;
+  keyboard->sendKeyModifiers(client, compositor_.nextSerial());
+  ++modifierResends_;
+}
+void WaylandCompositor::publishSessionActivationEnvironment() {
+  // Only a real login session asks for this. Nested test runs keep the host
+  // bus untouched.
+  if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1)
+    return;
+  auto environment = clientEnvironment_;
+  if (xwayland_)
+    xwayland_->applyEnvironment(environment);
+  QString error;
+  if (publishActivationEnvironment(environment, &error)) {
+    activationEnvironmentPublished_ = true;
+    qInfo("LunaDash published the display variables to the session D-Bus "
+          "activation environment.");
+    return;
+  }
+  activationEnvironmentError_ =
+      error.isEmpty()
+          ? QStringLiteral("dbus-update-activation-environment failed.")
+          : error;
+  qWarning().noquote()
+      << "LunaDash could not publish the session D-Bus activation environment:"
+      << activationEnvironmentError_;
+}
+void WaylandCompositor::captureScreen() {
+  const auto path = nextCapturePath();
+  if (path.isEmpty() || !saveScreenshot(path)) {
+    captureError_ = "Could not write the screenshot.";
+    qWarning().noquote() << "LunaDash could not save a screenshot.";
+    return;
+  }
+  lastCapture_ = path;
+  captureError_.clear();
+  qInfo().noquote() << "LunaDash screenshot:" << lastCapture_;
+}
+QString WaylandCompositor::nextCapturePath() const {
+  // Screenshots follow the desktop convention: a Screenshots folder below the
+  // user's pictures directory, otherwise the home directory. Every capture gets
+  // its own name so a shortcut can never overwrite an earlier one.
+  auto directory =
+      QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+  if (directory.isEmpty())
+    directory = QDir::homePath();
+  directory += QStringLiteral("/Screenshots");
+  if (directory.isEmpty() || !QDir().mkpath(directory))
+    return {};
+  const auto stamp =
+      QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
+  QString path =
+      directory + QStringLiteral("/lunadash-") + stamp + QStringLiteral(".png");
+  for (int index = 1; QFileInfo::exists(path) && index < 1000; ++index)
+    path = directory + QStringLiteral("/lunadash-") + stamp +
+           QStringLiteral("-") + QString::number(index) +
+           QStringLiteral(".png");
+  return path;
 }
 void WaylandCompositor::saveState(const QString &path) {
   QFile file(path);
@@ -554,6 +649,27 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", error.isEmpty() ? "Expected shortcut JSON." : error}};
   } else if (method == "reset-shortcuts") {
     shortcutSettings_->reset();
+  } else if (method == "capture") {
+    // The screencopy global is announced, but the capture tools tested against
+    // Qt's compositor bind wl_output above the version Qt advertises and are
+    // disconnected before they reach it. The session therefore also offers its
+    // own capture path for the shell and for lunadashctl.
+    if (!value.startsWith(QLatin1Char('/')))
+      return {{"error", "Capture requires an absolute path."}};
+    if (value.size() > 4096)
+      return {{"error", "Capture path is too long."}};
+    if (QFileInfo::exists(value))
+      return {{"error", "Refusing to overwrite " + value}};
+    if (!saveScreenshot(value))
+      return {{"error", "Could not write " + value}};
+    lastCapture_ = value;
+    captureError_.clear();
+    return {{"path", value}};
+  } else if (method == "screenshot") {
+    captureScreen();
+    if (!captureError_.isEmpty())
+      return {{"error", captureError_}};
+    return {{"path", lastCapture_}};
   } else if (method == "check-update") {
     updateChecker_->check();
   } else if (method == "send-key") {
@@ -621,14 +737,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       spawn({"--app", value, "--builtin"});
     else {
       const auto program = command.takeFirst();
-      if (value == "terminal" && QFileInfo(program).fileName() == "kitty" &&
-          xwayland_) {
-        QString launchError;
-        if (!xwayland_->launch(QStringList{program} + command, &launchError))
-          return {{"error", launchError}};
-      } else {
-        spawn(command, program);
-      }
+      spawn(command, program);
     }
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);
@@ -683,9 +792,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!xwayland_ || !xwayland_->launch(QProcess::splitCommand(value), &error))
       return {{"error", error.isEmpty() ? "XWayland is unavailable." : error}};
   } else if (method == "launch-command") {
-    // Desktop-entry activation forwarded by the shell. Chromium uses native
-    // Wayland with explicit Ozone flags; Electron and legacy X11 clients use
-    // the authenticated XWayland instance.
+    // Desktop-entry activation is Wayland-first. Chromium-family applications
+    // need an explicit Ozone selection; all other applications inherit the
+    // compositor's Wayland environment. X11-only applications can still be
+    // launched explicitly through the launch-x11 control method.
     const auto document = QJsonDocument::fromJson(value.toUtf8());
     if (!document.isArray() || document.array().isEmpty())
       return {{"error", "Expected a non-empty command array."}};
@@ -695,22 +805,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         return {{"error", "Command arguments must be short strings."}};
       command << entry.toString();
     }
-    const auto program = QFileInfo(command.first()).fileName().toLower();
-    static const QStringList x11Applications = {
-        "discord", "electron", "spotify", "slack",
-        "code",    "codium",   "steam"};
-    if (isChromiumApplication(program)) {
+    if (isChromiumApplication(command.first()))
       ensureWaylandChromiumFlags(command);
-      const auto executable = command.takeFirst();
-      spawn(command, executable);
-    } else if (x11Applications.contains(program) && xwayland_) {
-      QString error;
-      if (!xwayland_->launch(command, &error))
-        return {{"error", error}};
-    } else {
-      const auto executable = command.takeFirst();
-      spawn(command, executable);
-    }
+    const auto executable = command.takeFirst();
+    spawn(command, executable);
   } else if (method == "finish-setup")
     setSetupComplete(true);
   else if (method == "setup")
@@ -945,9 +1043,10 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   };
   connect(toplevel, &QWaylandXdgToplevel::titleChanged, this, [this, current] {
     current->frame->title = current->toplevel->title();
-    current->iconName = current->utility
-                            ? QString()
-                            : windowIconName(current->appId, current->frame->title);
+    current->iconName =
+        current->utility
+            ? QString()
+            : windowIconName(current->appId, current->frame->title);
     if (!current->mapped) {
       current->maximized =
           initialWindowPolicy(current->appId, current->frame->title).maximized;
@@ -958,9 +1057,10 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   connect(toplevel, &QWaylandXdgToplevel::appIdChanged, this, [this, current] {
     current->appId = current->toplevel->appId();
     current->utility = isUtilityWindow(current->appId);
-    current->iconName = current->utility
-                            ? QString()
-                            : windowIconName(current->appId, current->frame->title);
+    current->iconName =
+        current->utility
+            ? QString()
+            : windowIconName(current->appId, current->frame->title);
     current->desktop = current->appId == "ludash-shell" &&
                        shellProcessIds_.contains(
                            current->item->surface()->client()->processId());
@@ -1119,8 +1219,8 @@ void WaylandCompositor::arrange() {
   const int defaultColumnWidth = workArea.width();
   tiling_.setGap(gap);
   for (const auto &client : clients_) {
-    const bool tiled = client->mapped && !client->desktop && !client->floating &&
-                       !client->utility;
+    const bool tiled = client->mapped && !client->desktop &&
+                       !client->floating && !client->utility;
     if (tiled) {
       tiling_.insert(static_cast<TilingWorkspaceId>(client->workspace),
                      client->id, defaultColumnWidth);
@@ -1274,6 +1374,33 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
   if (watched == &window_ && (event->type() == QEvent::KeyPress ||
                               event->type() == QEvent::KeyRelease)) {
     auto *key = static_cast<QKeyEvent *>(event);
+    // Qt Wayland Compositor sends a repair event with zeroed latched and locked
+    // masks whenever a key event's Qt modifiers differ from the state it
+    // tracks, and its tracking never contains Qt::KeypadModifier. Every keypad
+    // key would therefore clear NumLock and CapsLock for the focused client.
+    // Forwarding a keypad key from its scan code keeps that repair from
+    // running, so the lock state survives both the key itself and the keys that
+    // follow it.
+    if (key->modifiers().testFlag(Qt::KeypadModifier)) {
+      auto *seat = compositor_.defaultSeat();
+      const auto scanCode = static_cast<uint>(key->nativeScanCode());
+      if (seat && seat->keyboardFocus() && scanCode > 0) {
+        if (event->type() == QEvent::KeyPress)
+          seat->sendKeyPressEvent(scanCode);
+        else
+          seat->sendKeyReleaseEvent(scanCode);
+        ++keypadKeyForwards_;
+        return true;
+      }
+    }
+    // Lock keys, Meta and AltGr reach Qt's tracking as a mismatch as well, so
+    // re-assert the state it tracks after those events are delivered.
+    const bool clearsLockedMask =
+        key->key() == Qt::Key_NumLock || key->key() == Qt::Key_CapsLock ||
+        key->key() == Qt::Key_ScrollLock || key->key() == Qt::Key_Meta ||
+        key->key() == Qt::Key_AltGr;
+    if (clearsLockedMask)
+      QTimer::singleShot(0, this, &WaylandCompositor::resendKeyboardModifiers);
     if (event->type() == QEvent::KeyRelease && consumedKeys_.remove(key->key()))
       return true;
     if (shortcutCapture_)
@@ -1394,6 +1521,8 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
       control({{"method", "launch-default"}, {"value", "files"}});
     } else if (action == "launchLauncher") {
       spawn({"--app", "launcher"});
+    } else if (action == "screenshot") {
+      captureScreen();
     }
     consumedKeys_.insert(key->key());
     return true;

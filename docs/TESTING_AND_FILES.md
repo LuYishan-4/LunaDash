@@ -54,6 +54,8 @@ xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_shell_interact
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_setup.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_settings.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_effects.py build
+xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_keyboard_locks.py build
+xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_screen_capture.py build
 xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/wayland/test_customization.py build
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
 xvfb-run -a python3 tests/wayland/test_crash_detection.py build
@@ -67,7 +69,7 @@ Each session uses its own runtime/configuration directory. The normal demo runs 
 
 The interaction test clicks the live panel: the second workspace button, the launcher and the settings selector. Everything else (launching Files, minimize, restore, language, wallpaper) is driven over the control socket, and the targets are derived from `qml/panel/TopPanel.qml` for a 1440x900 screen with the default 40 px panel. The setup test walks through the offline guide, changes its accent, completes it, rejects invalid mixed preference updates and restarts the compositor to verify persistence. It never changes the host network. The negative crash test deliberately signals one owned test client and requires compositor exit code 2.
 
-The settings test opens all sixteen pages and exercises every option each page can change: the twenty desktop preferences, all thirty-eight shortcuts, language, workspaces, audio, power profiles, session actions, the system tool catalogue, default applications, wallpapers, shell modules, display presets and the preference reset. Each option is applied with an accepted value and several rejected ones, and a rejection must leave the stored value untouched. Before starting the compositor it also checks that the page list matches `qml/settings/pages` and that every control method the QML calls is implemented by the compositor. Audio, power and system-tool requests are validated but never executed against the host, and session actions are only tested with invalid values so a test run can never reboot the machine. The customization test needs Konsole and Pillow for its screenshot comparisons.
+The settings test opens all sixteen pages and exercises every option each page can change: the twenty desktop preferences, all thirty-nine shortcuts, language, workspaces, audio, power profiles, session actions, the system tool catalogue, default applications, wallpapers, shell modules, display presets and the preference reset. Each option is applied with an accepted value and several rejected ones, and a rejection must leave the stored value untouched. Before starting the compositor it also checks that the page list matches `qml/settings/pages` and that every control method the QML calls is implemented by the compositor. Audio, power and system-tool requests are validated but never executed against the host, and session actions are only tested with invalid values so a test run can never reboot the machine. The customization test needs Konsole and Pillow for its screenshot comparisons.
 
 `LUNADASH_DISABLE_FCITX=1` prevents the nested compositor from replacing or starting Fcitx while UI behavior is under test; omit it only for a deliberate IME/tray integration check. `LUDASH_TEST_NO_SHELL=1` tests native clients without Quickshell. `LUDASH_BUILD_DIR=/absolute/build-directory` selects another build. Demo/overview tests bypass first-run setup; `LUDASH_TEST_SETUP=1` explicitly enables it.
 
@@ -258,6 +260,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/blur/BlurNode.h](../include/LuDash/blur/BlurNode.h) | Declare interfaces/types to bridge Qt scene graph state and the C blur renderer. |
 | [include/LuDash/compositor/ClientWindow.h](../include/LuDash/compositor/ClientWindow.h) | Declare interfaces/types to track compositor-owned client state, geometry and resolved icon name. |
 | [include/LuDash/compositor/WaylandCompositor.h](../include/LuDash/compositor/WaylandCompositor.h) | Declare interfaces/types to own Wayland clients, workspaces, process lifetimes and control commands. |
+| [include/LuDash/compositor_extensions/ProtocolExtensions.h](../include/LuDash/compositor_extensions/ProtocolExtensions.h) | Declare the entry point that announces the xdg-output and idle-inhibit globals for the single output. |
 | [include/LuDash/configuration/DesktopPreferences.h](../include/LuDash/configuration/DesktopPreferences.h) | Declare interfaces/types to validate and persist appearance and first-run completion. |
 | [include/LuDash/console/Console.h](../include/LuDash/console/Console.h) | Declare interfaces/types to run bounded shell commands with process-group cleanup. |
 | [include/LuDash/default_applications/DefaultApplications.h](../include/LuDash/default_applications/DefaultApplications.h) | Declare interfaces to validate default app argument arrays and resolve the Konsole and Files defaults. |
@@ -288,6 +291,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [include/LuDash/renderer/RenderBackend.h](../include/LuDash/renderer/RenderBackend.h) | Declare interfaces/types to select and configure the graphics API and shared render health. |
 | [include/LuDash/renderer/WallpaperItem.h](../include/LuDash/renderer/WallpaperItem.h) | Declare interfaces/types to expose the compositor framebuffer wallpaper item. |
 | [include/LuDash/renderer/WallpaperRenderer.h](../include/LuDash/renderer/WallpaperRenderer.h) | Declare interfaces/types to compile GLSL and draw with the current render-thread context. |
+| [include/LuDash/screen_capture/ScreenCapture.h](../include/LuDash/screen_capture/ScreenCapture.h) | Declare the screencopy manager global, its output validation and the window region grab. |
+| [include/LuDash/screen_capture/ScreenCaptureFrame.h](../include/LuDash/screen_capture/ScreenCaptureFrame.h) | Declare one screencopy frame resource and the client buffer copy it serves. |
 | [include/LuDash/shell_modules/ModuleSchema.h](../include/LuDash/shell_modules/ModuleSchema.h) | Declare interfaces to validate and normalize versioned shell module metadata. |
 | [include/LuDash/session_actions/SessionActions.h](../include/LuDash/session_actions/SessionActions.h) | Declare interfaces to query logind availability and request session power actions over D-Bus. |
 | [include/LuDash/session_environment/SessionEnvironment.h](../include/LuDash/session_environment/SessionEnvironment.h) | Declare interfaces to prepare and apply the isolated LunaDash client environment. |
@@ -317,6 +322,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/blur/BlurItem.cpp](../src/blur/BlurItem.cpp) | Implement behavior to synchronize application blur properties into the scene graph. |
 | [src/blur/BlurNode.cpp](../src/blur/BlurNode.cpp) | Implement behavior to bridge Qt scene graph state and the C blur renderer. |
 | [src/compositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
+| [src/compositor_extensions/ProtocolExtensions.cpp](../src/compositor_extensions/ProtocolExtensions.cpp) | Announce xdg-output with an object per output plus idle-inhibit, and keep the logical size current. |
 | [src/configuration/DesktopPreferences.cpp](../src/configuration/DesktopPreferences.cpp) | Implement behavior to validate and persist appearance and first-run completion. |
 | [src/console/Console.cpp](../src/console/Console.cpp) | Implement behavior to run bounded shell commands with process-group cleanup. |
 | [src/default_applications/DefaultApplications.cpp](../src/default_applications/DefaultApplications.cpp) | Implement behavior to validate default app argument arrays and resolve the Konsole and Files defaults. |
@@ -350,6 +356,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/renderer/WallpaperItem.cpp](../src/renderer/WallpaperItem.cpp) | Implement behavior to expose the compositor framebuffer wallpaper item. |
 | [src/renderer/WallpaperRenderer.cpp](../src/renderer/WallpaperRenderer.cpp) | Implement behavior to compile GLSL and draw with the current render-thread context. |
 | [src/session_actions/SessionActions.cpp](../src/session_actions/SessionActions.cpp) | Implement behavior to check logind capabilities and request suspend, reboot or poweroff without shell execution. |
+| [src/screen_capture/ScreenCapture.cpp](../src/screen_capture/ScreenCapture.cpp) | Implement the screencopy manager global, output validation and the logical-coordinate window grab. |
+| [src/screen_capture/ScreenCaptureFrame.cpp](../src/screen_capture/ScreenCaptureFrame.cpp) | Implement frame creation, shm buffer validation, the pixel copy and the ready or failed events. |
 | [src/session_environment/SessionEnvironment.cpp](../src/session_environment/SessionEnvironment.cpp) | Implement the isolated Wayland/session/toolkit environment used by compositor children. |
 | [src/shell_modules/ModuleSchema.cpp](../src/shell_modules/ModuleSchema.cpp) | Implement behavior to validate and normalize versioned shell module metadata. |
 | [src/shell_modules/ShellModules.cpp](../src/shell_modules/ShellModules.cpp) | Implement behavior to persist module configuration, enforce trust and watch custom entrypoints. |
@@ -453,6 +461,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [data/wallpapers/florist.png](../data/wallpapers/florist.png) | Original generated florist wallpaper without baked-in UI. |
 | [packaging/arch/PKGBUILD](../packaging/arch/PKGBUILD) | Arch dependencies and local source build/package instructions. |
 | [protocols/wlr-layer-shell-unstable-v1.xml](../protocols/wlr-layer-shell-unstable-v1.xml) | Upstream layer-shell wire definition; LunaDash implements a negotiated v2 subset. |
+| [protocols/wlr-screencopy-unstable-v1.xml](../protocols/wlr-screencopy-unstable-v1.xml) | Upstream screencopy wire definition; LunaDash serves the wl_shm path and never sends the linux-dmabuf events. |
 
 ### Scripts and tests
 
@@ -475,6 +484,8 @@ Generated build output, dependency caches, source archives and Git internals are
 | [tests/wayland/test_crash_detection.py](../tests/wayland/test_crash_detection.py) | Crash one owned client and require session failure. |
 | [tests/wayland/test_customization.py](../tests/wayland/test_customization.py) | Actual custom QML replacement/fallback, built-in Files recoloring and an interactive Kitty/Fish terminal under Wayland. |
 | [tests/wayland/test_effects.py](../tests/wayland/test_effects.py) | Live blur, opacity and reduced-motion preferences; private-safe window screenshot. |
+| [tests/wayland/test_keyboard_locks.py](../tests/wayland/test_keyboard_locks.py) | A numeric keypad key keeps CapsLock for the focused Wayland client, with the keypad forwarding counter. |
+| [tests/wayland/test_screen_capture.py](../tests/wayland/test_screen_capture.py) | Announced capture globals, the Alt+Shift+F5 shortcut capture, the explicit capture path and its overwrite refusal. |
 | [tests/wayland/test_session_launcher.py](../tests/wayland/test_session_launcher.py) | Verify login preflight, environment isolation, argument handling and private logs without starting a real desktop. |
 | [tests/wayland/test_settings.py](../tests/wayland/test_settings.py) | Open every settings page and exercise every option each page can change, accepting valid values and rejecting the rest without touching host services. |
 | [tests/wayland/test_setup.py](../tests/wayland/test_setup.py) | Walk through offline setup and check preferences across a restart. |
@@ -538,6 +549,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [docs/MODULES.md](../docs/MODULES.md) | Shell module schema, QML contract, templates, trust and recovery. |
 | [docs/PLUGINS.md](../docs/PLUGINS.md) | Plugin metadata, SDK, loading and native trust boundary. |
 | [docs/SHELL_RENDERING.md](../docs/SHELL_RENDERING.md) | NVIDIA compatibility policy, renderer overrides, descriptor-exhaustion diagnosis and soak-test limits. |
+| [docs/SCREEN_CAPTURE.md](../docs/SCREEN_CAPTURE.md) | Screencopy, xdg-output and idle-inhibit coverage, the session capture action and the wl_output version limit. |
 | [docs/SECURITY_CHECKS.md](../docs/SECURITY_CHECKS.md) | PR gates, local analysis commands and branch protection instructions. |
 | [docs/SETTINGS.md](../docs/SETTINGS.md) | Settings coverage, direct controls, system/host integrations, saved keys and limitations. |
 | [docs/TESTING.md](../docs/TESTING.md) | Short entry point to the full testing guide. |

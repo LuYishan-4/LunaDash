@@ -58,12 +58,12 @@ Rectangle {
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) begin()
             return
         }
-        if (event.key === Qt.Key_Escape && !(event.modifiers & Qt.MetaModifier)) {
+        if (event.key === Qt.Key_Escape && !(event.modifiers & (Qt.MetaModifier | Qt.AltModifier))) {
             finish()
             event.accepted = true
             return
         }
-        if (event.key === Qt.Key_Backspace && !(event.modifiers & Qt.MetaModifier)) {
+        if (event.key === Qt.Key_Backspace && !(event.modifiers & (Qt.MetaModifier | Qt.AltModifier))) {
             finish("Disabled")
             event.accepted = true
             return
@@ -72,12 +72,13 @@ Rectangle {
             event.key === Qt.Key_Control || event.key === Qt.Key_Alt)
             return
         const key = keyName(event.key, event.text)
-        if (!key.length || !(event.modifiers & Qt.MetaModifier)) {
+        if (!key.length || !(event.modifiers & (Qt.MetaModifier | Qt.AltModifier))) {
             shake.restart()
             event.accepted = true
             return
         }
-        let parts = ["Meta"]
+        let parts = []
+        if (event.modifiers & Qt.MetaModifier) parts.push("Meta")
         if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl")
         if (event.modifiers & Qt.AltModifier) parts.push("Alt")
         if (event.modifiers & Qt.ShiftModifier) parts.push("Shift")
@@ -91,12 +92,13 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 8
         Text {
-            text: recorder.recording ? "Press shortcut…" : recorder.sequence
+            text: recorder.recording ? recorder.shell.tr("Press shortcut…")
+                : recorder.sequence === "Disabled" ? recorder.shell.tr("Disabled") : recorder.sequence
             color: recorder.recording ? Theme.accent : recorder.sequence === "Disabled" ? Theme.muted : Theme.text
-            font.family: recorder.sequence === "Disabled" ? Theme.font : "monospace"
+            font.family: Theme.font
             font.pixelSize: 12
         }
-        Text { visible: !recorder.recording; text: "⌨"; color: Theme.muted; font.pixelSize: 13 }
+        Text { visible: !recorder.recording; text: "⌨"; color: Theme.muted; font.family: Theme.font; font.pixelSize: 13 }
     }
 
     MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: recorder.begin() }

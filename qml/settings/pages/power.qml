@@ -8,12 +8,12 @@ ColumnLayout {
     required property var shell
     spacing: 16
     PageTitle { shell: page.shell; title: "Power and battery" }
-    Text { text: (shell.state.system || {}).batteryPercent >= 0 ? shell.tr("Battery") + "  " + shell.state.system.batteryPercent + "%" : shell.tr("No battery reported"); color: Theme.text; font.pixelSize: 18 }
+    Text { text: (shell.state.system || {}).batteryPercent >= 0 ? shell.tr("Battery") + "  " + shell.state.system.batteryPercent + "%" : shell.tr("No battery reported"); color: Theme.text; font.family: Theme.font; font.pixelSize: 18 }
     HelpText { shell: page.shell; message: "Power profile" }
     RowLayout {
         Repeater {
             model: (shell.state.power || {}).profiles || []
-            ShellButton { required property string modelData; text: modelData; active: (shell.state.power || {}).current === modelData; enabled: !(shell.state.power || {}).busy; onClicked: shell.command("power-profile", modelData) }
+            ShellButton { required property string modelData; text: shell.tr(modelData); active: (shell.state.power || {}).current === modelData; enabled: !(shell.state.power || {}).busy; onClicked: shell.command("power-profile", modelData) }
         }
     }
     HelpText { shell: page.shell; visible: !(shell.state.power || {}).available; message: "Power profiles are unavailable. Install power-profiles-daemon and use a supported system service." }

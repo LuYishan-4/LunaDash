@@ -1,8 +1,44 @@
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalSocket>
+#include <QStandardPaths>
+#include <QStringList>
 #include <QTextStream>
+
+namespace {
+// The compositor publishes LUNADASH_CONTROL to everything it starts, but a
+// terminal, editor or shell that was started outside that tree does not inherit
+// it. Fall back to the session's standard control sockets, then to the single
+// control socket in the runtime directory, so lunadashctl works from anywhere
+// in the session.
+QString defaultControlPath() {
+  const auto runtime =
+      QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+  if (runtime.isEmpty())
+    return {};
+  for (const auto &name : {QStringLiteral("lunadash-0-control"),
+                           QStringLiteral("ludash-0-control")}) {
+    const auto candidate = runtime + '/' + name;
+    if (QFileInfo::exists(candidate))
+      return candidate;
+  }
+  // A nested session or a custom --socket exposes one differently named control
+  // socket. Several of them are ambiguous, so an explicit variable is required.
+  QString found;
+  const auto entries = QDir(runtime).entryInfoList(
+      {QStringLiteral("*-control")},
+      QDir::AllEntries | QDir::System | QDir::NoDotAndDotDot);
+  for (const auto &entry : entries) {
+    if (!found.isEmpty())
+      return {};
+    found = entry.absoluteFilePath();
+  }
+  return found;
+}
+} // namespace
 
 int main(int argc, char **argv) {
   QCoreApplication application(argc, argv);
@@ -12,6 +48,7 @@ int main(int argc, char **argv) {
         << "Usage: lunadashctl "
            "status|workspace|focus|group-window|expel-window|minimize|close|"
            "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
+           "capture|screenshot|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
            "appearance|setup|finish-setup|configure-network|launch-x11|"
            "open-settings|system-tool|audio|network|power-profile|desktop-size|"
@@ -25,8 +62,12 @@ int main(int argc, char **argv) {
   auto path = qEnvironmentVariable("LUNADASH_CONTROL");
   if (path.isEmpty())
     path = qEnvironmentVariable("LUDASH_CONTROL");
+  if (path.isEmpty())
+    path = defaultControlPath();
   if (path.isEmpty()) {
-    QTextStream(stderr) << "LUNADASH_CONTROL is not set.\n";
+    QTextStream(stderr)
+        << "LUNADASH_CONTROL is not set and no single LunaDash control socket "
+           "was found in the runtime directory.\n";
     return 2;
   }
 

@@ -3,9 +3,11 @@
 #include <LuDash/file_operations/FileOperations.h>
 #include <LuDash/file_icons/FileIcons.h>
 #include <LuDash/file_icons/FileIconDelegate.h>
+#include <LuDash/default_applications/DefaultApplications.h>
 #include <QtWidgets>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFutureWatcher>
+#include <QProcess>
 #include <memory>
 namespace LuDash {
 QWidget* createFileManager() {
@@ -43,7 +45,9 @@ QWidget* createFileManager() {
     auto* browser = new QWidget; auto* browserLayout = new QVBoxLayout(browser); browserLayout->setContentsMargins(0, 0, 0, 0); browserLayout->setSpacing(14);
     auto* actions = new QHBoxLayout; actions->setSpacing(5);
     auto* folderTitle = new QLabel(translate("Home")); folderTitle->setObjectName("fileFolderTitle"); actions->addWidget(folderTitle); actions->addStretch();
-    auto* newFolder = new QPushButton(fileIcon(FileIcon::Plus), translate("New folder")); newFolder->setObjectName("fileNewFolder"); newFolder->setIconSize({17, 17}); actions->addWidget(newFolder); actions->addSpacing(8);
+    auto* newFile = new QPushButton(fileIcon(FileIcon::File), translate("New file")); newFile->setObjectName("fileNewFile"); newFile->setIconSize({17, 17}); actions->addWidget(newFile);
+    auto* newFolder = new QPushButton(fileIcon(FileIcon::Plus), translate("New folder")); newFolder->setObjectName("fileNewFolder"); newFolder->setIconSize({17, 17}); actions->addWidget(newFolder);
+    auto* terminal = new QPushButton(fileIcon(FileIcon::Terminal), translate("Open terminal here")); terminal->setObjectName("fileTerminal"); terminal->setIconSize({17, 17}); actions->addWidget(terminal); actions->addSpacing(8);
     auto addButton = [actions, button](FileIcon icon, const char* label, const char* name) { auto* control = button(icon, label, name); actions->addWidget(control); return control; };
     auto* copy = addButton(FileIcon::Copy, "Copy", "fileCopy"); auto* cut = addButton(FileIcon::Cut, "Cut", "fileCut"); auto* paste = addButton(FileIcon::Paste, "Paste", "filePaste"); auto* rename = addButton(FileIcon::Rename, "Rename", "fileRename"); auto* trash = addButton(FileIcon::Trash, "Move to Trash", "fileTrash"); browserLayout->addLayout(actions);
     auto* model = new QFileSystemModel(page); model->setRootPath(QDir::homePath()); model->setReadOnly(true);
@@ -84,10 +88,12 @@ QWidget* createFileManager() {
     QObject::connect(cut, &QPushButton::clicked, page, [=] { state->clipboard = selection(); state->cut = true; status->setText(translate("Selection cut. Choose a folder and Paste.")); });
     QObject::connect(paste, &QPushButton::clicked, page, [=] { run(state->cut ? "move" : "copy", state->clipboard); });
     QObject::connect(trash, &QPushButton::clicked, page, [=] { const auto paths = selection(); if (!paths.isEmpty() && QMessageBox::question(page, translate("Move to Trash"), QString(translate("Move %1 selected items to Trash?")).arg(paths.size())) == QMessageBox::Yes) run("trash", paths); });
+    QObject::connect(newFile, &QPushButton::clicked, page, [=] { bool ok = false; const auto name = QInputDialog::getText(page, translate("New file"), translate("File name"), QLineEdit::Normal, "", &ok); if (!ok) return; if (!validFileName(name)) { status->setText(translate("Could not create file. Check its name and permissions.")); return; } QFile file(QDir(location->text()).filePath(name)); if (!file.open(QIODevice::WriteOnly | QIODevice::NewOnly)) status->setText(translate("Could not create file. Check its name and permissions.")); else { file.close(); status->setText(translate("File created.")); } });
     QObject::connect(newFolder, &QPushButton::clicked, page, [=] { bool ok = false; const auto name = QInputDialog::getText(page, translate("New folder"), translate("Folder name"), QLineEdit::Normal, "", &ok); if (!ok) return; if (!validFileName(name) || !QDir(location->text()).mkdir(name)) status->setText(translate("Could not create folder. Check its name and permissions.")); });
+    QObject::connect(terminal, &QPushButton::clicked, page, [=] { QString error; auto command = defaultApplicationCommand("terminal", &error); if (!error.isEmpty() || command.isEmpty()) { status->setText(error.isEmpty() ? translate("No default terminal is configured.") : error); return; } const auto program = command.takeFirst(); QProcessEnvironment environment = QProcessEnvironment::systemEnvironment(); environment.insert("PWD", location->text()); auto* process = new QProcess(page); process->setProcessEnvironment(environment); process->setWorkingDirectory(location->text()); process->setProgram(program); process->setArguments(command); process->startDetached(); process->deleteLater(); });
     QObject::connect(rename, &QPushButton::clicked, page, [=] { const auto paths = selection(); if (paths.size() != 1) { status->setText(translate("Select one item to rename.")); return; } const QFileInfo info(paths.first()); bool ok = false; const auto name = QInputDialog::getText(page, translate("Rename"), translate("New name"), QLineEdit::Normal, info.fileName(), &ok); if (!ok || name == info.fileName()) return; if (!validFileName(name) || !QDir().rename(paths.first(), info.dir().filePath(name))) status->setText(translate("Could not rename item. Nothing was overwritten.")); });
     auto shortcut = [page](const QKeySequence& sequence, const std::function<void()>& action) { auto* key = new QAction(page); key->setShortcut(sequence); key->setShortcutContext(Qt::WidgetWithChildrenShortcut); page->addAction(key); QObject::connect(key, &QAction::triggered, page, action); };
-    shortcut(QKeySequence("Alt+Left"), [back] { back->click(); }); shortcut(QKeySequence("Alt+Right"), [forward] { forward->click(); }); shortcut(QKeySequence("Alt+Up"), [up] { up->click(); }); shortcut(QKeySequence("Ctrl+L"), [location] { location->setFocus(); location->selectAll(); }); shortcut(QKeySequence("F2"), [rename] { rename->click(); });
+    shortcut(QKeySequence("Alt+Left"), [back] { back->click(); }); shortcut(QKeySequence("Alt+Right"), [forward] { forward->click(); }); shortcut(QKeySequence("Alt+Up"), [up] { up->click(); }); shortcut(QKeySequence("Ctrl+L"), [location] { location->setFocus(); location->selectAll(); }); shortcut(QKeySequence("Ctrl+Shift+N"), [newFolder] { newFolder->click(); }); shortcut(QKeySequence("Ctrl+N"), [newFile] { newFile->click(); }); shortcut(QKeySequence("F2"), [rename] { rename->click(); });
     return page;
 }
 }

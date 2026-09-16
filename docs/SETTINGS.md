@@ -9,7 +9,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | General | Extensible language drop-down, shell font, 12/24-hour clock, first-run guide, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
 | Appearance | Wallpaper image/palettes, in-shell PNG/JPEG/WebP picker, custom `#RRGGBB` accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Accent colors can be entered directly; the visible swatches are only quick presets. The picker is drawn inside the settings surface with a bounded preview; blur applies to application frames, with no KDE blur protocol |
 | Windows and workspaces | 1–9 workspaces, grouped columns, per-column widths, window gaps, default floating mode | Reducing the count moves windows to a remaining workspace |
-| Keyboard shortcuts | Click a binding and press the desired Meta-key combination for launch, focus, grouping, resizing, window actions, and all nine workspace switch/move actions | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
+| Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all nine workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Shell modules | JSON layout, dimensions, positions, colors and built-in recovery | [Module schema and contract](MODULES.md); custom QML modules are not loaded |
 | Display | Current output information and three nested window sizes | Physical modes, scale, rotation and refresh are managed by the host; host monitor settings can be opened when available. Standalone multi-monitor, HDR and night light remain unavailable |
 | Keyboard and pointer | Seven keyboard layouts, repeat rate/delay, cursor size for the next session, input test field | Input-method editor and host mouse/touchpad settings; standalone libinput device configuration remains unavailable |
@@ -59,11 +59,15 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadashctl check-update
 ./build/lunadashctl send-key copy
 ./build/lunadashctl desktop-size 1280x720
+./build/lunadashctl screenshot
+./build/lunadashctl capture /tmp/lunadash.png
 ```
 
 `send-key` accepts `copy`, `paste`, `cut` or `selectAll` and forwards the shortcut with Control to the focused client. It requires a connected client with keyboard focus and is used by the desktop context menu; it never synthesizes keys without a focused application.
 
-`audio`, `power-profile` and `system-tool` are explicit user actions. Integration tests load every page, exercise every option each page can change and reject invalid service commands; they do not alter the host volume, microphone, network, power profile, users or storage. The settings test applies an accepted value and several rejected values to each of the twenty desktop preferences and each of the thirty-eight shortcuts, and requires a rejected value to leave the stored value unchanged. Session actions are only tested with invalid values, so a test run can never suspend or restart the machine. Unit tests cover command validation and helper limits. The old Notes source, entry points and tests are removed; existing user text files are left untouched. IME testing can use the settings input field or Console.
+`screenshot` performs the same capture as the `Alt+Shift+F5` shortcut and returns the written path; `capture` writes to an absolute path instead and refuses to overwrite an existing file. Both write one PNG of the current desktop and record it in the `screenCapture.lastCapture` status field. See [Screen capture](SCREEN_CAPTURE.md) for the protocol coverage and its current limits.
+
+`audio`, `power-profile` and `system-tool` are explicit user actions. Integration tests load every page, exercise every option each page can change and reject invalid service commands; they do not alter the host volume, microphone, network, power profile, users or storage. The settings test applies an accepted value and several rejected values to each of the twenty desktop preferences and each of the thirty-nine shortcuts, and requires a rejected value to leave the stored value unchanged. Session actions are only tested with invalid values, so a test run can never suspend or restart the machine. Unit tests cover command validation and helper limits. The old Notes source, entry points and tests are removed; existing user text files are left untouched. IME testing can use the settings input field or Console.
 
 References: [WirePlumber wpctl](https://pipewire.pages.freedesktop.org/wireplumber/man/wpctl.html) and the installed system tools' own help/documentation.
 

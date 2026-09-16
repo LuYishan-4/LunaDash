@@ -15,6 +15,7 @@ Item {
         modules: "M4 4 H10 V10 H4 Z M14 4 H20 V10 H14 Z M4 14 H10 V20 H4 Z M14 14 H20 V20 H14 Z",
         display: "M3 4 H21 V17 H3 Z M12 17 V21 M8 21 H16",
         input: "M3 6 H21 V18 H3 Z M6 10 H7 M10 10 H11 M14 10 H15 M18 10 H18.1 M7 14 H17",
+        "input-method": "M4 5 H20 V19 H4 Z M7 9 H17 M7 13 H13 M16 13 H17 M7 16 H10 M14 16 H17",
         sound: "M3 9 H7 L12 5 V19 L7 15 H3 Z M16 8 Q21 12 16 16 M19 5 Q26 12 19 19",
         network: "M3 8 Q12 1 21 8 M6 12 Q12 7 18 12 M9 16 Q12 13 15 16 M12 20 H12.1",
         bluetooth: "M8 7 L17 16 L12 21 V3 L17 8 L8 17",
@@ -47,11 +48,6 @@ Item {
         return "#" + part(value.r) + part(value.g) + part(value.b)
     }
 
-    // Qt Quick Shapes leaves stale pixels behind on the software shell backend
-    // whenever a shape moves: its render node does not cover the previous
-    // bounds, so an icon that scrolls or changes overlaps its neighbours. The
-    // same path rasterized by QtSvg has well-defined bounds, so icons are drawn
-    // as an image. The shape stays as a fallback for builds without QtSvg.
     readonly property string svgData: "data:image/svg+xml;utf8," + encodeURIComponent(
         "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'>" +
         "<path d='" + root.pathData + "' fill='none' stroke='" + root.hexColor(root.ink) + "' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>")
