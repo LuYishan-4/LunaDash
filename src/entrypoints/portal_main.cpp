@@ -5,6 +5,8 @@
 #include <QByteArray>
 #include <QDBusConnection>
 #include <QDBusObjectPath>
+#include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QStandardPaths>
