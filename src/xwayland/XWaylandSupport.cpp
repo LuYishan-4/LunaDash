@@ -277,6 +277,15 @@ bool XWaylandSupport::launch(const QStringList &command, QString *error) {
     clients_.removeAll(process);
     process->deleteLater();
   });
+  // X11 applications have no other trace when they refuse to start, so report
+  // their exit status the same way a native launch does.
+  connect(process, &QProcess::finished, this,
+          [process](int code, QProcess::ExitStatus status) {
+            if (code != 0 || status != QProcess::NormalExit)
+              qWarning().noquote()
+                  << "LunaDash X11 client exited abnormally:"
+                  << process->program() << "code" << code << "status" << status;
+          });
   process->start(executable, command.mid(1));
   return true;
 }

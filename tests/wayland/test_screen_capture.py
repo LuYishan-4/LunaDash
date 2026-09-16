@@ -23,9 +23,12 @@ INTERFACE = re.compile(r"interface: '([^']+)',\s+version:\s+(\d+)")
 
 with tempfile.TemporaryDirectory(prefix="ludash-capture-test-") as runtime:
     os.chmod(runtime, 0o700)
+    home = Path(runtime) / "home"
+    home.mkdir()
     env = os.environ | {
         "XDG_RUNTIME_DIR": runtime,
         "XDG_CONFIG_HOME": runtime,
+        "HOME": str(home),
         "QT_QPA_PLATFORM": "xcb",
         "QT_XCB_GL_INTEGRATION": "xcb_egl",
         "LIBGL_ALWAYS_SOFTWARE": "1",
@@ -183,6 +186,18 @@ with tempfile.TemporaryDirectory(prefix="ludash-capture-test-") as runtime:
             # The same action is reachable from the control socket.
             named_shot = Path(request("screenshot")["path"])
             assert named_shot.exists() and named_shot != shortcut_shot, named_shot
+            # lunadashctl locates the session socket by itself, so the command
+            # also works from an editor terminal or an SSH login that never
+            # inherited LUNADASH_CONTROL.
+            ctl_env = env | {"WAYLAND_DISPLAY": socket_name}
+            for key in ("LUNADASH_CONTROL", "LUDASH_CONTROL"):
+                ctl_env.pop(key, None)
+            ctl = subprocess.run(
+                [str(build / "lunadashctl"), "screenshot"],
+                env=ctl_env, capture_output=True, text=True, timeout=15,
+            )
+            assert ctl.returncode == 0, ctl.stderr or ctl.stdout
+            assert json.loads(ctl.stdout)["path"], ctl.stdout
 
             exit_code = process.wait(timeout=24)
             # The session must terminate and must not be signalled. Its numeric
