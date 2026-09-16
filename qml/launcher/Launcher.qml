@@ -19,7 +19,10 @@ ModuleSurface {
     implicitHeight: animatedHeight
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    // Never retain keyboard ownership while the launcher is collapsed. Keeping
+    // Exclusive set on a one-pixel hidden surface makes it compete with normal
+    // applications for keyboard focus.
+    WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     WlrLayershell.namespace: "lunadash-launcher"
     color: "transparent"
     contentItem.transformOrigin: Item.Top
@@ -37,6 +40,12 @@ ModuleSurface {
     function rankedEntries(query) { const tokens=query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);return builtins.concat(installedEntries()).map((entry,order)=>({entry:entry,score:rank(entry,tokens),order:order})).filter(candidate=>candidate.score>=0).sort((left,right)=>right.score-left.score||left.order-right.order||left.entry.name.localeCompare(right.entry.name)).map(candidate=>candidate.entry) }
     readonly property var results: rankedEntries(search.text)
     function activate(entry) { if(entry.builtin)shell.launch(entry.id);else shell.command("launch-command",JSON.stringify(entry.desktopEntry.command));shell.launcherOpen=false }
+    function focusSearch() {
+        if (!opened)
+            return
+        search.forceActiveFocus(Qt.PopupFocusReason)
+        search.selectAll()
+    }
 
     Rectangle { anchors.fill: parent; radius: moduleRadius; color: moduleBackground; border.color: Theme.border }
     ColumnLayout {
@@ -45,7 +54,9 @@ ModuleSurface {
             id: search
             Layout.fillWidth: true
             placeholderText: shell.tr("Search applications...")
-            focus: true
+            focus: false
+            activeFocusOnTab: true
+            TapHandler { onTapped: launcher.focusSearch() }
             Keys.onDownPressed: event => { if (applications.count) { applications.currentIndex = Math.min(applications.currentIndex + 1, applications.count - 1); applications.forceActiveFocus(); event.accepted = true } }
             Keys.onUpPressed: event => { if (applications.count) { applications.currentIndex = applications.count - 1; applications.forceActiveFocus(); event.accepted = true } }
             Keys.onReturnPressed: if (applications.count) launcher.activate(launcher.results[applications.currentIndex < 0 ? 0 : applications.currentIndex])
@@ -71,11 +82,29 @@ ModuleSurface {
                 }
                 onClicked: launcher.activate(modelData); Keys.onReturnPressed: launcher.activate(modelData); Keys.onEnterPressed: launcher.activate(modelData); Keys.onEscapePressed: shell.launcherOpen = false
             }
-            Keys.onUpPressed: event => { if (currentIndex <= 0) { search.forceActiveFocus(); event.accepted = true } else { currentIndex--; event.accepted = true } }
+            Keys.onUpPressed: event => { if (currentIndex <= 0) { launcher.focusSearch(); event.accepted = true } else { currentIndex--; event.accepted = true } }
             Keys.onDownPressed: event => { if (count) { currentIndex = (currentIndex + 1) % count; event.accepted = true } }
             Keys.onEscapePressed: shell.launcherOpen = false
+            Keys.onPressed: event => {
+                // Typing while the result list owns focus should immediately
+                // return input to the search field instead of leaking the key
+                // to another client.
+                if (event.text && event.text.length > 0 && !(event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))) {
+                    launcher.focusSearch()
+                    search.insert(search.cursorPosition, event.text)
+                    event.accepted = true
+                }
+            }
         }
         Text { visible: applications.count === 0; Layout.alignment: Qt.AlignHCenter; text: shell.tr("No applications found"); color: Theme.muted; font.family: Theme.font }
     }
-    onOpenedChanged: if (opened) { search.clear(); search.forceActiveFocus() }
+    onOpenedChanged: {
+        if (opened) {
+            search.clear()
+            Qt.callLater(focusSearch)
+        } else {
+            search.focus = false
+            applications.focus = false
+        }
+    }
 }
