@@ -15,11 +15,12 @@ QJsonObject defaults() {
             {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false},
             {"keyboardLayout", "us"}, {"keyRepeatRate", 25}, {"keyRepeatDelay", 600}, {"cursorSize", 24},
             {"fontFamily", "sans-serif"}, {"clock24Hour", true}, {"startupApps", QJsonArray{}},
-            {"overview", false}, {"showHostDetails", false}};
+            {"overview", false}, {"showHostDetails", false}, {"updateChannel", "stable"}};
 }
 bool valid(const QString& key, const QJsonValue& value) {
     if (key == "keyboardLayout") return value.isString() && QStringList{"us", "gb", "de", "fr", "es", "jp", "tw"}.contains(value.toString());
     if (key == "fontFamily") return value.isString() && QStringList{"sans-serif", "serif", "monospace"}.contains(value.toString());
+    if (key == "updateChannel") return value.isString() && QStringList{"stable", "dev"}.contains(value.toString());
     if (key == "startupApps") {
         if (!value.isArray() || value.toArray().size() > 4) return false;
         QSet<QString> seen;
@@ -50,7 +51,6 @@ QJsonObject desktopPreferences() {
     QSettings settings;
     for (auto it = result.begin(); it != result.end(); ++it) {
         auto value = QJsonValue::fromVariant(settings.value("desktop/" + it.key(), it.value().toVariant()));
-        // INI settings can return numeric and boolean values as strings after a restart.
         if (value.isString() && it.value().isBool()) {
             if (value.toString() == "true") value = true;
             else if (value.toString() == "false") value = false;
