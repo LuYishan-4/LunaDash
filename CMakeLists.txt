@@ -14,3 +14,5 @@ if(LUDASH_USE_LIBINPUT)
     target_compile_definitions(ludash-input-settings PRIVATE LUDASH_USE_LIBINPUT=1)
     target_link_libraries(ludash-input-settings PRIVATE PkgConfig::LIBINPUT PkgConfig::LIBUDEV PkgConfig::XKBCOMMON)
 endif()
+
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashExtras.cmake)
