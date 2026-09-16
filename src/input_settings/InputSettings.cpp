@@ -27,8 +27,9 @@ class NativeKeyboardState final : public QObject {
 public:
   explicit NativeKeyboardState(QObject *parent = nullptr) : QObject(parent) {}
   ~NativeKeyboardState() override { stop(); if (state_) xkb_state_unref(state_); if (keymap_) xkb_keymap_unref(keymap_); if (context_) xkb_context_unref(context_); }
-  void stop() { notifier_.reset(); for (auto *device : keyboards_) libinput_device_unref(device); keyboards_.clear(); if (input_) { libinput_unref(input_); input_ = nullptr; } if (udev_) { udev_unref(udev_); udev_ = nullptr; } dispatchScheduled_ = false; ledStateValid_ = false; }
-  void configure(const QString &layout) {
+  void stop() { notifier_.reset(); for (auto *device : keyboards_) libinput_device_unref(device); keyboards_.clear(); if (input_) { libinput_unref(input_); input_ = nullptr; } if (udev_) { udev_unref(udev_); udev_ = nullptr; } seat_ = nullptr; dispatchScheduled_ = false; ledStateValid_ = false; }
+  void configure(QWaylandSeat *seat, const QString &layout) {
+    seat_ = seat;
     if (!context_) context_ = xkb_context_new(XKB_CONTEXT_NO_FLAGS); if (!context_) return;
     if (state_) xkb_state_unref(state_); if (keymap_) xkb_keymap_unref(keymap_); state_ = nullptr; keymap_ = nullptr;
     const QByteArray layoutName = layout.isEmpty() ? QByteArray("us") : layout.toUtf8();
@@ -52,7 +53,18 @@ private:
       libinput_event *event = libinput_get_event(input_); if (!event) break; ++processed; const auto type = libinput_event_get_type(event);
       if (type == LIBINPUT_EVENT_DEVICE_ADDED) { auto *device = libinput_event_get_device(event); if (libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_KEYBOARD) && std::find(keyboards_.begin(), keyboards_.end(), device) == keyboards_.end()) { libinput_device_ref(device); keyboards_.push_back(device); ledsDirty = true; } }
       else if (type == LIBINPUT_EVENT_DEVICE_REMOVED) { auto *device = libinput_event_get_device(event); const auto it = std::find(keyboards_.begin(), keyboards_.end(), device); if (it != keyboards_.end()) { libinput_device_unref(*it); keyboards_.erase(it); } }
-      else if (type == LIBINPUT_EVENT_KEYBOARD_KEY && state_) { auto *keyboard = libinput_event_get_keyboard_event(event); const uint32_t key = libinput_event_keyboard_get_key(keyboard) + 8; xkb_state_update_key(state_, key, libinput_event_keyboard_get_key_state(keyboard) == LIBINPUT_KEY_STATE_PRESSED ? XKB_KEY_DOWN : XKB_KEY_UP); ledsDirty = true; }
+      else if (type == LIBINPUT_EVENT_KEYBOARD_KEY && state_) {
+        auto *keyboardEvent = libinput_event_get_keyboard_event(event);
+        const uint32_t evdevKey = libinput_event_keyboard_get_key(keyboardEvent);
+        const uint32_t xkbKey = evdevKey + 8;
+        const bool pressed = libinput_event_keyboard_get_key_state(keyboardEvent) == LIBINPUT_KEY_STATE_PRESSED;
+        xkb_state_update_key(state_, xkbKey, pressed ? XKB_KEY_DOWN : XKB_KEY_UP);
+        if (seat_ && seat_->keyboard()) {
+          if (pressed) seat_->keyboard()->sendKeyPressEvent(xkbKey);
+          else seat_->keyboard()->sendKeyReleaseEvent(xkbKey);
+        }
+        ledsDirty = true;
+      }
       libinput_event_destroy(event);
     }
     if (ledsDirty) syncLeds(false); if (processed == kMaxEventsPerTurn) scheduleDispatch();
@@ -64,7 +76,7 @@ private:
     if (xkb_state_led_name_is_active(state_, XKB_LED_NAME_SCROLL) > 0) leds = static_cast<libinput_led>(leds | LIBINPUT_LED_SCROLL_LOCK);
     if (!force && ledStateValid_ && leds == lastLeds_) return; lastLeds_ = leds; ledStateValid_ = true; for (auto *device : keyboards_) libinput_device_led_update(device, leds);
   }
-  udev *udev_ = nullptr; libinput *input_ = nullptr; xkb_context *context_ = nullptr; xkb_keymap *keymap_ = nullptr; xkb_state *state_ = nullptr;
+  QWaylandSeat *seat_ = nullptr; udev *udev_ = nullptr; libinput *input_ = nullptr; xkb_context *context_ = nullptr; xkb_keymap *keymap_ = nullptr; xkb_state *state_ = nullptr;
   std::unique_ptr<QSocketNotifier> notifier_; std::vector<libinput_device *> keyboards_; libinput_led lastLeds_ = static_cast<libinput_led>(0); bool ledStateValid_ = false; bool dispatchScheduled_ = false;
 };
 NativeKeyboardState &nativeKeyboardState() { static NativeKeyboardState state; return state; }
@@ -84,7 +96,7 @@ void applyKeyboardPreferences(QWaylandSeat *seat, const QJsonObject &preferences
   const QString layout = preferences.value("keyboardLayout").toString(); keymap->setLayout(layout);
   seat->keyboard()->setRepeatRate(static_cast<quint32>(preferences.value("keyRepeatRate").toInt())); seat->keyboard()->setRepeatDelay(static_cast<quint32>(preferences.value("keyRepeatDelay").toInt()));
 #ifdef LUDASH_USE_LIBINPUT
-  if (nativeKeyboardInputEnabled) nativeKeyboardState().configure(layout);
+  if (nativeKeyboardInputEnabled) nativeKeyboardState().configure(seat, layout);
 #endif
 }
 } // namespace LuDash
