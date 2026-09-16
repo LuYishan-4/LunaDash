@@ -79,16 +79,10 @@ ModuleSurface {
     }
     readonly property var results: rankedEntries(search.text)
     function activate(entry) {
-        if (entry.builtin) {
+        if (entry.builtin)
             shell.launch(entry.id)
-            return
-        }
-        const program = String(entry.desktopEntry.command[0] || "").toLowerCase()
-        const x11Apps = ["discord", "electron", "chrome", "chromium", "google-chrome", "microsoft-edge", "brave", "vivaldi", "opera", "spotify", "slack", "code", "codium", "steam"]
-        if (x11Apps.some(name => program.includes(name)))
-            shell.command("launch-command", JSON.stringify(entry.desktopEntry.command))
         else
-            entry.desktopEntry.execute()
+            shell.command("launch-command", JSON.stringify(entry.desktopEntry.command))
         shell.launcherOpen = false
     }
 
