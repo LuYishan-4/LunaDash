@@ -25,6 +25,7 @@ private:
   QTimer *timeout_ = nullptr;
   QString channel_ = "stable";
   QString status_ = "idle";
+  QString currentCommit_ = "unknown";
   QString latestVersion_;
   QString latestCommit_;
   QString latestMessage_;
