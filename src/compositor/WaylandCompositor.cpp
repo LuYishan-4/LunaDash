@@ -144,13 +144,6 @@ void ensureWaylandChromiumFlags(QStringList &command) {
   if (!command.contains("--enable-features=UseOzonePlatform"))
     command.append("--enable-features=UseOzonePlatform");
 }
-// Chromium picks Wayland for its own Ozone backend when the environment says
-// the session is a Wayland session, which is true here even for a client that
-// talks to XWayland. An explicit platform selection is therefore required.
-void ensureX11ChromiumFlags(QStringList &command) {
-  if (!command.contains("--ozone-platform=x11"))
-    command.append("--ozone-platform=x11");
-}
 } // namespace
 WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell, GraphicsApi graphics) {
@@ -744,14 +737,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       spawn({"--app", value, "--builtin"});
     else {
       const auto program = command.takeFirst();
-      if (value == "terminal" && QFileInfo(program).fileName() == "kitty" &&
-          xwayland_) {
-        QString launchError;
-        if (!xwayland_->launch(QStringList{program} + command, &launchError))
-          return {{"error", launchError}};
-      } else {
-        spawn(command, program);
-      }
+      spawn(command, program);
     }
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);
@@ -806,12 +792,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!xwayland_ || !xwayland_->launch(QProcess::splitCommand(value), &error))
       return {{"error", error.isEmpty() ? "XWayland is unavailable." : error}};
   } else if (method == "launch-command") {
-    // Desktop-entry activation forwarded by the shell. Chromium browsers and
-    // Electron applications use the authenticated XWayland instance by default:
-    // both need a compositor that can hand out GPU buffers over Wayland, and
-    // Chromium reports that its Wayland backend refuses Vulkan on drivers that
-    // cannot bind EGL to Wayland. LUNADASH_CHROMIUM_WAYLAND=1 selects native
-    // Wayland with explicit Ozone flags instead.
+    // Desktop-entry activation is Wayland-first. Chromium-family applications
+    // need an explicit Ozone selection; all other applications inherit the
+    // compositor's Wayland environment. X11-only applications can still be
+    // launched explicitly through the launch-x11 control method.
     const auto document = QJsonDocument::fromJson(value.toUtf8());
     if (!document.isArray() || document.array().isEmpty())
       return {{"error", "Expected a non-empty command array."}};
@@ -821,25 +805,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         return {{"error", "Command arguments must be short strings."}};
       command << entry.toString();
     }
-    const auto program = QFileInfo(command.first()).fileName().toLower();
-    static const QStringList x11Applications = {
-        "discord", "electron", "spotify", "slack", "code", "codium", "steam"};
-    const bool chromium = isChromiumApplication(program);
-    if (chromium &&
-        qEnvironmentVariableIntValue("LUNADASH_CHROMIUM_WAYLAND") == 1) {
+    if (isChromiumApplication(command.first()))
       ensureWaylandChromiumFlags(command);
-      const auto executable = command.takeFirst();
-      spawn(command, executable);
-    } else if ((chromium || x11Applications.contains(program)) && xwayland_) {
-      if (chromium)
-        ensureX11ChromiumFlags(command);
-      QString error;
-      if (!xwayland_->launch(command, &error))
-        return {{"error", error}};
-    } else {
-      const auto executable = command.takeFirst();
-      spawn(command, executable);
-    }
+    const auto executable = command.takeFirst();
+    spawn(command, executable);
   } else if (method == "finish-setup")
     setSetupComplete(true);
   else if (method == "setup")
