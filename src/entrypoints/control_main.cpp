@@ -12,6 +12,7 @@ int main(int argc, char **argv) {
         << "Usage: lunadashctl "
            "status|workspace|focus|group-window|expel-window|minimize|close|"
            "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
+           "capture|screenshot|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
            "appearance|setup|finish-setup|configure-network|launch-x11|"
            "open-settings|system-tool|audio|network|power-profile|desktop-size|"

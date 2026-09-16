@@ -80,6 +80,7 @@ os.execvp(sys.argv[2], sys.argv[2:])
     assert launch["env"]["XDG_CURRENT_DESKTOP"] == "LunaDash"
     assert launch["env"]["XDG_SESSION_DESKTOP"] == "LunaDash"
     assert launch["env"]["XMODIFIERS"] == "@im=fcitx"
+    assert launch["env"]["LUNADASH_PUBLISH_ACTIVATION_ENV"] == "1"
     assert launch["env"]["QT_IM_MODULE"] == "fcitx"
     assert launch["env"]["QT_IM_MODULES"] == "wayland;fcitx;ibus"
     assert launch["env"]["GTK_IM_MODULE"] == "fcitx"

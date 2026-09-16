@@ -30,6 +30,7 @@ QJsonObject defaults() {
   result.insert("launchTerminal", "Meta+Return");
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
+  result.insert("screenshot", "Alt+Shift+F5");
   for (int workspace = 1; workspace <= 9; ++workspace) {
     result.insert(QString("workspace%1").arg(workspace),
                   QString("Meta+%1").arg(workspace));
@@ -47,8 +48,13 @@ QString normalizedSequence(const QString &text) {
   if (sequence.count() != 1)
     return {};
   const auto combination = sequence[0];
-  if (!combination.keyboardModifiers().testFlag(Qt::MetaModifier) ||
-      combination.key() == Qt::Key_unknown ||
+  const auto modifiers = combination.keyboardModifiers();
+  // A global shortcut claims one combination that keeps a text key reachable,
+  // so it must use Meta or Alt. Ctrl alone stays available to applications.
+  if (!modifiers.testFlag(Qt::MetaModifier) &&
+      !modifiers.testFlag(Qt::AltModifier))
+    return {};
+  if (combination.key() == Qt::Key_unknown ||
       combination.key() == Qt::Key_Meta ||
       combination.key() == Qt::Key_Control ||
       combination.key() == Qt::Key_Shift || combination.key() == Qt::Key_Alt)
@@ -90,7 +96,7 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
     const auto sequence = normalizedSequence(it.value().toString());
     if (sequence.isEmpty()) {
       if (error)
-        *error = "Shortcut must be one Meta key combination.";
+        *error = "Shortcut must be one Meta or Alt key combination.";
       return false;
     }
     candidate.insert(it.key(), sequence);

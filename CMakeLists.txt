@@ -145,15 +145,25 @@ add_custom_command(OUTPUT ${LAYER_HEADER} ${LAYER_CODE}
     COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_HEADER}
     COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_CODE}
     DEPENDS protocols/wlr-layer-shell-unstable-v1.xml VERBATIM)
+set(SCREENCOPY_HEADER ${CMAKE_CURRENT_BINARY_DIR}/wlr-screencopy-server.h)
+set(SCREENCOPY_CODE ${CMAKE_CURRENT_BINARY_DIR}/wlr-screencopy-protocol.c)
+add_custom_command(OUTPUT ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE}
+    COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_HEADER}
+    COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_CODE}
+    DEPENDS protocols/wlr-screencopy-unstable-v1.xml VERBATIM)
 add_library(ludash-wayland
     src/compositor/WaylandCompositor.cpp
+    src/compositor_extensions/ProtocolExtensions.cpp
     src/window_frame/WindowFrame.cpp
     src/input_method/InputMethodSupport.cpp
     src/layer_shell/LayerShell.cpp
     src/layer_shell/LayerSurface.cpp
+    src/screen_capture/ScreenCapture.cpp
+    src/screen_capture/ScreenCaptureFrame.cpp
     src/ipc/ControlServer.cpp
     src/system_status/SystemStatus.cpp
     ${LAYER_HEADER} ${LAYER_CODE}
+    ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE}
 )
 target_include_directories(ludash-wayland PUBLIC include PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(ludash-wayland PRIVATE LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml" LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")

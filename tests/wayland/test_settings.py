@@ -131,6 +131,7 @@ SHORTCUT_DEFAULTS = {
     "launchTerminal": "Meta+Return",
     "launchFiles": "Meta+E",
     "launchLauncher": "Meta+D",
+    "screenshot": "Alt+Shift+F5",
 }
 for _workspace in range(1, 10):
     SHORTCUT_DEFAULTS["workspace%d" % _workspace] = "Meta+%d" % _workspace
@@ -326,9 +327,9 @@ with tempfile.TemporaryDirectory(prefix="ludash-settings-") as runtime:
             apply("shortcuts", {"focusLeft": "Meta+U"})
             assert request()["shortcuts"]["focusLeft"] == "Meta+U"
             for bad in (
-                {"focusLeft": "Alt+H"},
-                {"focusLeft": "Meta"},
                 {"focusLeft": "Ctrl+H"},
+                {"focusLeft": "Shift+H"},
+                {"focusLeft": "Meta"},
                 {"focusLeft": "Meta+L"},
                 {"focusLeft": "Meta+U, Meta+Y"},
                 {"focusLeft": 5},

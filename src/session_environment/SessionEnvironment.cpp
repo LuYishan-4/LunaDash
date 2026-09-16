@@ -1,5 +1,6 @@
 #include <LuDash/session_environment/SessionEnvironment.h>
 
+#include <QProcess>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStringList>
@@ -47,7 +48,12 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.remove("XAUTHORITY");
   environment.remove("QT_QPA_EGLFS_INTEGRATION");
   environment.insert("WAYLAND_DISPLAY", socketName);
-  environment.insert("QT_QPA_PLATFORM", "wayland");
+  // Clients must never inherit the compositor's own EGLFS/KMS platform. The
+  // ordered fallback list keeps a generic launch on Wayland while still letting
+  // a toolkit whose client has no Wayland backend fall back to XWayland.
+  environment.insert("QT_QPA_PLATFORM", "wayland;xcb");
+  environment.insert("GDK_BACKEND", "wayland,x11");
+  environment.insert("SDL_VIDEODRIVER", "wayland,x11");
   environment.insert("XDG_SESSION_TYPE", "wayland");
   environment.insert("XDG_CURRENT_DESKTOP", "LunaDash");
   environment.insert("XDG_SESSION_DESKTOP", "LunaDash");
@@ -85,12 +91,79 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
 }
 
 bool publishClientEnvironment(const QProcessEnvironment &environment) {
-  // Keep these variables local to the compositor and its children. Publishing
-  // them to the host D-Bus or systemd user manager breaks other desktops.
+  // Keep these variables local to the compositor and its children. A login
+  // session publishes the display variables explicitly through
+  // publishActivationEnvironment() on its own private bus; the host D-Bus or
+  // systemd user manager of another desktop is never modified.
   for (const auto &name : environment.keys()) {
     const auto value = environment.value(name);
     qputenv(name.toUtf8(), value.toUtf8());
   }
   return true;
+}
+
+bool publishActivationEnvironment(const QProcessEnvironment &environment,
+                                  QString *error) {
+  // Only names a client needs in order to reach the compositor and its input
+  // methods are published. DBUS_SESSION_BUS_ADDRESS and the runtime directory
+  // already belong to the session that started the private bus.
+  static const QStringList names = {QStringLiteral("WAYLAND_DISPLAY"),
+                                    QStringLiteral("DISPLAY"),
+                                    QStringLiteral("XAUTHORITY"),
+                                    QStringLiteral("XDG_SESSION_TYPE"),
+                                    QStringLiteral("XDG_CURRENT_DESKTOP"),
+                                    QStringLiteral("XDG_SESSION_DESKTOP"),
+                                    QStringLiteral("QT_QPA_PLATFORM"),
+                                    QStringLiteral("GDK_BACKEND"),
+                                    QStringLiteral("SDL_VIDEODRIVER"),
+                                    QStringLiteral("XMODIFIERS"),
+                                    QStringLiteral("QT_IM_MODULE"),
+                                    QStringLiteral("QT_IM_MODULES"),
+                                    QStringLiteral("GTK_IM_MODULE"),
+                                    QStringLiteral("SDL_IM_MODULE")};
+  const auto tool = QStandardPaths::findExecutable(
+      QStringLiteral("dbus-update-activation-environment"));
+  if (tool.isEmpty()) {
+    if (error)
+      *error = "dbus-update-activation-environment is not installed.";
+    return false;
+  }
+  QStringList available;
+  for (const auto &name : names)
+    if (environment.contains(name))
+      available.append(name);
+  const auto run = [&](bool systemd, QString *output) {
+    QStringList arguments;
+    if (systemd)
+      arguments.append(QStringLiteral("--systemd"));
+    arguments += available;
+    QProcess process;
+    process.setProcessEnvironment(environment);
+    process.setProcessChannelMode(QProcess::MergedChannels);
+    process.start(tool, arguments);
+    if (!process.waitForStarted(3000) || !process.waitForFinished(3000)) {
+      process.kill();
+      process.waitForFinished(1000);
+      *output = "Timed out while publishing the activation environment.";
+      return false;
+    }
+    if (process.exitStatus() != QProcess::NormalExit ||
+        process.exitCode() != 0) {
+      *output = QString::fromLocal8Bit(process.readAll()).trimmed();
+      return false;
+    }
+    return true;
+  };
+  QString message;
+  if (run(true, &message))
+    return true;
+  // A session without a systemd user manager rejects --systemd after it has
+  // already updated the bus, so retry without it before reporting a failure.
+  QString fallback;
+  if (run(false, &fallback))
+    return true;
+  if (error)
+    *error = fallback.isEmpty() ? message : fallback;
+  return false;
 }
 } // namespace LuDash

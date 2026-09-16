@@ -8,7 +8,7 @@ On Arch:
 sudo pacman -S --needed xorg-xwayland
 ```
 
-Restart LunaDash after installing the optional packages. The compositor registers `wp_viewporter`, prepares a private display and starts XWayland on the first explicit X11 launch. Native Wayland applications continue to use Wayland. Missing compatibility tools do not prevent the native desktop from starting.
+Restart LunaDash after installing the optional packages. The compositor registers `wp_viewporter`, prepares a private display and starts XWayland on the first explicit X11 launch. Native Wayland applications continue to use Wayland. A normal launch does not pin a toolkit backend: the client environment asks for `QT_QPA_PLATFORM=wayland;xcb`, `GDK_BACKEND=wayland,x11` and `SDL_VIDEODRIVER=wayland,x11`, so each toolkit tries Wayland first and a client without a Wayland backend falls back to this XWayland instance instead of failing to start. Discord, Electron-style applications and kitty are routed to XWayland explicitly because their Wayland support is incomplete; Chromium-based browsers receive explicit Ozone Wayland flags. Missing compatibility tools do not prevent the native desktop from starting.
 
 The launcher and settings offer **Run an X11 application**. Enter a program and arguments, for example `xterm` if installed. Quotes group arguments; shell operators are not evaluated. The same action is available through IPC:
 

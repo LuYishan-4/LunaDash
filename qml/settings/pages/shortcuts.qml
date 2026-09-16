@@ -22,7 +22,8 @@ ColumnLayout {
             {id:"maximizeWindow", name:"Maximize or restore window"}, {id:"closeWindow", name:"Close window"},
             {id:"closeWindowAlternate", name:"Close window alternative"}, {id:"minimizeWindow", name:"Minimize window"},
             {id:"toggleFloating", name:"Toggle floating"}, {id:"launchTerminal", name:"Open terminal"},
-            {id:"launchFiles", name:"Open files"}, {id:"launchLauncher", name:"Open launcher"}
+            {id:"launchFiles", name:"Open files"}, {id:"launchLauncher", name:"Open launcher"},
+            {id:"screenshot", name:"Take a screenshot"}
         ]
         for (let workspace = 1; workspace <= 9; ++workspace) {
             result.push({id:"workspace" + workspace, name:"Switch to workspace " + workspace})
@@ -38,7 +39,7 @@ ColumnLayout {
     PageTitle { shell: page.shell; title: "Keyboard shortcuts" }
     SettingsComponents.SettingsCard {
         title: shell.tr("Shortcut policy")
-        description: shell.tr("Every global shortcut uses the Meta key. Duplicate or invalid combinations are rejected before they are saved.")
+        description: shell.tr("Every global shortcut uses Meta or Alt. Duplicate or invalid combinations are rejected before they are saved.")
         RowLayout {
             Layout.fillWidth: true
             Text { text: shell.tr("Changes apply immediately"); color: Theme.muted; Layout.fillWidth: true }

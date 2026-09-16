@@ -48,6 +48,7 @@ LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland C
 - **Launcher.** One ranked, token-searchable list with icon, name and description for the built-in tools and installed desktop entries.
 - **Appearance.** Accent colour, window gaps, panel height, backdrop blur, window opacity, animation duration and a reduced-motion mode, plus an external Traditional Chinese language pack.
 - **Built-in tools.** A translucent Fish terminal, Files, command console, system monitor, a pacman interface and opt-in metadata plugins.
+- **Screenshots.** `Alt` + `Shift` + `F5` captures the desktop to `~/Pictures/Screenshots`, and `lunadashctl screenshot` or `capture <path>` does the same from the shell.
 - **X11 compatibility.** Applications run inside an authenticated XWayland instance, which the default terminal and other X11 applications use automatically.
 - **Explicit graphics.** OpenGL 3.3 compatibility or OpenGL ES 3.0 contexts with version-specific shaders, plus a software-friendly shell renderer path for problematic drivers.
 
@@ -79,10 +80,11 @@ To register a real login session, `./scripts/install-session.sh` builds and inst
 
 ## Keyboard shortcuts
 
-`Super` is the Meta key. Every binding below can be changed or disabled in **Settings → Keyboard shortcuts**.
+`Super` is the Meta key. Every binding below can be changed or disabled in **Settings → Keyboard shortcuts**, where a binding may use Meta or Alt.
 
 | Shortcut | Action |
 | --- | --- |
+| `Alt` + `Shift` + `F5` | Take a screenshot |
 | `Super` + `Return` / `E` / `D` | Default terminal / file manager / launcher |
 | `Super` + `H` / `L` | Focus the column to the left / right |
 | `Super` + `K` / `J` | Focus the previous / next member inside the column |
@@ -110,6 +112,8 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadashctl appearance '{"gap":16,"panelHeight":44}'
 ./build/lunadashctl shortcuts '{"focusLeft":"Meta+U"}'
 ./build/lunadashctl check-update
+./build/lunadashctl screenshot
+./build/lunadashctl capture /tmp/lunadash.png
 ```
 
 Preferences are saved automatically as you change them. Resetting desktop preferences does not delete documents, reset the language or wallpaper, or modify system-service configuration. See [Settings coverage](docs/SETTINGS.md) for every page and its limits.
@@ -117,7 +121,7 @@ Preferences are saved automatically as you change them. Resetting desktop prefer
 ## Testing
 
 ```sh
-sudo pacman -S --needed pkgconf python-pillow xorg-server-xvfb xorg-xauth xdotool
+sudo pacman -S --needed pkgconf python-pillow xorg-server-xvfb xorg-xauth xdotool wayland-utils
 ./scripts/test-once.sh
 ```
 
@@ -130,6 +134,7 @@ A passing software-rendered session proves rendering, geometry and clean shutdow
 - [Testing guide and every maintained file](docs/TESTING_AND_FILES.md)
 - [Architecture](docs/ARCHITECTURE.md) · [C core](docs/C_CORE.md) · [Graphics contexts](docs/GRAPHICS.md)
 - [Appearance](docs/APPEARANCE.md) · [Blur and animations](docs/EFFECTS.md) · [Shell rendering](docs/SHELL_RENDERING.md)
+- [Screen capture](docs/SCREEN_CAPTURE.md)
 - [First-run setup and configuration](docs/CONFIGURATION.md) · [Settings coverage](docs/SETTINGS.md)
 - [Shell modules and templates](docs/MODULES.md) · [Default apps, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md)
 - [Input methods and languages](docs/INPUT_METHODS.md) · [X11 compatibility](docs/XWAYLAND.md)
@@ -140,7 +145,7 @@ A passing software-rendered session proves rendering, geometry and clean shutdow
 
 Working and tested in nested sessions: window management and grouping, the panel, launcher, all sixteen settings pages, wallpapers, built-in applications, the Traditional Chinese language pack, and authenticated X11 compatibility.
 
-Missing or incomplete: multiple outputs, full layer-shell coverage, screen locking, portals, notification hosting, a native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. The Fcitx tray icon works, but its candidate popup still depends on the incomplete input-method bridge. Native plugins are disabled by default and run without a sandbox when enabled. The packaged EGLFS/KMS login session and a physical SDDM login still need physical-session testing, and no such verification is claimed.
+Missing or incomplete: multiple outputs, full layer-shell coverage, screen locking, portals, notification hosting, a native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Screenshots are captured by the session itself and by clients that reach the `wl_shm` screencopy path; `grim`, `slurp` and `wf-recorder` currently fail because they bind `wl_output` above version 2, which is the version Qt Wayland Compositor announces and does not expose for change. No linux-dmabuf screencopy frames and no cursor overlay. A standalone login session publishes the display variables to its own D-Bus and systemd user activation environment so D-Bus activated applications can start; nested sessions leave the host environment untouched. The Fcitx tray icon works, but its candidate popup still depends on the incomplete input-method bridge. Native plugins are disabled by default and run without a sandbox when enabled. The packaged EGLFS/KMS login session and a physical SDDM login still need physical-session testing, and no such verification is claimed.
 
 ## License
 

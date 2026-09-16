@@ -58,12 +58,12 @@ Rectangle {
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) begin()
             return
         }
-        if (event.key === Qt.Key_Escape && !(event.modifiers & Qt.MetaModifier)) {
+        if (event.key === Qt.Key_Escape && !(event.modifiers & (Qt.MetaModifier | Qt.AltModifier))) {
             finish()
             event.accepted = true
             return
         }
-        if (event.key === Qt.Key_Backspace && !(event.modifiers & Qt.MetaModifier)) {
+        if (event.key === Qt.Key_Backspace && !(event.modifiers & (Qt.MetaModifier | Qt.AltModifier))) {
             finish("Disabled")
             event.accepted = true
             return
@@ -72,12 +72,13 @@ Rectangle {
             event.key === Qt.Key_Control || event.key === Qt.Key_Alt)
             return
         const key = keyName(event.key, event.text)
-        if (!key.length || !(event.modifiers & Qt.MetaModifier)) {
+        if (!key.length || !(event.modifiers & (Qt.MetaModifier | Qt.AltModifier))) {
             shake.restart()
             event.accepted = true
             return
         }
-        let parts = ["Meta"]
+        let parts = []
+        if (event.modifiers & Qt.MetaModifier) parts.push("Meta")
         if (event.modifiers & Qt.ControlModifier) parts.push("Ctrl")
         if (event.modifiers & Qt.AltModifier) parts.push("Alt")
         if (event.modifiers & Qt.ShiftModifier) parts.push("Shift")
