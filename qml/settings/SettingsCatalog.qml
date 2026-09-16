@@ -30,8 +30,9 @@ QtObject {
         if (!tokens.length)
             return []
         return entries.map((entry, order) => {
+            // Keep both source and translated aliases searchable in every locale.
             const text = [entry.name, entry.pageName, entry.keywords]
-                .map(value => translate(value).toLocaleLowerCase()).join(" ")
+                .map(value => (String(value) + " " + translate(value)).toLocaleLowerCase()).join(" ")
             const words = text.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
             let score = 0
             for (const token of tokens) {

@@ -16,11 +16,14 @@ TOKEN = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|' + STRING + r'|[A-Za-z_][A-Za-z_0-
 PLACEHOLDER = re.compile(r'%L?[1-9][0-9]*|%n|%p%')
 
 
-def literals(source):
+def literals(source, model_fields=()):
     tokens = [m.group() for m in TOKEN.finditer(source)
               if not m.group().startswith(('//', '/*'))]
     found = set()
+    fields = {'title', 'description', 'label', 'message', 'placeholderText', *model_fields}
     for i, token in enumerate(tokens[:-1]):
+        if token == 'translate' and tokens[max(0, i - 3):i] == ['QCoreApplication', ':', ':']:
+            continue  # Qt's first argument is a context, not a source string.
         if token in ('tr', 'translate', 'finishWithError') and tokens[i + 1] == '(':
             depth, j = 1, i + 2
             while j < len(tokens) and depth:
@@ -39,7 +42,7 @@ def literals(source):
                         value += ast.literal_eval(tokens[j])
                     found.add(value)
                 j += 1
-        if token in ('title', 'description', 'label', 'message', 'placeholderText'):
+        if token in fields:
             if i + 2 < len(tokens) and tokens[i + 1] == ':' and tokens[i + 2].startswith(('"', "'")):
                 found.add(ast.literal_eval(tokens[i + 2]))
     return {text for text in found if re.search(r'[A-Za-z]', text)}
@@ -82,7 +85,13 @@ def main():
         for path in sorted((root / folder).rglob('*')):
             if path.suffix not in ('.qml', '.cpp'):
                 continue
-            for text in literals(path.read_text(encoding='utf-8')):
+            model_fields = {
+                'SettingsCatalog.qml': ('name', 'pageName', 'keywords'),
+                'SettingsPanel.qml': ('name',),
+                'shortcuts.qml': ('name',),
+                'Launcher.qml': ('name', 'genericName'),
+            }.get(path.name, ())
+            for text in literals(path.read_text(encoding='utf-8'), model_fields):
                 count += 1
                 if text not in messages:
                     missing.setdefault(text, []).append(str(path.relative_to(root)))

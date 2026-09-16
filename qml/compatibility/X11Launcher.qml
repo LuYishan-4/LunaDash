@@ -21,7 +21,7 @@ ModuleSurface {
         anchors.fill:parent; anchors.margins:28; spacing:15
         RowLayout { Text{text:shell.tr("Run an X11 application");color:moduleForeground;font.family:Theme.font;font.pixelSize:22;Layout.fillWidth:true} ShellButton{text:"×";onClicked:shell.x11Open=false} }
         Text { text:(shell.state.xwayland||{}).available?shell.tr("X11 apps open inside a compatibility window"):((shell.state.xwayland||{}).error||shell.tr("XWayland is unavailable"));color:Theme.muted;font.family:Theme.font;wrapMode:Text.WordWrap;Layout.fillWidth:true }
-        SoftField { id:command;Layout.fillWidth:true;placeholderText:"application --argument";onAccepted:run.clicked();focus:true }
+        SoftField { id:command;Layout.fillWidth:true;placeholderText:shell.tr("Program and arguments");onAccepted:run.clicked();focus:true }
         Text { text:shell.tr("Enter a program and arguments. Shell operators are not evaluated.");color:Theme.muted;font.family:Theme.font;font.pixelSize:11;wrapMode:Text.WordWrap;Layout.fillWidth:true }
         ShellButton { id:run;text:shell.tr("Launch");active:true;enabled:command.text.trim().length>0&&Boolean((shell.state.xwayland||{}).available);onClicked:{shell.command("launch-x11",command.text);shell.x11Open=false} }
     }

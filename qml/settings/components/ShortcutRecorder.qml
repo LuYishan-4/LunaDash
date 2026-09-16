@@ -92,12 +92,13 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 8
         Text {
-            text: recorder.recording ? "Press shortcut…" : recorder.sequence
+            text: recorder.recording ? recorder.shell.tr("Press shortcut…")
+                : recorder.sequence === "Disabled" ? recorder.shell.tr("Disabled") : recorder.sequence
             color: recorder.recording ? Theme.accent : recorder.sequence === "Disabled" ? Theme.muted : Theme.text
-            font.family: recorder.sequence === "Disabled" ? Theme.font : "monospace"
+            font.family: Theme.font
             font.pixelSize: 12
         }
-        Text { visible: !recorder.recording; text: "⌨"; color: Theme.muted; font.pixelSize: 13 }
+        Text { visible: !recorder.recording; text: "⌨"; color: Theme.muted; font.family: Theme.font; font.pixelSize: 13 }
     }
 
     MouseArea { id: mouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: recorder.begin() }
