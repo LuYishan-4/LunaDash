@@ -35,6 +35,10 @@ export QT_IM_MODULE=fcitx
 export QT_IM_MODULES='wayland;fcitx;ibus'
 export GTK_IM_MODULE=fcitx
 export SDL_IM_MODULE=fcitx
+# Make the LunaDash xdg-desktop-portal FileChooser the common path for
+# unsandboxed toolkit applications as well as Flatpak/sandboxed clients.
+export GTK_USE_PORTAL=1
+export QT_QPA_PLATFORMTHEME=xdgdesktopportal
 export QSG_RHI_BACKEND=opengl
 # The compositor runs on a private session bus here, so it may publish the
 # display variables for D-Bus activated and systemd user clients.
