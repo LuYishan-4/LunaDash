@@ -16,6 +16,7 @@ public:
   explicit UpdateChecker(QObject *parent = nullptr);
   QJsonObject snapshot() const;
   void check();
+  bool setChannel(const QString &channel);
 
 signals:
   void changed();
@@ -27,8 +28,11 @@ private:
   QNetworkAccessManager *network_ = nullptr;
   QNetworkReply *reply_ = nullptr;
   QTimer *timeout_ = nullptr;
+  QString channel_ = "stable";
   QString status_ = "idle";
   QString latestVersion_;
+  QString latestCommit_;
+  QString latestMessage_;
   QString releaseUrl_;
   QString error_;
   QString checkedAt_;
