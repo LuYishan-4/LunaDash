@@ -8,23 +8,18 @@ class QNetworkReply;
 class QTimer;
 
 namespace LuDash {
-
 class UpdateChecker final : public QObject {
   Q_OBJECT
-
 public:
   explicit UpdateChecker(QObject *parent = nullptr);
   QJsonObject snapshot() const;
   void check();
   bool setChannel(const QString &channel);
-
 signals:
   void changed();
-
 private:
   void finishWithError(const QString &message);
   void finishReply();
-
   QNetworkAccessManager *network_ = nullptr;
   QNetworkReply *reply_ = nullptr;
   QTimer *timeout_ = nullptr;
@@ -37,5 +32,4 @@ private:
   QString error_;
   QString checkedAt_;
 };
-
 } // namespace LuDash
