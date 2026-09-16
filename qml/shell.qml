@@ -20,6 +20,7 @@ ShellRoot {
     readonly property string bin: Quickshell.env("LUNADASH_BIN_DIR") || Quickshell.env("LUDASH_BIN_DIR")
     readonly property string controlExecutable: bin ? bin + "/lunadashctl" : "lunadashctl"
     readonly property string desktopExecutable: bin ? bin + "/lunadash-desktop" : "lunadash-desktop"
+    readonly property string updaterExecutable: bin ? bin + "/lunadash-update" : "lunadash-update"
     readonly property string assetDirectory: Quickshell.env("LUNADASH_ASSET_DIR")
     readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadash.png" : ""
     signal commandCompleted(string method, var result)
@@ -38,6 +39,22 @@ ShellRoot {
         notification = {title:String(title||"LunaDash"), body:String(body||""), kind:String(kind||"info"), details:String(details||"")}
         notificationVisible = true
         notificationTimer.restart()
+    }
+    function installUpdate(channel, ref) {
+        if (updateAction.running || !ref) return
+        updateAction.output = ""
+        updateAction.errorOutput = ""
+        updateAction.command = [updaterExecutable, String(channel), String(ref)]
+        updateAction.running = true
+        notify(tr("LunaDash update"), tr("Downloading and building the selected update…"), "info", "")
+    }
+    function rollbackUpdate() {
+        if (updateAction.running) return
+        updateAction.output = ""
+        updateAction.errorOutput = ""
+        updateAction.command = [updaterExecutable, "--rollback"]
+        updateAction.running = true
+        notify(tr("LunaDash rollback"), tr("Restoring the previous installation…"), "info", "")
     }
     onLauncherOpenChanged: if (launcherOpen) settingsOpen = false
     onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false } else { pickerOpen = false }
@@ -74,6 +91,20 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: { try { const result=JSON.parse(text); if(result.error){root.errorMessage=result.error;root.notify(root.tr("System action failed"),result.error,"error",result.error)} root.commandCompleted(action.command[1],result) } catch(error){root.errorMessage="Could not contact the desktop."} } }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
+    Process {
+        id: updateAction
+        property string output: ""
+        property string errorOutput: ""
+        stdout: StdioCollector { onStreamFinished: updateAction.output = text.trim() }
+        stderr: StdioCollector { onStreamFinished: updateAction.errorOutput = text.trim() }
+        onExited: (exitCode, exitStatus) => {
+            const detail = updateAction.errorOutput || updateAction.output
+            if (exitCode === 0)
+                root.notify(root.tr("LunaDash update"), updateAction.output || root.tr("Update completed. Start a new session to use it."), "success", detail)
+            else
+                root.notify(root.tr("Update failed"), detail || root.tr("The updater exited unexpectedly."), "error", detail)
+        }
+    }
     function launch(id) { if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return } if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false }
     Process {
         id: status
@@ -81,7 +112,7 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: { if(!text.trim())return;try{const result=JSON.parse(text);if(result.error)return;root.state=result;if(result.shutdown&&!root.stopping){Theme.animations=false;root.stopping=true;shutdownTimer.start()}}catch(error){console.warn(error)} } }
     }
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.notificationVisible = false }
-    Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running) Qt.quit() }
+    Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running) Qt.quit() }
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
     Wallpaper { shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
