@@ -53,8 +53,6 @@ ColumnLayout {
             ShellButton { text: shell.tr("Check now"); enabled: page.update.status !== "checking"; onClicked: shell.command("check-update", "") }
         }
 
-        // Straight version track: installed version on the left, selected upstream
-        // version on the right. It stays visible even when no update is available.
         Item {
             Layout.fillWidth: true; Layout.preferredHeight: 78
             Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 22; anchors.rightMargin: 22; height: 2; radius: 1; color: Theme.border }
@@ -81,7 +79,17 @@ ColumnLayout {
                 Text { visible: Boolean(page.update.checkedAt); text: shell.tr("Last checked: ") + page.update.checkedAt; color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
             }
             ShellButton { visible: page.update.status === "available" && Boolean(page.update.releaseUrl); text: shell.tr("Details"); onClicked: Qt.openUrlExternally(page.update.releaseUrl) }
-            ShellButton { visible: page.update.status === "available"; active: true; text: shell.tr("Update"); onClicked: shell.command("install-update", page.selectedChannel) }
+            ShellButton {
+                visible: page.update.status === "available"
+                active: true
+                text: shell.tr("Update")
+                onClicked: shell.installUpdate(page.selectedChannel, page.selectedChannel === "dev" ? page.update.latestCommit : page.update.latestVersion)
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Item { Layout.fillWidth: true }
+            ShellButton { text: shell.tr("Rollback previous update"); onClicked: shell.rollbackUpdate() }
         }
     }
 
