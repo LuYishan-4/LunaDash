@@ -7,9 +7,6 @@
 
 namespace LuDash {
 namespace {
-// The shell inherits LunaDash's own desktop identity, so Qt cannot infer the
-// host icon theme and every themed icon lookup fails. Resolve a theme
-// explicitly and let Quickshell use it. An explicit QS_ICON_THEME always wins.
 QString detectedIconTheme() {
   if (!qEnvironmentVariableIsEmpty("QS_ICON_THEME"))
     return {};
@@ -31,15 +28,15 @@ QString detectedIconTheme() {
   candidates.append({"breeze", "Adwaita", "Papirus", "hicolor"});
   candidates.removeDuplicates();
   for (const auto &name : candidates) {
-    if (QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                               "icons/" + name + "/index.theme")
-            .isEmpty())
-      continue;
-    return name;
+    if (!QStandardPaths::locate(QStandardPaths::GenericDataLocation,
+                                "icons/" + name + "/index.theme")
+             .isEmpty())
+      return name;
   }
   return {};
 }
 } // namespace
+
 QProcessEnvironment createClientEnvironment(const QString &socketName,
                                             const QString &controlPath,
                                             const QString &binaryDirectory) {
@@ -47,21 +44,20 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.remove("DISPLAY");
   environment.remove("XAUTHORITY");
   environment.remove("QT_QPA_EGLFS_INTEGRATION");
+  // Do not inherit old compatibility workarounds from the host session. Native
+  // Wayland is LunaDash's default; XWayland is still exported later as a
+  // fallback for clients which only implement X11.
+  environment.remove("KITTY_DISABLE_WAYLAND");
   environment.insert("WAYLAND_DISPLAY", socketName);
-  // Clients must never inherit the compositor's own EGLFS/KMS platform. The
-  // ordered fallback list keeps a generic launch on Wayland while still letting
-  // a toolkit whose client has no Wayland backend fall back to XWayland.
   environment.insert("QT_QPA_PLATFORM", "wayland;xcb");
   environment.insert("GDK_BACKEND", "wayland,x11");
   environment.insert("SDL_VIDEODRIVER", "wayland,x11");
+  // GLFW 3.4+ understands this hint and otherwise may select X11 merely because
+  // DISPLAY is also available for compatibility applications.
+  environment.insert("GLFW_PLATFORM", "wayland");
   environment.insert("XDG_SESSION_TYPE", "wayland");
   environment.insert("XDG_CURRENT_DESKTOP", "LunaDash");
   environment.insert("XDG_SESSION_DESKTOP", "LunaDash");
-  // Native Wayland is the primary client path. XWayland remains available for
-  // applications that explicitly need it, but Chromium/Electron applications
-  // should not be sent through the software-only XWayland backend by default.
-  // WaylandCompositor::control("launch-command") reads the first variable and
-  // adds Chromium's explicit Ozone flags; Electron understands the second one.
   environment.insert("LUNADASH_CHROMIUM_WAYLAND", "1");
   environment.insert("ELECTRON_OZONE_PLATFORM_HINT", "wayland");
   environment.insert("XMODIFIERS", "@im=fcitx");
@@ -69,12 +65,6 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("QT_IM_MODULES", "wayland;fcitx;ibus");
   environment.insert("GTK_IM_MODULE", "fcitx");
   environment.insert("SDL_IM_MODULE", "fcitx");
-  // kitty 0.48 still requests wl_data_device_manager v3 even though its
-  // generated protocol supports only v1. Use XWayland for kitty until that
-  // client-side protocol mismatch is fixed; the clipboard bridge keeps it
-  // interoperable with native Wayland clients.
-  if (environment.value("KITTY_DISABLE_WAYLAND").isEmpty())
-    environment.insert("KITTY_DISABLE_WAYLAND", "1");
   auto assetDirectory = QStandardPaths::locate(
       QStandardPaths::GenericDataLocation, "lunadash/data/assets",
       QStandardPaths::LocateDirectory);
@@ -98,22 +88,13 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
 }
 
 bool publishClientEnvironment(const QProcessEnvironment &environment) {
-  // Keep these variables local to the compositor and its children. A login
-  // session publishes the display variables explicitly through
-  // publishActivationEnvironment() on its own private bus; the host D-Bus or
-  // systemd user manager of another desktop is never modified.
-  for (const auto &name : environment.keys()) {
-    const auto value = environment.value(name);
-    qputenv(name.toUtf8(), value.toUtf8());
-  }
+  for (const auto &name : environment.keys())
+    qputenv(name.toUtf8(), environment.value(name).toUtf8());
   return true;
 }
 
 bool publishActivationEnvironment(const QProcessEnvironment &environment,
                                   QString *error) {
-  // Only names a client needs in order to reach the compositor and its input
-  // methods are published. DBUS_SESSION_BUS_ADDRESS and the runtime directory
-  // already belong to the session that started the private bus.
   static const QStringList names = {QStringLiteral("WAYLAND_DISPLAY"),
                                     QStringLiteral("DISPLAY"),
                                     QStringLiteral("XAUTHORITY"),
@@ -125,6 +106,7 @@ bool publishActivationEnvironment(const QProcessEnvironment &environment,
                                     QStringLiteral("QT_QPA_PLATFORM"),
                                     QStringLiteral("GDK_BACKEND"),
                                     QStringLiteral("SDL_VIDEODRIVER"),
+                                    QStringLiteral("GLFW_PLATFORM"),
                                     QStringLiteral("LUNADASH_CHROMIUM_WAYLAND"),
                                     QStringLiteral("ELECTRON_OZONE_PLATFORM_HINT"),
                                     QStringLiteral("XMODIFIERS"),
@@ -158,8 +140,7 @@ bool publishActivationEnvironment(const QProcessEnvironment &environment,
       *output = "Timed out while publishing the activation environment.";
       return false;
     }
-    if (process.exitStatus() != QProcess::NormalExit ||
-        process.exitCode() != 0) {
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
       *output = QString::fromLocal8Bit(process.readAll()).trimmed();
       return false;
     }
@@ -168,8 +149,6 @@ bool publishActivationEnvironment(const QProcessEnvironment &environment,
   QString message;
   if (run(true, &message))
     return true;
-  // A session without a systemd user manager rejects --systemd after it has
-  // already updated the bus, so retry without it before reporting a failure.
   QString fallback;
   if (run(false, &fallback))
     return true;
