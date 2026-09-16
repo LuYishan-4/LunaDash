@@ -25,6 +25,7 @@ jobs:
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
                     cmake g++ ninja-build pkg-config libwayland-dev \
+                    libinput-dev libxkbcommon-dev libudev-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland-dev \
                     libqt6opengl6-dev
             - uses: github/codeql-action/init@v4
