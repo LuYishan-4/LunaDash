@@ -1,0 +1,72 @@
+#!/bin/sh
+set -eu
+
+repo=https://github.com/LuYishan-4/LunaDash.git
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/lunadash/update
+backup="$state_dir/rollback.tar.gz"
+
+fail() { echo "ERROR: $*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"; }
+
+mkdir -p "$state_dir"
+
+if [ "${1:-}" = "--rollback" ]; then
+    [ -f "$backup" ] || fail "No LunaDash update backup is available."
+    if command -v pkexec >/dev/null 2>&1; then
+        pkexec tar -xzf "$backup" -C /
+    else
+        fail "pkexec is required to restore system files."
+    fi
+    echo "Rollback completed. Log out and start a new LunaDash session."
+    exit 0
+fi
+
+channel=${1:-}
+ref=${2:-}
+case "$channel" in stable|dev) ;; *) fail "Usage: lunadash-update stable|dev REF, or --rollback" ;; esac
+[ -n "$ref" ] || fail "The target release or commit is required."
+case "$ref" in *[!A-Za-z0-9._-]*|'') fail "Rejected update ref." ;; esac
+
+need git
+need cmake
+need ninja
+need tar
+need pkexec
+
+work=$(mktemp -d "${TMPDIR:-/tmp}/lunadash-update.XXXXXXXX")
+trap 'rm -rf "$work"' EXIT HUP INT TERM
+src="$work/source"
+build="$work/build"
+
+if [ "$channel" = dev ]; then
+    git clone --quiet --depth 1 --branch dev "$repo" "$src" || fail "Could not download the dev branch."
+    actual=$(git -C "$src" rev-parse HEAD)
+    case "$actual" in "$ref"*) ;; *) fail "The downloaded dev commit does not match the selected update." ;; esac
+else
+    git clone --quiet --depth 1 --branch "$ref" "$repo" "$src" || fail "Could not download release $ref."
+    actual=$(git -C "$src" describe --tags --exact-match HEAD 2>/dev/null || true)
+    [ "$actual" = "$ref" ] || fail "The downloaded release tag could not be verified."
+fi
+
+cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr >/dev/null
+cmake --build "$build" --parallel "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
+
+# Keep one rollback snapshot of the previous system install. Missing paths are
+# intentionally ignored so first-time installs still work.
+paths=""
+for path in \
+    usr/bin/lunadash-desktop usr/bin/lunadash-compositor usr/bin/lunadashctl \
+    usr/bin/lunadash-session usr/bin/ludash-session usr/bin/lunadash-update \
+    usr/share/lunadash usr/share/wayland-sessions/lunadash.desktop \
+    usr/share/wayland-sessions/ludash.desktop usr/share/applications/lunadash-app.desktop; do
+    [ -e "/$path" ] && paths="$paths $path"
+done
+if [ -n "$paths" ]; then
+    # shellcheck disable=SC2086
+    tar -czf "$backup.tmp" -C / $paths
+    mv -f "$backup.tmp" "$backup"
+fi
+
+pkexec cmake --install "$build"
+printf '%s\n' "$channel $ref" > "$state_dir/last-update"
+echo "LunaDash update installed successfully. Log out and start a new LunaDash session."
