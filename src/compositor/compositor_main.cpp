@@ -26,7 +26,25 @@ int main(int argc, char **argv) {
   parser.addOption({"fullscreen", "Use the entire host output."}); parser.addOption({"no-shell", "Do not start the desktop shell."}); parser.addOption({"demo", "Start two demonstration clients."});
   parser.addOption({"screenshot", "Save compositor screenshot at exit.", "path"}); parser.addOption({"state", "Write window geometry JSON at exit.", "path"}); parser.addOption({"exit-after", "Exit after this many milliseconds (test mode).", "ms"});
   parser.process(app);
-  LuDash::setNativeKeyboardInputEnabled(!parser.isSet("nested"));
+
+  // Only own libinput directly on bare-metal QPA backends. When LunaDash runs
+  // on Wayland/X11, Qt already receives keyboard events from the host
+  // compositor. Opening seat0 with libinput at the same time forwards every
+  // physical key through two independent paths, which causes missed-looking
+  // taps, duplicated characters and broken repeat timing.
+  const QString platform = QGuiApplication::platformName().toLower();
+  const bool bareMetalInput =
+      platform == QStringLiteral("eglfs") ||
+      platform == QStringLiteral("linuxfb") ||
+      platform == QStringLiteral("kms") ||
+      platform == QStringLiteral("vkkhrdisplay");
+  LuDash::setNativeKeyboardInputEnabled(!parser.isSet("nested") && bareMetalInput);
+  qInfo().noquote() << "LunaDash keyboard input:"
+                    << ((!parser.isSet("nested") && bareMetalInput)
+                            ? "native libinput"
+                            : "Qt host input")
+                    << "(QPA" << platform + ")";
+
   QElapsedTimer activeTurn;
   if (parser.isSet("profile")) {
     auto *dispatcher = QAbstractEventDispatcher::instance();
