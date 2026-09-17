@@ -2,6 +2,10 @@
 # packaging and maintenance changes do not require rewriting LunaDashMain.cmake.
 install(PROGRAMS scripts/lunadash-update DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+add_executable(lunadash-shell-tool src/entrypoints/shell_tool_main.cpp)
+target_link_libraries(lunadash-shell-tool PRIVATE Qt6::Core Qt6::DBus)
+install(TARGETS lunadash-shell-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 add_executable(lunadash-portal src/entrypoints/portal_main.cpp)
 target_link_libraries(lunadash-portal PRIVATE ludash-apps Qt6::Widgets Qt6::DBus)
 set_target_properties(lunadash-portal PROPERTIES OUTPUT_NAME xdg-desktop-portal-lunadash)
