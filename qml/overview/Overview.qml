@@ -1,5 +1,6 @@
 import "../modules"
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
