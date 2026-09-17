@@ -28,7 +28,7 @@ def literals(source, model_fields=()):
         elif token == '}' and owners:
             owners.pop()
         if token == 'translate' and tokens[max(0, i - 3):i] == ['QCoreApplication', ':', ':']:
-            continue  # Qt's first argument is a context, not a source string.
+            continue
         if token in ('tr', 'translate', 'finishWithError') and tokens[i + 1] == '(':
             depth, j = 1, i + 2
             while j < len(tokens) and depth:
@@ -41,7 +41,6 @@ def literals(source, model_fields=()):
                     j == i + 2 or tokens[j - 1] in ('?', ':', '||', '[', ',')
                 ):
                     value = ast.literal_eval(item)
-                    # C++ permits adjacent string literals in one argument.
                     while j + 1 < len(tokens) and tokens[j + 1].startswith(('"', "'")):
                         j += 1
                         value += ast.literal_eval(tokens[j])
@@ -49,7 +48,7 @@ def literals(source, model_fields=()):
                 j += 1
         if token in fields:
             if token == 'name' and owners and owners[-1] == 'LineIcon':
-                continue  # Icon identifiers are assets, not translated labels.
+                continue
             if i + 2 < len(tokens) and tokens[i + 1] == ':' and tokens[i + 2].startswith(('"', "'")):
                 found.add(ast.literal_eval(tokens[i + 2]))
     return {text for text in found if re.search(r'[A-Za-z]', text)}
@@ -76,16 +75,26 @@ def load_catalog(path):
     return data
 
 
+def merge_catalogs(paths):
+    """Report every cross-file duplicate without hiding later missing messages."""
+    messages, origins, errors = {}, {}, []
+    for path in paths:
+        for source, value in load_catalog(path).items():
+            if source in messages:
+                errors.append(f'{path}: key already exists in {origins[source]}: {source!r}')
+                continue
+            messages[source] = value
+            origins[source] = path
+    return messages, errors
+
+
 def main():
     root = Path(__file__).resolve().parents[1]
     directory = root / 'data/translations'
     catalogs = [directory / 'zh_TW.json', *sorted((directory / 'zh_TW').glob('*.json'))]
-    messages = {}
-    for path in catalogs:
-        for source, value in load_catalog(path).items():
-            if source in messages:
-                raise ValueError(f'{path}: key already exists in another catalog: {source!r}')
-            messages[source] = value
+    messages, errors = merge_catalogs(catalogs)
+    for error in errors:
+        print(error, file=sys.stderr)
     missing = {}
     count = 0
     for folder in ('qml', 'src'):
@@ -104,8 +113,8 @@ def main():
                     missing.setdefault(text, []).append(str(path.relative_to(root)))
     for text, paths in sorted(missing.items()):
         print(json.dumps({'missing': text, 'files': paths}, ensure_ascii=False))
-    print(f'Translation coverage: {count} static lookups, {len(messages)} entries, {len(missing)} missing.')
-    return bool(missing)
+    print(f'Translation coverage: {count} static lookups, {len(messages)} entries, {len(missing)} missing, {len(errors)} duplicate errors.')
+    return bool(missing or errors)
 
 
 if __name__ == '__main__':
