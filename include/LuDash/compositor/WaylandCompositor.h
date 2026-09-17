@@ -1,11 +1,13 @@
 #pragma once
 #include <LuDash/renderer/RenderBackend.h>
 #include <LuDash/tiling/TilingLayout.h>
+#include <QHash>
 #include <QJsonObject>
 #include <QObject>
 #include <QPointF>
 #include <QProcess>
 #include <QQuickWindow>
+#include <QRect>
 #include <QSet>
 #include <QtWaylandCompositor/QWaylandQuickCompositor>
 #include <functional>
@@ -33,6 +35,7 @@ class ControlServer;
 class SessionActions;
 class ShortcutSettings;
 class UpdateChecker;
+class ResizeGuideItem;
 struct ClientWindow;
 class WaylandCompositor final : public QObject {
 public:
@@ -72,6 +75,7 @@ private:
   LayerShell *layerShell_ = nullptr;
   ScreenCapture *screenCapture_ = nullptr;
   ControlServer *controlServer_ = nullptr;
+  ResizeGuideItem *resizeGuide_ = nullptr;
   QString controlPath_;
   QProcessEnvironment clientEnvironment_;
   int nextWindowId_ = 1;
@@ -81,10 +85,15 @@ private:
   QList<QProcess *> processes_;
   QSet<qint64> shellProcessIds_;
   ClientWindow *focused_ = nullptr;
+  ClientWindow *resizing_ = nullptr;
   int workspace_ = 0;
   ScrollableTilingLayout tiling_;
   QSet<int> consumedKeys_;
+  QHash<int, int> resizeOriginalWidths_;
   QPointF pointerPosition_;
+  QPointF resizePointerStart_;
+  QRect resizeStartGeometry_;
+  QRect resizeGuideGeometry_;
   bool shuttingDown_ = false;
   bool logoutPending_ = false;
   bool testStopping_ = false;
@@ -104,6 +113,10 @@ private:
   void addWindow(QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *surface);
   void configure(ClientWindow *client, const QRect &rectangle);
   void arrange();
+  void beginInteractiveResize(ClientWindow *client, const QPointF &position);
+  void updateInteractiveResize(const QPointF &position);
+  void endInteractiveResize();
+  void restoreResizeGuide(ClientWindow *client);
   QRect workArea() const;
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
