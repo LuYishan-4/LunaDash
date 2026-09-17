@@ -96,7 +96,7 @@ case "$manager" in
             gcc gcc-c++ cmake ninja git pkg-config \
             Mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel \
-            libqt6-qtbase-devel libqt6-qtdeclarative-devel libqt6-qtwayland-devel \
+            qt6-base-devel qt6-declarative-devel qt6-wayland-devel \
             shared-mime-info fish
         ;;
 esac
