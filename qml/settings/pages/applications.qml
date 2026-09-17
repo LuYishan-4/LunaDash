@@ -19,6 +19,19 @@ ColumnLayout {
         DefaultAppEditor { shell: page.shell; role: "files"; title: ""; Layout.fillWidth: true }
     }
     SettingsComponents.SettingsCard {
+        title: shell.tr("Plugins")
+        description: shell.tr("Manage installed QML plugins and C++ effects. The plugin store is reserved for a future release.")
+        RowLayout {
+            Layout.fillWidth: true
+            ColumnLayout {
+                Layout.fillWidth: true
+                Text { text: shell.tr("Installed plugins") + ": " + (((shell.state.appearance || {}).plugins || []).length); color: Theme.text; font.family: Theme.font }
+                HelpText { shell: page.shell; message: "QML plugins can update with the shell; C++ effects require a session restart after changing their state." }
+            }
+            ShellButton { text: shell.tr("Open plugin manager"); active: true; onClicked: shell.launch("plugins") }
+        }
+    }
+    SettingsComponents.SettingsCard {
         title: shell.tr("LunaDash startup")
         description: shell.tr("Choose built-in tools to start with the next session.")
         Flow {
