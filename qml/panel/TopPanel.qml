@@ -35,6 +35,7 @@ ModuleSurface {
     readonly property var launcherConfig: launcherModule.config || ({})
     readonly property var launcherStyle: launcherModule.style || ({})
     readonly property color launcherAccent: !launcherStyle.accent || launcherStyle.accent === "inherit" ? Theme.accent : launcherStyle.accent
+    readonly property var usbStorage: (shell.removableDevices || []).filter(device => device.storage)
     readonly property int focusedGroupIndex: {
         for (let index = 0; index < groups.length; ++index)
             if (groups[index].focused) return index
@@ -189,7 +190,7 @@ ModuleSurface {
             moduleHost: panel
             text: "◈"
             implicitWidth: 28
-            Accessible.name: shell.tr("Overview")
+            Accessible.name: shell.tr("Dashboard")
             onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
         }
 
@@ -339,19 +340,76 @@ ModuleSurface {
             }
         }
 
+        Item {
+            id: usbIndicator
+            visible: panel.usbStorage.length > 0
+            width: visible ? Math.min(31, panel.height - 6) : 0
+            height: Math.min(30, panel.height - 6)
+            Accessible.role: Accessible.Button
+            Accessible.name: shell.tr("USB devices")
+
+            Rectangle {
+                anchors.fill: parent
+                radius: height / 2
+                color: usbMouse.containsMouse || shell.usbPopupOpen
+                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+                    : "transparent"
+            }
+            LineIcon {
+                anchors.centerIn: parent
+                width: 18
+                height: 18
+                name: "usb"
+                ink: Theme.accent
+            }
+            Rectangle {
+                visible: panel.usbStorage.length > 1
+                anchors.right: parent.right
+                anchors.top: parent.top
+                width: 13
+                height: 13
+                radius: 7
+                color: Theme.accent
+                Text {
+                    anchors.centerIn: parent
+                    text: String(Math.min(9, panel.usbStorage.length))
+                    color: Theme.background
+                    font.family: Theme.font
+                    font.pixelSize: 8
+                    font.weight: Font.Bold
+                }
+            }
+            MouseArea {
+                id: usbMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: shell.usbPopupOpen = !shell.usbPopupOpen
+            }
+            ToolTip.visible: usbMouse.containsMouse
+            ToolTip.delay: 450
+            ToolTip.text: shell.tr("USB devices")
+        }
+
         PanelSegment {
             moduleHost: panel
             id: clock
             property string time: ""
-            text: time
-            implicitWidth: panel.moduleWidth(panel.width > 850 ? 76 : 52)
-            onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
+            property string date: ""
+            text: panel.width > 1060 ? time + "  ·  " + date : time
+            implicitWidth: panel.moduleWidth(panel.width > 1060 ? 142 : panel.width > 850 ? 76 : 52)
+            Accessible.name: shell.tr("Calendar")
+            onClicked: shell.calendarOpen = !shell.calendarOpen
             Timer {
                 interval: 1000
                 repeat: true
                 running: true
                 triggeredOnStart: true
-                onTriggered: clock.time = Qt.formatDateTime(new Date(), panel.width > 850 ? (Theme.clock24Hour ? "HH:mm:ss" : "h:mm AP") : (Theme.clock24Hour ? "HH:mm" : "h:mm"))
+                onTriggered: {
+                    const now = new Date()
+                    clock.time = Qt.formatDateTime(now, panel.width > 850 ? (Theme.clock24Hour ? "HH:mm:ss" : "h:mm AP") : (Theme.clock24Hour ? "HH:mm" : "h:mm"))
+                    clock.date = Qt.formatDateTime(now, "yyyy/MM/dd")
+                }
             }
         }
         PanelSegment {
