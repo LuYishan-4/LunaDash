@@ -20,41 +20,74 @@ ModuleSurface {
 
     property string displayedSource: ""
     property string incomingSource: ""
+    property string queuedSource: ""
     property real revealProgress: 1
     property bool transitioning: false
     readonly property string stateSource: String(wallpaper.shell.state.wallpaperImage || "")
+    readonly property string desiredSource: wallpaper.shell.wallpaperOverride.length
+        ? wallpaper.shell.wallpaperOverride
+        : stateSource
 
-    function beginTransition(source) {
-        if (!source.length) {
-            displayedSource = ""
-            incomingSource = ""
-            transitioning = false
-            revealProgress = 1
-            return
-        }
-        if (!displayedSource.length) {
-            displayedSource = source
-            incomingSource = ""
-            transitioning = false
-            revealProgress = 1
-            return
-        }
-        if (source === displayedSource)
-            return
-        incomingSource = source
-        revealProgress = 0
-        transitioning = Style.Theme.animations
-        if (Style.Theme.animations)
-            revealAnimation.restart()
-        else {
-            displayedSource = source
-            incomingSource = ""
-            revealProgress = 1
-        }
+    function commitImmediately(source) {
+        revealAnimation.stop()
+        displayedSource = source
+        incomingSource = ""
+        queuedSource = ""
+        transitioning = false
+        revealProgress = 1
     }
 
-    onStateSourceChanged: beginTransition(stateSource)
-    Component.onCompleted: displayedSource = stateSource
+    function requestSource(source) {
+        source = String(source || "")
+
+        if (!source.length) {
+            commitImmediately("")
+            return
+        }
+
+        if (!displayedSource.length) {
+            commitImmediately(source)
+            return
+        }
+
+        if (source === displayedSource || source === incomingSource) {
+            queuedSource = ""
+            return
+        }
+
+        if (transitioning) {
+            queuedSource = source
+            return
+        }
+
+        incomingSource = source
+        queuedSource = ""
+        revealProgress = 0
+
+        if (!Style.Theme.animations) {
+            commitImmediately(source)
+            return
+        }
+
+        transitioning = true
+        revealAnimation.restart()
+    }
+
+    function finishTransition() {
+        const completed = incomingSource
+        displayedSource = completed
+        incomingSource = ""
+        transitioning = false
+        revealProgress = 1
+
+        const next = queuedSource
+        queuedSource = ""
+        if (next.length && next !== completed)
+            Qt.callLater(function() { wallpaper.requestSource(next) })
+    }
+
+    onDesiredSourceChanged: requestSource(desiredSource)
+    Component.onCompleted: commitImmediately(desiredSource)
 
     Rectangle {
         anchors.fill: parent
@@ -70,7 +103,7 @@ ModuleSurface {
         asynchronous: true
         sourceSize.width: 2560
         sourceSize.height: 1600
-        cache: false
+        cache: true
     }
 
     Image {
@@ -81,8 +114,8 @@ ModuleSurface {
         asynchronous: true
         sourceSize.width: 2560
         sourceSize.height: 1600
-        cache: false
-        visible: false
+        cache: true
+        visible: wallpaper.transitioning && wallpaper.incomingSource.length > 0
     }
 
     Item {
@@ -124,12 +157,7 @@ ModuleSurface {
         to: 1
         duration: Math.max(620, Style.Theme.animationDuration * 2.7)
         easing.type: Easing.OutCubic
-        onFinished: {
-            wallpaper.displayedSource = wallpaper.incomingSource
-            wallpaper.incomingSource = ""
-            wallpaper.transitioning = false
-            wallpaper.revealProgress = 1
-        }
+        onFinished: wallpaper.finishTransition()
     }
 
     MouseArea {
