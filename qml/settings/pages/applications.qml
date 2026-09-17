@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import "../components"
 import "../../components"
+import "../../style"
 import "../components" as SettingsComponents
 ColumnLayout {
     id: page
