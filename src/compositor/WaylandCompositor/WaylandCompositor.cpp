@@ -710,10 +710,27 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         return {{"error", "Command arguments must be short strings."}};
       command << entry.toString();
     }
-    if (isChromiumApplication(command.first()))
-      ensureWaylandChromiumFlags(command);
-    const auto executable = command.takeFirst();
-    spawn(command, executable);
+    const QString executableName =
+        QFileInfo(command.first()).fileName().toLower();
+    // Zed's GPUI Wayland backend currently assumes a broader modern Wayland
+    // protocol/GPU stack than LunaDash exposes. VS Code/Electron can run on
+    // LunaDash's native path, but Zed may exit before creating a surface.
+    // Route Zed through the already managed XWayland compatibility server;
+    // this is equivalent to Zed's documented WAYLAND_DISPLAY='' fallback and
+    // keeps the launcher behavior reliable until the missing protocols land.
+    if ((executableName == QStringLiteral("zed") ||
+         executableName == QStringLiteral("zed-editor")) &&
+        xwayland_) {
+      QString error;
+      if (!xwayland_->launch(command, &error))
+        return {{"error", error.isEmpty() ? "Zed could not start through XWayland."
+                                            : error}};
+    } else {
+      if (isChromiumApplication(command.first()))
+        ensureWaylandChromiumFlags(command);
+      const auto executable = command.takeFirst();
+      spawn(command, executable);
+    }
   } else if (method == "finish-setup")
     setSetupComplete(true);
   else if (method == "setup")
