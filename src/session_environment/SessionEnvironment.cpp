@@ -35,6 +35,39 @@ QString detectedIconTheme() {
   }
   return {};
 }
+
+void applyProxyEnvironment(QProcessEnvironment &environment) {
+  static const QStringList proxyVariables = {
+      "http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY",
+      "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"};
+  for (const auto &name : proxyVariables)
+    environment.remove(name);
+
+  QSettings settings;
+  if (!settings.value("desktop/proxyEnabled", false).toBool())
+    return;
+
+  const QString http = settings.value("desktop/proxyHttp").toString().trimmed();
+  const QString https = settings.value("desktop/proxyHttps").toString().trimmed();
+  const QString socks = settings.value("desktop/proxySocks").toString().trimmed();
+  const QString bypass = settings.value("desktop/proxyBypass").toString().trimmed();
+  if (!http.isEmpty()) {
+    environment.insert("http_proxy", http);
+    environment.insert("HTTP_PROXY", http);
+  }
+  if (!https.isEmpty()) {
+    environment.insert("https_proxy", https);
+    environment.insert("HTTPS_PROXY", https);
+  }
+  if (!socks.isEmpty()) {
+    environment.insert("all_proxy", socks);
+    environment.insert("ALL_PROXY", socks);
+  }
+  if (!bypass.isEmpty()) {
+    environment.insert("no_proxy", bypass);
+    environment.insert("NO_PROXY", bypass);
+  }
+}
 } // namespace
 
 QProcessEnvironment createClientEnvironment(const QString &socketName,
@@ -44,16 +77,11 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.remove("DISPLAY");
   environment.remove("XAUTHORITY");
   environment.remove("QT_QPA_EGLFS_INTEGRATION");
-  // Do not inherit old compatibility workarounds from the host session. Native
-  // Wayland is LunaDash's default; XWayland is still exported later as a
-  // fallback for clients which only implement X11.
   environment.remove("KITTY_DISABLE_WAYLAND");
   environment.insert("WAYLAND_DISPLAY", socketName);
   environment.insert("QT_QPA_PLATFORM", "wayland;xcb");
   environment.insert("GDK_BACKEND", "wayland,x11");
   environment.insert("SDL_VIDEODRIVER", "wayland,x11");
-  // GLFW 3.4+ understands this hint and otherwise may select X11 merely because
-  // DISPLAY is also available for compatibility applications.
   environment.insert("GLFW_PLATFORM", "wayland");
   environment.insert("XDG_SESSION_TYPE", "wayland");
   environment.insert("XDG_CURRENT_DESKTOP", "LunaDash");
@@ -65,6 +93,7 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("QT_IM_MODULES", "wayland;fcitx;ibus");
   environment.insert("GTK_IM_MODULE", "fcitx");
   environment.insert("SDL_IM_MODULE", "fcitx");
+  applyProxyEnvironment(environment);
   auto assetDirectory = QStandardPaths::locate(
       QStandardPaths::GenericDataLocation, "lunadash/data/assets",
       QStandardPaths::LocateDirectory);
@@ -95,25 +124,34 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
 
 bool publishActivationEnvironment(const QProcessEnvironment &environment,
                                   QString *error) {
-  static const QStringList names = {QStringLiteral("WAYLAND_DISPLAY"),
-                                    QStringLiteral("DISPLAY"),
-                                    QStringLiteral("XAUTHORITY"),
-                                    QStringLiteral("XDG_SESSION_TYPE"),
-                                    QStringLiteral("XDG_CURRENT_DESKTOP"),
-                                    QStringLiteral("XDG_SESSION_DESKTOP"),
-                                    QStringLiteral("LUNADASH_CONTROL"),
-                                    QStringLiteral("LUDASH_CONTROL"),
-                                    QStringLiteral("QT_QPA_PLATFORM"),
-                                    QStringLiteral("GDK_BACKEND"),
-                                    QStringLiteral("SDL_VIDEODRIVER"),
-                                    QStringLiteral("GLFW_PLATFORM"),
-                                    QStringLiteral("LUNADASH_CHROMIUM_WAYLAND"),
-                                    QStringLiteral("ELECTRON_OZONE_PLATFORM_HINT"),
-                                    QStringLiteral("XMODIFIERS"),
-                                    QStringLiteral("QT_IM_MODULE"),
-                                    QStringLiteral("QT_IM_MODULES"),
-                                    QStringLiteral("GTK_IM_MODULE"),
-                                    QStringLiteral("SDL_IM_MODULE")};
+  static const QStringList names = {
+      QStringLiteral("WAYLAND_DISPLAY"),
+      QStringLiteral("DISPLAY"),
+      QStringLiteral("XAUTHORITY"),
+      QStringLiteral("XDG_SESSION_TYPE"),
+      QStringLiteral("XDG_CURRENT_DESKTOP"),
+      QStringLiteral("XDG_SESSION_DESKTOP"),
+      QStringLiteral("LUNADASH_CONTROL"),
+      QStringLiteral("LUDASH_CONTROL"),
+      QStringLiteral("QT_QPA_PLATFORM"),
+      QStringLiteral("GDK_BACKEND"),
+      QStringLiteral("SDL_VIDEODRIVER"),
+      QStringLiteral("GLFW_PLATFORM"),
+      QStringLiteral("LUNADASH_CHROMIUM_WAYLAND"),
+      QStringLiteral("ELECTRON_OZONE_PLATFORM_HINT"),
+      QStringLiteral("XMODIFIERS"),
+      QStringLiteral("QT_IM_MODULE"),
+      QStringLiteral("QT_IM_MODULES"),
+      QStringLiteral("GTK_IM_MODULE"),
+      QStringLiteral("SDL_IM_MODULE"),
+      QStringLiteral("http_proxy"),
+      QStringLiteral("HTTP_PROXY"),
+      QStringLiteral("https_proxy"),
+      QStringLiteral("HTTPS_PROXY"),
+      QStringLiteral("all_proxy"),
+      QStringLiteral("ALL_PROXY"),
+      QStringLiteral("no_proxy"),
+      QStringLiteral("NO_PROXY")};
   const auto tool = QStandardPaths::findExecutable(
       QStringLiteral("dbus-update-activation-environment"));
   if (tool.isEmpty()) {
