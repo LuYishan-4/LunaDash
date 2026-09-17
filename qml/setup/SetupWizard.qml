@@ -11,6 +11,12 @@ ModuleSurface {
     id: wizard
     moduleId: "setup"
     property int step: 0
+    readonly property var languages: [
+        {code:"en_US", name:"English"},
+        {code:"zh_TW", name:"Traditional Chinese"},
+        {code:"zh_CN", name:"Simplified Chinese"},
+        {code:"ja_JP", name:"Japanese"}
+    ]
     implicitWidth: moduleWidth(640); implicitHeight: moduleHeight(540)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
@@ -27,7 +33,6 @@ ModuleSurface {
             Item { Layout.fillWidth: true }
         }
         Text { text: shell.tr(["Make yourself at home", "Connect your desktop", "Make it yours", "Ready when you are"][wizard.step]); color: moduleForeground; font.pixelSize: 27; Layout.fillWidth: true; wrapMode: Text.WordWrap }
-        // Keep navigation visible while the step content scrolls independently.
         Flickable {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -47,11 +52,11 @@ ModuleSurface {
                         Text { text: shell.tr("Interface language"); color: moduleForeground; Layout.fillWidth: true }
                         StyledComboBox {
                             translationContext: wizard.shell
-                            model: [{code:"en_US", name:"English"}, {code:"zh_TW", name:"Traditional Chinese"}]
+                            model: wizard.languages
                             textRole: "name"
                             valueRole: "code"
-                            currentIndex: shell.state.language === "zh_TW" ? 1 : 0
-                            onActivated: shell.command("language", currentValue)
+                            currentIndex: Math.max(0, wizard.languages.findIndex(item => item.code === shell.state.language))
+                            onActivated: shell.setLanguage(currentValue)
                         }
                     }
                     Text { text: shell.tr("This is a development preview. Start in a nested session while evaluating it."); color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true }
