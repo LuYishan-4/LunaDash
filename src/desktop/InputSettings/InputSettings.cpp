@@ -71,8 +71,13 @@ private:
         const bool pressed = libinput_event_keyboard_get_key_state(keyboardEvent) == LIBINPUT_KEY_STATE_PRESSED;
         xkb_state_update_key(state_, xkbKey, pressed ? XKB_KEY_DOWN : XKB_KEY_UP);
         if (seat_ && seat_->keyboard()) {
-          if (pressed) seat_->keyboard()->sendKeyPressEvent(evdevKey);
-          else seat_->keyboard()->sendKeyReleaseEvent(evdevKey);
+          // QWaylandKeyboard's public sendKey*Event API takes the native/XKB
+          // scan code domain. Qt converts it back to wl_keyboard's evdev code
+          // internally by subtracting the historical offset of 8. Passing the
+          // raw evdev code here caused exactly that subtraction twice: e.g.
+          // S (31) became I (23), D (32) became O (24).
+          if (pressed) seat_->keyboard()->sendKeyPressEvent(xkbKey);
+          else seat_->keyboard()->sendKeyReleaseEvent(xkbKey);
         }
         ledsDirty = true;
       }
