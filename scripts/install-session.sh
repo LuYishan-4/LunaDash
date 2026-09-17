@@ -17,10 +17,14 @@ Supported installation paths:
   Arch Linux / derivatives      makepkg + pacman package installation
   Debian / Ubuntu derivatives   standard CMake system installation
   Fedora derivatives            standard CMake system installation
-  openSUSE Tumbleweed/Slowroll  standard CMake system installation
+  openSUSE family               standard CMake system installation
+  Alpine Linux                  apk dependencies + standard CMake install
+  Void Linux                    xbps dependencies + standard CMake install
+  Gentoo Linux                  emerge dependencies + standard CMake install
+  Other Linux distributions     existing toolchain + standard CMake install
 
 Options:
-  --enable-sddm   Install/enable SDDM and graphical boot; never restart a desktop.
+  --enable-sddm   Install/enable SDDM on systemd systems; never restart a desktop.
   --autologin USER
                   Opt into passwordless SDDM login for this user on boot.
                   Requires --enable-sddm. Existing auto-login config is preserved.
@@ -68,6 +72,9 @@ if command -v pacman >/dev/null 2>&1; then package_manager='pacman'
 elif command -v apt-get >/dev/null 2>&1; then package_manager='apt'
 elif command -v dnf >/dev/null 2>&1; then package_manager='dnf'
 elif command -v zypper >/dev/null 2>&1; then package_manager='zypper'
+elif command -v apk >/dev/null 2>&1; then package_manager='apk'
+elif command -v xbps-install >/dev/null 2>&1; then package_manager='xbps'
+elif command -v emerge >/dev/null 2>&1; then package_manager='emerge'
 fi
 
 if [[ -n $autologin ]]; then
@@ -87,7 +94,10 @@ if [[ -n $autologin ]]; then
 fi
 
 if $enable_sddm; then
-    command -v systemctl >/dev/null 2>&1 || { echo 'SDDM setup requires systemd.' >&2; exit 1; }
+    command -v systemctl >/dev/null 2>&1 || {
+        echo '--enable-sddm currently supports systemd systems only. Install/enable your display manager manually on OpenRC/runit systems.' >&2
+        exit 1
+    }
     manager=$(readlink -f /etc/systemd/system/display-manager.service || true)
     if [[ -n $manager && -e $manager && ${manager##*/} != sddm.service ]]; then
         echo 'Another display manager is enabled. Install LunaDash without --enable-sddm and select it there.' >&2
@@ -129,6 +139,9 @@ install_sddm() {
         apt) run "${elevate[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y sddm ;;
         dnf) run "${elevate[@]}" dnf install -y sddm ;;
         zypper) run "${elevate[@]}" zypper --non-interactive install sddm ;;
+        apk) run "${elevate[@]}" apk add sddm ;;
+        xbps) run "${elevate[@]}" xbps-install -Sy sddm ;;
+        emerge) run "${elevate[@]}" emerge --noreplace x11-misc/sddm ;;
         *)
             command -v sddm >/dev/null 2>&1 || {
                 echo 'Install SDDM with your distribution package manager, then rerun --enable-sddm.' >&2
