@@ -1,0 +1,54 @@
+name: Linux distribution builds
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "include/**"
+      - "src/**"
+      - "scripts/install-dependencies.sh"
+      - ".github/workflows/distro-build.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 1"
+permissions:
+  contents: read
+concurrency:
+  group: distro-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: ${{ matrix.name }} source build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian 12
+            image: debian:12-slim
+          - name: Fedora 45
+            image: fedora:45
+          - name: openSUSE Tumbleweed
+            image: opensuse/tumbleweed
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install distribution dependencies and build
+        env:
+          DISTRO_IMAGE: ${{ matrix.image }}
+        run: |
+          docker run --rm \
+            -e LUDASH_ALLOW_ROOT_DEPS=1 \
+            -e QT_QPA_PLATFORM=offscreen \
+            -v "$PWD:/src" -w /src \
+            "$DISTRO_IMAGE" bash -lc '
+              set -euo pipefail
+              bash scripts/install-dependencies.sh
+              cmake -S . -B build-distro -G Ninja \
+                -DCMAKE_BUILD_TYPE=Release -DLUDASH_BUILD_FILES_TESTS=ON
+              cmake --build build-distro --parallel 2
+              ctest --test-dir build-distro --output-on-failure -R "^lunadash-files$"
+            '
