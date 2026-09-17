@@ -21,7 +21,7 @@ ModuleSurface {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "lunadash-setup"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
     Rectangle { anchors.fill: parent; radius: moduleRadius; color: moduleBackground; border.color: moduleAccent }
     ColumnLayout {
