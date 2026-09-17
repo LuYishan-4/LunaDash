@@ -18,6 +18,8 @@ Item {
         "input-method": "M4 5 H20 V19 H4 Z M7 9 H17 M7 13 H13 M16 13 H17 M7 16 H10 M14 16 H17",
         sound: "M3 9 H7 L12 5 V19 L7 15 H3 Z M16 8 Q21 12 16 16 M19 5 Q26 12 19 19",
         network: "M3 8 Q12 1 21 8 M6 12 Q12 7 18 12 M9 16 Q12 13 15 16 M12 20 H12.1",
+        weather: "M8.5 18 H18 A4 4 0 0 0 18 10 A5.5 5.5 0 0 0 7.6 8.2 A4.2 4.2 0 0 0 8.5 18 M5 5 L3.5 3.5 M5 11 H2 M9 3 V1",
+        cloud: "M7 18 H18 A4 4 0 0 0 18 10 A5.5 5.5 0 0 0 7.6 8.2 A4.2 4.2 0 0 0 7 18",
         bluetooth: "M8 7 L17 16 L12 21 V3 L17 8 L8 17",
         power: "M4 6 H19 V18 H4 Z M22 10 V14 M12 8 L9 13 H14 L11 17",
         applications: "M4 4 H20 V20 H4 Z M4 9 H20 M8 6.5 H8.1 M12 13 L9 17 M13 17 H17",
