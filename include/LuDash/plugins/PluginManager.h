@@ -1,8 +1,8 @@
 #pragma once
+#include <QJsonObject>
+#include <QList>
 #include <QObject>
 #include <QStringList>
-#include <QList>
-#include <QJsonObject>
 class QQuickItem;
 class QPluginLoader;
 namespace LuDash {
@@ -12,7 +12,12 @@ struct PluginDescriptor {
     QString name;
     QString description;
     QString version;
+    QString author;
+    QString icon;
+    QString type;
+    QString entryPath;
     QString libraryPath;
+    QString metadataPath;
     QString error;
     bool enabled = false;
 };
@@ -25,6 +30,8 @@ public:
     void windowOpened(QQuickItem* frame);
     void windowFocused(QQuickItem* frame);
     QStringList errors() const;
+    QJsonObject snapshot() const;
+    bool setEnabled(const QString& id, bool enabled, QString* error = nullptr);
 private:
     QList<QPluginLoader*> loaders_;
     QList<CompositorPlugin*> plugins_;
