@@ -13,7 +13,7 @@ ModuleSurface {
     id:settings
     moduleId:"settings"
     property string category:"general"
-    property var categories:[{id:"general",name:"General"},{id:"appearance",name:"Appearance"},{id:"windows",name:"Windows and workspaces"},{id:"shortcuts",name:"Keyboard shortcuts"},{id:"modules",name:"Shell modules"},{id:"display",name:"Display"},{id:"input",name:"Keyboard and pointer"},{id:"input-method",name:"Input method"},{id:"sound",name:"Sound"},{id:"network",name:"Network"},{id:"bluetooth",name:"Bluetooth"},{id:"power",name:"Power and battery"},{id:"applications",name:"Applications and startup"},{id:"about",name:"About LunaDash"}]
+    property var categories:[{id:"general",name:"General"},{id:"appearance",name:"Appearance"},{id:"windows",name:"Windows and workspaces"},{id:"shortcuts",name:"Keyboard shortcuts"},{id:"modules",name:"Shell modules"},{id:"display",name:"Display"},{id:"input",name:"Keyboard and pointer"},{id:"input-method",name:"Input method"},{id:"sound",name:"Sound"},{id:"network",name:"Internet and network"},{id:"bluetooth",name:"Bluetooth"},{id:"devices",name:"Device manager and disks"},{id:"power",name:"Power and battery"},{id:"privacy",name:"Privacy and accessibility"},{id:"system",name:"Users, date and time"},{id:"applications",name:"Applications and startup"},{id:"about",name:"About LunaDash"}]
     SettingsCatalog{id:catalog}
     readonly property var searchResults:catalog.matches(search.text,shell.tr).filter(result=>settings.categories.some(category=>category.id===result.page))
     function showCategory(id){category=id;search.clear();pageLoader.setSource(Qt.resolvedUrl("pages/"+id+".qml"),{shell:settings.shell})}
