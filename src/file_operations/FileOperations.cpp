@@ -37,7 +37,7 @@ bool copyEntry(const fs::path& source, const fs::path& destination, std::error_c
     if (error) return false;
     if (fs::is_symlink(status)) {
         fs::copy_symlink(source, destination, error);
-        return !error; // Never follow a link, even a dangling or circular one.
+        return !error;
     }
     if (fs::is_regular_file(status)) {
         if (!fs::copy_file(source, destination, fs::copy_options::none, error)) return false;
@@ -52,7 +52,7 @@ bool copyEntry(const fs::path& source, const fs::path& destination, std::error_c
         if (error) return false;
     } else {
         error = std::make_error_code(std::errc::operation_not_supported);
-        return false; // FIFOs, sockets and device nodes are not ordinary files.
+        return false;
     }
     const auto modified = fs::last_write_time(source, error);
     if (error) return false;
@@ -61,28 +61,51 @@ bool copyEntry(const fs::path& source, const fs::path& destination, std::error_c
     fs::permissions(destination, status.permissions(), error);
     return !error;
 }
+QString duplicateTarget(const QFileInfo& source) {
+    const auto directory = source.dir();
+    QString stem = source.fileName();
+    QString suffix;
+    if (source.isFile() && !source.completeSuffix().isEmpty()) {
+        suffix = "." + source.completeSuffix();
+        stem.chop(suffix.size());
+    }
+    for (int index = 1; index <= 9999; ++index) {
+        const auto label = index == 1 ? translate("copy") : translate("copy %1").arg(index);
+        const auto candidate = directory.filePath(stem + " (" + label + ")" + suffix);
+        if (!exists(candidate)) return candidate;
+    }
+    return {};
+}
 } // namespace
+
 bool validFileName(const QString& name) {
     return !name.isEmpty() && name != "." && name != ".." && !name.contains('/') &&
            !name.contains(QChar(0)) && name.toUtf8().size() <= 255;
 }
+
 QString performFileOperation(const QString& operation, const QStringList& paths, const QString& destination) {
-    if (operation != "copy" && operation != "move" && operation != "trash") return translate("Unknown file operation.");
+    if (operation != "copy" && operation != "move" && operation != "trash" &&
+        operation != "duplicate" && operation != "delete")
+        return translate("Unknown file operation.");
     if (paths.isEmpty() || paths.size() > 256) return translate("Select between 1 and 256 items.");
+
     const QFileInfo destinationInfo(destination);
-    if (operation != "trash" && !destinationInfo.isDir()) return translate("Destination folder does not exist.");
+    if ((operation == "copy" || operation == "move") && !destinationInfo.isDir())
+        return translate("Destination folder does not exist.");
+
     QSet<QString> targets;
     QStringList sources;
     for (const auto& path : paths) sources << QDir::cleanPath(QFileInfo(path).absoluteFilePath());
-    // Preflight the complete batch before changing anything.
+
     for (const auto& path : sources) {
         const QFileInfo source(path);
         if (!exists(path)) return translate("Source no longer exists: %1").arg(path);
-        if (source.isRoot()) return translate("The filesystem root cannot be moved or copied.");
+        if (source.isRoot()) return translate("The filesystem root cannot be changed by this operation.");
         for (const auto& other : sources)
             if (other != path && QFileInfo(other).isDir() && !QFileInfo(other).isSymLink() && inside(path, other))
                 return translate("Do not select a folder and its contents in the same operation.");
-        if (operation == "trash") continue;
+
+        if (operation == "trash" || operation == "delete" || operation == "duplicate") continue;
         const auto target = QDir(destinationInfo.absoluteFilePath()).filePath(source.fileName());
         if (targets.contains(target) || exists(target))
             return translate("An item already exists; nothing will be overwritten: %1").arg(target);
@@ -90,23 +113,38 @@ QString performFileOperation(const QString& operation, const QStringList& paths,
         if (source.isDir() && !source.isSymLink() && inside(destinationInfo.canonicalFilePath(), source.canonicalFilePath()))
             return translate("A folder cannot be copied or moved into itself.");
     }
+
     for (const auto& path : sources) {
-        const auto target = QDir(destinationInfo.absoluteFilePath()).filePath(QFileInfo(path).fileName());
+        const QFileInfo source(path);
         std::error_code error;
         bool success = false;
+
         if (operation == "copy") {
+            const auto target = QDir(destinationInfo.absoluteFilePath()).filePath(source.fileName());
             QTemporaryDir staging(QDir(destinationInfo.absoluteFilePath()).filePath(".lunadash-copy-XXXXXX"));
             if (!staging.isValid()) return translate("Could not create a temporary copy in the destination folder.");
             const auto staged = staging.filePath("payload");
             success = copyEntry(nativePath(path), nativePath(staged), error) && renameNoReplace(staged, target, error);
-            // QTemporaryDir removes only our uncommitted partial copy on failure.
         } else if (operation == "move") {
+            const auto target = QDir(destinationInfo.absoluteFilePath()).filePath(source.fileName());
             success = renameNoReplace(path, target, error);
-        } else {
+        } else if (operation == "trash") {
             success = QFile::moveToTrash(path);
+        } else if (operation == "duplicate") {
+            const auto target = duplicateTarget(source);
+            if (target.isEmpty()) return translate("Could not choose a unique duplicate name for: %1").arg(path);
+            QTemporaryDir staging(source.dir().filePath(".lunadash-duplicate-XXXXXX"));
+            if (!staging.isValid()) return translate("Could not create a temporary duplicate beside: %1").arg(path);
+            const auto staged = staging.filePath("payload");
+            success = copyEntry(nativePath(path), nativePath(staged), error) && renameNoReplace(staged, target, error);
+        } else if (operation == "delete") {
+            const auto removed = fs::remove_all(nativePath(path), error);
+            success = !error && removed > 0;
         }
-        if (!success) return translate("Operation stopped at: %1. Earlier items may have completed. Cross-filesystem moves may require copy and trash.").arg(path) +
-            (error ? "\n" + QString::fromStdString(error.message()) : QString{});
+
+        if (!success)
+            return translate("Operation stopped at: %1. Earlier items may have completed.").arg(path) +
+                (error ? "\n" + QString::fromStdString(error.message()) : QString{});
     }
     return {};
 }
