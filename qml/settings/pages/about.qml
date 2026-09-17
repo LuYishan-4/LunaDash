@@ -20,7 +20,25 @@ ColumnLayout {
     readonly property bool installing: install.state === "running"
     readonly property bool installCompleted: install.state === "completed"
     readonly property bool installFailed: install.state === "error"
+    readonly property int installProgress: Math.max(0, Math.min(100, Number(install.progress || 0)))
+    readonly property string installStage: String(install.stage || "idle")
     spacing: 16
+
+    function stageLabel(stage) {
+        const labels = {
+            prepare: shell.tr("Preparing"),
+            download: shell.tr("Downloading source"),
+            verify: shell.tr("Verifying update"),
+            configure: shell.tr("Configuring build"),
+            build: shell.tr("Building LunaDash"),
+            backup: shell.tr("Creating rollback backup"),
+            install: shell.tr("Installing files"),
+            finalize: shell.tr("Finalizing"),
+            rollback: shell.tr("Restoring previous installation"),
+            complete: shell.tr("Completed")
+        }
+        return labels[stage] || shell.tr("Waiting")
+    }
 
     PageTitle { shell: page.shell; title: "About LunaDash" }
 
@@ -136,6 +154,61 @@ ColumnLayout {
                         font.pixelSize: 11
                     }
                 }
+            }
+        }
+
+        ColumnLayout {
+            visible: page.installing || page.installCompleted || page.installFailed
+            Layout.fillWidth: true
+            spacing: 6
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    Layout.fillWidth: true
+                    text: page.stageLabel(page.installStage)
+                    color: page.installFailed ? Theme.danger : Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    text: page.installProgress + "%"
+                    color: Theme.muted
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 8
+                radius: 4
+                color: Theme.control
+                clip: true
+
+                Rectangle {
+                    width: parent.width * page.installProgress / 100
+                    height: parent.height
+                    radius: parent.radius
+                    color: page.installFailed ? Theme.danger : Theme.accent
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: Theme.motion
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: page.install.message || ""
+                visible: text.length > 0
+                color: Theme.muted
+                font.family: Theme.font
+                font.pixelSize: 10
+                wrapMode: Text.WordWrap
             }
         }
 
