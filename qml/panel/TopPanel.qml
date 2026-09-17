@@ -23,6 +23,14 @@ ModuleSurface {
 
     property var stats: shell.state.system || ({})
     readonly property var groups: ((shell.state.tiling || {}).groups || [])
+    readonly property var panelConfig: specification.config || ({})
+    readonly property bool backgroundVisible: panelConfig.backgroundVisible ?? false
+    readonly property bool contrastShells: panelConfig.contrastShells ?? true
+    readonly property bool workspacePills: panelConfig.workspacePills ?? true
+    readonly property int workspaceInactiveWidth: panelConfig.workspaceInactiveWidth ?? 18
+    readonly property int workspaceActiveWidth: panelConfig.workspaceActiveWidth ?? 38
+    readonly property int workspacePillHeight: panelConfig.workspacePillHeight ?? 10
+    readonly property real shellOpacity: (panelConfig.shellOpacity ?? 20) / 100.0
     readonly property var launcherModule: (((shell.state.shellModules || {}).modules || {}).launcher || ({}))
     readonly property var launcherConfig: launcherModule.config || ({})
     readonly property var launcherStyle: launcherModule.style || ({})
@@ -35,6 +43,10 @@ ModuleSurface {
     onFocusedGroupIndexChanged: if (focusedGroupIndex >= 0) columnTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain)
     onGroupsChanged: Qt.callLater(() => { if (focusedGroupIndex >= 0) columnTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain) })
 
+    function shellColor(alphaScale) {
+        return Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b,
+                       Math.min(0.64, panel.shellOpacity * alphaScale))
+    }
     function trayImage(item) {
         const supplied = String(item.icon || "")
         if (/^(image:|file:|qrc:|data:)/.test(supplied) && !supplied.includes("qs-blackhole")) return supplied
@@ -55,34 +67,107 @@ ModuleSurface {
 
     Rectangle {
         anchors.fill: parent
+        visible: panel.backgroundVisible
         radius: Math.min(8, height / 2)
         color: moduleBackground
         border.width: 1
         border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.28)
     }
 
-    Row {
-        id: workspaceControls
-        anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
-        spacing: 3
-        Repeater {
-            model: (shell.state.appearance || {}).workspaceCount || 4
-            PanelSegment {
-                moduleHost: panel
-                required property int index
-                text: String(index + 1)
-                implicitWidth: panel.moduleWidth(shell.state.workspace === index ? 32 : 24)
-                selected: shell.state.workspace === index
-                onClicked: shell.command("workspace", index)
+    Item {
+        id: workspaceShell
+        anchors { left: parent.left; leftMargin: 7; verticalCenter: parent.verticalCenter }
+        height: Math.max(28, panel.height - 8)
+        width: workspaceControls.implicitWidth + 16
+
+        Rectangle {
+            anchors.fill: parent
+            visible: panel.contrastShells
+            radius: height / 2
+            color: panel.shellColor(0.82)
+            border.width: 1
+            border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.38)
+        }
+
+        Row {
+            id: workspaceControls
+            anchors.centerIn: parent
+            spacing: 5
+            Repeater {
+                model: (shell.state.appearance || {}).workspaceCount || 4
+                Item {
+                    id: workspacePill
+                    required property int index
+                    readonly property bool active: shell.state.workspace === index
+                    width: panel.workspacePills ? (active ? panel.workspaceActiveWidth : panel.workspaceInactiveWidth) : 24
+                    height: workspaceShell.height
+                    Accessible.role: Accessible.Button
+                    Accessible.name: shell.tr("Workspace") + " " + (index + 1)
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: panel.workspacePills ? panel.workspacePillHeight : 20
+                        radius: height / 2
+                        color: workspacePill.active
+                            ? moduleAccent
+                            : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b,
+                                      workspaceMouse.containsMouse ? 0.30 : 0.16)
+                        border.width: workspacePill.active ? 0 : 1
+                        border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.30)
+                        scale: workspaceMouse.pressed ? 0.90 : workspaceMouse.containsMouse ? 1.05 : 1.0
+                        Behavior on width { NumberAnimation { duration: Math.max(120, Theme.motion); easing.type: Easing.OutCubic } }
+                        Behavior on color { ColorAnimation { duration: Theme.motion } }
+                        Behavior on scale { NumberAnimation { duration: Math.max(90, Theme.motion); easing.type: Easing.OutCubic } }
+                    }
+                    MouseArea {
+                        id: workspaceMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: shell.command("workspace", workspacePill.index)
+                    }
+                }
             }
         }
-        PanelSegment {
-            moduleHost: panel
-            text: "⏻"
-            implicitWidth: 26
-            ink: Theme.danger
-            Accessible.name: shell.tr("Session controls")
-            onClicked: shell.logoutOpen = !shell.logoutOpen
+    }
+
+    Item {
+        id: taskShell
+        anchors { left: workspaceShell.right; leftMargin: 7; right: centerSelector.left; rightMargin: 9; verticalCenter: parent.verticalCenter }
+        height: Math.max(28, panel.height - 8)
+        visible: columnTasks.count > 0
+
+        Rectangle {
+            anchors.fill: parent
+            visible: panel.contrastShells
+            radius: height / 2
+            color: panel.shellColor(0.66)
+            border.width: 1
+            border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.28)
+        }
+
+        ListView {
+            id: columnTasks
+            anchors.fill: parent
+            anchors.margins: 4
+            orientation: ListView.Horizontal
+            spacing: 4
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            model: panel.groups
+            visible: count > 0
+            Behavior on contentX {
+                enabled: !columnTasks.flicking && !columnTasks.moving
+                NumberAnimation { duration: Math.max(120, Theme.motion); easing.type: Easing.OutCubic }
+            }
+            delegate: ColumnCell {
+                required property var modelData
+                shell: panel.shell
+                group: modelData
+                height: columnTasks.height
+                width: Math.max(38, Math.min(142, ((modelData.members || []).length * 30) + 12))
+            }
         }
     }
 
@@ -187,29 +272,6 @@ ModuleSurface {
         }
     }
 
-    ListView {
-        id: columnTasks
-        anchors { left: workspaceControls.right; leftMargin: 6; right: centerSelector.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
-        height: Math.max(28, panel.height - 8)
-        orientation: ListView.Horizontal
-        spacing: 3
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        model: panel.groups
-        visible: count > 0
-        Behavior on contentX {
-            enabled: !columnTasks.flicking && !columnTasks.moving
-            NumberAnimation { duration: Math.max(120, Theme.motion); easing.type: Easing.OutCubic }
-        }
-        delegate: ColumnCell {
-            required property var modelData
-            shell: panel.shell
-            group: modelData
-            height: columnTasks.height
-            width: Math.max(38, Math.min(142, ((modelData.members || []).length * 30) + 12))
-        }
-    }
-
     Row {
         anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
         spacing: 3
@@ -223,7 +285,6 @@ ModuleSurface {
                 visible: item.status !== Status.Passive
                 width: visible ? Math.min(28, panel.height - 8) : 0
                 height: Math.min(28, panel.height - 8)
-
                 Rectangle {
                     anchors.fill: parent
                     radius: 5
