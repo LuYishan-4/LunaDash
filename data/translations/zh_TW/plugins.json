@@ -1,5 +1,4 @@
 {
-  "Plugins": "插件",
   "Manage installed QML plugins and C++ effects. The plugin store is reserved for a future release.": "管理已安裝的 QML 插件與 C++ 特效。插件商店將保留給未來版本使用。",
   "Installed plugins": "已安裝插件",
   "QML plugins can update with the shell; C++ effects require a session restart after changing their state.": "QML 插件可隨桌面 Shell 即時更新；C++ 特效變更啟用狀態後需要重新啟動工作階段。",
