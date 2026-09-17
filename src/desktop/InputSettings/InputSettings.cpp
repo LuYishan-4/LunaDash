@@ -17,7 +17,11 @@
 #endif
 
 namespace LuDash {
-namespace { bool nativeKeyboardInputEnabled = true; }
+namespace {
+bool nativeKeyboardInputEnabled = true;
+constexpr quint32 kKeyboardRepeatRate = 25;
+constexpr quint32 kKeyboardRepeatDelay = 600;
+}
 #ifdef LUDASH_USE_LIBINPUT
 namespace {
 int openRestricted(const char *path, int flags, void *) { return ::open(path, flags | O_CLOEXEC); }
@@ -94,7 +98,7 @@ void setNativeKeyboardInputEnabled(bool enabled) {
 void applyKeyboardPreferences(QWaylandSeat *seat, const QJsonObject &preferences) {
   if (!seat || !seat->keyboard()) return; auto *keymap = seat->keymap(); keymap->setRules(QStringLiteral("evdev")); keymap->setModel(QStringLiteral("pc105"));
   const QString layout = preferences.value("keyboardLayout").toString(); keymap->setLayout(layout);
-  seat->keyboard()->setRepeatRate(static_cast<quint32>(preferences.value("keyRepeatRate").toInt())); seat->keyboard()->setRepeatDelay(static_cast<quint32>(preferences.value("keyRepeatDelay").toInt()));
+  seat->keyboard()->setRepeatRate(kKeyboardRepeatRate); seat->keyboard()->setRepeatDelay(kKeyboardRepeatDelay);
 #ifdef LUDASH_USE_LIBINPUT
   if (nativeKeyboardInputEnabled) nativeKeyboardState().configure(seat, layout);
 #endif
