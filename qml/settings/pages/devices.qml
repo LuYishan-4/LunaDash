@@ -16,6 +16,8 @@ ColumnLayout {
     property var blockDevices: []
     property string probeError: ""
     property string diskActionMessage: ""
+    property string deviceEventsText: ""
+    property bool deviceEventsVisible: false
 
     function refreshHardware() {
         probeError = ""
@@ -172,8 +174,36 @@ ColumnLayout {
     SettingsComponents.SettingsCard {
         visible: page.section === "devices"
         title: shell.tr("Device properties and administration")
-        description: shell.tr("Windows Device Manager property areas are represented here by live status, driver/module information, hardware identifiers, rescan controls, and the detailed hardware tool. Device power policy is managed by the Power page; printers and scanners are available below.")
+        description: shell.tr("Windows Device Manager property areas are represented here by live status, driver/module information, hardware identifiers, rescan controls, device events, power settings, and the detailed hardware tool.")
+        RowLayout {
+            Layout.fillWidth: true
+            ShellButton {
+                text: page.deviceEventsVisible ? shell.tr("Hide device events") : shell.tr("Device events")
+                active: page.deviceEventsVisible
+                onClicked: {
+                    page.deviceEventsVisible = !page.deviceEventsVisible
+                    if (page.deviceEventsVisible && !deviceEvents.running)
+                        deviceEvents.running = true
+                }
+            }
+            ShellButton { text: shell.tr("Device power management"); onClicked: shell.command("open-settings", "power") }
+            ShellButton { text: shell.tr("Printers and scanners"); onClicked: shell.command("system-tool", "printers") }
+            Item { Layout.fillWidth: true }
+        }
+        Text {
+            Layout.fillWidth: true
+            visible: page.deviceEventsVisible
+            text: page.deviceEventsText || shell.tr("Collecting recent device events…")
+            color: Theme.muted
+            font.family: Theme.font
+            font.pixelSize: 11
+            wrapMode: Text.WrapAnywhere
+        }
         ToolList { shell: page.shell; category: "devices" }
+        HelpText {
+            shell: page.shell
+            message: "Driver rollback, device uninstall and low-level enable/disable operations do not have one safe cross-device Linux API. LunaDash exposes the driver package manager, kernel binding details and hardware tools here instead of issuing blind privileged sysfs writes."
+        }
     }
 
     SettingsComponents.SettingsCard {
@@ -292,6 +322,13 @@ ColumnLayout {
         id: rescan
         command: ["udevadm", "trigger"]
         onExited: (code, status) => page.refreshHardware()
+    }
+
+    Process {
+        id: deviceEvents
+        command: ["journalctl", "-k", "-n", "120", "--no-pager", "--output=short-iso"]
+        stdout: StdioCollector { onStreamFinished: page.deviceEventsText = text.trim() }
+        stderr: StdioCollector { onStreamFinished: if (text.trim()) page.deviceEventsText = text.trim() }
     }
 
     Process {
