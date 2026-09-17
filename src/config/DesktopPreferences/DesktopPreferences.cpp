@@ -183,6 +183,14 @@ QJsonObject desktopPreferences() {
         }
         if (valid(it.key(), value)) it.value() = value;
     }
+
+    QJsonArray wallpaperHistory;
+    const auto history = settings.value("appearance/wallpaperHistory").toStringList();
+    for (const auto &path : history)
+        wallpaperHistory.append(path);
+    result.insert("wallpaperHistory", wallpaperHistory);
+    result.insert("wallpaperRevision",
+                  static_cast<qint64>(settings.value("appearance/wallpaperRevision", 0).toULongLong()));
     result.insert("plugins", pluginSnapshot());
     return result;
 }
