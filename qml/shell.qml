@@ -53,6 +53,8 @@ ShellRoot {
         channel: "",
         target: "",
         rollback: false,
+        progress: 0,
+        stage: "idle",
         message: "",
         details: ""
     })
@@ -92,7 +94,9 @@ ShellRoot {
             channel: String(channel),
             target: String(ref),
             rollback: false,
-            message: tr("Downloading, building, and installing the update…"),
+            progress: 0,
+            stage: "prepare",
+            message: tr("Preparing the update…"),
             details: ""
         }
         updateAction.command = [updaterExecutable, String(channel), String(ref)]
@@ -109,6 +113,8 @@ ShellRoot {
             channel: "",
             target: "",
             rollback: true,
+            progress: 0,
+            stage: "rollback",
             message: tr("Restoring the previous installation…"),
             details: ""
         }
@@ -247,6 +253,8 @@ ShellRoot {
                     channel: rollback ? "" : String(updateAction.command[1] || ""),
                     target: rollback ? "" : String(updateAction.command[2] || ""),
                     rollback: rollback,
+                    progress: 100,
+                    stage: "complete",
                     message: root.tr(rollback ? "Rollback completed." : "Update installed successfully."),
                     details: detail
                 }
@@ -257,12 +265,48 @@ ShellRoot {
                     channel: rollback ? "" : String(updateAction.command[1] || ""),
                     target: rollback ? "" : String(updateAction.command[2] || ""),
                     rollback: rollback,
+                    progress: Number(root.updateInstall.progress || 0),
+                    stage: String(root.updateInstall.stage || "error"),
                     message: root.tr(rollback ? "Rollback failed." : "Update failed."),
                     details: detail
                 }
                 root.notify(root.tr("Update failed"), root.tr("The update could not be completed. Open details to view the log."), "error", detail)
             }
         }
+    }
+
+    Process {
+        id: updateStatusAction
+        command: [root.updaterExecutable, "--status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!text.trim() || root.updateInstall.state !== "running")
+                    return
+                try {
+                    const progress = JSON.parse(text)
+                    root.updateInstall = {
+                        state: String(progress.state || "running"),
+                        channel: String(progress.channel || root.updateInstall.channel || ""),
+                        target: String(progress.target || root.updateInstall.target || ""),
+                        rollback: Boolean(progress.rollback ?? root.updateInstall.rollback),
+                        progress: Math.max(0, Math.min(100, Number(progress.progress || 0))),
+                        stage: String(progress.stage || root.updateInstall.stage || ""),
+                        message: root.tr(String(progress.message || root.updateInstall.message || "")),
+                        details: root.updateInstall.details || ""
+                    }
+                } catch(error) {
+                    console.warn("Could not parse LunaDash update progress:", error)
+                }
+            }
+        }
+    }
+
+    Timer {
+        interval: 400
+        repeat: true
+        running: updateAction.running
+        triggeredOnStart: true
+        onTriggered: if (!updateStatusAction.running) updateStatusAction.running = true
     }
 
     function launch(id) {
