@@ -1,11 +1,11 @@
 # Local source release: run scripts/make-source.sh first, then makepkg -Cfs.
 pkgname=ludash
 pkgver=0.1.0
-pkgrel=5
+pkgrel=6
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'polkit' 'git' 'cmake' 'ninja' 'glib2' 'shared-mime-info')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'polkit' 'git' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool')
 makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel')
 optdepends=('networkmanager: Network status and connection management'
             'nm-connection-editor: Graphical network setup'
@@ -18,10 +18,7 @@ optdepends=('networkmanager: Network status and connection management'
             'gnome-control-center: Optional account and date settings'
             'xfce4-settings: Optional default application editor'
             'noto-fonts-cjk: CJK interface fonts'
-            'mesa: Mesa OpenGL drivers'
-            'fcitx5: Input method framework'
-            'fcitx5-qt: Fcitx integration for Qt'
-            'fcitx5-configtool: Input method settings')
+            'mesa: Mesa OpenGL drivers')
 source=("ludash-${pkgver}.tar.gz")
 sha256sums=('SKIP') # Local generated source, not a downloaded release.
 
