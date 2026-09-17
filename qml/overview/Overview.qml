@@ -26,8 +26,9 @@ ModuleSurface {
     readonly property string weatherTemperature: weather.temperature !== undefined ? String(weather.temperature) + "°" : "—"
 
     anchors.top: true
-    anchors.horizontalCenter: true
+    anchors.left: true
     margins.top: Theme.barHeight + moduleMargin + 8
+    margins.left: Math.max(moduleMargin, Math.round(((screen ? screen.width : 1440) - implicitWidth) / 2))
     implicitWidth: moduleWidth(1060)
     implicitHeight: moduleHeight(650)
     exclusionMode: ExclusionMode.Ignore
@@ -117,197 +118,133 @@ ModuleSurface {
             color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.12)
         }
 
-        RowLayout {
-            visible: dashboard.tab === 0
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 12
+            visible: dashboard.tab === 0
 
-            ColumnLayout {
-                Layout.preferredWidth: 590
-                Layout.fillHeight: true
-                spacing: 12
+            RowLayout {
+                anchors.fill: parent
+                spacing: 14
 
                 Rectangle {
-                    Layout.fillWidth: true
+                    Layout.preferredWidth: 560
                     Layout.fillHeight: true
                     radius: 24
                     clip: true
                     color: Theme.background
                     border.width: 1
-                    border.color: Qt.rgba(Theme.moon.r, Theme.moon.g, Theme.moon.b, 0.24)
+                    border.color: Qt.rgba(Theme.moon.r, Theme.moon.g, Theme.moon.b, 0.28)
 
                     Image {
                         anchors.fill: parent
-                        source: shell.wallpaperOverride.length ? shell.wallpaperOverride : (shell.state.wallpaperImage || "")
+                        source: shell.state.wallpaperImage || ""
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
-                        sourceSize: Qt.size(1000, 700)
+                        sourceSize: Qt.size(1200, 800)
                     }
 
                     Rectangle {
                         anchors.fill: parent
-                        color: Qt.rgba(0.02, 0.03, 0.09, 0.30)
-                    }
-
-                    Rectangle {
-                        width: 260
-                        height: 260
-                        radius: 130
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: -70
-                        color: Qt.rgba(Theme.moon.r, Theme.moon.g, Theme.moon.b, 0.08)
-                        border.width: 1
-                        border.color: Qt.rgba(Theme.moon.r, Theme.moon.g, Theme.moon.b, 0.20)
+                        color: Qt.rgba(0.02, 0.04, 0.10, 0.36)
                     }
 
                     Column {
                         anchors.left: parent.left
                         anchors.bottom: parent.bottom
                         anchors.margins: 24
-                        spacing: 5
+                        spacing: 4
                         Text {
-                            text: shell.tr("Welcome back")
+                            text: "LunaDash"
                             color: Theme.moon
-                            font.family: Theme.font
-                            font.pixelSize: 13
-                            font.letterSpacing: 1.2
-                        }
-                        Text {
-                            text: dashboard.stats.displayName || dashboard.stats.user || "LunaDash"
-                            color: "white"
                             font.family: Theme.font
                             font.pixelSize: 34
                             font.weight: Font.DemiBold
                         }
                         Text {
-                            text: "LunaDash · Wayland · " + dashboard.versionText
-                            color: Qt.rgba(1, 1, 1, 0.72)
+                            text: shell.tr("A modern Wayland desktop")
+                            color: Theme.text
                             font.family: Theme.font
-                            font.pixelSize: 11
-                        }
-                    }
-
-                    Column {
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.margins: 24
-                        spacing: 2
-                        Text {
-                            anchors.right: parent.right
-                            text: dashboard.time
-                            color: Theme.moon
-                            font.family: Theme.font
-                            font.pixelSize: 48
-                            font.weight: Font.Light
+                            font.pixelSize: 13
                         }
                         Text {
-                            anchors.right: parent.right
-                            text: dashboard.date
-                            color: Qt.rgba(1, 1, 1, 0.68)
+                            text: "WAYLAND  ·  " + dashboard.versionText
+                            color: Theme.starlight
                             font.family: Theme.font
                             font.pixelSize: 11
                         }
                     }
                 }
 
-                RowLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 132
+                    Layout.fillHeight: true
                     spacing: 12
 
-                    Repeater {
-                        model: [
-                            ["CPU", Math.round(dashboard.stats.cpuPercent || 0) + "%", "monitor"],
-                            [shell.tr("Memory"), Math.round(dashboard.stats.memoryPercent || 0) + "%", "devices"],
-                            [shell.tr("Network"), dashboard.network.connected ? shell.tr("Online") : shell.tr("Offline"), "network"]
-                        ]
-
-                        Rectangle {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: 18
-                            color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.82)
-                            border.width: 1
-                            border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.15)
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 158
+                        radius: 22
+                        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.82)
+                        border.width: 1
+                        border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.16)
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
                             ColumnLayout {
-                                anchors.fill: parent
-                                anchors.margins: 15
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    LineIcon { width: 17; height: 17; name: modelData[2]; ink: Theme.moon }
-                                    Text { Layout.fillWidth: true; text: modelData[0]; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
-                                }
-                                Item { Layout.fillHeight: true }
-                                Text { text: modelData[1]; color: Theme.text; font.family: Theme.font; font.pixelSize: 26; font.weight: Font.DemiBold }
+                                Layout.fillWidth: true
+                                Text { text: dashboard.time; color: Theme.moon; font.family: Theme.font; font.pixelSize: 46; font.weight: Font.Light }
+                                Text { text: dashboard.date; color: Theme.muted; font.family: Theme.font; font.pixelSize: 12 }
+                            }
+                            ColumnLayout {
+                                Layout.alignment: Qt.AlignVCenter
+                                Text { text: dashboard.weatherTemperature; color: Theme.text; font.family: Theme.font; font.pixelSize: 34; font.weight: Font.Light }
+                                Text { text: dashboard.weatherCondition; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight; Layout.maximumWidth: 170 }
                             }
                         }
                     }
-                }
-            }
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 12
+                    GridLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        columns: 2
+                        columnSpacing: 12
+                        rowSpacing: 12
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 200
-                    radius: 22
-                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.80)
-                    border.width: 1
-                    border.color: Qt.rgba(Theme.moon.r, Theme.moon.g, Theme.moon.b, 0.18)
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 18
-                        RowLayout {
-                            Layout.fillWidth: true
-                            LineIcon { width: 22; height: 22; name: "weather"; ink: Theme.moon }
-                            Text { Layout.fillWidth: true; text: dashboard.weatherLocation; color: Theme.text; font.family: Theme.font; font.pixelSize: 15; font.weight: Font.DemiBold }
-                            Text { text: dashboard.weatherTemperature; color: Theme.moon; font.family: Theme.font; font.pixelSize: 30; font.weight: Font.Light }
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: dashboard.weatherCondition
-                            color: Theme.muted
-                            font.family: Theme.font
-                            font.pixelSize: 12
-                            wrapMode: Text.WordWrap
-                        }
-                        Item { Layout.fillHeight: true }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: shell.tr("Graphics"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
-                            Text { text: shell.state.graphicsApi || "OpenGL"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: shell.tr("Kernel"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
-                            Text { text: dashboard.stats.kernel || "—"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight; Layout.maximumWidth: 180 }
+                        Repeater {
+                            model: [
+                                ["CPU", Math.round(dashboard.stats.cpuPercent || 0) + "%", "monitor"],
+                                [shell.tr("Memory"), Math.round(dashboard.stats.memoryPercent || 0) + "%", "modules"],
+                                [shell.tr("Network"), dashboard.network.connected ? shell.tr("Connected") : shell.tr("Disconnected"), "network"],
+                                [shell.tr("Weather"), dashboard.weatherTemperature, "weather"]
+                            ]
+                            Rectangle {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                radius: 18
+                                color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.72)
+                                border.width: 1
+                                border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.12)
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 16
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        LineIcon { width: 18; height: 18; name: modelData[2]; ink: Theme.moon }
+                                        Text { Layout.fillWidth: true; text: modelData[0]; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
+                                    }
+                                    Item { Layout.fillHeight: true }
+                                    Text { text: modelData[1]; color: Theme.text; font.family: Theme.font; font.pixelSize: 24; font.weight: Font.DemiBold }
+                                }
+                            }
                         }
                     }
-                }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    radius: 22
-                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.80)
-                    border.width: 1
-                    border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.15)
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 18
-                        Text { text: shell.tr("Quick actions"); color: Theme.text; font.family: Theme.font; font.pixelSize: 15; font.weight: Font.DemiBold }
-                        Text { text: shell.tr("Move through LunaDash without leaving the dashboard."); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                        Item { Layout.fillHeight: true }
-                        ShellButton { Layout.fillWidth: true; text: shell.tr("Open settings"); onClicked: { shell.setAppearance({overview:false}); shell.settingsOpen = true } }
-                        ShellButton { Layout.fillWidth: true; text: shell.tr("Open files"); onClicked: { shell.setAppearance({overview:false}); shell.launch("files") } }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        ShellButton { Layout.fillWidth: true; text: shell.tr("Settings"); onClicked: { shell.setAppearance({overview:false}); shell.settingsOpen = true } }
+                        ShellButton { Layout.fillWidth: true; text: shell.tr("Files"); onClicked: shell.launch("files") }
                     }
                 }
             }
@@ -330,32 +267,26 @@ ModuleSurface {
 
             Repeater {
                 model: [
-                    ["CPU", Math.round(dashboard.stats.cpuPercent || 0) + "%", dashboard.stats.cpuModel || "CPU", "monitor"],
-                    ["GPU", Math.round(dashboard.stats.gpuPercent || 0) + "%", dashboard.stats.gpuModel || "GPU", "display"],
-                    [shell.tr("Memory"), Math.round(dashboard.stats.memoryPercent || 0) + "%", Number(dashboard.stats.memoryUsed || 0).toFixed(1) + " GiB", "devices"],
-                    [shell.tr("Storage"), Number(dashboard.stats.diskUsed || 0).toFixed(1) + " GiB", dashboard.stats.diskDevice || "Disk", "files"]
+                    ["CPU", Math.round(dashboard.stats.cpuPercent || 0) + "%", dashboard.stats.cpuModel || "CPU"],
+                    ["GPU", Math.round(dashboard.stats.gpuPercent || 0) + "%", dashboard.stats.gpuModel || "GPU"],
+                    [shell.tr("Memory"), Math.round(dashboard.stats.memoryPercent || 0) + "%", Number(dashboard.stats.memoryUsed || 0).toFixed(1) + " GiB"],
+                    [shell.tr("Storage"), Number(dashboard.stats.diskUsed || 0).toFixed(1) + " GiB", dashboard.stats.diskDevice || "Disk"]
                 ]
-
                 Rectangle {
                     required property var modelData
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: 22
-                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.82)
+                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.76)
                     border.width: 1
-                    border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.16)
-
+                    border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.14)
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: 20
-                        RowLayout {
-                            Layout.fillWidth: true
-                            LineIcon { width: 20; height: 20; name: modelData[3]; ink: Theme.moon }
-                            Text { Layout.fillWidth: true; text: modelData[0]; color: Theme.text; font.family: Theme.font; font.pixelSize: 17; font.weight: Font.DemiBold }
-                        }
-                        Text { Layout.fillWidth: true; text: modelData[2]; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight }
+                        Text { text: modelData[0]; color: Theme.moon; font.family: Theme.font; font.pixelSize: 18; font.weight: Font.DemiBold }
+                        Text { text: modelData[2]; color: Theme.muted; font.family: Theme.font; Layout.fillWidth: true; elide: Text.ElideRight }
                         Item { Layout.fillHeight: true }
-                        Text { text: modelData[1]; color: Theme.moon; font.family: Theme.font; font.pixelSize: 40; font.weight: Font.Light }
+                        Text { text: modelData[1]; color: Theme.text; font.family: Theme.font; font.pixelSize: 38; font.weight: Font.Light }
                     }
                 }
             }
@@ -366,51 +297,16 @@ ModuleSurface {
             Layout.fillWidth: true
             Layout.fillHeight: true
             radius: 24
-            color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.78)
+            color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.76)
             border.width: 1
-            border.color: Qt.rgba(Theme.moon.r, Theme.moon.g, Theme.moon.b, 0.18)
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 26
-                spacing: 28
-
-                Rectangle {
-                    Layout.preferredWidth: 300
-                    Layout.fillHeight: true
-                    radius: 24
-                    color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.55)
-                    border.width: 1
-                    border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.14)
-
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        spacing: 10
-                        LineIcon { Layout.alignment: Qt.AlignHCenter; width: 72; height: 72; name: "weather"; ink: Theme.moon }
-                        Text { Layout.alignment: Qt.AlignHCenter; text: dashboard.weatherTemperature; color: Theme.moon; font.family: Theme.font; font.pixelSize: 54; font.weight: Font.Light }
-                        Text { Layout.alignment: Qt.AlignHCenter; text: dashboard.weatherLocation; color: Theme.text; font.family: Theme.font; font.pixelSize: 17; font.weight: Font.DemiBold }
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    spacing: 12
-                    Text { text: shell.tr("Weather"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.weight: Font.DemiBold }
-                    Text { Layout.fillWidth: true; text: dashboard.weatherCondition; color: Theme.muted; font.family: Theme.font; font.pixelSize: 13; wrapMode: Text.WordWrap }
-                    Rectangle { Layout.fillWidth: true; height: 1; color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.12) }
-                    Text {
-                        Layout.fillWidth: true
-                        text: weather.temperature === undefined
-                            ? shell.tr("Connect a weather provider to show live forecasts here. This page is intentionally separate from Wi-Fi status.")
-                            : shell.tr("Live weather data is available from the shell weather state.")
-                        color: Theme.muted
-                        font.family: Theme.font
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                    }
-                    Item { Layout.fillHeight: true }
-                }
+            border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.14)
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 12
+                LineIcon { Layout.alignment: Qt.AlignHCenter; width: 60; height: 60; name: "weather"; ink: Theme.moon }
+                Text { Layout.alignment: Qt.AlignHCenter; text: dashboard.weatherTemperature; color: Theme.text; font.family: Theme.font; font.pixelSize: 42; font.weight: Font.Light }
+                Text { Layout.alignment: Qt.AlignHCenter; text: dashboard.weatherLocation; color: Theme.moon; font.family: Theme.font; font.pixelSize: 18; font.weight: Font.DemiBold }
+                Text { Layout.alignment: Qt.AlignHCenter; text: dashboard.weatherCondition; color: Theme.muted; font.family: Theme.font; font.pixelSize: 12 }
             }
         }
     }
