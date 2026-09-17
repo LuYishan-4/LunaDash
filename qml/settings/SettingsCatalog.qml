@@ -11,6 +11,8 @@ QtObject {
         {page:"windows", pageName:"Windows and workspaces", name:"Number of workspaces", keywords:"tiling floating master window gap resize guide Alt"},
         {page:"shortcuts", pageName:"Keyboard shortcuts", name:"Global shortcuts", keywords:"keys Meta bind launch focus group workspace close maximize"},
         {page:"modules", pageName:"Shell modules", name:"Module layout", keywords:"panel overview dashboard JSON size position color"},
+        {page:"dashboard", pageName:"Dashboard", name:"Dashboard cards", keywords:"overview volume Wi-Fi media player MPRIS Spotify YouTube VLC calendar artwork cover shortcuts quick launch"},
+        {page:"dashboard", pageName:"Dashboard", name:"Quick launch", keywords:"files terminal settings monitor network plugins customize"},
         {page:"display", pageName:"Display", name:"Nested desktop size", keywords:"monitor resolution scaling HDR night light"},
         {page:"input", pageName:"Keyboard and pointer", name:"Keyboard layout", keywords:"repeat delay cursor mouse touchpad"},
         {page:"input-method", pageName:"Input method", name:"Fcitx 5", keywords:"input method IME fcitx fcitx5 preedit candidate Chinese Japanese Korean addon hotkey"},
