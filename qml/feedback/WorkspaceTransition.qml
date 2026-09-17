@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Wayland
 import "../modules"
 import "../components"
@@ -55,7 +56,6 @@ ModuleSurface {
                        0.30 * overlay.pulse)
     }
 
-    // A soft moonlit tunnel replaces the old two fast rectangular beams.
     Repeater {
         model: 5
         Rectangle {
