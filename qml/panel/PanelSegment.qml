@@ -11,12 +11,12 @@ Segment {
     fill: Qt.rgba(Theme.secondaryAccent.r,
                   Theme.secondaryAccent.g,
                   Theme.secondaryAccent.b,
-                  0.42)
+                  0.34)
     border.width: activeFocus ? 1.5 : 1
     border.color: activeFocus
-        ? moduleHost.moduleAccent
-        : Qt.rgba(moduleHost.moduleAccent.r,
-                  moduleHost.moduleAccent.g,
-                  moduleHost.moduleAccent.b,
-                  0.34)
+        ? Theme.moon
+        : Qt.rgba(Theme.starlight.r,
+                  Theme.starlight.g,
+                  Theme.starlight.b,
+                  0.30)
 }
