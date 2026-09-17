@@ -101,7 +101,7 @@ run() {
 }
 
 if ! $skip_deps; then
-    deps=("$project_dir/scripts/install-dependencies.sh")
+    deps=(bash "$project_dir/scripts/install-dependencies.sh")
     $dry_run && deps+=(--dry-run)
     run "${deps[@]}"
 fi
@@ -115,7 +115,7 @@ if [[ $package_manager == pacman ]]; then
     )
 else
     for tool in cmake ninja; do
-        command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required. Run scripts/install-dependencies.sh first." >&2; exit 1; }
+        command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required. Run bash scripts/install-dependencies.sh first." >&2; exit 1; }
     done
     run cmake -S "$project_dir" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
