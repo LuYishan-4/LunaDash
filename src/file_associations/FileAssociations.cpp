@@ -17,6 +17,7 @@
 
 namespace LuDash {
 namespace {
+constexpr qint64 maximumAssociationBytes = 1024 * 1024;
 bool fail(QString* error, const QString& message) {
     if (error) *error = message;
     return false;
@@ -34,9 +35,15 @@ bool validMime(const QString& mime) {
 bool usable(GAppInfo* app) {
     if (!app) return false;
     const QString executable = QFileInfo(QString::fromUtf8(g_app_info_get_executable(app))).fileName();
-    return executable != "lunadash-desktop" && executable != "ludash-desktop" &&
-           executable != "lunadashctl" && executable != "ludashctl" &&
-           validId(QString::fromUtf8(g_app_info_get_id(app)));
+    // These dispatchers can recursively select themselves as a MIME default.
+    if (executable == "lunadash-desktop" || executable == "ludash-desktop" ||
+        executable == "lunadashctl" || executable == "ludashctl" ||
+        executable == "xdg-open" || executable == "gio") return false;
+    // D-Bus-activated applications may implement Open without Exec field codes.
+    const bool busActivation = G_IS_DESKTOP_APP_INFO(app) &&
+        g_desktop_app_info_get_boolean(G_DESKTOP_APP_INFO(app), "DBusActivatable");
+    return validId(QString::fromUtf8(g_app_info_get_id(app))) &&
+        (g_app_info_supports_files(app) || g_app_info_supports_uris(app) || busActivation);
 }
 GDesktopAppInfo* desktopApp(const QString& id) {
     if (!validId(id)) return nullptr;
@@ -89,13 +96,20 @@ QString FileAssociations::path() const { return path_; }
 QJsonObject FileAssociations::read(QString* error) const {
     if (error) error->clear();
     QFile file(path_);
-    if (!file.exists()) return defaults();
-    if (!file.open(QIODevice::ReadOnly) || file.size() > 1024 * 1024) {
+    const QFileInfo info(path_);
+    if (!info.exists() && !info.isSymLink()) return defaults();
+    if (!file.open(QIODevice::ReadOnly)) {
+        fail(error, translate("Cannot read file associations. The existing configuration was not changed."));
+        return {};
+    }
+    // Bound the actual read, including a file which grows after it was opened.
+    const auto bytes = file.read(maximumAssociationBytes + 1);
+    if (bytes.size() > maximumAssociationBytes || file.error() != QFileDevice::NoError) {
         fail(error, translate("Cannot read file associations. The existing configuration was not changed."));
         return {};
     }
     QJsonParseError parseError;
-    const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
+    const auto document = QJsonDocument::fromJson(bytes, &parseError);
     if (parseError.error != QJsonParseError::NoError || !document.isObject() ||
         !validDocument(document.object())) {
         fail(error, translate("Invalid file association configuration. The existing file was not overwritten."));
@@ -161,8 +175,11 @@ bool FileAssociations::update(const QString& key, const QJsonObject& value,
     }
     if (!validDocument(document))
         return fail(error, translate("Invalid file association rule."));
-    QSaveFile file(path_);
     const auto bytes = QJsonDocument(document).toJson(QJsonDocument::Indented);
+    // Never publish a configuration which our own reader would reject.
+    if (bytes.size() > maximumAssociationBytes)
+        return fail(error, translate("Could not save file associations."));
+    QSaveFile file(path_);
     if (!file.open(QIODevice::WriteOnly))
         return fail(error, translate("Could not save file associations."));
     file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
