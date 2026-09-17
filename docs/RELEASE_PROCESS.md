@@ -19,19 +19,29 @@ PR CI is split by cost:
 - **Qt lifetime**, **Clang-Tidy**, and **CodeQL** run only when C/C++ or build-system code changes.
 - **Website build** runs for PRs targeting `dev` because every PR must include a `site/` update.
 
+The main required-check gate is reserved for `main`/merge-queue validation instead of polling source-analysis workflows that may legitimately be skipped by path filters.
+
 ## Release notes
 
 GitHub Release Markdown is the canonical release-note source. Do not maintain a second hand-written changelog page for the same release.
 
-When a GitHub Release is published or edited, `.github/workflows/release-notes.yml`:
+The Pages deployment workflow handles release notes without committing generated files back into `dev` or `main`:
 
-1. Checks out `dev`.
-2. Reads the release tag, title, date, URL, prerelease flag, and Markdown body from the GitHub release event payload.
-3. Writes the Markdown body to `site/src/pages/releases/<tag>.md` with Astro frontmatter.
-4. Updates `site/src/data/releases.json` used by the website release index.
-5. Commits the generated website files back to `dev`.
+1. A GitHub Release is published, edited, or deleted.
+2. `.github/workflows/site-pages.yml` checks out the latest `main` website source.
+3. `scripts/site/sync-releases.py` reads all non-draft releases through the GitHub Releases API.
+4. Every Release body is written into the deployment workspace as `site/src/pages/releases/<tag>.md` with Astro frontmatter.
+5. `site/src/data/releases.json` is regenerated for the `/releases/` index.
+6. Astro checks/builds the site and GitHub Pages deploys the resulting release pages.
 
-The normal website workflow then checks and builds the updated release pages.
+This means GitHub remains the source of truth: editing the GitHub Release Markdown changes the website on the next release-triggered deployment, and deleting a Release removes it from the next generated release index/page set. Generated Markdown is not committed to the repository.
+
+The public routes are:
+
+```text
+/releases/                 all published releases
+/releases/<tag>/           one release body rendered as Markdown
+```
 
 ### Recommended GitHub Release Markdown
 
@@ -54,7 +64,7 @@ The normal website workflow then checks and builds the updated release pages.
 - Mention configuration migrations, restart requirements, or known limitations.
 ```
 
-Keep the release body valid GitHub Markdown. Headings, lists, code fences, tables, links, and images supported by Astro Markdown can appear on the website release page.
+Keep the release body valid GitHub Markdown. Headings, lists, code fences, tables, links and images supported by Astro Markdown can appear on the website release page.
 
 ## Branch flow
 
