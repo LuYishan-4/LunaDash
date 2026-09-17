@@ -1,4 +1,4 @@
-name: Traditional Chinese translation review
+name: Localization review
 on: [push, pull_request, merge_group, workflow_dispatch]
 permissions:
   contents: read
@@ -36,7 +36,7 @@ jobs:
           while IFS= read -r -d '' file; do
             /usr/lib/qt6/bin/qmlformat "$file" > /dev/null
           done < <(find qml -type f -name '*.qml' -print0)
-      - name: Build and test real localization implementation
+      - name: Build and test every packaged locale
         run: |
           cmake -S tests/localization -B build-translations -G Ninja
           cmake --build build-translations --parallel 2
