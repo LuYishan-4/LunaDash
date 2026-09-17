@@ -15,6 +15,34 @@
 int qInitResources_translations();
 int qInitResources_desktop_translations();
 namespace LuDash {
+namespace {
+const QString kTranslationRoot = QStringLiteral(":/LuDash/data/translations/");
+
+QString normalizedLocale(QString locale) {
+    locale = locale.trimmed();
+    locale.replace('-', '_');
+    return locale;
+}
+
+QString canonicalLanguage(QString locale) {
+    locale = normalizedLocale(locale);
+    if (isSupportedLanguage(locale))
+        return locale;
+
+    const QString lower = locale.toLower();
+    if ((lower.startsWith("zh_cn") || lower.startsWith("zh_hans")) &&
+        isSupportedLanguage(QStringLiteral("zh_CN")))
+        return QStringLiteral("zh_CN");
+    if (lower.startsWith("zh") && isSupportedLanguage(QStringLiteral("zh_TW")))
+        return QStringLiteral("zh_TW");
+    if (lower.startsWith("ja") && isSupportedLanguage(QStringLiteral("ja_JP")))
+        return QStringLiteral("ja_JP");
+    if (lower.startsWith("en"))
+        return QStringLiteral("en_US");
+    return QStringLiteral("en_US");
+}
+} // namespace
+
 JsonTranslator::JsonTranslator(const QString& language, QObject* parent) : QTranslator(parent) {
     messages_ = languageDictionary(language);
 }
@@ -23,13 +51,30 @@ QString JsonTranslator::translate(const char* context, const char* source, const
     return messages_.value(QString::fromUtf8(source)).toString();
 }
 bool JsonTranslator::isEmpty() const { return messages_.isEmpty(); }
+
+bool isSupportedLanguage(const QString& language) {
+    const QString locale = normalizedLocale(language);
+    if (locale == QStringLiteral("en_US"))
+        return true;
+    if (locale.isEmpty())
+        return false;
+    return QFile::exists(kTranslationRoot + locale + QStringLiteral(".json")) ||
+           QDir(kTranslationRoot + locale).exists();
+}
+
 QJsonObject languageDictionary(const QString& language) {
-    if (language != "en_US" && language != "zh_TW") return {};
-    const QString root = QStringLiteral(":/LuDash/data/translations/");
-    QStringList paths{root + language + ".json"};
-    const QDir features(root + language);
+    const QString locale = normalizedLocale(language);
+    if (!isSupportedLanguage(locale) || locale == QStringLiteral("en_US"))
+        return {};
+
+    QStringList paths;
+    const QString rootCatalog = kTranslationRoot + locale + QStringLiteral(".json");
+    if (QFile::exists(rootCatalog))
+        paths.append(rootCatalog);
+    const QDir features(kTranslationRoot + locale);
     for (const auto& name : features.entryList({"*.json"}, QDir::Files, QDir::Name))
         paths.append(features.filePath(name));
+
     QJsonObject messages;
     for (const auto& path : paths) {
         QFile file(path);
@@ -55,12 +100,16 @@ QJsonObject languageDictionary(const QString& language) {
     }
     return messages;
 }
+
 QString translate(const char* source) { return QCoreApplication::translate("LuDash", source); }
+
 QString selectedLanguage() {
     QString locale = qEnvironmentVariable("LUDASH_LANGUAGE");
-    if (locale.isEmpty()) locale = QSettings().value("appearance/language", QLocale::system().name()).toString();
-    return locale.startsWith("zh") ? "zh_TW" : "en_US";
+    if (locale.isEmpty())
+        locale = QSettings().value("appearance/language", QLocale::system().name()).toString();
+    return canonicalLanguage(locale);
 }
+
 void initializeLocalization(QCoreApplication& application) {
     ::qInitResources_translations();
     ::qInitResources_desktop_translations();
@@ -68,6 +117,7 @@ void initializeLocalization(QCoreApplication& application) {
     auto* translator = new JsonTranslator(language, &application);
     application.installTranslator(translator);
     auto* qtTranslator = new QTranslator(&application);
-    if (qtTranslator->load("qtbase_" + language, QLibraryInfo::path(QLibraryInfo::TranslationsPath))) application.installTranslator(qtTranslator);
+    if (qtTranslator->load("qtbase_" + language, QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+        application.installTranslator(qtTranslator);
 }
 }
