@@ -115,7 +115,6 @@ ModuleSurface {
         border.color: panel.capsuleBorder(0.22)
     }
 
-    // Workspace island: small flat workspace pills plus session control.
     Item {
         id: workspaceShell
         anchors {
@@ -142,7 +141,6 @@ ModuleSurface {
 
             Repeater {
                 model: (shell.state.appearance || {}).workspaceCount || 4
-
                 Item {
                     id: workspacePill
                     required property int index
@@ -167,13 +165,9 @@ ModuleSurface {
                         border.color: panel.capsuleBorder(0.30)
                         scale: workspaceMouse.pressed ? 0.90 : workspaceMouse.containsMouse ? 1.06 : 1.0
 
-                        Behavior on width {
-                            NumberAnimation { duration: Math.max(150, Theme.motion); easing.type: Easing.OutCubic }
-                        }
+                        Behavior on width { NumberAnimation { duration: Math.max(150, Theme.motion); easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: Theme.motion } }
-                        Behavior on scale {
-                            NumberAnimation { duration: Math.max(100, Theme.motion); easing.type: Easing.OutCubic }
-                        }
+                        Behavior on scale { NumberAnimation { duration: Math.max(100, Theme.motion); easing.type: Easing.OutCubic } }
                     }
 
                     MouseArea {
@@ -206,17 +200,15 @@ ModuleSurface {
         }
     }
 
-    // Open application island. It stays separate from the workspace island.
     Item {
         id: taskShell
         anchors {
             left: workspaceShell.right
             leftMargin: panel.capsuleGap
-            right: centerShell.left
-            rightMargin: panel.capsuleGap
             verticalCenter: parent.verticalCenter
         }
         height: panel.capsuleHeight
+        width: Math.min(Math.max(48, columnTasks.contentWidth + 10), Math.max(160, panel.width * 0.28))
         visible: columnTasks.count > 0
 
         Rectangle {
@@ -254,7 +246,6 @@ ModuleSurface {
         }
     }
 
-    // Centre island. Keep the LunaDash moon launcher exactly as the primary control.
     Item {
         id: centerShell
         anchors.centerIn: parent
@@ -318,26 +309,14 @@ ModuleSurface {
                     width: launcherButton.extent
                     height: width
                     radius: width / 2
-                    color: Qt.rgba(
-                        panel.launcherAccent.r,
-                        panel.launcherAccent.g,
-                        panel.launcherAccent.b,
-                        shell.launcherOpen
-                            ? Math.max(0.30, launcherButton.backgroundOpacity + 0.14)
-                            : Math.max(0.18, launcherButton.backgroundOpacity)
-                    )
+                    color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
+                                   shell.launcherOpen ? Math.max(0.30, launcherButton.backgroundOpacity + 0.14)
+                                                      : Math.max(0.18, launcherButton.backgroundOpacity))
                     border.width: launcherButton.orbitEnabled ? 1.5 : 0
-                    border.color: Qt.rgba(
-                        panel.launcherAccent.r,
-                        panel.launcherAccent.g,
-                        panel.launcherAccent.b,
-                        shell.launcherOpen ? 0.94 : 0.58
-                    )
+                    border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
+                                          shell.launcherOpen ? 0.94 : 0.58)
                     scale: launcherMouse.pressed ? 0.92 : launcherMouse.containsMouse ? 1.06 : 1.0
-
-                    Behavior on scale {
-                        NumberAnimation { duration: Math.max(90, Theme.motion); easing.type: Easing.OutCubic }
-                    }
+                    Behavior on scale { NumberAnimation { duration: Math.max(90, Theme.motion); easing.type: Easing.OutCubic } }
                     Behavior on color { ColorAnimation { duration: Theme.motion } }
 
                     Rectangle {
@@ -348,12 +327,7 @@ ModuleSurface {
                         radius: width / 2
                         color: "transparent"
                         border.width: 1
-                        border.color: Qt.rgba(
-                            panel.launcherAccent.r,
-                            panel.launcherAccent.g,
-                            panel.launcherAccent.b,
-                            0.26
-                        )
+                        border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b, 0.26)
                         rotation: 18
                     }
 
@@ -375,7 +349,6 @@ ModuleSurface {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: shell.launcherOpen = !shell.launcherOpen
                 }
-
                 ToolTip.visible: launcherMouse.containsMouse
                 ToolTip.delay: 450
                 ToolTip.text: shell.tr("Applications")
@@ -393,7 +366,6 @@ ModuleSurface {
         }
     }
 
-    // Right-side status island: tray, USB, network and battery.
     Item {
         id: statusShell
         anchors {
@@ -421,7 +393,6 @@ ModuleSurface {
 
             Repeater {
                 model: SystemTray.items
-
                 delegate: Item {
                     id: trayDelegate
                     required property var modelData
@@ -476,12 +447,9 @@ ModuleSurface {
                             else
                                 trayDelegate.item.secondaryActivate()
                         }
-                        onWheel: wheel => trayDelegate.item.scroll(
-                            wheel.angleDelta.y || wheel.angleDelta.x,
-                            wheel.angleDelta.x !== 0
-                        )
+                        onWheel: wheel => trayDelegate.item.scroll(wheel.angleDelta.y || wheel.angleDelta.x,
+                                                                    wheel.angleDelta.x !== 0)
                     }
-
                     ToolTip.visible: trayMouse.containsMouse
                     ToolTip.delay: 450
                     ToolTip.text: item.tooltipTitle || item.title || item.id
@@ -503,15 +471,7 @@ ModuleSurface {
                         ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
                         : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
                 }
-
-                LineIcon {
-                    anchors.centerIn: parent
-                    width: 17
-                    height: 17
-                    name: "usb"
-                    ink: Theme.accent
-                }
-
+                LineIcon { anchors.centerIn: parent; width: 17; height: 17; name: "usb"; ink: Theme.accent }
                 Rectangle {
                     visible: panel.usbStorage.length > 1
                     anchors.right: parent.right
@@ -520,7 +480,6 @@ ModuleSurface {
                     height: 12
                     radius: 6
                     color: Theme.accent
-
                     Text {
                         anchors.centerIn: parent
                         text: String(Math.min(9, panel.usbStorage.length))
@@ -530,7 +489,6 @@ ModuleSurface {
                         font.weight: Font.Bold
                     }
                 }
-
                 MouseArea {
                     id: usbMouse
                     anchors.fill: parent
@@ -538,7 +496,6 @@ ModuleSurface {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: shell.usbPopupOpen = !shell.usbPopupOpen
                 }
-
                 ToolTip.visible: usbMouse.containsMouse
                 ToolTip.delay: 450
                 ToolTip.text: shell.tr("USB devices")
@@ -550,7 +507,6 @@ ModuleSurface {
                 height: 28
                 Accessible.role: Accessible.Button
                 Accessible.name: shell.tr("Network")
-
                 Rectangle {
                     anchors.fill: parent
                     radius: height / 2
@@ -558,7 +514,6 @@ ModuleSurface {
                         ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
                         : "transparent"
                 }
-
                 LineIcon {
                     anchors.centerIn: parent
                     width: 17
@@ -566,7 +521,6 @@ ModuleSurface {
                     name: "network"
                     ink: (shell.state.network || {}).internet ? Theme.accent : Theme.muted
                 }
-
                 MouseArea {
                     id: networkMouse
                     anchors.fill: parent
@@ -589,7 +543,6 @@ ModuleSurface {
         }
     }
 
-    // Clock is intentionally its own floating island, matching the reference layout.
     Item {
         id: clockShell
         anchors {
@@ -616,15 +569,7 @@ ModuleSurface {
         Row {
             anchors.centerIn: parent
             spacing: 7
-
-            Text {
-                text: clockShell.time
-                color: moduleForeground
-                font.family: Theme.font
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
-            }
-
+            Text { text: clockShell.time; color: moduleForeground; font.family: Theme.font; font.pixelSize: 12; font.weight: Font.DemiBold }
             Rectangle {
                 visible: panel.width > 1120
                 width: 1
@@ -632,14 +577,7 @@ ModuleSurface {
                 anchors.verticalCenter: parent.verticalCenter
                 color: panel.capsuleBorder(0.24)
             }
-
-            Text {
-                visible: panel.width > 1120
-                text: clockShell.date
-                color: Theme.muted
-                font.family: Theme.font
-                font.pixelSize: 11
-            }
+            Text { visible: panel.width > 1120; text: clockShell.date; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
         }
 
         MouseArea {
