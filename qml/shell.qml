@@ -33,8 +33,11 @@ ShellRoot {
     property bool launcherOpen: false
     property bool settingsOpen: false
     property bool pickerOpen: false
+    property string pendingWallpaper: ""
     property bool calendarOpen: false
     property bool usbPopupOpen: false
+    property bool volumePopupOpen: false
+    property bool wifiPopupOpen: false
     property var removableDevices: []
     property bool notificationVisible: false
     property bool notificationDetailsExpanded: false
@@ -125,16 +128,18 @@ ShellRoot {
         }
     }
 
-    onLauncherOpenChanged: if (launcherOpen) { settingsOpen = false; calendarOpen = false; usbPopupOpen = false }
-    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false } else { pickerOpen = false }
-    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false }
-    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false }
+    onLauncherOpenChanged: if (launcherOpen) { settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
+    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false } else { pickerOpen = false }
+    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
+    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
+    onVolumePopupOpenChanged: if (volumePopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; wifiPopupOpen = false }
+    onWifiPopupOpenChanged: if (wifiPopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; volumePopupOpen = false }
 
     property bool menuOpen: false
     property real menuX: 0
     property real menuY: 0
     function openMenu(x, y) { menuX = x; menuY = y; menuOpen = true }
-    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false }
+    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
     property bool x11Open: false
     property bool startupLogoVisible: true
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
@@ -143,9 +148,13 @@ ShellRoot {
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
         if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; settingsCenter.showCategory("appearance"); settingsOpen = true; pickerOpen = true }
-        Theme.font = (state.appearance || {}).fontFamily || "sans-serif"; Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
-        Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent; Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
-        Theme.animations = !stopping && ((state.appearance || {}).animations ?? true); Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
+        Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
+        Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
+        Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
+        Theme.secondaryAccent = (state.appearance || {}).secondaryAccent || Theme.defaultSecondaryAccent
+        Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
+        Theme.animations = !stopping && ((state.appearance || {}).animations ?? true)
+        Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
         if (setupPaused) { const mapped = state.clients.some(client => client.mapped); if (mapped) setupEditorMapped = true; if ((!mapped && setupEditorMapped) || (!setupEditorMapped && ++setupWaitTicks >= 15)) setupPaused = false }
     }
 
@@ -211,6 +220,8 @@ ShellRoot {
     Overview { shell: root; opened: !root.stopping && root.overviewOpen }
     CalendarPopup { shell: root; opened: !root.stopping && root.calendarOpen }
     UsbDevicePopup { shell: root; opened: !root.stopping && root.usbPopupOpen }
+    AudioPopup { shell: root; opened: !root.stopping && root.volumePopupOpen }
+    WifiPopup { shell: root; opened: !root.stopping && root.wifiPopupOpen }
     Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     SettingsPanel { id: settingsCenter; shell: root; opened: !root.stopping && root.settingsOpen }
