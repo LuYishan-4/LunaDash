@@ -17,10 +17,12 @@
 namespace LuDash {
 namespace {
 QJsonObject defaults() {
-    return {{"accent", "#9ccbfb"}, {"gap", 12}, {"panelHeight", 40},
+    return {{"accent", "#9ccbfb"}, {"secondaryAccent", "#41576b"},
+            {"colorPins", QJsonArray{"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
+            {"gap", 12}, {"panelHeight", 40},
             {"blur", true}, {"blurRadius", 18}, {"windowOpacity", 96}, {"animations", true}, {"animationDuration", 220},
             {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false}, {"altMouseResize", true},
-            {"keyboardLayout", "us"}, {"keyRepeatRate", 25}, {"keyRepeatDelay", 600}, {"cursorSize", 24},
+            {"keyboardLayout", "us"}, {"keyRepeatRate", 28}, {"keyRepeatDelay", 420}, {"cursorSize", 24},
             {"fontFamily", "sans-serif"}, {"clock24Hour", true}, {"startupApps", QJsonArray{}},
             {"proxyEnabled", false}, {"proxyHttp", ""}, {"proxyHttps", ""}, {"proxySocks", ""}, {"proxyBypass", ""},
             {"overview", false}, {"showHostDetails", false}, {"updateChannel", "stable"}};
@@ -119,6 +121,10 @@ bool validProxyText(const QJsonValue &value, bool url) {
     return parsed.isValid() && QStringList{"http", "https", "socks", "socks5"}.contains(parsed.scheme().toLower());
 }
 
+bool validColor(const QJsonValue &value) {
+    return value.isString() && QRegularExpression("^#[0-9a-fA-F]{6}$").match(value.toString()).hasMatch();
+}
+
 bool valid(const QString& key, const QJsonValue& value) {
     if (key == "keyboardLayout") return value.isString() && QStringList{"us", "gb", "de", "fr", "es", "jp", "tw"}.contains(value.toString());
     if (key == "fontFamily") return value.isString() && QStringList{"sans-serif", "serif", "monospace"}.contains(value.toString());
@@ -134,12 +140,23 @@ bool valid(const QString& key, const QJsonValue& value) {
         }
         return true;
     }
+    if (key == "colorPins") {
+        if (!value.isArray() || value.toArray().size() > 16) return false;
+        QSet<QString> seen;
+        for (const auto &color : value.toArray()) {
+            if (!validColor(color)) return false;
+            const QString normalized = color.toString().toLower();
+            if (seen.contains(normalized)) return false;
+            seen.insert(normalized);
+        }
+        return true;
+    }
     const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 9}}, {"masterRatio", {30, 70}}, {"keyRepeatRate", {0, 60}}, {"keyRepeatDelay", {200, 1500}}, {"cursorSize", {16, 64}}};
     if (ranges.contains(key)) {
         const double number = value.toDouble(-1); const auto range = ranges.value(key);
         return value.isDouble() && std::isfinite(number) && std::floor(number) == number && number >= range.first && number <= range.second;
     }
-    if (key == "accent") return value.isString() && QRegularExpression("^#[0-9a-fA-F]{6}$").match(value.toString()).hasMatch();
+    if (key == "accent" || key == "secondaryAccent") return validColor(value);
     if (key == "overview" || key == "showHostDetails" || key == "blur" || key == "animations" || key == "defaultFloating" || key == "altMouseResize" || key == "clock24Hour" || key == "proxyEnabled") return value.isBool();
     if (key == "gap" || key == "panelHeight" || key == "blurRadius" || key == "windowOpacity" || key == "animationDuration") {
         const double number = value.toDouble(-1);
