@@ -1,44 +1,49 @@
 name: PR CodeQL security analysis
 on:
-    pull_request:
-    merge_group:
-    workflow_dispatch:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+  workflow_dispatch:
 permissions:
-    contents: read
+  contents: read
 concurrency:
-    group: pr-codeql-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: true
+  group: pr-codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
-    codeql:
-        name: CodeQL security analysis
-        runs-on: ubuntu-24.04
-        permissions:
-            actions: read
-            contents: read
-            security-events: write
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  persist-credentials: false
-            - name: Install C/C++ dependencies
-              run: |
-                  sudo apt-get update
-                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                    cmake g++ ninja-build pkg-config libwayland-dev \
-                    libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
-                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev \
-                    libqt6opengl6-dev
-            - uses: github/codeql-action/init@v4
-              with:
-                  languages: c-cpp
-                  build-mode: manual
-                  config-file: ./.github/codeql/config.yml
-            - name: Build for CodeQL
-              run: cmake -S . -B build-codeql -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build-codeql --parallel 2
-            - uses: github/codeql-action/analyze@v4
-              id: codeql
-              with:
-                  output: codeql-results
-            - name: Reject CodeQL findings
-              if: always() && (steps.codeql.outcome == 'success' || hashFiles('codeql-results/*.sarif') != '')
-              run: python3 scripts/security/check_sarif.py codeql-results
+  codeql:
+    name: CodeQL security analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install C/C++ dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            cmake g++ ninja-build pkg-config libwayland-dev \
+            libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
+            qt6-base-dev qt6-declarative-dev qt6-wayland-dev libqt6opengl6-dev
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+          config-file: ./.github/codeql/config.yml
+      - name: Build for CodeQL
+        run: cmake -S . -B build-codeql -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build-codeql --parallel 2
+      - uses: github/codeql-action/analyze@v4
+        id: codeql
+        with:
+          output: codeql-results
+      - name: Reject CodeQL findings
+        if: always() && (steps.codeql.outcome == 'success' || hashFiles('codeql-results/*.sarif') != '')
+        run: python3 scripts/security/check_sarif.py codeql-results
