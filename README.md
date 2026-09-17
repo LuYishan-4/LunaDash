@@ -10,7 +10,7 @@
 
 <p>
   <img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only">
-  <img src="https://img.shields.io/badge/platform-Arch%20Linux%20first-9ccbfb?style=flat-square" alt="Arch Linux first">
+  <img src="https://img.shields.io/badge/Linux-Arch%20%C2%B7%20Debian%2FUbuntu%20%C2%B7%20Fedora%20%C2%B7%20openSUSE-9ccbfb?style=flat-square" alt="Arch, Debian Ubuntu, Fedora and openSUSE">
   <img src="https://img.shields.io/badge/stack-C%2B%2B20%20%C2%B7%20Qt%206%20%C2%B7%20Wayland-9ccbfb?style=flat-square" alt="C++20, Qt 6, Wayland">
   <img src="https://img.shields.io/badge/shell-Quickshell%20QML-9ccbfb?style=flat-square" alt="Quickshell QML shell">
   <a href="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-gate.yml">
@@ -20,11 +20,10 @@
 
 </div>
 
-LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland Compositor, C11 cores for rendering, tiling and metrics, and a Quickshell/QML shell. Windows live in niri-inspired scrollable columns across four workspaces, and the shell keeps the workspace, the launcher and the settings in one compact top panel.
+LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland Compositor, C11 cores for rendering, tiling and metrics, and a Quickshell/QML shell. Windows live in niri-inspired scrollable columns, while the shell provides the panel, launcher, dashboard, settings, notifications, file tools and desktop integrations.
 
 > [!WARNING]
->  LunaDash is still in active pre-release development. If you download and run it now, expect instability, and read [Project status](#project-status) before
-> relying on it.
+> LunaDash is still in active pre-release development. Nested sessions are the safest way to test it. Keep your existing desktop/login session available as a recovery path.
 
 ## Screenshots
 
@@ -41,32 +40,66 @@ LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland C
 
 ## Highlights
 
-- **Scrollable columns.** Every window opens as its own full-height column below the panel, and the column strip slides horizontally when focus changes instead of covering other windows. A column holds up to four windows; visible members split its height as one full tile, two halves, or three or four quarters.
-- **One compact top panel.** Workspace and session controls plus one icon per open column on the left, the centred overview / accent launcher / settings selector in the middle, and the StatusNotifier tray with clock, network and battery on the right.
-- **Grouping from the panel.** Drag one column icon onto another to merge them, click a member to focus it, right-click to expel it. Window frames themselves are not draggable.
-- **A real settings centre.** Sixteen pages in a fullscreen QML overlay with tokenized search, a shortcut recorder that rejects duplicate or invalid combinations, an in-shell wallpaper picker, and a manual update check against the official release feed.
-- **Launcher.** One ranked, token-searchable list with icon, name and description for the built-in tools and installed desktop entries.
-- **Appearance.** Accent colour, window gaps, panel height, backdrop blur, window opacity, animation duration and a reduced-motion mode, plus an external Traditional Chinese language pack.
-- **Built-in tools.** A translucent Fish terminal, Files, command console, system monitor, a pacman interface and opt-in metadata plugins.
-- **Screenshots.** `Alt` + `Shift` + `F5` captures the desktop to `~/Pictures/Screenshots`, and `lunadashctl screenshot` or `capture <path>` does the same from the shell.
-- **X11 compatibility.** Applications run inside an authenticated XWayland instance, which the default terminal and other X11 applications use automatically.
-- **Explicit graphics.** OpenGL 3.3 compatibility or OpenGL ES 3.0 contexts with version-specific shaders, plus a software-friendly shell renderer path for problematic drivers.
+- **Scrollable columns and workspaces.** Tiled windows live in horizontally scrollable columns, can be grouped, resized, floated and moved between workspaces.
+- **LunaDash panel and launcher.** A theme-aware top panel provides workspaces, running applications, the Luna launcher, system tray, USB devices, date/time and session controls.
+- **Dashboard.** Quick volume and Wi-Fi controls, launch shortcuts and MPRIS media controls with current album art / artwork preview for compatible players such as Spotify, browser media and VLC.
+- **Settings centre.** Appearance, windows, shortcuts, modules, dashboard, displays, input/Fcitx, sound, network, Bluetooth, devices/disks, power, privacy, system, applications, plugins and updates share the same QML design system.
+- **Files and portals.** LunaDash Files supports file operations, context menus, Open With/default file associations and terminal integration; the desktop also includes a file chooser portal backend.
+- **Notifications and removable media.** Desktop notifications, crash details and removable USB notifications/operations are integrated into the shell.
+- **Plugins.** Metadata-driven QML plugins and native C++ effects use a common manifest model; native effects remain opt-in because they execute in-process.
+- **X11 compatibility.** X11 applications run through an authenticated XWayland instance.
+- **Explicit graphics.** OpenGL 3.3 compatibility or OpenGL ES 3.0 contexts with a software-friendly shell rendering path for problematic drivers.
 
-## Requirements
+## Linux distribution support
 
-Arch Linux is the first target. The backend needs CMake 3.21+, a C11/C++20 compiler, Qt 6.4+, Wayland development headers and the Khronos GL headers. The shell targets [Quickshell 0.3](https://quickshell.org/docs/v0.3.0/guide/install-setup/), which may need a newer Qt than the backend's 6.4 minimum.
+LunaDash uses standard CMake install rules and is no longer tied to pacman. The installer currently recognizes these package-manager families:
+
+| Distribution family | Installation path | Status |
+| --- | --- | --- |
+| Arch Linux and derivatives | `makepkg` + pacman package | Primary development path |
+| Debian / Ubuntu and derivatives | apt dependencies + CMake install | Supported build/install path |
+| Fedora and derivatives | dnf dependencies + CMake install | Supported build/install path |
+| openSUSE Tumbleweed / Slowroll | zypper dependencies + CMake install | Supported build/install path |
+| Other Linux distributions | Manual dependencies + standard CMake | Expected to work when requirements are available; not automatically provisioned |
+
+The backend requires CMake 3.21+, Ninja, a C11/C++20 compiler, Qt 6.4+ Base/Declarative/Wayland/OpenGL development packages, Wayland/wayland-protocols, libinput, libxkbcommon, udev/systemd development headers, GL development headers, GLib and shared-mime-info. The shell requires [Quickshell 0.3 or newer](https://quickshell.org/docs/v0.3.0/guide/install-setup/). Quickshell packaging differs between distributions, so LunaDash does **not** add an unofficial repository automatically.
+
+### Install dependencies only
 
 ```sh
-sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland \
-  qt6-translations quickshell fish wayland libglvnd dbus mesa
+./scripts/install-dependencies.sh
 ```
 
-Ubuntu 24.04 backend packages: `build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev`.
-Fedora backend packages: `gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel`.
+That script detects `pacman`, `apt-get`, `dnf` or `zypper` and installs dependencies only from repositories already enabled on the system. Use `--dry-run` to inspect commands first.
 
-Install Fish to use the bundled terminal, and optionally `networkmanager nm-connection-editor` to configure network profiles. LunaDash reuses your existing connections; installing a package never enables a service.
+Typical package sets are handled automatically. For reference:
 
-## install
+```sh
+# Arch Linux
+sudo pacman -S --needed base-devel cmake ninja git pkgconf libglvnd mesa \
+  wayland wayland-protocols libinput libxkbcommon systemd glib2 \
+  qt6-base qt6-declarative qt6-wayland qt6-translations shared-mime-info fish
+
+# Debian / Ubuntu
+sudo apt-get install build-essential cmake ninja-build git pkg-config libgl-dev \
+  libwayland-dev wayland-protocols libinput-dev libxkbcommon-dev libudev-dev \
+  libglib2.0-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland \
+  libqt6opengl6-dev shared-mime-info fish
+
+# Fedora
+sudo dnf install gcc gcc-c++ cmake ninja-build git pkgconf-pkg-config \
+  mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
+  libxkbcommon-devel systemd-devel glib2-devel qt6-qtbase-devel \
+  qt6-qtdeclarative-devel qt6-qtwayland-devel shared-mime-info fish
+
+# openSUSE
+sudo zypper install gcc gcc-c++ cmake ninja git pkg-config Mesa-libGL-devel \
+  wayland-devel wayland-protocols-devel libinput-devel libxkbcommon-devel \
+  systemd-devel glib2-devel libqt6-qtbase-devel libqt6-qtdeclarative-devel \
+  libqt6-qtwayland-devel shared-mime-info fish
+```
+
+## Install LunaDash
 
 ```sh
 git clone https://github.com/LuYishan-4/LunaDash.git
@@ -74,78 +107,107 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-Run it from inside an existing Wayland or X11 desktop and it opens as a nested desktop in a window. The first-run guide covers language, network and appearance, and works fully offline. The canonical executables are `lunadash-compositor`, `lunadash-desktop`, `lunadashctl` and `lunadash-session`; the older `ludash-*` names remain compatibility aliases.
+`install-session.sh` now chooses the distribution path automatically. Arch creates and installs the local package from `packaging/arch`; Debian/Ubuntu, Fedora and openSUSE build with Ninja and use `sudo cmake --install` under `/usr`. `sudo` or `doas` is used only for package/system installation.
 
-To register a real login session, `./scripts/install-session.sh` builds and installs a pacman-managed package and adds the session entry. Use `--enable-sddm` only when you want SDDM enabled for the next boot, and `--autologin USER` to enable passwordless login explicitly. See [Boot and login session](docs/LOGIN_SESSION.md) for preflight checks, limits and recovery.
+Useful options:
+
+```sh
+./scripts/install-session.sh --dry-run
+./scripts/install-session.sh --skip-deps
+./scripts/install-session.sh --enable-sddm
+./scripts/install-session.sh --enable-sddm --autologin USER
+```
+
+The installer never replaces an already-enabled different display manager. `--enable-sddm` is explicit, and auto-login is a separate opt-in. If Quickshell is not available from the distribution, the installer completes the compositor installation and tells you to install Quickshell separately.
+
+### Manual installation on another Linux distribution
+
+If your distribution is not detected, install the requirements above and use the standard build path:
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build --parallel
+sudo cmake --install build
+```
+
+Then ensure Quickshell 0.3+ is in `PATH`. The canonical executables are `lunadash-compositor`, `lunadash-desktop`, `lunadashctl` and `lunadash-session`; older `ludash-*` names remain compatibility aliases.
+
+## Test without replacing your desktop
+
+A nested session is recommended before trying a login session:
+
+```sh
+cmake -S . -B build -G Ninja
+cmake --build build
+env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE \
+  QT_QPA_PLATFORM=wayland ./build/lunadash-compositor --nested --socket ludash-test
+```
+
+You can also run the project integration helper:
+
+```sh
+./scripts/test-once.sh
+```
+
+A passing software/nested session validates that path only; it is not evidence that every GPU, display manager or physical seat works.
 
 ## Keyboard shortcuts
 
-`Super` is the Meta key. Every binding below can be changed or disabled in **Settings → Keyboard shortcuts**, where a binding may use Meta or Alt.
+`Super` means the Meta key. Bindings can be changed or disabled in **Settings → Keyboard shortcuts**.
 
 | Shortcut | Action |
 | --- | --- |
 | `Alt` + `Shift` + `F5` | Take a screenshot |
-| `Super` + `Return` / `E` / `D` | Default terminal / file manager / launcher |
+| `Super` + `Return` / `E` / `D` | Default terminal / Files / launcher |
 | `Super` + `H` / `L` | Focus the column to the left / right |
-| `Super` + `K` / `J` | Focus the previous / next member inside the column |
+| `Super` + `K` / `J` | Focus the previous / next member in the column |
 | `Super` + `Shift` + `H` / `L` | Merge the focused window into the left / right column |
 | `Super` + `Shift` + `E` | Expel the focused member into its own column |
 | `Super` + `Ctrl` + `H` / `L` | Move the focused column left / right |
 | `Super` + `=` / `-` | Widen / narrow the focused column |
 | `Super` + `Shift` + `C` | Center the focused column |
-| `Super` + `F` | Maximize or restore the window under the pointer |
+| `Super` + `F` | Maximize or restore the focused window |
 | `Super` + `C` / `Q` | Close the focused window |
 | `Super` + `M` | Minimize the focused window |
-| `Super` + `Space` | Toggle floating for the focused window |
+| `Super` + `Space` | Toggle floating |
 | `Super` + `1`–`9` | Switch workspace |
 | `Super` + `Shift` + `1`–`9` | Move the focused window to a workspace |
 
-The settings overlay takes exclusive keyboard focus and closes with `Escape` from search or its quick-hide control. Your host desktop may intercept `Super` shortcuts while you are testing in a nested session.
+The host desktop may intercept `Super` shortcuts while LunaDash is running nested.
 
-## Settings and the control socket
+## Settings and control socket
 
-`lunadashctl` talks to the running compositor, and the settings overlay drives exactly the same methods:
+`lunadashctl` talks to the running compositor, and the settings UI uses the same control path:
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadashctl open-settings appearance
 ./build/lunadashctl appearance '{"gap":16,"panelHeight":44}'
-./build/lunadashctl shortcuts '{"focusLeft":"Meta+U"}'
 ./build/lunadashctl check-update
 ./build/lunadashctl screenshot
-./build/lunadashctl capture /tmp/lunadash.png
 ```
 
-Preferences are saved automatically as you change them. Resetting desktop preferences does not delete documents, reset the language or wallpaper, or modify system-service configuration. See [Settings coverage](docs/SETTINGS.md) for every page and its limits.
+## Contributing and releases
 
-## Testing
+All pull requests must target **`dev`**. PRs are expected to update both relevant files under `docs/` and the user-facing website under `site/`; the PR policy workflow enforces this. Heavy C++/Qt/security analysis is scoped to source changes instead of running unnecessarily for documentation-only changes.
 
-```sh
-sudo pacman -S --needed pkgconf python-pillow xorg-server-xvfb xorg-xauth xdotool wayland-utils
-./scripts/test-once.sh
-```
-
-`test-once.sh` builds, lints QML, then runs a nested session with demonstration windows and writes its log, state JSON and screenshot to `build-once`. The Xvfb integration checks are documented in the [testing guide](docs/TESTING_AND_FILES.md): the settings test alone opens all sixteen pages and applies an accepted and several rejected values to every option each page can change.
-
-A passing software-rendered session proves rendering, geometry and clean shutdown, not physical GPU behaviour or a standalone login. CI configuration is never reported as evidence that a job ran.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the PR contract and [Release process](docs/RELEASE_PROCESS.md) for releases. GitHub Release Markdown is the canonical release-note source; release publication synchronizes it into the website release-notes section.
 
 ## Documentation
 
-- [Testing guide and every maintained file](docs/TESTING_AND_FILES.md)
+- [Testing guide and maintained files](docs/TESTING_AND_FILES.md)
 - [Architecture](docs/ARCHITECTURE.md) · [C core](docs/C_CORE.md) · [Graphics contexts](docs/GRAPHICS.md)
-- [Appearance](docs/APPEARANCE.md) · [Blur and animations](docs/EFFECTS.md) · [Shell rendering](docs/SHELL_RENDERING.md)
-- [Screen capture](docs/SCREEN_CAPTURE.md)
-- [First-run setup and configuration](docs/CONFIGURATION.md) · [Settings coverage](docs/SETTINGS.md)
-- [Shell modules and templates](docs/MODULES.md) · [Default apps, Fish and Files](docs/DEFAULT_APPS_AND_FILES.md)
-- [Input methods and languages](docs/INPUT_METHODS.md) · [X11 compatibility](docs/XWAYLAND.md)
-- [Plugin development](docs/PLUGINS.md) · [Security and crash checks](docs/SECURITY_CHECKS.md)
-- [Traditional Chinese boot and login guide](docs/LOGIN_SESSION.zh-TW.md) · [Website](docs/WEBSITE.md)
+- [Appearance](docs/APPEARANCE.md) · [Effects](docs/EFFECTS.md) · [Shell rendering](docs/SHELL_RENDERING.md)
+- [Configuration](docs/CONFIGURATION.md) · [Settings](docs/SETTINGS.md) · [Modules](docs/MODULES.md)
+- [Default applications and Files](docs/DEFAULT_APPS_AND_FILES.md) · [Input methods](docs/INPUT_METHODS.md)
+- [Plugins](docs/PLUGINS.md) · [Security checks](docs/SECURITY_CHECKS.md)
+- [Boot/login session](docs/LOGIN_SESSION.md) · [Website](docs/WEBSITE.md) · [Release process](docs/RELEASE_PROCESS.md)
 
 ## Project status
 
-Working and tested in nested sessions: window management and grouping, the panel, launcher, all sixteen settings pages, wallpapers, built-in applications, the Traditional Chinese language pack, and authenticated X11 compatibility.
+LunaDash is a development desktop, not a claim of universal hardware compatibility. Arch Linux remains the primary development environment. Ubuntu is continuously used by the repository build/runtime workflows; Debian/Ubuntu, Fedora and openSUSE now have maintained dependency/install paths, but physical-session coverage varies by distribution and hardware.
 
-Missing or incomplete: multiple outputs, full layer-shell coverage, screen locking, portals, notification hosting, a native Wi-Fi credential UI, a polkit agent and complete input-method-v2 integration. Screenshots are captured by the session itself and by clients that reach the `wl_shm` screencopy path; `grim`, `slurp` and `wf-recorder` currently fail because they bind `wl_output` above version 2, which is the version Qt Wayland Compositor announces and does not expose for change. No linux-dmabuf screencopy frames and no cursor overlay. A standalone login session publishes the display variables to its own D-Bus and systemd user activation environment so D-Bus activated applications can start; nested sessions leave the host environment untouched. The Fcitx tray icon works, but its candidate popup still depends on the incomplete input-method bridge. Native plugins are disabled by default and run without a sandbox when enabled. The packaged EGLFS/KMS login session and a physical SDDM login still need physical-session testing, and no such verification is claimed.
+Keep an existing desktop/session available when testing standalone login. Native plugins execute without a sandbox when enabled. Hardware-specific features such as GPU/DRM behaviour, multiple outputs and input-method integration can still vary between systems.
 
 ## License
 
