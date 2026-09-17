@@ -17,7 +17,7 @@ ColumnLayout {
 
     SettingsComponents.SettingsCard {
         title: shell.tr("Keyboard")
-        description: shell.tr("Configure the layout and repeat behavior used by the compositor seat.")
+        description: shell.tr("Configure the keyboard layout used by the compositor seat.")
         RowLayout {
             Layout.fillWidth: true
             Text { text: shell.tr("Keyboard layout"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
@@ -28,9 +28,7 @@ ColumnLayout {
                 Accessible.name: shell.tr("Keyboard layout")
             }
         }
-        PreferenceSlider { shell: page.shell; preference: "keyRepeatRate"; label: "Key repeat rate"; minimum: 0; maximum: 60; suffix: " / s" }
-        PreferenceSlider { shell: page.shell; preference: "keyRepeatDelay"; label: "Key repeat delay"; minimum: 200; maximum: 1500; step: 50; suffix: " ms" }
-        HelpText { shell: page.shell; message: "The default is 28 repeats per second after a 420 ms delay, which is responsive without making normal typing feel twitchy." }
+        HelpText { shell: page.shell; message: "Key repeat uses a fixed desktop-friendly timing of 25 repeats per second after a 600 ms delay." }
     }
 
     SettingsComponents.SettingsCard {
