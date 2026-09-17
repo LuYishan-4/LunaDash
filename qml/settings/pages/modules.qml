@@ -269,7 +269,7 @@ ColumnLayout {
             TextArea {
                 id: editor
                 objectName: "moduleJsonEditor"
-                font.family: "monospace"
+                font.family: Theme.font
                 font.pixelSize: 12
                 color: Theme.text
                 wrapMode: TextEdit.NoWrap
