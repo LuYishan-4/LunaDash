@@ -2,86 +2,146 @@
 
 [Traditional Chinese guide](LOGIN_SESSION.zh-TW.md)
 
-LunaDash 0.1 is a development preview. The installer registers a real Wayland login entry, but the physical EGLFS/KMS GPU, input-seat and VT path has not been verified. Nested tests do not prove that a standalone login will work. Screen locking, complete portals, a polkit agent and multiple outputs remain incomplete. Keep a working desktop available during evaluation.
+LunaDash is a development preview. The installer registers a real Wayland login entry, but nested testing does not prove that every physical EGLFS/KMS GPU, input-seat, VT or display-manager combination works. Keep another desktop or TTY available during evaluation.
 
-## Arch Linux installer
+## Supported installer paths
 
-Run from the checkout as your normal user:
+Run the installer from the checkout as your normal user:
 
 ```sh
 ./scripts/install-session.sh --dry-run
 ./scripts/install-session.sh
 ```
 
-The script installs build tools with pacman, creates the local source archive, then uses `makepkg --syncdeps --force --install`. Pacman owns the installed files. sudo and pacman retain their normal authorization prompts. The script never runs the desktop as root, stops the current desktop, reboots, changes the default shell or changes network services.
+The same script now detects four distribution families:
 
-If you already have an enabled display manager, keep it. Before logging out, run `lunadash-session --check`, confirm `/usr/share/wayland-sessions/lunadash.desktop` and `/usr/share/icons/hicolor/512x512/apps/lunadash.png` exist, and keep another desktop or TTY available. Log out, choose **LunaDash (Wayland)** in its session menu, then log in. SDDM normally remembers the selected session. For a system without an enabled display manager, install and enable SDDM for the next boot:
+| Distribution family | Build/install path |
+| --- | --- |
+| Arch Linux and derivatives | `makepkg --syncdeps --force --install`; pacman owns installed files |
+| Debian / Ubuntu and derivatives | apt dependencies, Ninja build, `cmake --install /usr` |
+| Fedora and derivatives | dnf dependencies, Ninja build, `cmake --install /usr` |
+| openSUSE Tumbleweed / Slowroll | zypper dependencies, Ninja build, `cmake --install /usr` |
+
+The dependency helper can be run by itself:
 
 ```sh
-./scripts/install-session.sh --enable-sddm
+./scripts/install-dependencies.sh --dry-run
+./scripts/install-dependencies.sh
 ```
 
-This runs `systemctl enable`, without `--now`, and sets the next boot target to `graphical.target`. It refuses to replace a different enabled display manager. Save work and reboot yourself when ready. Enabling SDDM does not switch the current session. For a practical SDDM test: first run `./scripts/install-session.sh --dry-run`, then `./scripts/install-session.sh --enable-sddm`; inspect `systemctl is-enabled sddm.service` without starting it in the current desktop, reboot deliberately, select **LunaDash (Wayland)** manually, and retain the session log if the greeter returns. Verify manual login and logout before considering `--autologin`. SDDM's existing greeter configuration is preserved; its greeter backend is separate from the LunaDash Wayland session.
+It only uses repositories already configured on the system. It does not add PPAs, COPR repositories, OBS repositories or other third-party package sources. Quickshell packaging differs between distributions; if `quickshell` is not found after dependency installation, follow the upstream Quickshell 0.3+ installation guide before starting a LunaDash shell session.
 
-For explicit passwordless login on boot, use the existing account name:
+Use `--skip-deps` when dependencies are already installed:
 
 ```sh
-./scripts/install-session.sh --enable-sddm --autologin "$(id -un)"
+./scripts/install-session.sh --skip-deps
 ```
 
-Auto-login skips password authentication at boot. It writes only `/etc/sddm.conf.d/90-ludash-autologin.conf` with `Session=lunadash.desktop` and `Relogin=false`; it refuses to overwrite that file. Review any existing `[Autologin]` settings in `/etc/sddm.conf` and other SDDM drop-ins, which may override it. First test manual login before enabling this option. Do not enable auto-login on a shared machine that needs a login barrier.
+On non-Arch systems this is a direct CMake source installation rather than a distribution-owned package. Arch remains the package-managed path. The source build directory defaults to `build-install` and can be changed with `LUDASH_BUILD_DIR`.
 
-## Startup and configuration
+The installer never runs the desktop as root, stops the current desktop, reboots the computer, changes the default shell or modifies network services. `sudo` or `doas` is used only for package/system installation.
 
-The installed entry is `/usr/share/wayland-sessions/lunadash.desktop`. It calls `/usr/bin/lunadash-session`, which starts a private D-Bus session and the compositor using Qt EGLFS/KMS. After the Wayland socket exists, the compositor prepares an environment for Quickshell, optional Fcitx5 and applications. Because the session owns a private bus, the compositor then publishes the display variables to it - `WAYLAND_DISPLAY`, the private `DISPLAY` and `XAUTHORITY`, the desktop identity, the toolkit backends and the input-method variables - with `dbus-update-activation-environment`, and to the systemd user manager when one is running. D-Bus activated applications and systemd user units therefore inherit a working display instead of starting blind. A nested compositor started directly from another desktop publishes nothing and keeps the host environment untouched; `activationEnvironment.published` in the status output reports the result. Quickshell and applications connect to LunaDash through Wayland. GLES 3 is the standalone default; `LUDASH_GRAPHICS=opengl` requests OpenGL 3.3 compatibility instead. A GPU driver and Qt's EGLFS/KMS platform integration are required. Package installation does not establish GPU/input permissions; these depend on the active PAM/logind seat and the Qt backend. Do not solve permission errors by running the desktop as root or making device nodes world-writable.
+## Display manager and SDDM
 
-From a normal login, check installed commands and the runtime directory:
+If you already have an enabled display manager, keep it. Before logging out, run:
 
 ```sh
 lunadash-session --check
 ```
 
-The installed `lunadash-session` command is intentionally extensionless and is distinct from source helpers such as `scripts/install-session.sh` and `scripts/test-wayland.sh`. Its check does not acquire DRM devices or test display output. Do not start `lunadash-session` inside another running desktop; use the login entry. For a nested check, run `LUNADASH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland lunadash-compositor --socket ludash-test` instead. In that window, check the single compact top panel: left workspace/session and inline grouped-app controls, the centered overview / Lambda (`Λ`) launcher / settings selector and downward launcher reveal, unified launcher rows/search, and the right tray plus clock/network/battery status. Omit `LUNADASH_DISABLE_FCITX=1` only for a deliberate Fcitx/SNI check; the fixed tray icon does not verify candidate popups.
+Confirm `/usr/share/wayland-sessions/lunadash.desktop` exists and keep another desktop or TTY available. Log out, choose **LunaDash (Wayland)** in the existing session menu, then log in.
 
-Logs are owner-readable files under `${XDG_STATE_HOME:-$HOME/.local/state}/lunadash/session-*.log`. A new file is created for each login; remove old logs when no longer needed. Inspect EGL/DRM/input errors there and the display-manager journal if login returns immediately. `QT_QPA_EGLFS_INTEGRATION` can select a different installed Qt device integration for hardware that requires it; there is no universal vendor override.
-
-The first-run guide provides language, offline/network configuration and appearance. The session menu logs out locally and uses logind D-Bus for available suspend, reboot and poweroff actions. Destructive actions require confirmation; no shell command is executed. The launcher’s Settings entry opens settings later. Existing network connections are reused. `Alt` + `Shift` + `F5` captures the desktop to `~/Pictures/Screenshots/lunadash-<timestamp>.png`; the same capture is available as `lunadashctl screenshot`, and [Screen capture](SCREEN_CAPTURE.md) documents the protocol coverage and its limits. See [Settings](SETTINGS.md), [Modules](MODULES.md) and [Default apps](DEFAULT_APPS_AND_FILES.md) for customization.
-
-## Recovery and removal
-
-Log out and choose the previous desktop. If optional auto-login prevents reaching the greeter, switch to another TTY, sign in and remove only the LunaDash auto-login drop-in:
+For a system without an enabled display manager, LunaDash can install and enable SDDM on pacman, apt, dnf and zypper systems:
 
 ```sh
-sudo rm -- /etc/sddm.conf.d/90-ludash-autologin.conf
+./scripts/install-session.sh --enable-sddm
 ```
 
-Then reboot when ready. If VT switching itself fails, use your distribution's recovery boot. To remove LunaDash's package after logging into another desktop:
+This installs the distribution's `sddm` package, runs `systemctl enable sddm.service` without `--now`, and sets the next boot target to `graphical.target`. It refuses to replace a different enabled display manager. Save work and reboot yourself when ready; enabling SDDM never switches the current session.
+
+For explicit passwordless login on boot, first verify normal SDDM login/logout, then use:
+
+```sh
+./scripts/install-session.sh --enable-sddm --autologin "$(id -un)"
+```
+
+Auto-login writes only `/etc/sddm.conf.d/90-ludash-autologin.conf` with `Session=lunadash.desktop` and `Relogin=false`; it refuses to overwrite an existing file. Do not enable it on a shared machine that requires a login barrier.
+
+## Startup and configuration
+
+The installed entry is `/usr/share/wayland-sessions/lunadash.desktop`. It calls `/usr/bin/lunadash-session`, which starts a private D-Bus session and the compositor using Qt EGLFS/KMS. After the Wayland socket exists, the compositor prepares an environment for Quickshell, optional Fcitx5 and applications. The session publishes display and input-method variables to its private D-Bus and, when available, the systemd user manager.
+
+A nested compositor started directly from another desktop keeps the host activation environment untouched. Quickshell and applications connect to LunaDash through Wayland. GLES 3 is the standalone default; `LUDASH_GRAPHICS=opengl` requests OpenGL 3.3 compatibility instead. A suitable GPU driver and Qt EGLFS/KMS platform integration are required. Package installation does not create GPU/input permissions; those come from PAM/logind/seat configuration. Do not work around permission failures by running LunaDash as root or making device nodes world-writable.
+
+From a normal login, check installed commands and runtime paths:
+
+```sh
+lunadash-session --check
+```
+
+For a nested check from an existing Wayland desktop:
+
+```sh
+env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE \
+  QT_QPA_PLATFORM=wayland \
+  lunadash-compositor --nested --socket ludash-test
+```
+
+Logs are owner-readable files under `${XDG_STATE_HOME:-$HOME/.local/state}/lunadash/session-*.log`. Inspect EGL/DRM/input errors there and the display-manager journal if login returns immediately.
+
+The first-run guide provides language, network/offline setup and appearance. Existing NetworkManager connections are reused. Session controls use logind D-Bus for supported suspend/reboot/poweroff actions and do not store passwords.
+
+## Distribution notes
+
+### Arch Linux
+
+Arch is the primary development environment. `install-session.sh` creates the local source archive and installs the package through `makepkg`; removal therefore uses pacman:
 
 ```sh
 sudo pacman -R ludash
 ```
 
-User preferences remain in the user's configuration directory. SDDM is a separate package; keep it if other desktops use it. The installer does not delete or replace those desktops.
+### Debian / Ubuntu
 
-If you intentionally want console-only boot again, use `sudo systemctl set-default multi-user.target`; this changes the next boot target without stopping the current desktop.
+The helper installs the Qt 6, Wayland, libinput, libxkbcommon, GL, udev/glib and build packages through apt. Ubuntu 24.04 is continuously compiled by the repository's main build workflow. A successful CI/source build does not imply physical GPU/login coverage on every Ubuntu or Debian release.
 
-## Other Linux distributions
+### Fedora
 
-The convenience installer currently targets Arch and pacman-based systems. On other distributions install the dependencies from the README plus Quickshell, D-Bus and Konsole, then use CMake:
+The helper uses Fedora's `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `qt6-qtwayland-devel` and corresponding Wayland/input development packages, then follows the generic CMake install path.
+
+### openSUSE Tumbleweed / Slowroll
+
+The helper uses the `libqt6-*` development package names plus Wayland/input/GL development packages and follows the generic CMake install path. Leap releases may expose a different Qt/package set and are not included in the automatic support promise.
+
+### Other Linux distributions
+
+Install equivalent requirements from the README, Quickshell 0.3+, then build manually:
 
 ```sh
-cmake -S . -B build-login -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
-cmake --build build-login --parallel 4
+cmake -S . -B build-login -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build-login --parallel
 sudo cmake --install build-login
 ```
 
-This is a direct source install, not a distribution-owned package. Use your distribution's display manager and session selection controls; no automatic apt/dnf service changes are performed. Physical SDDM session and Fcitx support remain unverified on those platforms.
+If your distribution uses a different display manager, keep it and select the installed `lunadash.desktop` Wayland session there.
 
-References: [Qt embedded Linux/EGLFS](https://doc.qt.io/qt-6/embedded-linux.html), [SDDM configuration](https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in).
+## Recovery
+
+Log out and choose the previous desktop. If optional auto-login prevents reaching the greeter, switch to another TTY and remove only the LunaDash auto-login drop-in:
+
+```sh
+sudo rm -- /etc/sddm.conf.d/90-ludash-autologin.conf
+```
+
+Then reboot when ready. If VT switching itself fails, use the distribution's recovery boot. SDDM is a separate package; keep it if other desktops use it. The installer does not delete or replace other desktops.
+
+If you intentionally want console-only boot again, use `sudo systemctl set-default multi-user.target`; this changes the next boot target without stopping the current desktop.
 
 ## NVIDIA shell compatibility
 
-LunaDash automatically selects software rendering for Quickshell when the NVIDIA driver is loaded, while retaining compositor GL/GLES effects. This avoids the observed sustained synchronization-descriptor growth on the tested host. See [Shell rendering](SHELL_RENDERING.md) for overrides, resource testing and limitations. Rebuild/reinstall and restart the session to apply changes.
+LunaDash can select software rendering for Quickshell when the NVIDIA driver is loaded while retaining compositor GL/GLES effects. See [Shell rendering](SHELL_RENDERING.md) for overrides, resource testing and limitations.
 
+Legacy `ludash-compositor`, `ludash-desktop`, `ludashctl`, `ludash-session`, and `ludash.desktop` names remain compatibility aliases. New integrations should use the LunaDash names. Installed shell QML lives under `/usr/share/lunadash/shell/`.
 
-Legacy `ludash-compositor`, `ludash-desktop`, `ludashctl`, `ludash-session`, and `ludash.desktop` names are installed only as compatibility aliases. New integrations should use the LunaDash names above. The normal application desktop ID is `lunadash-app.desktop`; installed shell QML is under `/usr/share/lunadash/shell/`.
+References: [Qt embedded Linux/EGLFS](https://doc.qt.io/qt-6/embedded-linux.html), [SDDM configuration](https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in).
