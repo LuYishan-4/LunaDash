@@ -8,10 +8,16 @@ usage() {
 Usage: ./scripts/install-dependencies.sh [--dry-run]
 
 Supported package managers:
-  pacman   Arch Linux and derivatives
-  apt-get  Debian / Ubuntu and derivatives
-  dnf      Fedora and derivatives
-  zypper   openSUSE Tumbleweed / Slowroll
+  pacman        Arch Linux and derivatives
+  apt-get       Debian / Ubuntu and derivatives
+  dnf           Fedora / RHEL-family derivatives
+  zypper        openSUSE Tumbleweed / Slowroll / Leap
+  apk           Alpine Linux
+  xbps-install  Void Linux
+  emerge        Gentoo Linux
+
+If none of these package managers exists, the script enters generic validation
+mode and accepts an already-provisioned CMake/Ninja/Qt6/Wayland toolchain.
 
 The script installs only packages from enabled distribution repositories. It does
 not add third-party repositories. Quickshell is checked separately because its
@@ -38,8 +44,7 @@ elif command -v sudo >/dev/null 2>&1; then
 elif command -v doas >/dev/null 2>&1; then
     elevate=(doas)
 else
-    echo 'sudo or doas is required to install system packages.' >&2
-    exit 1
+    elevate=()
 fi
 
 run() {
@@ -47,19 +52,18 @@ run() {
     if ! $dry_run; then "$@"; fi
 }
 
-manager=''
+manager='generic'
 if command -v pacman >/dev/null 2>&1; then manager=pacman
 elif command -v apt-get >/dev/null 2>&1; then manager=apt
 elif command -v dnf >/dev/null 2>&1; then manager=dnf
 elif command -v zypper >/dev/null 2>&1; then manager=zypper
-else
-    cat >&2 <<'EOF'
-No supported package manager was found.
-Install a C++20 compiler, CMake >= 3.21, Ninja, pkg-config, Qt 6.4+ Base/
-Declarative/Wayland/OpenGL development packages, Wayland development headers,
-libinput, libxkbcommon, udev/systemd development headers, GL development headers,
-glib2, shared-mime-info, Fish, and Quickshell 0.3+; then rerun the installer.
-EOF
+elif command -v apk >/dev/null 2>&1; then manager=apk
+elif command -v xbps-install >/dev/null 2>&1; then manager=xbps
+elif command -v emerge >/dev/null 2>&1; then manager=emerge
+fi
+
+if [[ $manager != generic && ${#elevate[@]} -eq 0 && $EUID -ne 0 ]]; then
+    echo 'sudo or doas is required to install system packages.' >&2
     exit 1
 fi
 
@@ -99,6 +103,45 @@ case "$manager" in
             qt6-base-devel qt6-declarative-devel qt6-wayland-devel \
             shared-mime-info fish
         ;;
+    apk)
+        run "${elevate[@]}" apk add \
+            build-base cmake ninja git pkgconf mesa-dev \
+            wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev \
+            glib-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland-dev \
+            shared-mime-info fish
+        ;;
+    xbps)
+        run "${elevate[@]}" xbps-install -Sy \
+            base-devel cmake ninja git pkg-config MesaLib-devel \
+            wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
+            eudev-libudev-devel glib-devel qt6-base-devel qt6-declarative-devel \
+            qt6-wayland-devel shared-mime-info fish
+        ;;
+    emerge)
+        run "${elevate[@]}" emerge --noreplace \
+            dev-build/cmake app-alternatives/ninja virtual/pkgconfig dev-vcs/git \
+            media-libs/mesa dev-libs/wayland dev-libs/wayland-protocols \
+            dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib \
+            dev-qt/qtbase:6 dev-qt/qtdeclarative:6 dev-qt/qtwayland:6 \
+            x11-misc/shared-mime-info app-shells/fish
+        ;;
+    generic)
+        missing=()
+        for tool in cmake ninja pkg-config git c++; do
+            command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+        done
+        if ((${#missing[@]})); then
+            printf 'Generic Linux mode: missing required build tools: %s\n' "${missing[*]}" >&2
+            cat >&2 <<'EOF'
+Install a C++20 compiler, CMake >= 3.21, Ninja, pkg-config, Qt 6.4+ Base/
+Declarative/Wayland/OpenGL development packages, Wayland development headers,
+libinput, libxkbcommon, udev development headers, GL development headers, GLib,
+shared-mime-info and Fish; then rerun the installer.
+EOF
+            exit 1
+        fi
+        echo 'Generic Linux mode: package installation skipped; existing toolchain will be validated by CMake.'
+        ;;
 esac
 
 if $dry_run; then
@@ -109,7 +152,7 @@ fi
 if ! command -v quickshell >/dev/null 2>&1; then
     cat <<'EOF'
 
-Build dependencies are installed, but Quickshell was not found.
+Build dependencies are ready, but Quickshell was not found.
 Install Quickshell 0.3 or newer using your distribution package if available, or
 follow the upstream installation guide:
   https://quickshell.org/docs/v0.3.0/guide/install-setup/
