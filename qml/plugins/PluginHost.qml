@@ -6,8 +6,8 @@ Item {
     width: 0
     height: 0
 
-    readonly property var qmlPlugins: ((shell.state.plugins || {}).installed || []).filter(plugin =>
-        plugin.enabled && plugin.type === "qml" && plugin.entry && !plugin.error)
+    readonly property var qmlPlugins: ((shell.state.appearance || {}).plugins || []).filter(plugin =>
+        plugin.enabled && plugin.type === "qml" && plugin.entry)
 
     Repeater {
         model: host.qmlPlugins
