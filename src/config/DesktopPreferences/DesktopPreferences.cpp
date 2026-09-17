@@ -22,7 +22,7 @@ QJsonObject defaults() {
             {"gap", 12}, {"panelHeight", 40},
             {"blur", true}, {"blurRadius", 18}, {"windowOpacity", 96}, {"animations", true}, {"animationDuration", 220},
             {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false}, {"altMouseResize", true},
-            {"keyboardLayout", "us"}, {"keyRepeatRate", 28}, {"keyRepeatDelay", 420}, {"cursorSize", 24},
+            {"keyboardLayout", "us"}, {"cursorSize", 24},
             {"fontFamily", "sans-serif"}, {"clock24Hour", true}, {"startupApps", QJsonArray{}},
             {"proxyEnabled", false}, {"proxyHttp", ""}, {"proxyHttps", ""}, {"proxySocks", ""}, {"proxyBypass", ""},
             {"overview", false}, {"showHostDetails", false}, {"updateChannel", "stable"}};
@@ -151,7 +151,7 @@ bool valid(const QString& key, const QJsonValue& value) {
         }
         return true;
     }
-    const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 9}}, {"masterRatio", {30, 70}}, {"keyRepeatRate", {0, 60}}, {"keyRepeatDelay", {200, 1500}}, {"cursorSize", {16, 64}}};
+    const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 9}}, {"masterRatio", {30, 70}}, {"cursorSize", {16, 64}}};
     if (ranges.contains(key)) {
         const double number = value.toDouble(-1); const auto range = ranges.value(key);
         return value.isDouble() && std::isfinite(number) && std::floor(number) == number && number >= range.first && number <= range.second;
