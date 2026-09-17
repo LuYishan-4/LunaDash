@@ -49,6 +49,44 @@ private Q_SLOTS:
         QVERIFY(!store.setPreferences(true, false, &error));
         QCOMPARE(readFile(path), original);
     }
+    void legacyRulesMigrateOnlyOnce() {
+        FileAssociations store;
+        QFile::remove(store.path());
+        QSettings settings;
+        settings.remove("files/associationMigrationVersion");
+        settings.setValue("fileAssociations/ext_txt", "/old/applications/" + appId);
+        settings.setValue("fileAssociations/ext_log", "__system__");
+        settings.sync();
+        QString error;
+        QVERIFY2(migrateLegacyFileAssociations(&error), qPrintable(error));
+        QCOMPARE(store.applicationForFile("notes.txt"), appId);
+        QCOMPARE(store.applicationForFile("app.log"), QString("__system__"));
+        QVERIFY(store.removeRule("ext:txt", &error));
+        QVERIFY(migrateLegacyFileAssociations(&error));
+        QVERIFY(store.applicationForFile("notes.txt").isEmpty());
+        QVERIFY(settings.contains("fileAssociations/ext_txt"));
+    }
+    void defaultOnlyChooserDoesNotLaunch() {
+        QTemporaryDir temporary;
+        const auto file = temporary.filePath("default-only.txt"); QVERIFY(writeFile(file, "test"));
+        const auto capture = QString::fromLocal8Bit(qgetenv("LUNADASH_TEST_CAPTURE"));
+        QFile::remove(capture);
+        std::unique_ptr<QWidget> parent(new QWidget); parent->show();
+        bool saved = false;
+        chooseFileDefault(parent.get(), file, [&saved](const QString& error) { saved = error.isEmpty(); });
+        auto* chooser = parent->findChild<QDialog*>("fileApplicationChooser"); QVERIFY(chooser);
+        auto* apps = chooser->findChild<QListWidget*>("fileApplicationList"); QVERIFY(apps);
+        auto* showAll = chooser->findChildren<QCheckBox*>().first();
+        showAll->setChecked(true);
+        QListWidgetItem* selected = nullptr;
+        for (int row = 0; row < apps->count(); ++row)
+            if (apps->item(row)->data(Qt::UserRole).toString() == appId) selected = apps->item(row);
+        QVERIFY(selected); apps->setCurrentItem(selected);
+        chooser->findChild<QPushButton*>("confirmFileApplication")->click();
+        QVERIFY(saved);
+        QCOMPARE(FileAssociations().applicationForFile(file), appId);
+        QVERIFY(!QFileInfo::exists(capture));
+    }
     void copyFoldersAndLinks() {
         QTemporaryDir temporary;
         QDir root(temporary.path()); QVERIFY(root.mkpath("source/folder/nested")); QVERIFY(root.mkdir("destination"));
@@ -134,10 +172,11 @@ private Q_SLOTS:
         icons->selectionModel()->select(first, QItemSelectionModel::ClearAndSelect);
         icons->selectionModel()->select(second, QItemSelectionModel::Select);
         icons->setCurrentIndex(first);
-        // Restore multiple selection after changing the current index.
         icons->selectionModel()->select(second, QItemSelectionModel::Select);
         QMetaObject::invokeMethod(icons, "customContextMenuRequested", Q_ARG(QPoint, QPoint(-1, -1)));
-        auto* menu = page->findChild<QMenu*>("fileContextMenu"); QVERIFY(menu); menu->close();
+        QPointer<QMenu> menu = page->findChild<QMenu*>("fileContextMenu"); QVERIFY(menu);
+        menu->hide(); // Menus normally hide without receiving QWidget::close().
+        QTRY_VERIFY(menu.isNull());
         auto* copy = page->findChild<QAction*>("filesAction_copy"); QVERIFY(copy); QVERIFY(copy->isEnabled()); copy->trigger();
         QCOMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
         QVERIFY(page->findChild<QTreeView*>("fileView")->selectionModel() == icons->selectionModel());

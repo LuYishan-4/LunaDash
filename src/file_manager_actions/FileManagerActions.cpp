@@ -112,6 +112,7 @@ FileManagerActions::FileManagerActions(QWidget* page)
         if (!item) return;
         const auto path = item->data(Qt::UserRole).toString();
         auto* menu = new QMenu(page_); menu->setAttribute(Qt::WA_DeleteOnClose);
+        connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
         menu->addAction(translate("Open"), this, [this, path] { navigate(path); });
         menu->addAction(translate("Open in a new window"), this, [this, path] {
             if (!QProcess::startDetached(QCoreApplication::applicationFilePath(), {"--app", "files", "--builtin", "--path", path}))
@@ -278,6 +279,7 @@ void FileManagerActions::contextMenu(QAbstractItemView* view, const QPoint& posi
     const bool directory = paths.size() == 1 && QFileInfo(paths.first()).isDir();
     const QString destination = directory ? paths.first() : currentPath_;
     auto* menu = new QMenu(page_); menu->setObjectName("fileContextMenu"); menu->setAttribute(Qt::WA_DeleteOnClose);
+    connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
     if (!paths.isEmpty()) {
         menu->addAction(actions_.value("open"));
         if (!directory) {
