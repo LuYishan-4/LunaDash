@@ -13,7 +13,14 @@ ColumnLayout {
 
     readonly property var network: shell.state.network || ({})
     readonly property var connections: network.connections || []
-    readonly property var proxy: shell.state.proxy || ({enabled:false, http:"", https:"", socks:"", bypass:""})
+    readonly property var appearance: shell.state.appearance || ({})
+    readonly property var proxy: ({
+        enabled: appearance.proxyEnabled ?? false,
+        http: appearance.proxyHttp || "",
+        https: appearance.proxyHttps || "",
+        socks: appearance.proxySocks || "",
+        bypass: appearance.proxyBypass || ""
+    })
     property string section: "connections"
     property string selectedConnection: connections.length > 0 ? connections[0].name : ""
     property string diagnosticsText: ""
@@ -22,8 +29,14 @@ ColumnLayout {
         shell.command("network", JSON.stringify(request))
     }
 
-    function selectedProfile() {
-        return connections.find(connection => connection.name === selectedConnection) || ({})
+    function saveProxy(enabled) {
+        shell.setAppearance({
+            proxyEnabled: enabled,
+            proxyHttp: proxyHttp.text.trim(),
+            proxyHttps: proxyHttps.text.trim(),
+            proxySocks: proxySocks.text.trim(),
+            proxyBypass: proxyBypass.text.trim()
+        })
     }
 
     PageTitle { shell: page.shell; title: "Internet and network" }
@@ -223,19 +236,19 @@ ColumnLayout {
     SettingsComponents.SettingsCard {
         visible: page.section === "internet"
         title: shell.tr("Connections and proxy")
-        description: shell.tr("Set a session-wide proxy for applications launched by LunaDash. Leave fields empty when that protocol should connect directly.")
+        description: shell.tr("Set a session-wide proxy for applications launched by LunaDash. Proxy environment changes are applied after starting a new LunaDash session.")
         ShellButton {
             text: page.proxy.enabled ? shell.tr("Proxy enabled") : shell.tr("Proxy disabled")
             active: page.proxy.enabled
-            onClicked: shell.command("proxy", JSON.stringify({enabled:!page.proxy.enabled, http:proxyHttp.text, https:proxyHttps.text, socks:proxySocks.text, bypass:proxyBypass.text}))
+            onClicked: page.saveProxy(!page.proxy.enabled)
         }
-        SoftField { id: proxyHttp; Layout.fillWidth: true; placeholderText: shell.tr("HTTP proxy, for example http://127.0.0.1:8080"); text: page.proxy.http || "" }
-        SoftField { id: proxyHttps; Layout.fillWidth: true; placeholderText: shell.tr("HTTPS proxy"); text: page.proxy.https || "" }
-        SoftField { id: proxySocks; Layout.fillWidth: true; placeholderText: shell.tr("SOCKS proxy"); text: page.proxy.socks || "" }
-        SoftField { id: proxyBypass; Layout.fillWidth: true; placeholderText: shell.tr("Proxy bypass list, comma separated"); text: page.proxy.bypass || "" }
+        SoftField { id: proxyHttp; Layout.fillWidth: true; placeholderText: shell.tr("HTTP proxy, for example http://127.0.0.1:8080"); text: page.proxy.http }
+        SoftField { id: proxyHttps; Layout.fillWidth: true; placeholderText: shell.tr("HTTPS proxy"); text: page.proxy.https }
+        SoftField { id: proxySocks; Layout.fillWidth: true; placeholderText: shell.tr("SOCKS proxy"); text: page.proxy.socks }
+        SoftField { id: proxyBypass; Layout.fillWidth: true; placeholderText: shell.tr("Proxy bypass list, comma separated"); text: page.proxy.bypass }
         RowLayout {
             Layout.fillWidth: true
-            ShellButton { text: shell.tr("Save proxy settings"); onClicked: shell.command("proxy", JSON.stringify({enabled:page.proxy.enabled, http:proxyHttp.text, https:proxyHttps.text, socks:proxySocks.text, bypass:proxyBypass.text})) }
+            ShellButton { text: shell.tr("Save proxy settings"); onClicked: page.saveProxy(page.proxy.enabled) }
             ShellButton { text: shell.tr("Advanced connection editor"); onClicked: shell.command("system-tool", "network") }
             Item { Layout.fillWidth: true }
         }
