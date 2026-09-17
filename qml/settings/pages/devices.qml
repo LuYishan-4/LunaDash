@@ -74,12 +74,12 @@ ColumnLayout {
         }
     }
 
-    function diskAction(action, path) {
-        if (!path || diskAction.running)
+    function runDiskAction(action, path) {
+        if (!path || diskActionProcess.running)
             return
         diskActionMessage = ""
-        diskAction.command = ["udisksctl", action, "-b", String(path)]
-        diskAction.running = true
+        diskActionProcess.command = ["udisksctl", action, "-b", String(path)]
+        diskActionProcess.running = true
     }
 
     PageTitle { shell: page.shell; title: "Device manager and disks" }
@@ -237,17 +237,17 @@ ColumnLayout {
                     ShellButton {
                         visible: modelData.type !== "disk" && (!modelData.mountpoints || modelData.mountpoints.filter(Boolean).length === 0)
                         text: shell.tr("Mount")
-                        onClicked: page.diskAction("mount", modelData.path)
+                        onClicked: page.runDiskAction("mount", modelData.path)
                     }
                     ShellButton {
                         visible: modelData.type !== "disk" && modelData.mountpoints && modelData.mountpoints.filter(Boolean).length > 0
                         text: shell.tr("Unmount")
-                        onClicked: page.diskAction("unmount", modelData.path)
+                        onClicked: page.runDiskAction("unmount", modelData.path)
                     }
                     ShellButton {
                         visible: modelData.type === "disk" && (modelData.rm || modelData.hotplug)
                         text: shell.tr("Safely remove")
-                        onClicked: page.diskAction("power-off", modelData.path)
+                        onClicked: page.runDiskAction("power-off", modelData.path)
                     }
                 }
             }
@@ -295,12 +295,12 @@ ColumnLayout {
     }
 
     Process {
-        id: diskAction
+        id: diskActionProcess
         property string output: ""
-        stdout: StdioCollector { onStreamFinished: diskAction.output = text.trim() }
-        stderr: StdioCollector { onStreamFinished: diskAction.output = text.trim() }
+        stdout: StdioCollector { onStreamFinished: diskActionProcess.output = text.trim() }
+        stderr: StdioCollector { onStreamFinished: diskActionProcess.output = text.trim() }
         onExited: (code, status) => {
-            page.diskActionMessage = diskAction.output
+            page.diskActionMessage = diskActionProcess.output
             page.refreshHardware()
         }
     }
