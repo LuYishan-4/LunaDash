@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 project(LunaDash VERSION 0.1.0 LANGUAGES C CXX)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashMain.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashShellTool.cmake)
 
 # Native input is an optional compiled capability. Runtime selection is handled
 # by lunadash-compositor --nested, so one binary can serve both installed and
