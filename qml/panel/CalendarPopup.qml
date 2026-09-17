@@ -38,6 +38,11 @@ ModuleSurface {
         document.modules.overview.config.calendarImage = String(url || "")
         shell.command("module-save", JSON.stringify(document))
     }
+    function chooseCalendarImage() {
+        shell.pickerPurpose = "calendar"
+        shell.settingsOpen = true
+        shell.pickerOpen = true
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -70,7 +75,7 @@ ModuleSurface {
             radius: 16
             color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.09)
             border.width: 1
-            border.color: artDrop.containsDrag ? moduleAccent : Theme.border
+            border.color: Theme.border
             clip: true
 
             Image {
@@ -80,6 +85,7 @@ ModuleSurface {
                 asynchronous: true
                 visible: source.toString().length > 0 && status !== Image.Error
             }
+
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
@@ -88,28 +94,38 @@ ModuleSurface {
                     anchors.centerIn: parent
                     spacing: 6
                     LunaDashLogo { anchors.horizontalCenter: parent.horizontalCenter; width: 42; height: 42; animated: false }
-                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: shell.tr("Drop an image here for your calendar"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
-                }
-            }
-            DropArea {
-                id: artDrop
-                anchors.fill: parent
-                onDropped: drop => {
-                    const urls = drop.urls || []
-                    if (urls.length > 0) {
-                        const candidate = String(urls[0])
-                        if (/^file:\/\/.+\.(png|jpe?g|webp|gif)$/i.test(candidate))
-                            calendar.setCalendarImage(candidate)
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: shell.tr("Choose an image for your calendar")
+                        color: Theme.muted
+                        font.family: Theme.font
+                        font.pixelSize: 11
                     }
                 }
             }
-            ShellButton {
-                visible: calendar.calendarImage.length > 0
+
+            Row {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.margins: 8
-                text: shell.tr("Clear image")
-                onClicked: calendar.setCalendarImage("")
+                spacing: 6
+                ShellButton {
+                    text: shell.tr("Change image")
+                    active: true
+                    onClicked: calendar.chooseCalendarImage()
+                }
+                ShellButton {
+                    visible: calendar.calendarImage.length > 0
+                    text: shell.tr("Clear image")
+                    onClicked: calendar.setCalendarImage("")
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                anchors.topMargin: 44
+                cursorShape: Qt.PointingHandCursor
+                onClicked: calendar.chooseCalendarImage()
             }
         }
 
@@ -171,7 +187,7 @@ ModuleSurface {
         Item { Layout.fillHeight: true }
         Text {
             Layout.fillWidth: true
-            text: shell.tr("Drag a local PNG, JPEG, WebP, or GIF onto the image area to personalize the calendar.")
+            text: shell.tr("Click the image area to choose a local PNG, JPEG, WebP, or GIF with the LunaDash file picker.")
             color: Theme.muted
             font.family: Theme.font
             font.pixelSize: 10
