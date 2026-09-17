@@ -1,6 +1,12 @@
 #pragma once
+
+#include <QJsonArray>
 #include <QString>
+
 namespace LuDash {
 QString wallpaperImageUrl();
-bool setWallpaperImage(const QString& path, QString* error = nullptr);
+QJsonArray wallpaperLibrarySnapshot();
+quint64 wallpaperRevision();
+bool setWallpaperImage(const QString &path, QString *error = nullptr);
+void resetWallpaperImage();
 }
