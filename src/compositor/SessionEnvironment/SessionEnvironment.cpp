@@ -90,9 +90,16 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("ELECTRON_OZONE_PLATFORM_HINT", "wayland");
   environment.insert("XMODIFIERS", "@im=fcitx");
   environment.insert("QT_IM_MODULE", "fcitx");
-  environment.insert("QT_IM_MODULES", "wayland;fcitx;ibus");
+  // Do not put the Qt Wayland input context ahead of Fcitx here. LunaDash
+  // advertises text-input protocols for clients, but currently does not act as
+  // a compositor-side input-method-v2 bridge. Selecting "wayland" first can
+  // therefore leave Qt text fields without a usable IME even though Fcitx is
+  // running. Keep the toolkit Fcitx module authoritative until that bridge is
+  // implemented.
+  environment.insert("QT_IM_MODULES", "fcitx");
   environment.insert("GTK_IM_MODULE", "fcitx");
   environment.insert("SDL_IM_MODULE", "fcitx");
+  environment.insert("INPUT_METHOD", "fcitx");
   applyProxyEnvironment(environment);
   auto assetDirectory = QStandardPaths::locate(
       QStandardPaths::GenericDataLocation, "lunadash/data/assets",
@@ -100,6 +107,14 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   if (assetDirectory.isEmpty())
     assetDirectory = QStringLiteral(LUDASH_ASSET_SOURCE_DIR);
   environment.insert("LUNADASH_ASSET_DIR", assetDirectory);
+
+  auto wallpaperDirectory = QStandardPaths::locate(
+      QStandardPaths::GenericDataLocation, "ludash/wallpapers",
+      QStandardPaths::LocateDirectory);
+  if (wallpaperDirectory.isEmpty())
+    wallpaperDirectory = QStringLiteral(LUDASH_WALLPAPER_SOURCE_DIR);
+  environment.insert("LUNADASH_WALLPAPER_DIR", wallpaperDirectory);
+
   environment.insert("LUNADASH_BIN_DIR", binaryDirectory);
   environment.insert("LUNADASH_CONTROL", controlPath);
   environment.insert("LUDASH_BIN_DIR", binaryDirectory);
@@ -144,6 +159,7 @@ bool publishActivationEnvironment(const QProcessEnvironment &environment,
       QStringLiteral("QT_IM_MODULES"),
       QStringLiteral("GTK_IM_MODULE"),
       QStringLiteral("SDL_IM_MODULE"),
+      QStringLiteral("INPUT_METHOD"),
       QStringLiteral("http_proxy"),
       QStringLiteral("HTTP_PROXY"),
       QStringLiteral("https_proxy"),
