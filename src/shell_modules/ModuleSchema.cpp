@@ -19,6 +19,16 @@ QJsonObject defaultModuleDocument() {
                                  {"backgroundOpacity", 18},
                                  {"glow", true},
                                  {"orbit", true}};
+        } else if (id == "panel") {
+            config = QJsonObject{{"backgroundVisible", false},
+                                 {"contrastShells", true},
+                                 {"workspacePills", true},
+                                 {"workspaceInactiveWidth", 18},
+                                 {"workspaceActiveWidth", 38},
+                                 {"workspacePillHeight", 10},
+                                 {"shellOpacity", 20},
+                                 {"workspaceTransition", true},
+                                 {"transitionDuration", 420}};
         }
         modules[id] = QJsonObject{
             {"enabled", true},
@@ -132,12 +142,12 @@ bool validateModuleDocument(const QByteArray& text, QJsonObject* normalized, QSt
             if (!source.value("config").isObject())
                 return fail(error, "Module config must be an object: " + id);
             const auto changes = source.value("config").toObject();
-            if (id != "launcher" && !changes.isEmpty())
-                return fail(error, "Only launcher currently has module-specific config fields.");
+            if (id != "launcher" && id != "panel" && !changes.isEmpty())
+                return fail(error, "This module does not have module-specific config fields.");
+            auto config = module.value("config").toObject();
             if (id == "launcher") {
                 if (!keysAllowed(changes, {"buttonSize", "logoScale", "backgroundOpacity", "glow", "orbit"}))
                     return fail(error, "Unknown launcher config field.");
-                auto config = module.value("config").toObject();
                 for (auto field = changes.begin(); field != changes.end(); ++field) {
                     const auto key = field.key();
                     const auto value = field.value();
@@ -149,8 +159,29 @@ bool validateModuleDocument(const QByteArray& text, QJsonObject* normalized, QSt
                     if (!valid) return fail(error, "Invalid launcher config field: " + key);
                     config[key] = value;
                 }
-                module["config"] = config;
+            } else if (id == "panel") {
+                if (!keysAllowed(changes, {"backgroundVisible", "contrastShells", "workspacePills",
+                                           "workspaceInactiveWidth", "workspaceActiveWidth", "workspacePillHeight",
+                                           "shellOpacity", "workspaceTransition", "transitionDuration"}))
+                    return fail(error, "Unknown panel config field.");
+                for (auto field = changes.begin(); field != changes.end(); ++field) {
+                    const auto key = field.key();
+                    const auto value = field.value();
+                    bool valid = false;
+                    if (key == "backgroundVisible" || key == "contrastShells" || key == "workspacePills" ||
+                        key == "workspaceTransition") valid = value.isBool();
+                    else if (key == "workspaceInactiveWidth") valid = integer(value, 8, 48);
+                    else if (key == "workspaceActiveWidth") valid = integer(value, 18, 72);
+                    else if (key == "workspacePillHeight") valid = integer(value, 4, 20);
+                    else if (key == "shellOpacity") valid = integer(value, 0, 60);
+                    else if (key == "transitionDuration") valid = integer(value, 180, 900);
+                    if (!valid) return fail(error, "Invalid panel config field: " + key);
+                    config[key] = value;
+                }
+                if (config.value("workspaceActiveWidth").toInt() < config.value("workspaceInactiveWidth").toInt())
+                    return fail(error, "Active workspace pill must be at least as wide as an inactive pill.");
             }
+            module["config"] = config;
         }
 
         if (source.contains("custom")) {
