@@ -20,7 +20,7 @@ Rectangle {
         const service = String(card.media.service || "")
         mediaProcess.command = action
             ? [shell.shellToolExecutable, "media-action", action, service]
-            : [shell.shellToolExecutable, "media-status", service]
+            : [shell.shellToolExecutable, "media-status"]
         mediaProcess.running = true
     }
 
