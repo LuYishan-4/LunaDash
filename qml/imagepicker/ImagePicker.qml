@@ -115,7 +115,7 @@ Item {
                 clip: true
                 model: entries
                 cellWidth: 146
-                cellHeight: 112
+                cellHeight: 140
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 delegate: Item {
@@ -133,21 +133,46 @@ Item {
                         border.color: picker.selectedPath === model.filePath ? Theme.accent : Theme.border
                         clip: true
 
-                        Image {
+                        ColumnLayout {
                             anchors.fill: parent
-                            visible: !model.fileIsDir
-                            source: model.fileIsDir ? "" : "file://" + model.filePath
-                            sourceSize.width: 320
-                            sourceSize.height: 220
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            smooth: true
-                        }
-                        Rectangle {
-                            anchors.fill: parent
-                            visible: model.fileIsDir
-                            color: "transparent"
-                            LineIcon { anchors.centerIn: parent; width: 34; height: 34; name: "files"; ink: Theme.accent }
+                            spacing: 0
+
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+
+                                Image {
+                                    anchors.fill: parent
+                                    visible: !model.fileIsDir
+                                    source: model.fileIsDir ? "" : "file://" + model.filePath
+                                    sourceSize.width: 320
+                                    sourceSize.height: 220
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    smooth: true
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    visible: model.fileIsDir
+                                    color: "transparent"
+                                    LineIcon { anchors.centerIn: parent; width: 34; height: 34; name: "files"; ink: Theme.accent }
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 30
+                                Layout.leftMargin: 8
+                                Layout.rightMargin: 8
+                                text: model.fileName
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: 11
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                elide: Text.ElideMiddle
+                                maximumLineCount: 1
+                            }
                         }
                     }
                     MouseArea {
