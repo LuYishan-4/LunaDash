@@ -21,13 +21,6 @@ rm -f -- "$build_dir/$evidence_name-preview.png" "$build_dir/$evidence_name-stat
 runtime_dir=$(mktemp -d)
 chmod 700 "$runtime_dir"
 mkdir -p "$runtime_dir/config"
-# This fixture tests normal tiled application windows, not first-use dialogs.
-# A modal Files welcome intentionally overlaps its parent and would invalidate
-# the non-overlap assertions below. Seed only this disposable configuration;
-# tests/files/FileManagerTests.cpp exercises real first-run and chooser flows.
-mkdir -p "$runtime_dir/config/LunaDash"
-printf '%s\n' '{"version":1,"initialized":true,"askOnFirstOpen":true,"associations":{}}' \
-  > "$runtime_dir/config/LunaDash/file-associations.json"
 if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ]; then
   mkdir -p "$runtime_dir/config/LuDash"
   printf '[desktop]\noverview=true\nshowHostDetails=false\n' > "$runtime_dir/config/LuDash/LuDash.conf"
@@ -66,12 +59,21 @@ if os.environ.get('LUDASH_GRAPHICS') == 'gles':
 if os.environ.get('LUDASH_GRAPHICS') == 'opengl':
     assert state['graphicsApi'] == 'OpenGL', state
 clients = [c for c in state['clients'] if not c['desktop']]
+first_run_dialogs = [c for c in clients if c.get('title') == 'Welcome to Files']
+tiled_clients = [c for c in clients if c not in first_run_dialogs]
 if os.environ.get("LUDASH_TEST_OVERVIEW") == "1" or os.environ.get("LUDASH_TEST_SETUP") == "1":
     assert not clients, state
     if os.environ.get('LUDASH_TEST_OVERVIEW') == '1':
         assert state['layerSurfaces'] >= 3, state
 else:
-    assert len(clients) >= (2 if os.environ.get("LUDASH_TEST_NO_SHELL") == "1" else 3), state
+    required = 2 if os.environ.get("LUDASH_TEST_NO_SHELL") == "1" else 3
+    assert len(tiled_clients) >= required, state
+    # A clean disposable config intentionally exercises the Files first-run
+    # application chooser preference. It is a modal child and may overlap its
+    # parent, unlike normal tiled application windows.
+    assert len(first_run_dialogs) <= 1, state
+    if any(c.get('title') == 'LunaDash · files' for c in tiled_clients):
+        assert first_run_dialogs, state
 if clients and state['appearance']['blur']:
     assert state.get('blurReady') and not state.get('blurFailed'), state
 assert all(c['mapped'] and c['visible'] for c in clients), state
@@ -98,9 +100,11 @@ for client in onscreen:
     assert content.getcolors(maxcolors=32) is None, f'Blank onscreen client content: {client}'
 if os.environ.get('LUDASH_TEST_NO_SHELL') != '1':
     assert state.get('layerSurfaces', 0) >= 2, state
-for i, a in enumerate(clients):
-    for b in clients[i + 1:]:
+for i, a in enumerate(tiled_clients):
+    for b in tiled_clients[i + 1:]:
         assert (a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x'] or
                 a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y']), state
-print('Wayland integration passed: desktop +', len(clients), 'mapped, non-overlapping clients; clean shutdown')
+print('Wayland integration passed: desktop +', len(tiled_clients),
+      'mapped, non-overlapping tiled clients +', len(first_run_dialogs),
+      'Files first-run dialog(s); clean shutdown')
 PY
