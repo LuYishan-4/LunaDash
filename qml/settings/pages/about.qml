@@ -197,7 +197,7 @@ ColumnLayout {
             Layout.fillWidth: true
             text: page.install.details
             color: Theme.muted
-            font.family: "monospace"
+            font.family: Theme.font
             font.pixelSize: 9
             wrapMode: Text.WrapAnywhere
             maximumLineCount: 5
