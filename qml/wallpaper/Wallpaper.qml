@@ -4,7 +4,7 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
-import "../style"
+import "../style" as Style
 
 ModuleSurface {
     id: wallpaper
@@ -43,8 +43,8 @@ ModuleSurface {
             return
         incomingSource = source
         revealProgress = 0
-        transitioning = Theme.animations
-        if (Theme.animations)
+        transitioning = Style.Theme.animations
+        if (Style.Theme.animations)
             revealAnimation.restart()
         else {
             displayedSource = source
@@ -122,7 +122,7 @@ ModuleSurface {
         property: "revealProgress"
         from: 0
         to: 1
-        duration: Math.max(620, Theme.animationDuration * 2.7)
+        duration: Math.max(620, Style.Theme.animationDuration * 2.7)
         easing.type: Easing.OutCubic
         onFinished: {
             wallpaper.displayedSource = wallpaper.incomingSource
