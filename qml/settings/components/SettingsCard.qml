@@ -10,10 +10,41 @@ Rectangle {
 
     Layout.fillWidth: true
     implicitHeight: body.implicitHeight + 32
-    radius: 16
-    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.76)
+    radius: 18
+    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.82)
     border.width: 1
-    border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+    border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.24)
+
+    Rectangle {
+        width: 34
+        height: 34
+        radius: 17
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 12
+        color: Qt.rgba(Theme.moon.r, Theme.moon.g, Theme.moon.b, 0.08)
+        Rectangle {
+            width: 32
+            height: 32
+            radius: 16
+            x: 9
+            y: -5
+            color: card.color
+        }
+    }
+
+    Repeater {
+        model: [[0.12, 0.22], [0.76, 0.74], [0.56, 0.18]]
+        Rectangle {
+            required property var modelData
+            width: 3
+            height: 3
+            radius: 1.5
+            x: card.width * modelData[0]
+            y: card.height * modelData[1]
+            color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.26)
+        }
+    }
 
     ColumnLayout {
         id: body
