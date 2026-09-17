@@ -12,6 +12,7 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QVariantMap>
+#include <algorithm>
 
 namespace LuDash {
 namespace {
