@@ -17,11 +17,7 @@
 #endif
 
 namespace LuDash {
-namespace {
-bool nativeKeyboardInputEnabled = true;
-constexpr quint32 kKeyboardRepeatRate = 25;
-constexpr quint32 kKeyboardRepeatDelay = 600;
-}
+namespace { bool nativeKeyboardInputEnabled = true; }
 #ifdef LUDASH_USE_LIBINPUT
 namespace {
 int openRestricted(const char *path, int flags, void *) { return ::open(path, flags | O_CLOEXEC); }
@@ -60,12 +56,16 @@ private:
       else if (type == LIBINPUT_EVENT_KEYBOARD_KEY && state_) {
         auto *keyboardEvent = libinput_event_get_keyboard_event(event);
         const uint32_t evdevKey = libinput_event_keyboard_get_key(keyboardEvent);
+        // xkbcommon keycodes carry the historical +8 offset, while the Wayland
+        // wl_keyboard protocol carries Linux evdev keycodes directly. Keep the
+        // two domains separate: using xkbKey for the client event shifts every
+        // key and breaks combinations such as the Fcitx Ctrl+Space trigger.
         const uint32_t xkbKey = evdevKey + 8;
         const bool pressed = libinput_event_keyboard_get_key_state(keyboardEvent) == LIBINPUT_KEY_STATE_PRESSED;
         xkb_state_update_key(state_, xkbKey, pressed ? XKB_KEY_DOWN : XKB_KEY_UP);
         if (seat_ && seat_->keyboard()) {
-          if (pressed) seat_->keyboard()->sendKeyPressEvent(xkbKey);
-          else seat_->keyboard()->sendKeyReleaseEvent(xkbKey);
+          if (pressed) seat_->keyboard()->sendKeyPressEvent(evdevKey);
+          else seat_->keyboard()->sendKeyReleaseEvent(evdevKey);
         }
         ledsDirty = true;
       }
@@ -98,7 +98,9 @@ void setNativeKeyboardInputEnabled(bool enabled) {
 void applyKeyboardPreferences(QWaylandSeat *seat, const QJsonObject &preferences) {
   if (!seat || !seat->keyboard()) return; auto *keymap = seat->keymap(); keymap->setRules(QStringLiteral("evdev")); keymap->setModel(QStringLiteral("pc105"));
   const QString layout = preferences.value("keyboardLayout").toString(); keymap->setLayout(layout);
-  seat->keyboard()->setRepeatRate(kKeyboardRepeatRate); seat->keyboard()->setRepeatDelay(kKeyboardRepeatDelay);
+  constexpr quint32 kRepeatRate = 25;
+  constexpr quint32 kRepeatDelay = 600;
+  seat->keyboard()->setRepeatRate(kRepeatRate); seat->keyboard()->setRepeatDelay(kRepeatDelay);
 #ifdef LUDASH_USE_LIBINPUT
   if (nativeKeyboardInputEnabled) nativeKeyboardState().configure(seat, layout);
 #endif
