@@ -4,29 +4,72 @@ set -eu
 repo=https://github.com/LuYishan-4/LunaDash.git
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/lunadash/update
 backup="$state_dir/rollback.tar.gz"
+status_file="$state_dir/progress.json"
+channel=""
+target=""
+rollback=false
+current_progress=0
+current_stage="idle"
 
-fail() { echo "ERROR: $*" >&2; exit 1; }
+json_escape() {
+    printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+write_status() {
+    state=$1
+    progress=$2
+    stage=$3
+    message=$4
+    current_progress=$progress
+    current_stage=$stage
+    tmp="$status_file.tmp"
+    printf '{"state":"%s","progress":%s,"stage":"%s","message":"%s","channel":"%s","target":"%s","rollback":%s}\n' \
+        "$(json_escape "$state")" "$progress" "$(json_escape "$stage")" \
+        "$(json_escape "$message")" "$(json_escape "$channel")" \
+        "$(json_escape "$target")" "$rollback" > "$tmp"
+    mv -f "$tmp" "$status_file"
+}
+
+fail() {
+    write_status "error" "$current_progress" "$current_stage" "$*"
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
 need() { command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"; }
 
 mkdir -p "$state_dir"
 
+if [ "${1:-}" = "--status" ]; then
+    if [ -f "$status_file" ]; then
+        cat "$status_file"
+    else
+        printf '%s\n' '{"state":"idle","progress":0,"stage":"idle","message":"","channel":"","target":"","rollback":false}'
+    fi
+    exit 0
+fi
+
 if [ "${1:-}" = "--rollback" ]; then
+    rollback=true
+    write_status "running" 10 "rollback" "Restoring the previous LunaDash installation."
     [ -f "$backup" ] || fail "No LunaDash update backup is available."
     if command -v pkexec >/dev/null 2>&1; then
-        pkexec tar -xzf "$backup" -C /
+        pkexec tar -xzf "$backup" -C / || fail "Could not restore the previous installation."
     else
         fail "pkexec is required to restore system files."
     fi
-    echo "Rollback completed. Log out and start a new LunaDash session."
+    write_status "completed" 100 "complete" "Rollback completed. Reboot to use the restored installation."
+    echo "Rollback completed. Reboot to use the restored LunaDash installation."
     exit 0
 fi
 
 channel=${1:-}
-ref=${2:-}
-case "$channel" in stable|dev) ;; *) fail "Usage: lunadash-update stable|dev REF, or --rollback" ;; esac
-[ -n "$ref" ] || fail "The target release or commit is required."
-case "$ref" in *[!A-Za-z0-9._-]*|'') fail "Rejected update ref." ;; esac
+target=${2:-}
+case "$channel" in stable|dev) ;; *) fail "Usage: lunadash-update stable|dev REF, --status, or --rollback" ;; esac
+[ -n "$target" ] || fail "The target release or commit is required."
+case "$target" in *[!A-Za-z0-9._-]*|'') fail "Rejected update ref." ;; esac
 
+write_status "running" 3 "prepare" "Checking update tools and preparing a temporary build directory."
 need git
 need cmake
 need ninja
@@ -38,21 +81,28 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 src="$work/source"
 build="$work/build"
 
+write_status "running" 12 "download" "Downloading the selected LunaDash source."
 if [ "$channel" = dev ]; then
     git clone --quiet --depth 1 --branch dev "$repo" "$src" || fail "Could not download the dev branch."
+    write_status "running" 22 "verify" "Verifying the downloaded development commit."
     actual=$(git -C "$src" rev-parse HEAD)
-    case "$actual" in "$ref"*) ;; *) fail "The downloaded dev commit does not match the selected update." ;; esac
+    case "$actual" in "$target"*) ;; *) fail "The downloaded dev commit does not match the selected update." ;; esac
 else
-    git clone --quiet --depth 1 --branch "$ref" "$repo" "$src" || fail "Could not download release $ref."
+    git clone --quiet --depth 1 --branch "$target" "$repo" "$src" || fail "Could not download release $target."
+    write_status "running" 22 "verify" "Verifying the downloaded release tag."
     actual=$(git -C "$src" describe --tags --exact-match HEAD 2>/dev/null || true)
-    [ "$actual" = "$ref" ] || fail "The downloaded release tag could not be verified."
+    [ "$actual" = "$target" ] || fail "The downloaded release tag could not be verified."
 fi
 
-cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr >/dev/null
-cmake --build "$build" --parallel "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
+write_status "running" 32 "configure" "Configuring the LunaDash release build."
+cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr >/dev/null \
+    || fail "CMake configuration failed."
 
-# Keep one rollback snapshot of the previous system install. Missing paths are
-# intentionally ignored so first-time installs still work.
+write_status "running" 46 "build" "Building LunaDash. This is usually the longest update step."
+cmake --build "$build" --parallel "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)" \
+    || fail "LunaDash build failed."
+
+write_status "running" 76 "backup" "Saving the current installation for rollback."
 paths=""
 for path in \
     usr/bin/lunadash-desktop usr/bin/lunadash-compositor usr/bin/lunadashctl \
@@ -63,10 +113,14 @@ for path in \
 done
 if [ -n "$paths" ]; then
     # shellcheck disable=SC2086
-    tar -czf "$backup.tmp" -C / $paths
+    tar -czf "$backup.tmp" -C / $paths || fail "Could not create the rollback backup."
     mv -f "$backup.tmp" "$backup"
 fi
 
-pkexec cmake --install "$build"
-printf '%s\n' "$channel $ref" > "$state_dir/last-update"
-echo "LunaDash update installed successfully. Log out and start a new LunaDash session."
+write_status "running" 88 "install" "Installing the new LunaDash build. Authorization may be requested."
+pkexec cmake --install "$build" || fail "Installing the new LunaDash build failed."
+
+write_status "running" 97 "finalize" "Finalizing the update and recording the installed target."
+printf '%s\n' "$channel $target" > "$state_dir/last-update"
+write_status "completed" 100 "complete" "Update installed successfully. Reboot to start the new LunaDash installation."
+echo "LunaDash update installed successfully. Reboot to start the new LunaDash installation."
