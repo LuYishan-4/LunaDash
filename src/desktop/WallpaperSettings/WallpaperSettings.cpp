@@ -3,8 +3,29 @@
 #include <QImageReader>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QStringList>
 #include <QUrl>
+
 namespace LuDash {
+namespace {
+void rememberWallpaper(const QString &path) {
+    QSettings settings;
+    QStringList history = settings.value("desktop/wallpaperHistory").toStringList();
+    history.removeAll(path);
+    history.prepend(path);
+    for (auto it = history.begin(); it != history.end();) {
+        if (!QFileInfo::exists(*it))
+            it = history.erase(it);
+        else
+            ++it;
+    }
+    while (history.size() > 12)
+        history.removeLast();
+    settings.setValue("desktop/wallpaperHistory", history);
+    settings.sync();
+}
+}
+
 QString wallpaperImageUrl() {
     QSettings settings;
     if (settings.value("appearance/wallpaperMode", "image").toString() == "shader") return {};
@@ -15,6 +36,7 @@ QString wallpaperImageUrl() {
     }
     return QFileInfo::exists(path) ? QUrl::fromLocalFile(path).toString() : QString{};
 }
+
 bool setWallpaperImage(const QString& path, QString* error) {
     const QFileInfo file(path);
     QImageReader reader(file.canonicalFilePath());
@@ -24,9 +46,12 @@ bool setWallpaperImage(const QString& path, QString* error) {
         if (error) *error = "Choose a readable image smaller than 64 MiB and 32 megapixels.";
         return false;
     }
+    const QString canonicalPath = file.canonicalFilePath();
     QSettings settings;
-    settings.setValue("appearance/wallpaperImage", file.canonicalFilePath());
+    settings.setValue("appearance/wallpaperImage", canonicalPath);
     settings.setValue("appearance/wallpaperMode", "image");
+    settings.sync();
+    rememberWallpaper(canonicalPath);
     return true;
 }
 }
