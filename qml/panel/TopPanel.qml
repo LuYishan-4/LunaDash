@@ -44,6 +44,7 @@ ModuleSurface {
     readonly property real shellOpacity: (panelConfig.shellOpacity ?? 26) / 100.0
     readonly property int capsuleHeight: Math.max(30, implicitHeight - 8)
     readonly property int capsuleGap: 8
+    readonly property var networkState: shell.state.network || ({})
 
     readonly property var groups: {
         const tiled = ((shell.state.tiling || {}).groups || []).slice()
@@ -130,6 +131,13 @@ ModuleSurface {
         if (identity.includes("sound") || identity.includes("audio") || identity.includes("volume")) return "sound"
         if (identity.includes("battery") || identity.includes("power")) return "power"
         return "apps"
+    }
+    function networkLabel() {
+        if (networkState.ethernetConnected)
+            return shell.tr("Ethernet") + (networkState.primaryConnection ? ": " + networkState.primaryConnection : "")
+        if (networkState.wifiConnected)
+            return shell.tr("Wi-Fi") + (networkState.primaryConnection ? ": " + networkState.primaryConnection : "")
+        return shell.tr("Disconnected")
     }
 
     Rectangle {
@@ -487,24 +495,30 @@ ModuleSurface {
             }
 
             Item {
-                visible: panel.width > 760
-                width: visible ? 30 : 0
+                visible: true
+                width: 30
                 height: 28
                 Accessible.role: Accessible.Button
-                Accessible.name: shell.tr("Network")
+                Accessible.name: panel.networkLabel()
                 Rectangle {
                     anchors.fill: parent
                     radius: height / 2
                     color: networkMouse.containsMouse || shell.wifiPopupOpen
                         ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                        : "transparent"
+                        : panel.networkState.connected
+                            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.07)
+                            : Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.06)
                 }
                 LineIcon {
                     anchors.centerIn: parent
                     width: 17
                     height: 17
-                    name: "network"
-                    ink: (shell.state.network || {}).internet ? Theme.accent : Theme.muted
+                    name: panel.networkState.ethernetConnected
+                        ? "ethernet"
+                        : panel.networkState.connected
+                            ? "network"
+                            : "network-off"
+                    ink: panel.networkState.connected ? Theme.accent : Theme.muted
                 }
                 MouseArea {
                     id: networkMouse
@@ -515,7 +529,7 @@ ModuleSurface {
                 }
                 ToolTip.visible: networkMouse.containsMouse
                 ToolTip.delay: 450
-                ToolTip.text: shell.tr("Wi-Fi")
+                ToolTip.text: panel.networkLabel()
             }
 
             PanelSegment {
