@@ -8,10 +8,10 @@ Segment {
     ink: moduleHost.moduleForeground
     accentColor: moduleHost.moduleAccent
     textSize: moduleHost.moduleFontSize
-    fill: Qt.rgba(moduleHost.moduleAccent.r,
-                  moduleHost.moduleAccent.g,
-                  moduleHost.moduleAccent.b,
-                  0.16)
+    fill: Qt.rgba(Theme.secondaryAccent.r,
+                  Theme.secondaryAccent.g,
+                  Theme.secondaryAccent.b,
+                  0.42)
     border.width: activeFocus ? 1.5 : 1
     border.color: activeFocus
         ? moduleHost.moduleAccent
