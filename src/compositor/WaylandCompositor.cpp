@@ -60,6 +60,7 @@
 #include <QtWaylandCompositor/QWaylandViewporter>
 #include <QtWaylandCompositor/QWaylandXdgDecorationManagerV1>
 #include <QtWaylandCompositor/QWaylandXdgShell>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -145,6 +146,38 @@ void ensureWaylandChromiumFlags(QStringList &command) {
     command.append("--enable-features=UseOzonePlatform");
 }
 } // namespace
+
+class ResizeGuideItem final : public QQuickPaintedItem {
+public:
+  explicit ResizeGuideItem(QQuickItem *parent) : QQuickPaintedItem(parent) {
+    setAcceptedMouseButtons(Qt::NoButton);
+    setVisible(false);
+    setZ(900);
+  }
+
+  void setGuide(const QRect &geometry, const QColor &color) {
+    accent_ = color;
+    setPosition(geometry.topLeft());
+    setSize(geometry.size());
+    update();
+  }
+
+  void paint(QPainter *painter) override {
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    QColor fill = accent_;
+    fill.setAlphaF(0.08);
+    painter->setBrush(fill);
+    QPen pen(accent_);
+    pen.setWidthF(2.0);
+    pen.setStyle(Qt::DashLine);
+    painter->setPen(pen);
+    painter->drawRoundedRect(boundingRect().adjusted(2, 2, -2, -2), 14, 14);
+  }
+
+private:
+  QColor accent_ = QColor("#9ccbfb");
+};
+
 WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell, GraphicsApi graphics) {
   window_.setTitle("LunaDash Wayland · workspace 1");
@@ -164,6 +197,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   wallpaper_->setSize(window_.size());
   wallpaper_->setZ(-200);
   wallpaper_->setPalette(QSettings().value("appearance/wallpaper", 0).toInt());
+  resizeGuide_ = new ResizeGuideItem(window_.contentItem());
   window_.setColor(QColor("#171c36"));
   window_.installEventFilter(this);
   compositor_.setSocketName(socket);
@@ -271,8 +305,6 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                   QCoreApplication::exit(2);
                   return;
                 }
-                // Restore the panel while applications finish their
-                // save/discard dialogs.
                 requestShutdown();
                 if (!clients_.empty())
                   spawn({"--session", "--no-welcome"});
@@ -299,8 +331,6 @@ WaylandCompositor::~WaylandCompositor() {
   disconnect(compositor_.defaultSeat(), nullptr, this, nullptr);
   delete layerShell_;
   layerShell_ = nullptr;
-  // Destroy rendering items while their Wayland surfaces and output still
-  // exist.
   for (auto &client : clients_) {
     if (client->toplevel)
       disconnect(client->toplevel, nullptr, this, nullptr);
@@ -367,9 +397,6 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
             [this, process] { shellProcessIds_.insert(process->processId()); });
   }
   if (program.isEmpty() && arguments.contains("--session")) {
-    // Prefer the source-tree shell during development so a local build always
-    // exercises the current QML. A packaged install falls back to the data
-    // directories because the compile-time source path does not exist there.
     const QString sourceConfig =
         QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
     QString config =
@@ -425,6 +452,7 @@ QJsonObject WaylandCompositor::state() const {
           {"height", client->frame->height()},
           {"minimized", client->minimized},
           {"maximized", client->maximized},
+          {"manualResize", client->manualResize},
           {"mapped", client->mapped}});
   const auto tilingSnapshot =
       tiling_.snapshot(static_cast<TilingWorkspaceId>(workspace_));
@@ -544,14 +572,8 @@ QJsonObject WaylandCompositor::state() const {
       {"graphicsMajor", renderState_->majorVersion.load()},
       {"graphicsMinor", renderState_->minorVersion.load()}};
 }
+
 void WaylandCompositor::resendKeyboardModifiers() {
-  // Qt Wayland Compositor repairs its own modifier tracking by sending a
-  // modifiers event whose latched and locked masks are both zero. It does that
-  // whenever a key event's Qt modifiers differ from the state it tracks, so a
-  // repair can clear NumLock and CapsLock for the focused client. The tracked
-  // state itself stays correct, so re-asserting it restores both locks. Keypad
-  // keys never reach that path: they are forwarded from their scan code
-  // instead.
   auto *seat = compositor_.defaultSeat();
   auto *keyboard = seat ? seat->keyboard() : nullptr;
   auto *surface = seat ? seat->keyboardFocus() : nullptr;
@@ -564,9 +586,8 @@ void WaylandCompositor::resendKeyboardModifiers() {
   keyboard->sendKeyModifiers(client, compositor_.nextSerial());
   ++modifierResends_;
 }
+
 void WaylandCompositor::publishSessionActivationEnvironment() {
-  // Only a real login session asks for this. Nested test runs keep the host
-  // bus untouched.
   if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1)
     return;
   auto environment = clientEnvironment_;
@@ -587,6 +608,7 @@ void WaylandCompositor::publishSessionActivationEnvironment() {
       << "LunaDash could not publish the session D-Bus activation environment:"
       << activationEnvironmentError_;
 }
+
 void WaylandCompositor::captureScreen() {
   const auto path = nextCapturePath();
   if (path.isEmpty() || !saveScreenshot(path)) {
@@ -598,10 +620,8 @@ void WaylandCompositor::captureScreen() {
   captureError_.clear();
   qInfo().noquote() << "LunaDash screenshot:" << lastCapture_;
 }
+
 QString WaylandCompositor::nextCapturePath() const {
-  // Screenshots follow the desktop convention: a Screenshots folder below the
-  // user's pictures directory, otherwise the home directory. Every capture gets
-  // its own name so a shortcut can never overwrite an earlier one.
   auto directory =
       QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
   if (directory.isEmpty())
@@ -619,11 +639,13 @@ QString WaylandCompositor::nextCapturePath() const {
            QStringLiteral(".png");
   return path;
 }
+
 void WaylandCompositor::saveState(const QString &path) {
   QFile file(path);
   if (file.open(QIODevice::WriteOnly))
     file.write(QJsonDocument(state()).toJson());
 }
+
 QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   const auto method = request.value("method").toString();
   const auto value = request.value("value").toString();
@@ -650,10 +672,6 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   } else if (method == "reset-shortcuts") {
     shortcutSettings_->reset();
   } else if (method == "capture") {
-    // The screencopy global is announced, but the capture tools tested against
-    // Qt's compositor bind wl_output above the version Qt advertises and are
-    // disconnected before they reach it. The session therefore also offers its
-    // own capture path for the shell and for lunadashctl.
     if (!value.startsWith(QLatin1Char('/')))
       return {{"error", "Capture requires an absolute path."}};
     if (value.size() > 4096)
@@ -673,9 +691,6 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   } else if (method == "check-update") {
     updateChecker_->check();
   } else if (method == "send-key") {
-    // Forward a clipboard shortcut to the focused client. The desktop context
-    // menu has no text widget of its own, so Copy and Paste act on whatever the
-    // focused application currently has selected.
     const int key = value == "copy"        ? Qt::Key_C
                     : value == "paste"     ? Qt::Key_V
                     : value == "cut"       ? Qt::Key_X
@@ -792,10 +807,6 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!xwayland_ || !xwayland_->launch(QProcess::splitCommand(value), &error))
       return {{"error", error.isEmpty() ? "XWayland is unavailable." : error}};
   } else if (method == "launch-command") {
-    // Desktop-entry activation is Wayland-first. Chromium-family applications
-    // need an explicit Ozone selection; all other applications inherit the
-    // compositor's Wayland environment. X11-only applications can still be
-    // launched explicitly through the launch-x11 control method.
     const auto document = QJsonDocument::fromJson(value.toUtf8());
     if (!document.isArray() || document.array().isEmpty())
       return {{"error", "Expected a non-empty command array."}};
@@ -831,9 +842,6 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                         "with foot, konsole or alacritty."}};
     spawn(arguments, program);
   } else if (method == "choose-wallpaper") {
-    // The interactive picker lives inside the settings surface so it is always
-    // drawn above the settings content. Ask the shell to open it instead of
-    // launching a separate native window behind the overlay.
     if (!value.isEmpty())
       return {{"error", "choose-wallpaper does not accept a value."}};
     settingsPage_ = "appearance";
@@ -866,18 +874,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     const auto groupedClient = std::find_if(
         clients_.begin(), clients_.end(),
         [window](const auto &entry) { return entry->id == window; });
-    // Activate the dragged client before sending its smaller grouped configure.
-    // Some clients do not commit the resized buffer while inactive, leaving an
-    // apparently blank tile until the user clicks it.
     if (groupedClient != clients_.end()) {
       (*groupedClient)->item->setPrimary();
       focus(groupedClient->get());
     }
     arrange();
     QTimer::singleShot(0, this, [this] { arrange(); });
-    // Once the slide animation has finished, re-send a configure for both
-    // members in case a client ignored the resize while it was still inactive.
-    // Clearing lastSize forces configure() to emit the request again.
     QTimer::singleShot(260, this, [this, window, target] {
       for (const auto &client : clients_)
         if (client->id == window || client->id == target)
@@ -1091,9 +1093,6 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
               return;
             }
             if (newlyMapped && !current->desktop && !current->revealed) {
-              // Start the new column one full column to the right so the
-              // reveal is a horizontal carousel: the previous column slides
-              // out to the left while this one slides in from the right.
               const QRect area = workArea();
               const int gap = desktopPreferences().value("gap").toInt();
               current->frame->setX(area.x() + area.width() + gap);
@@ -1122,6 +1121,12 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   });
 
   connect(toplevel, &QObject::destroyed, this, [this, current] {
+    if (resizing_ == current) {
+      resizing_ = nullptr;
+      resizeOriginalWidths_.clear();
+      if (resizeGuide_)
+        resizeGuide_->setVisible(false);
+    }
     if (focused_ == current)
       focused_ = nullptr;
     tiling_.remove(current->id);
@@ -1154,19 +1159,14 @@ void WaylandCompositor::configure(ClientWindow *client,
                                   const QRect &rectangle) {
   const int border = 0;
   const int title = 0;
-  const bool animate =
-      !client->desktop && desktopPreferences().value("animations").toBool();
+  const bool animate = !client->desktop && client != resizing_ &&
+                       desktopPreferences().value("animations").toBool();
   client->frame->moveTo(rectangle.topLeft(), animate);
   client->frame->setSize(rectangle.size());
   client->blur->setSize(rectangle.size());
   client->item->setPosition(QPointF(border, title));
   const QSize size(std::max(1, rectangle.width() - 2 * border),
                    std::max(1, rectangle.height() - title - border));
-  // A client applies xdg_toplevel resize asynchronously. Constrain its current
-  // buffer immediately so an old full-column buffer cannot cover another
-  // member while a grouped layout waits for the client's next commit. Clip only
-  // split tiles: a window that still fills the work area never overflows, and
-  // clipping would cut off menus that legitimately extend past the frame.
   client->item->setSize(QSizeF(size));
   const QRect area = workArea();
   const bool splitTile =
@@ -1203,6 +1203,135 @@ QRect WaylandCompositor::workArea() const {
       std::max(1, window_.height() - top - gap - (bottom ? extent : 0)));
 }
 
+void WaylandCompositor::beginInteractiveResize(ClientWindow *client,
+                                               const QPointF &position) {
+  if (!client || client->desktop || client->utility || client->minimized)
+    return;
+  resizing_ = client;
+  resizePointerStart_ = position;
+  resizeStartGeometry_ = QRect(static_cast<int>(client->frame->x()),
+                               static_cast<int>(client->frame->y()),
+                               static_cast<int>(client->frame->width()),
+                               static_cast<int>(client->frame->height()));
+  resizeGuideGeometry_ = client->resizeGuideGeometry.isValid()
+                             ? client->resizeGuideGeometry
+                             : resizeStartGeometry_;
+  resizeOriginalWidths_.clear();
+  if (!client->floating) {
+    const auto snapshot = tiling_.snapshot(workspace_);
+    QSet<int> seenColumns;
+    for (const auto &entry : snapshot.columns) {
+      if (seenColumns.contains(entry.columnIndex))
+        continue;
+      seenColumns.insert(entry.columnIndex);
+      resizeOriginalWidths_.insert(static_cast<int>(entry.window), entry.width);
+      if (entry.window == static_cast<TilingWindowId>(client->id))
+        resizeGuideGeometry_ = entry.geometry;
+    }
+  }
+  client->resizeGuideGeometry = resizeGuideGeometry_;
+  client->manualResize = true;
+  client->manualGeometry = resizeStartGeometry_;
+  client->maximized = false;
+  int visibleTiled = 0;
+  for (const auto &entry : clients_)
+    if (entry->mapped && !entry->minimized && !entry->desktop &&
+        !entry->floating && entry->workspace == workspace_)
+      ++visibleTiled;
+  if (resizeGuide_ && visibleTiled > 1) {
+    resizeGuide_->setGuide(resizeGuideGeometry_,
+                           QColor(desktopPreferences().value("accent").toString()));
+    resizeGuide_->setVisible(true);
+  }
+  focus(client);
+}
+
+void WaylandCompositor::updateInteractiveResize(const QPointF &position) {
+  if (!resizing_)
+    return;
+  const QPoint delta = (position - resizePointerStart_).toPoint();
+  const QRect area = workArea();
+  const int minimumWidth = 180;
+  const int minimumHeight = 120;
+  int width = std::max(minimumWidth, resizeStartGeometry_.width() + delta.x());
+  int height = std::max(minimumHeight, resizeStartGeometry_.height() + delta.y());
+  width = std::min(width, std::max(minimumWidth, area.right() - resizeStartGeometry_.x() + 1));
+  height = std::min(height, std::max(minimumHeight, area.bottom() - resizeStartGeometry_.y() + 1));
+  QRect desired(resizeStartGeometry_.topLeft(), QSize(width, height));
+  resizing_->manualResize = true;
+  resizing_->manualGeometry = desired;
+
+  if (!resizing_->floating && !resizeOriginalWidths_.isEmpty()) {
+    for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+      tiling_.resize(it.key(), it.value());
+
+    if (width > resizeGuideGeometry_.width()) {
+      const int requestedExtra = width - resizeGuideGeometry_.width();
+      int totalAvailable = 0;
+      for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+        if (it.key() != resizing_->id)
+          totalAvailable += std::max(0, it.value() - minimumWidth);
+      const int appliedExtra = std::min(requestedExtra, totalAvailable);
+      desired.setWidth(resizeGuideGeometry_.width() + appliedExtra);
+      resizing_->manualGeometry = desired;
+      tiling_.resize(resizing_->id, desired.width());
+      if (appliedExtra > 0 && totalAvailable > 0) {
+        int remaining = appliedExtra;
+        QList<int> neighbours;
+        for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+          if (it.key() != resizing_->id && it.value() > minimumWidth)
+            neighbours.append(it.key());
+        for (qsizetype index = 0; index < neighbours.size(); ++index) {
+          const int id = neighbours[index];
+          const int original = resizeOriginalWidths_.value(id);
+          const int available = std::max(0, original - minimumWidth);
+          const int shrink = index + 1 == neighbours.size()
+                                 ? remaining
+                                 : std::min(remaining,
+                                            static_cast<int>(std::round(
+                                                static_cast<double>(appliedExtra) *
+                                                available / totalAvailable)));
+          tiling_.resize(id, std::max(minimumWidth, original - shrink));
+          remaining -= shrink;
+        }
+      }
+    }
+  }
+  arrange();
+}
+
+void WaylandCompositor::restoreResizeGuide(ClientWindow *client) {
+  if (!client)
+    return;
+  for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+    tiling_.resize(it.key(), it.value());
+  client->manualResize = false;
+  client->manualGeometry = {};
+  client->resizeGuideGeometry = {};
+  arrange();
+}
+
+void WaylandCompositor::endInteractiveResize() {
+  if (!resizing_)
+    return;
+  ClientWindow *client = resizing_;
+  const QRect geometry = client->manualGeometry;
+  const QRect guide = resizeGuideGeometry_;
+  const bool nearGuide = guide.isValid() &&
+                         std::abs(geometry.x() - guide.x()) <= 24 &&
+                         std::abs(geometry.y() - guide.y()) <= 24 &&
+                         std::abs(geometry.width() - guide.width()) <= 24 &&
+                         std::abs(geometry.height() - guide.height()) <= 24;
+  resizing_ = nullptr;
+  if (resizeGuide_)
+    resizeGuide_->setVisible(false);
+  if (nearGuide)
+    restoreResizeGuide(client);
+  resizeOriginalWidths_.clear();
+  resizeStartGeometry_ = {};
+  resizeGuideGeometry_ = {};
+}
+
 void WaylandCompositor::arrange() {
   if (wallpaper_)
     wallpaper_->setSize(window_.size());
@@ -1214,9 +1343,9 @@ void WaylandCompositor::arrange() {
   workspace_ = std::min(workspace_, count - 1);
   for (const auto &client : clients_)
     client->workspace = std::min(client->workspace, count - 1);
-  const QRect workArea = this->workArea();
+  const QRect area = workArea();
   const int gap = preferences.value("gap").toInt();
-  const int defaultColumnWidth = workArea.width();
+  const int defaultColumnWidth = area.width();
   tiling_.setGap(gap);
   for (const auto &client : clients_) {
     const bool tiled = client->mapped && !client->desktop &&
@@ -1228,7 +1357,7 @@ void WaylandCompositor::arrange() {
           client->id, static_cast<TilingWorkspaceId>(client->workspace));
       tiling_.setMinimized(client->id, client->minimized);
       if (client->maximized)
-        tiling_.resize(client->id, workArea.width());
+        tiling_.resize(client->id, area.width());
     } else
       tiling_.remove(client->id);
   }
@@ -1263,35 +1392,48 @@ void WaylandCompositor::arrange() {
       configure(client.get(), QRect(0, 0, window_.width(), window_.height()));
     } else if (client->workspace == workspace_ && !client->minimized) {
       client->frame->setZ(client->floating ? 10 : 1);
-      if (client->floating)
-        configure(client.get(), QRect((window_.width() - 720) / 2,
-                                      (window_.height() - 500) / 2, 720, 500));
-      else
+      if (client->floating) {
+        const QRect floatingGeometry =
+            client->manualResize && client->manualGeometry.isValid()
+                ? client->manualGeometry
+                : QRect((window_.width() - 720) / 2,
+                        (window_.height() - 500) / 2, 720, 500);
+        configure(client.get(), floatingGeometry);
+      } else
         client->frame->setZ(1);
     }
   }
   const auto placements =
-      tiling_.layout(static_cast<TilingWorkspaceId>(workspace_), workArea);
+      tiling_.layout(static_cast<TilingWorkspaceId>(workspace_), area);
   for (const auto &placement : placements) {
     const auto found = std::find_if(
         clients_.begin(), clients_.end(), [&placement](const auto &client) {
           return client->id == static_cast<int>(placement.window);
         });
-    if (found != clients_.end() && !(*found)->minimized)
-      configure(found->get(), placement.geometry);
+    if (found == clients_.end() || (*found)->minimized)
+      continue;
+    auto *client = found->get();
+    if (!client->manualResize) {
+      client->resizeGuideGeometry = placement.geometry;
+      configure(client, placement.geometry);
+    } else {
+      if (!client->resizeGuideGeometry.isValid())
+        client->resizeGuideGeometry = placement.geometry;
+      QRect manual = client->manualGeometry.isValid()
+                         ? client->manualGeometry
+                         : placement.geometry;
+      manual.moveLeft(placement.geometry.x());
+      manual.moveTop(placement.geometry.y());
+      client->manualGeometry = manual;
+      configure(client, manual);
+    }
   }
-  // An explicitly maximized window covers the work area on top of the strip.
-  // This only happens after a user action (Meta+F); new windows never start
-  // here.
   for (const auto &client : clients_)
     if (client->maximized && client->mapped && !client->minimized &&
         !client->desktop && client->workspace == workspace_) {
-      configure(client.get(), workArea);
+      configure(client.get(), area);
       client->frame->setZ(30);
     }
-  // Keep the focused window above its column siblings. The loop above resets
-  // every tiled frame to a base z, which would otherwise drop a freshly grouped
-  // window behind its new neighbours while its client commits a resized buffer.
   if (focused_ && focused_->frame && focused_->mapped && !focused_->minimized &&
       !focused_->desktop && focused_->workspace == workspace_)
     focused_->frame->setZ(focused_->maximized ? 30
@@ -1363,9 +1505,38 @@ ClientWindow *WaylandCompositor::clientAt(const QPointF &position) const {
 }
 
 bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
-  if (watched == &window_ && (event->type() == QEvent::MouseMove ||
-                              event->type() == QEvent::HoverMove))
-    pointerPosition_ = static_cast<QMouseEvent *>(event)->position();
+  if (watched == &window_ &&
+      (event->type() == QEvent::MouseMove || event->type() == QEvent::HoverMove ||
+       event->type() == QEvent::MouseButtonPress ||
+       event->type() == QEvent::MouseButtonRelease)) {
+    auto *mouse = static_cast<QMouseEvent *>(event);
+    pointerPosition_ = mouse->position();
+    if (event->type() == QEvent::MouseButtonPress &&
+        desktopPreferences().value("altMouseResize").toBool() &&
+        mouse->button() == Qt::RightButton &&
+        mouse->modifiers().testFlag(Qt::AltModifier)) {
+      if (auto *target = clientAt(mouse->position())) {
+        beginInteractiveResize(target, mouse->position());
+        if (resizing_) {
+          event->accept();
+          return true;
+        }
+      }
+    }
+    if (resizing_ && event->type() == QEvent::MouseMove &&
+        mouse->buttons().testFlag(Qt::RightButton)) {
+      updateInteractiveResize(mouse->position());
+      event->accept();
+      return true;
+    }
+    if (resizing_ && event->type() == QEvent::MouseButtonRelease &&
+        mouse->button() == Qt::RightButton) {
+      updateInteractiveResize(mouse->position());
+      endInteractiveResize();
+      event->accept();
+      return true;
+    }
+  }
   if (watched == &window_ && event->type() == QEvent::Close) {
     event->ignore();
     requestShutdown();
@@ -1374,13 +1545,6 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
   if (watched == &window_ && (event->type() == QEvent::KeyPress ||
                               event->type() == QEvent::KeyRelease)) {
     auto *key = static_cast<QKeyEvent *>(event);
-    // Qt Wayland Compositor sends a repair event with zeroed latched and locked
-    // masks whenever a key event's Qt modifiers differ from the state it
-    // tracks, and its tracking never contains Qt::KeypadModifier. Every keypad
-    // key would therefore clear NumLock and CapsLock for the focused client.
-    // Forwarding a keypad key from its scan code keeps that repair from
-    // running, so the lock state survives both the key itself and the keys that
-    // follow it.
     if (key->modifiers().testFlag(Qt::KeypadModifier)) {
       auto *seat = compositor_.defaultSeat();
       const auto scanCode = static_cast<uint>(key->nativeScanCode());
@@ -1393,8 +1557,6 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
         return true;
       }
     }
-    // Lock keys, Meta and AltGr reach Qt's tracking as a mismatch as well, so
-    // re-assert the state it tracks after those events are delivered.
     const bool clearsLockedMask =
         key->key() == Qt::Key_NumLock || key->key() == Qt::Key_CapsLock ||
         key->key() == Qt::Key_ScrollLock || key->key() == Qt::Key_Meta ||
@@ -1489,6 +1651,13 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
       if (!target)
         target = focused_;
       if (target) {
+        if (target->manualResize) {
+          for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+            tiling_.resize(it.key(), it.value());
+          target->manualResize = false;
+          target->manualGeometry = {};
+          target->resizeGuideGeometry = {};
+        }
         target->maximized = !target->maximized;
         arrange();
       }
