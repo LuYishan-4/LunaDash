@@ -26,7 +26,7 @@ ModuleSurface {
     margins.top:configuredY===0?Theme.barHeight+overlayMargin:configuredY
     implicitWidth:moduleWidth(1120);implicitHeight:moduleHeight(720)
     exclusionMode:ExclusionMode.Ignore
-    WlrLayershell.layer:WlrLayer.Overlay;WlrLayershell.namespace:"lunadash-settings";WlrLayershell.keyboardFocus:WlrKeyboardFocus.Exclusive
+    WlrLayershell.layer:WlrLayer.Overlay;WlrLayershell.namespace:"lunadash-settings";WlrLayershell.keyboardFocus:opened?WlrKeyboardFocus.Exclusive:WlrKeyboardFocus.None
     color:"transparent"
     Rectangle{anchors.fill:parent;color:moduleBackground;border.color:Theme.border;radius:moduleRadius}
     ColumnLayout {
@@ -73,5 +73,19 @@ ModuleSurface {
         }
     }
     ImagePicker{anchors.fill:parent;cornerRadius:settings.moduleRadius;shell:settings.shell;opened:settings.shell.pickerOpen;onClosed:settings.shell.pickerOpen=false}
+    onOpenedChanged: {
+        if (opened) {
+            Qt.callLater(function() {
+                if (!settings.opened)
+                    return
+                search.forceActiveFocus(Qt.OtherFocusReason)
+                search.prepareInputMethod()
+            })
+        } else {
+            search.focus = false
+            resultList.focus = false
+            categoryList.focus = false
+        }
+    }
     Component.onCompleted:showCategory("general")
 }
