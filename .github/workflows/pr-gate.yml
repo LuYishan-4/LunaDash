@@ -1,54 +1,25 @@
-name: PR required checks gate
+name: PR policy gate
 on:
-    pull_request:
-    merge_group:
-    workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
 permissions:
-    actions: read
-    checks: read
-    contents: read
+  contents: read
 concurrency:
-    group: pr-gate-${{ github.event.pull_request.head.sha || github.sha }}
-    cancel-in-progress: true
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 jobs:
-    gate:
-        name: All six PR checks passed
-        runs-on: ubuntu-24.04
-        steps:
-            - name: Wait for all six PR workflows
-              env:
-                  GH_TOKEN: ${{ github.token }}
-                  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-              run: |
-                  set -eu
-                  expected='PR documentation scope|PR repository hygiene|PR source style|PR Qt lifetime analysis|PR C++ memory safety|PR CodeQL security analysis'
-                  for attempt in $(seq 1 60); do
-                    runs=$(curl --fail-with-body --silent --show-error \
-                      -H "Accept: application/vnd.github+json" \
-                      -H "Authorization: Bearer $GH_TOKEN" \
-                      "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${HEAD_SHA}&per_page=100")
-                    result=$(printf '%s' "$runs" | EXPECTED="$expected" python3 -c '
-                  import json, os, sys
-                  expected = set(os.environ["EXPECTED"].split("|"))
-                  runs = json.load(sys.stdin)["workflow_runs"]
-                  found = {
-                      run["name"]: (run["status"], run["conclusion"])
-                      for run in runs if run["name"] in expected
-                  }
-                  if set(found) != expected:
-                      print("pending")
-                  elif any(found[name][0] != "completed" for name in expected):
-                      print("pending")
-                  elif all(found[name][1] == "success" for name in expected):
-                      print("passed")
-                  else:
-                      print("failed")
-                  ')
-                    case "$result" in
-                      passed) echo "All six PR checks passed."; exit 0 ;;
-                      failed) echo "At least one PR check failed."; exit 1 ;;
-                    esac
-                    sleep 30
-                  done
-                  echo "Timed out waiting for all six PR checks."
-                  exit 1
+  policy:
+    name: Target dev and update docs + website
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Enforce LunaDash PR policy
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/ci/check_pr_policy.py
