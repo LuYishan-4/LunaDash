@@ -10,7 +10,7 @@
 
 <p>
   <img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only">
-  <img src="https://img.shields.io/badge/Linux-Arch%20%C2%B7%20Debian%2FUbuntu%20%C2%B7%20Fedora%20%C2%B7%20openSUSE-9ccbfb?style=flat-square" alt="Arch, Debian Ubuntu, Fedora and openSUSE">
+  <img src="https://img.shields.io/badge/Linux-Arch%20%C2%B7%20Debian%20%C2%B7%20Fedora%20%C2%B7%20SUSE%20%C2%B7%20Alpine%20%C2%B7%20Void%20%C2%B7%20Gentoo-9ccbfb?style=flat-square" alt="Arch, Debian, Fedora, SUSE, Alpine, Void and Gentoo Linux">
   <img src="https://img.shields.io/badge/stack-C%2B%2B20%20%C2%B7%20Qt%206%20%C2%B7%20Wayland-9ccbfb?style=flat-square" alt="C++20, Qt 6, Wayland">
   <img src="https://img.shields.io/badge/shell-Quickshell%20QML-9ccbfb?style=flat-square" alt="Quickshell QML shell">
   <a href="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-gate.yml">
@@ -52,17 +52,22 @@ LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland C
 
 ## Linux distribution support
 
-LunaDash uses standard CMake install rules and is no longer tied to pacman. The installer currently recognizes these package-manager families:
+LunaDash uses standard CMake install rules and is not tied to one package manager. `scripts/install-dependencies.sh` and `scripts/install-session.sh` now recognize these families directly:
 
-| Distribution family | Installation path | Status |
-| --- | --- | --- |
-| Arch Linux and derivatives | `makepkg` + pacman package | Primary development path |
-| Debian / Ubuntu and derivatives | apt dependencies + CMake install | Supported build/install path |
-| Fedora and derivatives | dnf dependencies + CMake install | Supported build/install path |
-| openSUSE Tumbleweed / Slowroll | zypper dependencies + CMake install | Supported build/install path |
-| Other Linux distributions | Manual dependencies + standard CMake | Expected to work when requirements are available; not automatically provisioned |
+| Distribution family | Package manager | Installation path | Support level |
+| --- | --- | --- | --- |
+| Arch Linux, EndeavourOS, Manjaro and derivatives | `pacman` | `makepkg` package + pacman | Primary development path |
+| Debian, Ubuntu, Linux Mint, Pop!_OS and derivatives | `apt-get` | dependencies + standard CMake install | Maintained |
+| Fedora, Nobara and compatible derivatives | `dnf` | dependencies + standard CMake install | Maintained |
+| openSUSE Tumbleweed / Slowroll / Leap | `zypper` | dependencies + standard CMake install | Maintained |
+| Alpine Linux | `apk` | dependencies + standard CMake install | Maintained source-build path |
+| Void Linux | `xbps-install` | dependencies + standard CMake install | Installer-supported |
+| Gentoo Linux | `emerge` | dependencies + standard CMake install | Installer-supported |
+| Other Linux distributions | any / manual | validate existing toolchain + standard CMake install | Generic source-build path |
 
-The backend requires CMake 3.21+, Ninja, a C11/C++20 compiler, Qt 6.4+ Base/Declarative/Wayland/OpenGL development packages, Wayland/wayland-protocols, libinput, libxkbcommon, udev/systemd development headers, GL development headers, GLib and shared-mime-info. The shell requires [Quickshell 0.3 or newer](https://quickshell.org/docs/v0.3.0/guide/install-setup/). Quickshell packaging differs between distributions, so LunaDash does **not** add an unofficial repository automatically.
+The backend requires CMake 3.21+, Ninja, a C11/C++20 compiler, Qt 6.4+ Base/Declarative/Wayland/OpenGL development packages, Wayland/wayland-protocols, libinput, libxkbcommon, udev-compatible development headers, GL development headers, GLib and shared-mime-info. The shell requires [Quickshell 0.3 or newer](https://quickshell.org/docs/v0.3.0/guide/install-setup/). Quickshell packaging differs between distributions, so LunaDash does **not** add unofficial repositories automatically.
+
+On non-systemd systems such as typical Alpine/Void/OpenRC installations, LunaDash itself can be built and installed, but `install-session.sh --enable-sddm` is intentionally unavailable. Enable your display manager using that distribution's normal OpenRC/runit procedure instead.
 
 ### Install dependencies only
 
@@ -70,9 +75,9 @@ The backend requires CMake 3.21+, Ninja, a C11/C++20 compiler, Qt 6.4+ Base/Decl
 ./scripts/install-dependencies.sh
 ```
 
-That script detects `pacman`, `apt-get`, `dnf` or `zypper` and installs dependencies only from repositories already enabled on the system. Use `--dry-run` to inspect commands first.
+The script detects `pacman`, `apt-get`, `dnf`, `zypper`, `apk`, `xbps-install` or `emerge`. If none is found it enters generic validation mode and checks for an existing CMake/Ninja/C++ toolchain instead of rejecting the distribution. Use `--dry-run` to inspect package-manager commands first.
 
-Typical package sets are handled automatically. For reference:
+Typical package sets are handled automatically. Examples:
 
 ```sh
 # Arch Linux
@@ -95,8 +100,26 @@ sudo dnf install gcc gcc-c++ cmake ninja-build git pkgconf-pkg-config \
 # openSUSE
 sudo zypper install gcc gcc-c++ cmake ninja git pkg-config Mesa-libGL-devel \
   wayland-devel wayland-protocols-devel libinput-devel libxkbcommon-devel \
-  systemd-devel glib2-devel libqt6-qtbase-devel libqt6-qtdeclarative-devel \
-  libqt6-qtwayland-devel shared-mime-info fish
+  systemd-devel glib2-devel qt6-base-devel qt6-declarative-devel \
+  qt6-wayland-devel shared-mime-info fish
+
+# Alpine Linux
+sudo apk add build-base cmake ninja git pkgconf mesa-dev wayland-dev \
+  wayland-protocols libinput-dev libxkbcommon-dev eudev-dev glib-dev \
+  qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland-dev shared-mime-info fish
+
+# Void Linux
+sudo xbps-install -Sy base-devel cmake ninja git pkg-config MesaLib-devel \
+  wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
+  eudev-libudev-devel glib-devel qt6-base-devel qt6-declarative-devel \
+  qt6-wayland-devel shared-mime-info fish
+
+# Gentoo Linux
+sudo emerge --noreplace dev-build/cmake app-alternatives/ninja virtual/pkgconfig \
+  dev-vcs/git media-libs/mesa dev-libs/wayland dev-libs/wayland-protocols \
+  dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib \
+  dev-qt/qtbase:6 dev-qt/qtdeclarative:6 dev-qt/qtwayland:6 \
+  x11-misc/shared-mime-info app-shells/fish
 ```
 
 ## Install LunaDash
@@ -107,7 +130,7 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-`install-session.sh` now chooses the distribution path automatically. Arch creates and installs the local package from `packaging/arch`; Debian/Ubuntu, Fedora and openSUSE build with Ninja and use `sudo cmake --install` under `/usr`. `sudo` or `doas` is used only for package/system installation.
+`install-session.sh` chooses the package-manager path automatically. Arch creates and installs a local package from `packaging/arch`; the other recognized distributions build with Ninja and use the standard CMake install rules under `/usr`. `sudo` or `doas` is used only for package/system installation.
 
 Useful options:
 
@@ -118,13 +141,16 @@ Useful options:
 ./scripts/install-session.sh --enable-sddm --autologin USER
 ```
 
-The installer never replaces an already-enabled different display manager. `--enable-sddm` is explicit, and auto-login is a separate opt-in. If Quickshell is not available from the distribution, the installer completes the compositor installation and tells you to install Quickshell separately.
+The installer never replaces an already-enabled different display manager. `--enable-sddm` is explicit and systemd-only; auto-login is a separate opt-in. If Quickshell is not available from the distribution, the installer completes the compositor installation and tells you to install Quickshell separately.
 
-### Manual installation on another Linux distribution
+### Generic installation on another Linux distribution
 
-If your distribution is not detected, install the requirements above and use the standard build path:
+If the distribution uses another package manager, install the requirements above and run the same installer with `--skip-deps`, or use CMake directly:
 
 ```sh
+./scripts/install-session.sh --skip-deps
+
+# Equivalent manual path:
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
 cmake --build build --parallel
 sudo cmake --install build
@@ -205,7 +231,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the PR contract and [Release process]
 
 ## Project status
 
-LunaDash is a development desktop, not a claim of universal hardware compatibility. Arch Linux remains the primary development environment. Ubuntu is continuously used by the repository build/runtime workflows; Debian/Ubuntu, Fedora and openSUSE now have maintained dependency/install paths, but physical-session coverage varies by distribution and hardware.
+LunaDash is a development desktop, not a claim of universal hardware compatibility. Arch Linux remains the primary development environment. Ubuntu is continuously used by the main repository build/runtime workflows; Debian, Fedora, openSUSE and Alpine have maintained source-build paths, while Void and Gentoo currently have automatic dependency/install paths without the same CI breadth. Generic Linux support means the standard CMake build/install path is available when the required Qt6/Wayland toolchain exists; it is not a promise that every distribution or hardware combination has been tested.
 
 Keep an existing desktop/session available when testing standalone login. Native plugins execute without a sandbox when enabled. Hardware-specific features such as GPU/DRM behaviour, multiple outputs and input-method integration can still vary between systems.
 
