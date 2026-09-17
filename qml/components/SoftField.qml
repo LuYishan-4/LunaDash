@@ -18,9 +18,29 @@ TextField {
     focusPolicy: Qt.StrongFocus
     activeFocusOnPress: true
 
+    function prepareInputMethod() {
+        if (!activeFocus || !enabled || readOnly)
+            return
+        // Notify Qt/Fcitx as soon as focus enters the field. Waiting until the
+        // first physical key causes the first character to feel delayed while
+        // the input context activates.
+        Qt.callLater(function() {
+            if (control.activeFocus)
+                Qt.inputMethod.update(Qt.ImQueryAll)
+        })
+    }
+
+    onActiveFocusChanged: if (activeFocus) prepareInputMethod()
+    Component.onCompleted: if (activeFocus) prepareInputMethod()
+
     TapHandler {
         acceptedButtons: Qt.LeftButton
-        onTapped: control.forceActiveFocus(Qt.MouseFocusReason)
+        onPressedChanged: {
+            if (!pressed)
+                return
+            control.forceActiveFocus(Qt.MouseFocusReason)
+            control.prepareInputMethod()
+        }
     }
 
     background: Rectangle {
