@@ -16,6 +16,21 @@ bool writeFile(const QString& path, const QByteArray& bytes) {
 }
 QByteArray readFile(const QString& path) { QFile file(path); if (!file.open(QIODevice::ReadOnly)) return {}; return file.readAll(); }
 const QString appId = QStringLiteral("org.lunadash.test.Editor.desktop");
+bool selectRecorder(QDialog* chooser, bool remember) {
+    auto* rememberBox = chooser->findChild<QCheckBox*>("rememberFileApplication");
+    auto* systemBox = chooser->findChild<QCheckBox*>("systemFileApplication");
+    auto* list = chooser->findChild<QListWidget*>("fileApplicationList");
+    if (!rememberBox || !systemBox || !list) return false;
+    for (auto* box : chooser->findChildren<QCheckBox*>())
+        if (box != rememberBox && box != systemBox) box->setChecked(true);
+    rememberBox->setChecked(remember); systemBox->setChecked(false);
+    for (int row = 0; row < list->count(); ++row)
+        if (list->item(row)->data(Qt::UserRole).toString() == appId) {
+            if (list->item(row)->isHidden()) return false;
+            list->setCurrentRow(row); return true;
+        }
+    return false;
+}
 }
 class FileManagerTests final : public QObject {
     Q_OBJECT
@@ -48,6 +63,42 @@ private Q_SLOTS:
         QVERIFY(store.read(&error).isEmpty()); QVERIFY(!error.isEmpty());
         QVERIFY(!store.setPreferences(true, false, &error));
         QCOMPARE(readFile(path), original);
+    }
+    void brokenConfigurationLinkIsPreserved() {
+        QTemporaryDir temporary;
+        const auto path = temporary.filePath("file-associations.json");
+        QCOMPARE(::symlink("missing-target.json", QFile::encodeName(path).constData()), 0);
+        FileAssociations store(path); QString error;
+        QVERIFY(store.read(&error).isEmpty()); QVERIFY(!error.isEmpty());
+        QVERIFY(!store.setPreferences(true, true, &error));
+        QVERIFY(QFileInfo(path).isSymLink());
+        QVERIFY(!QFileInfo::exists(temporary.filePath("missing-target.json")));
+    }
+    void writesCannotExceedTheReadLimit() {
+        QTemporaryDir temporary;
+        const auto path = temporary.filePath("file-associations.json");
+        QJsonObject rules;
+        for (int index = 0; index < 1650; ++index)
+            rules["ext:" + QString(50, 'a') + QString::number(index)] = QJsonObject{
+                {"desktopId", QString(247, 'a') + ".desktop"},
+                {"mimeType", "application/" + QString(243, 'b')}};
+        const QJsonDocument document(QJsonObject{{"version", 1}, {"initialized", true},
+            {"askOnFirstOpen", true}, {"associations", rules}});
+        const auto original = document.toJson(QJsonDocument::Compact);
+        QVERIFY(original.size() < 1024 * 1024);
+        QVERIFY(document.toJson(QJsonDocument::Indented).size() > 1024 * 1024);
+        QVERIFY(writeFile(path, original));
+        FileAssociations store(path); QString error;
+        QVERIFY(!store.read(&error).isEmpty()); QVERIFY(error.isEmpty());
+        QVERIFY(!store.setPreferences(true, false, &error)); QVERIFY(!error.isEmpty());
+        QCOMPARE(readFile(path), original);
+        QVERIFY(!store.read().isEmpty());
+    }
+    void handlersExcludeDispatchersAndKeepBusActivation() {
+        QVERIFY(!fileApplicationAvailable("org.lunadash.test.Dispatcher.desktop"));
+        QVERIFY(!fileApplicationAvailable("org.lunadash.test.NonFileApp.desktop"));
+        QVERIFY(fileApplicationAvailable("org.lunadash.test.BusApp.desktop"));
+        QVERIFY(fileApplicationAvailable(appId));
     }
     void legacyRulesMigrateOnlyOnce() {
         FileAssociations store;
@@ -156,6 +207,33 @@ private Q_SLOTS:
         chooser->reject();
         QVERIFY(store.applicationForFile(path).isEmpty());
     }
+    void openOnceAndRememberUseTheRealChooser() {
+        const FileAssociations store;
+        QFile::remove(store.path()); QVERIFY(store.setPreferences(true, true));
+        std::unique_ptr<QWidget> parent(new QWidget); parent->show();
+        QTemporaryDir temporary;
+        const auto path = temporary.filePath("choice.txt"); QVERIFY(writeFile(path, "test"));
+        const auto capture = QString::fromLocal8Bit(qgetenv("LUNADASH_TEST_CAPTURE"));
+        for (const bool remember : {false, true}) {
+            QFile::remove(capture);
+            bool reported = false; QString error;
+            openAssociatedFiles(parent.get(), {path}, true, [&](const QString& message) { error = message; reported = true; });
+            auto* chooser = parent->findChild<QDialog*>("fileApplicationChooser"); QVERIFY(chooser);
+            QVERIFY(selectRecorder(chooser, remember));
+            auto* accept = chooser->findChild<QPushButton*>("confirmFileApplication"); QVERIFY(accept); QVERIFY(accept->isEnabled());
+            accept->click();
+            QTRY_VERIFY(reported); QVERIFY2(error.isEmpty(), qPrintable(error));
+            QTRY_COMPARE(readFile(capture), QFile::encodeName(path) + '\n');
+            QCOMPARE(store.applicationForFile(path), remember ? appId : QString{});
+            QTRY_VERIFY(!parent->findChild<QDialog*>("fileApplicationChooser"));
+        }
+        QFile::remove(capture);
+        bool reported = false;
+        openAssociatedFiles(parent.get(), {path}, false, [&](const QString& error) { QVERIFY(error.isEmpty()); reported = true; });
+        QVERIFY(!parent->findChild<QDialog*>("fileApplicationChooser"));
+        QTRY_VERIFY(reported);
+        QTRY_COMPARE(readFile(capture), QFile::encodeName(path) + '\n');
+    }
     void contextSelectionAndClipboard() {
         QVERIFY(FileAssociations().setPreferences(true, true));
         QTemporaryDir temporary;
@@ -191,6 +269,8 @@ int main(int argc, char** argv) {
     if (!sandbox.isValid()) return 2;
     const auto config = sandbox.filePath("config"), data = sandbox.filePath("data");
     QDir().mkpath(config); QDir().mkpath(data + "/applications");
+    qputenv("HOME", QFile::encodeName(sandbox.path()));
+    qputenv("XDG_CACHE_HOME", QFile::encodeName(sandbox.filePath("cache")));
     qputenv("XDG_CONFIG_HOME", QFile::encodeName(config));
     qputenv("XDG_CONFIG_DIRS", QFile::encodeName(sandbox.filePath("empty-config")));
     qputenv("XDG_DATA_HOME", QFile::encodeName(data));
@@ -200,6 +280,12 @@ int main(int argc, char** argv) {
     const auto desktop = "[Desktop Entry]\nType=Application\nName=LunaDash Test Editor\nExec=/bin/sh " +
         QFile::encodeName(script) + " %F\nMimeType=text/plain;\nIcon=text-editor\n";
     if (!LuDash::writeFile(data + "/applications/" + LuDash::appId, desktop)) return 2;
+    for (const auto& fixture : QList<QPair<QString, QByteArray>>{
+        {"Dispatcher", "Exec=gio open %U\n"}, {"NonFileApp", "Exec=/bin/true\n"},
+        {"BusApp", "Exec=/bin/true\nDBusActivatable=true\n"}}) {
+        if (!LuDash::writeFile(data + "/applications/org.lunadash.test." + fixture.first + ".desktop",
+            "[Desktop Entry]\nType=Application\nName=Test fixture\n" + fixture.second)) return 2;
+    }
     QApplication app(argc, argv); app.setOrganizationName("LunaDash"); app.setApplicationName("FilesTest");
     LuDash::FileManagerTests tests;
     return QTest::qExec(&tests, argc, argv);
