@@ -48,6 +48,7 @@ ShellRoot {
     property string notificationDetails: ""
     property int screenshotSerial: 0
     property string lastScreenshotSeen: ""
+    property string stateFingerprint: ""
     property var updateInstall: ({
         state: "idle",
         channel: "",
@@ -178,6 +179,23 @@ ShellRoot {
     property bool startupLogoVisible: true
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
+
+    function applyPolledState(result) {
+        // System performance counters change every 1.5 s. Replacing the entire
+        // root state object for those counters forces every settings binding to
+        // re-evaluate while the user is typing. Keep the last system snapshot
+        // unless a page that actually displays live performance is open.
+        const needsLiveSystem = root.overviewOpen ||
+            (root.settingsOpen && settingsCenter.category === "about")
+        if (!needsLiveSystem && root.state.system !== undefined)
+            result.system = root.state.system
+
+        const fingerprint = JSON.stringify(result)
+        if (fingerprint === root.stateFingerprint)
+            return
+        root.stateFingerprint = fingerprint
+        root.state = result
+    }
 
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
@@ -324,7 +342,7 @@ ShellRoot {
                 try {
                     const result = JSON.parse(text)
                     if (result.error) return
-                    root.state = result
+                    root.applyPolledState(result)
                     if (root.wallpaperOverride.length) {
                         const actual = String(result.wallpaperImage || "")
                         const expected = root.wallpaperOverride.startsWith("file:") ? root.wallpaperOverride : "file://" + root.wallpaperOverride
