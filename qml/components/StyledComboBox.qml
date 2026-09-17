@@ -4,9 +4,8 @@ import "../style"
 
 ComboBox {
     id: control
-    // Translate presentation only. Models and saved values stay stable when the
-    // shell publishes a new status snapshot or the interface language changes.
     property var translationContext: null
+    property bool popupArmed: false
     function translated(text) {
         return translationContext ? translationContext.tr(String(text)) : String(text)
     }
@@ -16,6 +15,7 @@ ComboBox {
     rightPadding: 38
     font.family: Theme.font
     font.pixelSize: 12
+    focusPolicy: Qt.StrongFocus
 
     contentItem: Text {
         leftPadding: control.leftPadding
@@ -59,6 +59,7 @@ ComboBox {
         width: control.popup.width - 12
         height: 38
         leftPadding: 12
+        enabled: control.popupArmed
         highlighted: control.highlightedIndex === index
         text: control.translated(control.textAt(index))
         Accessible.name: text
@@ -82,26 +83,43 @@ ComboBox {
         width: Math.max(control.width, 180)
         implicitHeight: Math.min(menuList.contentHeight + 12, 320)
         padding: 6
+        modal: false
+        focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-        onOpened: Qt.callLater(function() {
-            if (control.currentIndex >= 0)
-                menuList.positionViewAtIndex(control.currentIndex, ListView.Contain)
-        })
+        onOpened: {
+            control.popupArmed = false
+            armTimer.restart()
+            Qt.callLater(function() {
+                if (control.currentIndex >= 0)
+                    menuList.positionViewAtIndex(control.currentIndex, ListView.Contain)
+                menuList.forceActiveFocus()
+            })
+        }
+        onClosed: {
+            armTimer.stop()
+            control.popupArmed = false
+            control.forceActiveFocus()
+        }
+
+        Timer {
+            id: armTimer
+            interval: 140
+            onTriggered: control.popupArmed = true
+        }
 
         contentItem: ListView {
             id: menuList
             clip: true
             implicitHeight: contentHeight
             model: control.delegateModel
-            // Keep pointer highlighting independent from scroll positioning.
             currentIndex: -1
             boundsBehavior: Flickable.StopAtBounds
             flickDeceleration: 7000
             maximumFlickVelocity: 4200
-            ScrollBar.vertical: ScrollBar {
-                policy: ScrollBar.AsNeeded
-            }
+            keyNavigationWraps: true
+            Keys.onEscapePressed: menuPopup.close()
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
         }
         background: Rectangle {
             radius: 14
@@ -115,6 +133,6 @@ ComboBox {
                 NumberAnimation { property: "scale"; from: 0.96; to: 1; duration: Theme.motion; easing.type: Easing.OutCubic }
             }
         }
-        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Math.min(Theme.motion, 100) } }
+        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Math.min(Theme.motion, 120) } }
     }
 }
