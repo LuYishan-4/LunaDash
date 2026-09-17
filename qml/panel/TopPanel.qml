@@ -46,7 +46,7 @@ ModuleSurface {
 
     function shellColor(alphaScale) {
         return Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b,
-                       Math.min(0.64, panel.shellOpacity * alphaScale))
+                       Math.min(0.72, Math.max(0.10, panel.shellOpacity * alphaScale)))
     }
     function trayImage(item) {
         const supplied = String(item.icon || "")
@@ -80,16 +80,14 @@ ModuleSurface {
         anchors { left: parent.left; leftMargin: 7; verticalCenter: parent.verticalCenter }
         height: Math.max(28, panel.height - 8)
         width: workspaceControls.implicitWidth + 16
-
         Rectangle {
             anchors.fill: parent
             visible: panel.contrastShells
             radius: height / 2
-            color: panel.shellColor(0.82)
+            color: panel.shellColor(1.18)
             border.width: 1
-            border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.38)
+            border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.48)
         }
-
         Row {
             id: workspaceControls
             anchors.centerIn: parent
@@ -104,7 +102,6 @@ ModuleSurface {
                     height: workspaceShell.height
                     Accessible.role: Accessible.Button
                     Accessible.name: shell.tr("Workspace") + " " + (index + 1)
-
                     Rectangle {
                         anchors.centerIn: parent
                         width: parent.width
@@ -113,13 +110,13 @@ ModuleSurface {
                         color: workspacePill.active
                             ? moduleAccent
                             : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b,
-                                      workspaceMouse.containsMouse ? 0.30 : 0.16)
+                                      workspaceMouse.containsMouse ? 0.34 : 0.20)
                         border.width: workspacePill.active ? 0 : 1
-                        border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.30)
+                        border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.42)
                         scale: workspaceMouse.pressed ? 0.90 : workspaceMouse.containsMouse ? 1.05 : 1.0
-                        Behavior on width { NumberAnimation { duration: Math.max(120, Theme.motion); easing.type: Easing.OutCubic } }
+                        Behavior on width { NumberAnimation { duration: Math.max(160, Theme.motion); easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: Theme.motion } }
-                        Behavior on scale { NumberAnimation { duration: Math.max(90, Theme.motion); easing.type: Easing.OutCubic } }
+                        Behavior on scale { NumberAnimation { duration: Math.max(100, Theme.motion); easing.type: Easing.OutCubic } }
                     }
                     MouseArea {
                         id: workspaceMouse
@@ -146,16 +143,14 @@ ModuleSurface {
         anchors { left: workspaceShell.right; leftMargin: 7; right: centerSelector.left; rightMargin: 9; verticalCenter: parent.verticalCenter }
         height: Math.max(28, panel.height - 8)
         visible: columnTasks.count > 0
-
         Rectangle {
             anchors.fill: parent
             visible: panel.contrastShells
             radius: height / 2
-            color: panel.shellColor(0.66)
+            color: panel.shellColor(0.98)
             border.width: 1
-            border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.28)
+            border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.40)
         }
-
         ListView {
             id: columnTasks
             anchors.fill: parent
@@ -185,7 +180,6 @@ ModuleSurface {
         anchors.centerIn: parent
         height: Math.max(28, panel.height - 6)
         spacing: 4
-
         PanelSegment {
             moduleHost: panel
             text: "◈"
@@ -193,7 +187,6 @@ ModuleSurface {
             Accessible.name: shell.tr("Dashboard")
             onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
         }
-
         Item {
             id: launcherButton
             readonly property int requestedSize: panel.launcherConfig.buttonSize ?? 38
@@ -206,7 +199,6 @@ ModuleSurface {
             height: centerSelector.height
             Accessible.role: Accessible.Button
             Accessible.name: shell.tr("Applications")
-
             Rectangle {
                 anchors.centerIn: parent
                 width: launcherButton.extent + (launcherButton.glowEnabled ? 8 : 0)
@@ -220,23 +212,20 @@ ModuleSurface {
                     : "transparent"
                 Behavior on border.color { ColorAnimation { duration: Theme.motion } }
             }
-
             Rectangle {
-                id: moonDisk
                 anchors.centerIn: parent
                 width: launcherButton.extent
                 height: width
                 radius: width / 2
                 color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
-                               shell.launcherOpen ? Math.min(0.34, launcherButton.backgroundOpacity + 0.12)
-                                                  : launcherButton.backgroundOpacity)
+                               shell.launcherOpen ? Math.max(0.26, launcherButton.backgroundOpacity + 0.12)
+                                                  : Math.max(0.16, launcherButton.backgroundOpacity))
                 border.width: launcherButton.orbitEnabled ? 1.5 : 0
                 border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
                                       shell.launcherOpen ? 0.92 : 0.52)
                 scale: launcherMouse.pressed ? 0.92 : launcherMouse.containsMouse ? 1.06 : 1.0
                 Behavior on scale { NumberAnimation { duration: Math.max(90, Theme.motion); easing.type: Easing.OutCubic } }
                 Behavior on color { ColorAnimation { duration: Theme.motion } }
-
                 Rectangle {
                     visible: launcherButton.orbitEnabled
                     anchors.centerIn: parent
@@ -248,7 +237,6 @@ ModuleSurface {
                     border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b, 0.24)
                     rotation: 18
                 }
-
                 LunaDashLogo {
                     anchors.centerIn: parent
                     width: parent.width * launcherButton.logoScale
@@ -259,7 +247,6 @@ ModuleSurface {
                     inkColor: Theme.text
                 }
             }
-
             MouseArea {
                 id: launcherMouse
                 anchors.fill: parent
@@ -271,7 +258,6 @@ ModuleSurface {
             ToolTip.delay: 450
             ToolTip.text: shell.tr("Applications")
         }
-
         PanelSegment {
             moduleHost: panel
             text: "⚙"
@@ -281,151 +267,97 @@ ModuleSurface {
         }
     }
 
-    Row {
-        anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
-        spacing: 3
-
-        Repeater {
-            model: SystemTray.items
-            delegate: Item {
-                id: trayDelegate
-                required property var modelData
-                readonly property var item: modelData
-                visible: item.status !== Status.Passive
-                width: visible ? Math.min(28, panel.height - 8) : 0
-                height: Math.min(28, panel.height - 8)
+    Item {
+        id: statusShell
+        anchors { right: parent.right; rightMargin: 7; verticalCenter: parent.verticalCenter }
+        height: Math.max(28, panel.height - 8)
+        width: statusControls.implicitWidth + 12
+        Rectangle {
+            anchors.fill: parent
+            visible: panel.contrastShells
+            radius: height / 2
+            color: panel.shellColor(1.08)
+            border.width: 1
+            border.color: Qt.rgba(moduleAccent.r, moduleAccent.g, moduleAccent.b, 0.44)
+        }
+        Row {
+            id: statusControls
+            anchors.centerIn: parent
+            spacing: 3
+            Repeater {
+                model: SystemTray.items
+                delegate: Item {
+                    id: trayDelegate
+                    required property var modelData
+                    readonly property var item: modelData
+                    visible: item.status !== Status.Passive
+                    width: visible ? Math.min(28, panel.height - 8) : 0
+                    height: Math.min(28, panel.height - 8)
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: height / 2
+                        color: trayMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24) : "transparent"
+                    }
+                    readonly property string iconSource: panel.trayImage(item)
+                    readonly property string glyph: panel.trayGlyph(item)
+                    Image {
+                        id: trayIcon
+                        anchors.centerIn: parent
+                        width: Math.max(10, Math.min(19, parent.width - 4))
+                        height: width
+                        source: trayDelegate.iconSource
+                        sourceSize.width: Math.max(1, Math.round(width * Screen.devicePixelRatio))
+                        sourceSize.height: Math.max(1, Math.round(height * Screen.devicePixelRatio))
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
+                        mipmap: true
+                        visible: trayDelegate.iconSource.length > 0 && status === Image.Ready
+                    }
+                    LineIcon {
+                        anchors.centerIn: parent
+                        width: 17
+                        height: 17
+                        visible: !trayIcon.visible
+                        name: trayDelegate.glyph
+                        ink: Theme.text
+                    }
+                    MouseArea {
+                        id: trayMouse
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: mouse => {
+                            if (mouse.button === Qt.LeftButton) trayDelegate.item.activate()
+                            else trayDelegate.item.secondaryActivate()
+                        }
+                        onWheel: wheel => trayDelegate.item.scroll(wheel.angleDelta.y || wheel.angleDelta.x, wheel.angleDelta.x !== 0)
+                    }
+                    ToolTip.visible: trayMouse.containsMouse
+                    ToolTip.delay: 450
+                    ToolTip.text: item.tooltipTitle || item.title || item.id
+                }
+            }
+            Item {
+                id: usbIndicator
+                visible: panel.usbStorage.length > 0
+                width: visible ? Math.min(31, panel.height - 6) : 0
+                height: Math.min(30, panel.height - 6)
+                Accessible.role: Accessible.Button
+                Accessible.name: shell.tr("USB devices")
                 Rectangle {
                     anchors.fill: parent
-                    radius: 5
-                    color: trayMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16) : "transparent"
+                    radius: height / 2
+                    color: usbMouse.containsMouse || shell.usbPopupOpen
+                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
+                        : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
                 }
-                readonly property string iconSource: panel.trayImage(item)
-                readonly property string glyph: panel.trayGlyph(item)
-                Image {
-                    id: trayIcon
-                    anchors.centerIn: parent
-                    width: Math.max(10, Math.min(19, parent.width - 4))
-                    height: width
-                    source: trayDelegate.iconSource
-                    sourceSize.width: Math.max(1, Math.round(width * Screen.devicePixelRatio))
-                    sourceSize.height: Math.max(1, Math.round(height * Screen.devicePixelRatio))
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    mipmap: true
-                    visible: trayDelegate.iconSource.length > 0 && status === Image.Ready
+                LineIcon { anchors.centerIn: parent; width: 18; height: 18; name: "usb"; ink: Theme.accent }
+                Rectangle {
+                    visible: panel.usbStorage.length > 1
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    width: 13; height: 13; radius: 7; color: Theme.accent
+                    Text { anchors.centerIn: parent; text: String(Math.min(9, panel.usbStorage.length)); color: Theme.background; font.family: Theme.font; font.pixelSize: 8; font.weight: Font.Bold }
                 }
-                LineIcon {
-                    anchors.centerIn: parent
-                    width: 17
-                    height: 17
-                    visible: !trayIcon.visible
-                    name: trayDelegate.glyph
-                    ink: Theme.text
-                }
-                MouseArea {
-                    id: trayMouse
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: mouse => {
-                        if (mouse.button === Qt.LeftButton) trayDelegate.item.activate()
-                        else trayDelegate.item.secondaryActivate()
-                    }
-                    onWheel: wheel => trayDelegate.item.scroll(wheel.angleDelta.y || wheel.angleDelta.x, wheel.angleDelta.x !== 0)
-                }
-                ToolTip.visible: trayMouse.containsMouse
-                ToolTip.delay: 450
-                ToolTip.text: item.tooltipTitle || item.title || item.id
-            }
-        }
-
-        Item {
-            id: usbIndicator
-            visible: panel.usbStorage.length > 0
-            width: visible ? Math.min(31, panel.height - 6) : 0
-            height: Math.min(30, panel.height - 6)
-            Accessible.role: Accessible.Button
-            Accessible.name: shell.tr("USB devices")
-
-            Rectangle {
-                anchors.fill: parent
-                radius: height / 2
-                color: usbMouse.containsMouse || shell.usbPopupOpen
-                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
-                    : "transparent"
-            }
-            LineIcon {
-                anchors.centerIn: parent
-                width: 18
-                height: 18
-                name: "usb"
-                ink: Theme.accent
-            }
-            Rectangle {
-                visible: panel.usbStorage.length > 1
-                anchors.right: parent.right
-                anchors.top: parent.top
-                width: 13
-                height: 13
-                radius: 7
-                color: Theme.accent
-                Text {
-                    anchors.centerIn: parent
-                    text: String(Math.min(9, panel.usbStorage.length))
-                    color: Theme.background
-                    font.family: Theme.font
-                    font.pixelSize: 8
-                    font.weight: Font.Bold
-                }
-            }
-            MouseArea {
-                id: usbMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: shell.usbPopupOpen = !shell.usbPopupOpen
-            }
-            ToolTip.visible: usbMouse.containsMouse
-            ToolTip.delay: 450
-            ToolTip.text: shell.tr("USB devices")
-        }
-
-        PanelSegment {
-            moduleHost: panel
-            id: clock
-            property string time: ""
-            property string date: ""
-            text: panel.width > 1060 ? time + "  ·  " + date : time
-            implicitWidth: panel.moduleWidth(panel.width > 1060 ? 142 : panel.width > 850 ? 76 : 52)
-            Accessible.name: shell.tr("Calendar")
-            onClicked: shell.calendarOpen = !shell.calendarOpen
-            Timer {
-                interval: 1000
-                repeat: true
-                running: true
-                triggeredOnStart: true
-                onTriggered: {
-                    const now = new Date()
-                    clock.time = Qt.formatDateTime(now, panel.width > 850 ? (Theme.clock24Hour ? "HH:mm:ss" : "h:mm AP") : (Theme.clock24Hour ? "HH:mm" : "h:mm"))
-                    clock.date = Qt.formatDateTime(now, "yyyy/MM/dd")
-                }
-            }
-        }
-        PanelSegment {
-            moduleHost: panel
-            visible: panel.width > 720
-            text: (shell.state.network || {}).connected ? "↔" : "×"
-            ink: (shell.state.network || {}).internet ? Theme.accent : Theme.muted
-            Accessible.name: shell.tr("Network")
-            onClicked: shell.settingsOpen = !shell.settingsOpen
-        }
-        PanelSegment {
-            moduleHost: panel
-            visible: panel.width > 860 && (panel.stats.batteryPercent ?? -1) >= 0
-            text: panel.stats.batteryPercent + "%"
-            Accessible.name: shell.tr("Battery")
-            onClicked: shell.launch("monitor")
-        }
-    }
-}
+                MouseArea { id: usbMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt
