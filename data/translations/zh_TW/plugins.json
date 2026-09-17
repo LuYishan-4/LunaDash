@@ -1,0 +1,21 @@
+{
+  "Plugins": "插件",
+  "Manage installed QML plugins and C++ effects. The plugin store is reserved for a future release.": "管理已安裝的 QML 插件與 C++ 特效。插件商店將保留給未來版本使用。",
+  "Installed plugins": "已安裝插件",
+  "QML plugins can update with the shell; C++ effects require a session restart after changing their state.": "QML 插件可隨桌面 Shell 即時更新；C++ 特效變更啟用狀態後需要重新啟動工作階段。",
+  "Open plugin manager": "開啟插件管理器",
+  "QML plugins are reloaded by the shell automatically. C++ effects run inside the compositor and require a session restart after changing their state.": "QML 插件會由桌面 Shell 自動重新載入；C++ 特效會在合成器內執行，變更啟用狀態後需要重新啟動工作階段。",
+  "No plugins found. QML plugins can be installed in the LunaDash shell plugins directory; native effects use the LuDash plugins directory.": "找不到插件。QML 插件可安裝至 LunaDash Shell 插件目錄；原生特效則使用 LuDash 插件目錄。",
+  "QML": "QML",
+  "C++ effect": "C++ 特效",
+  "Unknown author": "未知作者",
+  "Restart required": "需要重新啟動",
+  "Enable C++ effect": "啟用 C++ 特效",
+  "This effect executes native code inside the compositor and may crash the desktop. Enable it?": "此特效會在合成器內執行原生程式碼，可能造成桌面崩潰。要啟用嗎？",
+  "Installed": "已安裝",
+  "Plugin store is not supported yet": "目前尚未支援插件商店",
+  "The store page is reserved for a future plugin catalogue. Local QML plugins and C++ effects can already be discovered from their manifest.json files.": "商店頁面保留給未來的插件目錄。目前已可透過各插件的 manifest.json 探索本機 QML 插件與 C++ 特效。",
+  "Store": "商店",
+  "Digital Clock": "數位時鐘",
+  "A desktop clock showing the current time, month, date, and weekday.": "在桌面顯示目前時間、月份、日期與星期的時鐘。"
+}
