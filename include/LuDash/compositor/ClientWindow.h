@@ -1,5 +1,6 @@
 #pragma once
 #include <QPointer>
+#include <QRect>
 #include <QSize>
 #include <QString>
 class QWaylandXdgToplevel;
@@ -20,6 +21,7 @@ struct ClientWindow {
   bool mapped = false;
   bool minimized = false;
   bool maximized = false;
+  bool manualResize = false;
   bool initialRuleApplied = false;
   bool revealed = false;
   bool utility = false;
@@ -27,5 +29,7 @@ struct ClientWindow {
   QString appId;
   QString iconName;
   QSize lastSize;
+  QRect manualGeometry;
+  QRect resizeGuideGeometry;
 };
 } // namespace LuDash
