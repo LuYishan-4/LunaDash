@@ -723,7 +723,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                   int code, QProcess::ExitStatus status) {
                 if (shuttingDown_ || testStopping_ || !xwayland_)
                   return;
-                if (code == 0 && status == QProcess::NormalExit)
+                // A crash is a real application failure, not evidence that its
+                // Wayland backend is unsupported. Do not immediately launch a
+                // second copy under XWayland after SIGSEGV/SIGABRT/coredump.
+                // Compatibility retry is only for a clean startup refusal
+                // (normal process exit with a non-zero code before a surface).
+                if (status != QProcess::NormalExit || code == 0)
                   return;
                 const qint64 pid = *launchedPid;
                 const bool createdSurface =
