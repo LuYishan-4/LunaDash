@@ -5,14 +5,16 @@ import Quickshell.Wayland
 
 Item {
     id: plugin
-    required property var shell
+    property var shell: null
     width: 0
     height: 0
 
-    readonly property color accent: (shell.state.appearance || {}).accent || "#9ccbfb"
+    readonly property var appearance: shell ? (shell.state.appearance || {}) : ({})
+    readonly property color accent: appearance.accent || "#9ccbfb"
     readonly property color primary: Qt.lighter(accent, 1.08)
     readonly property color secondary: Qt.lighter(accent, 1.35)
     readonly property color surface: Qt.rgba(0.055, 0.075, 0.12, 0.78)
+    readonly property string uiFont: appearance.fontFamily || Qt.application.font.family
     property date now: new Date()
 
     Timer {
@@ -53,9 +55,9 @@ Item {
 
                 RowLayout {
                     spacing: 4
-                    Text { text: Qt.formatDateTime(plugin.now, "HH"); color: plugin.primary; font.family: (plugin.shell.state.appearance || {}).fontFamily || "sans-serif"; font.pixelSize: 72; font.weight: Font.Bold }
-                    Text { text: ":"; color: plugin.accent; opacity: 0.78; font.family: (plugin.shell.state.appearance || {}).fontFamily || "sans-serif"; font.pixelSize: 68; Layout.alignment: Qt.AlignTop; Layout.topMargin: -5 }
-                    Text { text: Qt.formatDateTime(plugin.now, "mm"); color: plugin.secondary; font.family: (plugin.shell.state.appearance || {}).fontFamily || "sans-serif"; font.pixelSize: 72; font.weight: Font.Bold }
+                    Text { text: Qt.formatDateTime(plugin.now, "HH"); color: plugin.primary; font.family: plugin.uiFont; font.pixelSize: 72; font.weight: Font.Bold }
+                    Text { text: ":"; color: plugin.accent; opacity: 0.78; font.family: plugin.uiFont; font.pixelSize: 68; Layout.alignment: Qt.AlignTop; Layout.topMargin: -5 }
+                    Text { text: Qt.formatDateTime(plugin.now, "mm"); color: plugin.secondary; font.family: plugin.uiFont; font.pixelSize: 72; font.weight: Font.Bold }
                 }
 
                 Rectangle { Layout.fillHeight: true; Layout.preferredWidth: 4; Layout.topMargin: 8; Layout.bottomMargin: 8; radius: 2; color: plugin.accent; opacity: 0.72 }
@@ -63,9 +65,9 @@ Item {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    Text { text: Qt.formatDateTime(plugin.now, "MMMM").toUpperCase(); color: plugin.secondary; font.family: (plugin.shell.state.appearance || {}).fontFamily || "sans-serif"; font.pixelSize: 16; font.weight: Font.Bold; font.letterSpacing: 3 }
-                    Text { text: Qt.formatDateTime(plugin.now, "dd"); color: plugin.primary; font.family: (plugin.shell.state.appearance || {}).fontFamily || "sans-serif"; font.pixelSize: 35; font.weight: Font.DemiBold; font.letterSpacing: 2 }
-                    Text { text: Qt.formatDateTime(plugin.now, "dddd"); color: plugin.secondary; font.family: (plugin.shell.state.appearance || {}).fontFamily || "sans-serif"; font.pixelSize: 14; font.letterSpacing: 1.5 }
+                    Text { text: Qt.formatDateTime(plugin.now, "MMMM").toUpperCase(); color: plugin.secondary; font.family: plugin.uiFont; font.pixelSize: 16; font.weight: Font.Bold; font.letterSpacing: 3 }
+                    Text { text: Qt.formatDateTime(plugin.now, "dd"); color: plugin.primary; font.family: plugin.uiFont; font.pixelSize: 35; font.weight: Font.DemiBold; font.letterSpacing: 2 }
+                    Text { text: Qt.formatDateTime(plugin.now, "dddd"); color: plugin.secondary; font.family: plugin.uiFont; font.pixelSize: 14; font.letterSpacing: 1.5 }
                 }
             }
         }
