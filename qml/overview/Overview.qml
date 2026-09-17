@@ -122,7 +122,6 @@ ModuleSurface {
         MediaCard {
             Layout.fillWidth: true
             shell: dashboard.shell
-            moduleHost: dashboard
         }
     }
 
