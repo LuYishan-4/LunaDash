@@ -2,9 +2,9 @@
 # packaging and maintenance changes do not require rewriting LunaDashMain.cmake.
 install(PROGRAMS scripts/lunadash-update DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-add_executable(lunadash-shell-tool src/entrypoints/shell_tool_main.cpp)
-target_link_libraries(lunadash-shell-tool PRIVATE Qt6::Core Qt6::DBus)
-install(TARGETS lunadash-shell-tool RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+# lunadash-shell-tool is defined once in LunaDashShellTool.cmake. Keeping a
+# second executable target here caused Ninja to see two rules producing the
+# same lunadash-shell-tool output.
 
 add_executable(lunadash-portal src/entrypoints/portal_main.cpp)
 target_link_libraries(lunadash-portal PRIVATE ludash-apps Qt6::Widgets Qt6::DBus)
