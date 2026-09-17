@@ -207,6 +207,21 @@ bool NetworkStatus::execute(const QJsonObject &request, QString *error) {
   QStringList args;
   QString name;
   QString device;
+  if (action == "network-reset") {
+    return command_->run(nmcli_, {"networking", "off"},
+                         [this](bool, const QByteArray &) {
+      command_->run(nmcli_, {"networking", "on"},
+                    [this](bool, const QByteArray &) { refresh(); });
+    });
+  }
+  if (action == "connection-reconnect" &&
+      boundedText(request, "name", &name, 256)) {
+    return command_->run(nmcli_, {"connection", "down", name},
+                         [this, name](bool, const QByteArray &) {
+      command_->run(nmcli_, {"connection", "up", name},
+                    [this](bool, const QByteArray &) { refresh(); });
+    });
+  }
   if (action == "wifi-scan") {
     args = {"device", "wifi", "rescan"};
   } else if (action == "wifi-connect") {
