@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import "../components"
 import "../../components"
 import "../../configuration"
@@ -11,37 +12,82 @@ ColumnLayout {
     required property var shell
     spacing: 16
 
+    readonly property string bundledWallpaperPath: {
+        const directory = Quickshell.env("LUNADASH_WALLPAPER_DIR") || ""
+        return directory.length ? directory + "/florist.png" : ""
+    }
     property string selectedWallpaper: shell.pendingWallpaper.length
         ? shell.pendingWallpaper
-        : String(shell.state.wallpaperImage || "")
+        : page.localPath(String(shell.state.wallpaperImage || ""))
+
+    function localPath(value) {
+        const text = String(value || "")
+        return text.startsWith("file://") ? decodeURIComponent(text.slice(7)) : text
+    }
+
+    function fileUrl(value) {
+        const text = String(value || "")
+        if (!text.length)
+            return ""
+        return text.startsWith("file:") ? text : "file://" + text
+    }
 
     readonly property var wallpaperCards: {
         const cards = []
-        const current = String(shell.state.wallpaperImage || "")
+        const seen = ({})
+        const currentUrl = String(shell.state.wallpaperImage || "")
+        const currentPath = page.localPath(currentUrl)
         const pending = String(shell.pendingWallpaper || "")
-        if (current.length)
-            cards.push({source: current, value: current, current: true, add: false})
-        if (pending.length && pending !== current && ("file://" + pending) !== current)
-            cards.push({source: pending.startsWith("file:") ? pending : "file://" + pending, value: pending, current: false, add: false})
-        cards.push({add: true, current: false, source: "", value: ""})
+        const history = ((shell.state.appearance || {}).wallpaperHistory || [])
+
+        function addWallpaper(path, label, bundled) {
+            path = page.localPath(path)
+            if (!path.length || seen[path])
+                return
+            seen[path] = true
+            cards.push({
+                source: page.fileUrl(path),
+                value: path,
+                current: path === currentPath,
+                add: false,
+                bundled: Boolean(bundled),
+                label: label || ""
+            })
+        }
+
+        addWallpaper(page.bundledWallpaperPath, shell.tr("Default"), true)
+        for (let i = 0; i < history.length; ++i)
+            addWallpaper(history[i], shell.tr("Recent"), false)
+        addWallpaper(currentPath, shell.tr("Current"), false)
+        addWallpaper(pending, shell.tr("New"), false)
+        cards.push({add: true, current: false, bundled: false, source: "", value: "", label: shell.tr("Add image")})
         return cards
     }
 
     onWallpaperCardsChanged: Qt.callLater(function() {
-        if (wallpaperStrip.count > 0)
-            wallpaperStrip.positionViewAtIndex(Math.max(0, wallpaperStrip.count - (shell.pendingWallpaper.length ? 2 : 1)), ListView.Center)
+        if (wallpaperStrip.count <= 0)
+            return
+        let target = 0
+        for (let i = 0; i < wallpaperCards.length; ++i) {
+            if (wallpaperCards[i].current) {
+                target = i
+                break
+            }
+        }
+        wallpaperStrip.currentIndex = target
+        wallpaperStrip.positionViewAtIndex(target, ListView.Center)
     })
 
     PageTitle { shell: page.shell; title: "Appearance" }
 
     SettingsCard {
         title: shell.tr("Wallpaper")
-        description: shell.tr("Choose by preview. New images are staged first and only applied after confirmation.")
+        description: shell.tr("Choose the bundled wallpaper, a recently used image, or add another image.")
 
         ListView {
             id: wallpaperStrip
             Layout.fillWidth: true
-            Layout.preferredHeight: 176
+            Layout.preferredHeight: 186
             orientation: ListView.Horizontal
             spacing: 14
             clip: true
@@ -61,7 +107,7 @@ ColumnLayout {
                 readonly property bool addCard: Boolean(modelData.add)
                 readonly property bool currentCard: Boolean(modelData.current)
                 width: addCard ? 150 : 236
-                height: 158
+                height: 168
                 scale: wallpaperStrip.currentIndex === index ? 1 : 0.94
                 opacity: wallpaperStrip.currentIndex === index ? 1 : 0.72
                 Behavior on scale { NumberAnimation { duration: Math.max(180, Theme.motion); easing.type: Easing.OutCubic } }
@@ -87,19 +133,46 @@ ColumnLayout {
                     }
 
                     Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 30
+                        visible: !card.addCard
+                        color: Qt.rgba(0, 0, 0, 0.58)
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData.label || ""
+                            color: "white"
+                            font.family: Theme.font
+                            font.pixelSize: 11
+                        }
+                    }
+
+                    Rectangle {
                         anchors.fill: parent
                         visible: !card.addCard && wallpaperStrip.currentIndex === card.index
                         color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
                     }
 
-                    Text {
+                    Column {
                         anchors.centerIn: parent
                         visible: card.addCard
-                        text: "+"
-                        color: Theme.text
-                        font.family: Theme.font
-                        font.pixelSize: 48
-                        font.weight: Font.Light
+                        spacing: 3
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "+"
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: 44
+                            font.weight: Font.Light
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: shell.tr("Add image")
+                            color: Theme.muted
+                            font.family: Theme.font
+                            font.pixelSize: 10
+                        }
                     }
 
                     Rectangle {
@@ -124,6 +197,7 @@ ColumnLayout {
                         wallpaperStrip.currentIndex = card.index
                         wallpaperStrip.positionViewAtIndex(card.index, ListView.Center)
                         if (card.addCard) {
+                            page.shell.pickerPurpose = "wallpaper"
                             page.shell.pickerOpen = true
                         } else {
                             page.selectedWallpaper = String(modelData.value || "")
@@ -148,12 +222,13 @@ ColumnLayout {
                 onClicked: {
                     shell.pendingWallpaper = ""
                     shell.command("wallpaper-default", "")
+                    page.selectedWallpaper = page.bundledWallpaperPath
                 }
             }
             ShellButton {
                 text: shell.tr("Apply wallpaper")
                 active: true
-                enabled: page.selectedWallpaper.length > 0 && page.selectedWallpaper !== String(shell.state.wallpaperImage || "")
+                enabled: page.selectedWallpaper.length > 0 && page.selectedWallpaper !== page.localPath(String(shell.state.wallpaperImage || ""))
                 onClicked: {
                     shell.command("wallpaper-image", page.selectedWallpaper)
                     shell.pendingWallpaper = ""
