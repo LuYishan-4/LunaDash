@@ -19,9 +19,11 @@ ModuleSurface {
     function showCategory(id){category=id;search.clear();pageLoader.setSource(Qt.resolvedUrl("pages/"+id+".qml"),{shell:settings.shell})}
     function openResult(entry){showCategory(entry.page)}
     readonly property int overlayMargin:Math.max(8,Math.min(moduleMargin,24))
+    readonly property int configuredX:Number.isFinite(Number(moduleStyle.x))?Number(moduleStyle.x):0
+    readonly property int configuredY:Number.isFinite(Number(moduleStyle.y))?Number(moduleStyle.y):0
     anchors.top:true;anchors.left:true
-    margins.left:moduleStyle.x===0?overlayMargin:moduleStyle.x
-    margins.top:moduleStyle.y===0?Theme.barHeight+overlayMargin:moduleStyle.y
+    margins.left:configuredX===0?overlayMargin:configuredX
+    margins.top:configuredY===0?Theme.barHeight+overlayMargin:configuredY
     implicitWidth:moduleWidth(1120);implicitHeight:moduleHeight(720)
     exclusionMode:ExclusionMode.Ignore
     WlrLayershell.layer:WlrLayer.Overlay;WlrLayershell.namespace:"lunadash-settings";WlrLayershell.keyboardFocus:WlrKeyboardFocus.Exclusive
