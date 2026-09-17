@@ -42,11 +42,11 @@ QProgressBar { background: #121e20; border: none; border-radius: 6px; min-height
 QProgressBar::chunk { background: #467579; border-radius: 6px; }
 QToolTip { background: #273c3f; color: #eef2ff; border: 1px solid #566783; }
 QMessageBox, QFileDialog, QDialog, QMenu { background: #151d26; }
-QMenu { border: 1px solid #405f62; border-radius: 8px; padding: 6px; }
-QMenu::item { padding: 7px 24px; border-radius: 5px; }
+QMenu { border: 1px solid #405f62; border-radius: 10px; padding: 7px; }
+QMenu::item { padding: 8px 26px; border-radius: 7px; }
 QMenu::item:selected { background: #436185; }
 QMenu::item:disabled { color: #818a9e; }
-QMenu::separator { height: 1px; background: #405f62; margin: 5px 10px; }
+QMenu::separator { height: 1px; background: #405f62; margin: 6px 10px; }
 QCheckBox { spacing: 8px; padding: 4px; }
 QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #71879e; border-radius: 4px; background: #141c26; }
 QCheckBox::indicator:checked { background: #9ccbfb; border-color: #9ccbfb; }
@@ -71,14 +71,24 @@ QLabel#fileStatus { color: #8192a6; font-size: 11px; }
 QPushButton[fileTool="true"] { border: none; padding: 6px; border-radius: 10px; background: transparent; }
 QPushButton[fileTool="true"]:hover { background: #293545; }
 QPushButton[fileTool="true"]:checked { background: #344354; }
+QPushButton#fileAssociations { border-radius: 11px; padding: 8px 14px; }
 QLineEdit#fileLocation, QLineEdit#fileSearch { border: 1px solid #2b3645; background: #19222e; padding: 2px 10px; border-radius: 11px; }
 QListWidget#filePlaces { background: transparent; border: none; padding: 0; outline: none; }
 QListWidget#filePlaces::item { padding: 10px 12px; border-radius: 10px; }
 QListWidget#filePlaces::item:hover { background: #202b39; }
+QListWidget#filePlaces::item:selected { background: #2b3c50; }
 QTreeView#fileView, QListView#fileIcons { background: #18212c; border: 1px solid #293444; border-radius: 15px; padding: 16px; outline: none; }
 QTreeView#fileView::item { min-height: 42px; border: none; }
 QTreeView#fileView::item:hover, QListView#fileIcons::item:hover { background: #243143; }
+QTreeView#fileView::item:selected, QListView#fileIcons::item:selected { background: #2b3c50; }
 QHeaderView::section { background: #18212c; color: #8294a9; font-size: 11px; padding: 12px 8px; }
+QFrame#filePreviewPanel { background: #1b2532; border: 1px solid #33455a; border-radius: 16px; }
+QLabel#filePreviewEyebrow { color: #9ccbfb; font-size: 10px; font-weight: 600; letter-spacing: 2px; }
+QLabel#filePreviewImage { background: #141c26; border: 1px solid #2b3b4c; border-radius: 14px; padding: 12px; color: #8192a6; }
+QLabel#filePreviewTitle { font-size: 16px; font-weight: 600; }
+QLabel#filePreviewMeta { color: #a9b7c7; font-size: 11px; }
+QLabel#filePreviewHint { color: #8192a6; font-size: 10px; }
+QDialog#fileApplicationChooser, QDialog#fileAssociationSettings, QDialog#fileManagerFirstRun { border: 1px solid #33455a; border-radius: 16px; }
 )";
   style += QString("QWidget#applicationWindow, QWidget#applicationContent { background: %1; border-radius: 14px; } "
                    "QListView#fileIcons::item { border-radius: 10px; padding: 8px; } "
