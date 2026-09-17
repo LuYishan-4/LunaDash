@@ -714,7 +714,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (isChromiumApplication(command.first()))
       ensureWaylandChromiumFlags(command);
     const auto executable = command.takeFirst();
-    if (auto *process = spawn(command, executable)) {
+    if (auto *process = spawn(command, executable, false)) {
       auto launchedPid = std::make_shared<qint64>(0);
       connect(process, &QProcess::started, this,
               [process, launchedPid] { *launchedPid = process->processId(); });
@@ -1485,18 +1485,10 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
   if (watched == &window_ && (event->type() == QEvent::KeyPress ||
                               event->type() == QEvent::KeyRelease)) {
     auto *key = static_cast<QKeyEvent *>(event);
-    if (key->modifiers().testFlag(Qt::KeypadModifier)) {
-      auto *seat = compositor_.defaultSeat();
-      const auto scanCode = static_cast<uint>(key->nativeScanCode());
-      if (seat && seat->keyboardFocus() && scanCode > 0) {
-        if (event->type() == QEvent::KeyPress)
-          seat->sendKeyPressEvent(scanCode);
-        else
-          seat->sendKeyReleaseEvent(scanCode);
-        ++keypadKeyForwards_;
-        return true;
-      }
-    }
+    // Do not manually forward physical keys here. QWaylandQuickItem receives
+    // this QKeyEvent after the filter and calls QWaylandSeat::sendFullKeyEvent
+    // exactly once. A second sendKeyPressEvent/sendKeyReleaseEvent path causes
+    // duplicate characters and double shortcut activation.
     const bool clearsLockedMask =
         key->key() == Qt::Key_NumLock || key->key() == Qt::Key_CapsLock ||
         key->key() == Qt::Key_ScrollLock || key->key() == Qt::Key_Meta ||
