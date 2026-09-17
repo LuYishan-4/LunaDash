@@ -240,6 +240,11 @@ ShellRoot {
                             root.wallpaperOverride = ""
                         root.errorMessage = root.tr(result.error)
                         root.notify(root.tr("System action failed"), root.tr(result.error), "error", result.error)
+                    } else if (result.workspace !== undefined && result.clients !== undefined) {
+                        // Most control actions already return a complete state
+                        // snapshot. Apply it immediately so the UI does not need
+                        // a high-frequency polling process to feel responsive.
+                        root.applyPolledState(result)
                     }
                     root.commandCompleted(method, result)
                 } catch(error) {
@@ -363,7 +368,7 @@ ShellRoot {
 
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
     Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running) Qt.quit() }
-    Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
+    Timer { interval: 1200; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
 
     RemovableDeviceMonitor { shell: root }
     Wallpaper { shell: root; opened: !root.stopping }
