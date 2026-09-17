@@ -12,7 +12,7 @@ namespace {
 QJsonObject defaults() {
     return {{"accent", "#9ccbfb"}, {"gap", 12}, {"panelHeight", 40},
             {"blur", true}, {"blurRadius", 18}, {"windowOpacity", 96}, {"animations", true}, {"animationDuration", 220},
-            {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false},
+            {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false}, {"altMouseResize", true},
             {"keyboardLayout", "us"}, {"keyRepeatRate", 25}, {"keyRepeatDelay", 600}, {"cursorSize", 24},
             {"fontFamily", "sans-serif"}, {"clock24Hour", true}, {"startupApps", QJsonArray{}},
             {"overview", false}, {"showHostDetails", false}, {"updateChannel", "stable"}};
@@ -36,7 +36,7 @@ bool valid(const QString& key, const QJsonValue& value) {
         return value.isDouble() && std::isfinite(number) && std::floor(number) == number && number >= range.first && number <= range.second;
     }
     if (key == "accent") return value.isString() && QRegularExpression("^#[0-9a-fA-F]{6}$").match(value.toString()).hasMatch();
-    if (key == "overview" || key == "showHostDetails" || key == "blur" || key == "animations" || key == "defaultFloating" || key == "clock24Hour") return value.isBool();
+    if (key == "overview" || key == "showHostDetails" || key == "blur" || key == "animations" || key == "defaultFloating" || key == "altMouseResize" || key == "clock24Hour") return value.isBool();
     if (key == "gap" || key == "panelHeight" || key == "blurRadius" || key == "windowOpacity" || key == "animationDuration") {
         const double number = value.toDouble(-1);
         return value.isDouble() && std::isfinite(number) && std::floor(number) == number &&
