@@ -1,4 +1,5 @@
 #include <LuDash/shell_modules/ModuleSchema.h>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <cmath>
@@ -29,6 +30,11 @@ QJsonObject defaultModuleDocument() {
                                  {"shellOpacity", 20},
                                  {"workspaceTransition", true},
                                  {"transitionDuration", 420}};
+        } else if (id == "overview") {
+            config = QJsonObject{{"showMedia", true},
+                                 {"quickControls", true},
+                                 {"calendarImage", ""},
+                                 {"shortcuts", QJsonArray{"files", "terminal", "settings"}}};
         }
         modules[id] = QJsonObject{
             {"enabled", true},
@@ -64,6 +70,19 @@ bool keysAllowed(const QJsonObject& object, const QStringList& keys) {
 bool integer(const QJsonValue& value, int low, int high) {
     const double n = value.toDouble(-1);
     return value.isDouble() && std::isfinite(n) && std::floor(n) == n && n >= low && n <= high;
+}
+
+bool validOverviewShortcuts(const QJsonValue& value) {
+    if (!value.isArray() || value.toArray().size() > 6)
+        return false;
+    const QStringList allowed{"files", "terminal", "settings", "monitor", "network", "plugins"};
+    QSet<QString> seen;
+    for (const auto& item : value.toArray()) {
+        if (!item.isString() || !allowed.contains(item.toString()) || seen.contains(item.toString()))
+            return false;
+        seen.insert(item.toString());
+    }
+    return true;
 }
 } // namespace
 
@@ -142,7 +161,7 @@ bool validateModuleDocument(const QByteArray& text, QJsonObject* normalized, QSt
             if (!source.value("config").isObject())
                 return fail(error, "Module config must be an object: " + id);
             const auto changes = source.value("config").toObject();
-            if (id != "launcher" && id != "panel" && !changes.isEmpty())
+            if (id != "launcher" && id != "panel" && id != "overview" && !changes.isEmpty())
                 return fail(error, "This module does not have module-specific config fields.");
             auto config = module.value("config").toObject();
             if (id == "launcher") {
@@ -180,6 +199,24 @@ bool validateModuleDocument(const QByteArray& text, QJsonObject* normalized, QSt
                 }
                 if (config.value("workspaceActiveWidth").toInt() < config.value("workspaceInactiveWidth").toInt())
                     return fail(error, "Active workspace pill must be at least as wide as an inactive pill.");
+            } else if (id == "overview") {
+                if (!keysAllowed(changes, {"showMedia", "quickControls", "calendarImage", "shortcuts"}))
+                    return fail(error, "Unknown overview config field.");
+                for (auto field = changes.begin(); field != changes.end(); ++field) {
+                    const auto key = field.key();
+                    const auto value = field.value();
+                    bool valid = false;
+                    if (key == "showMedia" || key == "quickControls") valid = value.isBool();
+                    else if (key == "calendarImage") {
+                        const QString image = value.toString();
+                        valid = value.isString() && image.size() <= 4096 &&
+                                (image.isEmpty() || (image.startsWith("file://") &&
+                                 QRegularExpression("\\.(?:png|jpe?g|webp|gif)$", QRegularExpression::CaseInsensitiveOption)
+                                     .match(image).hasMatch()));
+                    } else if (key == "shortcuts") valid = validOverviewShortcuts(value);
+                    if (!valid) return fail(error, "Invalid overview config field: " + key);
+                    config[key] = value;
+                }
             }
             module["config"] = config;
         }
