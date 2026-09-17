@@ -36,6 +36,24 @@ Rectangle {
         }
     }
 
+    Image {
+        id: artworkBackdrop
+        anchors.fill: parent
+        source: card.media.artUrl || ""
+        fillMode: Image.PreserveAspectCrop
+        asynchronous: true
+        cache: false
+        opacity: card.media.available && status === Image.Ready ? 0.18 : 0
+        visible: opacity > 0
+        Behavior on opacity { NumberAnimation { duration: Theme.motion } }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b,
+                       artworkBackdrop.visible ? 0.58 : 0.0)
+    }
+
     RowLayout {
         anchors.fill: parent
         anchors.margins: 12
@@ -52,8 +70,8 @@ Rectangle {
                 id: artwork
                 anchors.fill: parent
                 source: card.media.artUrl || ""
-                sourceSize.width: Math.max(160, width * 2)
-                sourceSize.height: Math.max(160, height * 2)
+                sourceSize.width: Math.max(240, width * 2)
+                sourceSize.height: Math.max(240, height * 2)
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: false
