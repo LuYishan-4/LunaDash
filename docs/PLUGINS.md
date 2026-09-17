@@ -62,6 +62,6 @@ For backward compatibility, LunaDash also accepts the older KDE-inspired metadat
 
 Native plugins are discovered from `~/.local/share/ludash/plugins/<id>/`, `$prefix/share/ludash/plugins/<id>/`, and `plugins/` next to the executable. Derive the C++ class from `QObject` and `LuDash::CompositorPlugin`. Implement `windowOpened(QQuickItem*)` and `windowFocused(QQuickItem*)`, embed matching metadata using `Q_PLUGIN_METADATA`, and declare the interface with `Q_INTERFACES`. Use `QPointer<QQuickItem>` if retaining a window reference.
 
-The native example is in `include/LuDash/fade_plugin/FadePlugin.h`, `src/fade_plugin/FadePlugin.cpp`, and `data/plugins/fade/metadata.json`. It builds into `build/plugins/org.ludash.fade/`.
+The native example is in `src/compositor/plugins/FadePlugin/FadePlugin.hpp`, `src/compositor/plugins/FadePlugin/FadePlugin.cpp`, and `data/plugins/fade/metadata.json`. It builds into `build/plugins/org.ludash.fade/`.
 
 The loader validates JSON size, ID, API/type, canonical entry paths, and the Qt plugin IID for native effects. There is currently no signing or sandbox for C++ effects, so enabling one explicitly trusts its native code.

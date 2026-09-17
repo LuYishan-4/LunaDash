@@ -154,7 +154,7 @@ def page_files():
 
 
 def declared_control_methods():
-    source = (repo / "src/compositor/WaylandCompositor.cpp").read_text(encoding="utf-8")
+    source = (repo / "src/compositor/WaylandCompositor/WaylandCompositor.cpp").read_text(encoding="utf-8")
     return set(re.findall(r'method == "([a-z0-9-]+)"', source))
 
 

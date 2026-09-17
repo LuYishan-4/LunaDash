@@ -1,7 +1,7 @@
-#include <LuDash/file_associations/FileAssociations.h>
-#include <LuDash/file_association_ui/FileAssociationUi.h>
-#include <LuDash/file_manager/FileManager.h>
-#include <LuDash/file_operations/FileOperations.h>
+#include "desktop/FileAssociations/FileAssociations.hpp"
+#include "desktop/FileAssociationUi/FileAssociationUi.hpp"
+#include "desktop/FileManager/FileManager.hpp"
+#include "desktop/FileOperations/FileOperations.hpp"
 #include <QtTest>
 #include <QtWidgets>
 #include <QTemporaryDir>

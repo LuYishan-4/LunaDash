@@ -8,7 +8,7 @@ LunaDash uses C11 for independent low-level work and C++20 for Qt/Wayland object
 | `tiling_core` | Compute one full-height rectangle per horizontal column into a caller-owned buffer, validate sizes and prevent arithmetic overflow | `tiling` converts QRect/QList values |
 | `system_metrics` | Parse bounded CPU/memory records, reject counter overflow and calculate percentages | `system_status` and `system_monitor` read files and present results |
 
-C functions use the `ludash_` prefix. C types use `LuDash` names, and headers expose C linkage inside namespace `LuDash` when included from C++. Each module has matching `include/LuDash/<feature>/` and `src/<feature>/` directories. Headers declare the API; implementation stays in `.c`. CMake lists every source explicitly.
+C functions use the `ludash_` prefix. C types use `LuDash` names, and headers expose C linkage inside namespace `LuDash` when included from C++. C interfaces and implementations are colocated in `src/compositor/render/`, `src/compositor/tiling/`, or `src/compositor/` as appropriate; implementation stays in `.c`. CMake lists every source explicitly.
 
 The renderer receives a function resolver from the active Qt OpenGL context. It does not create a second context or call a different GL implementation. The same C functions are tested against OpenGL 3.3 Core, OpenGL 3.3 compatibility and OpenGL ES 3.0+. The compositor requests compatibility on desktop GL so Qt can also render its legacy external-texture material. Shader resources receive the appropriate GLSL version/precision prefix in the adapter.
 

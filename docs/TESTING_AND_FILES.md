@@ -321,7 +321,7 @@ Generated build output, dependency caches, source archives and Git internals are
 | [src/blur/BlurGeometry.cpp](../src/blur/BlurGeometry.cpp) | Implement behavior to clip finite blur capture coordinates before integer conversion. |
 | [src/blur/BlurItem.cpp](../src/blur/BlurItem.cpp) | Implement behavior to synchronize application blur properties into the scene graph. |
 | [src/blur/BlurNode.cpp](../src/blur/BlurNode.cpp) | Implement behavior to bridge Qt scene graph state and the C blur renderer. |
-| [src/compositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
+| [src/compositor/WaylandCompositor/WaylandCompositor.cpp](../src/compositor/WaylandCompositor/WaylandCompositor.cpp) | Implement behavior to own Wayland clients, workspaces, process lifetimes and control commands. |
 | [src/compositor_extensions/ProtocolExtensions.cpp](../src/compositor_extensions/ProtocolExtensions.cpp) | Announce xdg-output with an object per output plus idle-inhibit, and keep the logical size current. |
 | [src/configuration/DesktopPreferences.cpp](../src/configuration/DesktopPreferences.cpp) | Implement behavior to validate and persist appearance and first-run completion. |
 | [src/console/Console.cpp](../src/console/Console.cpp) | Implement behavior to run bounded shell commands with process-group cleanup. |

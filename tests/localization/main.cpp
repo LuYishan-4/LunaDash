@@ -1,5 +1,5 @@
-#include <LuDash/localization/JsonTranslator.h>
-#include <LuDash/localization/Localization.h>
+#include "config/JsonTranslator/JsonTranslator.hpp"
+#include "config/Localization/Localization.hpp"
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
