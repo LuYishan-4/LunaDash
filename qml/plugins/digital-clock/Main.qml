@@ -11,9 +11,8 @@ Item {
 
     readonly property var appearance: shell ? (shell.state.appearance || {}) : ({})
     readonly property color accent: appearance.accent || "#9ccbfb"
-    readonly property color primary: Qt.lighter(accent, 1.08)
-    readonly property color secondary: Qt.lighter(accent, 1.35)
-    readonly property color surface: Qt.rgba(0.055, 0.075, 0.12, 0.78)
+    readonly property color primary: Qt.lighter(accent, 1.06)
+    readonly property color secondary: Qt.lighter(accent, 1.42)
     readonly property string uiFont: appearance.fontFamily || Qt.application.font.family
     property date now: new Date()
 
@@ -26,48 +25,99 @@ Item {
     }
 
     PanelWindow {
-        anchors.left: true
-        anchors.top: true
-        margins.left: Math.max(24, Math.round(((screen ? screen.width : 1440) - implicitWidth) / 2))
-        margins.top: Math.max(80, Math.round(((screen ? screen.height : 900) - implicitHeight) / 2))
-        implicitWidth: 500
-        implicitHeight: 164
+        anchors.right: true
+        anchors.bottom: true
+        margins.right: 34
+        margins.bottom: 34
+        implicitWidth: 405
+        implicitHeight: 112
         exclusiveZone: 0
         color: "transparent"
         WlrLayershell.layer: WlrLayer.Bottom
         WlrLayershell.namespace: "lunadash-plugin-digital-clock"
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-        Rectangle {
+        RowLayout {
             anchors.fill: parent
-            radius: 30
-            color: plugin.surface
-            border.width: 1
-            border.color: Qt.rgba(plugin.accent.r, plugin.accent.g, plugin.accent.b, 0.30)
+            spacing: 17
 
             RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 30
-                anchors.rightMargin: 30
-                anchors.topMargin: 24
-                anchors.bottomMargin: 24
-                spacing: 24
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 3
 
-                RowLayout {
-                    spacing: 4
-                    Text { text: Qt.formatDateTime(plugin.now, "HH"); color: plugin.primary; font.family: plugin.uiFont; font.pixelSize: 72; font.weight: Font.Bold }
-                    Text { text: ":"; color: plugin.accent; opacity: 0.78; font.family: plugin.uiFont; font.pixelSize: 68; Layout.alignment: Qt.AlignTop; Layout.topMargin: -5 }
-                    Text { text: Qt.formatDateTime(plugin.now, "mm"); color: plugin.secondary; font.family: plugin.uiFont; font.pixelSize: 72; font.weight: Font.Bold }
+                Text {
+                    text: Qt.formatDateTime(plugin.now, "HH")
+                    color: plugin.primary
+                    style: Text.Outline
+                    styleColor: Qt.rgba(0, 0, 0, 0.38)
+                    font.family: plugin.uiFont
+                    font.pixelSize: 62
+                    font.weight: Font.Bold
                 }
+                Text {
+                    text: ":"
+                    color: plugin.accent
+                    opacity: 0.92
+                    style: Text.Outline
+                    styleColor: Qt.rgba(0, 0, 0, 0.30)
+                    font.family: plugin.uiFont
+                    font.pixelSize: 56
+                    font.weight: Font.DemiBold
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.topMargin: -5
+                }
+                Text {
+                    text: Qt.formatDateTime(plugin.now, "mm")
+                    color: plugin.primary
+                    style: Text.Outline
+                    styleColor: Qt.rgba(0, 0, 0, 0.38)
+                    font.family: plugin.uiFont
+                    font.pixelSize: 62
+                    font.weight: Font.Bold
+                }
+            }
 
-                Rectangle { Layout.fillHeight: true; Layout.preferredWidth: 4; Layout.topMargin: 8; Layout.bottomMargin: 8; radius: 2; color: plugin.accent; opacity: 0.72 }
+            Rectangle {
+                Layout.preferredWidth: 2
+                Layout.preferredHeight: 72
+                Layout.alignment: Qt.AlignVCenter
+                radius: 1
+                color: Qt.rgba(0.92, 0.42, 0.48, 0.78)
+            }
 
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-                    Text { text: Qt.formatDateTime(plugin.now, "MMMM").toUpperCase(); color: plugin.secondary; font.family: plugin.uiFont; font.pixelSize: 16; font.weight: Font.Bold; font.letterSpacing: 3 }
-                    Text { text: Qt.formatDateTime(plugin.now, "dd"); color: plugin.primary; font.family: plugin.uiFont; font.pixelSize: 35; font.weight: Font.DemiBold; font.letterSpacing: 2 }
-                    Text { text: Qt.formatDateTime(plugin.now, "dddd"); color: plugin.secondary; font.family: plugin.uiFont; font.pixelSize: 14; font.letterSpacing: 1.5 }
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+                spacing: -1
+
+                Text {
+                    text: Qt.formatDateTime(plugin.now, "MMMM").toUpperCase()
+                    color: plugin.secondary
+                    style: Text.Outline
+                    styleColor: Qt.rgba(0, 0, 0, 0.30)
+                    font.family: plugin.uiFont
+                    font.pixelSize: 14
+                    font.weight: Font.Bold
+                    font.letterSpacing: 3.2
+                }
+                Text {
+                    text: Qt.formatDateTime(plugin.now, "dd")
+                    color: plugin.primary
+                    style: Text.Outline
+                    styleColor: Qt.rgba(0, 0, 0, 0.32)
+                    font.family: plugin.uiFont
+                    font.pixelSize: 24
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.5
+                }
+                Text {
+                    text: Qt.formatDateTime(plugin.now, "dddd")
+                    color: plugin.secondary
+                    style: Text.Outline
+                    styleColor: Qt.rgba(0, 0, 0, 0.28)
+                    font.family: plugin.uiFont
+                    font.pixelSize: 13
+                    font.letterSpacing: 1.3
                 }
             }
         }
