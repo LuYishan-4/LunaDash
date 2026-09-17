@@ -18,8 +18,9 @@ ModuleSurface {
     visible: running
 
     property bool running: false
-    property int previousWorkspace: -1
+    property int previousWorkspace: shell.state.workspace ?? 0
     property int targetWorkspace: shell.state.workspace ?? 0
+    property int pendingWorkspace: -1
     property int direction: 1
     property real phase: 0
     readonly property var panelModule: (((shell.state.shellModules || {}).modules || {}).panel || ({}))
@@ -29,26 +30,26 @@ ModuleSurface {
     readonly property real pulse: Math.sin(Math.PI * Math.min(1, phase))
     readonly property real reveal: Math.sin(Math.PI * Math.min(1, phase * 0.82))
 
-    function replay() {
-        if (!enabledTransition)
+    function playTo(workspace) {
+        if (workspace === previousWorkspace)
             return
-        sequence.stop()
-        phase = 0
-        running = true
-        sequence.start()
-    }
-
-    onTargetWorkspaceChanged: {
-        if (previousWorkspace < 0) {
-            previousWorkspace = targetWorkspace
+        direction = workspace > previousWorkspace ? 1 : -1
+        previousWorkspace = workspace
+        if (!enabledTransition) {
+            running = false
+            phase = 0
             return
         }
-        if (previousWorkspace === targetWorkspace)
+        if (running) {
+            pendingWorkspace = workspace
             return
-        direction = targetWorkspace > previousWorkspace ? 1 : -1
-        previousWorkspace = targetWorkspace
-        replay()
+        }
+        phase = 0
+        running = true
+        sequence.restart()
     }
+
+    onTargetWorkspaceChanged: playTo(targetWorkspace)
 
     Rectangle {
         anchors.fill: parent
@@ -155,6 +156,13 @@ ModuleSurface {
         onFinished: {
             overlay.phase = 0
             overlay.running = false
+            if (overlay.pendingWorkspace >= 0 && overlay.pendingWorkspace !== overlay.previousWorkspace) {
+                const next = overlay.pendingWorkspace
+                overlay.pendingWorkspace = -1
+                Qt.callLater(function() { overlay.playTo(next) })
+            } else {
+                overlay.pendingWorkspace = -1
+            }
         }
     }
 }
