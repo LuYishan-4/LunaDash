@@ -18,6 +18,7 @@ ModuleSurface {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "lunadash-wifi-popup"
+    WlrLayershell.keyboardFocus: opened && passwordPage ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
 
     readonly property var network: shell.state.network || ({})
@@ -67,7 +68,12 @@ ModuleSurface {
         password.text = ""
         if (networkNeedsPassword(entry)) {
             passwordPage = true
-            Qt.callLater(() => password.forceActiveFocus())
+            Qt.callLater(function() {
+                if (!popup.opened || !popup.passwordPage)
+                    return
+                password.forceActiveFocus(Qt.OtherFocusReason)
+                password.prepareInputMethod()
+            })
         } else {
             action({action:"wifi-connect", ssid:String(entry.ssid || ""), password:""})
         }
