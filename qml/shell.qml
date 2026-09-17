@@ -35,6 +35,7 @@ ShellRoot {
     property bool pickerOpen: false
     property string pickerPurpose: "wallpaper"
     property string pendingWallpaper: ""
+    property string wallpaperOverride: ""
     property bool calendarOpen: false
     property bool usbPopupOpen: false
     property bool volumePopupOpen: false
@@ -181,7 +182,23 @@ ShellRoot {
     Process {
         id: action
         property var queue: []
-        stdout: StdioCollector { onStreamFinished: { try { const result=JSON.parse(text); if(result.error){root.errorMessage=root.tr(result.error);root.notify(root.tr("System action failed"),root.tr(result.error),"error",result.error)} root.commandCompleted(action.command[1],result) } catch(error){root.errorMessage="Could not contact the desktop."} } }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const result = JSON.parse(text)
+                    const method = action.command[1]
+                    if (result.error) {
+                        if (method === "wallpaper-image" || method === "wallpaper-default")
+                            root.wallpaperOverride = ""
+                        root.errorMessage = root.tr(result.error)
+                        root.notify(root.tr("System action failed"), root.tr(result.error), "error", result.error)
+                    }
+                    root.commandCompleted(method, result)
+                } catch(error) {
+                    root.errorMessage = "Could not contact the desktop."
+                }
+            }
+        }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
 
@@ -216,7 +233,25 @@ ShellRoot {
     Process {
         id: status
         command: [root.controlExecutable, "status"]
-        stdout: StdioCollector { onStreamFinished: { if(!text.trim())return;try{const result=JSON.parse(text);if(result.error)return;root.state=result;if(result.shutdown&&!root.stopping){Theme.animations=false;root.stopping=true;shutdownTimer.start()}}catch(error){console.warn(error)} } }
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!text.trim()) return
+                try {
+                    const result = JSON.parse(text)
+                    if (result.error) return
+                    root.state = result
+                    if (root.wallpaperOverride.length && String(result.wallpaperImage || "") === root.wallpaperOverride)
+                        root.wallpaperOverride = ""
+                    if (result.shutdown && !root.stopping) {
+                        Theme.animations = false
+                        root.stopping = true
+                        shutdownTimer.start()
+                    }
+                } catch(error) {
+                    console.warn(error)
+                }
+            }
+        }
     }
 
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
