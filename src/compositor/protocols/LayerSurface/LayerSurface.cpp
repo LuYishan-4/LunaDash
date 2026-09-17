@@ -5,6 +5,7 @@
 #include <QtWaylandCompositor/QWaylandQuickOutput>
 #include <QtWaylandCompositor/QWaylandQuickItem>
 #include <QtWaylandCompositor/QWaylandSurface>
+#include <QtWaylandCompositor/QWaylandSeat>
 #include <QtWaylandCompositor/QWaylandXdgShell>
 #include <wayland-server-core.h>
 #include "wlr-layer-shell-server.h"
@@ -21,9 +22,18 @@ LayerSurface::LayerSurface(LayerShell* shell, wl_resource* resource, QWaylandSur
     connect(surface, &QWaylandSurface::redraw, this, [this] {
         configure();
         const bool visible = surface_ && surface_->hasContent() && acknowledged_;
-        const bool newlyMapped = visible && !item_->isVisible();
         item_->setVisible(visible);
-        if (newlyMapped && keyboard_ == 1) item_->takeFocus();
+        auto *seat = shell_->compositor_->defaultSeat();
+        if (visible && keyboard_ == 1) {
+            // Layer-shell keyboard interactivity can change while the surface
+            // remains mapped. Reassert the surface-level focus on redraw so a
+            // newly focused QML TextField does not have to wait for another
+            // physical key event before the client receives keyboard input.
+            if (!seat || seat->keyboardFocus() != surface_)
+                item_->takeFocus();
+        } else if (!visible && seat && seat->keyboardFocus() == surface_) {
+            seat->setKeyboardFocus(nullptr);
+        }
     });
     connect(surface, &QObject::destroyed, this, [this] { if (resource_) wl_resource_destroy(resource_); });
 }
@@ -67,7 +77,30 @@ void LayerSurface::setMargin(wl_client*, wl_resource* resource, int32_t top, int
 }
 void LayerSurface::setKeyboard(wl_client*, wl_resource* resource, uint32_t keyboard) {
     if (keyboard > 1) { wl_resource_post_error(resource, 0, "Unsupported keyboard interactivity"); return; }
-    get(resource)->keyboard_ = keyboard; get(resource)->item_->setFocusOnClick(keyboard != 0);
+    auto *surface = get(resource);
+    if (!surface) return;
+    surface->keyboard_ = keyboard;
+    surface->item_->setFocusOnClick(keyboard != 0);
+
+    auto *seat = surface->shell_->compositor_->defaultSeat();
+    if (keyboard == 0) {
+        if (seat && seat->keyboardFocus() == surface->surface_)
+            seat->setKeyboardFocus(nullptr);
+        return;
+    }
+
+    // Quickshell commonly switches None -> Exclusive without remapping the
+    // layer surface. Focus it immediately instead of waiting for the next
+    // redraw/key event. The zero-delay callback also lets the client's commit
+    // containing keyboard_interactivity finish first.
+    QTimer::singleShot(0, surface, [surface] {
+        if (!surface->resource_ || !surface->surface_ || !surface->item_ ||
+            !surface->item_->isVisible() || surface->keyboard_ != 1)
+            return;
+        auto *seat = surface->shell_->compositor_->defaultSeat();
+        if (!seat || seat->keyboardFocus() != surface->surface_)
+            surface->item_->takeFocus();
+    });
 }
 void LayerSurface::getPopup(wl_client*, wl_resource* resource, wl_resource*) {
     wl_resource_post_error(resource, 0, "Layer popups are not supported; use an overlay layer");
