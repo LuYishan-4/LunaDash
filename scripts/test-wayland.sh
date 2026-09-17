@@ -21,6 +21,13 @@ rm -f -- "$build_dir/$evidence_name-preview.png" "$build_dir/$evidence_name-stat
 runtime_dir=$(mktemp -d)
 chmod 700 "$runtime_dir"
 mkdir -p "$runtime_dir/config"
+# This fixture tests normal tiled application windows, not first-use dialogs.
+# A modal Files welcome intentionally overlaps its parent and would invalidate
+# the non-overlap assertions below. Seed only this disposable configuration;
+# tests/files/FileManagerTests.cpp exercises real first-run and chooser flows.
+mkdir -p "$runtime_dir/config/LunaDash"
+printf '%s\n' '{"version":1,"initialized":true,"askOnFirstOpen":true,"associations":{}}' \
+  > "$runtime_dir/config/LunaDash/file-associations.json"
 if [ "${LUDASH_TEST_OVERVIEW:-0}" = 1 ]; then
   mkdir -p "$runtime_dir/config/LuDash"
   printf '[desktop]\noverview=true\nshowHostDetails=false\n' > "$runtime_dir/config/LuDash/LuDash.conf"
