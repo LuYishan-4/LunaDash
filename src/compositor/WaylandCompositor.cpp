@@ -2,6 +2,8 @@
 #include <LuDash/audio_settings/AudioSettings.h>
 #include <LuDash/blur/BlurItem.h>
 #include <LuDash/compositor/ClientWindow.h>
+#include <LuDash/compositor/LuDashUtils.h>
+#include <LuDash/compositor/ResizeGuideItem.h>
 #include <LuDash/compositor/WaylandCompositor.h>
 #include <LuDash/compositor_extensions/ProtocolExtensions.h>
 #include <LuDash/configuration/DesktopPreferences.h>
@@ -67,116 +69,8 @@
 #include <optional>
 
 namespace LuDash {
-namespace {
-std::optional<int> jsonWindowId(const QJsonValue &value) {
-  if (!value.isDouble())
-    return std::nullopt;
-  const double number = value.toDouble();
-  if (!std::isfinite(number) || std::floor(number) != number || number < 1 ||
-      number > std::numeric_limits<int>::max())
-    return std::nullopt;
-  return static_cast<int>(number);
-}
 
-std::optional<int> textWindowId(const QString &value) {
-  if (value.isEmpty() || value.size() > 10 || value.front() == '0')
-    return std::nullopt;
-  qint64 result = 0;
-  for (const QChar character : value) {
-    if (character < '0' || character > '9')
-      return std::nullopt;
-    result = result * 10 + character.digitValue();
-    if (result > std::numeric_limits<int>::max())
-      return std::nullopt;
-  }
-  return static_cast<int>(result);
-}
-
-bool groupWindowIds(const QString &value, int *window, int *target) {
-  if (value.size() > 256 || value.toUtf8().size() > 256)
-    return false;
-  QJsonParseError parseError;
-  const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
-  if (parseError.error != QJsonParseError::NoError || !document.isObject())
-    return false;
-  const auto object = document.object();
-  if (object.size() != 2 || !object.contains("window") ||
-      !object.contains("target"))
-    return false;
-  const auto parsedWindow = jsonWindowId(object.value("window"));
-  const auto parsedTarget = jsonWindowId(object.value("target"));
-  if (!parsedWindow || !parsedTarget || *parsedWindow == *parsedTarget)
-    return false;
-  *window = *parsedWindow;
-  *target = *parsedTarget;
-  return true;
-}
-
-QString clipboardBridgePath() {
-  const QString beside = QCoreApplication::applicationDirPath() +
-                         QStringLiteral("/lunadash-clipboard-bridge");
-  if (QFileInfo::exists(beside))
-    return beside;
-  const QString installed = QStandardPaths::findExecutable(
-      QStringLiteral("lunadash-clipboard-bridge"));
-  if (!installed.isEmpty())
-    return installed;
-  const QString source = QStringLiteral(LUDASH_SCRIPT_SOURCE_DIR) +
-                         QStringLiteral("/lunadash-clipboard-bridge");
-  return QFileInfo::exists(source) ? source : QString();
-}
-
-bool isUtilityWindow(const QString &appId) {
-  return appId == QLatin1String("io.github.bugaevc.wl-clipboard") ||
-         appId == QLatin1String("org.freedesktop.Xwayland");
-}
-
-bool isChromiumApplication(const QString &program) {
-  const auto name = QFileInfo(program).fileName().toLower();
-  return name == "chrome" || name == "google-chrome" ||
-         name == "google-chrome-stable" || name == "chromium" ||
-         name == "chromium-browser" || name == "microsoft-edge" ||
-         name == "brave" || name == "vivaldi" || name == "opera";
-}
-
-void ensureWaylandChromiumFlags(QStringList &command) {
-  if (!command.contains("--ozone-platform=wayland"))
-    command.append("--ozone-platform=wayland");
-  if (!command.contains("--enable-features=UseOzonePlatform"))
-    command.append("--enable-features=UseOzonePlatform");
-}
-} // namespace
-
-class ResizeGuideItem final : public QQuickPaintedItem {
-public:
-  explicit ResizeGuideItem(QQuickItem *parent) : QQuickPaintedItem(parent) {
-    setAcceptedMouseButtons(Qt::NoButton);
-    setVisible(false);
-    setZ(900);
-  }
-
-  void setGuide(const QRect &geometry, const QColor &color) {
-    accent_ = color;
-    setPosition(geometry.topLeft());
-    setSize(geometry.size());
-    update();
-  }
-
-  void paint(QPainter *painter) override {
-    painter->setRenderHint(QPainter::Antialiasing, true);
-    QColor fill = accent_;
-    fill.setAlphaF(0.08);
-    painter->setBrush(fill);
-    QPen pen(accent_);
-    pen.setWidthF(2.0);
-    pen.setStyle(Qt::DashLine);
-    painter->setPen(pen);
-    painter->drawRoundedRect(boundingRect().adjusted(2, 2, -2, -2), 14, 14);
-  }
-
-private:
-  QColor accent_ = QColor("#9ccbfb");
-};
+using namespace LuDash::Utils;
 
 WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell, GraphicsApi graphics) {
@@ -1239,8 +1133,9 @@ void WaylandCompositor::beginInteractiveResize(ClientWindow *client,
         !entry->floating && entry->workspace == workspace_)
       ++visibleTiled;
   if (resizeGuide_ && visibleTiled > 1) {
-    resizeGuide_->setGuide(resizeGuideGeometry_,
-                           QColor(desktopPreferences().value("accent").toString()));
+    resizeGuide_->setGuide(
+        resizeGuideGeometry_,
+        QColor(desktopPreferences().value("accent").toString()));
     resizeGuide_->setVisible(true);
   }
   focus(client);
@@ -1254,21 +1149,28 @@ void WaylandCompositor::updateInteractiveResize(const QPointF &position) {
   const int minimumWidth = 180;
   const int minimumHeight = 120;
   int width = std::max(minimumWidth, resizeStartGeometry_.width() + delta.x());
-  int height = std::max(minimumHeight, resizeStartGeometry_.height() + delta.y());
-  width = std::min(width, std::max(minimumWidth, area.right() - resizeStartGeometry_.x() + 1));
-  height = std::min(height, std::max(minimumHeight, area.bottom() - resizeStartGeometry_.y() + 1));
+  int height =
+      std::max(minimumHeight, resizeStartGeometry_.height() + delta.y());
+  width =
+      std::min(width, std::max(minimumWidth,
+                               area.right() - resizeStartGeometry_.x() + 1));
+  height =
+      std::min(height, std::max(minimumHeight,
+                                area.bottom() - resizeStartGeometry_.y() + 1));
   QRect desired(resizeStartGeometry_.topLeft(), QSize(width, height));
   resizing_->manualResize = true;
   resizing_->manualGeometry = desired;
 
   if (!resizing_->floating && !resizeOriginalWidths_.isEmpty()) {
-    for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+    for (auto it = resizeOriginalWidths_.cbegin();
+         it != resizeOriginalWidths_.cend(); ++it)
       tiling_.resize(it.key(), it.value());
 
     if (width > resizeGuideGeometry_.width()) {
       const int requestedExtra = width - resizeGuideGeometry_.width();
       int totalAvailable = 0;
-      for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+      for (auto it = resizeOriginalWidths_.cbegin();
+           it != resizeOriginalWidths_.cend(); ++it)
         if (it.key() != resizing_->id)
           totalAvailable += std::max(0, it.value() - minimumWidth);
       const int appliedExtra = std::min(requestedExtra, totalAvailable);
@@ -1278,19 +1180,20 @@ void WaylandCompositor::updateInteractiveResize(const QPointF &position) {
       if (appliedExtra > 0 && totalAvailable > 0) {
         int remaining = appliedExtra;
         QList<int> neighbours;
-        for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+        for (auto it = resizeOriginalWidths_.cbegin();
+             it != resizeOriginalWidths_.cend(); ++it)
           if (it.key() != resizing_->id && it.value() > minimumWidth)
             neighbours.append(it.key());
         for (qsizetype index = 0; index < neighbours.size(); ++index) {
           const int id = neighbours[index];
           const int original = resizeOriginalWidths_.value(id);
           const int available = std::max(0, original - minimumWidth);
-          const int shrink = index + 1 == neighbours.size()
-                                 ? remaining
-                                 : std::min(remaining,
-                                            static_cast<int>(std::round(
-                                                static_cast<double>(appliedExtra) *
-                                                available / totalAvailable)));
+          const int shrink =
+              index + 1 == neighbours.size()
+                  ? remaining
+                  : std::min(remaining, static_cast<int>(std::round(
+                                            static_cast<double>(appliedExtra) *
+                                            available / totalAvailable)));
           tiling_.resize(id, std::max(minimumWidth, original - shrink));
           remaining -= shrink;
         }
@@ -1303,7 +1206,8 @@ void WaylandCompositor::updateInteractiveResize(const QPointF &position) {
 void WaylandCompositor::restoreResizeGuide(ClientWindow *client) {
   if (!client)
     return;
-  for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+  for (auto it = resizeOriginalWidths_.cbegin();
+       it != resizeOriginalWidths_.cend(); ++it)
     tiling_.resize(it.key(), it.value());
   client->manualResize = false;
   client->manualGeometry = {};
@@ -1419,9 +1323,8 @@ void WaylandCompositor::arrange() {
     } else {
       if (!client->resizeGuideGeometry.isValid())
         client->resizeGuideGeometry = placement.geometry;
-      QRect manual = client->manualGeometry.isValid()
-                         ? client->manualGeometry
-                         : placement.geometry;
+      QRect manual = client->manualGeometry.isValid() ? client->manualGeometry
+                                                      : placement.geometry;
       manual.moveLeft(placement.geometry.x());
       manual.moveTop(placement.geometry.y());
       client->manualGeometry = manual;
@@ -1505,10 +1408,10 @@ ClientWindow *WaylandCompositor::clientAt(const QPointF &position) const {
 }
 
 bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
-  if (watched == &window_ &&
-      (event->type() == QEvent::MouseMove || event->type() == QEvent::HoverMove ||
-       event->type() == QEvent::MouseButtonPress ||
-       event->type() == QEvent::MouseButtonRelease)) {
+  if (watched == &window_ && (event->type() == QEvent::MouseMove ||
+                              event->type() == QEvent::HoverMove ||
+                              event->type() == QEvent::MouseButtonPress ||
+                              event->type() == QEvent::MouseButtonRelease)) {
     auto *mouse = static_cast<QMouseEvent *>(event);
     pointerPosition_ = mouse->position();
     if (event->type() == QEvent::MouseButtonPress &&
@@ -1652,7 +1555,8 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
         target = focused_;
       if (target) {
         if (target->manualResize) {
-          for (auto it = resizeOriginalWidths_.cbegin(); it != resizeOriginalWidths_.cend(); ++it)
+          for (auto it = resizeOriginalWidths_.cbegin();
+               it != resizeOriginalWidths_.cend(); ++it)
             tiling_.resize(it.key(), it.value());
           target->manualResize = false;
           target->manualGeometry = {};
