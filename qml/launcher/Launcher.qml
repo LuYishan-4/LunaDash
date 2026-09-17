@@ -44,6 +44,7 @@ ModuleSurface {
         if (!opened)
             return
         search.forceActiveFocus(Qt.PopupFocusReason)
+        search.prepareInputMethod()
         search.selectAll()
     }
 
