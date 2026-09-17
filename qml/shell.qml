@@ -150,7 +150,6 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: updateAction.output = text.trim() }
         stderr: StdioCollector { onStreamFinished: updateAction.errorOutput = text.trim() }
         onExited: (exitCode, exitStatus) => {
-            // Keep diagnostic output intact in details, not as the UI summary.
             const detail = [updateAction.errorOutput, updateAction.output].filter(Boolean).join("\n")
             const rollback = updateAction.command[1] === "--rollback"
             if (exitCode === 0)
@@ -179,5 +178,6 @@ ShellRoot {
     X11Launcher { shell: root; opened: !root.stopping && root.x11Open }
     Message { shell: root; opened: !root.stopping && root.errorMessage.length > 0 }
     NotificationToast { shell: root; opened: !root.stopping && root.notificationVisible }
+    WorkspaceTransition { shell: root; opened: !root.stopping }
     StartupLogoOverlay { shell: root; opened: !root.stopping && root.startupLogoVisible; onFinished: root.startupLogoVisible = false }
 }
