@@ -33,6 +33,7 @@ ShellRoot {
     property bool launcherOpen: false
     property bool settingsOpen: false
     property bool pickerOpen: false
+    property string pickerPurpose: "wallpaper"
     property string pendingWallpaper: ""
     property bool calendarOpen: false
     property bool usbPopupOpen: false
@@ -149,7 +150,7 @@ ShellRoot {
 
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
-        if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; settingsCenter.showCategory("appearance"); settingsOpen = true; pickerOpen = true }
+        if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; settingsCenter.showCategory("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
         Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
         Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
