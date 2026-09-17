@@ -22,6 +22,7 @@ QJsonObject defaults() {
             {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false}, {"altMouseResize", true},
             {"keyboardLayout", "us"}, {"keyRepeatRate", 25}, {"keyRepeatDelay", 600}, {"cursorSize", 24},
             {"fontFamily", "sans-serif"}, {"clock24Hour", true}, {"startupApps", QJsonArray{}},
+            {"proxyEnabled", false}, {"proxyHttp", ""}, {"proxyHttps", ""}, {"proxySocks", ""}, {"proxyBypass", ""},
             {"overview", false}, {"showHostDetails", false}, {"updateChannel", "stable"}};
 }
 
@@ -109,10 +110,21 @@ QJsonArray pluginSnapshot() {
     return result;
 }
 
+bool validProxyText(const QJsonValue &value, bool url) {
+    if (!value.isString()) return false;
+    const QString text = value.toString();
+    if (text.size() > 512 || text.contains('\n') || text.contains('\r') || text.contains(QChar::Null)) return false;
+    if (!url || text.isEmpty()) return true;
+    const QUrl parsed(text);
+    return parsed.isValid() && QStringList{"http", "https", "socks", "socks5"}.contains(parsed.scheme().toLower());
+}
+
 bool valid(const QString& key, const QJsonValue& value) {
     if (key == "keyboardLayout") return value.isString() && QStringList{"us", "gb", "de", "fr", "es", "jp", "tw"}.contains(value.toString());
     if (key == "fontFamily") return value.isString() && QStringList{"sans-serif", "serif", "monospace"}.contains(value.toString());
     if (key == "updateChannel") return value.isString() && QStringList{"stable", "dev"}.contains(value.toString());
+    if (key == "proxyHttp" || key == "proxyHttps" || key == "proxySocks") return validProxyText(value, true);
+    if (key == "proxyBypass") return validProxyText(value, false);
     if (key == "startupApps") {
         if (!value.isArray() || value.toArray().size() > 4) return false;
         QSet<QString> seen;
@@ -128,7 +140,7 @@ bool valid(const QString& key, const QJsonValue& value) {
         return value.isDouble() && std::isfinite(number) && std::floor(number) == number && number >= range.first && number <= range.second;
     }
     if (key == "accent") return value.isString() && QRegularExpression("^#[0-9a-fA-F]{6}$").match(value.toString()).hasMatch();
-    if (key == "overview" || key == "showHostDetails" || key == "blur" || key == "animations" || key == "defaultFloating" || key == "altMouseResize" || key == "clock24Hour") return value.isBool();
+    if (key == "overview" || key == "showHostDetails" || key == "blur" || key == "animations" || key == "defaultFloating" || key == "altMouseResize" || key == "clock24Hour" || key == "proxyEnabled") return value.isBool();
     if (key == "gap" || key == "panelHeight" || key == "blurRadius" || key == "windowOpacity" || key == "animationDuration") {
         const double number = value.toDouble(-1);
         return value.isDouble() && std::isfinite(number) && std::floor(number) == number &&
