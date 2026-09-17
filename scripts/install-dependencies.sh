@@ -28,11 +28,12 @@ while (($#)); do
 done
 
 if ((EUID == 0)); then
-    echo 'Run as a normal user; privilege elevation is requested only for package installation.' >&2
-    exit 1
-fi
-
-if command -v sudo >/dev/null 2>&1; then
+    if [[ ${LUDASH_ALLOW_ROOT_DEPS:-0} != 1 ]]; then
+        echo 'Run as a normal user; privilege elevation is requested only for package installation.' >&2
+        exit 1
+    fi
+    elevate=()
+elif command -v sudo >/dev/null 2>&1; then
     elevate=(sudo)
 elif command -v doas >/dev/null 2>&1; then
     elevate=(doas)
