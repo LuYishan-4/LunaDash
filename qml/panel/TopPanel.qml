@@ -23,6 +23,10 @@ ModuleSurface {
 
     property var stats: shell.state.system || ({})
     readonly property var groups: ((shell.state.tiling || {}).groups || [])
+    readonly property var launcherModule: (((shell.state.shellModules || {}).modules || {}).launcher || ({}))
+    readonly property var launcherConfig: launcherModule.config || ({})
+    readonly property var launcherStyle: launcherModule.style || ({})
+    readonly property color launcherAccent: !launcherStyle.accent || launcherStyle.accent === "inherit" ? Theme.accent : launcherStyle.accent
     readonly property int focusedGroupIndex: {
         for (let index = 0; index < groups.length; ++index)
             if (groups[index].focused) return index
@@ -86,7 +90,7 @@ ModuleSurface {
         id: centerSelector
         anchors.centerIn: parent
         height: Math.max(28, panel.height - 6)
-        spacing: 2
+        spacing: 4
 
         PanelSegment {
             moduleHost: panel
@@ -95,28 +99,85 @@ ModuleSurface {
             Accessible.name: shell.tr("Overview")
             onClicked: shell.setAppearance({ overview: !shell.overviewOpen })
         }
-        Rectangle {
-            width: 54
+
+        Item {
+            id: launcherButton
+            readonly property int requestedSize: panel.launcherConfig.buttonSize ?? 38
+            readonly property real logoScale: (panel.launcherConfig.logoScale ?? 88) / 100.0
+            readonly property real backgroundOpacity: (panel.launcherConfig.backgroundOpacity ?? 18) / 100.0
+            readonly property bool glowEnabled: panel.launcherConfig.glow ?? true
+            readonly property bool orbitEnabled: panel.launcherConfig.orbit ?? true
+            readonly property real extent: Math.min(requestedSize, centerSelector.height)
+            width: Math.max(32, extent)
             height: centerSelector.height
-            radius: 4
-            color: Theme.accent
-            border.width: 1
-            border.color: Qt.lighter(Theme.accent, 1.18)
-            Text {
+            Accessible.role: Accessible.Button
+            Accessible.name: shell.tr("Applications")
+
+            Rectangle {
                 anchors.centerIn: parent
-                text: "Λ"
-                color: Theme.accentInk
-                font.pixelSize: 20
-                font.bold: true
+                width: launcherButton.extent + (launcherButton.glowEnabled ? 8 : 0)
+                height: width
+                radius: width / 2
+                color: "transparent"
+                border.width: launcherButton.glowEnabled ? 5 : 0
+                border.color: launcherButton.glowEnabled
+                    ? Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
+                              launcherMouse.containsMouse || shell.launcherOpen ? 0.24 : 0.10)
+                    : "transparent"
+                Behavior on border.color { ColorAnimation { duration: Theme.motion } }
             }
+
+            Rectangle {
+                id: moonDisk
+                anchors.centerIn: parent
+                width: launcherButton.extent
+                height: width
+                radius: width / 2
+                color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
+                               shell.launcherOpen ? Math.min(0.34, launcherButton.backgroundOpacity + 0.12)
+                                                  : launcherButton.backgroundOpacity)
+                border.width: launcherButton.orbitEnabled ? 1.5 : 0
+                border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
+                                      shell.launcherOpen ? 0.92 : 0.52)
+                scale: launcherMouse.pressed ? 0.92 : launcherMouse.containsMouse ? 1.06 : 1.0
+                Behavior on scale { NumberAnimation { duration: Math.max(90, Theme.motion); easing.type: Easing.OutCubic } }
+                Behavior on color { ColorAnimation { duration: Theme.motion } }
+
+                Rectangle {
+                    visible: launcherButton.orbitEnabled
+                    anchors.centerIn: parent
+                    width: parent.width + 6
+                    height: width
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b, 0.24)
+                    rotation: 18
+                }
+
+                LunaDashLogo {
+                    anchors.centerIn: parent
+                    width: parent.width * launcherButton.logoScale
+                    height: width
+                    animated: false
+                    primaryColor: panel.launcherAccent
+                    secondaryColor: Qt.lighter(panel.launcherAccent, 1.22)
+                    inkColor: Theme.text
+                }
+            }
+
             MouseArea {
+                id: launcherMouse
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: shell.launcherOpen = !shell.launcherOpen
             }
-            Behavior on color { ColorAnimation { duration: Theme.motion } }
+            ToolTip.visible: launcherMouse.containsMouse
+            ToolTip.delay: 450
+            ToolTip.text: shell.tr("Applications")
         }
+
         PanelSegment {
             moduleHost: panel
             text: "⚙"
@@ -170,11 +231,6 @@ ModuleSurface {
                 }
                 readonly property string iconSource: panel.trayImage(item)
                 readonly property string glyph: panel.trayGlyph(item)
-                // A plain Image with a bounded sourceSize rasterizes an SVG icon at
-                // exactly the requested size. Asking for the icon's intrinsic size
-                // made QtSvg reject oversized masks and left undecoded pixels in the
-                // tray cell. When the supplied icon cannot be resolved the shell
-                // draws its own vector glyph instead of a broken or empty cell.
                 Image {
                     id: trayIcon
                     anchors.centerIn: parent
