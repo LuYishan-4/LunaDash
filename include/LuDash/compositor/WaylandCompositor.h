@@ -90,6 +90,7 @@ private:
   ScrollableTilingLayout tiling_;
   QSet<int> consumedKeys_;
   QHash<int, int> resizeOriginalWidths_;
+  int resizeTargetColumnKey_ = 0;
   QPointF pointerPosition_;
   QPointF resizePointerStart_;
   QRect resizeStartGeometry_;
