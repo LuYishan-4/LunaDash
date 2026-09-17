@@ -13,6 +13,7 @@
 #include <QStandardPaths>
 #include <QSet>
 #include <QUrl>
+#include <algorithm>
 
 namespace LuDash {
 namespace {
@@ -61,7 +62,6 @@ PluginDescriptor readPluginMetadata(const QString &path) {
   bool enabledByDefault = false;
 
   if (metadata.contains("KPlugin")) {
-    // Backward-compatible native effect manifest.
     const auto info = metadata.value("KPlugin").toObject();
     const auto api = metadata.value("LuDash").toObject();
     result.id = info.value("Id").toString();
@@ -84,7 +84,6 @@ PluginDescriptor readPluginMetadata(const QString &path) {
       return result;
     }
   } else {
-    // LunaDash manifest schema used by QML plugins and new native effects.
     if (metadata.value("schemaVersion").toInt() != 1) {
       result.error = "Unsupported plugin manifest schema";
       return result;
@@ -130,12 +129,12 @@ PluginDescriptor readPluginMetadata(const QString &path) {
 
 QList<PluginDescriptor> discoverPlugins() {
   QStringList roots;
-#ifdef LUDASH_PLUGIN_SOURCE_DIR
-  roots << QStringLiteral(LUDASH_PLUGIN_SOURCE_DIR);
-#endif
+  roots << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("../qml/plugins");
   for (const auto &path :
-       QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation))
+       QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
+    roots << path + "/lunadash/shell/plugins";
     roots << path + "/ludash/plugins";
+  }
   roots << QCoreApplication::applicationDirPath() + "/plugins";
 
   QList<PluginDescriptor> result;
