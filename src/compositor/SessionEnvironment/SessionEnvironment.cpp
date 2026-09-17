@@ -1,5 +1,6 @@
 #include "compositor/SessionEnvironment/SessionEnvironment.hpp"
 
+#include <QFileInfo>
 #include <QProcess>
 #include <QSettings>
 #include <QStandardPaths>
@@ -112,7 +113,7 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
       QStandardPaths::GenericDataLocation, "ludash/wallpapers",
       QStandardPaths::LocateDirectory);
   if (wallpaperDirectory.isEmpty())
-    wallpaperDirectory = QStringLiteral(LUDASH_WALLPAPER_SOURCE_DIR);
+    wallpaperDirectory = QFileInfo(assetDirectory).absoluteDir().filePath("wallpapers");
   environment.insert("LUNADASH_WALLPAPER_DIR", wallpaperDirectory);
 
   environment.insert("LUNADASH_BIN_DIR", binaryDirectory);
