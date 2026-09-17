@@ -12,6 +12,7 @@ ColumnLayout {
     required property var shell
     spacing: 16
 
+    property var sessionHistory: []
     readonly property string bundledWallpaperPath: {
         const directory = Quickshell.env("LUNADASH_WALLPAPER_DIR") || ""
         return directory.length ? directory + "/florist.png" : ""
@@ -32,13 +33,23 @@ ColumnLayout {
         return text.startsWith("file:") ? text : "file://" + text
     }
 
+    function rememberLocally(path) {
+        path = localPath(path)
+        if (!path.length || path === bundledWallpaperPath)
+            return
+        const copy = sessionHistory.filter(entry => localPath(entry) !== path)
+        copy.unshift(path)
+        sessionHistory = copy.slice(0, 12)
+    }
+
     readonly property var wallpaperCards: {
         const cards = []
         const seen = ({})
         const currentUrl = String(shell.state.wallpaperImage || "")
         const currentPath = page.localPath(currentUrl)
         const pending = String(shell.pendingWallpaper || "")
-        const history = ((shell.state.appearance || {}).wallpaperHistory || [])
+        const persisted = ((shell.state.appearance || {}).wallpaperHistory || [])
+        const history = page.sessionHistory.concat(persisted)
 
         function addWallpaper(path, label, bundled) {
             path = page.localPath(path)
@@ -78,6 +89,11 @@ ColumnLayout {
         wallpaperStrip.positionViewAtIndex(target, ListView.Center)
     })
 
+    Component.onCompleted: {
+        const persisted = ((shell.state.appearance || {}).wallpaperHistory || [])
+        sessionHistory = Array.from(persisted)
+    }
+
     PageTitle { shell: page.shell; title: "Appearance" }
 
     SettingsCard {
@@ -116,9 +132,9 @@ ColumnLayout {
                 Rectangle {
                     anchors.fill: parent
                     radius: 18
-                    color: card.addCard ? "#000000" : Theme.control
+                    color: card.addCard ? Theme.surface : Theme.control
                     border.width: wallpaperStrip.currentIndex === card.index ? 3 : 1
-                    border.color: wallpaperStrip.currentIndex === card.index ? Theme.accent : Theme.border
+                    border.color: wallpaperStrip.currentIndex === card.index ? Theme.moon : Theme.border
                     clip: true
 
                     Image {
@@ -138,11 +154,11 @@ ColumnLayout {
                         anchors.bottom: parent.bottom
                         height: 30
                         visible: !card.addCard
-                        color: Qt.rgba(0, 0, 0, 0.58)
+                        color: Qt.rgba(0.03, 0.05, 0.12, 0.72)
                         Text {
                             anchors.centerIn: parent
                             text: modelData.label || ""
-                            color: "white"
+                            color: Theme.moon
                             font.family: Theme.font
                             font.pixelSize: 11
                         }
@@ -151,20 +167,19 @@ ColumnLayout {
                     Rectangle {
                         anchors.fill: parent
                         visible: !card.addCard && wallpaperStrip.currentIndex === card.index
-                        color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
+                        color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.09)
                     }
 
                     Column {
                         anchors.centerIn: parent
                         visible: card.addCard
-                        spacing: 3
+                        spacing: 4
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            text: "+"
-                            color: Theme.text
+                            text: "☾"
+                            color: Theme.moon
                             font.family: Theme.font
-                            font.pixelSize: 44
-                            font.weight: Font.Light
+                            font.pixelSize: 36
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -183,7 +198,7 @@ ColumnLayout {
                         width: 12
                         height: 12
                         radius: 6
-                        color: Theme.accent
+                        color: Theme.moon
                         border.width: 2
                         border.color: Theme.focusRing
                     }
@@ -230,6 +245,7 @@ ColumnLayout {
                 active: true
                 enabled: page.selectedWallpaper.length > 0 && page.selectedWallpaper !== page.localPath(String(shell.state.wallpaperImage || ""))
                 onClicked: {
+                    page.rememberLocally(page.selectedWallpaper)
                     shell.command("wallpaper-image", page.selectedWallpaper)
                     shell.pendingWallpaper = ""
                 }
