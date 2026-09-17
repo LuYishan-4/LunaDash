@@ -20,10 +20,10 @@ ColumnLayout {
         const current = String(shell.state.wallpaperImage || "")
         const pending = String(shell.pendingWallpaper || "")
         if (current.length)
-            cards.push({source: current, value: current, current: true})
+            cards.push({source: current, value: current, current: true, add: false})
         if (pending.length && pending !== current && ("file://" + pending) !== current)
-            cards.push({source: pending.startsWith("file:") ? pending : "file://" + pending, value: pending, current: false})
-        cards.push({add: true})
+            cards.push({source: pending.startsWith("file:") ? pending : "file://" + pending, value: pending, current: false, add: false})
+        cards.push({add: true, current: false, source: "", value: ""})
         return cards
     }
 
@@ -58,7 +58,9 @@ ColumnLayout {
                 id: card
                 required property var modelData
                 required property int index
-                width: modelData.add ? 150 : 236
+                readonly property bool addCard: Boolean(modelData.add)
+                readonly property bool currentCard: Boolean(modelData.current)
+                width: addCard ? 150 : 236
                 height: 158
                 scale: wallpaperStrip.currentIndex === index ? 1 : 0.94
                 opacity: wallpaperStrip.currentIndex === index ? 1 : 0.72
@@ -68,15 +70,15 @@ ColumnLayout {
                 Rectangle {
                     anchors.fill: parent
                     radius: 18
-                    color: modelData.add ? "#000000" : Theme.control
+                    color: card.addCard ? "#000000" : Theme.control
                     border.width: wallpaperStrip.currentIndex === card.index ? 3 : 1
                     border.color: wallpaperStrip.currentIndex === card.index ? Theme.accent : Theme.border
                     clip: true
 
                     Image {
                         anchors.fill: parent
-                        visible: !modelData.add
-                        source: modelData.add ? "" : modelData.source
+                        visible: !card.addCard
+                        source: card.addCard ? "" : modelData.source
                         sourceSize.width: 640
                         sourceSize.height: 420
                         fillMode: Image.PreserveAspectCrop
@@ -86,13 +88,13 @@ ColumnLayout {
 
                     Rectangle {
                         anchors.fill: parent
-                        visible: !modelData.add && wallpaperStrip.currentIndex === card.index
+                        visible: !card.addCard && wallpaperStrip.currentIndex === card.index
                         color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
                     }
 
                     Text {
                         anchors.centerIn: parent
-                        visible: modelData.add
+                        visible: card.addCard
                         text: "+"
                         color: Theme.text
                         font.family: Theme.font
@@ -101,7 +103,7 @@ ColumnLayout {
                     }
 
                     Rectangle {
-                        visible: modelData.current && !modelData.add
+                        visible: card.currentCard && !card.addCard
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.margins: 10
@@ -121,10 +123,10 @@ ColumnLayout {
                     onClicked: {
                         wallpaperStrip.currentIndex = card.index
                         wallpaperStrip.positionViewAtIndex(card.index, ListView.Center)
-                        if (modelData.add) {
+                        if (card.addCard) {
                             page.shell.pickerOpen = true
                         } else {
-                            page.selectedWallpaper = String(modelData.value)
+                            page.selectedWallpaper = String(modelData.value || "")
                         }
                     }
                 }
