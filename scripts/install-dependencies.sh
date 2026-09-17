@@ -21,7 +21,8 @@ mode and accepts an already-provisioned CMake/Ninja/Qt6/Wayland toolchain.
 
 The script installs only packages from enabled distribution repositories. It does
 not add third-party repositories. Quickshell is checked separately because its
-packaging differs between distributions.
+packaging differs between distributions. Fcitx 5, its Qt integration, and its
+configuration tool are installed automatically on supported distributions.
 EOF
 }
 while (($#)); do
@@ -73,7 +74,8 @@ case "$manager" in
             base-devel cmake ninja git pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon \
             systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations \
-            shared-mime-info fish
+            shared-mime-info fish \
+            fcitx5 fcitx5-qt fcitx5-configtool
         if ! command -v quickshell >/dev/null 2>&1 && pacman -Si quickshell >/dev/null 2>&1; then
             run "${elevate[@]}" pacman -S --needed quickshell
         fi
@@ -85,7 +87,8 @@ case "$manager" in
             libgl-dev libwayland-dev wayland-protocols libinput-dev \
             libxkbcommon-dev libudev-dev libglib2.0-dev \
             qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland \
-            libqt6opengl6-dev shared-mime-info fish
+            libqt6opengl6-dev shared-mime-info fish \
+            fcitx5 fcitx5-frontend-qt6 fcitx5-config-qt
         ;;
     dnf)
         run "${elevate[@]}" dnf install -y \
@@ -93,7 +96,8 @@ case "$manager" in
             mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel \
             qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel \
-            shared-mime-info fish
+            shared-mime-info fish \
+            fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
         ;;
     zypper)
         run "${elevate[@]}" zypper --non-interactive install \
@@ -101,21 +105,24 @@ case "$manager" in
             Mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel \
             qt6-base-devel qt6-declarative-devel qt6-wayland-devel \
-            shared-mime-info fish
+            shared-mime-info fish \
+            fcitx5 fcitx5-qt6 fcitx5-configtool
         ;;
     apk)
         run "${elevate[@]}" apk add \
             build-base cmake ninja git pkgconf mesa-dev \
             wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev \
             glib-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland-dev \
-            shared-mime-info fish
+            shared-mime-info fish \
+            fcitx5 fcitx5-qt fcitx5-configtool
         ;;
     xbps)
         run "${elevate[@]}" xbps-install -Sy \
             base-devel cmake ninja git pkg-config MesaLib-devel \
             wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
             eudev-libudev-devel glib-devel qt6-base-devel qt6-declarative-devel \
-            qt6-wayland-devel shared-mime-info fish
+            qt6-wayland-devel shared-mime-info fish \
+            fcitx5 fcitx5-qt fcitx5-configtool
         ;;
     emerge)
         run "${elevate[@]}" emerge --noreplace \
@@ -123,7 +130,8 @@ case "$manager" in
             media-libs/mesa dev-libs/wayland dev-libs/wayland-protocols \
             dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib \
             dev-qt/qtbase:6 dev-qt/qtdeclarative:6 dev-qt/qtwayland:6 \
-            x11-misc/shared-mime-info app-shells/fish
+            x11-misc/shared-mime-info app-shells/fish \
+            app-i18n/fcitx app-i18n/fcitx-qt app-i18n/fcitx-configtool
         ;;
     generic)
         missing=()
@@ -140,6 +148,13 @@ shared-mime-info and Fish; then rerun the installer.
 EOF
             exit 1
         fi
+        if ! command -v fcitx5 >/dev/null 2>&1; then
+            cat >&2 <<'EOF'
+Generic Linux mode: Fcitx 5 was not found.
+Install Fcitx 5, its Qt 6 input method module, and fcitx5-configtool using your
+package manager before starting a LunaDash session.
+EOF
+        fi
         echo 'Generic Linux mode: package installation skipped; existing toolchain will be validated by CMake.'
         ;;
 esac
@@ -147,6 +162,12 @@ esac
 if $dry_run; then
     echo "Dry run complete for package manager: $manager"
     exit 0
+fi
+
+if ! command -v fcitx5 >/dev/null 2>&1; then
+    echo 'Warning: Fcitx 5 is still not in PATH after dependency installation.' >&2
+else
+    printf 'Fcitx 5 ready: %s\n' "$(command -v fcitx5)"
 fi
 
 if ! command -v quickshell >/dev/null 2>&1; then
