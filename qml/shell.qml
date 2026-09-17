@@ -48,6 +48,14 @@ ShellRoot {
     property string notificationDetails: ""
     property int screenshotSerial: 0
     property string lastScreenshotSeen: ""
+    property var updateInstall: ({
+        state: "idle",
+        channel: "",
+        target: "",
+        rollback: false,
+        message: "",
+        details: ""
+    })
 
     function notify(title, body, kind, details) {
         if (!((state.appearance || {}).notificationsEnabled ?? true)) return
@@ -79,6 +87,14 @@ ShellRoot {
         if (updateAction.running || !ref) return
         updateAction.output = ""
         updateAction.errorOutput = ""
+        updateInstall = {
+            state: "running",
+            channel: String(channel),
+            target: String(ref),
+            rollback: false,
+            message: tr("Downloading, building, and installing the update…"),
+            details: ""
+        }
         updateAction.command = [updaterExecutable, String(channel), String(ref)]
         updateAction.running = true
         notify(tr("LunaDash update"), tr("Downloading and building the selected update…"), "info", "")
@@ -88,6 +104,14 @@ ShellRoot {
         if (updateAction.running) return
         updateAction.output = ""
         updateAction.errorOutput = ""
+        updateInstall = {
+            state: "running",
+            channel: "",
+            target: "",
+            rollback: true,
+            message: tr("Restoring the previous installation…"),
+            details: ""
+        }
         updateAction.command = [updaterExecutable, "--rollback"]
         updateAction.running = true
         notify(tr("LunaDash rollback"), tr("Restoring the previous installation…"), "info", "")
@@ -217,10 +241,27 @@ ShellRoot {
         onExited: (exitCode, exitStatus) => {
             const detail = [updateAction.errorOutput, updateAction.output].filter(Boolean).join("\n")
             const rollback = updateAction.command[1] === "--rollback"
-            if (exitCode === 0)
-                root.notify(root.tr(rollback ? "LunaDash rollback" : "LunaDash update"), root.tr(rollback ? "Rollback completed. Start a new session to use it." : "Update completed. Start a new session to use it."), "success", detail)
-            else
+            if (exitCode === 0) {
+                root.updateInstall = {
+                    state: "completed",
+                    channel: rollback ? "" : String(updateAction.command[1] || ""),
+                    target: rollback ? "" : String(updateAction.command[2] || ""),
+                    rollback: rollback,
+                    message: root.tr(rollback ? "Rollback completed." : "Update installed successfully."),
+                    details: detail
+                }
+                root.notify(root.tr(rollback ? "LunaDash rollback" : "LunaDash update"), root.tr(rollback ? "Rollback completed. Reboot to use the restored installation." : "Update completed. Reboot to start the new LunaDash installation."), "success", detail)
+            } else {
+                root.updateInstall = {
+                    state: "error",
+                    channel: rollback ? "" : String(updateAction.command[1] || ""),
+                    target: rollback ? "" : String(updateAction.command[2] || ""),
+                    rollback: rollback,
+                    message: root.tr(rollback ? "Rollback failed." : "Update failed."),
+                    details: detail
+                }
                 root.notify(root.tr("Update failed"), root.tr("The update could not be completed. Open details to view the log."), "error", detail)
+            }
         }
     }
 
@@ -240,8 +281,12 @@ ShellRoot {
                     const result = JSON.parse(text)
                     if (result.error) return
                     root.state = result
-                    if (root.wallpaperOverride.length && String(result.wallpaperImage || "") === root.wallpaperOverride)
-                        root.wallpaperOverride = ""
+                    if (root.wallpaperOverride.length) {
+                        const actual = String(result.wallpaperImage || "")
+                        const expected = root.wallpaperOverride.startsWith("file:") ? root.wallpaperOverride : "file://" + root.wallpaperOverride
+                        if (actual === root.wallpaperOverride || actual === expected)
+                            root.wallpaperOverride = ""
+                    }
                     if (result.shutdown && !root.stopping) {
                         Theme.animations = false
                         root.stopping = true
