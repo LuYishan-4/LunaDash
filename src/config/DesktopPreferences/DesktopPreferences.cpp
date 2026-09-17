@@ -24,6 +24,7 @@ QJsonObject defaults() {
             {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false}, {"altMouseResize", true},
             {"keyboardLayout", "us"}, {"cursorSize", 24},
             {"fontFamily", "sans-serif"}, {"clock24Hour", true}, {"startupApps", QJsonArray{}},
+            {"wallpaperHistory", QJsonArray{}},
             {"proxyEnabled", false}, {"proxyHttp", ""}, {"proxyHttps", ""}, {"proxySocks", ""}, {"proxyBypass", ""},
             {"overview", false}, {"showHostDetails", false}, {"updateChannel", "stable"}};
 }
@@ -137,6 +138,17 @@ bool valid(const QString& key, const QJsonValue& value) {
         for (const auto& app : value.toArray()) {
             if (!app.isString() || !QStringList{"files", "console", "monitor", "welcome"}.contains(app.toString()) || seen.contains(app.toString())) return false;
             seen.insert(app.toString());
+        }
+        return true;
+    }
+    if (key == "wallpaperHistory") {
+        if (!value.isArray() || value.toArray().size() > 12) return false;
+        QSet<QString> seen;
+        for (const auto &entry : value.toArray()) {
+            if (!entry.isString()) return false;
+            const QString path = entry.toString();
+            if (path.isEmpty() || path.size() > 4096 || !QFileInfo(path).isAbsolute() || seen.contains(path)) return false;
+            seen.insert(path);
         }
         return true;
     }
