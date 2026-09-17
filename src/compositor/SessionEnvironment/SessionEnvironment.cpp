@@ -1,5 +1,6 @@
 #include "compositor/SessionEnvironment/SessionEnvironment.hpp"
 
+#include <QDir>
 #include <QFileInfo>
 #include <QProcess>
 #include <QSettings>
