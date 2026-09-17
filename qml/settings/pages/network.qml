@@ -195,7 +195,7 @@ ColumnLayout {
                 enabled: page.selectedConnection.length > 0
                 onClicked: page.networkAction({action:"connection-route-metric", name:page.selectedConnection, metric:Number(routeMetric.text)})
             }
-            ShellButton { text: shell.tr("Reconnect to apply"); enabled: page.selectedConnection.length > 0; onClicked: { page.networkAction({action:"connection-down", name:page.selectedConnection}); page.networkAction({action:"connection-up", name:page.selectedConnection}) } }
+            ShellButton { text: shell.tr("Reconnect to apply"); enabled: page.selectedConnection.length > 0; onClicked: page.networkAction({action:"connection-reconnect", name:page.selectedConnection}) }
             Item { Layout.fillWidth: true }
         }
     }
@@ -268,7 +268,7 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             ShellButton { text: shell.tr("Flush DNS cache"); onClicked: flushDns.running = true }
-            ShellButton { text: shell.tr("Reset networking"); onClicked: { page.networkAction({action:"networking-enable", enabled:false}); page.networkAction({action:"networking-enable", enabled:true}) } }
+            ShellButton { text: shell.tr("Reset networking"); onClicked: page.networkAction({action:"network-reset"}) }
             ShellButton { text: shell.tr("Show diagnostics"); onClicked: { page.section = "diagnostics"; diagnostics.running = true } }
             Item { Layout.fillWidth: true }
         }
