@@ -22,6 +22,7 @@ ShellRoot {
     readonly property string controlExecutable: bin ? bin + "/lunadashctl" : "lunadashctl"
     readonly property string desktopExecutable: bin ? bin + "/lunadash-desktop" : "lunadash-desktop"
     readonly property string updaterExecutable: bin ? bin + "/lunadash-update" : "lunadash-update"
+    readonly property string shellToolExecutable: bin ? bin + "/lunadash-shell-tool" : "lunadash-shell-tool"
     readonly property string assetDirectory: Quickshell.env("LUNADASH_ASSET_DIR")
     readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadash.png" : ""
     signal commandCompleted(string method, var result)
@@ -32,11 +33,15 @@ ShellRoot {
     property bool launcherOpen: false
     property bool settingsOpen: false
     property bool pickerOpen: false
+    property bool calendarOpen: false
+    property bool usbPopupOpen: false
+    property var removableDevices: []
     property bool notificationVisible: false
     property bool notificationDetailsExpanded: false
     property var notification: ({title:"", body:"", kind:"info", details:"", actions:[]})
     property var activeExternalNotification: null
     property string notificationDetails: ""
+
     function notify(title, body, kind, details) {
         if (!((state.appearance || {}).notificationsEnabled ?? true)) return
         activeExternalNotification = null
@@ -45,6 +50,7 @@ ShellRoot {
         notificationVisible = true
         notificationTimer.restart()
     }
+
     function clearNotification(explicitDismiss) {
         notificationVisible = false
         notificationDetailsExpanded = false
@@ -54,6 +60,14 @@ ShellRoot {
             activeExternalNotification = null
         }
     }
+
+    function setLanguage(locale) {
+        if (!locale || languageAction.running)
+            return
+        languageAction.command = [shellToolExecutable, "language", String(locale)]
+        languageAction.running = true
+    }
+
     function installUpdate(channel, ref) {
         if (updateAction.running || !ref) return
         updateAction.output = ""
@@ -62,6 +76,7 @@ ShellRoot {
         updateAction.running = true
         notify(tr("LunaDash update"), tr("Downloading and building the selected update…"), "info", "")
     }
+
     function rollbackUpdate() {
         if (updateAction.running) return
         updateAction.output = ""
@@ -70,6 +85,7 @@ ShellRoot {
         updateAction.running = true
         notify(tr("LunaDash rollback"), tr("Restoring the previous installation…"), "info", "")
     }
+
     NotificationServer {
         id: notificationServer
         bodySupported: true
@@ -108,17 +124,22 @@ ShellRoot {
             notificationTimer.restart()
         }
     }
-    onLauncherOpenChanged: if (launcherOpen) settingsOpen = false
-    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false } else { pickerOpen = false }
+
+    onLauncherOpenChanged: if (launcherOpen) { settingsOpen = false; calendarOpen = false; usbPopupOpen = false }
+    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false } else { pickerOpen = false }
+    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false }
+    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false }
+
     property bool menuOpen: false
     property real menuX: 0
     property real menuY: 0
     function openMenu(x, y) { menuX = x; menuY = y; menuOpen = true }
-    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false }
+    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false }
     property bool x11Open: false
     property bool startupLogoVisible: true
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
+
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
         if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; settingsCenter.showCategory("appearance"); settingsOpen = true; pickerOpen = true }
@@ -127,6 +148,7 @@ ShellRoot {
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true); Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
         if (setupPaused) { const mapped = state.clients.some(client => client.mapped); if (mapped) setupEditorMapped = true; if ((!mapped && setupEditorMapped) || (!setupEditorMapped && ++setupWaitTicks >= 15)) setupPaused = false }
     }
+
     property bool logoutOpen: false
     property bool setupPaused: false
     property bool setupEditorMapped: false
@@ -137,12 +159,20 @@ ShellRoot {
     function tr(source) { return (state.translations || {})[source] || source }
     function command(method, value) { action.queue.push([method, String(value ?? "")]); dispatch() }
     function dispatch() { if (action.running || action.queue.length === 0) return; action.command = [controlExecutable].concat(action.queue.shift()); action.running = true }
+
     Process {
         id: action
         property var queue: []
         stdout: StdioCollector { onStreamFinished: { try { const result=JSON.parse(text); if(result.error){root.errorMessage=root.tr(result.error);root.notify(root.tr("System action failed"),root.tr(result.error),"error",result.error)} root.commandCompleted(action.command[1],result) } catch(error){root.errorMessage="Could not contact the desktop."} } }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
     }
+
+    Process {
+        id: languageAction
+        command: [root.shellToolExecutable, "language", root.state.language || "en_US"]
+        stderr: StdioCollector { onStreamFinished: if (text.trim()) root.notify(root.tr("Language"), text.trim(), "error", text.trim()) }
+    }
+
     Process {
         id: updateAction
         property string output: ""
@@ -158,18 +188,29 @@ ShellRoot {
                 root.notify(root.tr("Update failed"), root.tr("The update could not be completed. Open details to view the log."), "error", detail)
         }
     }
-    function launch(id) { if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return } if (id === "settings") { settingsOpen = true; launcherOpen = false; return } Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false }
+
+    function launch(id) {
+        if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return }
+        if (id === "settings") { settingsOpen = true; launcherOpen = false; return }
+        Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false
+    }
+
     Process {
         id: status
         command: [root.controlExecutable, "status"]
         stdout: StdioCollector { onStreamFinished: { if(!text.trim())return;try{const result=JSON.parse(text);if(result.error)return;root.state=result;if(result.shutdown&&!root.stopping){Theme.animations=false;root.stopping=true;shutdownTimer.start()}}catch(error){console.warn(error)} } }
     }
+
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
     Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running) Qt.quit() }
     Timer { interval: 700; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
+
+    RemovableDeviceMonitor { shell: root }
     Wallpaper { shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
     Overview { shell: root; opened: !root.stopping && root.overviewOpen }
+    CalendarPopup { shell: root; opened: !root.stopping && root.calendarOpen }
+    UsbDevicePopup { shell: root; opened: !root.stopping && root.usbPopupOpen }
     Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     SettingsPanel { id: settingsCenter; shell: root; opened: !root.stopping && root.settingsOpen }
