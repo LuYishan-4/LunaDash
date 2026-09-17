@@ -16,6 +16,7 @@ Item {
     signal closed()
 
     readonly property string homePath: Quickshell.env("HOME") || "/"
+    readonly property bool calendarMode: shell.pickerPurpose === "calendar"
 
     function parentDirectory() {
         const trimmed = String(folder).replace(/\/+$/, "")
@@ -26,10 +27,30 @@ Item {
         folder = path
         selectedPath = ""
     }
+    function saveCalendarImage(path) {
+        const document = JSON.parse(JSON.stringify((shell.state.shellModules || {}).document || {schemaVersion:1, modules:{}}))
+        if (!document.modules || !document.modules.overview)
+            return false
+        if (!document.modules.overview.config)
+            document.modules.overview.config = {}
+        document.modules.overview.config.calendarImage = "file://" + path
+        shell.command("module-save", JSON.stringify(document))
+        return true
+    }
     function acceptSelection() {
         if (!selectedPath.length)
             return
+        if (calendarMode) {
+            if (!saveCalendarImage(selectedPath))
+                return
+            shell.pickerPurpose = "wallpaper"
+            closed()
+            shell.settingsOpen = false
+            shell.calendarOpen = true
+            return
+        }
         shell.pendingWallpaper = selectedPath
+        shell.pickerPurpose = "wallpaper"
         closed()
     }
 
@@ -40,7 +61,15 @@ Item {
 
     visible: opened
     focus: opened
-    Keys.onEscapePressed: closed()
+    Keys.onEscapePressed: {
+        const returnToCalendar = calendarMode
+        shell.pickerPurpose = "wallpaper"
+        closed()
+        if (returnToCalendar) {
+            shell.settingsOpen = false
+            shell.calendarOpen = true
+        }
+    }
 
     FolderListModel {
         id: entries
@@ -50,14 +79,25 @@ Item {
         showDotAndDotDot: false
         showHidden: false
         sortField: FolderListModel.Name
-        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP"]
+        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"]
     }
 
     Rectangle {
         anchors.fill: parent
         radius: picker.cornerRadius
         color: Qt.rgba(0, 0, 0, 0.64)
-        MouseArea { anchors.fill: parent; onClicked: picker.closed() }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                const returnToCalendar = picker.calendarMode
+                picker.shell.pickerPurpose = "wallpaper"
+                picker.closed()
+                if (returnToCalendar) {
+                    picker.shell.settingsOpen = false
+                    picker.shell.calendarOpen = true
+                }
+            }
+        }
     }
 
     Rectangle {
@@ -79,16 +119,28 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                LineIcon { width: 20; height: 20; name: "appearance"; ink: Theme.accent }
+                LineIcon { width: 20; height: 20; name: picker.calendarMode ? "dashboard" : "appearance"; ink: Theme.accent }
                 Text {
                     Layout.fillWidth: true
-                    text: picker.shell.tr("Choose a wallpaper image")
+                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : "Choose a wallpaper image")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                 }
-                ShellButton { text: "×"; Accessible.name: picker.shell.tr("Cancel"); onClicked: picker.closed() }
+                ShellButton {
+                    text: "×"
+                    Accessible.name: picker.shell.tr("Cancel")
+                    onClicked: {
+                        const returnToCalendar = picker.calendarMode
+                        picker.shell.pickerPurpose = "wallpaper"
+                        picker.closed()
+                        if (returnToCalendar) {
+                            picker.shell.settingsOpen = false
+                            picker.shell.calendarOpen = true
+                        }
+                    }
+                }
             }
 
             RowLayout {
@@ -195,9 +247,20 @@ Item {
                     font.family: Theme.font
                     elide: Text.ElideMiddle
                 }
-                ShellButton { text: picker.shell.tr("Cancel"); onClicked: picker.closed() }
                 ShellButton {
-                    text: picker.shell.tr("Add to wallpapers")
+                    text: picker.shell.tr("Cancel")
+                    onClicked: {
+                        const returnToCalendar = picker.calendarMode
+                        picker.shell.pickerPurpose = "wallpaper"
+                        picker.closed()
+                        if (returnToCalendar) {
+                            picker.shell.settingsOpen = false
+                            picker.shell.calendarOpen = true
+                        }
+                    }
+                }
+                ShellButton {
+                    text: picker.shell.tr(picker.calendarMode ? "Use image" : "Add to wallpapers")
                     active: true
                     enabled: picker.selectedPath.length > 0
                     onClicked: picker.acceptSelection()
