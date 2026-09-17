@@ -11,24 +11,42 @@ ColumnLayout {
     property var output: shell.state.display || ({})
     property bool brightnessAvailable: false
     property int brightnessPercent: 0
+    property int pendingBrightness: -1
     spacing: 16
 
     function parseBrightness(text) {
         const line = String(text || "").trim().split("\n")[0]
         const parts = line.split(",")
-        if (parts.length < 4)
+        if (parts.length < 5) {
+            brightnessAvailable = false
             return
-        const percent = Number(String(parts[3]).replace("%", ""))
-        if (Number.isFinite(percent)) {
-            brightnessPercent = Math.max(0, Math.min(100, Math.round(percent)))
-            brightnessAvailable = true
         }
+        const percentText = String(parts[parts.length - 1]).trim()
+        if (!percentText.endsWith("%")) {
+            brightnessAvailable = false
+            return
+        }
+        const percent = Number(percentText.slice(0, -1))
+        if (!Number.isFinite(percent)) {
+            brightnessAvailable = false
+            return
+        }
+        brightnessPercent = Math.max(0, Math.min(100, Math.round(percent)))
+        brightnessAvailable = true
     }
 
-    function setBrightness(value) {
-        if (brightnessSet.running)
+    function scheduleBrightness(value) {
+        pendingBrightness = Math.max(1, Math.min(100, Math.round(value)))
+        brightnessPercent = pendingBrightness
+        brightnessDebounce.restart()
+    }
+
+    function applyPendingBrightness() {
+        if (pendingBrightness < 0 || brightnessSet.running)
             return
-        brightnessSet.command = ["brightnessctl", "set", Math.round(value) + "%"]
+        const target = pendingBrightness
+        pendingBrightness = -1
+        brightnessSet.command = ["brightnessctl", "set", target + "%"]
         brightnessSet.running = true
     }
 
@@ -43,8 +61,8 @@ ColumnLayout {
     SettingsCard {
         title: shell.tr("Brightness")
         description: brightnessAvailable
-            ? shell.tr("Adjust the active backlight device with brightnessctl.")
-            : shell.tr("No writable backlight device was detected. Install brightnessctl or use the monitor controls.")
+            ? shell.tr("Adjust the active backlight device.")
+            : shell.tr("No controllable backlight device was detected. brightnessctl is required for laptop/internal-panel brightness control.")
         RowLayout {
             Layout.fillWidth: true
             Text { text: shell.tr("Screen brightness"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
@@ -52,12 +70,12 @@ ColumnLayout {
         }
         SoftSlider {
             Layout.fillWidth: true
-            from: 5
+            from: 1
             to: 100
             stepSize: 1
             value: page.brightnessPercent
-            enabled: page.brightnessAvailable && !brightnessSet.running
-            onMoved: page.setBrightness(value)
+            enabled: page.brightnessAvailable
+            onMoved: page.scheduleBrightness(value)
         }
     }
 
@@ -72,20 +90,37 @@ ColumnLayout {
         }
     }
 
-    HelpText { shell: page.shell; message: "In a nested session, physical monitor resolution, refresh rate, scaling, rotation and night light are controlled by your host desktop. Brightness is adjustable when brightnessctl can access a backlight device." }
-    HelpText { shell: page.shell; message: "Standalone multi-monitor configuration, HDR, color profiles and night light are not available yet." }
+    HelpText { shell: page.shell; message: "In a nested session, physical monitor resolution, refresh rate, scaling, rotation and night light are controlled by your host desktop. Laptop/internal-panel brightness can still be adjusted when brightnessctl has access to a backlight device." }
+    HelpText { shell: page.shell; message: "External monitors usually require DDC/CI rather than the kernel backlight interface, so they may not appear here." }
+
+    Timer {
+        id: brightnessDebounce
+        interval: 90
+        repeat: false
+        onTriggered: page.applyPendingBrightness()
+    }
 
     Process {
         id: brightnessQuery
         command: ["brightnessctl", "-m"]
         stdout: StdioCollector { onStreamFinished: page.parseBrightness(text) }
-        onExited: (code, status) => { if (code !== 0) page.brightnessAvailable = false }
+        onExited: (code, status) => {
+            if (code !== 0)
+                page.brightnessAvailable = false
+        }
     }
     Process {
         id: brightnessSet
         command: ["brightnessctl", "set", "50%"]
         onExited: (code, status) => {
-            if (code === 0)
+            if (code !== 0) {
+                page.brightnessAvailable = false
+                page.pendingBrightness = -1
+                return
+            }
+            if (page.pendingBrightness >= 0)
+                Qt.callLater(page.applyPendingBrightness)
+            else
                 brightnessQuery.running = true
         }
     }
