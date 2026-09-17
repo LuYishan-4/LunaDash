@@ -572,7 +572,7 @@ ColumnLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 300
             clip: true
-            TextArea {
+            SoftTextArea {
                 id: editor
                 objectName: "moduleJsonEditor"
                 font.family: Theme.font
@@ -582,12 +582,6 @@ ColumnLayout {
                 selectByMouse: true
                 readOnly: page.saving
                 onTextChanged: if (activeFocus) page.dirty = true
-                background: Rectangle {
-                    color: Theme.surface
-                    radius: 12
-                    border.width: 1
-                    border.color: Theme.border
-                }
             }
         }
 
