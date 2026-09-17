@@ -5,6 +5,7 @@ import "../style"
 ColumnLayout {
     id: picker
     property color currentColor: Theme.accent
+    property string pinLabel: "Pin"
     property real hue: currentColor.hsvHue < 0 ? 0 : currentColor.hsvHue
     property real saturation: currentColor.hsvSaturation
     property real value: currentColor.hsvValue
@@ -48,12 +49,12 @@ ColumnLayout {
                 ctx.reset()
                 ctx.fillStyle = Qt.hsva(picker.hue, 1, 1, 1)
                 ctx.fillRect(0, 0, width, height)
-                let white = ctx.createLinearGradient(0, 0, width, 0)
+                const white = ctx.createLinearGradient(0, 0, width, 0)
                 white.addColorStop(0, "#ffffffff")
                 white.addColorStop(1, "#00ffffff")
                 ctx.fillStyle = white
                 ctx.fillRect(0, 0, width, height)
-                let dark = ctx.createLinearGradient(0, 0, 0, height)
+                const dark = ctx.createLinearGradient(0, 0, 0, height)
                 dark.addColorStop(0, "#00000000")
                 dark.addColorStop(1, "#ff000000")
                 ctx.fillStyle = dark
@@ -148,7 +149,7 @@ ColumnLayout {
             font.pixelSize: 12
         }
         ShellButton {
-            text: "＋ " + qsTr("Pin")
+            text: "＋ " + picker.pinLabel
             onClicked: picker.pinRequested(picker.hexColor(picker.selectedColor))
         }
     }
