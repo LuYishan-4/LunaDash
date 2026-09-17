@@ -129,6 +129,14 @@ ModuleSurface {
                     }
                 }
             }
+            PanelSegment {
+                moduleHost: panel
+                text: "⏻"
+                implicitWidth: 26
+                ink: Theme.danger
+                Accessible.name: shell.tr("Session controls")
+                onClicked: shell.logoutOpen = !shell.logoutOpen
+            }
         }
     }
 
