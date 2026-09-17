@@ -12,14 +12,12 @@ ColumnLayout {
     required property var shell
     spacing: 16
 
-    property var sessionHistory: []
     readonly property string bundledWallpaperPath: {
         const directory = Quickshell.env("LUNADASH_WALLPAPER_DIR") || ""
         return directory.length ? directory + "/florist.png" : ""
     }
-    property string selectedWallpaper: shell.pendingWallpaper.length
-        ? shell.pendingWallpaper
-        : page.localPath(String(shell.state.wallpaperImage || ""))
+    readonly property string currentWallpaper: localPath(String(shell.state.wallpaperImage || ""))
+    property string selectedWallpaper: currentWallpaper
 
     function localPath(value) {
         const text = String(value || "")
@@ -27,227 +25,237 @@ ColumnLayout {
     }
 
     function fileUrl(value) {
-        const text = String(value || "")
-        if (!text.length)
-            return ""
-        return text.startsWith("file:") ? text : "file://" + text
+        const text = localPath(value)
+        return text.length ? "file://" + text : ""
     }
 
-    function rememberLocally(path) {
-        path = localPath(path)
-        if (!path.length || path === bundledWallpaperPath)
+    function choose(path) {
+        const normalized = localPath(path)
+        if (!normalized.length)
             return
-        const copy = sessionHistory.filter(entry => localPath(entry) !== path)
-        copy.unshift(path)
-        sessionHistory = copy.slice(0, 12)
+        selectedWallpaper = normalized
+    }
+
+    function applySelected() {
+        if (!selectedWallpaper.length || selectedWallpaper === currentWallpaper)
+            return
+        shell.wallpaperOverride = fileUrl(selectedWallpaper)
+        shell.command("wallpaper-image", selectedWallpaper)
+        shell.pendingWallpaper = ""
     }
 
     readonly property var wallpaperCards: {
         const cards = []
         const seen = ({})
-        const currentUrl = String(shell.state.wallpaperImage || "")
-        const currentPath = page.localPath(currentUrl)
-        const pending = String(shell.pendingWallpaper || "")
-        const persisted = ((shell.state.appearance || {}).wallpaperHistory || [])
-        const history = page.sessionHistory.concat(persisted)
+        const history = ((shell.state.appearance || {}).wallpaperHistory || [])
+        const pending = localPath(shell.pendingWallpaper)
 
-        function addWallpaper(path, label, bundled) {
+        function add(path, role) {
             path = page.localPath(path)
             if (!path.length || seen[path])
                 return
             seen[path] = true
             cards.push({
+                path: path,
                 source: page.fileUrl(path),
-                value: path,
-                current: path === currentPath,
-                add: false,
-                bundled: Boolean(bundled),
-                label: label || ""
+                role: role,
+                current: path === page.currentWallpaper
             })
         }
 
-        addWallpaper(page.bundledWallpaperPath, shell.tr("Default"), true)
+        add(page.bundledWallpaperPath, "default")
+        add(page.currentWallpaper, "current")
         for (let i = 0; i < history.length; ++i)
-            addWallpaper(history[i], shell.tr("Recent"), false)
-        addWallpaper(currentPath, shell.tr("Current"), false)
-        addWallpaper(pending, shell.tr("New"), false)
-        cards.push({add: true, current: false, bundled: false, source: "", value: "", label: shell.tr("Add image")})
+            add(history[i], "recent")
+        add(pending, "new")
         return cards
     }
 
-    onWallpaperCardsChanged: Qt.callLater(function() {
-        if (wallpaperStrip.count <= 0)
-            return
-        let target = 0
-        for (let i = 0; i < wallpaperCards.length; ++i) {
-            if (wallpaperCards[i].current) {
-                target = i
-                break
-            }
-        }
-        wallpaperStrip.currentIndex = target
-        wallpaperStrip.positionViewAtIndex(target, ListView.Center)
-    })
+    onCurrentWallpaperChanged: {
+        if (!selectedWallpaper.length || shell.wallpaperOverride.length === 0)
+            selectedWallpaper = currentWallpaper
+    }
 
-    Component.onCompleted: {
-        const persisted = ((shell.state.appearance || {}).wallpaperHistory || [])
-        sessionHistory = Array.from(persisted)
+    Connections {
+        target: shell
+        function onPendingWallpaperChanged() {
+            if (shell.pendingWallpaper.length)
+                page.choose(shell.pendingWallpaper)
+        }
     }
 
     PageTitle { shell: page.shell; title: "Appearance" }
 
     SettingsCard {
         title: shell.tr("Wallpaper")
-        description: shell.tr("Choose the bundled wallpaper, a recently used image, or add another image.")
-
-        ListView {
-            id: wallpaperStrip
-            Layout.fillWidth: true
-            Layout.preferredHeight: 186
-            orientation: ListView.Horizontal
-            spacing: 14
-            clip: true
-            model: page.wallpaperCards
-            boundsBehavior: Flickable.StopAtBounds
-            snapMode: ListView.SnapToItem
-            highlightMoveDuration: Math.max(220, Theme.motion * 2)
-            highlightMoveVelocity: -1
-            preferredHighlightBegin: width * 0.33
-            preferredHighlightEnd: width * 0.67
-            highlightRangeMode: ListView.ApplyRange
-
-            delegate: Item {
-                id: card
-                required property var modelData
-                required property int index
-                readonly property bool addCard: Boolean(modelData.add)
-                readonly property bool currentCard: Boolean(modelData.current)
-                width: addCard ? 150 : 236
-                height: 168
-                scale: wallpaperStrip.currentIndex === index ? 1 : 0.94
-                opacity: wallpaperStrip.currentIndex === index ? 1 : 0.72
-                Behavior on scale { NumberAnimation { duration: Math.max(180, Theme.motion); easing.type: Easing.OutCubic } }
-                Behavior on opacity { NumberAnimation { duration: Theme.motion } }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 18
-                    color: card.addCard ? Theme.surface : Theme.control
-                    border.width: wallpaperStrip.currentIndex === card.index ? 3 : 1
-                    border.color: wallpaperStrip.currentIndex === card.index ? Theme.moon : Theme.border
-                    clip: true
-
-                    Image {
-                        anchors.fill: parent
-                        visible: !card.addCard
-                        source: card.addCard ? "" : modelData.source
-                        sourceSize.width: 640
-                        sourceSize.height: 420
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        cache: false
-                    }
-
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 30
-                        visible: !card.addCard
-                        color: Qt.rgba(0.03, 0.05, 0.12, 0.72)
-                        Text {
-                            anchors.centerIn: parent
-                            text: modelData.label || ""
-                            color: Theme.moon
-                            font.family: Theme.font
-                            font.pixelSize: 11
-                        }
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        visible: !card.addCard && wallpaperStrip.currentIndex === card.index
-                        color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.09)
-                    }
-
-                    Column {
-                        anchors.centerIn: parent
-                        visible: card.addCard
-                        spacing: 4
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: "☾"
-                            color: Theme.moon
-                            font.family: Theme.font
-                            font.pixelSize: 36
-                        }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: shell.tr("Add image")
-                            color: Theme.muted
-                            font.family: Theme.font
-                            font.pixelSize: 10
-                        }
-                    }
-
-                    Rectangle {
-                        visible: card.currentCard && !card.addCard
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: 10
-                        width: 12
-                        height: 12
-                        radius: 6
-                        color: Theme.moon
-                        border.width: 2
-                        border.color: Theme.focusRing
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        wallpaperStrip.currentIndex = card.index
-                        wallpaperStrip.positionViewAtIndex(card.index, ListView.Center)
-                        if (card.addCard) {
-                            page.shell.pickerPurpose = "wallpaper"
-                            page.shell.pickerOpen = true
-                        } else {
-                            page.selectedWallpaper = String(modelData.value || "")
-                        }
-                    }
-                }
-            }
-        }
+        description: shell.tr("Pick a wallpaper, preview the selection, then apply it once. LunaDash keeps recently used images here.")
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
-                Layout.fillWidth: true
-                text: shell.pendingWallpaper.length
-                    ? shell.tr("New wallpaper ready to apply")
-                    : shell.tr("Select a preview or add another image")
-                color: shell.pendingWallpaper.length ? Theme.accent : Theme.muted
-                font.family: Theme.font
-            }
-            ShellButton {
-                text: shell.tr("Reset to bundled wallpaper")
-                onClicked: {
-                    shell.pendingWallpaper = ""
-                    shell.command("wallpaper-default", "")
-                    page.selectedWallpaper = page.bundledWallpaperPath
+            Layout.preferredHeight: 250
+            spacing: 14
+
+            Rectangle {
+                Layout.preferredWidth: 360
+                Layout.fillHeight: true
+                radius: 20
+                color: Theme.surface
+                border.width: 1
+                border.color: Theme.starlight
+                clip: true
+
+                Image {
+                    anchors.fill: parent
+                    source: page.fileUrl(page.selectedWallpaper)
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    sourceSize.width: 900
+                    sourceSize.height: 600
+                    cache: false
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Qt.rgba(0.02, 0.03, 0.10, 0.16)
+                }
+
+                Column {
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 14
+                    spacing: 2
+                    Text {
+                        text: page.selectedWallpaper === page.currentWallpaper
+                            ? shell.tr("Current wallpaper")
+                            : shell.tr("Selected wallpaper")
+                        color: Theme.moon
+                        font.family: Theme.font
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        width: 320
+                        text: page.selectedWallpaper.split("/").pop()
+                        color: Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 11
+                        elide: Text.ElideMiddle
+                    }
                 }
             }
-            ShellButton {
-                text: shell.tr("Apply wallpaper")
-                active: true
-                enabled: page.selectedWallpaper.length > 0 && page.selectedWallpaper !== page.localPath(String(shell.state.wallpaperImage || ""))
-                onClicked: {
-                    page.rememberLocally(page.selectedWallpaper)
-                    shell.command("wallpaper-image", page.selectedWallpaper)
-                    shell.pendingWallpaper = ""
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 10
+
+                Text {
+                    text: shell.tr("Wallpaper library")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                }
+
+                ListView {
+                    id: wallpaperStrip
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    orientation: ListView.Horizontal
+                    spacing: 10
+                    clip: true
+                    model: page.wallpaperCards
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    delegate: Item {
+                        id: card
+                        required property var modelData
+                        width: 150
+                        height: wallpaperStrip.height
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 16
+                            color: Theme.control
+                            border.width: page.selectedWallpaper === modelData.path ? 2 : 1
+                            border.color: page.selectedWallpaper === modelData.path ? Theme.moon : Theme.border
+                            clip: true
+
+                            Image {
+                                anchors.fill: parent
+                                source: modelData.source
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                sourceSize.width: 420
+                                sourceSize.height: 280
+                                cache: false
+                            }
+
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 28
+                                color: Qt.rgba(0.02, 0.03, 0.10, 0.76)
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData.current
+                                        ? shell.tr("Current")
+                                        : modelData.role === "default"
+                                            ? shell.tr("Default")
+                                            : modelData.role === "new"
+                                                ? shell.tr("New")
+                                                : shell.tr("Recent")
+                                    color: modelData.current ? Theme.moon : Theme.text
+                                    font.family: Theme.font
+                                    font.pixelSize: 10
+                                }
+                            }
+
+                            Text {
+                                visible: page.selectedWallpaper === modelData.path
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                text: "✦"
+                                color: Theme.moon
+                                font.pixelSize: 16
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: page.choose(modelData.path)
+                        }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    ShellButton {
+                        text: "☾  " + shell.tr("Choose image")
+                        onClicked: {
+                            shell.pickerPurpose = "wallpaper"
+                            shell.pickerOpen = true
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+                    ShellButton {
+                        text: shell.tr("Use default")
+                        enabled: page.bundledWallpaperPath.length > 0 && page.currentWallpaper !== page.bundledWallpaperPath
+                        onClicked: {
+                            page.choose(page.bundledWallpaperPath)
+                            page.applySelected()
+                        }
+                    }
+                    ShellButton {
+                        text: shell.tr("Apply")
+                        active: true
+                        enabled: page.selectedWallpaper.length > 0 && page.selectedWallpaper !== page.currentWallpaper
+                        onClicked: page.applySelected()
+                    }
                 }
             }
         }
