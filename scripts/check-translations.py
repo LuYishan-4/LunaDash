@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Check shipped Traditional Chinese lookups, catalog integrity and placeholders.
+"""Validate every shipped LunaDash JSON language pack.
 
-This checks static source strings, not arbitrary application names or log output.
-Dynamic labels should use a literal at a translation call or a UI text property.
+Static source strings are extracted from C++ and QML. Traditional Chinese is the
+reference complete translation and must cover every extracted UI string. Other
+locale packs may be introduced incrementally, but their JSON integrity,
+cross-catalog uniqueness and placeholders are always enforced and their coverage
+is reported. Adding another <locale>.json automatically enrolls it in CI.
 """
 import ast
 from collections import Counter
@@ -14,6 +17,8 @@ import sys
 STRING = r'''(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')'''
 TOKEN = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|' + STRING + r'|[A-Za-z_][A-Za-z_0-9]*|===|!==|==|!=|\|\||[^\s]')
 PLACEHOLDER = re.compile(r'%L?[1-9][0-9]*|%n|%p%')
+LOCALE_FILE = re.compile(r'^[a-z]{2,3}_[A-Z]{2}\.json$')
+REFERENCE_COMPLETE_LOCALES = {'zh_TW'}
 
 
 def literals(source, model_fields=()):
@@ -76,7 +81,7 @@ def load_catalog(path):
 
 
 def merge_catalogs(paths):
-    """Report every cross-file duplicate without hiding later missing messages."""
+    """Report every cross-file duplicate without hiding later diagnostics."""
     messages, origins, errors = {}, {}, []
     for path in paths:
         for source, value in load_catalog(path).items():
@@ -88,15 +93,24 @@ def merge_catalogs(paths):
     return messages, errors
 
 
-def main():
-    root = Path(__file__).resolve().parents[1]
-    directory = root / 'data/translations'
-    catalogs = [directory / 'zh_TW.json', *sorted((directory / 'zh_TW').glob('*.json'))]
-    messages, errors = merge_catalogs(catalogs)
-    for error in errors:
-        print(error, file=sys.stderr)
-    missing = {}
-    count = 0
+def catalogs_for(directory, locale):
+    paths = []
+    root = directory / f'{locale}.json'
+    if root.exists():
+        paths.append(root)
+    feature_dir = directory / locale
+    if feature_dir.is_dir():
+        paths.extend(sorted(feature_dir.glob('*.json')))
+    return paths
+
+
+def discover_locales(directory):
+    return sorted(path.stem for path in directory.glob('*.json')
+                  if LOCALE_FILE.match(path.name) and path.stem != 'en_US')
+
+
+def source_messages(root):
+    found = {}
     for folder in ('qml', 'src'):
         for path in sorted((root / folder).rglob('*')):
             if path.suffix not in ('.qml', '.cpp'):
@@ -108,13 +122,45 @@ def main():
                 'Launcher.qml': ('name', 'genericName'),
             }.get(path.name, ())
             for text in literals(path.read_text(encoding='utf-8'), model_fields):
-                count += 1
-                if text not in messages:
-                    missing.setdefault(text, []).append(str(path.relative_to(root)))
-    for text, paths in sorted(missing.items()):
-        print(json.dumps({'missing': text, 'files': paths}, ensure_ascii=False))
-    print(f'Translation coverage: {count} static lookups, {len(messages)} entries, {len(missing)} missing, {len(errors)} duplicate errors.')
-    return bool(missing or errors)
+                found.setdefault(text, []).append(str(path.relative_to(root)))
+    return found
+
+
+def main():
+    root = Path(__file__).resolve().parents[1]
+    directory = root / 'data/translations'
+    sources = source_messages(root)
+    locales = discover_locales(directory)
+    fatal = False
+
+    if not locales:
+        print('No non-English translation packs were found.', file=sys.stderr)
+        return True
+    for required in sorted(REFERENCE_COMPLETE_LOCALES):
+        if required not in locales:
+            print(f'Required complete locale is missing: {required}', file=sys.stderr)
+            fatal = True
+
+    for locale in locales:
+        catalogs = catalogs_for(directory, locale)
+        messages, errors = merge_catalogs(catalogs)
+        for error in errors:
+            print(f'[{locale}] {error}', file=sys.stderr)
+        if errors:
+            fatal = True
+
+        missing = {text: paths for text, paths in sources.items() if text not in messages}
+        translated = len(sources) - len(missing)
+        coverage = 100.0 if not sources else translated * 100.0 / len(sources)
+        print(f'{locale}: {translated}/{len(sources)} static messages translated ({coverage:.1f}%), '
+              f'{len(messages)} catalog entries, {len(errors)} duplicate errors.')
+
+        if locale in REFERENCE_COMPLETE_LOCALES and missing:
+            fatal = True
+            for text, paths in sorted(missing.items()):
+                print(json.dumps({'locale': locale, 'missing': text, 'files': paths}, ensure_ascii=False))
+
+    return fatal
 
 
 if __name__ == '__main__':
