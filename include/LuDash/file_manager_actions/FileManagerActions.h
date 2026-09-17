@@ -16,6 +16,7 @@ class QListWidget;
 class QPushButton;
 class QAction;
 class QMimeData;
+class QModelIndex;
 namespace LuDash {
 class FileManagerActions final : public QObject {
 public:
@@ -38,10 +39,18 @@ private:
     void createEntry(bool folder, const QString& destination);
     void renameSelection();
     void trashSelection();
+    void deleteSelectionPermanently();
+    void duplicateSelection();
+    void copyOrMoveSelection(bool move);
     void openTerminal(const QString& directory);
     void properties();
     void sort(int column, bool ascending);
+    void updatePreview(const QString& path = {});
+    void updatePreviewForIndex(const QModelIndex& index);
     QStringList clipboardFiles() const;
+    QStringList pinnedFolders() const;
+    bool isPinned(const QString& path) const;
+    void setPinned(const QString& path, bool pinned);
     QWidget* page_;
     QFileSystemModel* model_ = nullptr;
     QTreeView* details_;
@@ -55,8 +64,13 @@ private:
     QPushButton* hidden_;
     QPushButton* back_;
     QPushButton* forward_;
+    QLabel* previewImage_;
+    QLabel* previewTitle_;
+    QLabel* previewMeta_;
+    QLabel* previewHint_;
     QHash<QString, QAction*> actions_;
     QString currentPath_;
+    QString previewPath_;
     QStringList history_;
     int historyIndex_ = -1;
     int sortColumn_ = 0;
