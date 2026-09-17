@@ -1,0 +1,18 @@
+{
+  "Use the current system default": "使用目前的系統預設應用程式",
+  "Some previous file associations refer to unavailable applications. The old settings were kept; choose a new application when opening those files.": "部分舊檔案關聯指向無法使用的應用程式。已保留舊設定；開啟這些檔案時請重新選擇應用程式。",
+  "Set default application for this file type...": "設定此檔案類型的預設應用程式…",
+  "Reset default application for this file type": "重設此檔案類型的預設應用程式",
+  "File association saved.": "已儲存檔案關聯。",
+  "File association removed.": "已移除檔案關聯。",
+  "Location": "位置",
+  "Properties": "內容",
+  "Select all": "全選",
+  "Sort by": "排序方式",
+  "Name": "名稱",
+  "Size": "大小",
+  "Type": "類型",
+  "Modified": "修改時間",
+  "Owner": "擁有者",
+  "Group": "群組"
+}

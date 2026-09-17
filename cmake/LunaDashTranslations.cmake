@@ -9,6 +9,8 @@ qt_add_resources(ludash-localization desktop_translations
         ${CMAKE_CURRENT_LIST_DIR}/../data/translations/zh_TW/settings.json
         ${CMAKE_CURRENT_LIST_DIR}/../data/translations/zh_TW/plugins.json
         ${CMAKE_CURRENT_LIST_DIR}/../data/translations/zh_TW/network_devices.json
+        ${CMAKE_CURRENT_LIST_DIR}/../data/translations/zh_TW/file_associations.json
+        ${CMAKE_CURRENT_LIST_DIR}/../data/translations/zh_TW/file_actions.json
 )
 if(TARGET ludash-file-operations)
     target_link_libraries(ludash-file-operations PUBLIC ludash-localization)

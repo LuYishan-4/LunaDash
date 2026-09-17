@@ -21,7 +21,7 @@ jobs:
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
                     clang clang-tidy cmake g++ ninja-build pkg-config \
-                    libwayland-dev libinput-dev libxkbcommon-dev libudev-dev \
+                    libwayland-dev libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev \
                     qt6-wayland-dev libqt6opengl6-dev
             - name: Analyze production code
