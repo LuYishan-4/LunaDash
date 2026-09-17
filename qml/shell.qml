@@ -44,6 +44,8 @@ ShellRoot {
     property var notification: ({title:"", body:"", kind:"info", details:"", actions:[]})
     property var activeExternalNotification: null
     property string notificationDetails: ""
+    property int screenshotSerial: 0
+    property string lastScreenshotSeen: ""
 
     function notify(title, body, kind, details) {
         if (!((state.appearance || {}).notificationsEnabled ?? true)) return
@@ -155,6 +157,12 @@ ShellRoot {
         Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true)
         Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
+        const capture = String((state.screenCapture || {}).lastCapture || "")
+        if (capture.length && capture !== lastScreenshotSeen) {
+            lastScreenshotSeen = capture
+            screenshotSerial += 1
+            notify(tr("Screenshot saved"), tr("Saved to") + " " + capture, "success", capture)
+        }
         if (setupPaused) { const mapped = state.clients.some(client => client.mapped); if (mapped) setupEditorMapped = true; if ((!mapped && setupEditorMapped) || (!setupEditorMapped && ++setupWaitTicks >= 15)) setupPaused = false }
     }
 
@@ -230,6 +238,7 @@ ShellRoot {
     X11Launcher { shell: root; opened: !root.stopping && root.x11Open }
     Message { shell: root; opened: !root.stopping && root.errorMessage.length > 0 }
     NotificationToast { shell: root; opened: !root.stopping && root.notificationVisible }
+    ScreenshotFeedback { shell: root; opened: !root.stopping }
     WorkspaceTransition { shell: root; opened: !root.stopping }
     StartupLogoOverlay { shell: root; opened: !root.stopping && root.startupLogoVisible; onFinished: root.startupLogoVisible = false }
 }
