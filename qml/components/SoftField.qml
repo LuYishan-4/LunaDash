@@ -7,8 +7,8 @@ TextField {
     property bool invalid: false
 
     implicitHeight: 40
-    leftPadding: 12
-    rightPadding: 12
+    leftPadding: 16
+    rightPadding: 16
     color: Theme.text
     placeholderTextColor: Theme.muted
     font.family: Theme.font
@@ -24,10 +24,30 @@ TextField {
     }
 
     background: Rectangle {
-        radius: 12
-        color: control.activeFocus ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08) : Theme.surface
+        radius: 13
+        color: control.activeFocus
+            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
+            : Theme.surface
         border.width: control.activeFocus || control.invalid ? 2 : 1
-        border.color: control.invalid ? Theme.danger : control.activeFocus ? Theme.accent : Theme.border
+        border.color: control.invalid
+            ? Theme.danger
+            : control.activeFocus
+                ? Theme.moon
+                : Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.28)
+
+        Rectangle {
+            width: 4
+            height: 4
+            radius: 2
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.rightMargin: 10
+            anchors.topMargin: 8
+            color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b,
+                           control.activeFocus ? 0.82 : 0.28)
+            Behavior on color { ColorAnimation { duration: Theme.motion } }
+        }
+
         Behavior on color { ColorAnimation { duration: Theme.motion } }
         Behavior on border.color { ColorAnimation { duration: Theme.motion } }
     }
