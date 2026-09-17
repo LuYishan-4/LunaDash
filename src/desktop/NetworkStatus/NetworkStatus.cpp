@@ -5,6 +5,8 @@
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
 #include <QJsonArray>
+#include <QJsonObject>
+#include <QMap>
 #include <QNetworkInterface>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -25,6 +27,24 @@ bool boundedText(const QJsonObject &request, const QString &key, QString *value,
     *value = text;
   return true;
 }
+
+bool isWifiType(const QString &type) {
+  const QString normalized = type.toLower();
+  return normalized == "wifi" || normalized == "802-11-wireless" ||
+         normalized == "wireless";
+}
+
+bool isEthernetType(const QString &type) {
+  const QString normalized = type.toLower();
+  return normalized == "ethernet" || normalized == "802-3-ethernet" ||
+         normalized == "wired";
+}
+
+bool wifiSecurityRequiresPassword(const QString &security) {
+  const QString normalized = security.trimmed().toLower();
+  return !normalized.isEmpty() && normalized != "--" && normalized != "open" &&
+         normalized != "none";
+}
 } // namespace
 
 QJsonObject describeNetwork(unsigned int state, unsigned int connectivity) {
@@ -39,7 +59,12 @@ QJsonObject describeNetwork(unsigned int state, unsigned int connectivity) {
   return {{"managed", true},
           {"connected", connected},
           {"internet", connected && connectivity == 4},
-          {"label", label}};
+          {"label", label},
+          {"hasWifi", false},
+          {"wifiEnabled", false},
+          {"wifiConnected", false},
+          {"ethernetConnected", false},
+          {"primaryType", connected ? "network" : "disconnected"}};
 }
 
 NetworkStatus::NetworkStatus(QObject *parent)
@@ -108,7 +133,12 @@ void NetworkStatus::refresh() {
                  {"connected", link},
                  {"internet", false},
                  {"label", link ? "Network link detected; Internet access is unverified"
-                                : "NetworkManager is unavailable"}};
+                                : "NetworkManager is unavailable"},
+                 {"hasWifi", false},
+                 {"wifiEnabled", false},
+                 {"wifiConnected", false},
+                 {"ethernetConnected", link},
+                 {"primaryType", link ? "ethernet" : "disconnected"}};
     }
     call->deleteLater();
   });
@@ -125,24 +155,61 @@ void NetworkStatus::refreshNmcli() {
     pending_ = false;
     QJsonArray devices;
     bool connected = false;
+    bool hasWifi = false;
+    bool wifiEnabled = false;
+    bool wifiConnected = false;
+    bool ethernetConnected = false;
+    QString primaryConnection;
+    QString primaryType = "disconnected";
+
     for (const auto &line : QString::fromUtf8(output).split('\n')) {
       const auto fields = line.split(':');
       if (fields.size() < 4 || fields[0].isEmpty())
         continue;
-      connected = connected || fields[2] == "connected";
-      devices.append(QJsonObject{{"device", fields[0]},
-                                 {"type", fields[1]},
-                                 {"state", fields[2]},
-                                 {"connection", fields[3]}});
+      const QString deviceName = fields[0];
+      const QString type = fields[1];
+      const QString state = fields[2];
+      const QString connection = fields[3];
+      const bool deviceConnected = state == "connected";
+      connected = connected || deviceConnected;
+
+      if (isWifiType(type)) {
+        hasWifi = true;
+        wifiEnabled = wifiEnabled || state != "unavailable";
+        if (deviceConnected) {
+          wifiConnected = true;
+          if (primaryConnection.isEmpty()) {
+            primaryConnection = connection;
+            primaryType = "wifi";
+          }
+        }
+      } else if (isEthernetType(type) && deviceConnected) {
+        ethernetConnected = true;
+        primaryConnection = connection;
+        primaryType = "ethernet";
+      }
+
+      devices.append(QJsonObject{{"device", deviceName},
+                                 {"type", type},
+                                 {"state", state},
+                                 {"connection", connection}});
     }
+
     status_ = {{"managed", ok},
                {"connected", connected},
                {"internet", false},
                {"label", ok ? (connected ? "Connected" : "Not connected")
                             : "NetworkManager is unavailable"},
-               {"devices", devices}};
+               {"devices", devices},
+               {"hasWifi", hasWifi},
+               {"wifiEnabled", hasWifi && wifiEnabled},
+               {"wifiConnected", wifiConnected},
+               {"ethernetConnected", ethernetConnected},
+               {"primaryType", primaryType},
+               {"primaryConnection", primaryConnection}};
     if (!ok)
       return;
+
     command_->run(
         nmcli_,
         {"-t", "--escape", "no", "-f",
@@ -162,23 +229,47 @@ void NetworkStatus::refreshNmcli() {
         }
       }
       status_["connections"] = connections;
+
+      if (!status_.value("hasWifi").toBool()) {
+        status_["wifi"] = QJsonArray{};
+        return;
+      }
+
       command_->run(
           nmcli_,
           {"-t", "--escape", "no", "-f",
            "IN-USE,SSID,SIGNAL,SECURITY,DEVICE", "device", "wifi", "list"},
           [this](bool wifiOk, const QByteArray &wifiOutput) {
-        QJsonArray wifi;
+        QMap<QString, QJsonObject> strongestBySsid;
         if (wifiOk) {
           for (const auto &line : QString::fromUtf8(wifiOutput).split('\n')) {
             const auto fields = line.split(':');
-            if (fields.size() >= 5 && !fields[1].isEmpty())
-              wifi.append(QJsonObject{{"active", fields[0] == "*"},
-                                      {"ssid", fields[1]},
-                                      {"signal", fields[2].toInt()},
-                                      {"security", fields[3]},
-                                      {"device", fields[4]}});
+            if (fields.size() < 5 || fields[1].isEmpty())
+              continue;
+            const QString ssid = fields[1];
+            const int signal = fields[2].toInt();
+            QJsonObject candidate{{"active", fields[0] == "*"},
+                                  {"ssid", ssid},
+                                  {"signal", signal},
+                                  {"security", fields[3]},
+                                  {"secured", wifiSecurityRequiresPassword(fields[3])},
+                                  {"device", fields[4]}};
+            if (!strongestBySsid.contains(ssid) ||
+                strongestBySsid.value(ssid).value("signal").toInt() < signal ||
+                candidate.value("active").toBool())
+              strongestBySsid[ssid] = candidate;
           }
         }
+        QList<QJsonObject> sorted = strongestBySsid.values();
+        std::sort(sorted.begin(), sorted.end(), [](const QJsonObject &a,
+                                                    const QJsonObject &b) {
+          if (a.value("active").toBool() != b.value("active").toBool())
+            return a.value("active").toBool();
+          return a.value("signal").toInt() > b.value("signal").toInt();
+        });
+        QJsonArray wifi;
+        for (const auto &entry : sorted)
+          wifi.append(entry);
         status_["wifi"] = wifi;
       });
     });
@@ -223,6 +314,11 @@ bool NetworkStatus::execute(const QJsonObject &request, QString *error) {
     });
   }
   if (action == "wifi-scan") {
+    if (!status_.value("hasWifi").toBool()) {
+      if (error)
+        *error = "No wireless network adapter is available.";
+      return false;
+    }
     args = {"device", "wifi", "rescan"};
   } else if (action == "wifi-connect") {
     QString ssid;
