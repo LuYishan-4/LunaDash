@@ -9,3 +9,4 @@ LunaDashLogo 1.0 LunaDashLogo.qml
 ApplicationIcon 1.0 ApplicationIcon.qml
 BrandIcon 1.0 BrandIcon.qml
 StyledComboBox 1.0 StyledComboBox.qml
+ColorPicker 1.0 ColorPicker.qml
