@@ -10,8 +10,8 @@ ColumnLayout {
     id: page
     required property var shell
     spacing: 16
-    readonly property var inputTools: (shell.state.systemTools || []).filter(tool => tool.category === "input")
-    readonly property var imeTool: inputTools.find(tool => tool.id === "ime") || ({available:false, package:"fcitx5-configtool"})
+    readonly property var inputTools: (shell.state.settingsTools || shell.state.systemTools || []).filter(tool => tool.category === "input")
+    readonly property var imeTool: inputTools.find(tool => tool.id === "ime") || ({available:false, configurable:false, package:"fcitx5 + fcitx5-configtool"})
 
     PageTitle { shell: page.shell; title: "Keyboard and pointer" }
 
@@ -30,6 +30,7 @@ ColumnLayout {
         }
         PreferenceSlider { shell: page.shell; preference: "keyRepeatRate"; label: "Key repeat rate"; minimum: 0; maximum: 60; suffix: " / s" }
         PreferenceSlider { shell: page.shell; preference: "keyRepeatDelay"; label: "Key repeat delay"; minimum: 200; maximum: 1500; step: 50; suffix: " ms" }
+        HelpText { shell: page.shell; message: "The default is 28 repeats per second after a 420 ms delay, which is responsive without making normal typing feel twitchy." }
     }
 
     SettingsComponents.SettingsCard {
@@ -40,12 +41,21 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true
                 Text { text: shell.tr("Fcitx 5"); color: Theme.text; font.family: Theme.font; font.pixelSize: 15 }
-                HelpText { shell: page.shell; message: page.imeTool.available ? "Fcitx configuration is available." : "Install fcitx5-configtool to configure Fcitx from LunaDash." }
+                HelpText {
+                    shell: page.shell
+                    message: page.imeTool.available
+                        ? (page.imeTool.configurable ? "Fcitx 5 is running-capable and its configuration tool is available." : "Fcitx 5 is installed, but fcitx5-configtool is not installed.")
+                        : "Fcitx 5 was not found in PATH. Install fcitx5 and fcitx5-configtool."
+                }
+            }
+            Rectangle {
+                width: 10; height: 10; radius: 5
+                color: page.imeTool.available ? Theme.accent : Theme.danger
             }
             ShellButton {
                 text: shell.tr("Configure Fcitx")
                 active: true
-                enabled: page.imeTool.available
+                enabled: page.imeTool.configurable ?? false
                 onClicked: shell.command("system-tool", "ime")
                 Accessible.name: shell.tr("Configure Fcitx")
             }
