@@ -13,14 +13,18 @@ Run the installer from the checkout as your normal user:
 ./scripts/install-session.sh
 ```
 
-The same script now detects four distribution families:
+The same script supports these package-manager families:
 
 | Distribution family | Build/install path |
 | --- | --- |
 | Arch Linux and derivatives | `makepkg --syncdeps --force --install`; pacman owns installed files |
 | Debian / Ubuntu and derivatives | apt dependencies, Ninja build, `cmake --install /usr` |
 | Fedora and derivatives | dnf dependencies, Ninja build, `cmake --install /usr` |
-| openSUSE Tumbleweed / Slowroll | zypper dependencies, Ninja build, `cmake --install /usr` |
+| openSUSE Tumbleweed / Slowroll / Leap | zypper dependencies, Ninja build, `cmake --install /usr` |
+| Alpine Linux | apk dependencies, Ninja build, `cmake --install /usr` |
+| Void Linux | xbps dependencies, Ninja build, `cmake --install /usr` |
+| Gentoo Linux | emerge dependencies, Ninja build, `cmake --install /usr` |
+| Other Linux distributions | existing dependencies/toolchain, standard CMake install |
 
 The dependency helper can be run by itself:
 
@@ -39,6 +43,8 @@ Use `--skip-deps` when dependencies are already installed:
 
 On non-Arch systems this is a direct CMake source installation rather than a distribution-owned package. Arch remains the package-managed path. The source build directory defaults to `build-install` and can be changed with `LUDASH_BUILD_DIR`.
 
+If none of the recognized package managers is present, `install-dependencies.sh` enters generic validation mode. It verifies the build tools that it can detect and then lets CMake perform the authoritative Qt/Wayland dependency check instead of rejecting the distribution by name.
+
 The installer never runs the desktop as root, stops the current desktop, reboots the computer, changes the default shell or modifies network services. `sudo` or `doas` is used only for package/system installation.
 
 ## Display manager and SDDM
@@ -51,13 +57,15 @@ lunadash-session --check
 
 Confirm `/usr/share/wayland-sessions/lunadash.desktop` exists and keep another desktop or TTY available. Log out, choose **LunaDash (Wayland)** in the existing session menu, then log in.
 
-For a system without an enabled display manager, LunaDash can install and enable SDDM on pacman, apt, dnf and zypper systems:
+For a system without an enabled display manager, LunaDash can install and enable SDDM when systemd is present:
 
 ```sh
 ./scripts/install-session.sh --enable-sddm
 ```
 
-This installs the distribution's `sddm` package, runs `systemctl enable sddm.service` without `--now`, and sets the next boot target to `graphical.target`. It refuses to replace a different enabled display manager. Save work and reboot yourself when ready; enabling SDDM never switches the current session.
+This installs the distribution's `sddm` package where the installer knows the package-manager command, runs `systemctl enable sddm.service` without `--now`, and sets the next boot target to `graphical.target`. It refuses to replace a different enabled display manager. Save work and reboot yourself when ready; enabling SDDM never switches the current session.
+
+On OpenRC/runit systems (common on Alpine, Void and some Gentoo installations), `--enable-sddm` intentionally refuses to proceed because service enablement is distribution-specific. Install LunaDash normally, then enable your display manager using that distribution's native service-management instructions.
 
 For explicit passwordless login on boot, first verify normal SDDM login/logout, then use:
 
@@ -109,13 +117,31 @@ The helper installs the Qt 6, Wayland, libinput, libxkbcommon, GL, udev/glib and
 
 The helper uses Fedora's `qt6-qtbase-devel`, `qt6-qtdeclarative-devel`, `qt6-qtwayland-devel` and corresponding Wayland/input development packages, then follows the generic CMake install path.
 
-### openSUSE Tumbleweed / Slowroll
+### openSUSE
 
-The helper uses the `libqt6-*` development package names plus Wayland/input/GL development packages and follows the generic CMake install path. Leap releases may expose a different Qt/package set and are not included in the automatic support promise.
+The helper uses Qt 6 development packages plus Wayland/input/GL development packages and follows the generic CMake install path. Tumbleweed is part of the distribution source-build workflow; older Leap releases can expose different Qt/package versions.
+
+### Alpine Linux
+
+The helper uses `apk` with `build-base`, Qt 6, Mesa, Wayland, libinput, libxkbcommon, eudev and GLib development packages. Alpine Edge is included in the distribution source-build workflow. Typical Alpine installations use OpenRC rather than systemd, so configure the display manager separately instead of using `--enable-sddm`.
+
+### Void Linux
+
+The helper uses `xbps-install`, including the Qt 6 development packages, Mesa/Wayland input stack and eudev development headers. The build/install path is supported by the installer, while CI coverage is currently narrower than Debian/Fedora/openSUSE/Alpine.
+
+### Gentoo Linux
+
+The helper uses `emerge --noreplace` with Qt 6 slots and the required Wayland/input/GL libraries. Existing USE flags still control how those packages are built; LunaDash does not rewrite Portage configuration. Gentoo currently uses the automatic installer path without the same container-CI breadth as the maintained binary-package distributions.
 
 ### Other Linux distributions
 
-Install equivalent requirements from the README, Quickshell 0.3+, then build manually:
+Install equivalent requirements from the README, Quickshell 0.3+, then either run:
+
+```sh
+./scripts/install-session.sh --skip-deps
+```
+
+or build manually:
 
 ```sh
 cmake -S . -B build-login -G Ninja \
@@ -136,7 +162,7 @@ sudo rm -- /etc/sddm.conf.d/90-ludash-autologin.conf
 
 Then reboot when ready. If VT switching itself fails, use the distribution's recovery boot. SDDM is a separate package; keep it if other desktops use it. The installer does not delete or replace other desktops.
 
-If you intentionally want console-only boot again, use `sudo systemctl set-default multi-user.target`; this changes the next boot target without stopping the current desktop.
+If you intentionally want console-only boot again on systemd, use `sudo systemctl set-default multi-user.target`; this changes the next boot target without stopping the current desktop.
 
 ## NVIDIA shell compatibility
 
