@@ -1,5 +1,4 @@
 #include "compositor/WaylandCompositor/WaylandCompositor.hpp"
-#include "desktop/InputSettings/InputSettings.hpp"
 #include "config/Localization/Localization.hpp"
 #include <QAbstractEventDispatcher>
 #include <QCommandLineParser>
@@ -27,23 +26,14 @@ int main(int argc, char **argv) {
   parser.addOption({"screenshot", "Save compositor screenshot at exit.", "path"}); parser.addOption({"state", "Write window geometry JSON at exit.", "path"}); parser.addOption({"exit-after", "Exit after this many milliseconds (test mode).", "ms"});
   parser.process(app);
 
-  // Only own libinput directly on bare-metal QPA backends. When LunaDash runs
-  // on Wayland/X11, Qt already receives keyboard events from the host
-  // compositor. Opening seat0 with libinput at the same time forwards every
-  // physical key through two independent paths, which causes missed-looking
-  // taps, duplicated characters and broken repeat timing.
   const QString platform = QGuiApplication::platformName().toLower();
-  const bool bareMetalInput =
-      platform == QStringLiteral("eglfs") ||
-      platform == QStringLiteral("linuxfb") ||
-      platform == QStringLiteral("kms") ||
-      platform == QStringLiteral("vkkhrdisplay");
-  LuDash::setNativeKeyboardInputEnabled(!parser.isSet("nested") && bareMetalInput);
-  qInfo().noquote() << "LunaDash keyboard input:"
-                    << ((!parser.isSet("nested") && bareMetalInput)
-                            ? "native libinput"
-                            : "Qt host input")
-                    << "(QPA" << platform + ")";
+  qInfo().noquote()
+      << "LunaDash keyboard input: Qt QPA -> QWaylandQuickItem"
+      << "(QPA" << platform + ")";
+  // Qt's platform backend owns the physical keyboard on both nested and
+  // EGLFS/KMS sessions. QWaylandQuickItem forwards each QKeyEvent to the
+  // focused Wayland surface. Opening seat0 again from LunaDash duplicates the
+  // same physical event and can execute shortcuts twice.
 
   QElapsedTimer activeTurn;
   if (parser.isSet("profile")) {
