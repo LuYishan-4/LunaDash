@@ -7,7 +7,7 @@ concurrency:
     cancel-in-progress: true
 jobs:
     startup:
-        name: wlroots startup failure handling
+        name: wlroots startup handling
         runs-on: ubuntu-24.04
         timeout-minutes: 25
         steps:
@@ -25,5 +25,5 @@ jobs:
                     xvfb xauth python3
             - name: Build startup target
               run: cmake -S . -B build-startup -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build-startup --parallel 2
-            - name: Verify controlled renderer startup errors
+            - name: Verify renderer startup handling
               run: python3 tests/renderer/test_startup_failure.py build-startup/lunadash-compositor
