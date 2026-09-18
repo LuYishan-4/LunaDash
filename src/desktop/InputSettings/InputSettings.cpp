@@ -3,7 +3,10 @@
 #include <QtWaylandCompositor/QWaylandKeyboard>
 #include <QtWaylandCompositor/QWaylandKeymap>
 #include <QtWaylandCompositor/QWaylandSeat>
+#include <QStringList>
+#ifdef LUDASH_USE_XKBREGISTRY
 #include <xkbcommon/xkbregistry.h>
+#endif
 
 #ifdef LUDASH_USE_LIBINPUT
 #include <QSocketNotifier>
@@ -20,6 +23,7 @@
 namespace LuDash {
 namespace {
 QString xkbLayoutForPreference(const QString &requestedLayout) {
+#ifdef LUDASH_USE_XKBREGISTRY
   rxkb_context *ctx = rxkb_context_new(RXKB_CONTEXT_NO_FLAGS);
   if (!ctx) {
     qWarning() << "Failed to create xkb registry context";
@@ -48,6 +52,15 @@ QString xkbLayoutForPreference(const QString &requestedLayout) {
 
   rxkb_context_unref(ctx);
   return result;
+#else
+  // The settings UI only emits these stable XKB layout names. Distributions
+  // without libxkbregistry can still use them directly through QWaylandKeymap.
+  static const QStringList supported{QStringLiteral("us"), QStringLiteral("gb"),
+                                     QStringLiteral("de"), QStringLiteral("fr"),
+                                     QStringLiteral("es")};
+  return supported.contains(requestedLayout) ? requestedLayout
+                                             : QStringLiteral("us");
+#endif
 }
 } // namespace
 
