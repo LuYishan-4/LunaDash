@@ -92,7 +92,7 @@ ColumnLayout {
         ShellButton { text: shell.tr("Device Manager"); active: page.section === "devices"; onClicked: page.section = "devices" }
         ShellButton { text: shell.tr("Disk Management"); active: page.section === "disks"; onClicked: page.section = "disks" }
         Item { Layout.fillWidth: true }
-        ShellButton { text: shell.tr("Refresh"); onClicked: page.refreshHardware() }
+        ShellButton { iconName:"update"; text:shell.tr("Refresh"); busy:deviceProbe.running||diskProbe.running; onClicked:page.refreshHardware() }
     }
 
     SettingsComponents.SettingsCard {
@@ -103,7 +103,9 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             ShellButton {
+                iconName: "update"
                 text: shell.tr("Scan for hardware changes")
+                busy: rescan.running
                 enabled: !rescan.running
                 onClicked: rescan.running = true
             }
@@ -266,17 +268,23 @@ ColumnLayout {
 
                     ShellButton {
                         visible: modelData.type !== "disk" && (!modelData.mountpoints || modelData.mountpoints.filter(Boolean).length === 0)
+                        iconName: "devices"
                         text: shell.tr("Mount")
+                        busy: diskActionProcess.running
                         onClicked: page.runDiskAction("mount", modelData.path)
                     }
                     ShellButton {
                         visible: modelData.type !== "disk" && modelData.mountpoints && modelData.mountpoints.filter(Boolean).length > 0
+                        iconName: "devices"
                         text: shell.tr("Unmount")
+                        busy: diskActionProcess.running
                         onClicked: page.runDiskAction("unmount", modelData.path)
                     }
                     ShellButton {
                         visible: modelData.type === "disk" && (modelData.rm || modelData.hotplug)
+                        iconName: "usb"
                         text: shell.tr("Safely remove")
+                        busy: diskActionProcess.running
                         onClicked: page.runDiskAction("power-off", modelData.path)
                     }
                 }
