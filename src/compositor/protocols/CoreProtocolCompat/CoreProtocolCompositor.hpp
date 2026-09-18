@@ -5,9 +5,10 @@
 namespace LuDash {
 
 // Qt 6.9 still advertises wl_seat v4 from QWaylandSeat::initialize(), while
-// current native Wayland clients such as Zed require wl_seat v5. Keep the rest
-// of QtWaylandCompositor's input plumbing, but create a LunaDash-owned seat
-// whose protocol global is initialized at v5.
+// current native Wayland clients such as Zed require wl_seat v5. LunaDash
+// keeps Qt's focus/keymap plumbing but owns the seat version and pointer v5
+// event framing so clients get real v5 semantics rather than a version-number
+// bump only.
 class CoreProtocolCompositor final : public QWaylandQuickCompositor {
 public:
   using QWaylandQuickCompositor::QWaylandQuickCompositor;
@@ -22,6 +23,7 @@ public:
 
 protected:
   QWaylandSeat *createSeat() override;
+  QWaylandPointer *createPointerDevice(QWaylandSeat *seat) override;
 };
 
 } // namespace LuDash
