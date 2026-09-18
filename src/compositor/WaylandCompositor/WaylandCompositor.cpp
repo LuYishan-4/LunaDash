@@ -205,6 +205,7 @@ public:
   wlr_scene_tree *backgroundLayer = nullptr;
   wlr_scene_tree *bottomLayer = nullptr;
   wlr_scene_tree *normalLayer = nullptr;
+  wlr_scene_tree *animationLayer = nullptr;
   wlr_scene_tree *topLayer = nullptr;
   wlr_scene_tree *overlayLayer = nullptr;
   wlr_scene_rect *background = nullptr;
@@ -298,6 +299,7 @@ public:
     backgroundLayer = wlr_scene_tree_create(&scene->tree);
     bottomLayer = wlr_scene_tree_create(&scene->tree);
     normalLayer = wlr_scene_tree_create(&scene->tree);
+    animationLayer = wlr_scene_tree_create(&scene->tree);
     topLayer = wlr_scene_tree_create(&scene->tree);
     overlayLayer = wlr_scene_tree_create(&scene->tree);
     const float color[4] = {0.07f, 0.09f, 0.18f, 1.0f};
@@ -511,6 +513,7 @@ public:
     backgroundLayer = nullptr;
     bottomLayer = nullptr;
     normalLayer = nullptr;
+    animationLayer = nullptr;
     topLayer = nullptr;
     overlayLayer = nullptr;
     background = nullptr;
@@ -1196,7 +1199,9 @@ public:
       return;
     if (state->impl->q->windowAnimations_ && state->client->sceneTree)
       state->impl->q->windowAnimations_->hideSnapshot(
-          state->client->sceneTree, state->impl->normalLayer);
+          state->client->sceneTree, state->impl->animationLayer);
+    if (state->impl->q->windowAnimations_ && state->client->sceneTree)
+      state->impl->q->windowAnimations_->cancel(state->client->sceneTree);
     if (state->impl->seat->keyboard_state.focused_surface ==
         state->client->surface->surface)
       wlr_seat_keyboard_notify_clear_focus(state->impl->seat);
@@ -1293,8 +1298,6 @@ public:
     detachListener(state->requestMinimize);
     detachListener(state->requestMaximize);
     detachListener(state->requestFullscreen);
-    if (self->q->windowAnimations_ && client->sceneTree)
-      self->q->windowAnimations_->cancel(client->sceneTree);
     client->nativeState = nullptr;
     self->q->removeClient(client);
     delete state;
