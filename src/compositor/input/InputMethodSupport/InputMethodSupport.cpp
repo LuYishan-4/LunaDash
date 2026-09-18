@@ -130,7 +130,6 @@ public:
   }
 
   bool filterKeyEvent(QKeyEvent *event) {
-    attachTextInputs();
     synchronizeActivation();
     if (!hasKeyboardGrab())
       return false;
