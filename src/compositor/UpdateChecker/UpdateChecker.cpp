@@ -12,6 +12,7 @@
 #include <QNetworkRequest>
 #include <QProcess>
 #include <QSettings>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 #include <algorithm>
