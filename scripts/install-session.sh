@@ -8,6 +8,15 @@ autologin=""
 dry_run=false
 skip_deps=false
 build_dir=${LUDASH_BUILD_DIR:-"$project_dir/build-install"}
+progress_file=${LUDASH_INSTALL_PROGRESS_FILE:-}
+
+report_progress() {
+    local progress=$1 stage=$2 message=$3
+    [[ -n $progress_file ]] || return 0
+    local tmp="${progress_file}.tmp"
+    printf '%s|%s|%s\n' "$progress" "$stage" "$message" > "$tmp"
+    mv -f "$tmp" "$progress_file"
+}
 
 usage() {
     cat <<'EOF'
@@ -58,12 +67,18 @@ if ((EUID == 0)); then
     exit 1
 fi
 
-if command -v sudo >/dev/null 2>&1; then
+if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]]; then
+    command -v pkexec >/dev/null 2>&1 || {
+        echo 'pkexec is required for graphical LunaDash updates.' >&2
+        exit 1
+    }
+    elevate=(pkexec)
+elif command -v sudo >/dev/null 2>&1; then
     elevate=(sudo)
 elif command -v doas >/dev/null 2>&1; then
     elevate=(doas)
 else
-    echo 'sudo or doas is required for system installation.' >&2
+    echo 'sudo, doas, or graphical pkexec elevation is required for system installation.' >&2
     exit 1
 fi
 
@@ -110,7 +125,10 @@ run() {
     if ! $dry_run; then "$@"; fi
 }
 
+report_progress 36 prepare "Preparing the LunaDash installation script."
+
 if ! $skip_deps; then
+    report_progress 38 dependencies "Installing or verifying build dependencies."
     deps=(bash "$project_dir/scripts/install-dependencies.sh")
     $dry_run && deps+=(--dry-run)
     run "${deps[@]}"
@@ -118,20 +136,39 @@ fi
 
 if [[ $package_manager == pacman ]]; then
     command -v makepkg >/dev/null 2>&1 || { echo 'makepkg is required on Arch Linux.' >&2; exit 1; }
+    report_progress 42 package "Preparing the Arch Linux package source."
     run "$project_dir/scripts/make-source.sh"
     (
         cd -- "$project_dir/packaging/arch"
-        run makepkg --syncdeps --force --install
+        if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]]; then
+            report_progress 54 build "Building the Arch Linux package."
+            run makepkg --force --cleanbuild
+            mapfile -t packages < <(makepkg --packagelist)
+            (("${#packages[@]}" > 0)) || { echo 'makepkg produced no package paths.' >&2; exit 1; }
+            for package in "${packages[@]}"; do
+                [[ -f $package ]] || { echo "Built package is missing: $package" >&2; exit 1; }
+            done
+            report_progress 84 install "Installing the newly built LunaDash package."
+            run "${elevate[@]}" pacman -U --noconfirm "${packages[@]}"
+        else
+            report_progress 54 build "Building and installing the Arch Linux package."
+            run makepkg --syncdeps --force --install
+        fi
     )
 else
     for tool in cmake ninja; do
         command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required. Run bash scripts/install-dependencies.sh first." >&2; exit 1; }
     done
+    report_progress 44 configure "Configuring the LunaDash release build."
     run cmake -S "$project_dir" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+    report_progress 58 build "Building LunaDash."
     run cmake --build "$build_dir" --parallel
+    report_progress 84 install "Installing LunaDash system files."
     run "${elevate[@]}" cmake --install "$build_dir"
 fi
+
+report_progress 96 finalize "Finalizing the LunaDash installation."
 
 install_sddm() {
     case "$package_manager" in
