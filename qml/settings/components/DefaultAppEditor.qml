@@ -24,7 +24,9 @@ ColumnLayout {
         const applications = DesktopEntries.applications.values
         const defaultLabel = editor.role === "terminal"
             ? "Konsole (default)"
-            : "LunaDash default"
+            : editor.role === "browser"
+                ? "Google Chrome (default)"
+                : "LunaDash default"
         const entries = []
         const seen = {}
         for (const entry of applications) {
