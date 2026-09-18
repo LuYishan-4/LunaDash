@@ -175,5 +175,6 @@
     "LunaDash build failed.": "LunaDash 构建失败。",
     "Installing the new LunaDash build failed.": "安装新的 LunaDash 版本失败。",
     "Could not restore the previous installation.": "无法恢复之前的安装版本。",
-    "CMake configuration failed.": "CMake 配置失败。"
+    "CMake configuration failed.": "CMake 配置失败。",
+    "copy %1": "复制 %1"
 }
