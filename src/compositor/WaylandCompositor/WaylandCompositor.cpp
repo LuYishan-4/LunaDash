@@ -182,7 +182,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                     correctPlacement);
             correctPlacement();
           });
-  installInputMethodProtocols(&compositor_);
+  inputMethodSupport_ =
+      installInputMethodProtocols(&compositor_, &window_, output_);
   installCoreProtocolExtensions(&compositor_, output_, &window_);
   const QString platform = QGuiApplication::platformName();
   const bool bareMetal = platform == QLatin1String("eglfs") ||
@@ -454,12 +455,16 @@ void WaylandCompositor::launchExternalCommand(QStringList command) {
 
   const QStringList originalCommand = command;
 
-  // Chromium's native Wayland path currently hits three compositor gaps at
-  // once in LunaDash: no complete Fcitx input-method bridge, Qt's old core
-  // pointer protocol, and imperfect xdg_popup placement. XWayland provides the
-  // mature XIM/GTK Fcitx path plus stable wheel/context-menu behavior while the
-  // native protocol layer is upgraded.
-  if (isChromiumApplication(command.first()) && xwayland_) {
+  const bool chromium = isChromiumApplication(command.first());
+  const bool nativeChromiumReady =
+      inputMethodSupport_ && inputMethodSupport_->nativeBridgeAvailable() &&
+      CoreProtocolCompositor::seatProtocolVersion() >= 5 &&
+      CoreProtocolCompositor::dataDeviceProtocolVersion() >= 3;
+
+  // Keep XWayland only as a capability fallback. Once the compositor exposes
+  // seat/pointer v5, data-device v3 and the native Fcitx bridge, Chromium uses
+  // native Wayland instead of being permanently app-routed to X11.
+  if (chromium && xwayland_ && !nativeChromiumReady) {
     QStringList x11Command = command;
     prepareXWaylandChromiumFlags(x11Command);
     QString error;
@@ -475,7 +480,24 @@ void WaylandCompositor::launchExternalCommand(QStringList command) {
         << "; falling back to native Wayland.";
   }
 
-  if (isChromiumApplication(command.first()))
+  if (chromium && nativeChromiumReady) {
+    command.erase(std::remove_if(command.begin(), command.end(),
+                                 [](const QString &argument) {
+                                   return argument.startsWith("--gtk-version=");
+                                 }),
+                  command.end());
+    if (!command.contains("--enable-wayland-ime"))
+      command.append("--enable-wayland-ime");
+    const bool hasTextInputVersion =
+        std::any_of(command.cbegin(), command.cend(),
+                    [](const QString &argument) {
+                      return argument.startsWith(
+                          "--wayland-text-input-version=");
+                    });
+    if (!hasTextInputVersion)
+      command.append("--wayland-text-input-version=3");
+  }
+  if (chromium)
     ensureWaylandChromiumFlags(command);
 
   const auto executable = command.takeFirst();
@@ -1752,6 +1774,14 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
     handleKeyboardLockKey(key->key(), event->type() == QEvent::KeyPress,
                           key->isAutoRepeat());
 
+    // When the compositor-side input method owns the keyboard, every physical
+    // key (including keypad keys) must reach Fcitx first. Unhandled keys return
+    // through virtual-keyboard-v1 and are then forwarded to the focused client.
+    if (inputMethodSupport_ && inputMethodSupport_->hasKeyboardGrab() &&
+        key->modifiers().testFlag(Qt::KeypadModifier) &&
+        inputMethodSupport_->filterKeyEvent(key))
+      return true;
+
     // Qt Wayland Compositor's modifier-repair path treats KeypadModifier like
     // Shift/Ctrl/Alt mismatch and can send a modifiers event with a zero locked
     // mask. That clears NumLock/CapsLock for the client. Forward keypad keys
@@ -1787,17 +1817,19 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
         key->key() == Qt::Key_Meta || key->key() == Qt::Key_CapsLock ||
         key->key() == Qt::Key_NumLock || key->key() == Qt::Key_ScrollLock;
 
-    // Modifier-only events belong to the focused client/input method. Do not
-    // run them through global-shortcut normalization or synthesize a compositor
-    // action. In particular, Shift is commonly used as an input-method hotkey,
-    // but this rule is generic for every modifier-only key.
-    if (modifierOnly || event->type() != QEvent::KeyPress ||
-        key->isAutoRepeat())
-      return QObject::eventFilter(watched, event);
+    QString action;
+    if (!modifierOnly && event->type() == QEvent::KeyPress &&
+        !key->isAutoRepeat())
+      action = shortcutSettings_->actionFor(*key);
 
-    const QString action = shortcutSettings_->actionFor(*key);
-    if (action.isEmpty())
+    // Global shortcuts keep priority. Everything else, including modifier-only
+    // Shift toggles, is offered to the compositor-side Fcitx keyboard grab
+    // before Qt forwards it directly to the application.
+    if (action.isEmpty()) {
+      if (inputMethodSupport_ && inputMethodSupport_->filterKeyEvent(key))
+        return true;
       return QObject::eventFilter(watched, event);
+    }
 
     auto groupAdjacent = [this](int direction) {
       if (!focused_ || focused_->floating || focused_->desktop)
