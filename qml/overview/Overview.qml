@@ -243,8 +243,10 @@ ModuleSurface {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        ShellButton { Layout.fillWidth: true; text: shell.tr("Settings"); onClicked: { shell.setAppearance({overview:false}); shell.settingsOpen = true } }
-                        ShellButton { Layout.fillWidth: true; text: shell.tr("Files"); onClicked: shell.launch("files") }
+                        spacing: 8
+                        ShellButton { Layout.fillWidth: true; iconName: "settings"; text: shell.tr("Settings"); onClicked: { shell.setAppearance({overview:false}); shell.settingsOpen = true } }
+                        ShellButton { Layout.fillWidth: true; iconName: "files"; text: shell.tr("Files"); onClicked: shell.launch("files") }
+                        ShellButton { Layout.fillWidth: true; iconName: "monitor"; text: shell.tr("Monitor"); onClicked: shell.launch("monitor") }
                     }
                 }
             }
@@ -267,27 +269,54 @@ ModuleSurface {
 
             Repeater {
                 model: [
-                    ["CPU", Math.round(dashboard.stats.cpuPercent || 0) + "%", dashboard.stats.cpuModel || "CPU"],
-                    ["GPU", Math.round(dashboard.stats.gpuPercent || 0) + "%", dashboard.stats.gpuModel || "GPU"],
-                    [shell.tr("Memory"), Math.round(dashboard.stats.memoryPercent || 0) + "%", Number(dashboard.stats.memoryUsed || 0).toFixed(1) + " GiB"],
-                    [shell.tr("Storage"), Number(dashboard.stats.diskUsed || 0).toFixed(1) + " GiB", dashboard.stats.diskDevice || "Disk"]
+                    ["CPU", Math.round(dashboard.stats.cpuPercent || 0) + "%", dashboard.stats.cpuModel || "CPU", Math.max(0, Math.min(100, Number(dashboard.stats.cpuPercent || 0)))],
+                    ["GPU", Math.round(dashboard.stats.gpuPercent || 0) + "%", dashboard.stats.gpuModel || "GPU", Math.max(0, Math.min(100, Number(dashboard.stats.gpuPercent || 0)))],
+                    [shell.tr("Memory"), Math.round(dashboard.stats.memoryPercent || 0) + "%", Number(dashboard.stats.memoryUsed || 0).toFixed(1) + " GiB", Math.max(0, Math.min(100, Number(dashboard.stats.memoryPercent || 0)))],
+                    [shell.tr("Storage"), Number(dashboard.stats.diskUsed || 0).toFixed(1) + " GiB", dashboard.stats.diskDevice || "Disk", Math.max(0, Math.min(100, Number(dashboard.stats.diskPercent || 0)))]
                 ]
                 Rectangle {
+                    id: performanceCard
                     required property var modelData
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: 22
-                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.76)
-                    border.width: 1
-                    border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.14)
+                    scale: performanceHover.hovered ? 1.012 : 1
+                    color: performanceHover.hovered
+                        ? Theme.surfaceElevated
+                        : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.76)
+                    border.width: performanceHover.hovered ? 1.5 : 1
+                    border.color: performanceHover.hovered
+                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.36)
+                        : Qt.rgba(Theme.starlight.r, Theme.starlight.g, Theme.starlight.b, 0.14)
+
                     ColumnLayout {
                         anchors.fill: parent
                         anchors.margins: 20
+                        spacing: 8
                         Text { text: modelData[0]; color: Theme.moon; font.family: Theme.font; font.pixelSize: 18; font.weight: Font.DemiBold }
                         Text { text: modelData[2]; color: Theme.muted; font.family: Theme.font; Layout.fillWidth: true; elide: Text.ElideRight }
                         Item { Layout.fillHeight: true }
                         Text { text: modelData[1]; color: Theme.text; font.family: Theme.font; font.pixelSize: 38; font.weight: Font.Light }
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 6
+                            radius: 3
+                            color: Theme.track
+                            clip: true
+                            Rectangle {
+                                width: parent.width * Number(modelData[3] || 0) / 100
+                                height: parent.height
+                                radius: parent.radius
+                                color: Theme.accent
+                                Behavior on width { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+                            }
+                        }
                     }
+
+                    HoverHandler { id: performanceHover }
+                    Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+                    Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
                 }
             }
         }
