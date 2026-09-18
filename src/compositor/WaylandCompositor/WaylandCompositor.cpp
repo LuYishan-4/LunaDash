@@ -192,8 +192,14 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   publishSessionActivationEnvironment();
   const auto inputMethod = QStandardPaths::findExecutable("fcitx5");
   if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
-      !inputMethod.isEmpty())
-    spawn({"--replace"}, inputMethod, false);
+      !inputMethod.isEmpty()) {
+    // Do not use --replace here. A nested LunaDash session normally shares the
+    // host D-Bus session, so replacing org.fcitx.Fcitx5 tears down the host
+    // input-method instance while Qt clients still hold its input contexts.
+    // Starting normally lets Fcitx reuse/refuse an existing service and starts
+    // a fresh instance only when the session does not already have one.
+    spawn({}, inputMethod, false);
+  }
   if (qEnvironmentVariableIntValue("LUDASH_DISABLE_XWAYLAND") != 1 &&
       qEnvironmentVariableIntValue("LUNADASH_DISABLE_CLIPBOARD_BRIDGE") != 1 &&
       !QStandardPaths::findExecutable(QStringLiteral("wl-paste")).isEmpty() &&
@@ -206,16 +212,29 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   if (startShell) {
     if (auto *process = spawn({"--session"})) {
       connect(process, &QProcess::finished, this,
-              [this](int, QProcess::ExitStatus) {
+              [this](int code, QProcess::ExitStatus status) {
                 if (shuttingDown_ || testStopping_)
                   return;
                 if (processFailure_) {
                   QCoreApplication::exit(2);
                   return;
                 }
-                requestShutdown();
-                if (!clients_.empty())
-                  spawn({"--session", "--no-welcome"});
+
+                // A shell crash must not tear down the compositor and every
+                // application in the desktop session. Normal shell termination
+                // still means the user/session requested shutdown; an abnormal
+                // exit is isolated and the shell is restarted after a short
+                // delay so input-method/plugin crashes remain debuggable.
+                if (status == QProcess::NormalExit && code == 0) {
+                  requestShutdown();
+                  return;
+                }
+
+                qWarning() << "LunaDash shell exited unexpectedly; restarting";
+                QTimer::singleShot(250, this, [this] {
+                  if (!shuttingDown_ && !testStopping_)
+                    spawn({"--session", "--no-welcome"});
+                });
               });
     }
   }
