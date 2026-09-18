@@ -285,6 +285,17 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
   else
     environment.remove("DISPLAY");
   if (program.isEmpty() && arguments.contains("--session")) {
+    // Quickshell's PanelWindow surfaces use wlr-layer-shell. Fcitx's Qt input
+    // module renders its client-side candidate panel as a transient xdg_popup.
+    // QtWaylandCompositor 6.9 rejects the NULL xdg parent required before
+    // zwlr_layer_surface_v1.get_popup can attach that popup to a layer surface,
+    // disconnecting the whole Quickshell Wayland client when the IM switches.
+    // Keep Fcitx enabled for normal xdg-toplevel applications, but let the shell
+    // use Qt's native Wayland text-input path until LunaDash has a complete
+    // input-method-v2 bridge / layer-popup-compatible xdg-shell implementation.
+    environment.remove("QT_IM_MODULE");
+    environment.insert("QT_IM_MODULES", QStringLiteral("wayland"));
+
     if (!configureShellRendering(
             environment, QFile::exists("/proc/driver/nvidia/version"))) {
       processFailure_ = true;
