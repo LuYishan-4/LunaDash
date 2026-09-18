@@ -42,10 +42,14 @@ ColumnLayout {
             prepare: shell.tr("Preparing"),
             download: shell.tr("Downloading source"),
             verify: shell.tr("Verifying update"),
+            dependencies: shell.tr("Checking dependencies"),
+            package: shell.tr("Preparing package"),
+            "install-script": shell.tr("Running install script"),
             configure: shell.tr("Configuring build"),
             build: shell.tr("Building LunaDash"),
             backup: shell.tr("Creating rollback backup"),
             install: shell.tr("Installing files"),
+            cleanup: shell.tr("Cleaning temporary source"),
             finalize: shell.tr("Finalizing"),
             rollback: shell.tr("Restoring previous installation"),
             interrupted: shell.tr("Interrupted"),
@@ -301,7 +305,7 @@ ColumnLayout {
                 Text { visible: Boolean(page.install.target); text: shell.tr("Installer target: ") + String(page.install.target).slice(0, 18); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
                 Text { visible: Boolean(page.install.lastUpdate); text: shell.tr("Last installed: ") + String(page.install.lastUpdate); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
             }
-            ShellButton { visible: page.update.status === "available" && Boolean(page.update.releaseUrl); text: shell.tr("Details"); onClicked: Qt.openUrlExternally(page.update.releaseUrl) }
+            ShellButton { visible: page.update.status === "available" && Boolean(page.update.releaseUrl); text: shell.tr("Details"); onClicked: shell.openUrl(page.update.releaseUrl) }
             ShellButton {
                 visible: page.update.status === "available"
                 active: true
@@ -350,7 +354,7 @@ ColumnLayout {
     SettingsComponents.SettingsCard {
         title: shell.tr("Community and source")
         description: shell.tr("Follow development, report issues, and review the source code.")
-        ShellButton { text: "GitHub"; onClicked: Qt.openUrlExternally(page.update.repositoryUrl || "https://github.com/LuYishan-4/LunaDash") }
+        ShellButton { text: "GitHub"; onClicked: shell.openUrl(page.update.repositoryUrl || "https://github.com/LuYishan-4/LunaDash") }
     }
 
     SettingsComponents.SettingsCard {
