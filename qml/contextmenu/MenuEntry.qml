@@ -32,8 +32,12 @@ Rectangle {
     Row {
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
-        anchors.leftMargin: entryMouse.containsMouse && entry.available ? 14 : 11
+        anchors.leftMargin: 11
         spacing: 10
+        transform: Translate {
+            x: entryMouse.containsMouse && entry.available ? 3 : 0
+            Behavior on x { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+        }
 
         LineIcon {
             width: 16
@@ -59,9 +63,6 @@ Rectangle {
             Behavior on color { ColorAnimation { duration: Theme.motionFast } }
         }
 
-        Behavior on anchors.leftMargin {
-            NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic }
-        }
     }
 
     MouseArea {
