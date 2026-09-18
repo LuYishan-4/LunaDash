@@ -187,6 +187,11 @@ ShellRoot {
 
         const persistentState = String(persistent.state || "idle")
         const runtimeRunning = updateAction.running || root.updateInstall.state === "running"
+        // When the user has just started an update, progress.json may still
+        // contain the previous run for a few milliseconds. Never let that stale
+        // idle/error/completed snapshot replace the live QML running state.
+        if (updateAction.running && persistentState !== "running")
+            return
         if (persistentState === "idle" && runtimeRunning)
             return
 
