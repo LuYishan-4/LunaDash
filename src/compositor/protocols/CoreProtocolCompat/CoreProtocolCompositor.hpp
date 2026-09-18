@@ -12,6 +12,14 @@ class CoreProtocolCompositor final : public QWaylandQuickCompositor {
 public:
   using QWaylandQuickCompositor::QWaylandQuickCompositor;
 
+  static constexpr int seatProtocolVersion() noexcept {
+#if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
+    return 5;
+#else
+    return 4;
+#endif
+  }
+
 protected:
   QWaylandSeat *createSeat() override;
 };
