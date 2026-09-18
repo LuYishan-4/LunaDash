@@ -978,7 +978,6 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   client->appId = toplevel->appId();
   client->utility = isUtilityWindow(client->appId);
   client->workspace = workspace_;
-  client->floating = desktopPreferences().value("defaultFloating").toBool();
   client->frame = new WindowFrame(window_.contentItem());
   client->frame->title = toplevel->title();
   client->iconName = client->utility
@@ -987,6 +986,9 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   const auto initialPolicy =
       initialWindowPolicy(client->appId, client->frame->title);
   client->maximized = initialPolicy.maximized;
+  client->floating = desktopPreferences().value("defaultFloating").toBool() ||
+                     initialPolicy.floating;
+  client->preferredFloatingSize = initialPolicy.floatingSize;
   client->initialRuleApplied = false;
   client->frame->setVisible(false);
   client->frame->setOpacity(.999);
@@ -1027,8 +1029,13 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
             ? QString()
             : windowIconName(current->appId, current->frame->title);
     if (!current->mapped) {
-      current->maximized =
-          initialWindowPolicy(current->appId, current->frame->title).maximized;
+      const auto policy =
+          initialWindowPolicy(current->appId, current->frame->title);
+      current->maximized = policy.maximized;
+      current->floating =
+          desktopPreferences().value("defaultFloating").toBool() ||
+          policy.floating || current->toplevel->parentToplevel();
+      current->preferredFloatingSize = policy.floatingSize;
       arrange();
     }
     current->frame->update();
@@ -1043,9 +1050,15 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
     current->desktop = current->appId == "ludash-shell" &&
                        shellProcessIds_.contains(
                            current->item->surface()->client()->processId());
-    if (!current->mapped)
-      current->maximized =
-          initialWindowPolicy(current->appId, current->frame->title).maximized;
+    if (!current->mapped) {
+      const auto policy =
+          initialWindowPolicy(current->appId, current->frame->title);
+      current->maximized = policy.maximized;
+      current->floating =
+          desktopPreferences().value("defaultFloating").toBool() ||
+          policy.floating || current->toplevel->parentToplevel();
+      current->preferredFloatingSize = policy.floatingSize;
+    }
     if (current->desktop)
       tiling_.remove(current->id);
     arrange();
@@ -1056,9 +1069,13 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
             const bool hasContent = attached && attached->hasContent();
             const bool newlyMapped = !current->mapped && hasContent;
             if (newlyMapped && !current->initialRuleApplied) {
-              current->maximized =
-                  initialWindowPolicy(current->appId, current->frame->title)
-                      .maximized;
+              const auto policy =
+                  initialWindowPolicy(current->appId, current->frame->title);
+              current->maximized = policy.maximized;
+              current->floating =
+                  desktopPreferences().value("defaultFloating").toBool() ||
+                  policy.floating || current->toplevel->parentToplevel();
+              current->preferredFloatingSize = policy.floatingSize;
               current->initialRuleApplied = true;
             }
             current->mapped = hasContent;
@@ -1085,7 +1102,12 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
           });
   connect(toplevel, &QWaylandXdgToplevel::parentToplevelChanged, this,
           [this, current] {
-            current->floating = current->toplevel->parentToplevel();
+            const auto policy =
+                initialWindowPolicy(current->appId, current->frame->title);
+            current->floating =
+                current->toplevel->parentToplevel() ||
+                desktopPreferences().value("defaultFloating").toBool() ||
+                policy.floating;
             if (current->floating)
               tiling_.remove(current->id);
             arrange();
@@ -1332,7 +1354,10 @@ void WaylandCompositor::arrange() {
     client->workspace = std::min(client->workspace, count - 1);
   const QRect area = workArea();
   const int gap = preferences.value("gap").toInt();
-  const int defaultColumnWidth = area.width();
+  const int defaultColumnWidth =
+      std::clamp(qRound(area.width() *
+                        preferences.value("masterRatio").toInt() / 100.0),
+                 1, std::max(1, area.width()));
   tiling_.setGap(gap);
   for (const auto &client : clients_) {
     const bool tiled = client->mapped && !client->desktop &&
@@ -1380,11 +1405,20 @@ void WaylandCompositor::arrange() {
     } else if (client->workspace == workspace_ && !client->minimized) {
       client->frame->setZ(client->floating ? 10 : 1);
       if (client->floating) {
+        const QSize preferred =
+            client->preferredFloatingSize.isValid()
+                ? client->preferredFloatingSize
+                : QSize(720, 500);
+        const QSize bounded(std::min(preferred.width(), area.width()),
+                            std::min(preferred.height(), area.height()));
+        const QRect defaultFloatingGeometry(
+            area.x() + (area.width() - bounded.width()) / 2,
+            area.y() + (area.height() - bounded.height()) / 2,
+            bounded.width(), bounded.height());
         const QRect floatingGeometry =
             client->manualResize && client->manualGeometry.isValid()
                 ? client->manualGeometry
-                : QRect((window_.width() - 720) / 2,
-                        (window_.height() - 500) / 2, 720, 500);
+                : defaultFloatingGeometry;
         configure(client.get(), floatingGeometry);
       } else
         client->frame->setZ(1);
@@ -1414,16 +1448,9 @@ void WaylandCompositor::arrange() {
       configure(client, manual);
     }
   }
-  for (const auto &client : clients_)
-    if (client->maximized && client->mapped && !client->minimized &&
-        !client->desktop && client->workspace == workspace_) {
-      configure(client.get(), area);
-      client->frame->setZ(30);
-    }
   if (focused_ && focused_->frame && focused_->mapped && !focused_->minimized &&
       !focused_->desktop && focused_->workspace == workspace_)
-    focused_->frame->setZ(focused_->maximized ? 30
-                                              : (focused_->floating ? 20 : 2));
+    focused_->frame->setZ(focused_->floating ? 20 : 2);
   window_.setTitle(
       QString("LunaDash Wayland · workspace %1").arg(workspace_ + 1));
 }
@@ -1663,10 +1690,11 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
         arrange();
       }
     } else if (action == "maximizeWindow") {
-      auto *target = clientAt(pointerPosition_);
-      if (!target)
-        target = focused_;
-      if (target) {
+      // Match niri's Mod+F maximize-column semantics. This changes the tiled
+      // column width to 100% of the work area; it is not an overlay and it does
+      // not implicitly maximize newly opened windows.
+      auto *target = focused_;
+      if (target && !target->floating && !target->desktop) {
         if (target->manualResize) {
           for (auto it = resizeOriginalWidths_.cbegin();
                it != resizeOriginalWidths_.cend(); ++it)
@@ -1675,8 +1703,53 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
           target->manualGeometry = {};
           target->resizeGuideGeometry = {};
         }
-        target->maximized = !target->maximized;
-        arrange();
+
+        const auto snapshot = tiling_.snapshot(workspace_);
+        const auto column = std::find_if(
+            snapshot.columns.cbegin(), snapshot.columns.cend(),
+            [target](const auto &entry) {
+              return entry.window ==
+                     static_cast<TilingWindowId>(target->id);
+            });
+        if (column != snapshot.columns.cend()) {
+          const bool maximized = std::any_of(
+              clients_.cbegin(), clients_.cend(),
+              [column](const auto &client) {
+                return column->columnMembers.contains(
+                           static_cast<TilingWindowId>(client->id)) &&
+                       client->maximized;
+              });
+          const int defaultWidth =
+              std::clamp(qRound(workArea().width() *
+                                desktopPreferences()
+                                        .value("masterRatio")
+                                        .toInt() /
+                                    100.0),
+                         1, std::max(1, workArea().width()));
+          int restoreWidth = defaultWidth;
+          if (maximized) {
+            for (const auto &client : clients_)
+              if (column->columnMembers.contains(
+                      static_cast<TilingWindowId>(client->id)) &&
+                  client->restoreColumnWidth > 0) {
+                restoreWidth = client->restoreColumnWidth;
+                break;
+              }
+          } else {
+            restoreWidth = column->width;
+          }
+
+          tiling_.resize(target->id,
+                         maximized ? restoreWidth : workArea().width());
+          for (const auto &client : clients_)
+            if (column->columnMembers.contains(
+                    static_cast<TilingWindowId>(client->id))) {
+              client->maximized = !maximized;
+              client->restoreColumnWidth =
+                  maximized ? 0 : restoreWidth;
+            }
+          arrange();
+        }
       }
     } else if (action == "closeWindow" || action == "closeWindowAlternate") {
       if (focused_ && focused_->toplevel)
