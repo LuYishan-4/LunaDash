@@ -114,7 +114,8 @@ int charactersCoveredByUtf8Suffix(const QString &text, int endCharacter,
                                   uint32_t bytes) {
   if (bytes == 0)
     return 0;
-  const QString prefix = text.left(std::clamp(endCharacter, 0, text.size()));
+  const int textSize = static_cast<int>(text.size());
+  const QString prefix = text.left(std::clamp(endCharacter, 0, textSize));
   const QByteArray utf8 = prefix.toUtf8();
   const int utf8Size = static_cast<int>(utf8.size());
   const int start = std::max(0, utf8Size - static_cast<int>(bytes));
