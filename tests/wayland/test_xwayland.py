@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
 
     with open(build / 'xwayland.log', 'w+') as log:
         process = subprocess.Popen([str(build / 'ludash-compositor'), '--no-shell', '--socket', 'ludash-x11-test',
-                                    '--exit-after', '16000', '--screenshot', str(build / 'xwayland-preview.png')],
+                                    '--exit-after', '16000'],
                                    env=env, stdout=log, stderr=log)
         try:
             deadline = time.monotonic() + 8
