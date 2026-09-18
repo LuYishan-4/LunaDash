@@ -42,6 +42,7 @@
 #include <QJsonObject>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QWheelEvent>
 #include <QPainter>
 #include <QPointer>
 #include <QProcess>
@@ -62,6 +63,8 @@
 #include <QtWaylandCompositor/QWaylandViewporter>
 #include <QtWaylandCompositor/QWaylandXdgDecorationManagerV1>
 #include <QtWaylandCompositor/QWaylandXdgShell>
+#include <QtWaylandCompositor/QWaylandXdgPopup>
+#include <QtWaylandCompositor/QWaylandXdgSurface>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -110,6 +113,75 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   output_->setModel("LunaDash desktop");
   connect(shell_, &QWaylandXdgShell::toplevelCreated, this,
           &WaylandCompositor::addWindow);
+  connect(shell_, &QWaylandXdgShell::popupCreated, this,
+          [this](QWaylandXdgPopup *popup, QWaylandXdgSurface *) {
+            // Qt's automatic popup item integration converts the popup position
+            // through the popup surface itself. With client-side window geometry
+            // and scaling this can visibly offset Chromium context menus. Apply
+            // the configured xdg_popup geometry again in the parent surface's
+            // coordinate space after Qt's own handler has run.
+            QPointer<QWaylandXdgPopup> guardedPopup(popup);
+            auto correctPlacement = [this, guardedPopup] {
+              QTimer::singleShot(0, this, [this, guardedPopup] {
+                if (!guardedPopup || !guardedPopup->parentXdgSurface())
+                  return;
+
+                auto findItem =
+                    [](QQuickItem *root, QWaylandXdgSurface *surface,
+                       const auto &self) -> QWaylandQuickShellSurfaceItem * {
+                  if (!root)
+                    return nullptr;
+                  if (auto *shellItem =
+                          qobject_cast<QWaylandQuickShellSurfaceItem *>(root);
+                      shellItem &&
+                      qobject_cast<QWaylandXdgSurface *>(
+                          shellItem->shellSurface()) == surface)
+                    return shellItem;
+                  for (auto *child : root->childItems())
+                    if (auto *found = self(child, surface, self))
+                      return found;
+                  return nullptr;
+                };
+
+                QWaylandQuickShellSurfaceItem *parentItem = nullptr;
+                QWaylandQuickShellSurfaceItem *popupItem = nullptr;
+                for (const auto &client : clients_) {
+                  if (!client->frame)
+                    continue;
+                  if (!parentItem)
+                    parentItem = findItem(
+                        client->frame, guardedPopup->parentXdgSurface(),
+                        findItem);
+                  if (!popupItem)
+                    popupItem =
+                        findItem(client->frame, guardedPopup->xdgSurface(),
+                                 findItem);
+                  if (parentItem && popupItem)
+                    break;
+                }
+                if (!parentItem || !popupItem || !popupItem->parentItem())
+                  return;
+
+                QRect geometry = guardedPopup->configuredGeometry();
+                if (!geometry.isValid())
+                  geometry = QRect(guardedPopup->unconstrainedPosition(),
+                                   guardedPopup->positionerSize());
+
+                const QPoint parentSurfacePosition =
+                    guardedPopup->parentXdgSurface()->windowGeometry().topLeft() +
+                    geometry.topLeft();
+                const QPointF parentLocal =
+                    parentItem->mapFromSurface(parentSurfacePosition);
+                const QPointF scenePosition =
+                    parentItem->mapToScene(parentLocal);
+                popupItem->setPosition(
+                    popupItem->parentItem()->mapFromScene(scenePosition));
+              });
+            };
+            connect(popup, &QWaylandXdgPopup::configuredGeometryChanged, this,
+                    correctPlacement);
+            correctPlacement();
+          });
   installInputMethodProtocols(&compositor_);
   installCoreProtocolExtensions(&compositor_, output_, &window_);
   const QString platform = QGuiApplication::platformName();
@@ -381,6 +453,28 @@ void WaylandCompositor::launchExternalCommand(QStringList command) {
     return;
 
   const QStringList originalCommand = command;
+
+  // Chromium's native Wayland path currently hits three compositor gaps at
+  // once in LunaDash: no complete Fcitx input-method bridge, Qt's old core
+  // pointer protocol, and imperfect xdg_popup placement. XWayland provides the
+  // mature XIM/GTK Fcitx path plus stable wheel/context-menu behavior while the
+  // native protocol layer is upgraded.
+  if (isChromiumApplication(command.first()) && xwayland_) {
+    QStringList x11Command = command;
+    prepareXWaylandChromiumFlags(x11Command);
+    QString error;
+    if (xwayland_->launch(x11Command, &error)) {
+      qInfo().noquote()
+          << "LunaDash launched Chromium through XWayland compatibility:"
+          << x11Command.first();
+      return;
+    }
+    qWarning().noquote()
+        << "LunaDash could not start Chromium through XWayland:"
+        << (error.isEmpty() ? "unknown XWayland error" : error)
+        << "; falling back to native Wayland.";
+  }
+
   if (isChromiumApplication(command.first()))
     ensureWaylandChromiumFlags(command);
 
@@ -1564,6 +1658,33 @@ ClientWindow *WaylandCompositor::clientAt(const QPointF &position) const {
 }
 
 bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
+  if (event->type() == QEvent::Wheel) {
+    const auto target = std::find_if(
+        clients_.begin(), clients_.end(), [watched](const auto &client) {
+          return client->item && client->item == watched && client->mapped &&
+                 !client->minimized && !client->desktop;
+        });
+    if (target != clients_.end()) {
+      // Forward wheel input explicitly from the QWaylandQuickItem. This keeps
+      // the pointer focus and axis target synchronized even on EGLFS, where the
+      // window delivery path can otherwise leave Chromium without scroll axes.
+      auto *wheel = static_cast<QWheelEvent *>(event);
+      auto *seat = compositor_.defaultSeat();
+      auto *item = (*target)->item.data();
+      if (seat && item && item->view()) {
+        const QPointF local = wheel->position();
+        seat->sendMouseMoveEvent(item->view(), item->mapToSurface(local),
+                                 item->mapToScene(local));
+        const QPoint angle = wheel->angleDelta();
+        if (angle.x() != 0)
+          seat->sendMouseWheelEvent(Qt::Horizontal, angle.x());
+        if (angle.y() != 0)
+          seat->sendMouseWheelEvent(Qt::Vertical, angle.y());
+        return true;
+      }
+    }
+  }
+
   if (event->type() == QEvent::MouseButtonPress) {
     auto *mouse = static_cast<QMouseEvent *>(event);
     if (mouse->button() == Qt::LeftButton) {
