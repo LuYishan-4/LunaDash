@@ -107,6 +107,26 @@ bool isChromiumApplication(const QString &program) {
          name == "brave" || name == "vivaldi" || name == "opera";
 }
 
+bool isDiscordApplicationCommand(const QStringList &command) {
+  return std::any_of(command.cbegin(), command.cend(), [](const QString &argument) {
+    const auto lower = argument.toLower();
+    const auto name = QFileInfo(argument).fileName().toLower();
+    return name == "discord" || name == "discordcanary" ||
+           name == "discord-ptb" ||
+           lower.contains("com.discordapp.discord") ||
+           lower.contains("com.discordapp.discordcanary") ||
+           lower.contains("com.discordapp.discordptb");
+  });
+}
+
+bool isChromiumApplicationCommand(const QStringList &command) {
+  return std::any_of(command.cbegin(), command.cend(),
+                     [](const QString &argument) {
+                       return isChromiumApplication(argument);
+                     }) ||
+         isDiscordApplicationCommand(command);
+}
+
 void ensureWaylandChromiumFlags(QStringList &command) {
   if (!command.contains("--ozone-platform=wayland"))
     command.append("--ozone-platform=wayland");
