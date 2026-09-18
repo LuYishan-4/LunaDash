@@ -23,6 +23,14 @@ public:
 #endif
   }
 
+  static constexpr int dataDeviceProtocolVersion() noexcept {
+#if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
+    return 3;
+#else
+    return 1;
+#endif
+  }
+
 protected:
   QWaylandSeat *createSeat() override;
   QWaylandPointer *createPointerDevice(QWaylandSeat *seat) override;
