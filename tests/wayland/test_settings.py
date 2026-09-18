@@ -66,7 +66,7 @@ APPEARANCE_DEFAULTS = {
     "animations": True,
     "animationDuration": 220,
     "workspaceCount": 4,
-    "masterRatio": 56,
+    "masterRatio": 50,
     "defaultFloating": False,
     "keyboardLayout": "us",
     "keyRepeatRate": 25,
