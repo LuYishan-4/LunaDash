@@ -22,7 +22,7 @@ jobs:
                     libwayland-dev wayland-protocols \
                     libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland-dev libqt6opengl6-dev \
-                    xvfb xauth python3 python3-pil
+                    xvfb xauth python3 python3-pil wayland-utils
             - name: Build Wayland compositor
               run: cmake -S . -B build-wayland -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-wayland --parallel 2
             - name: Verify Wayland libraries
@@ -30,5 +30,28 @@ jobs:
                   test -f /usr/lib/x86_64-linux-gnu/libwayland-server.so.0
                   test -f /usr/lib/x86_64-linux-gnu/libwayland-client.so.0
                   ldd build-wayland/lunadash-compositor | grep -E 'libQt6WaylandCompositor|libwayland-server'
+            - name: Verify core Wayland protocol versions
+              run: |
+                  runtime=$(mktemp -d)
+                  chmod 700 "$runtime"
+                  log="$PWD/build-wayland/core-protocol.log"
+                  XDG_RUNTIME_DIR="$runtime" QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl \
+                    LIBGL_ALWAYS_SOFTWARE=1 LUDASH_SKIP_SETUP=1 \
+                    build-wayland/lunadash-compositor --socket ludash-core-protocol \
+                    --no-shell --graphics opengl >"$log" 2>&1 &
+                  pid=$!
+                  trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"' EXIT
+                  for _ in $(seq 1 100); do
+                    test -S "$runtime/ludash-core-protocol" && break
+                    kill -0 "$pid"
+                    sleep 0.1
+                  done
+                  test -S "$runtime/ludash-core-protocol"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol \
+                    wayland-info > build-wayland/core-protocol-globals.txt
+                  grep -Eq "interface: 'wl_seat', version: ([5-9]|[1-9][0-9]+)" \
+                    build-wayland/core-protocol-globals.txt
+                  kill "$pid"
+                  wait "$pid" || true
             - name: Run Wayland session
               run: LUDASH_GRAPHICS=gles LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh
