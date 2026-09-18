@@ -32,8 +32,9 @@ if [ "${LUDASH_TEST_HOST_WAYLAND:-0}" = 1 ]; then
       >"$build_dir/wayland.log" 2>&1 || session_status=$?
 else
   session_status=0
-  xvfb-run -a -s '-screen 0 1440x900x24' \
-    env XDG_RUNTIME_DIR="$runtime_dir" WLR_BACKENDS=x11 \
+  env XDG_RUNTIME_DIR="$runtime_dir" \
+      WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+      QT_QUICK_BACKEND=software QSG_RHI_BACKEND=software \
       LUDASH_DISABLE_XWAYLAND=1 \
       "$build_dir/lunadash-compositor" $test_shell_args --demo \
         --socket ludash-test --exit-after 7000 \
