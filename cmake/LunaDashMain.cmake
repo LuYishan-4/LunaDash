@@ -112,7 +112,30 @@ target_include_directories(ludash-shell-renderer PUBLIC src)
 target_link_libraries(ludash-shell-renderer PUBLIC Qt6::Core)
 target_include_directories(ludash-renderer PUBLIC src)
 target_link_libraries(ludash-renderer PUBLIC ludash-render-core Qt6::Quick Qt6::OpenGL)
-qt_add_resources(ludash-renderer renderer_shaders PREFIX /LuDash FILES data/shaders/wallpaper.vert data/shaders/wallpaper.frag data/shaders/blur/blur.vert data/shaders/blur/blur.frag)
+# Keep shader assets as real OpenGL/GLSL files instead of embedding source text in
+# C++. Stage-specific and common alias suffixes are discovered recursively, so
+# new render passes can use the naming convention their shader tooling expects.
+set(LUDASH_OPENGL_SHADER_EXTENSIONS
+    vert frag geom comp tesc tese
+    vsh fsh gsh csh
+    vs fs gs cs
+    glsl shader)
+set(LUDASH_RENDER_SHADER_FILES)
+foreach(_ludash_shader_ext IN LISTS LUDASH_OPENGL_SHADER_EXTENSIONS)
+    file(GLOB_RECURSE _ludash_shader_files
+        CONFIGURE_DEPENDS
+        RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/data/shaders/*.${_ludash_shader_ext}")
+    list(APPEND LUDASH_RENDER_SHADER_FILES ${_ludash_shader_files})
+endforeach()
+list(REMOVE_DUPLICATES LUDASH_RENDER_SHADER_FILES)
+list(SORT LUDASH_RENDER_SHADER_FILES)
+if(NOT LUDASH_RENDER_SHADER_FILES)
+    message(FATAL_ERROR "No OpenGL shader assets were found under data/shaders")
+endif()
+qt_add_resources(ludash-renderer renderer_shaders
+    PREFIX /LuDash
+    FILES ${LUDASH_RENDER_SHADER_FILES})
 add_library(ludash-blur src/compositor/render/BlurItem/BlurItem.cpp src/compositor/render/BlurNode/BlurNode.cpp src/compositor/render/BlurGeometry/BlurGeometry.cpp)
 target_include_directories(ludash-blur PUBLIC src)
 target_link_libraries(ludash-blur PUBLIC ludash-renderer Qt6::Quick Qt6::OpenGL)
