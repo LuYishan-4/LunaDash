@@ -175,5 +175,6 @@
     "LunaDash build failed.": "LunaDash のビルドに失敗しました。",
     "Installing the new LunaDash build failed.": "新しい LunaDash ビルドのインストールに失敗しました。",
     "Could not restore the previous installation.": "以前のインストールを復元できませんでした。",
-    "CMake configuration failed.": "CMake の設定に失敗しました。"
+    "CMake configuration failed.": "CMake の設定に失敗しました。",
+    "copy %1": "%1 をコピー"
 }
