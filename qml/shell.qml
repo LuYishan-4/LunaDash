@@ -13,7 +13,6 @@ import "feedback"
 import "setup"
 import "style"
 import "compatibility"
-import "startup"
 
 ShellRoot {
     id: root
@@ -176,7 +175,6 @@ ShellRoot {
     function openMenu(x, y) { menuX = x; menuY = y; menuOpen = true }
     onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
     property bool x11Open: false
-    property bool startupLogoVisible: true
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
 
@@ -393,5 +391,4 @@ ShellRoot {
     NotificationToast { shell: root; opened: !root.stopping && root.notificationVisible }
     ScreenshotFeedback { shell: root; opened: !root.stopping }
     WorkspaceTransition { shell: root; opened: !root.stopping }
-    StartupLogoOverlay { shell: root; opened: !root.stopping && root.startupLogoVisible; onFinished: root.startupLogoVisible = false }
 }
