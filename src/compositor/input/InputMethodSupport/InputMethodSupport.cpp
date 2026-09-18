@@ -1,10 +1,7 @@
 #include "compositor/input/InputMethodSupport/InputMethodSupport.hpp"
 
 #include <QByteArray>
-#include <QDir>
 #include <QFile>
-#include <QGuiApplication>
-#include <QInputMethodEvent>
 #include <QKeyEvent>
 #include <QPointer>
 #include <QQuickItem>
@@ -18,21 +15,13 @@
 #include <QtWaylandCompositor/QWaylandQuickItem>
 #include <QtWaylandCompositor/QWaylandSeat>
 #include <QtWaylandCompositor/QWaylandSurface>
-#include <QtWaylandCompositor/QWaylandTextInput>
-#include <QtWaylandCompositor/QWaylandTextInputManager>
-#include <QtWaylandCompositor/QWaylandQtTextInputMethodManager>
-
-#if __has_include(<QtWaylandCompositor/QWaylandTextInputManagerV3>)
-#include <QtWaylandCompositor/QWaylandTextInputManagerV3>
-#include <QtWaylandCompositor/QWaylandTextInputV3>
-#define LUDASH_HAS_TEXT_INPUT_V3 1
-#endif
 
 #if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
 #include <QtWaylandCompositor/private/qwaylandkeyboard_p.h>
 #endif
 
 #include "input-method-unstable-v2-server.h"
+#include "text-input-unstable-v3-server.h"
 #include "virtual-keyboard-unstable-v1-server.h"
 
 #include <algorithm>
@@ -48,45 +37,22 @@
 namespace LuDash {
 namespace {
 
-constexpr uint32_t kTextChangeCauseInputMethod = 0;
-constexpr uint32_t kPurposeNormal = 0;
-constexpr uint32_t kPurposeDigits = 2;
-constexpr uint32_t kPurposeNumber = 3;
-constexpr uint32_t kPurposePhone = 4;
-constexpr uint32_t kPurposeUrl = 5;
-constexpr uint32_t kPurposeEmail = 6;
-constexpr uint32_t kPurposePassword = 8;
-constexpr uint32_t kPurposePin = 9;
-
-constexpr uint32_t kHintCompletion = 1u << 0;
-constexpr uint32_t kHintSpellcheck = 1u << 1;
-constexpr uint32_t kHintAutoCapitalization = 1u << 2;
-constexpr uint32_t kHintLowercase = 1u << 3;
-constexpr uint32_t kHintUppercase = 1u << 4;
-constexpr uint32_t kHintHiddenText = 1u << 6;
-constexpr uint32_t kHintSensitiveData = 1u << 7;
-constexpr uint32_t kHintLatin = 1u << 8;
-constexpr uint32_t kHintMultiline = 1u << 9;
-
 int createAnonymousFile(const QByteArray &contents) {
   const QString runtime =
       QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
   if (runtime.isEmpty())
     return -1;
-
   QByteArray name =
       QFile::encodeName(runtime + QStringLiteral("/lunadash-xkb-XXXXXX"));
   int fd = ::mkstemp(name.data());
   if (fd < 0)
     return -1;
   ::unlink(name.constData());
-
   const int flags = ::fcntl(fd, F_GETFD);
   if (flags < 0 || ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
     ::close(fd);
     return -1;
   }
-
   qsizetype written = 0;
   while (written < contents.size()) {
     const ssize_t result =
@@ -104,77 +70,6 @@ int createAnonymousFile(const QByteArray &contents) {
   return fd;
 }
 
-int utf8BytesAtCharacter(const QString &text, int character) {
-  const int textSize = static_cast<int>(text.size());
-  return static_cast<int>(
-      text.left(std::clamp(character, 0, textSize)).toUtf8().size());
-}
-
-int charactersCoveredByUtf8Suffix(const QString &text, int endCharacter,
-                                  uint32_t bytes) {
-  if (bytes == 0)
-    return 0;
-  const int textSize = static_cast<int>(text.size());
-  const QString prefix = text.left(std::clamp(endCharacter, 0, textSize));
-  const QByteArray utf8 = prefix.toUtf8();
-  const int utf8Size = static_cast<int>(utf8.size());
-  const int start = std::max(0, utf8Size - static_cast<int>(bytes));
-  return static_cast<int>(QString::fromUtf8(utf8.mid(start)).size());
-}
-
-int charactersCoveredByUtf8Prefix(const QString &text, int startCharacter,
-                                  uint32_t bytes) {
-  if (bytes == 0)
-    return 0;
-  const int textSize = static_cast<int>(text.size());
-  const QByteArray utf8 =
-      text.mid(std::clamp(startCharacter, 0, textSize)).toUtf8();
-  return static_cast<int>(
-      QString::fromUtf8(utf8.left(static_cast<int>(bytes))).size());
-}
-
-std::pair<uint32_t, uint32_t> contentTypeFromQtHints(Qt::InputMethodHints hints) {
-  uint32_t protocolHints = 0;
-  uint32_t purpose = kPurposeNormal;
-
-  if (!(hints & Qt::ImhNoPredictiveText))
-    protocolHints |= kHintCompletion;
-  if (!(hints & Qt::ImhNoAutoUppercase))
-    protocolHints |= kHintAutoCapitalization;
-  if (hints & Qt::ImhPreferLowercase)
-    protocolHints |= kHintLowercase;
-  if (hints & Qt::ImhPreferUppercase)
-    protocolHints |= kHintUppercase;
-  if (hints & Qt::ImhHiddenText)
-    protocolHints |= kHintHiddenText;
-  if (hints & Qt::ImhSensitiveData)
-    protocolHints |= kHintSensitiveData;
-  if (hints & Qt::ImhPreferLatin)
-    protocolHints |= kHintLatin;
-  if (hints & Qt::ImhMultiLine)
-    protocolHints |= kHintMultiline;
-
-  if (hints & Qt::ImhDigitsOnly)
-    purpose = kPurposeDigits;
-  else if (hints & Qt::ImhFormattedNumbersOnly)
-    purpose = kPurposeNumber;
-  else if (hints & Qt::ImhDialableCharactersOnly)
-    purpose = kPurposePhone;
-  else if (hints & Qt::ImhUrlCharactersOnly)
-    purpose = kPurposeUrl;
-  else if (hints & Qt::ImhEmailCharactersOnly)
-    purpose = kPurposeEmail;
-  else if (hints & Qt::ImhHiddenText)
-    purpose = kPurposePassword;
-
-  // Qt has no exact text-input-v3 spellcheck flag. Keep it enabled unless the
-  // client explicitly disables prediction; this is the closest portable hint.
-  if (!(hints & Qt::ImhNoPredictiveText))
-    protocolHints |= kHintSpellcheck;
-
-  return {protocolHints, purpose};
-}
-
 } // namespace
 
 class InputMethodSupport::Impl {
@@ -182,6 +77,7 @@ private:
   struct InputMethodState;
   struct PopupState;
   struct VirtualKeyboardState;
+  struct TextInputState;
 
 public:
   Impl(InputMethodSupport *owner, QWaylandCompositor *compositor,
@@ -202,13 +98,12 @@ public:
                 installGlobals();
               });
 
-    QTimer::singleShot(0, owner_, [this] {
-      attachTextInputs();
-      synchronizeActivation();
-    });
+    QTimer::singleShot(0, owner_, [this] { synchronizeActivation(); });
   }
 
   ~Impl() {
+    if (textInputManagerGlobal_)
+      wl_global_destroy(textInputManagerGlobal_);
     if (inputMethodManagerGlobal_)
       wl_global_destroy(inputMethodManagerGlobal_);
     if (virtualKeyboardManagerGlobal_)
@@ -225,11 +120,8 @@ public:
   }
 
   bool nativeBridgeAvailable() const {
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-    return inputMethodManagerGlobal_ && virtualKeyboardManagerGlobal_;
-#else
-    return false;
-#endif
+    return textInputManagerGlobal_ && inputMethodManagerGlobal_ &&
+           virtualKeyboardManagerGlobal_;
   }
 
   bool hasKeyboardGrab() const {
@@ -296,6 +188,30 @@ private:
     Impl *bridge = nullptr;
     wl_resource *resource = nullptr;
     bool hasKeymap = false;
+  };
+
+  struct TextInputState {
+    Impl *bridge = nullptr;
+    wl_resource *resource = nullptr;
+    wl_client *client = nullptr;
+    QPointer<QWaylandSurface> focus;
+    bool pendingEnabled = false;
+    bool enabled = false;
+    QString pendingSurrounding;
+    int32_t pendingCursor = 0;
+    int32_t pendingAnchor = 0;
+    uint32_t pendingChangeCause = 0;
+    uint32_t pendingHints = 0;
+    uint32_t pendingPurpose = 0;
+    QRect pendingCursorRectangle;
+    QString surrounding;
+    int32_t cursor = 0;
+    int32_t anchor = 0;
+    uint32_t changeCause = 0;
+    uint32_t hints = 0;
+    uint32_t purpose = 0;
+    QRect cursorRectangle;
+    uint32_t serial = 0;
   };
 
   static void bindInputMethodManager(wl_client *client, void *data,
@@ -623,6 +539,177 @@ private:
     delete state;
   }
 
+  static void bindTextInputManager(wl_client *client, void *data,
+                                   uint32_t version, uint32_t id) {
+    auto *self = static_cast<Impl *>(data);
+    wl_resource *resource =
+        wl_resource_create(client, &zwp_text_input_manager_v3_interface,
+                           std::min<uint32_t>(version, 1), id);
+    if (!resource) {
+      wl_client_post_no_memory(client);
+      return;
+    }
+    wl_resource_set_implementation(resource, &textInputManagerImpl_, self,
+                                   nullptr);
+  }
+
+  static void destroyTextInputManager(wl_client *, wl_resource *resource) {
+    wl_resource_destroy(resource);
+  }
+
+  static void getTextInput(wl_client *client, wl_resource *managerResource,
+                           uint32_t id, wl_resource *seatResource) {
+    auto *self =
+        static_cast<Impl *>(wl_resource_get_user_data(managerResource));
+    if (!self)
+      return;
+    auto *seat = QWaylandSeat::fromSeatResource(seatResource);
+    if (!seat || seat != self->compositor_->defaultSeat()) {
+      wl_resource_post_error(managerResource, 0,
+                             "invalid seat for zwp_text_input_v3");
+      return;
+    }
+    wl_resource *resource =
+        wl_resource_create(client, &zwp_text_input_v3_interface, 1, id);
+    if (!resource) {
+      wl_client_post_no_memory(client);
+      return;
+    }
+    auto *state = new TextInputState;
+    state->bridge = self;
+    state->resource = resource;
+    state->client = client;
+    self->textInputs_.insert(resource, state);
+    wl_resource_set_implementation(resource, &textInputImpl_, state,
+                                   destroyTextInputResource);
+    QWaylandSurface *focus = seat->keyboardFocus();
+    if (focus && focus->waylandClient() == client) {
+      state->focus = focus;
+      zwp_text_input_v3_send_enter(resource, focus->resource());
+    }
+  }
+
+  static TextInputState *textInputState(wl_resource *resource) {
+    return static_cast<TextInputState *>(wl_resource_get_user_data(resource));
+  }
+
+  static void resetPendingTextInput(TextInputState *state, bool enabled) {
+    if (!state)
+      return;
+    state->pendingEnabled = enabled;
+    state->pendingSurrounding.clear();
+    state->pendingCursor = 0;
+    state->pendingAnchor = 0;
+    state->pendingChangeCause = 0;
+    state->pendingHints = 0;
+    state->pendingPurpose = 0;
+    state->pendingCursorRectangle = {};
+  }
+
+  static void destroyTextInputResource(wl_resource *resource) {
+    auto *state = textInputState(resource);
+    if (!state)
+      return;
+    if (state->bridge) {
+      if (state->bridge->activeTextInput_ == state)
+        state->bridge->activeTextInput_ = nullptr;
+      state->bridge->textInputs_.remove(resource);
+      state->bridge->synchronizeActivation();
+      state->bridge->updatePopups();
+    }
+    delete state;
+  }
+
+  static void textInputDestroy(wl_client *, wl_resource *resource) {
+    wl_resource_destroy(resource);
+  }
+
+  static void textInputEnable(wl_client *, wl_resource *resource) {
+    auto *state = textInputState(resource);
+    if (state && state->focus)
+      resetPendingTextInput(state, true);
+  }
+
+  static void textInputDisable(wl_client *, wl_resource *resource) {
+    auto *state = textInputState(resource);
+    if (state && state->focus)
+      resetPendingTextInput(state, false);
+  }
+
+  static void textInputSetSurrounding(wl_client *, wl_resource *resource,
+                                      const char *text, int32_t cursor,
+                                      int32_t anchor) {
+    auto *state = textInputState(resource);
+    if (!state || !state->focus || !state->pendingEnabled)
+      return;
+    state->pendingSurrounding = QString::fromUtf8(text ? text : "");
+    const int32_t bytes =
+        static_cast<int32_t>(state->pendingSurrounding.toUtf8().size());
+    state->pendingCursor = std::clamp(cursor, int32_t(0), bytes);
+    state->pendingAnchor = std::clamp(anchor, int32_t(0), bytes);
+  }
+
+  static void textInputSetChangeCause(wl_client *, wl_resource *resource,
+                                      uint32_t cause) {
+    auto *state = textInputState(resource);
+    if (state && state->focus && state->pendingEnabled)
+      state->pendingChangeCause = cause;
+  }
+
+  static void textInputSetContentType(wl_client *, wl_resource *resource,
+                                      uint32_t hints, uint32_t purpose) {
+    auto *state = textInputState(resource);
+    if (!state || !state->focus || !state->pendingEnabled)
+      return;
+    state->pendingHints = hints;
+    state->pendingPurpose = purpose;
+  }
+
+  static void textInputSetCursorRectangle(wl_client *, wl_resource *resource,
+                                          int32_t x, int32_t y, int32_t width,
+                                          int32_t height) {
+    auto *state = textInputState(resource);
+    if (!state || !state->focus || !state->pendingEnabled)
+      return;
+    state->pendingCursorRectangle =
+        QRect(x, y, std::max(0, width), std::max(0, height));
+  }
+
+  static void textInputCommit(wl_client *, wl_resource *resource) {
+    auto *state = textInputState(resource);
+    if (!state || !state->focus || !state->bridge)
+      return;
+    ++state->serial;
+    state->enabled = state->pendingEnabled;
+    if (state->enabled) {
+      state->surrounding = state->pendingSurrounding;
+      state->cursor = state->pendingCursor;
+      state->anchor = state->pendingAnchor;
+      state->changeCause = state->pendingChangeCause;
+      state->hints = state->pendingHints;
+      state->purpose = state->pendingPurpose;
+      state->cursorRectangle = state->pendingCursorRectangle;
+    } else {
+      state->surrounding.clear();
+      state->cursor = 0;
+      state->anchor = 0;
+      state->changeCause = 0;
+      state->hints = 0;
+      state->purpose = 0;
+      state->cursorRectangle = {};
+    }
+    state->bridge->synchronizeActivation();
+    if (state->bridge->activeTextInput_ == state)
+      state->bridge->sendTextState();
+    zwp_text_input_v3_send_done(resource, state->serial);
+    state->bridge->updatePopups();
+  }
+
+  static void textInputSetAvailableActions(wl_client *, wl_resource *,
+                                           wl_array *) {}
+  static void textInputShowPanel(wl_client *, wl_resource *) {}
+  static void textInputHidePanel(wl_client *, wl_resource *) {}
+
   void attachSeat() {
     if (seatConnected_)
       return;
@@ -630,198 +717,114 @@ private:
     if (!seat)
       return;
     seatConnected_ = true;
-    QObject::connect(seat, &QWaylandSeat::keyboardFocusChanged, owner_,
-                     [this](QWaylandSurface *, QWaylandSurface *) {
-                       QTimer::singleShot(0, owner_, [this] {
-                         attachTextInputs();
-                         synchronizeActivation();
-                         updatePopups();
-                       });
-                     });
+    QObject::connect(
+        seat, &QWaylandSeat::keyboardFocusChanged, owner_,
+        [this](QWaylandSurface *surface, QWaylandSurface *oldSurface) {
+          for (auto *state : std::as_const(textInputs_)) {
+            if (state && state->focus && state->focus == oldSurface) {
+              zwp_text_input_v3_send_leave(state->resource,
+                                           oldSurface->resource());
+              state->focus = nullptr;
+              state->enabled = false;
+              resetPendingTextInput(state, false);
+            }
+          }
+          if (surface) {
+            for (auto *state : std::as_const(textInputs_)) {
+              if (!state || state->client != surface->waylandClient())
+                continue;
+              state->focus = surface;
+              zwp_text_input_v3_send_enter(state->resource,
+                                           surface->resource());
+            }
+          }
+          QTimer::singleShot(0, owner_, [this] {
+            synchronizeActivation();
+            updatePopups();
+          });
+        });
   }
 
   void installGlobals() {
-#if !defined(LUDASH_HAS_TEXT_INPUT_V3)
-    qInfo("LunaDash: native input-method-v2 bridge disabled because text-input-v3 is unavailable.");
-    return;
-#else
-    if (inputMethodManagerGlobal_ || virtualKeyboardManagerGlobal_)
+    if (textInputManagerGlobal_ || inputMethodManagerGlobal_ ||
+        virtualKeyboardManagerGlobal_)
       return;
-
+    textInputManagerGlobal_ =
+        wl_global_create(compositor_->display(),
+                         &zwp_text_input_manager_v3_interface, 1, this,
+                         bindTextInputManager);
     inputMethodManagerGlobal_ = wl_global_create(
         compositor_->display(), &zwp_input_method_manager_v2_interface, 1, this,
         bindInputMethodManager);
     virtualKeyboardManagerGlobal_ = wl_global_create(
         compositor_->display(), &zwp_virtual_keyboard_manager_v1_interface, 1,
         this, bindVirtualKeyboardManager);
-
-    if (!inputMethodManagerGlobal_ || !virtualKeyboardManagerGlobal_) {
-      qWarning("LunaDash: failed to publish native input-method-v2 globals.");
+    if (!textInputManagerGlobal_ || !inputMethodManagerGlobal_ ||
+        !virtualKeyboardManagerGlobal_) {
+      qWarning("LunaDash: failed to publish native input-method globals.");
       return;
     }
-
-    qInfo("LunaDash input method: input-method-v2 + virtual-keyboard-v1 bridge ready");
-    attachTextInputs();
-#endif
+    qInfo("LunaDash input method: text-input-v3 + input-method-v2 + virtual-keyboard-v1 bridge ready");
   }
 
-  void attachTextInputs() {
+  TextInputState *activeTextInput() const {
     auto *seat = compositor_->defaultSeat();
-    if (!seat)
-      return;
-
-    QWaylandTextInput *v2 = QWaylandTextInput::findIn(seat);
-    if (textInputV2_ != v2) {
-      if (textInputV2_)
-        QObject::disconnect(textInputV2_, nullptr, owner_, nullptr);
-      textInputV2_ = v2;
-      if (textInputV2_) {
-        QObject::connect(textInputV2_, &QWaylandTextInput::surfaceEnabled, owner_,
-                [this](QWaylandSurface *) {
-                  synchronizeActivation();
-                  updatePopups();
-                });
-        QObject::connect(textInputV2_, &QWaylandTextInput::surfaceDisabled, owner_,
-                [this](QWaylandSurface *) {
-                  synchronizeActivation();
-                  updatePopups();
-                });
-        QObject::connect(textInputV2_, &QWaylandTextInput::updateInputMethod, owner_,
-                [this](Qt::InputMethodQueries) {
-                  sendTextState();
-                  updatePopups();
-                });
-      }
-    }
-
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-    QWaylandTextInputV3 *v3 = QWaylandTextInputV3::findIn(seat);
-    if (textInputV3_ != v3) {
-      if (textInputV3_)
-        QObject::disconnect(textInputV3_, nullptr, owner_, nullptr);
-      textInputV3_ = v3;
-      if (textInputV3_) {
-        QObject::connect(textInputV3_, &QWaylandTextInputV3::surfaceEnabled, owner_,
-                [this](QWaylandSurface *) {
-                  synchronizeActivation();
-                  updatePopups();
-                });
-        QObject::connect(textInputV3_, &QWaylandTextInputV3::surfaceDisabled, owner_,
-                [this](QWaylandSurface *) {
-                  synchronizeActivation();
-                  updatePopups();
-                });
-        QObject::connect(textInputV3_, &QWaylandTextInputV3::updateInputMethod, owner_,
-                [this](Qt::InputMethodQueries) {
-                  sendTextState();
-                  updatePopups();
-                });
-      }
-    }
-#endif
-  }
-
-  enum class TextProtocol { None, V2, V3 };
-
-  TextProtocol activeTextProtocol() const {
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-    if (textInputV3_ && textInputV3_->focus() &&
-        textInputV3_->isSurfaceEnabled(textInputV3_->focus()))
-      return TextProtocol::V3;
-#endif
-    if (textInputV2_ && textInputV2_->focus() &&
-        textInputV2_->isSurfaceEnabled(textInputV2_->focus()))
-      return TextProtocol::V2;
-    return TextProtocol::None;
+    QWaylandSurface *focus = seat ? seat->keyboardFocus() : nullptr;
+    if (!focus)
+      return nullptr;
+    for (auto *state : std::as_const(textInputs_))
+      if (state && state->enabled && state->focus == focus &&
+          state->client == focus->waylandClient())
+        return state;
+    return nullptr;
   }
 
   QWaylandSurface *textFocus() const {
-    switch (activeTextProtocol()) {
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-    case TextProtocol::V3:
-      return textInputV3_->focus();
-#endif
-    case TextProtocol::V2:
-      return textInputV2_->focus();
-    default:
-      return nullptr;
-    }
-  }
-
-  QVariant query(Qt::InputMethodQuery queryType) const {
-    switch (activeTextProtocol()) {
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-    case TextProtocol::V3:
-      return textInputV3_->inputMethodQuery(queryType, {});
-#endif
-    case TextProtocol::V2:
-      return textInputV2_->inputMethodQuery(queryType, {});
-    default:
-      return {};
-    }
-  }
-
-  void sendInputEvent(QInputMethodEvent *event) {
-    switch (activeTextProtocol()) {
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-    case TextProtocol::V3:
-      textInputV3_->sendInputMethodEvent(event);
-      break;
-#endif
-    case TextProtocol::V2:
-      textInputV2_->sendInputMethodEvent(event);
-      break;
-    default:
-      break;
-    }
+    auto *state = activeTextInput();
+    return state ? state->focus.data() : nullptr;
   }
 
   void synchronizeActivation() {
-    attachTextInputs();
-    const bool active = activeTextProtocol() != TextProtocol::None;
-    if (textActive_ == active) {
-      if (active)
-        sendTextState();
-      return;
+    TextInputState *next = activeTextInput();
+    const bool active = next != nullptr;
+    const bool changed = activeTextInput_ != next;
+    if (changed && inputMethod_ && inputMethod_->usable &&
+        inputMethod_->active) {
+      zwp_input_method_v2_send_deactivate(inputMethod_->resource);
+      inputMethod_->active = false;
+      sendDone(inputMethod_);
     }
-
+    activeTextInput_ = next;
     textActive_ = active;
     if (!inputMethod_ || !inputMethod_->usable)
       return;
-
-    if (active) {
+    if (active && !inputMethod_->active) {
       zwp_input_method_v2_send_activate(inputMethod_->resource);
       inputMethod_->active = true;
+      sendTextState();
+    } else if (active) {
       sendTextState();
     } else if (inputMethod_->active) {
       zwp_input_method_v2_send_deactivate(inputMethod_->resource);
       inputMethod_->active = false;
       sendDone(inputMethod_);
     }
-    updatePopups();
   }
 
   void sendTextState() {
-    if (!textActive_ || !inputMethod_ || !inputMethod_->usable ||
+    auto *text = activeTextInput_;
+    if (!text || !textActive_ || !inputMethod_ || !inputMethod_->usable ||
         !inputMethod_->active)
       return;
-
-    const QString surrounding = query(Qt::ImSurroundingText).toString();
-    const int cursor = query(Qt::ImCursorPosition).toInt();
-    const int anchor = query(Qt::ImAnchorPosition).toInt();
-    const QByteArray utf8 = surrounding.toUtf8();
+    const QByteArray utf8 = text->surrounding.toUtf8();
     zwp_input_method_v2_send_surrounding_text(
         inputMethod_->resource, utf8.constData(),
-        utf8BytesAtCharacter(surrounding, cursor),
-        utf8BytesAtCharacter(surrounding, anchor));
-    zwp_input_method_v2_send_text_change_cause(
-        inputMethod_->resource, kTextChangeCauseInputMethod);
-
-    const auto hints =
-        static_cast<Qt::InputMethodHints>(query(Qt::ImHints).toInt());
-    const auto [protocolHints, purpose] = contentTypeFromQtHints(hints);
-    zwp_input_method_v2_send_content_type(inputMethod_->resource, protocolHints,
-                                          purpose);
+        static_cast<uint32_t>(std::max(0, text->cursor)),
+        static_cast<uint32_t>(std::max(0, text->anchor)));
+    zwp_input_method_v2_send_text_change_cause(inputMethod_->resource,
+                                               text->changeCause);
+    zwp_input_method_v2_send_content_type(inputMethod_->resource, text->hints,
+                                          text->purpose);
     sendDone(inputMethod_);
   }
 
@@ -833,44 +836,34 @@ private:
   }
 
   void applyInputMethodCommit(InputMethodState *state, uint32_t serial) {
-    if (!state || !textActive_)
+    auto *text = activeTextInput_;
+    if (!state || !text || !textActive_)
       return;
-
-    // A stale serial must not mutate the input-method state. Still clear the
-    // pending transaction so a broken client cannot replay it indefinitely.
     if (serial != state->doneSerial) {
       clearPending(state);
       return;
     }
-
-    QList<QInputMethodEvent::Attribute> attributes;
-    if (!state->pendingPreedit.isEmpty()) {
-      int cursor = state->pendingPreeditEnd;
-      if (cursor < 0)
-        cursor = 0;
-      attributes.append(QInputMethodEvent::Attribute(
-          QInputMethodEvent::Cursor, cursor, 1, QVariant()));
+    if (state->deleteBefore || state->deleteAfter)
+      zwp_text_input_v3_send_delete_surrounding_text(
+          text->resource, state->deleteBefore, state->deleteAfter);
+    const QByteArray preedit = state->pendingPreedit.toUtf8();
+    zwp_text_input_v3_send_preedit_string(
+        text->resource, state->pendingPreedit.isNull() ? nullptr
+                                                      : preedit.constData(),
+        state->pendingPreeditBegin, state->pendingPreeditEnd);
+    if (!state->pendingCommit.isNull()) {
+      const QByteArray commit = state->pendingCommit.toUtf8();
+      zwp_text_input_v3_send_commit_string(text->resource,
+                                           commit.constData());
     }
-
-    QInputMethodEvent event(state->pendingPreedit, attributes);
-
-    const QString surrounding = query(Qt::ImSurroundingText).toString();
-    const int cursor = query(Qt::ImCursorPosition).toInt();
-    const int beforeChars = charactersCoveredByUtf8Suffix(
-        surrounding, cursor, state->deleteBefore);
-    const int afterChars = charactersCoveredByUtf8Prefix(
-        surrounding, cursor, state->deleteAfter);
-    event.setCommitString(state->pendingCommit, -beforeChars,
-                          beforeChars + afterChars);
-    sendInputEvent(&event);
-
+    zwp_text_input_v3_send_done(text->resource, text->serial);
     clearPending(state);
     updatePopups();
   }
 
   static void clearPending(InputMethodState *state) {
-    state->pendingCommit.clear();
-    state->pendingPreedit.clear();
+    state->pendingCommit = QString();
+    state->pendingPreedit = QString();
     state->pendingPreeditBegin = 0;
     state->pendingPreeditEnd = 0;
     state->deleteBefore = 0;
@@ -885,19 +878,16 @@ private:
                              "invalid wl_surface for input popup");
       return;
     }
-
     static QWaylandSurfaceRole inputPopupRole(
         QByteArrayLiteral("zwp_input_popup_surface_v2"));
     if (!surface->setRole(&inputPopupRole, state->resource, 0))
       return;
-
     wl_resource *resource = wl_resource_create(
         state->client, &zwp_input_popup_surface_v2_interface, 1, id);
     if (!resource) {
       wl_client_post_no_memory(state->client);
       return;
     }
-
     auto *popup = new PopupState;
     popup->bridge = this;
     popup->inputMethod = state;
@@ -910,21 +900,19 @@ private:
     popup->item->setInputEventsEnabled(true);
     popup->item->setZ(1000);
     popup->item->setVisible(false);
-
     popups_.insert(resource, popup);
     wl_resource_set_implementation(resource, &inputPopupImpl_, popup,
                                    destroyPopupResource);
-
     QObject::connect(surface, &QWaylandSurface::destinationSizeChanged, owner_,
-            [this, resource] {
-              if (auto *popup = popups_.value(resource, nullptr))
-                updatePopup(popup);
-            });
+                     [this, resource] {
+                       if (auto *popup = popups_.value(resource, nullptr))
+                         updatePopup(popup);
+                     });
     QObject::connect(surface, &QWaylandSurface::hasContentChanged, owner_,
-            [this, resource] {
-              if (auto *popup = popups_.value(resource, nullptr))
-                updatePopup(popup);
-            });
+                     [this, resource] {
+                       if (auto *popup = popups_.value(resource, nullptr))
+                         updatePopup(popup);
+                     });
     updatePopup(popup);
   }
 
@@ -936,47 +924,40 @@ private:
   void updatePopup(PopupState *popup) {
     if (!popup || !popup->item || !popup->surface)
       return;
-
-    QWaylandSurface *focus = textFocus();
-    if (!textActive_ || !focus || !focus->primaryView()) {
+    auto *text = activeTextInput_;
+    QWaylandSurface *focus = text ? text->focus.data() : nullptr;
+    if (!textActive_ || !text || !focus || !focus->primaryView()) {
       popup->item->setVisible(false);
       return;
     }
-
     auto *focusItem =
         qobject_cast<QWaylandQuickItem *>(focus->primaryView()->renderObject());
     if (!focusItem) {
       popup->item->setVisible(false);
       return;
     }
-
-    QRect cursor = query(Qt::ImCursorRectangle).toRect();
+    QRect cursor = text->cursorRectangle;
     if (!cursor.isValid())
       cursor = QRect(0, 0, 1, 1);
-
     const QPointF cursorTopLeft =
         focusItem->mapToScene(focusItem->mapFromSurface(cursor.topLeft()));
     const QPointF cursorBottomLeft =
         focusItem->mapToScene(focusItem->mapFromSurface(
             QPointF(cursor.left(), cursor.bottom() + 1)));
-
     QSizeF popupSize = popup->surface->destinationSize();
     if (popupSize.isEmpty())
       popupSize = QSizeF(std::max<qreal>(1, popup->item->width()),
                          std::max<qreal>(1, popup->item->height()));
-
     qreal x = cursorBottomLeft.x();
     qreal y = cursorBottomLeft.y();
     if (x + popupSize.width() > window_->width())
       x = std::max<qreal>(0, window_->width() - popupSize.width());
     if (y + popupSize.height() > window_->height())
       y = std::max<qreal>(0, cursorTopLeft.y() - popupSize.height());
-
     const QPointF scenePosition(x, y);
     popup->item->setPosition(
         popup->item->parentItem()->mapFromScene(scenePosition));
     popup->item->setVisible(popup->surface->hasContent());
-
     const QPointF relativeTopLeft = cursorTopLeft - scenePosition;
     zwp_input_popup_surface_v2_send_text_input_rectangle(
         popup->resource, qRound(relativeTopLeft.x()),
@@ -1097,17 +1078,15 @@ private:
   QQuickWindow *window_ = nullptr;
   QWaylandOutput *output_ = nullptr;
 
+  wl_global *textInputManagerGlobal_ = nullptr;
   wl_global *inputMethodManagerGlobal_ = nullptr;
   wl_global *virtualKeyboardManagerGlobal_ = nullptr;
   InputMethodState *inputMethod_ = nullptr;
   wl_client *inputMethodClient_ = nullptr;
   QHash<wl_resource *, PopupState *> popups_;
   QHash<wl_resource *, VirtualKeyboardState *> virtualKeyboards_;
-
-  QPointer<QWaylandTextInput> textInputV2_;
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-  QPointer<QWaylandTextInputV3> textInputV3_;
-#endif
+  QHash<wl_resource *, TextInputState *> textInputs_;
+  TextInputState *activeTextInput_ = nullptr;
   bool textActive_ = false;
   bool seatConnected_ = false;
 
@@ -1122,6 +1101,8 @@ private:
   uint32_t lastLocked_ = UINT32_MAX;
   uint32_t lastGroup_ = UINT32_MAX;
 
+  static const struct zwp_text_input_manager_v3_interface textInputManagerImpl_;
+  static const struct zwp_text_input_v3_interface textInputImpl_;
   static const struct zwp_input_method_manager_v2_interface inputMethodManagerImpl_;
   static const struct zwp_input_method_v2_interface inputMethodImpl_;
   static const struct zwp_input_popup_surface_v2_interface inputPopupImpl_;
@@ -1129,6 +1110,27 @@ private:
   static const struct zwp_virtual_keyboard_manager_v1_interface
       virtualKeyboardManagerImpl_;
   static const struct zwp_virtual_keyboard_v1_interface virtualKeyboardImpl_;
+};
+
+const struct zwp_text_input_manager_v3_interface
+    InputMethodSupport::Impl::textInputManagerImpl_ = {
+        InputMethodSupport::Impl::destroyTextInputManager,
+        InputMethodSupport::Impl::getTextInput,
+};
+
+const struct zwp_text_input_v3_interface
+    InputMethodSupport::Impl::textInputImpl_ = {
+        InputMethodSupport::Impl::textInputDestroy,
+        InputMethodSupport::Impl::textInputEnable,
+        InputMethodSupport::Impl::textInputDisable,
+        InputMethodSupport::Impl::textInputSetSurrounding,
+        InputMethodSupport::Impl::textInputSetChangeCause,
+        InputMethodSupport::Impl::textInputSetContentType,
+        InputMethodSupport::Impl::textInputSetCursorRectangle,
+        InputMethodSupport::Impl::textInputCommit,
+        InputMethodSupport::Impl::textInputSetAvailableActions,
+        InputMethodSupport::Impl::textInputShowPanel,
+        InputMethodSupport::Impl::textInputHidePanel,
 };
 
 const struct zwp_input_method_manager_v2_interface
@@ -1173,18 +1175,8 @@ const struct zwp_virtual_keyboard_v1_interface
 InputMethodSupport::InputMethodSupport(QWaylandCompositor *compositor,
                                        QQuickWindow *window,
                                        QWaylandOutput *output)
-    : QObject(compositor), d(std::make_unique<Impl>(this, compositor, window,
-                                                    output)) {
-  // Qt clients prefer the Qt protocol. Announce it first so older clients do
-  // not replace a v2 input object while its initial modifiers map is queued.
-  new QWaylandQtTextInputMethodManager(compositor);
-#if defined(LUDASH_HAS_TEXT_INPUT_V3)
-  new QWaylandTextInputManagerV3(compositor);
-#else
-  qInfo("LunaDash: text-input v3 is unavailable in this Qt build.");
-#endif
-  new QWaylandTextInputManager(compositor);
-}
+    : QObject(compositor),
+      d(std::make_unique<Impl>(this, compositor, window, output)) {}
 
 InputMethodSupport::~InputMethodSupport() = default;
 
