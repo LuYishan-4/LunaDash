@@ -1,0 +1,9 @@
+---
+# Zed uses clangd for C/C++ analysis. CMake writes the compilation database
+# into this directory, so clangd gets the exact Qt, Wayland, generated-header,
+# and C++20 flags used by the build.
+CompileFlags:
+  CompilationDatabase: build
+  # Arch's GCC driver injects this GCC-only option into compile_commands.json.
+  # clangd rejects it before it can read the translation unit.
+  Remove: [-mno-direct-extern-access]
