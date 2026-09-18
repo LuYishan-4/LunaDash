@@ -172,16 +172,24 @@ ColumnLayout {
                         required property var modelData
                         width: 150
                         height: wallpaperStrip.height
+                        scale: cardMouse.pressed ? 0.97 : cardMouse.containsMouse ? 1.025 : 1
+                        Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
 
                         Rectangle {
                             anchors.fill: parent
                             radius: 16
                             color: Theme.control
                             border.width: page.selectedWallpaper === modelData.path ? 2 : 1
-                            border.color: page.selectedWallpaper === modelData.path ? Theme.moon : Theme.border
+                            border.color: page.selectedWallpaper === modelData.path
+                                ? Theme.moon
+                                : cardMouse.containsMouse
+                                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.56)
+                                    : Theme.border
                             clip: true
+                            Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
 
                             Image {
+                                id: wallpaperThumb
                                 anchors.fill: parent
                                 source: modelData.source
                                 fillMode: Image.PreserveAspectCrop
@@ -189,6 +197,8 @@ ColumnLayout {
                                 sourceSize.width: 420
                                 sourceSize.height: 280
                                 cache: false
+                                scale: cardMouse.containsMouse ? 1.045 : 1
+                                Behavior on scale { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
                             }
 
                             Rectangle {
@@ -224,6 +234,7 @@ ColumnLayout {
                         }
 
                         MouseArea {
+                            id: cardMouse
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
@@ -235,7 +246,8 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     ShellButton {
-                        text: "☾  " + shell.tr("Choose image")
+                        iconName: "files"
+                        text: shell.tr("Choose image")
                         onClicked: {
                             shell.pickerPurpose = "wallpaper"
                             shell.pickerOpen = true
@@ -243,6 +255,7 @@ ColumnLayout {
                     }
                     Item { Layout.fillWidth: true }
                     ShellButton {
+                        iconName: "moon"
                         text: shell.tr("Use default")
                         enabled: page.bundledWallpaperPath.length > 0 && page.currentWallpaper !== page.bundledWallpaperPath
                         onClicked: {
@@ -251,6 +264,7 @@ ColumnLayout {
                         }
                     }
                     ShellButton {
+                        iconName: "check"
                         text: shell.tr("Apply")
                         active: true
                         enabled: page.selectedWallpaper.length > 0 && page.selectedWallpaper !== page.currentWallpaper
