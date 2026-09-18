@@ -2290,16 +2290,30 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!document.isObject() ||
         !setDefaultApplications(document.object(), &error))
       return {{"error", error.isEmpty() ? "Expected a JSON object." : error}};
+  } else if (method == "open-url") {
+    const QUrl url(value);
+    if (!url.isValid() || (url.scheme() != "https" && url.scheme() != "http"))
+      return {{"error", "Only valid HTTP and HTTPS URLs can be opened."}};
+    QString error;
+    auto command = defaultApplicationCommand("browser", &error);
+    if (!error.isEmpty())
+      return {{"error", error}};
+    command << url.toString(QUrl::FullyEncoded);
+    launchExternalCommand(command);
   } else if (method == "launch-default" &&
-             (value == "terminal" || value == "files")) {
+             (value == "terminal" || value == "files" ||
+              value == "browser")) {
     QString error;
     auto command = defaultApplicationCommand(value, &error);
     if (!error.isEmpty())
       return {{"error", error}};
-    if (command.isEmpty())
+    if (command.isEmpty()) {
+      if (value == "browser")
+        return {{"error", "No browser is available."}};
       spawn({"--app", value, "--builtin"});
-    else
+    } else {
       launchExternalCommand(command);
+    }
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);
     if (command.isEmpty())
