@@ -5,6 +5,7 @@
 
 #if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
 #include <QPointer>
+#include <QtCore/private/qobject_p.h>
 #include <QtWaylandCompositor/QWaylandClient>
 #include <QtWaylandCompositor/QWaylandKeyboard>
 #include <QtWaylandCompositor/QWaylandTouch>
@@ -36,19 +37,19 @@ public:
 
   uint sendMousePressEvent(Qt::MouseButton button) override {
     const uint serial = QWaylandPointer::sendMousePressEvent(button);
-    sendFrameForSurface(d_func()->enteredSurface);
+    sendFrameForSurface(pointerPrivate()->enteredSurface);
     return serial;
   }
 
   uint sendMouseReleaseEvent(Qt::MouseButton button) override {
     const uint serial = QWaylandPointer::sendMouseReleaseEvent(button);
-    sendFrameForSurface(d_func()->enteredSurface);
+    sendFrameForSurface(pointerPrivate()->enteredSurface);
     return serial;
   }
 
   void sendMouseMoveEvent(QWaylandView *view, const QPointF &localPos,
                           const QPointF &outputSpacePos) override {
-    auto *d = d_func();
+    auto *d = pointerPrivate();
     QPointer<QWaylandSurface> previous = d->enteredSurface;
 
     QWaylandPointer::sendMouseMoveEvent(view, localPos, outputSpacePos);
@@ -61,7 +62,7 @@ public:
   }
 
   void sendMouseWheelEvent(Qt::Orientation orientation, int delta) override {
-    auto *d = d_func();
+    auto *d = pointerPrivate();
     if (!d->enteredSurface || delta == 0)
       return;
 
@@ -88,6 +89,11 @@ public:
   }
 
 private:
+  QWaylandPointerPrivate *pointerPrivate() const {
+    return static_cast<QWaylandPointerPrivate *>(
+        QObjectPrivate::get(const_cast<CoreProtocolPointer *>(this)));
+  }
+
   void sendFrameForSurface(QWaylandSurface *surface) {
     if (surface)
       sendFrameForClient(surface->waylandClient());
@@ -96,7 +102,7 @@ private:
   void sendFrameForClient(wl_client *client) {
     if (!client)
       return;
-    auto *d = d_func();
+    auto *d = pointerPrivate();
     const auto resources = d->resourceMap().values(client);
     for (auto *resource : resources)
       if (wl_resource_get_version(resource->handle) >= kPointerFrameVersion)
