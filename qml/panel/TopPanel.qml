@@ -461,14 +461,17 @@ ModuleSurface {
                 visible: panel.width > 710
                 width: visible ? 30 : 0
                 height: 28
+                scale: volumeMouse.pressed ? 0.92 : volumeMouse.containsMouse || shell.volumePopupOpen ? 1.07 : 1
                 Accessible.role: Accessible.Button
                 Accessible.name: shell.tr("Volume")
+                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
                 Rectangle {
                     anchors.fill: parent
                     radius: height / 2
                     color: volumeMouse.containsMouse || shell.volumePopupOpen
                         ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
                         : "transparent"
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
                 }
                 LineIcon {
                     anchors.centerIn: parent
@@ -498,8 +501,10 @@ ModuleSurface {
                 visible: true
                 width: 30
                 height: 28
+                scale: networkMouse.pressed ? 0.92 : networkMouse.containsMouse || shell.wifiPopupOpen ? 1.07 : 1
                 Accessible.role: Accessible.Button
                 Accessible.name: panel.networkLabel()
+                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
                 Rectangle {
                     anchors.fill: parent
                     radius: height / 2
@@ -508,6 +513,7 @@ ModuleSurface {
                         : panel.networkState.connected
                             ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.07)
                             : Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.06)
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
                 }
                 LineIcon {
                     anchors.centerIn: parent
@@ -550,6 +556,9 @@ ModuleSurface {
         anchors { right: statusShell.left; rightMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
         width: panel.width > 1120 ? 156 : 78
+        scale: clockMouse.pressed ? 0.97 : clockMouse.containsMouse || shell.calendarOpen ? 1.012 : 1
+        Behavior on width { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
         property string time: ""
         property string date: ""
         Accessible.role: Accessible.Button
@@ -558,9 +567,15 @@ ModuleSurface {
             anchors.fill: parent
             visible: panel.contrastShells
             radius: height / 2
-            color: panel.capsuleColor(0.72, 0.95)
+            color: clockMouse.containsMouse || shell.calendarOpen
+                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
+                : panel.capsuleColor(0.72, 0.95)
             border.width: 1
-            border.color: panel.capsuleBorder(0.38)
+            border.color: clockMouse.containsMouse || shell.calendarOpen
+                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.38)
+                : panel.capsuleBorder(0.38)
+            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+            Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
         }
         Row {
             anchors.centerIn: parent
@@ -569,7 +584,7 @@ ModuleSurface {
             Rectangle { visible: panel.width > 1120; width: 1; height: 14; anchors.verticalCenter: parent.verticalCenter; color: panel.capsuleBorder(0.24) }
             Text { visible: panel.width > 1120; text: clockShell.date; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
         }
-        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: shell.calendarOpen = !shell.calendarOpen }
+        MouseArea { id: clockMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: shell.calendarOpen = !shell.calendarOpen }
         Timer {
             interval: 1000
             repeat: true
