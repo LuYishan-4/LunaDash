@@ -11,7 +11,7 @@ ColumnLayout {
     readonly property var system: shell.state.system || ({})
     readonly property var appearance: shell.state.appearance || ({updateChannel:"stable"})
     readonly property var update: shell.state.update || ({status:"idle",currentVersion:"0.1.0",channel:"stable"})
-    readonly property var install: shell.updateInstall || ({state:"idle",rollback:false,message:"",details:""})
+    readonly property var install: shell.updateInstall || update.install || ({state:"idle",rollback:false,progress:0,stage:"idle",message:"",details:""})
     readonly property var sessionActions: shell.state.sessionActions || ({reboot:false})
     readonly property string selectedChannel: appearance.updateChannel === "dev" ? "dev" : "stable"
     readonly property string latestLabel: selectedChannel === "dev"
@@ -22,6 +22,19 @@ ColumnLayout {
     readonly property bool installFailed: install.state === "error"
     readonly property int installProgress: Math.max(0, Math.min(100, Number(install.progress || 0)))
     readonly property string installStage: String(install.stage || "idle")
+    readonly property bool runningInstalledTarget: {
+        const target = String(install.target || "")
+        if (!target.length)
+            return false
+        if (selectedChannel === "dev") {
+            const current = String(update.currentCommit || "")
+            return current.length >= 7 && (current.startsWith(target) || target.startsWith(current))
+        }
+        const currentVersion = String(update.currentVersion || "").replace(/^v/, "")
+        const targetVersion = target.replace(/^v/, "")
+        return currentVersion.length > 0 && currentVersion === targetVersion
+    }
+    readonly property bool restartRequired: installCompleted && !runningInstalledTarget
     spacing: 16
 
     function stageLabel(stage) {
@@ -78,6 +91,54 @@ ColumnLayout {
                 text: page.update.status === "checking" ? shell.tr("Checking…") : shell.tr("Check now")
                 enabled: page.update.status !== "checking" && !page.installing
                 onClicked: shell.command("check-update", "")
+            }
+        }
+
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 4
+            columnSpacing: 10
+            rowSpacing: 4
+
+            Text { text: shell.tr("Check status"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
+            Text { text: shell.tr("Install status"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
+            Text { text: shell.tr("Current stage"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
+            Text { text: shell.tr("Progress"); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
+
+            Text {
+                text: page.update.status === "checking" ? shell.tr("Checking")
+                    : page.update.status === "available" ? shell.tr("Available")
+                    : page.update.status === "upToDate" ? shell.tr("Up to date")
+                    : page.update.status === "error" ? shell.tr("Error")
+                    : shell.tr("Idle")
+                color: page.update.status === "error" ? Theme.danger : Theme.text
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+            }
+            Text {
+                text: page.installing ? shell.tr("Running")
+                    : page.installCompleted ? shell.tr("Completed")
+                    : page.installFailed ? shell.tr("Failed")
+                    : shell.tr("Idle")
+                color: page.installFailed ? Theme.danger : page.installing ? Theme.accent : Theme.text
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+            }
+            Text {
+                text: page.stageLabel(page.installStage)
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+            }
+            Text {
+                text: page.installProgress + "%"
+                color: page.installFailed ? Theme.danger : Theme.text
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
             }
         }
 
@@ -158,7 +219,7 @@ ColumnLayout {
         }
 
         ColumnLayout {
-            visible: page.installing || page.installCompleted || page.installFailed
+            visible: true
             Layout.fillWidth: true
             spacing: 6
 
@@ -236,18 +297,19 @@ ColumnLayout {
                 }
                 Text { visible: page.update.channel === "dev" && Boolean(page.update.latestMessage); text: page.update.latestMessage || ""; color: Theme.muted; font.family: Theme.font; font.pixelSize: 10; elide: Text.ElideRight; Layout.fillWidth: true }
                 Text { visible: Boolean(page.update.checkedAt); text: shell.tr("Last checked: ") + page.update.checkedAt; color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
-                Text { visible: page.installCompleted && Boolean(page.install.target); text: shell.tr("Installed target: ") + String(page.install.target).slice(0, 18); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
+                Text { visible: Boolean(page.install.target); text: shell.tr("Installer target: ") + String(page.install.target).slice(0, 18); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
+                Text { visible: Boolean(page.install.lastUpdate); text: shell.tr("Last installed: ") + String(page.install.lastUpdate); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
             }
             ShellButton { visible: page.update.status === "available" && Boolean(page.update.releaseUrl); text: shell.tr("Details"); onClicked: Qt.openUrlExternally(page.update.releaseUrl) }
             ShellButton {
-                visible: page.update.status === "available" && !page.installCompleted
+                visible: page.update.status === "available"
                 active: true
                 enabled: !page.installing
                 text: page.installing ? shell.tr("Installing…") : shell.tr("Update")
                 onClicked: shell.installUpdate(page.selectedChannel, page.selectedChannel === "dev" ? page.update.latestCommit : page.update.latestVersion)
             }
             ShellButton {
-                visible: page.installCompleted
+                visible: page.restartRequired
                 active: true
                 enabled: page.sessionActions.reboot ?? false
                 text: shell.tr("Reboot now")
@@ -256,7 +318,7 @@ ColumnLayout {
         }
 
         Text {
-            visible: page.installCompleted && !(page.sessionActions.reboot ?? false)
+            visible: page.restartRequired && !(page.sessionActions.reboot ?? false)
             Layout.fillWidth: true
             text: shell.tr("The update finished, but reboot is unavailable in this session. Reboot from the host system to use the new installation.")
             color: Theme.muted
