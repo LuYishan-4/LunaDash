@@ -22,7 +22,7 @@ jobs:
                     libwayland-dev wayland-protocols libwlroots-dev \
                     libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
-                    xvfb xauth python3 wayland-utils
+                    xvfb xauth xdotool python3 wayland-utils
             - name: Reject QtWayland compositor dependencies
               run: python3 tests/wayland/test_no_qtwayland.py
             - name: Build wlroots compositor
@@ -36,6 +36,8 @@ jobs:
                   fi
             - name: Exercise xdg-toplevel lifecycle
               run: ./scripts/test-xdg-lifecycle.sh "$PWD/build-wayland"
+            - name: Verify XWayland is on demand
+              run: xvfb-run -a python3 tests/wayland/test_xwayland.py build-wayland
             - name: Verify wlroots protocol globals
               run: |
                   runtime=$(mktemp -d)
