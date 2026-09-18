@@ -120,19 +120,20 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   compositor_.setRetainedSelectionEnabled(true);
   setKeyboardLedControlEnabled(bareMetal);
 
-  // Prefer both dmabuf and wayland-egl imports when Qt ships the plugins.
-  // This is a compositor capability choice, not an application-specific
-  // workaround. Vulkan/WGPU Wayland clients can then present dmabuf-backed
-  // buffers, while Qt/OpenGL clients can continue using wayland-egl.
+  // QT_WAYLAND_CLIENT_BUFFER_INTEGRATION accepts one plugin key, not a
+  // semicolon-separated fallback list. In a real EGLFS/KMS login prefer Qt's
+  // linux-dmabuf-v1 compositor integration: it advertises zwp_linux_dmabuf_v1
+  // v4 (including default feedback), which Vulkan/WGPU clients and XWayland
+  // need for modern GPU-backed buffers. Nested development sessions keep Qt's
+  // default integration so they do not depend on the host DRM device.
   const QByteArray previousBufferIntegration =
       qgetenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION");
-  if (previousBufferIntegration.isEmpty())
-    qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION",
-            "linux-dmabuf-unstable-v1;wayland-egl");
+  if (bareMetal && previousBufferIntegration.isEmpty())
+    qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION", "linux-dmabuf-v1");
   compositor_.create();
-  if (previousBufferIntegration.isEmpty())
+  if (bareMetal && previousBufferIntegration.isEmpty())
     qunsetenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION");
-  else
+  else if (!previousBufferIntegration.isEmpty())
     qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION", previousBufferIntegration);
   layerShell_ = new LayerShell(&compositor_, output_, &window_);
   screenCapture_ = new ScreenCapture(&compositor_, output_, &window_);
