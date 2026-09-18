@@ -1078,56 +1078,52 @@ public:
       return;
 
     auto client = std::make_unique<ClientWindow>();
-        client->id = this->q->nextWindowId_++;
-        client->surface = surface;
-        client->toplevel = surface->toplevel;
-        client->workspace = this->q->workspace_;
-        client->sceneTree =
-            wlr_scene_xdg_surface_create(this->normalLayer, surface);
-        if (!client->sceneTree)
-          return;
-    
-        client->sceneTree->node.data = client.get();
-        if (surface->client && surface->client->client) {
-          pid_t pid = 0;
-          uid_t uid = 0;
-          gid_t gid = 0;
-          wl_client_get_credentials(surface->client->client, &pid, &uid, &gid);
-          client->processId = static_cast<qint64>(pid);
-        }
-    
-        auto *current = client.get();
-        auto *state = new ToplevelState;
-        state->impl = self;
-        state->client = current;
-        current->nativeState = state;
-        this->q->clients_.push_back(std::move(client));
-        this->q->updateClientMetadata(current);
-    
-        attachListener(&surface->surface->events.map, state->map, state,
-                       handleToplevelMap);
-        attachListener(&surface->surface->events.unmap, state->unmap, state,
-                       handleToplevelUnmap);
-        attachListener(&surface->surface->events.commit, state->commit, state,
-                       handleToplevelCommit);
-        // wlr_xdg_surface owns the role lifetime on every supported wlroots
-        // release. Using its destroy signal keeps 0.17 and 0.20 on the same path.
-        attachListener(&surface->events.destroy, state->destroy, state,
-                       handleToplevelDestroy);
-        attachListener(&toplevel->events.set_title, state->setTitle, state,
-                       handleToplevelMetadata);
-        attachListener(&toplevel->events.set_app_id, state->setAppId,
-                       state, handleToplevelMetadata);
-        attachListener(&toplevel->events.set_parent, state->setParent,
-                       state, handleToplevelParent);
-        attachListener(&toplevel->events.request_minimize,
-                       state->requestMinimize, state, handleToplevelMinimize);
-        attachListener(&toplevel->events.request_maximize,
-                       state->requestMaximize, state, handleToplevelMaximize);
-        attachListener(&toplevel->events.request_fullscreen,
-                       state->requestFullscreen, state, handleToplevelFullscreen);
-        wlr_scene_node_set_enabled(&current->sceneTree->node, false);
-    
+    client->id = q->nextWindowId_++;
+    client->surface = surface;
+    client->toplevel = toplevel;
+    client->workspace = q->workspace_;
+    client->sceneTree = wlr_scene_xdg_surface_create(normalLayer, surface);
+    if (!client->sceneTree)
+      return;
+
+    client->sceneTree->node.data = client.get();
+    if (surface->client && surface->client->client) {
+      pid_t pid = 0;
+      uid_t uid = 0;
+      gid_t gid = 0;
+      wl_client_get_credentials(surface->client->client, &pid, &uid, &gid);
+      client->processId = static_cast<qint64>(pid);
+    }
+
+    auto *current = client.get();
+    auto *state = new ToplevelState;
+    state->impl = this;
+    state->client = current;
+    current->nativeState = state;
+    q->clients_.push_back(std::move(client));
+    q->updateClientMetadata(current);
+
+    attachListener(&surface->surface->events.map, state->map, state,
+                   handleToplevelMap);
+    attachListener(&surface->surface->events.unmap, state->unmap, state,
+                   handleToplevelUnmap);
+    attachListener(&surface->surface->events.commit, state->commit, state,
+                   handleToplevelCommit);
+    attachListener(&surface->events.destroy, state->destroy, state,
+                   handleToplevelDestroy);
+    attachListener(&toplevel->events.set_title, state->setTitle, state,
+                   handleToplevelMetadata);
+    attachListener(&toplevel->events.set_app_id, state->setAppId, state,
+                   handleToplevelMetadata);
+    attachListener(&toplevel->events.set_parent, state->setParent, state,
+                   handleToplevelParent);
+    attachListener(&toplevel->events.request_minimize, state->requestMinimize,
+                   state, handleToplevelMinimize);
+    attachListener(&toplevel->events.request_maximize, state->requestMaximize,
+                   state, handleToplevelMaximize);
+    attachListener(&toplevel->events.request_fullscreen,
+                   state->requestFullscreen, state, handleToplevelFullscreen);
+    wlr_scene_node_set_enabled(&current->sceneTree->node, false);
   }
 
 #if WLR_VERSION_MINOR < 20
