@@ -57,7 +57,7 @@ bool BlurNode::initialize() {
   return true;
 }
 
-void BlurNode::render(const RenderState *state) {
+void BlurNode::render(const QSGRenderNode::RenderState *state) {
   if (health_->failed || (!pass_ && !initialize()))
     return;
   if (!renderer_.ready() && !initialize())
