@@ -6,12 +6,18 @@ import sys
 import tempfile
 
 binary = str(pathlib.Path(sys.argv[1]).resolve())
-for arguments in (["--graphics", "invalid"], ["--graphics"]):
-    result = subprocess.run(
-        [binary, *arguments], capture_output=True, text=True, timeout=5
-    )
-    assert result.returncode == 2, result
-    assert "--graphics must be" in result.stderr, result.stderr
+
+invalid = subprocess.run(
+    [binary, "--graphics", "invalid"], capture_output=True, text=True, timeout=5
+)
+assert invalid.returncode == 2, invalid
+assert "--graphics must be" in invalid.stderr, invalid.stderr
+
+missing = subprocess.run(
+    [binary, "--graphics"], capture_output=True, text=True, timeout=5
+)
+assert missing.returncode == 1, missing
+assert "Missing value after '--graphics'" in missing.stderr, missing.stderr
 
 with tempfile.TemporaryDirectory(prefix="ludash-render-failure-") as runtime:
     os.chmod(runtime, 0o700)
