@@ -109,6 +109,7 @@ private:
   void requestShutdown();
   void publishSessionActivationEnvironment();
   void captureScreen();
+  void launchExternalCommand(QStringList command);
   void resendKeyboardModifiers();
   QString nextCapturePath() const;
   void addWindow(QWaylandXdgToplevel *toplevel, QWaylandXdgSurface *surface);
