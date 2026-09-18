@@ -376,6 +376,54 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
   return process;
 }
 
+void WaylandCompositor::launchExternalCommand(QStringList command) {
+  if (command.isEmpty())
+    return;
+
+  const QStringList originalCommand = command;
+  if (isChromiumApplication(command.first()))
+    ensureWaylandChromiumFlags(command);
+
+  const auto executable = command.takeFirst();
+  auto *process = spawn(command, executable, false);
+  if (!process)
+    return;
+
+  auto launchedPid = std::make_shared<qint64>(0);
+  connect(process, &QProcess::started, this,
+          [process, launchedPid] { *launchedPid = process->processId(); });
+  connect(process, &QProcess::finished, this,
+          [this, process, originalCommand,
+           launchedPid](int code, QProcess::ExitStatus status) {
+            if (shuttingDown_ || testStopping_ || !xwayland_)
+              return;
+            if (status != QProcess::NormalExit || code == 0)
+              return;
+
+            const qint64 pid = *launchedPid;
+            const bool createdSurface = std::any_of(
+                clients_.cbegin(), clients_.cend(), [pid](const auto &client) {
+                  return pid > 0 && client->item && client->item->surface() &&
+                         client->item->surface()->client() &&
+                         client->item->surface()->client()->processId() == pid;
+                });
+            if (createdSurface)
+              return;
+
+            QString error;
+            if (!xwayland_->launch(originalCommand, &error))
+              qWarning().noquote()
+                  << "LunaDash compatibility retry failed for"
+                  << process->program() << ":"
+                  << (error.isEmpty() ? "unknown XWayland error" : error);
+            else
+              qInfo().noquote()
+                  << "LunaDash retried failed native application through "
+                     "XWayland:"
+                  << process->program();
+          });
+}
+
 bool WaylandCompositor::saveScreenshot(const QString &path) {
   return window_.grabWindow().save(path);
 }
@@ -706,10 +754,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", error}};
     if (command.isEmpty())
       spawn({"--app", value, "--builtin"});
-    else {
-      const auto program = command.takeFirst();
-      spawn(command, program);
-    }
+    else
+      launchExternalCommand(command);
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);
     if (command.isEmpty())
@@ -772,49 +818,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         return {{"error", "Command arguments must be short strings."}};
       command << entry.toString();
     }
-    const QStringList originalCommand = command;
-    if (isChromiumApplication(command.first()))
-      ensureWaylandChromiumFlags(command);
-    const auto executable = command.takeFirst();
-    if (auto *process = spawn(command, executable, false)) {
-      auto launchedPid = std::make_shared<qint64>(0);
-      connect(process, &QProcess::started, this,
-              [process, launchedPid] { *launchedPid = process->processId(); });
-      connect(
-          process, &QProcess::finished, this,
-          [this, process, originalCommand,
-           launchedPid](int code, QProcess::ExitStatus status) {
-            if (shuttingDown_ || testStopping_ || !xwayland_)
-              return;
-            // A crash is a real application failure, not evidence that its
-            // Wayland backend is unsupported. Do not immediately launch a
-            // second copy under XWayland after SIGSEGV/SIGABRT/coredump.
-            // Compatibility retry is only for a clean startup refusal
-            // (normal process exit with a non-zero code before a surface).
-            if (status != QProcess::NormalExit || code == 0)
-              return;
-            const qint64 pid = *launchedPid;
-            const bool createdSurface = std::any_of(
-                clients_.cbegin(), clients_.cend(), [pid](const auto &client) {
-                  return pid > 0 && client->item && client->item->surface() &&
-                         client->item->surface()->client() &&
-                         client->item->surface()->client()->processId() == pid;
-                });
-            if (createdSurface)
-              return;
-            QString error;
-            if (!xwayland_->launch(originalCommand, &error))
-              qWarning().noquote()
-                  << "LunaDash compatibility retry failed for"
-                  << process->program() << ":"
-                  << (error.isEmpty() ? "unknown XWayland error" : error);
-            else
-              qInfo().noquote()
-                  << "LunaDash retried failed native application through "
-                     "XWayland:"
-                  << process->program();
-          });
-    }
+    launchExternalCommand(command);
   } else if (method == "finish-setup")
     setSetupComplete(true);
   else if (method == "setup")
