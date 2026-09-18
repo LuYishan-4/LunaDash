@@ -54,6 +54,7 @@ if(NOT LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE)
                 get_filename_component(_ludash_qt_include_root "${_ludash_qt_wayland_public_path}" DIRECTORY)
                 list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS
                     "${_ludash_wayland_private_root}"
+                    "${_ludash_qt_include_root}/QtWaylandGlobal/${Qt6_VERSION}"
                     "${_ludash_qt_include_root}/QtCore/${Qt6_VERSION}"
                     "${_ludash_qt_include_root}/QtGui/${Qt6_VERSION}")
                 if(EXISTS "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}")
