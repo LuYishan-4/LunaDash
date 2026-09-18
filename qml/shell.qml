@@ -255,6 +255,7 @@ ShellRoot {
     property string errorMessage: ""
     property string focusedTitle: (state.clients.find(client => client.focused) || {}).title || "LunaDash"
     function tr(source) { return (state.translations || {})[source] || source }
+    function openUrl(url) { if (url) command("open-url", String(url)) }
     function command(method, value) { action.queue.push([method, String(value ?? "")]); dispatch() }
     function dispatch() { if (action.running || action.queue.length === 0) return; action.command = [controlExecutable].concat(action.queue.shift()); action.running = true }
 
@@ -330,7 +331,7 @@ ShellRoot {
     }
 
     function launch(id) {
-        if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return }
+        if (id === "terminal" || id === "files" || id === "browser") { command("launch-default", id); launcherOpen = false; return }
         if (id === "settings") { settingsOpen = true; launcherOpen = false; return }
         Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false
     }
