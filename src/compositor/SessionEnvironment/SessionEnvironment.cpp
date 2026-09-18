@@ -121,7 +121,12 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   const QString iconTheme = detectedIconTheme();
   if (!iconTheme.isEmpty())
     environment.insert("QS_ICON_THEME", iconTheme);
-  environment.insert("QSG_RHI_BACKEND", "opengl");
+  // Respect an explicitly selected client renderer (for example the
+  // Qt Quick software adaptation in headless CI and remote sessions). OpenGL
+  // remains the normal default when the environment does not choose one.
+  if (environment.value("QT_QUICK_BACKEND").isEmpty() &&
+      environment.value("QSG_RHI_BACKEND").isEmpty())
+    environment.insert("QSG_RHI_BACKEND", "opengl");
   auto loggingRules = environment.value("QT_LOGGING_RULES");
   if (!loggingRules.isEmpty())
     loggingRules += ";";
