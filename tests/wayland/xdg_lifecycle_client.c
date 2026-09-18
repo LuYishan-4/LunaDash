@@ -85,7 +85,7 @@ int main(void) {
    * before the xdg_surface's first commit. The compositor must not schedule a
    * configure until that initial commit has initialized the role. */
   xdg_toplevel_set_maximized(toplevel);
-  xdg_toplevel_set_fullscreen(toplevel);
+  xdg_toplevel_set_fullscreen(toplevel, NULL);
   wl_surface_commit(surface);
   if (wl_display_roundtrip(display) < 0 || !g_configured) {
     fputs("xdg-toplevel did not receive its initial configure\n", stderr);
