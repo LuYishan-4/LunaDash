@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(LunaDash VERSION 0.1.0 LANGUAGES C CXX)
+project(LunaDash VERSION 1.0.0 LANGUAGES C CXX)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashMain.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashShellTool.cmake)

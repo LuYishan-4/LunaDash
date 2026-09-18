@@ -4,7 +4,7 @@
 // CMake and deliberately remain macros because they must be available during
 // preprocessing as well as C++ compilation.
 #ifndef LUDASH_VERSION
-#define LUDASH_VERSION "0.1.0"
+#define LUDASH_VERSION "1.0.0"
 #endif
 
 #ifndef LUDASH_GIT_COMMIT

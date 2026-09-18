@@ -10,13 +10,13 @@ ColumnLayout {
     required property var shell
     readonly property var system: shell.state.system || ({})
     readonly property var appearance: shell.state.appearance || ({updateChannel:"stable"})
-    readonly property var update: shell.state.update || ({status:"idle",currentVersion:"0.1.0",channel:"stable"})
+    readonly property var update: shell.state.update || ({status:"idle",currentVersion:"1.0.0",channel:"stable"})
     readonly property var install: shell.updateInstall || update.install || ({state:"idle",rollback:false,progress:0,stage:"idle",message:"",details:""})
     readonly property var sessionActions: shell.state.sessionActions || ({reboot:false})
     readonly property string selectedChannel: appearance.updateChannel === "dev" ? "dev" : "stable"
     readonly property string latestLabel: selectedChannel === "dev"
         ? String(update.latestCommit || update.currentCommit || "dev").slice(0, 12)
-        : String(update.latestVersion || update.currentVersion || "0.1.0")
+        : String(update.latestVersion || update.currentVersion || "1.0.0")
     readonly property bool installing: install.state === "running"
     readonly property bool installCompleted: install.state === "completed"
     readonly property bool installFailed: install.state === "error"
@@ -63,7 +63,7 @@ ColumnLayout {
             LunaDashLogo { Layout.preferredWidth: 126; Layout.preferredHeight: 126; animated: Theme.animations }
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 6
-                Text { text: "LunaDash " + (page.update.currentVersion || "0.1.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.bold: true }
+                Text { text: "LunaDash " + (page.update.currentVersion || "1.0.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.bold: true }
                 Text { text: shell.tr("A moonlit, focused Linux desktop."); color: Theme.muted; font.family: Theme.font; font.pixelSize: 13 }
                 Text { visible: Boolean(page.update.currentCommit); text: (page.selectedChannel === "dev" ? "dev · " : "") + String(page.update.currentCommit || "").slice(0, 12); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
             }
@@ -279,7 +279,7 @@ ColumnLayout {
             Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 22; anchors.rightMargin: 22; height: 2; radius: 1; color: Theme.border }
             Rectangle { x: 15; anchors.verticalCenter: parent.verticalCenter; width: 16; height: 16; radius: 8; color: Theme.accent }
             Rectangle { anchors.right: parent.right; anchors.rightMargin: 15; anchors.verticalCenter: parent.verticalCenter; width: 16; height: 16; radius: 8; color: page.update.status === "available" || page.installCompleted ? Theme.accent : Theme.muted }
-            Text { anchors.left: parent.left; anchors.top: parent.top; text: shell.tr("Installed") + "\n" + (page.update.currentVersion || "0.1.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
+            Text { anchors.left: parent.left; anchors.top: parent.top; text: shell.tr("Installed") + "\n" + (page.update.currentVersion || "1.0.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
             Text { anchors.right: parent.right; anchors.top: parent.top; horizontalAlignment: Text.AlignRight; text: (page.selectedChannel === "dev" ? "dev" : shell.tr("Latest")) + "\n" + page.latestLabel; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
         }
 

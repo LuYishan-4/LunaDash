@@ -139,7 +139,7 @@ On Ubuntu 24.04, select `clang-19`, `clang++-19` and `clang-tidy-19` for combine
 ```sh
 DESTDIR=/tmp/ludash-stage cmake --install build
 ./scripts/make-source.sh
-tar -tf packaging/arch/ludash-0.1.0.tar.gz
+tar -tf packaging/arch/ludash-1.0.0.tar.gz
 npm ci --prefix site --include=dev --ignore-scripts
 npm run check --prefix site
 npm run build --prefix site

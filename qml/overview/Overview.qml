@@ -20,7 +20,7 @@ ModuleSurface {
     readonly property var network: shell.state.network || ({})
     readonly property var weather: shell.state.weather || ({})
     readonly property var updateInfo: shell.state.update || ({})
-    readonly property string versionText: updateInfo.version || updateInfo.currentVersion || "0.1.0"
+    readonly property string versionText: updateInfo.version || updateInfo.currentVersion || "1.0.0"
     readonly property string weatherLocation: weather.location || weather.city || shell.tr("Weather")
     readonly property string weatherCondition: weather.condition || weather.summary || shell.tr("Weather service is not configured")
     readonly property string weatherTemperature: weather.temperature !== undefined ? String(weather.temperature) + "°" : "—"
