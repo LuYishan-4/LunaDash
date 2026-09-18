@@ -331,12 +331,12 @@ public:
     attachListener(&backend->events.new_output, newOutput, this,
                    handleNewOutput);
     attachListener(&backend->events.new_input, newInput, this, handleNewInput);
-#if WLR_VERSION_MINOR < 20
+#if WLR_VERSION_MINOR < 18
     attachListener(&xdgShell->events.new_surface, newXdgSurface, this,
                    handleNewXdgSurface);
 #else
-    // wlroots 0.20 emits new_surface before an xdg role is assigned. Listen to
-    // new_toplevel so the object is fully role-initialized before tracking it.
+    // Since wlroots 0.18, xdg_shell exposes role-specific new_toplevel events.
+    // Track the role as soon as it is created, then wait for initial_commit.
     attachListener(&xdgShell->events.new_toplevel, newXdgSurface, this,
                    handleNewXdgToplevel);
 #endif
@@ -1166,16 +1166,16 @@ public:
     attachListener(&toplevel->events.request_fullscreen,
                    state->requestFullscreen, state, handleToplevelFullscreen);
     wlr_scene_node_set_enabled(&current->sceneTree->node, false);
-#if WLR_VERSION_MINOR < 20
-    // wlroots 0.17-0.19 emits xdg_shell.new_surface from the role's first
-    // commit. By the time this listener is installed that commit has already
-    // happened, so send the mandatory initial configure immediately.
+#if WLR_VERSION_MINOR < 18
+    // wlroots 0.17 emits xdg_shell.new_surface from the role's first commit.
+    // The commit listener is installed too late for that commit, so configure
+    // immediately while initial_commit is still set.
     if (surface->initial_commit)
       configureInitialToplevel(current);
 #endif
   }
 
-#if WLR_VERSION_MINOR < 20
+#if WLR_VERSION_MINOR < 18
   static void handleNewXdgSurface(wl_listener *listener, void *data) {
     auto *self = listenerOwner<Impl>(listener);
     auto *surface = static_cast<wlr_xdg_surface *>(data);
