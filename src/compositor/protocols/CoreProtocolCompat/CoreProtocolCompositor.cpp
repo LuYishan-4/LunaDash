@@ -47,6 +47,7 @@ public:
       d->keyboard.reset(compositorPrivate->callCreateKeyboardDevice(this));
 
     d->isInitialized = true;
+    qInfo("LunaDash core protocol: wl_seat v5");
   }
 };
 #endif
