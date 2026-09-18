@@ -1,4 +1,5 @@
 #include "compositor/protocols/CoreProtocolCompat/CoreProtocolCompositor.hpp"
+#include "compositor/protocols/CoreProtocolCompat/CoreDataDeviceCompat.hpp"
 
 #include <QtWaylandCompositor/QWaylandSeat>
 
@@ -134,6 +135,13 @@ public:
 #endif
 
 } // namespace
+
+void CoreProtocolCompositor::create() {
+  QWaylandQuickCompositor::create();
+#if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
+  installCoreDataDeviceV3(this);
+#endif
+}
 
 QWaylandSeat *CoreProtocolCompositor::createSeat() {
 #if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
