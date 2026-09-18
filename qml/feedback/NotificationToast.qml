@@ -15,6 +15,7 @@ ModuleSurface {
     margins.bottom: 22
     implicitWidth: moduleWidth(420)
     implicitHeight: moduleHeight(shell.notificationDetailsExpanded ? 190 : (shell.notification.details || (shell.notification.actions || []).length ? 138 : 96))
+    Behavior on implicitHeight { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "lunadash-notification"
