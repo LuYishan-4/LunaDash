@@ -7,11 +7,14 @@ struct LuDashBlurPass {
     GLuint framebuffers[2];
     int width, height;
 };
-LuDashBlurPass* ludash_blur_create(LuDashGLResolver resolve, const char* vertex, const char* fragment, char* error, size_t capacity) {
+LuDashBlurPass* ludash_blur_create(LuDashShaderProgram* shader) {
+    if (!shader) return NULL;
     LuDashBlurPass* pass = calloc(1, sizeof(*pass));
-    if (!pass) return NULL;
-    pass->shader = ludash_shader_create(resolve, vertex, fragment, error, capacity);
-    if (!pass->shader) { free(pass); return NULL; }
+    if (!pass) {
+        ludash_shader_destroy(shader);
+        return NULL;
+    }
+    pass->shader = shader;
     return pass;
 }
 void ludash_blur_destroy(LuDashBlurPass* pass) {

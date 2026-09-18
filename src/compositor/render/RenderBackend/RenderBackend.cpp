@@ -6,6 +6,7 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSurfaceFormat>
+#include <vector>
 
 int qInitResources_renderer_shaders();
 
@@ -79,6 +80,42 @@ bool sourceHasVersionDirective(const QByteArray& source) {
         trimmed.remove(0, 3);
     trimmed = trimmed.trimmed();
     return trimmed.startsWith("#version");
+}
+
+struct LoadedShaderAsset {
+    ShaderStage stage = ShaderStage::Unknown;
+    QByteArray source;
+};
+
+std::optional<LoadedShaderAsset> loadShaderAsset(const QString& name,
+                                                 bool openGLES) {
+    QFile file(":/LuDash/data/shaders/" + name);
+    if (!file.open(QIODevice::ReadOnly))
+        return std::nullopt;
+
+    QByteArray source = file.readAll();
+    ShaderStage stage = shaderStageFromName(name);
+    if (stage == ShaderStage::Unknown)
+        stage = stageFromSourceDirective(source);
+
+    const QString suffix = QFileInfo(name).suffix().toLower();
+    if ((suffix == "glsl" || suffix == "shader") &&
+        stage == ShaderStage::Unknown) {
+        qWarning().noquote()
+            << "Shader" << name
+            << "needs a stage extension (for example .frag.glsl) or"
+               "#pragma ludash_stage <vertex|fragment|geometry|compute|tesc|tese>";
+        return std::nullopt;
+    }
+    if (stage == ShaderStage::Unknown) {
+        qWarning().noquote() << "Shader" << name
+                             << "has an unrecognized OpenGL stage suffix";
+        return std::nullopt;
+    }
+
+    if (!sourceHasVersionDirective(source))
+        source.prepend(shaderVersionPrefix(stage, openGLES));
+    return LoadedShaderAsset{stage, source};
 }
 
 } // namespace
@@ -164,31 +201,52 @@ GLenum shaderStageGlEnum(ShaderStage stage) {
 }
 
 QByteArray shaderSource(const QString& name, bool openGLES) {
-    QFile file(":/LuDash/data/shaders/" + name);
-    if (!file.open(QIODevice::ReadOnly))
-        return {};
+    const auto asset = loadShaderAsset(name, openGLES);
+    return asset ? asset->source : QByteArray{};
+}
 
-    QByteArray source = file.readAll();
-    ShaderStage stage = shaderStageFromName(name);
-    if (stage == ShaderStage::Unknown)
-        stage = stageFromSourceDirective(source);
-
-    // Generic .glsl/.shader assets are intentionally accepted, but they need a
-    // stage hint so LunaDash can choose a compatible GLSL version. Stage-
-    // specific names such as effect.frag.glsl work without a pragma.
-    const QString suffix = QFileInfo(name).suffix().toLower();
-    if ((suffix == "glsl" || suffix == "shader") &&
-        stage == ShaderStage::Unknown) {
-        qWarning().noquote()
-            << "Shader" << name
-            << "needs a stage extension (for example .frag.glsl) or"
-               "#pragma ludash_stage <vertex|fragment|geometry|compute|tesc|tese>";
-        return {};
+LuDashShaderProgram* shaderProgramFromAssets(const QStringList& names,
+                                             bool openGLES,
+                                             QString* error) {
+    if (error)
+        error->clear();
+    if (names.isEmpty()) {
+        if (error)
+            *error = QStringLiteral("shader program has no asset files");
+        return nullptr;
     }
 
-    if (sourceHasVersionDirective(source))
-        return source;
-    return shaderVersionPrefix(stage, openGLES) + source;
+    std::vector<LoadedShaderAsset> assets;
+    assets.reserve(static_cast<size_t>(names.size()));
+    for (const auto& name : names) {
+        const auto asset = loadShaderAsset(name, openGLES);
+        if (!asset) {
+            if (error)
+                *error = QStringLiteral("could not load shader asset: %1").arg(name);
+            return nullptr;
+        }
+        assets.push_back(*asset);
+    }
+
+    std::vector<LuDashShaderSource> stages;
+    stages.reserve(assets.size());
+    for (const auto& asset : assets) {
+        const GLenum stage = shaderStageGlEnum(asset.stage);
+        if (!stage) {
+            if (error)
+                *error = QStringLiteral("shader asset has no OpenGL stage");
+            return nullptr;
+        }
+        stages.push_back({stage, asset.source.constData()});
+    }
+
+    char compileError[4096]{};
+    auto* program = ludash_shader_create_stages(
+        resolveGLFunction, stages.data(), stages.size(), compileError,
+        sizeof(compileError));
+    if (!program && error)
+        *error = QString::fromLocal8Bit(compileError);
+    return program;
 }
 
 } // namespace LuDash

@@ -142,10 +142,15 @@ public:
 
 } // namespace
 
+CoreProtocolCompositor::~CoreProtocolCompositor() {
+  delete coreDataDeviceManager_;
+  coreDataDeviceManager_ = nullptr;
+}
+
 void CoreProtocolCompositor::create() {
   QWaylandQuickCompositor::create();
 #if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
-  installCoreDataDeviceV3(this);
+  coreDataDeviceManager_ = installCoreDataDeviceV3(this);
 #endif
 }
 

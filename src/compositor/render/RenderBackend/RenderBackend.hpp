@@ -1,7 +1,9 @@
 #pragma once
 #include <QString>
 #include "compositor/render/GLDispatch/GLDispatch.h"
+#include "compositor/render/ShaderProgram/ShaderProgram.h"
 #include <QByteArray>
+#include <QStringList>
 #include <atomic>
 #include <memory>
 #include <optional>
@@ -35,5 +37,8 @@ LuDashGLProc resolveGLFunction(const char* name);
 ShaderStage shaderStageFromName(const QString& name);
 GLenum shaderStageGlEnum(ShaderStage stage);
 QByteArray shaderSource(const QString& name, bool openGLES);
+LuDashShaderProgram* shaderProgramFromAssets(const QStringList& names,
+                                             bool openGLES,
+                                             QString* error = nullptr);
 
 }

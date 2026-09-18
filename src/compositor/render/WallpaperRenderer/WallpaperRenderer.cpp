@@ -21,10 +21,16 @@ bool WallpaperRenderer::initialize() {
         qCritical("Qt Wayland external textures require an OpenGL compatibility profile. Try --graphics gles.");
         state_->failed = true; return false;
     }
-    char error[1024]{};
-    const auto vertex = shaderSource("wallpaper.vert", es), fragment = shaderSource("wallpaper.frag", es);
-    program_ = ludash_shader_create(resolveGLFunction, vertex.constData(), fragment.constData(), error, sizeof(error));
-    if (!program_) { qCritical("Wallpaper shader failed: %s", error); state_->failed = true; return false; }
+    QString error;
+    program_ = shaderProgramFromAssets(
+        {QStringLiteral("common/fullscreen.vert"),
+         QStringLiteral("wallpaper.frag")},
+        es, &error);
+    if (!program_) {
+        qCritical().noquote() << "Wallpaper shader failed:" << error;
+        state_->failed = true;
+        return false;
+    }
     qInfo().noquote() << "LuDash graphics context:" << (es ? "OpenGL ES" : "OpenGL") << format.majorVersion() << "." << format.minorVersion()
                      << (es ? "(ES profile)" : "(compatibility profile)");
     return true;

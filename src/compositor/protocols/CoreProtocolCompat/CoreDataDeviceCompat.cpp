@@ -11,10 +11,10 @@
 #include <QtWaylandCompositor/QWaylandSeat>
 #include <QtWaylandCompositor/QWaylandSurface>
 
-// The Qt data-device implementation is fixed to protocol v1. Its private
-// manager pointer is also where Qt expects clipboard integration to live, so
-// replace that object in one isolated TU rather than advertising a second,
-// competing wl_data_device_manager global.
+// Qt's built-in data-device manager advertises protocol v1. Keep that private
+// manager object alive for Qt's internal bookkeeping, but withdraw its v1
+// Wayland global and advertise LunaDash's independent v3 implementation. This
+// avoids linking against QtWayland's non-exported DataDeviceManager C++ ABI.
 #define private public
 #define protected public
 #include <QtWaylandCompositor/private/qwayland-server-wayland.h>
@@ -237,19 +237,15 @@ private:
   QPointer<QWaylandSeat> seat_;
 };
 
-class CoreDataDeviceManager final : public QtWayland::DataDeviceManager {
+class CoreDataDeviceManager final
+    : public QObject,
+      public QtWaylandServer::wl_data_device_manager {
 public:
   explicit CoreDataDeviceManager(QWaylandCompositor *compositor)
-      : QtWayland::DataDeviceManager(compositor), compositor_(compositor) {
-    // Qt's constructor just created a v1 global. Remove it before any client can
-    // bind and re-use the same generated server object at v3, avoiding duplicate
-    // wl_data_device_manager globals in the registry.
-    if (m_global) {
-      wl_global_destroy(m_global);
-      wl_list_remove(&m_displayDestroyedListener.link);
-      m_global = nullptr;
-    }
-    init(compositor->display(), kDataDeviceVersion);
+      : QObject(nullptr),
+        QtWaylandServer::wl_data_device_manager(compositor->display(),
+                                                kDataDeviceVersion),
+        compositor_(compositor) {
 
     if (auto *seat = compositor->defaultSeat()) {
       connect(seat, &QWaylandSeat::keyboardFocusChanged, this,
@@ -265,6 +261,11 @@ public:
     for (auto *device : devices)
       if (device && device->resource())
         wl_resource_destroy(device->resource()->handle);
+
+    const auto sources = sources_;
+    for (auto *source : sources)
+      if (source && source->resource())
+        wl_resource_destroy(source->resource()->handle);
   }
 
   void setSelection(CoreDataSource *source, wl_client *owner, uint32_t) {
@@ -278,6 +279,7 @@ public:
   }
 
   void sourceDestroyed(CoreDataSource *source) {
+    sources_.remove(source);
     if (selection_ != source)
       return;
     selection_ = nullptr;
@@ -290,8 +292,10 @@ public:
 protected:
   void data_device_manager_create_data_source(Resource *resource,
                                                uint32_t id) override {
-    new CoreDataSource(this, resource->client(), id,
-                       std::min(resource->version(), kDataDeviceVersion));
+    auto *source =
+        new CoreDataSource(this, resource->client(), id,
+                           std::min(resource->version(), kDataDeviceVersion));
+    sources_.insert(source);
   }
 
   void data_device_manager_get_data_device(Resource *resource, uint32_t id,
@@ -319,6 +323,7 @@ private:
 
   QPointer<QWaylandCompositor> compositor_;
   QSet<CoreDataDevice *> devices_;
+  QSet<CoreDataSource *> sources_;
   QPointer<CoreDataSource> selection_;
   wl_client *selectionOwner_ = nullptr;
   wl_client *focusedClient_ = nullptr;
@@ -366,18 +371,33 @@ void CoreDataDevice::data_device_destroy_resource(Resource *) {
 
 } // namespace
 
-void installCoreDataDeviceV3(QWaylandCompositor *compositor) {
+QObject *installCoreDataDeviceV3(QWaylandCompositor *compositor) {
   if (!compositor)
-    return;
+    return nullptr;
 
   auto *d = QWaylandCompositorPrivate::get(compositor);
   if (!d)
-    return;
+    return nullptr;
 
-  delete d->data_device_manager;
-  d->data_device_manager = new CoreDataDeviceManager(compositor);
+  // DataDeviceManager is a private QtWayland implementation class and is not
+  // exported as a stable shared-library ABI on every distribution. Leave the
+  // Qt object in place so Qt can keep its internal clipboard bookkeeping, but
+  // withdraw the generated v1 protocol global and its display-destroy listener.
+  // The generated base members are exposed only in this translation unit.
+  if (auto *qtManager = d->data_device_manager) {
+    auto *protocolManager =
+        static_cast<QtWaylandServer::wl_data_device_manager *>(qtManager);
+    if (protocolManager->m_global) {
+      wl_global_destroy(protocolManager->m_global);
+      wl_list_remove(&protocolManager->m_displayDestroyedListener.link);
+      protocolManager->m_global = nullptr;
+    }
+  }
+
   d->retainSelection = false;
+  auto *manager = new CoreDataDeviceManager(compositor);
   qInfo("LunaDash core protocol: wl_data_device_manager v3");
+  return manager;
 }
 
 } // namespace LuDash
@@ -385,7 +405,7 @@ void installCoreDataDeviceV3(QWaylandCompositor *compositor) {
 #else
 
 namespace LuDash {
-void installCoreDataDeviceV3(QWaylandCompositor *) {}
+QObject *installCoreDataDeviceV3(QWaylandCompositor *) { return nullptr; }
 } // namespace LuDash
 
 #endif

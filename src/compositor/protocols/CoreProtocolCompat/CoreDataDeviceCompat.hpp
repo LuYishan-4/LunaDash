@@ -1,5 +1,6 @@
 #pragma once
 
+class QObject;
 class QWaylandCompositor;
 
 namespace LuDash {
@@ -8,6 +9,6 @@ namespace LuDash {
 // LunaDash-owned v3 implementation while preserving the compositor's public
 // QWayland APIs. This is installed immediately after QWaylandCompositor::create
 // and before the event loop can accept application requests.
-void installCoreDataDeviceV3(QWaylandCompositor *compositor);
+QObject *installCoreDataDeviceV3(QWaylandCompositor *compositor);
 
 } // namespace LuDash

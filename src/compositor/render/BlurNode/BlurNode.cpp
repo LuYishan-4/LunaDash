@@ -19,11 +19,25 @@ QSGRenderNode::RenderingFlags BlurNode::flags() const { return BoundedRectRender
 void BlurNode::releaseResources() { ludash_blur_destroy(pass_); pass_ = nullptr; }
 bool BlurNode::initialize() {
     auto* context = QOpenGLContext::currentContext();
-    if (!context) return false;
-    char error[1024]{};
-    const auto vertex = shaderSource("blur/blur.vert", context->isOpenGLES()), fragment = shaderSource("blur/blur.frag", context->isOpenGLES());
-    pass_ = ludash_blur_create(resolveGLFunction, vertex.constData(), fragment.constData(), error, sizeof(error));
-    if (!pass_) { qWarning("Backdrop blur shader failed: %s", error); health_->failed = true; }
+    if (!context)
+        return false;
+
+    QString error;
+    auto* program = shaderProgramFromAssets(
+        {QStringLiteral("common/fullscreen.vert"),
+         QStringLiteral("blur/blur.frag")},
+        context->isOpenGLES(), &error);
+    if (!program) {
+        qWarning().noquote() << "Backdrop blur shader failed:" << error;
+        health_->failed = true;
+        return false;
+    }
+
+    pass_ = ludash_blur_create(program);
+    if (!pass_) {
+        qWarning("Backdrop blur pass allocation failed");
+        health_->failed = true;
+    }
     return pass_ != nullptr;
 }
 void BlurNode::render(const RenderState* state) {

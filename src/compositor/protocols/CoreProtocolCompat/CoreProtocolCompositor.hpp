@@ -12,6 +12,7 @@ namespace LuDash {
 class CoreProtocolCompositor final : public QWaylandQuickCompositor {
 public:
   using QWaylandQuickCompositor::QWaylandQuickCompositor;
+  ~CoreProtocolCompositor() override;
 
   void create() override;
 
@@ -34,6 +35,9 @@ public:
 protected:
   QWaylandSeat *createSeat() override;
   QWaylandPointer *createPointerDevice(QWaylandSeat *seat) override;
+
+private:
+  QObject *coreDataDeviceManager_ = nullptr;
 };
 
 } // namespace LuDash
