@@ -45,7 +45,7 @@ ColumnLayout {
             Text { text: shell.tr("Shell font"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             StyledComboBox { translationContext: page.shell; model:["sans-serif","serif","monospace"]; currentIndex:model.indexOf(page.appearance.fontFamily||"sans-serif"); onActivated:shell.setAppearance({fontFamily:currentText}) }
         }
-        ShellButton { text:shell.tr("24-hour clock"); active:page.appearance.clock24Hour??true; onClicked:shell.setAppearance({clock24Hour:!(page.appearance.clock24Hour??true)}) }
+        ShellButton { iconName:"general"; text:shell.tr("24-hour clock"); active:page.appearance.clock24Hour??true; onClicked:shell.setAppearance({clock24Hour:!(page.appearance.clock24Hour??true)}) }
     }
     SettingsComponents.SettingsCard {
         title: shell.tr("Notifications")
@@ -58,12 +58,21 @@ ColumnLayout {
             Text { text:shell.tr("Application crash alerts"); color:Theme.text; font.family:Theme.font; Layout.fillWidth:true }
             SoftSwitch { checked:page.appearance.crashNotifications??true; enabled:page.appearance.notificationsEnabled??true; onToggled:shell.setAppearance({crashNotifications:checked}) }
         }
-        ShellButton { text:shell.tr("Send test notification"); enabled:page.appearance.notificationsEnabled??true; onClicked:shell.notify(shell.tr("LunaDash notification"),shell.tr("Notifications are enabled."),"info","") }
+        ShellButton { iconName:"info"; text:shell.tr("Send test notification"); enabled:page.appearance.notificationsEnabled??true; onClicked:shell.notify(shell.tr("LunaDash notification"),shell.tr("Notifications are enabled."),"info","") }
     }
     SettingsComponents.SettingsCard {
         title:shell.tr("Setup and recovery")
         description:shell.tr("Preferences are saved automatically. Resetting does not remove personal files or network profiles.")
-        RowLayout { ShellButton{text:shell.tr("First-run guide");onClicked:{shell.settingsOpen=false;shell.command("setup","")}} ShellButton{text:shell.tr("Reset desktop preferences");onClicked:page.confirmReset=!page.confirmReset} }
-        RowLayout { visible:page.confirmReset; ShellButton{text:shell.tr("Restore defaults");onClicked:{shell.command("reset-preferences","");page.confirmReset=false}} ShellButton{text:shell.tr("Cancel");onClicked:page.confirmReset=false} }
+        RowLayout {
+            ShellButton{iconName:"settings";text:shell.tr("First-run guide");onClicked:{shell.settingsOpen=false;shell.command("setup","")}}
+            ShellButton{iconName:"warning";destructive:page.confirmReset;text:shell.tr("Reset desktop preferences");onClicked:page.confirmReset=!page.confirmReset}
+        }
+        RowLayout {
+            visible:page.confirmReset
+            opacity:visible?1:0
+            ShellButton{iconName:"warning";destructive:true;text:shell.tr("Restore defaults");onClicked:{shell.command("reset-preferences","");page.confirmReset=false}}
+            ShellButton{text:shell.tr("Cancel");quiet:true;onClicked:page.confirmReset=false}
+            Behavior on opacity{NumberAnimation{duration:Theme.motionFast}}
+        }
     }
 }
