@@ -20,5 +20,6 @@ bool isUtilityWindow(const QString &appId);
 
 bool isChromiumApplication(const QString &program);
 void ensureWaylandChromiumFlags(QStringList &command);
+void prepareXWaylandChromiumFlags(QStringList &command);
 
 } // namespace LuDash::Utils
