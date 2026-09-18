@@ -119,7 +119,23 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                          platform == QLatin1String("vkkhrdisplay");
   compositor_.setUseHardwareIntegrationExtension(bareMetal);
   compositor_.setRetainedSelectionEnabled(true);
+  setKeyboardLedControlEnabled(bareMetal);
+
+  // Prefer both dmabuf and wayland-egl imports when Qt ships the plugins.
+  // This is a compositor capability choice, not an application-specific
+  // workaround. Vulkan/WGPU Wayland clients can then present dmabuf-backed
+  // buffers, while Qt/OpenGL clients can continue using wayland-egl.
+  const QByteArray previousBufferIntegration =
+      qgetenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION");
+  if (previousBufferIntegration.isEmpty())
+    qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION",
+            "linux-dmabuf-unstable-v1;wayland-egl");
   compositor_.create();
+  if (previousBufferIntegration.isEmpty())
+    qunsetenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION");
+  else
+    qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION",
+            previousBufferIntegration);
   layerShell_ = new LayerShell(&compositor_, output_, &window_);
   screenCapture_ = new ScreenCapture(&compositor_, output_, &window_);
   controlPath_ =
@@ -1490,10 +1506,27 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
   if (watched == &window_ && (event->type() == QEvent::KeyPress ||
                               event->type() == QEvent::KeyRelease)) {
     auto *key = static_cast<QKeyEvent *>(event);
-    // Do not manually forward physical keys here. QWaylandQuickItem receives
-    // this QKeyEvent after the filter and calls QWaylandSeat::sendFullKeyEvent
-    // exactly once. A second sendKeyPressEvent/sendKeyReleaseEvent path causes
-    // duplicate characters and double shortcut activation.
+    handleKeyboardLockKey(key->key(), event->type() == QEvent::KeyPress,
+                          key->isAutoRepeat());
+
+    // Qt Wayland Compositor's modifier-repair path treats KeypadModifier like
+    // Shift/Ctrl/Alt mismatch and can send a modifiers event with a zero locked
+    // mask. That clears NumLock/CapsLock for the client. Forward keypad keys
+    // directly from their native XKB scan code and consume the QKeyEvent so
+    // QWaylandQuickItem does not forward a second copy.
+    if (key->modifiers().testFlag(Qt::KeypadModifier)) {
+      auto *seat = compositor_.defaultSeat();
+      const auto scanCode = static_cast<uint>(key->nativeScanCode());
+      if (seat && seat->keyboardFocus() && scanCode >= 8) {
+        if (event->type() == QEvent::KeyPress)
+          seat->keyboard()->sendKeyPressEvent(scanCode);
+        else
+          seat->keyboard()->sendKeyReleaseEvent(scanCode);
+        ++keypadKeyForwards_;
+        return true;
+      }
+    }
+
     const bool clearsLockedMask =
         key->key() == Qt::Key_NumLock || key->key() == Qt::Key_CapsLock ||
         key->key() == Qt::Key_ScrollLock || key->key() == Qt::Key_Meta ||
