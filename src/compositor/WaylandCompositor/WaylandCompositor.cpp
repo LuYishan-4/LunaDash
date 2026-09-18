@@ -1618,9 +1618,11 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     environment.insert(
         "XCURSOR_SIZE",
         QString::number(desktopPreferences().value("cursorSize").toInt()));
-    if (xwayland_->start(environment, d->outputSize()) &&
-        !xwayland_->startServer())
-      qWarning("XWayland could not start; X11 clients are unavailable.");
+    if (!xwayland_->start(environment, d->outputSize()))
+      qWarning("XWayland could not be prepared; X11 clients are unavailable.");
+    // Do not start the rootful XWayland server during desktop startup.
+    // It is launched on demand by the explicit X11 compatibility path, so
+    // normal Wayland sessions never flash an "Xwayland :NN" desktop window.
   }
 
   publishSessionActivationEnvironment();
