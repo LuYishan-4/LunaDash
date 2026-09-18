@@ -122,6 +122,7 @@ private:
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);
+  void updateClientStacking(ClientWindow *client);
   void focusNext(int direction);
   void synchronizeTilingFocus();
   ClientWindow *clientAt(const QPointF &position) const;
