@@ -27,6 +27,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 pkg_check_modules(LUDASH_XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
+pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
+pkg_get_variable(WAYLAND_PROTOCOLS_DATADIR wayland-protocols pkgdatadir)
 pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET
     wlroots-0.20 wlroots-0.19 wlroots-0.18 "wlroots>=0.17")
 message(STATUS "LunaDash compositor backend: wlroots ${WLROOTS_VERSION} (${WLROOTS_MODULE_NAME})")
@@ -208,13 +210,30 @@ add_custom_command(
     DEPENDS protocols/wlr-layer-shell-unstable-v1.xml
     VERBATIM)
 
+set(LUDASH_XDG_SHELL_PROTOCOL_HEADER
+    ${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-protocol.h)
+set(LUDASH_XDG_SHELL_PROTOCOL_XML
+    ${WAYLAND_PROTOCOLS_DATADIR}/stable/xdg-shell/xdg-shell.xml)
+if(NOT EXISTS "${LUDASH_XDG_SHELL_PROTOCOL_XML}")
+    message(FATAL_ERROR
+        "wayland-protocols xdg-shell XML not found: ${LUDASH_XDG_SHELL_PROTOCOL_XML}")
+endif()
+add_custom_command(
+    OUTPUT ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
+    COMMAND ${WAYLAND_SCANNER} server-header
+            ${LUDASH_XDG_SHELL_PROTOCOL_XML}
+            ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
+    DEPENDS ${LUDASH_XDG_SHELL_PROTOCOL_XML}
+    VERBATIM)
+
 add_library(ludash-wayland
     src/compositor/WaylandCompositor/WaylandCompositor.cpp
     src/compositor/WindowRules/WindowRules.cpp
     src/compositor/ipc/ControlServer/ControlServer.cpp
     src/compositor/SystemStatus/SystemStatus.cpp
     src/compositor/LuDashUtils/LuDashUtils.cpp
-    ${LUDASH_WLR_LAYER_PROTOCOL_HEADER})
+    ${LUDASH_WLR_LAYER_PROTOCOL_HEADER}
+    ${LUDASH_XDG_SHELL_PROTOCOL_HEADER})
 target_include_directories(ludash-wayland
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
