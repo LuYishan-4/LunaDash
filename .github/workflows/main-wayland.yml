@@ -22,7 +22,7 @@ jobs:
                     libwayland-dev wayland-protocols libwlroots-dev \
                     libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
-                    xvfb xauth xdotool python3 wayland-utils
+                    xvfb xauth xdotool xwayland python3 wayland-utils
             - name: Reject QtWayland compositor dependencies
               run: python3 tests/wayland/test_no_qtwayland.py
             - name: Build wlroots compositor
