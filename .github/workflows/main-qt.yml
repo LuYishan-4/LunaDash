@@ -7,7 +7,7 @@ concurrency:
     cancel-in-progress: true
 jobs:
     qt:
-        name: Qt module and compositor loading
+        name: Qt client modules with wlroots compositor
         runs-on: ubuntu-24.04
         timeout-minutes: 25
         steps:
@@ -19,17 +19,18 @@ jobs:
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
                     cmake g++ ninja-build pkg-config libgl-dev \
-                    libwayland-dev wayland-protocols \
+                    libwayland-dev wayland-protocols libwlroots-dev \
                     libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
-                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev libqt6opengl6-dev \
-                    xvfb xauth python3 python3-pil
-            - name: Build Qt compositor
+                    qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
+                    xvfb xauth python3
+            - name: Build
               run: cmake -S . -B build-qt -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-qt --parallel 2
-            - name: Verify Qt libraries and runtime loading
+            - name: Verify Qt stays on the client side
               run: |
                   test -f /usr/lib/x86_64-linux-gnu/libQt6Core.so.6
-                  test -f /usr/lib/x86_64-linux-gnu/libQt6WaylandCompositor.so.6
-                  ldd build-qt/lunadash-compositor | grep -E 'libQt6(Core|Gui|Quick|WaylandCompositor)'
-                  QT_QPA_PLATFORM=xcb LUDASH_BUILD_DIR="$GITHUB_WORKSPACE/build-qt" \
-                    LUDASH_GRAPHICS=opengl \
-                    LUDASH_TEST_NO_SHELL=1 ./scripts/test-wayland.sh
+                  ldd build-qt/lunadash-desktop | grep -E 'libQt6(Core|Gui|Widgets)'
+                  ldd build-qt/lunadash-compositor | grep libwlroots
+                  ! ldd build-qt/lunadash-compositor | grep -q libQt6WaylandCompositor
+                  python3 tests/wayland/test_no_qtwayland.py
+            - name: Run session
+              run: LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-qt" ./scripts/test-wayland.sh

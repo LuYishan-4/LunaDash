@@ -1,21 +1,23 @@
 #pragma once
-#include <QPointer>
+
 #include <QRect>
 #include <QSize>
 #include <QString>
-class QWaylandXdgToplevel;
-class QWaylandQuickShellSurfaceItem;
+
+struct wlr_scene_tree;
+struct wlr_xdg_surface;
+struct wlr_xdg_toplevel;
+
 namespace LuDash {
-class WindowFrame;
-class BlurItem;
+
 struct ClientWindow {
-  QPointer<QWaylandXdgToplevel> toplevel;
-  QPointer<QWaylandQuickShellSurfaceItem> item;
-  WindowFrame *frame = nullptr;
-  BlurItem *blur = nullptr;
-  bool presented = false;
+  wlr_xdg_toplevel *toplevel = nullptr;
+  wlr_xdg_surface *surface = nullptr;
+  wlr_scene_tree *sceneTree = nullptr;
+  void *nativeState = nullptr;
   int workspace = 0;
   int id = 0;
+  qint64 processId = 0;
   bool floating = false;
   bool desktop = false;
   bool mapped = false;
@@ -23,15 +25,16 @@ struct ClientWindow {
   bool maximized = false;
   bool manualResize = false;
   bool initialRuleApplied = false;
-  bool revealed = false;
   int restoreColumnWidth = 0;
   QSize preferredFloatingSize;
   bool utility = false;
-  bool lastConfiguredMaximized = false;
   QString appId;
+  QString title;
   QString iconName;
   QSize lastSize;
+  QRect geometry;
   QRect manualGeometry;
   QRect resizeGuideGeometry;
 };
+
 } // namespace LuDash

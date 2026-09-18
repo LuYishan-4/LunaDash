@@ -14,7 +14,8 @@ typedef struct LuDashBlurRegion {
     int stencil_enabled;
     int stencil_value;
 } LuDashBlurRegion;
-// Takes ownership of shader, including when pass allocation fails.\nLuDashBlurPass* ludash_blur_create(LuDashShaderProgram* shader);
+// Takes ownership of shader, including when pass allocation fails.
+LuDashBlurPass* ludash_blur_create(LuDashShaderProgram* shader);
 int ludash_blur_draw(LuDashBlurPass* pass, const LuDashBlurRegion* region);
 void ludash_blur_destroy(LuDashBlurPass* pass);
 #ifdef __cplusplus

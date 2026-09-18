@@ -2,17 +2,24 @@
 
 #include <QJsonObject>
 #include <QString>
-
-class QKeyEvent;
+#include <cstdint>
+#include <xkbcommon/xkbcommon.h>
 
 namespace LuDash {
+
+enum ShortcutModifier : uint32_t {
+  ShortcutMeta = 1u << 0,
+  ShortcutControl = 1u << 1,
+  ShortcutAlt = 1u << 2,
+  ShortcutShift = 1u << 3,
+};
 
 class ShortcutSettings {
 public:
   ShortcutSettings();
 
   QJsonObject snapshot() const;
-  QString actionFor(const QKeyEvent &event) const;
+  QString actionFor(xkb_keysym_t keysym, uint32_t modifiers) const;
   bool apply(const QJsonObject &changes, QString *error);
   void reset();
 

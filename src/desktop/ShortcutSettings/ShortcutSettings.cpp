@@ -1,9 +1,8 @@
 #include "desktop/ShortcutSettings/ShortcutSettings.hpp"
 
-#include <QKeyEvent>
-#include <QKeySequence>
 #include <QSet>
 #include <QSettings>
+#include <QStringList>
 
 namespace LuDash {
 namespace {
@@ -21,7 +20,7 @@ QJsonObject defaults() {
   result.insert("expelWindow", "Meta+Shift+E");
   result.insert("centerColumn", "Meta+Shift+C");
   result.insert("widenColumn", "Meta+=");
-  result.insert("narrowColumn", QStringLiteral("Meta+") + QChar('-'));
+  result.insert("narrowColumn", "Meta+-");
   result.insert("maximizeWindow", "Meta+F");
   result.insert("closeWindow", "Meta+C");
   result.insert("minimizeWindow", "Meta+M");
@@ -40,26 +39,76 @@ QJsonObject defaults() {
   return result;
 }
 
-QString normalizedSequence(const QString &text) {
+xkb_keysym_t keySym(const QString &name) {
+  if (name == "=")
+    return XKB_KEY_equal;
+  if (name == "-")
+    return XKB_KEY_minus;
+  if (name.compare("Space", Qt::CaseInsensitive) == 0)
+    return XKB_KEY_space;
+  if (name.compare("Return", Qt::CaseInsensitive) == 0)
+    return XKB_KEY_Return;
+  const QByteArray utf8 = name.toLatin1();
+  return xkb_keysym_from_name(utf8.constData(), XKB_KEYSYM_CASE_INSENSITIVE);
+}
+
+struct ParsedShortcut {
+  xkb_keysym_t symbol = XKB_KEY_NoSymbol;
+  uint32_t modifiers = 0;
+  QString canonical;
+};
+
+ParsedShortcut parseShortcut(const QString &text) {
   if (text == "Disabled")
-    return text;
-  const auto sequence =
-      QKeySequence::fromString(text, QKeySequence::PortableText);
-  if (sequence.count() != 1)
+    return {XKB_KEY_NoSymbol, 0, QStringLiteral("Disabled")};
+
+  const QStringList pieces = text.split('+', Qt::KeepEmptyParts);
+  if (pieces.size() < 2)
     return {};
-  const auto combination = sequence[0];
-  const auto modifiers = combination.keyboardModifiers();
-  // A global shortcut claims one combination that keeps a text key reachable,
-  // so it must use Meta or Alt. Ctrl alone stays available to applications.
-  if (!modifiers.testFlag(Qt::MetaModifier) &&
-      !modifiers.testFlag(Qt::AltModifier))
+
+  uint32_t modifiers = 0;
+  QString key;
+  for (const QString &piece : pieces) {
+    if (piece == "Meta")
+      modifiers |= ShortcutMeta;
+    else if (piece == "Ctrl" || piece == "Control")
+      modifiers |= ShortcutControl;
+    else if (piece == "Alt")
+      modifiers |= ShortcutAlt;
+    else if (piece == "Shift")
+      modifiers |= ShortcutShift;
+    else if (key.isEmpty())
+      key = piece;
+    else
+      return {};
+  }
+
+  if (key.isEmpty() || !(modifiers & (ShortcutMeta | ShortcutAlt)))
     return {};
-  if (combination.key() == Qt::Key_unknown ||
-      combination.key() == Qt::Key_Meta ||
-      combination.key() == Qt::Key_Control ||
-      combination.key() == Qt::Key_Shift || combination.key() == Qt::Key_Alt)
+
+  const xkb_keysym_t symbol = keySym(key);
+  if (symbol == XKB_KEY_NoSymbol)
     return {};
-  return QKeySequence(combination).toString(QKeySequence::PortableText);
+
+  QString canonicalKey = key;
+  if (key.size() == 1 && key.front().isLetter())
+    canonicalKey = key.toUpper();
+  else if (symbol == XKB_KEY_space)
+    canonicalKey = QStringLiteral("Space");
+  else if (symbol == XKB_KEY_Return)
+    canonicalKey = QStringLiteral("Return");
+
+  QStringList normalized;
+  if (modifiers & ShortcutMeta)
+    normalized << QStringLiteral("Meta");
+  if (modifiers & ShortcutControl)
+    normalized << QStringLiteral("Ctrl");
+  if (modifiers & ShortcutAlt)
+    normalized << QStringLiteral("Alt");
+  if (modifiers & ShortcutShift)
+    normalized << QStringLiteral("Shift");
+  normalized << canonicalKey;
+  return {symbol, modifiers, normalized.join('+')};
 }
 
 } // namespace
@@ -75,12 +124,14 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
 
 QJsonObject ShortcutSettings::snapshot() const { return bindings_; }
 
-QString ShortcutSettings::actionFor(const QKeyEvent &event) const {
-  const auto pressed =
-      QKeySequence(event.keyCombination()).toString(QKeySequence::PortableText);
-  for (auto it = bindings_.begin(); it != bindings_.end(); ++it)
-    if (it.value().toString() != "Disabled" && it.value().toString() == pressed)
+QString ShortcutSettings::actionFor(xkb_keysym_t keysym,
+                                    uint32_t modifiers) const {
+  for (auto it = bindings_.cbegin(); it != bindings_.cend(); ++it) {
+    const ParsedShortcut shortcut = parseShortcut(it.value().toString());
+    if (shortcut.canonical != "Disabled" && shortcut.symbol == keysym &&
+        shortcut.modifiers == modifiers)
       return it.key();
+  }
   return {};
 }
 
@@ -93,17 +144,18 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
         *error = "Unknown shortcut action: " + it.key();
       return false;
     }
-    const auto sequence = normalizedSequence(it.value().toString());
-    if (sequence.isEmpty()) {
+    const ParsedShortcut parsed = parseShortcut(it.value().toString());
+    if (parsed.canonical.isEmpty()) {
       if (error)
         *error = "Shortcut must be one Meta or Alt key combination.";
       return false;
     }
-    candidate.insert(it.key(), sequence);
+    candidate.insert(it.key(), parsed.canonical);
   }
+
   QSet<QString> used;
-  for (auto it = candidate.begin(); it != candidate.end(); ++it) {
-    const auto sequence = it.value().toString();
+  for (auto it = candidate.cbegin(); it != candidate.cend(); ++it) {
+    const QString sequence = it.value().toString();
     if (sequence == "Disabled")
       continue;
     if (used.contains(sequence)) {
@@ -113,6 +165,7 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
     }
     used.insert(sequence);
   }
+
   bindings_ = candidate;
   QSettings settings;
   settings.setValue("shortcuts/bindings", bindings_.toVariantMap());

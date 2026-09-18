@@ -29,8 +29,8 @@ jobs:
           - name: Arch Linux
             image: archlinux:latest
             bootstrap: "pacman -Syu --noconfirm --needed base-devel git"
-          - name: Debian 12
-            image: debian:12-slim
+          - name: Debian 13
+            image: debian:13-slim
             bootstrap: ""
           - name: Fedora 45
             image: fedora:45
@@ -63,6 +63,7 @@ jobs:
               exec bash -lc "
                 set -euo pipefail
                 bash scripts/install-dependencies.sh
+                python3 tests/wayland/test_no_qtwayland.py
                 cmake -S . -B build-distro -G Ninja \\
                   -DCMAKE_BUILD_TYPE=Release -DLUDASH_BUILD_FILES_TESTS=ON
                 cmake --build build-distro --parallel 2

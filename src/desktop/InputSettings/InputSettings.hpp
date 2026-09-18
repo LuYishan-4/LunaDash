@@ -1,8 +1,17 @@
 #pragma once
+
 #include <QJsonObject>
-class QWaylandSeat;
+#include <QString>
+
+struct wlr_keyboard;
+
 namespace LuDash {
-void setKeyboardLedControlEnabled(bool enabled);
-void handleKeyboardLockKey(int qtKey, bool pressed, bool autoRepeat);
-void applyKeyboardPreferences(QWaylandSeat *seat, const QJsonObject &preferences);
-}
+
+QString keyboardLayoutPreference(const QJsonObject &preferences);
+int keyboardRepeatRate();
+int keyboardRepeatDelay();
+bool applyKeyboardPreferences(wlr_keyboard *keyboard,
+                              const QJsonObject &preferences,
+                              QString *error = nullptr);
+
+} // namespace LuDash

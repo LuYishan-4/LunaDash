@@ -92,13 +92,10 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("ELECTRON_OZONE_PLATFORM_HINT", "wayland");
   environment.insert("XMODIFIERS", "@im=fcitx");
   environment.insert("QT_IM_MODULE", "fcitx");
-  // Do not put the Qt Wayland input context ahead of Fcitx here. LunaDash
-  // advertises text-input protocols for clients, but currently does not act as
-  // a compositor-side input-method-v2 bridge. Selecting "wayland" first can
-  // therefore leave Qt text fields without a usable IME even though Fcitx is
-  // running. Keep the toolkit Fcitx module authoritative until that bridge is
-  // implemented.
-  environment.insert("QT_IM_MODULES", "fcitx");
+  // The compositor-side bridge is implemented by wlroots
+  // text-input-v3/input-method-v2. Toolkit input modules remain client-side:
+  // Fcitx can use the native Wayland protocols without any Qt compositor path.
+  environment.insert("QT_IM_MODULES", "fcitx;wayland");
   environment.insert("GTK_IM_MODULE", "fcitx");
   environment.insert("SDL_IM_MODULE", "fcitx");
   environment.insert("INPUT_METHOD", "fcitx");

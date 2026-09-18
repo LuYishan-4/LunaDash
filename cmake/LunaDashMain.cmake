@@ -22,76 +22,14 @@ if(CMAKE_CXX_CLANG_TIDY AND NOT CMAKE_C_CLANG_TIDY)
     set(CMAKE_C_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
 endif()
 find_path(LUDASH_GL_INCLUDE_DIR GL/glcorearb.h REQUIRED)
-find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Concurrent Quick OpenGL Network DBus WaylandCompositor)
-set(LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE OFF CACHE INTERNAL "Qt Wayland compositor private headers available")
-set(LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS "")
-set(LUDASH_QT_WAYLAND_PRIVATE_TARGET_VALID OFF)
-
-if(TARGET Qt6::WaylandCompositorPrivate)
-    get_target_property(_ludash_qt_wayland_private_includes Qt6::WaylandCompositorPrivate INTERFACE_INCLUDE_DIRECTORIES)
-    set(_ludash_qt_wayland_private_paths_valid ON)
-    foreach(_ludash_qt_private_path IN LISTS _ludash_qt_wayland_private_includes)
-        if(NOT _ludash_qt_private_path MATCHES "^\\$<" AND NOT EXISTS "${_ludash_qt_private_path}")
-            set(_ludash_qt_wayland_private_paths_valid OFF)
-        endif()
-    endforeach()
-    if(_ludash_qt_wayland_private_paths_valid)
-        set(LUDASH_QT_WAYLAND_PRIVATE_TARGET_VALID ON)
-        set(LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE ON CACHE INTERNAL "Qt Wayland compositor private headers available" FORCE)
-    endif()
-endif()
-
-# Arch and some distro Qt packages install the private headers but do not expose
-# a usable Qt6::WaylandCompositorPrivate imported target. Discover the versioned
-# include roots directly in that case. This keeps the private Qt dependency
-# isolated to CoreProtocolCompat and avoids requiring a patched system Qt.
-if(NOT LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE)
-    get_target_property(_ludash_qt_wayland_public_includes Qt6::WaylandCompositor INTERFACE_INCLUDE_DIRECTORIES)
-    foreach(_ludash_qt_wayland_public_path IN LISTS _ludash_qt_wayland_public_includes)
-        if(_ludash_qt_wayland_public_path MATCHES "/QtWaylandCompositor$")
-            set(_ludash_wayland_private_root "${_ludash_qt_wayland_public_path}/${Qt6_VERSION}")
-            get_filename_component(_ludash_qt_include_root "${_ludash_qt_wayland_public_path}" DIRECTORY)
-            set(_ludash_qtcore_private_root "${_ludash_qt_include_root}/QtCore/${Qt6_VERSION}/QtCore")
-            set(_ludash_qtgui_private_root "${_ludash_qt_include_root}/QtGui/${Qt6_VERSION}/QtGui")
-            set(_ludash_waylandglobal_private_root "${_ludash_qt_include_root}/QtWaylandGlobal/${Qt6_VERSION}/QtWaylandGlobal")
-
-            # A usable QtWayland private stack needs the transitive private
-            # headers too. Some distro packages expose qwaylandseat_p.h while
-            # omitting QtWaylandGlobalPrivate; enabling the path in that case
-            # only produces a later compiler error.
-            if(EXISTS "${_ludash_wayland_private_root}/QtWaylandCompositor/private/qwaylandseat_p.h"
-               AND EXISTS "${_ludash_qtcore_private_root}/private/qglobal_p.h"
-               AND EXISTS "${_ludash_qtgui_private_root}/private/qtguiglobal_p.h"
-               AND EXISTS "${_ludash_waylandglobal_private_root}/private/qtwaylandglobal-config_p.h")
-                list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS
-                    "${_ludash_wayland_private_root}"
-                    "${_ludash_wayland_private_root}/QtWaylandCompositor"
-                    "${_ludash_qt_include_root}/QtWaylandGlobal/${Qt6_VERSION}"
-                    "${_ludash_waylandglobal_private_root}"
-                    "${_ludash_qt_include_root}/QtCore/${Qt6_VERSION}"
-                    "${_ludash_qtcore_private_root}"
-                    "${_ludash_qt_include_root}/QtGui/${Qt6_VERSION}"
-                    "${_ludash_qtgui_private_root}")
-                if(EXISTS "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}/QtQml")
-                    list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS
-                        "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}"
-                        "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}/QtQml")
-                endif()
-                if(EXISTS "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}/QtQuick")
-                    list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS
-                        "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}"
-                        "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}/QtQuick")
-                endif()
-                set(LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE ON CACHE INTERNAL "Qt Wayland compositor private headers available" FORCE)
-                break()
-            endif()
-        endif()
-    endforeach()
-endif()
+find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Concurrent Quick OpenGL Network DBus)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 pkg_check_modules(LUDASH_XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
+pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET
+    wlroots-0.20 wlroots-0.19 wlroots-0.18 "wlroots>=0.17")
+message(STATUS "LunaDash compositor backend: wlroots ${WLROOTS_VERSION} (${WLROOTS_MODULE_NAME})")
 find_program(WAYLAND_SCANNER wayland-scanner REQUIRED)
 execute_process(COMMAND git rev-parse --verify HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE LUNADASH_GIT_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 if(NOT LUNADASH_GIT_COMMIT)
@@ -169,7 +107,10 @@ target_include_directories(ludash-display-settings PUBLIC src)
 target_link_libraries(ludash-display-settings PUBLIC Qt6::Gui)
 add_library(ludash-input-settings src/desktop/InputSettings/InputSettings.cpp)
 target_include_directories(ludash-input-settings PUBLIC src)
-target_link_libraries(ludash-input-settings PUBLIC Qt6::WaylandCompositor)
+target_compile_definitions(ludash-input-settings PRIVATE WLR_USE_UNSTABLE=1)
+target_link_libraries(ludash-input-settings
+    PUBLIC Qt6::Core
+    PRIVATE PkgConfig::WLROOTS PkgConfig::LUDASH_XKBCOMMON)
 add_library(ludash-shell-modules src/compositor/ShellModules/ShellModules.hpp src/compositor/ShellModuleSchema/ShellModuleSchema.cpp src/compositor/ShellModules/ShellModules.cpp)
 target_include_directories(ludash-shell-modules PUBLIC src)
 target_link_libraries(ludash-shell-modules PUBLIC Qt6::Core)
@@ -214,44 +155,46 @@ add_library(ludash-apps src/desktop/DesktopTheme/DesktopTheme.cpp src/desktop/Ap
 target_include_directories(ludash-apps PUBLIC src)
 target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-file-operations Qt6::Concurrent ludash-system-metrics ludash-localization ludash-plugins ludash-wallpaper Qt6::Widgets)
 target_compile_options(ludash-apps PRIVATE -Wall -Wextra -Wpedantic)
-set(LAYER_HEADER ${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-server.h)
-set(LAYER_CODE ${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-protocol.c)
-add_custom_command(OUTPUT ${LAYER_HEADER} ${LAYER_CODE} COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_HEADER} COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml ${LAYER_CODE} DEPENDS protocols/wlr-layer-shell-unstable-v1.xml VERBATIM)
-set(SCREENCOPY_HEADER ${CMAKE_CURRENT_BINARY_DIR}/wlr-screencopy-server.h)
-set(SCREENCOPY_CODE ${CMAKE_CURRENT_BINARY_DIR}/wlr-screencopy-protocol.c)
-add_custom_command(OUTPUT ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE} COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_HEADER} COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-screencopy-unstable-v1.xml ${SCREENCOPY_CODE} DEPENDS protocols/wlr-screencopy-unstable-v1.xml VERBATIM)
-set(INPUT_METHOD_V2_HEADER ${CMAKE_CURRENT_BINARY_DIR}/input-method-unstable-v2-server.h)
-set(INPUT_METHOD_V2_CODE ${CMAKE_CURRENT_BINARY_DIR}/input-method-unstable-v2-protocol.c)
-add_custom_command(OUTPUT ${INPUT_METHOD_V2_HEADER} ${INPUT_METHOD_V2_CODE} COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/input-method-unstable-v2.xml ${INPUT_METHOD_V2_HEADER} COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/input-method-unstable-v2.xml ${INPUT_METHOD_V2_CODE} DEPENDS protocols/input-method-unstable-v2.xml VERBATIM)
-set(VIRTUAL_KEYBOARD_V1_HEADER ${CMAKE_CURRENT_BINARY_DIR}/virtual-keyboard-unstable-v1-server.h)
-set(VIRTUAL_KEYBOARD_V1_CODE ${CMAKE_CURRENT_BINARY_DIR}/virtual-keyboard-unstable-v1-protocol.c)
-add_custom_command(OUTPUT ${VIRTUAL_KEYBOARD_V1_HEADER} ${VIRTUAL_KEYBOARD_V1_CODE} COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/virtual-keyboard-unstable-v1.xml ${VIRTUAL_KEYBOARD_V1_HEADER} COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/virtual-keyboard-unstable-v1.xml ${VIRTUAL_KEYBOARD_V1_CODE} DEPENDS protocols/virtual-keyboard-unstable-v1.xml VERBATIM)
-set(TEXT_INPUT_V3_HEADER ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v3-server.h)
-set(TEXT_INPUT_V3_CODE ${CMAKE_CURRENT_BINARY_DIR}/text-input-unstable-v3-protocol.c)
-add_custom_command(OUTPUT ${TEXT_INPUT_V3_HEADER} ${TEXT_INPUT_V3_CODE} COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/text-input-unstable-v3.xml ${TEXT_INPUT_V3_HEADER} COMMAND ${WAYLAND_SCANNER} private-code ${CMAKE_CURRENT_SOURCE_DIR}/protocols/text-input-unstable-v3.xml ${TEXT_INPUT_V3_CODE} DEPENDS protocols/text-input-unstable-v3.xml VERBATIM)
-add_library(ludash-wayland src/compositor/WaylandCompositor/WaylandCompositor.cpp src/compositor/protocols/CoreProtocolCompat/CoreProtocolCompositor.cpp src/compositor/protocols/CoreProtocolCompat/CoreDataDeviceCompat.cpp src/compositor/protocols/ProtocolExtensions/ProtocolExtensions.cpp src/compositor/WindowFrame/WindowFrame.cpp src/compositor/input/InputMethodSupport/InputMethodSupport.cpp src/compositor/protocols/LayerShell/LayerShell.cpp src/compositor/protocols/LayerSurface/LayerSurface.cpp src/compositor/protocols/ScreenCapture/ScreenCapture.cpp src/compositor/protocols/ScreenCaptureFrame/ScreenCaptureFrame.cpp src/compositor/ipc/ControlServer/ControlServer.cpp src/compositor/SystemStatus/SystemStatus.cpp src/compositor/ResizeGuideItem/ResizeGuideItem.cpp src/compositor/LuDashUtils/LuDashUtils.cpp ${LAYER_HEADER} ${LAYER_CODE} ${SCREENCOPY_HEADER} ${SCREENCOPY_CODE} ${INPUT_METHOD_V2_HEADER} ${INPUT_METHOD_V2_CODE} ${VIRTUAL_KEYBOARD_V1_HEADER} ${VIRTUAL_KEYBOARD_V1_CODE} ${TEXT_INPUT_V3_HEADER} ${TEXT_INPUT_V3_CODE})
-target_include_directories(ludash-wayland PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_compile_definitions(ludash-wayland PRIVATE LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml" LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
-target_link_libraries(ludash-wayland PUBLIC ludash-session-environment ludash-session-actions ludash-shortcut-settings ludash-update-check ludash-default-applications ludash-shell-modules ludash-display-settings ludash-audio-settings ludash-power-settings ludash-system-tools ludash-input-settings ludash-system-metrics ludash-blur ludash-animation ludash-xwayland ludash-configuration ludash-network ludash-wallpaper ludash-renderer ludash-tiling ludash-window-rules ludash-localization ludash-plugins Qt6::Quick Qt6::Network Qt6::WaylandCompositor PkgConfig::WAYLAND_SERVER PkgConfig::LUDASH_XKBCOMMON)
+add_library(ludash-wayland
+    src/compositor/WaylandCompositor/WaylandCompositor.cpp
+    src/compositor/WindowRules/WindowRules.cpp
+    src/compositor/ipc/ControlServer/ControlServer.cpp
+    src/compositor/SystemStatus/SystemStatus.cpp
+    src/compositor/LuDashUtils/LuDashUtils.cpp)
+target_include_directories(ludash-wayland
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_compile_definitions(ludash-wayland
+    PRIVATE
+        WLR_USE_UNSTABLE=1
+        LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
+        LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+target_link_libraries(ludash-wayland
+    PUBLIC
+        ludash-session-environment
+        ludash-session-actions
+        ludash-shortcut-settings
+        ludash-update-check
+        ludash-default-applications
+        ludash-shell-modules
+        ludash-audio-settings
+        ludash-power-settings
+        ludash-system-tools
+        ludash-input-settings
+        ludash-system-metrics
+        ludash-xwayland
+        ludash-configuration
+        ludash-network
+        ludash-wallpaper
+        ludash-tiling
+        ludash-localization
+        ludash-plugins
+        Qt6::Core
+        Qt6::Network
+        PkgConfig::WAYLAND_SERVER
+        PkgConfig::WLROOTS
+        PkgConfig::LUDASH_XKBCOMMON)
 target_compile_options(ludash-wayland PRIVATE -Wall -Wextra -Wpedantic)
-target_link_libraries(ludash-wayland PRIVATE ludash-shell-renderer)
-if(LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE)
-    if(LUDASH_QT_WAYLAND_PRIVATE_TARGET_VALID)
-        target_link_libraries(ludash-wayland PRIVATE Qt6::WaylandCompositorPrivate)
-    else()
-        target_include_directories(ludash-wayland PRIVATE ${LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS})
-        if(TARGET Qt6::CorePrivate)
-            target_link_libraries(ludash-wayland PRIVATE Qt6::CorePrivate)
-        endif()
-        if(TARGET Qt6::GuiPrivate)
-            target_link_libraries(ludash-wayland PRIVATE Qt6::GuiPrivate)
-        endif()
-    endif()
-    target_compile_definitions(ludash-wayland PUBLIC LUDASH_HAS_QT_WAYLAND_PRIVATE=1)
-    message(STATUS "LunaDash core Wayland compatibility: private Qt headers enabled")
-else()
-    message(WARNING "Qt Wayland compositor private headers are unavailable; wl_seat v5 compatibility is disabled for this build.")
-endif()
+
 add_library(ludash-client-lifecycle src/compositor/WaylandClientShutdown/WaylandClientShutdown.cpp)
 target_include_directories(ludash-client-lifecycle PUBLIC src)
 target_link_libraries(ludash-client-lifecycle PUBLIC Qt6::Gui PRIVATE PkgConfig::WAYLAND_CLIENT)
