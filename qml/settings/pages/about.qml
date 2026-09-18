@@ -48,6 +48,7 @@ ColumnLayout {
             install: shell.tr("Installing files"),
             finalize: shell.tr("Finalizing"),
             rollback: shell.tr("Restoring previous installation"),
+            interrupted: shell.tr("Interrupted"),
             complete: shell.tr("Completed")
         }
         return labels[stage] || shell.tr("Waiting")
