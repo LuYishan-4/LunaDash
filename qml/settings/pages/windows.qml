@@ -17,7 +17,7 @@ ColumnLayout {
         onClicked: shell.setAppearance({altMouseResize: !((shell.state.appearance || {}).altMouseResize ?? true)})
     }
     HelpText { shell: page.shell; message: "While Alt resizing, LunaDash shows the original tiled guide. Shrinking one window leaves the others unchanged; growing it asks neighbouring tiled columns to yield space while preserving the configured gap. Drag back onto the guide to restore the tiled size." }
-    HelpText { shell: page.shell; message: "Meta + F still toggles maximize even when a window has a custom Alt-resized size." }
+    HelpText { shell: page.shell; message: "New tiled windows open at the configured column width. Meta + F maximizes the focused column and restores its previous width when pressed again." }
     HelpText { shell: page.shell; message: "Reducing the workspace count moves windows from removed workspaces to the last remaining workspace." }
     HelpText { shell: page.shell; message: "Super + 1–9 switches workspaces. Add Shift to move a window. Super + H / L focuses columns; add Control to reorder them. Super + / - resizes the focused column, and Super + C centers it." }
     HelpText { shell: page.shell; message: "Grouping controls: Super + J / K moves between windows, including grouped members. In the column strip, drag one application icon onto another to group them; click a member to focus it, or right-click to expel it." }
