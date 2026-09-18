@@ -16,6 +16,8 @@ ComboBox {
     font.family: Theme.font
     font.pixelSize: 12
     focusPolicy: Qt.StrongFocus
+    hoverEnabled: true
+    scale: down ? 0.985 : hovered ? 1.008 : 1
 
     contentItem: Text {
         leftPadding: control.leftPadding
@@ -63,19 +65,33 @@ ComboBox {
         highlighted: control.highlightedIndex === index
         text: control.translated(control.textAt(index))
         Accessible.name: text
-        contentItem: Text {
-            text: option.text
+        contentItem: Row {
+            spacing: 8
+            LineIcon {
+                visible: option.index === control.currentIndex
+                width: visible ? 14 : 0
+                height: 14
+                anchors.verticalCenter: parent.verticalCenter
+                name: "check"
+                ink: Theme.accent
+            }
+            Text {
+                width: Math.max(0, parent.width - (option.index === control.currentIndex ? 22 : 0))
+                text: option.text
             color: option.highlighted ? Theme.accent : Theme.text
             font.family: Theme.font
             font.pixelSize: 12
             verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
+                elide: Text.ElideRight
+            }
         }
         background: Rectangle {
             radius: 9
             color: option.highlighted ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14) : "transparent"
         }
     }
+
+    Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
 
     popup: Popup {
         id: menuPopup
