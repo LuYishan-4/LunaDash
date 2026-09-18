@@ -35,6 +35,22 @@ inline void notifyPointerAxis(wlr_seat *seat,
 #endif
 }
 
+inline wl_signal *newInputMethodSignal(wlr_input_method_manager_v2 *manager) {
+#if WLR_VERSION_MINOR < 20
+  return &manager->events.input_method;
+#else
+  return &manager->events.new_input_method;
+#endif
+}
+
+inline wl_signal *newTextInputSignal(wlr_text_input_manager_v3 *manager) {
+#if WLR_VERSION_MINOR < 20
+  return &manager->events.text_input;
+#else
+  return &manager->events.new_text_input;
+#endif
+}
+
 inline int expectedSeatProtocolVersion() {
 #if WLR_VERSION_MINOR < 20
   return 8;
