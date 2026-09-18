@@ -121,12 +121,11 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   compositor_.setRetainedSelectionEnabled(true);
   setKeyboardLedControlEnabled(bareMetal);
 
-  // QT_WAYLAND_CLIENT_BUFFER_INTEGRATION accepts one plugin key, not a
-  // semicolon-separated fallback list. In a real EGLFS/KMS login prefer Qt's
-  // linux-dmabuf-v1 compositor integration: it advertises zwp_linux_dmabuf_v1
-  // v4 (including default feedback), which Vulkan/WGPU clients and XWayland
-  // need for modern GPU-backed buffers. Nested development sessions keep Qt's
-  // default integration so they do not depend on the host DRM device.
+  // Qt can load multiple client-buffer integrations, but for a real EGLFS/KMS
+  // login LunaDash deliberately selects the modern linux-dmabuf-v1 path only.
+  // It advertises zwp_linux_dmabuf_v1 v4 (including default feedback) and avoids
+  // depending on the legacy wl_drm/wayland-egl path that XWayland and modern
+  // Vulkan/WGPU clients do not need. Nested sessions keep the host/Qt default.
   const QByteArray previousBufferIntegration =
       qgetenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION");
   if (bareMetal && previousBufferIntegration.isEmpty())
