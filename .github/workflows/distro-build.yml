@@ -67,6 +67,7 @@ jobs:
                 cmake -S . -B build-distro -G Ninja \\
                   -DCMAKE_BUILD_TYPE=Release -DLUDASH_BUILD_FILES_TESTS=ON
                 cmake --build build-distro --parallel 2
+                bash scripts/test-xdg-lifecycle.sh "\$PWD/build-distro"
                 ctest --test-dir build-distro --output-on-failure -R \"^lunadash-files$\"
               "
             '

@@ -34,6 +34,8 @@ jobs:
                     echo 'QtWaylandCompositor must not be linked into lunadash-compositor' >&2
                     exit 1
                   fi
+            - name: Exercise xdg-toplevel lifecycle
+              run: ./scripts/test-xdg-lifecycle.sh "$PWD/build-wayland"
             - name: Verify wlroots protocol globals
               run: |
                   runtime=$(mktemp -d)
@@ -74,6 +76,7 @@ jobs:
                   name: main-wayland-protocol-diagnostics
                   path: |
                       build-wayland/core-protocol.log
+                      build-wayland/xdg-lifecycle.log
                       build-wayland/core-protocol-globals.txt
                       build-wayland/wayland.log
                       build-wayland/wayland-state.json
