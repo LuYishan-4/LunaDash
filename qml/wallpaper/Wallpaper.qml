@@ -42,12 +42,12 @@ ModuleSurface {
     function requestSource(source) {
         source = String(source || "")
 
-        if (!source.length) {
+        if (!source.length && !displayedSource.length) {
             commitImmediately("")
             return
         }
 
-        if (!displayedSource.length) {
+        if (!displayedSource.length && source.length) {
             commitImmediately(source)
             return
         }
@@ -64,7 +64,7 @@ ModuleSurface {
 
         incomingSource = source
         queuedSource = ""
-        revealProgress = 0
+        revealProgress = source.length ? 0 : 1
         fadeProgress = 0
 
         if (!Style.Theme.animations) {
@@ -107,6 +107,9 @@ ModuleSurface {
         sourceSize.width: 2560
         sourceSize.height: 1600
         cache: true
+        opacity: wallpaper.transitioning && !wallpaper.incomingSource.length
+            ? 1 - wallpaper.fadeProgress
+            : 1
     }
 
     Image {
