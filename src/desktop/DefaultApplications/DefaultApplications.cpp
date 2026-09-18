@@ -58,6 +58,15 @@ QStringList userKonsoleCommand() {
   return {"konsole", "--profile", nativeProfile, "--separate"};
 }
 
+QStringList defaultBrowserCommand() {
+  for (const auto &candidate : {"google-chrome-stable", "google-chrome",
+                                "chromium", "chromium-browser"}) {
+    if (!QStandardPaths::findExecutable(candidate).isEmpty())
+      return {candidate};
+  }
+  return {};
+}
+
 QStringList normalizeKonsoleCommand(const QStringList &command) {
   if (command.isEmpty() ||
       QFileInfo(command.first()).fileName().compare("konsole",
@@ -88,7 +97,7 @@ bool validCommand(const QJsonValue &value) {
 } // namespace
 QJsonObject defaultApplications() {
   QJsonObject result;
-  for (const auto &role : {"terminal", "files"}) {
+  for (const auto &role : {"terminal", "files", "browser"}) {
     const auto value = QJsonValue::fromVariant(
         QSettings().value(QString("defaultApps/") + role, QStringList{}));
     result[role] = validCommand(value) ? value : QJsonValue(QJsonArray{});
@@ -97,12 +106,14 @@ QJsonObject defaultApplications() {
 }
 bool setDefaultApplications(const QJsonObject &changes, QString *error) {
   for (auto it = changes.begin(); it != changes.end(); ++it) {
-    if ((it.key() != "terminal" && it.key() != "files") ||
+    if ((it.key() != "terminal" && it.key() != "files" &&
+         it.key() != "browser") ||
         !validCommand(it.value())) {
       if (error)
         *error =
-            "Defaults require terminal/files argument arrays (empty selects "
-            "LuDash), at most 24 strings, no recursive LuDash launcher.";
+            "Defaults require terminal/files/browser argument arrays (empty "
+            "selects the LunaDash default), at most 24 strings, no recursive "
+            "LunaDash launcher.";
       return false;
     }
     const auto command = it.value().toArray();
@@ -125,7 +136,7 @@ bool setDefaultApplications(const QJsonObject &changes, QString *error) {
   return true;
 }
 QStringList defaultApplicationCommand(const QString &role, QString *error) {
-  if (role != "terminal" && role != "files") {
+  if (role != "terminal" && role != "files" && role != "browser") {
     if (error)
       *error = "Unknown application role.";
     return {};
@@ -140,6 +151,12 @@ QStringList defaultApplicationCommand(const QString &role, QString *error) {
     return userKonsoleCommand();
   if (role == "files")
     return {};
+  if (role == "browser") {
+    const auto browser = defaultBrowserCommand();
+    if (browser.isEmpty() && error)
+      *error = "Google Chrome or Chromium is not installed.";
+    return browser;
+  }
   return {};
 }
 
