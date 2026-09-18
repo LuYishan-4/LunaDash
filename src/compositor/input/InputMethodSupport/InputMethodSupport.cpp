@@ -180,24 +180,19 @@ public:
   Impl(InputMethodSupport *owner, QWaylandCompositor *compositor,
        QQuickWindow *window, QWaylandOutput *output)
       : owner_(owner), compositor_(compositor), window_(window), output_(output) {
-    rebuildKeymap();
-
-    connect(compositor_->defaultSeat(), &QWaylandSeat::keyboardFocusChanged,
-            owner_, [this](QWaylandSurface *, QWaylandSurface *) {
-              QTimer::singleShot(0, owner_, [this] {
-                attachTextInputs();
-                synchronizeActivation();
-                updatePopups();
-              });
-            });
-
-    if (compositor_->isCreated())
+    if (compositor_->isCreated()) {
+      attachSeat();
+      rebuildKeymap();
       installGlobals();
+    }
     else
-      connect(compositor_, &QWaylandCompositor::createdChanged, owner_,
+      QObject::connect(compositor_, &QWaylandCompositor::createdChanged, owner_,
               [this] {
-                if (compositor_->isCreated())
-                  installGlobals();
+                if (!compositor_->isCreated())
+                  return;
+                attachSeat();
+                rebuildKeymap();
+                installGlobals();
               });
 
     QTimer::singleShot(0, owner_, [this] {
@@ -621,6 +616,23 @@ private:
     delete state;
   }
 
+  void attachSeat() {
+    if (seatConnected_)
+      return;
+    auto *seat = compositor_->defaultSeat();
+    if (!seat)
+      return;
+    seatConnected_ = true;
+    QObject::connect(seat, &QWaylandSeat::keyboardFocusChanged, owner_,
+                     [this](QWaylandSurface *, QWaylandSurface *) {
+                       QTimer::singleShot(0, owner_, [this] {
+                         attachTextInputs();
+                         synchronizeActivation();
+                         updatePopups();
+                       });
+                     });
+  }
+
   void installGlobals() {
 #if !defined(LUDASH_HAS_TEXT_INPUT_V3)
     qInfo("LunaDash: native input-method-v2 bridge disabled because text-input-v3 is unavailable.");
@@ -657,17 +669,17 @@ private:
         QObject::disconnect(textInputV2_, nullptr, owner_, nullptr);
       textInputV2_ = v2;
       if (textInputV2_) {
-        connect(textInputV2_, &QWaylandTextInput::surfaceEnabled, owner_,
+        QObject::connect(textInputV2_, &QWaylandTextInput::surfaceEnabled, owner_,
                 [this](QWaylandSurface *) {
                   synchronizeActivation();
                   updatePopups();
                 });
-        connect(textInputV2_, &QWaylandTextInput::surfaceDisabled, owner_,
+        QObject::connect(textInputV2_, &QWaylandTextInput::surfaceDisabled, owner_,
                 [this](QWaylandSurface *) {
                   synchronizeActivation();
                   updatePopups();
                 });
-        connect(textInputV2_, &QWaylandTextInput::updateInputMethod, owner_,
+        QObject::connect(textInputV2_, &QWaylandTextInput::updateInputMethod, owner_,
                 [this](Qt::InputMethodQueries) {
                   sendTextState();
                   updatePopups();
@@ -682,17 +694,17 @@ private:
         QObject::disconnect(textInputV3_, nullptr, owner_, nullptr);
       textInputV3_ = v3;
       if (textInputV3_) {
-        connect(textInputV3_, &QWaylandTextInputV3::surfaceEnabled, owner_,
+        QObject::connect(textInputV3_, &QWaylandTextInputV3::surfaceEnabled, owner_,
                 [this](QWaylandSurface *) {
                   synchronizeActivation();
                   updatePopups();
                 });
-        connect(textInputV3_, &QWaylandTextInputV3::surfaceDisabled, owner_,
+        QObject::connect(textInputV3_, &QWaylandTextInputV3::surfaceDisabled, owner_,
                 [this](QWaylandSurface *) {
                   synchronizeActivation();
                   updatePopups();
                 });
-        connect(textInputV3_, &QWaylandTextInputV3::updateInputMethod, owner_,
+        QObject::connect(textInputV3_, &QWaylandTextInputV3::updateInputMethod, owner_,
                 [this](Qt::InputMethodQueries) {
                   sendTextState();
                   updatePopups();
@@ -896,12 +908,12 @@ private:
     wl_resource_set_implementation(resource, &inputPopupImpl_, popup,
                                    destroyPopupResource);
 
-    connect(surface, &QWaylandSurface::destinationSizeChanged, owner_,
+    QObject::connect(surface, &QWaylandSurface::destinationSizeChanged, owner_,
             [this, resource] {
               if (auto *popup = popups_.value(resource, nullptr))
                 updatePopup(popup);
             });
-    connect(surface, &QWaylandSurface::hasContentChanged, owner_,
+    QObject::connect(surface, &QWaylandSurface::hasContentChanged, owner_,
             [this, resource] {
               if (auto *popup = popups_.value(resource, nullptr))
                 updatePopup(popup);
@@ -1090,6 +1102,7 @@ private:
   QPointer<QWaylandTextInputV3> textInputV3_;
 #endif
   bool textActive_ = false;
+  bool seatConnected_ = false;
 
   xkb_context *xkbContext_ = nullptr;
   xkb_keymap *xkbKeymap_ = nullptr;
