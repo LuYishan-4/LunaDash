@@ -5,6 +5,7 @@
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QStandardPaths>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -112,6 +113,24 @@ void ensureWaylandChromiumFlags(QStringList &command) {
 
   if (!command.contains("--enable-features=UseOzonePlatform"))
     command.append("--enable-features=UseOzonePlatform");
+
+  // LunaDash does not yet provide a compositor-side input-method-v2 bridge.
+  // Chromium's native text-input path therefore cannot reach Fcitx reliably.
+  // Chromium (unlike Electron) can use its GTK4 frontend under Wayland, which
+  // talks to the configured GTK_IM_MODULE=fcitx directly. Respect an explicit
+  // Wayland-IME choice supplied by the desktop entry/user instead of combining
+  // the two mutually exclusive input paths.
+  const bool explicitWaylandIme =
+      command.contains("--enable-wayland-ime") ||
+      std::any_of(command.cbegin(), command.cend(), [](const QString &argument) {
+        return argument.startsWith("--wayland-text-input-version=");
+      });
+  const bool explicitGtkVersion =
+      std::any_of(command.cbegin(), command.cend(), [](const QString &argument) {
+        return argument.startsWith("--gtk-version=");
+      });
+  if (!explicitWaylandIme && !explicitGtkVersion)
+    command.append("--gtk-version=4");
 }
 
 } // namespace LuDash::Utils
