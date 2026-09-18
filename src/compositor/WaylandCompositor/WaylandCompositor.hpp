@@ -36,6 +36,7 @@ class SessionActions;
 class ShortcutSettings;
 class UpdateChecker;
 class ResizeGuideItem;
+class InputMethodSupport;
 struct ClientWindow;
 class WaylandCompositor final : public QObject {
 public:
@@ -81,6 +82,7 @@ private:
   int nextWindowId_ = 1;
   QWaylandXdgShell *shell_ = nullptr;
   QWaylandQuickOutput *output_ = nullptr;
+  InputMethodSupport *inputMethodSupport_ = nullptr;
   std::vector<std::unique_ptr<ClientWindow>> clients_;
   QList<QProcess *> processes_;
   QSet<qint64> shellProcessIds_;
