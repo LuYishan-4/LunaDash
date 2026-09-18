@@ -64,6 +64,7 @@
 #include <QtWaylandCompositor/QWaylandXdgShell>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <optional>
 
@@ -166,12 +167,28 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   connect(&window_, &QQuickWindow::heightChanged, this, [this] { arrange(); });
   connect(compositor_.defaultSeat(), &QWaylandSeat::keyboardFocusChanged, this,
           [this](QWaylandSurface *surface, QWaylandSurface *) {
-            for (const auto &client : clients_) {
-              client->frame->focused =
-                  client->item && client->item->surface() == surface;
-              if (client->frame->focused && !client->desktop)
-                focused_ = client.get();
-              client->frame->update();
+            ClientWindow *target = nullptr;
+            for (const auto &client : clients_)
+              if (!client->desktop && client->item &&
+                  client->item->surface() == surface) {
+                target = client.get();
+                break;
+              }
+
+            // Layer-shell surfaces may temporarily own keyboard focus. Keep the
+            // last application as the shortcut target in that case, but whenever
+            // an application owns the seat make its visual stacking agree with
+            // the keyboard focus immediately.
+            if (target) {
+              focused_ = target;
+              updateClientStacking(target);
+            } else {
+              for (const auto &client : clients_) {
+                if (client->frame) {
+                  client->frame->focused = false;
+                  client->frame->update();
+                }
+              }
             }
           });
   if (fullscreen)
@@ -998,6 +1015,11 @@ void WaylandCompositor::addWindow(QWaylandXdgToplevel *toplevel,
   client->item->setOutput(output_);
   client->item->setAutoCreatePopupItems(true);
   client->item->setFocusOnClick(true);
+  // QWaylandQuickItem forwards pointer events to the client, but make the
+  // compositor's application focus explicit on the same click. This prevents
+  // stale Qt Quick focus/stacking from leaving keyboard input on a window that
+  // is visually behind the surface the user clicked.
+  client->item->installEventFilter(this);
   connect(client->item, &QWaylandQuickItem::surfaceDestroyed, client->item,
           [item = client->item] {
             if (item)
@@ -1455,6 +1477,18 @@ void WaylandCompositor::arrange() {
       QString("LunaDash Wayland · workspace %1").arg(workspace_ + 1));
 }
 
+void WaylandCompositor::updateClientStacking(ClientWindow *client) {
+  for (const auto &entry : clients_) {
+    if (!entry->frame || entry->desktop)
+      continue;
+    entry->frame->focused = entry.get() == client;
+    entry->frame->setZ(entry->floating ? 10 : 1);
+    entry->frame->update();
+  }
+  if (client && client->frame)
+    client->frame->setZ(client->floating ? 20 : 2);
+}
+
 void WaylandCompositor::focus(ClientWindow *client) {
   if (!client || !client->mapped || !client->item ||
       !client->frame->isVisible())
@@ -1462,9 +1496,9 @@ void WaylandCompositor::focus(ClientWindow *client) {
   focused_ = client;
   if (!client->floating && !client->desktop)
     tiling_.focus(client->id);
+  updateClientStacking(client);
   client->item->takeFocus();
   pluginManager_->windowFocused(client->frame);
-  client->frame->setZ(client->maximized ? 30 : (client->floating ? 20 : 2));
 }
 
 void WaylandCompositor::focusNext(int direction) {
@@ -1504,20 +1538,40 @@ void WaylandCompositor::synchronizeTilingFocus() {
 }
 
 ClientWindow *WaylandCompositor::clientAt(const QPointF &position) const {
-  for (auto it = clients_.rbegin(); it != clients_.rend(); ++it) {
-    auto *client = it->get();
+  ClientWindow *best = nullptr;
+  qreal bestZ = -std::numeric_limits<qreal>::infinity();
+  for (const auto &entry : clients_) {
+    auto *client = entry.get();
     if (!client->frame || client->desktop || !client->mapped ||
         client->minimized || !client->frame->isVisible())
       continue;
     const QRectF geometry(client->frame->x(), client->frame->y(),
                           client->frame->width(), client->frame->height());
-    if (geometry.contains(position))
-      return client;
+    if (!geometry.contains(position))
+      continue;
+    const qreal z = client->frame->z();
+    if (!best || z > bestZ || (qFuzzyCompare(z, bestZ) && client == focused_)) {
+      best = client;
+      bestZ = z;
+    }
   }
-  return nullptr;
+  return best;
 }
 
 bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
+  if (event->type() == QEvent::MouseButtonPress) {
+    auto *mouse = static_cast<QMouseEvent *>(event);
+    if (mouse->button() == Qt::LeftButton) {
+      const auto clicked = std::find_if(
+          clients_.begin(), clients_.end(), [watched](const auto &client) {
+            return client->item && client->item == watched && client->mapped &&
+                   !client->minimized && !client->desktop;
+          });
+      if (clicked != clients_.end())
+        focus(clicked->get());
+    }
+  }
+
   if (watched == &window_ && (event->type() == QEvent::MouseMove ||
                               event->type() == QEvent::HoverMove ||
                               event->type() == QEvent::MouseButtonPress ||
