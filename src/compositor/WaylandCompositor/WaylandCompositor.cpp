@@ -190,16 +190,11 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     }
   }
   publishSessionActivationEnvironment();
-  const auto inputMethod = QStandardPaths::findExecutable("fcitx5");
-  if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1 &&
-      !inputMethod.isEmpty()) {
-    // Do not use --replace here. A nested LunaDash session normally shares the
-    // host D-Bus session, so replacing org.fcitx.Fcitx5 tears down the host
-    // input-method instance while Qt clients still hold its input contexts.
-    // Starting normally lets Fcitx reuse/refuse an existing service and starts
-    // a fresh instance only when the session does not already have one.
-    spawn({}, inputMethod, false);
-  }
+  // Fcitx is a user-session D-Bus service, not a compositor child. Starting a
+  // second fcitx5 here races with the already activated org.fcitx.Fcitx5
+  // instance (and nested LunaDash shares that bus with the host desktop).
+  // Clients use the existing service through QT/GTK_IM_MODULE=fcitx; if no
+  // service exists, Fcitx's normal D-Bus activation owns starting it.
   if (qEnvironmentVariableIntValue("LUDASH_DISABLE_XWAYLAND") != 1 &&
       qEnvironmentVariableIntValue("LUNADASH_DISABLE_CLIPBOARD_BRIDGE") != 1 &&
       !QStandardPaths::findExecutable(QStringLiteral("wl-paste")).isEmpty() &&
