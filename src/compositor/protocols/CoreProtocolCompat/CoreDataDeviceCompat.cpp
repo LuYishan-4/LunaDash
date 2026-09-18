@@ -16,9 +16,11 @@
 // replace that object in one isolated TU rather than advertising a second,
 // competing wl_data_device_manager global.
 #define private public
+#define protected public
 #include <QtWaylandCompositor/private/qwayland-server-wayland.h>
 #include <QtWaylandCompositor/private/qwaylandcompositor_p.h>
 #include <QtWaylandCompositor/private/qwldatadevicemanager_p.h>
+#undef protected
 #undef private
 
 #include <algorithm>
@@ -34,11 +36,12 @@ constexpr int kDataDeviceVersion = 3;
 class CoreDataDeviceManager;
 class CoreDataDevice;
 
-class CoreDataSource final : public QtWaylandServer::wl_data_source {
+class CoreDataSource final : public QObject, public QtWaylandServer::wl_data_source {
 public:
   CoreDataSource(CoreDataDeviceManager *manager, wl_client *client, uint32_t id,
                  int version)
-      : QtWaylandServer::wl_data_source(client, id, version),
+      : QObject(nullptr),
+        QtWaylandServer::wl_data_source(client, id, version),
         manager_(manager) {
     sources().insert(resource()->handle, this);
   }
