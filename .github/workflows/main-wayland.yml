@@ -39,11 +39,11 @@ jobs:
                   runtime=$(mktemp -d)
                   chmod 700 "$runtime"
                   log="$PWD/build-wayland/core-protocol.log"
-                  xvfb-run -a -s '-screen 0 1440x900x24' \
-                    env XDG_RUNTIME_DIR="$runtime" WLR_BACKENDS=x11 \
-                      LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 \
-                      build-wayland/lunadash-compositor --socket ludash-core-protocol \
-                      --no-shell --exit-after 12000 >"$log" 2>&1 &
+                  env XDG_RUNTIME_DIR="$runtime" \
+                    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+                    LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 \
+                    build-wayland/lunadash-compositor --socket ludash-core-protocol \
+                    --no-shell --exit-after 12000 >"$log" 2>&1 &
                   pid=$!
                   trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"' EXIT
                   for _ in $(seq 1 120); do
@@ -56,8 +56,8 @@ jobs:
                     wayland-info > build-wayland/core-protocol-globals.txt
                   cat "$log"
                   cat build-wayland/core-protocol-globals.txt
-                  grep -Eq "interface: 'wl_seat', version: ([5-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
-                  grep -Eq "interface: 'wl_data_device_manager', version: ([3-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
+                  grep -Eq "interface: 'wl_seat',[[:space:]]+version:[[:space:]]+([5-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
+                  grep -Eq "interface: 'wl_data_device_manager',[[:space:]]+version:[[:space:]]+([3-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_layer_shell_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_screencopy_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_text_input_manager_v3'" build-wayland/core-protocol-globals.txt
