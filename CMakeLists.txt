@@ -4,14 +4,14 @@ project(LunaDash VERSION 0.1.0 LANGUAGES C CXX)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashMain.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashShellTool.cmake)
 
-# XKB registry is used by InputSettings.cpp directly.
-pkg_check_modules(XKBREGISTRY REQUIRED IMPORTED_TARGET xkbregistry)
-
-target_link_libraries(
-    ludash-input-settings
-    PRIVATE
-        PkgConfig::XKBREGISTRY
-)
+# xkbregistry is shipped separately by some distributions. Keep dynamic
+# keyboard-layout discovery when it is available, but do not make the entire
+# compositor unbuildable when only libxkbcommon is packaged.
+pkg_check_modules(XKBREGISTRY QUIET IMPORTED_TARGET xkbregistry)
+if(XKBREGISTRY_FOUND)
+    target_compile_definitions(ludash-input-settings PRIVATE LUDASH_USE_XKBREGISTRY=1)
+    target_link_libraries(ludash-input-settings PRIVATE PkgConfig::XKBREGISTRY)
+endif()
 
 # Native input is an optional compiled capability. Runtime selection is handled
 # by lunadash-compositor --nested, so one binary can serve both installed and
