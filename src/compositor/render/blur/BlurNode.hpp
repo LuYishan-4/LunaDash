@@ -15,7 +15,7 @@ public:
 
   void synchronize(const QRectF &rectangle, int radius, qreal pixelRatio);
   void prepare() override;
-  void render(const RenderState *state) override;
+  void render(const QSGRenderNode::RenderState *state) override;
   void releaseResources() override;
   StateFlags changedStates() const override;
   RenderingFlags flags() const override;
