@@ -485,7 +485,9 @@ QJsonObject WaylandCompositor::state() const {
                     static_cast<int>(
                         compositor_.defaultSeat()->keyboard()->repeatDelay())},
                    {"modifierResends", modifierResends_},
-                   {"keypadKeyForwards", keypadKeyForwards_}}},
+                   {"keypadKeyForwards", keypadKeyForwards_},
+                   {"seatProtocolVersion",
+                    CoreProtocolCompositor::seatProtocolVersion()}}},
       {"blurReady", blurHealth_->ready.load()},
       {"blurFailed", blurHealth_->failed.load()},
       {"blurFrames", static_cast<int>(blurHealth_->frames.load())},
