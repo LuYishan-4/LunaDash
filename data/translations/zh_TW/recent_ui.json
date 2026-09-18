@@ -177,5 +177,6 @@
     "Installing the new LunaDash build failed.": "安裝新的 LunaDash 版本失敗。",
     "Could not restore the previous installation.": "無法還原先前的安裝版本。",
     "CMake configuration failed.": "CMake 設定失敗。",
-    "copy %1": "複製 %1"
+    "copy %1": "複製 %1",
+    "New tiled windows open at the configured column width. Meta + F maximizes the focused column and restores its previous width when pressed again.": "新的平鋪視窗會以設定的欄寬開啟。Meta + F 會最大化目前聚焦的欄，再按一次會還原先前的欄寬。"
 }
