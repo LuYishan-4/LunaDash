@@ -205,7 +205,11 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
       spawn({}, bridge, false);
   }
   if (startShell) {
-    if (auto *process = spawn({"--session"})) {
+    // The shell has dedicated restart handling below, so it must not mark the
+    // compositor's generic required-child failure flag. Otherwise a Quickshell
+    // crash sets processFailure_ before the restart handler runs and forces the
+    // whole SDDM session to exit with status 2.
+    if (auto *process = spawn({"--session"}, {}, false)) {
       connect(process, &QProcess::finished, this,
               [this](int code, QProcess::ExitStatus status) {
                 if (shuttingDown_ || testStopping_)
@@ -228,7 +232,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                 qWarning() << "LunaDash shell exited unexpectedly; restarting";
                 QTimer::singleShot(250, this, [this] {
                   if (!shuttingDown_ && !testStopping_)
-                    spawn({"--session", "--no-welcome"});
+                    spawn({"--session", "--no-welcome"}, {}, false);
                 });
               });
     }
