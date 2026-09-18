@@ -1,13 +1,7 @@
 #pragma once
 
-extern "C" {
-#include <wayland-server-core.h>
-#include <wlr/backend.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_pointer.h>
-#include <wlr/types/wlr_seat.h>
-#include <wlr/version.h>
-}
+#include "compositor/wlroots/WlrootsHeaders.hpp"
+
 
 namespace LuDash::WlrootsCompat {
 
