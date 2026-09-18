@@ -4,11 +4,20 @@ namespace LuDash {
 
 InitialWindowPolicy initialWindowPolicy(const QString &appId,
                                         const QString &title) {
-  Q_UNUSED(appId);
-  Q_UNUSED(title);
-  // Every window opens as its own full-width column. Column width already
-  // equals the work area, so no separate maximized overlay is needed.
-  return {.maximized = false};
+  InitialWindowPolicy policy;
+
+  // Keep LunaDash's built-in rules aligned with niri's default configuration:
+  // regular windows open tiled and non-maximized. The Firefox picture-in-
+  // picture player is the one default special case: it opens floating at the
+  // same 480x270 logical size used by niri's example/default rule.
+  const QString normalizedAppId = appId.toLower();
+  if (normalizedAppId.endsWith(QStringLiteral("firefox")) &&
+      title == QStringLiteral("Picture-in-Picture")) {
+    policy.floating = true;
+    policy.floatingSize = QSize(480, 270);
+  }
+
+  return policy;
 }
 
 QString windowIconName(const QString &appId, const QString &title) {
