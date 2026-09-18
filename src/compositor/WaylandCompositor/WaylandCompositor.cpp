@@ -347,10 +347,10 @@ public:
     attachListener(&cursor->events.axis, cursorAxis, this, handleCursorAxis);
     attachListener(&cursor->events.frame, cursorFrame, this,
                    handleCursorFrame);
-    attachListener(&inputMethodManager->events.new_input_method, newInputMethod,
-                   this, handleNewInputMethod);
-    attachListener(&textInputManager->events.new_text_input, newTextInput, this,
-                   handleNewTextInput);
+    attachListener(WlrootsCompat::newInputMethodSignal(inputMethodManager),
+                   newInputMethod, this, handleNewInputMethod);
+    attachListener(WlrootsCompat::newTextInputSignal(textInputManager),
+                   newTextInput, this, handleNewTextInput);
     attachListener(&virtualKeyboardManager->events.new_virtual_keyboard,
                    newVirtualKeyboard, this, handleNewVirtualKeyboard);
 
