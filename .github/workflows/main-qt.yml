@@ -32,8 +32,34 @@ jobs:
                   ldd build-qt/lunadash-compositor | grep libwlroots
                   ! ldd build-qt/lunadash-compositor | grep -q libQt6WaylandCompositor
                   python3 tests/wayland/test_no_qtwayland.py
-            - name: Run session
+            - name: Run compositor session
               run: LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-qt" ./scripts/test-wayland.sh
+            - name: Verify Qt Wayland client startup
+              run: |
+                  runtime=$(mktemp -d)
+                  chmod 700 "$runtime"
+                  log="$PWD/build-qt/qt-client-session.log"
+                  env XDG_RUNTIME_DIR="$runtime" \
+                    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+                    LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 \
+                    build-qt/lunadash-compositor --socket ludash-qt-client \
+                    --no-shell --exit-after 12000 >"$log" 2>&1 &
+                  pid=$!
+                  trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"' EXIT
+                  for _ in $(seq 1 120); do
+                    test -S "$runtime/ludash-qt-client" && break
+                    kill -0 "$pid"
+                    sleep 0.1
+                  done
+                  test -S "$runtime/ludash-qt-client"
+                  env XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-qt-client \
+                    QT_QPA_PLATFORM=wayland QT_QUICK_BACKEND=software \
+                    QSG_RHI_BACKEND=software QT_OPENGL=software \
+                    LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe \
+                    build-qt/lunadash-desktop --help >build-qt/qt-client.log 2>&1
+                  cat build-qt/qt-client.log
+                  kill "$pid"
+                  wait "$pid" || true
             - name: Preserve Qt session diagnostics
               if: always()
               uses: actions/upload-artifact@v4
@@ -42,5 +68,7 @@ jobs:
                   path: |
                       build-qt/wayland.log
                       build-qt/wayland-state.json
+                      build-qt/qt-client-session.log
+                      build-qt/qt-client.log
                   if-no-files-found: ignore
                   retention-days: 7
