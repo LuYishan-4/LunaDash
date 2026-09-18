@@ -1109,17 +1109,8 @@ public:
                    handleToplevelUnmap);
     attachListener(&surface->surface->events.commit, state->commit, state,
                    handleToplevelCommit);
-#if WLR_VERSION_MINOR < 20
-    // wlroots <= 0.19 exposes role destruction through the xdg_surface.
-    attachListener(&surface->events.destroy, state->destroy, state,
-                   handleToplevelDestroy);
-#else
-    // wlroots 0.20 destroys the toplevel role before the base xdg_surface and
-    // asserts that every toplevel event listener has been removed immediately
-    // after emitting this signal.
-    attachListener(&toplevel->events.destroy, state->destroy, state,
-                   handleToplevelDestroy);
-#endif
+    attachListener(WlrootsCompat::xdgToplevelDestroySignal(surface, toplevel),
+                   state->destroy, state, handleToplevelDestroy);
     attachListener(&toplevel->events.set_title, state->setTitle, state,
                    handleToplevelMetadata);
     attachListener(&toplevel->events.set_app_id, state->setAppId, state,

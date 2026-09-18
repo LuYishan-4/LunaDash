@@ -51,6 +51,17 @@ inline wl_signal *newTextInputSignal(wlr_text_input_manager_v3 *manager) {
 #endif
 }
 
+inline wl_signal *xdgToplevelDestroySignal(wlr_xdg_surface *surface,
+                                           wlr_xdg_toplevel *toplevel) {
+#if WLR_VERSION_MINOR < 20
+  (void)toplevel;
+  return &surface->events.destroy;
+#else
+  (void)surface;
+  return &toplevel->events.destroy;
+#endif
+}
+
 inline void destroyRuntimeObjects(wlr_cursor *cursor, wlr_allocator *allocator,
                                   wlr_renderer *renderer,
                                   wlr_backend *backend) {
