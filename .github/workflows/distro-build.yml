@@ -26,6 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: Arch Linux
+            image: archlinux:latest
+            bootstrap: "pacman -Syu --noconfirm --needed base-devel git"
           - name: Debian 12
             image: debian:12-slim
             bootstrap: ""
