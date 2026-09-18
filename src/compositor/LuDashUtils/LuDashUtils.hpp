@@ -19,6 +19,8 @@ QString clipboardBridgePath();
 bool isUtilityWindow(const QString &appId);
 
 bool isChromiumApplication(const QString &program);
+bool isChromiumApplicationCommand(const QStringList &command);
+bool isDiscordApplicationCommand(const QStringList &command);
 void ensureWaylandChromiumFlags(QStringList &command);
 void prepareXWaylandChromiumFlags(QStringList &command);
 
