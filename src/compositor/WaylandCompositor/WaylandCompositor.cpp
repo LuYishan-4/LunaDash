@@ -1103,6 +1103,17 @@ public:
       self->updateTextInputFocus(event->new_surface);
   }
 
+  static void configureInitialToplevel(ClientWindow *client) {
+    if (!client || !client->surface || !client->toplevel ||
+        !client->surface->initialized)
+      return;
+    wlr_xdg_toplevel_set_size(client->toplevel, 0, 0);
+    if (client->toplevel->requested.maximized)
+      wlr_xdg_toplevel_set_maximized(client->toplevel, true);
+    if (client->toplevel->requested.fullscreen)
+      wlr_xdg_toplevel_set_fullscreen(client->toplevel, true);
+  }
+
   void addXdgToplevel(wlr_xdg_surface *surface,
                       wlr_xdg_toplevel *toplevel) {
     if (!surface || !toplevel)
@@ -1155,6 +1166,13 @@ public:
     attachListener(&toplevel->events.request_fullscreen,
                    state->requestFullscreen, state, handleToplevelFullscreen);
     wlr_scene_node_set_enabled(&current->sceneTree->node, false);
+#if WLR_VERSION_MINOR < 20
+    // wlroots 0.17-0.19 emits xdg_shell.new_surface from the role's first
+    // commit. By the time this listener is installed that commit has already
+    // happened, so send the mandatory initial configure immediately.
+    if (surface->initial_commit)
+      configureInitialToplevel(current);
+#endif
   }
 
 #if WLR_VERSION_MINOR < 20
@@ -1222,14 +1240,8 @@ public:
       return;
 
     // Requests such as set_maximized can arrive before the first surface
-    // commit. wlroots 0.20 asserts if a configure is scheduled before the
-    // xdg_surface role is initialized, so remember the requested state and
-    // apply it here once initialization has completed.
-    wlr_xdg_toplevel_set_size(state->client->toplevel, 0, 0);
-    if (state->client->toplevel->requested.maximized)
-      wlr_xdg_toplevel_set_maximized(state->client->toplevel, true);
-    if (state->client->toplevel->requested.fullscreen)
-      wlr_xdg_toplevel_set_fullscreen(state->client->toplevel, true);
+    // commit. Apply them only after wlroots marks the role initialized.
+    configureInitialToplevel(state->client);
   }
 
   static void handleToplevelMetadata(wl_listener *listener, void *) {
