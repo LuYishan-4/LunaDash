@@ -434,22 +434,11 @@ public:
       wlr_xcursor_manager_destroy(cursorManager);
       cursorManager = nullptr;
     }
-    if (cursor) {
-      wlr_cursor_destroy(cursor);
-      cursor = nullptr;
-    }
-    if (allocator) {
-      wlr_allocator_destroy(allocator);
-      allocator = nullptr;
-    }
-    if (renderer) {
-      wlr_renderer_destroy(renderer);
-      renderer = nullptr;
-    }
-    if (backend) {
-      wlr_backend_destroy(backend);
-      backend = nullptr;
-    }
+    WlrootsCompat::destroyRuntimeObjects(cursor, allocator, renderer, backend);
+    cursor = nullptr;
+    allocator = nullptr;
+    renderer = nullptr;
+    backend = nullptr;
     if (outputLayout) {
       wlr_output_layout_destroy(outputLayout);
       outputLayout = nullptr;
