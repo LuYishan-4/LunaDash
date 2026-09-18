@@ -2,6 +2,9 @@
 #include "config/BuildConfig.hpp"
 
 #include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -63,6 +66,57 @@ QString detectCurrentCommit() {
   }
   return QStringLiteral("unknown");
 }
+
+QString updateStateDirectory() {
+  QString root = qEnvironmentVariable("XDG_STATE_HOME").trimmed();
+  if (root.isEmpty())
+    root = QDir::homePath() + QStringLiteral("/.local/state");
+  return QDir(root).filePath(QStringLiteral("lunadash/update"));
+}
+
+QJsonObject installSnapshot() {
+  const QString directory = updateStateDirectory();
+  const QString path = QDir(directory).filePath(QStringLiteral("progress.json"));
+  QFile file(path);
+  QJsonObject install{{"state", "idle"},
+                      {"progress", 0},
+                      {"stage", "idle"},
+                      {"message", ""},
+                      {"channel", ""},
+                      {"target", ""},
+                      {"rollback", false},
+                      {"available", QFileInfo::exists(path)}};
+
+  if (file.open(QIODevice::ReadOnly)) {
+    const QByteArray bytes = file.read(32 * 1024 + 1);
+    if (bytes.size() <= 32 * 1024) {
+      QJsonParseError error;
+      const auto document = QJsonDocument::fromJson(bytes, &error);
+      if (error.error == QJsonParseError::NoError && document.isObject()) {
+        const auto object = document.object();
+        const QString state = object.value("state").toString();
+        const QString stage = object.value("stage").toString();
+        if (QStringList{"idle", "running", "completed", "error"}.contains(state))
+          install["state"] = state;
+        if (!stage.isEmpty() && stage.size() <= 64)
+          install["stage"] = stage;
+        install["progress"] =
+            std::clamp(object.value("progress").toInt(), 0, 100);
+        install["message"] = object.value("message").toString().left(1024);
+        install["channel"] = object.value("channel").toString().left(16);
+        install["target"] = object.value("target").toString().left(128);
+        install["rollback"] = object.value("rollback").toBool();
+        install["available"] = true;
+      }
+    }
+  }
+
+  QFile last(QDir(directory).filePath(QStringLiteral("last-update")));
+  if (last.open(QIODevice::ReadOnly))
+    install["lastUpdate"] =
+        QString::fromUtf8(last.read(1024)).trimmed().left(256);
+  return install;
+}
 } // namespace
 
 UpdateChecker::UpdateChecker(QObject *parent)
@@ -78,13 +132,18 @@ UpdateChecker::UpdateChecker(QObject *parent)
 }
 
 QJsonObject UpdateChecker::snapshot() const {
-  return {{"status", status_}, {"channel", channel_},
+  return {{"status", status_},
+          {"channel", channel_},
           {"currentVersion", QStringLiteral(LUDASH_VERSION)},
-          {"currentCommit", currentCommit_}, {"latestVersion", latestVersion_},
-          {"latestCommit", latestCommit_}, {"latestMessage", latestMessage_},
+          {"currentCommit", currentCommit_},
+          {"latestVersion", latestVersion_},
+          {"latestCommit", latestCommit_},
+          {"latestMessage", latestMessage_},
           {"releaseUrl", releaseUrl_},
           {"repositoryUrl", QString::fromLatin1(kRepositoryUrl)},
-          {"error", error_}, {"checkedAt", checkedAt_}};
+          {"error", error_},
+          {"checkedAt", checkedAt_},
+          {"install", installSnapshot()}};
 }
 
 bool UpdateChecker::setChannel(const QString &channel) {
