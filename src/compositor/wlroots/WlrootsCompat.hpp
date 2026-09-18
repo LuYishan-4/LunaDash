@@ -53,7 +53,7 @@ inline wl_signal *newTextInputSignal(wlr_text_input_manager_v3 *manager) {
 
 inline wl_signal *xdgToplevelDestroySignal(wlr_xdg_surface *surface,
                                            wlr_xdg_toplevel *toplevel) {
-#if WLR_VERSION_MINOR < 20
+#if WLR_VERSION_MINOR < 18
   (void)toplevel;
   return &surface->events.destroy;
 #else
