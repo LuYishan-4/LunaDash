@@ -44,11 +44,11 @@ compositor = (
 
 assert "xdgToplevelDestroySignal" in compat
 assert re.search(
-    r"#if WLR_VERSION_MINOR < 20.*return &surface->events\.destroy;"
+    r"#if WLR_VERSION_MINOR < 18.*return &surface->events\.destroy;"
     r".*#else.*return &toplevel->events\.destroy;",
     compat,
     re.S,
-), "xdg-toplevel destroy compatibility must preserve wlroots <0.20 and >=0.20 lifetimes"
+), "xdg-toplevel destroy compatibility must preserve wlroots 0.17 and >=0.18 lifetimes"
 assert "WlrootsCompat::xdgToplevelDestroySignal(surface, toplevel)" in compositor
 
 destroy_start = compositor.index("static void handleToplevelDestroy")
