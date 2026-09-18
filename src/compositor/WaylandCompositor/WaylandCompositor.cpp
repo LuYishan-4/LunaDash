@@ -1199,10 +1199,21 @@ public:
 
   static void handleToplevelCommit(wl_listener *listener, void *) {
     auto *state = listenerOwner<ToplevelState>(listener);
-    if (!state || !state->client || !state->client->surface)
+    if (!state || !state->client || !state->client->surface ||
+        !state->client->toplevel)
       return;
-    if (state->client->surface->initial_commit)
-      wlr_xdg_toplevel_set_size(state->client->toplevel, 0, 0);
+    if (!state->client->surface->initial_commit)
+      return;
+
+    // Requests such as set_maximized can arrive before the first surface
+    // commit. wlroots 0.20 asserts if a configure is scheduled before the
+    // xdg_surface role is initialized, so remember the requested state and
+    // apply it here once initialization has completed.
+    wlr_xdg_toplevel_set_size(state->client->toplevel, 0, 0);
+    if (state->client->toplevel->requested.maximized)
+      wlr_xdg_toplevel_set_maximized(state->client->toplevel, true);
+    if (state->client->toplevel->requested.fullscreen)
+      wlr_xdg_toplevel_set_fullscreen(state->client->toplevel, true);
   }
 
   static void handleToplevelMetadata(wl_listener *listener, void *) {
