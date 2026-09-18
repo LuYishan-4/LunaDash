@@ -46,11 +46,23 @@ with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
                     pass
                 assert time.monotonic() < deadline, 'XWayland did not start'
                 time.sleep(.1)
-            display = state['xwayland']['display']
-            authority = Path(state['xwayland']['authority'])
-            assert authority.stat().st_mode & 0o077 == 0, 'Xauthority is not owner-only'
+            assert not state['xwayland']['running'], 'XWayland must not open a rootful desktop window at session startup'
+            assert not state['xwayland']['display'], state['xwayland']
+            assert not state['xwayland']['authority'], state['xwayland']
+
             result = request('launch-x11', '"' + str(build / 'ludash-desktop') + '" --app console')
             assert 'error' not in result, result
+            deadline = time.monotonic() + 4
+            while True:
+                state = request()
+                if state['xwayland']['running']:
+                    break
+                assert time.monotonic() < deadline, 'XWayland did not start on demand'
+                time.sleep(.05)
+            display = state['xwayland']['display']
+            authority = Path(state['xwayland']['authority'])
+            assert display.startswith(':'), state['xwayland']
+            assert authority.stat().st_mode & 0o077 == 0, 'Xauthority is not owner-only'
             with socket.socket(socket.AF_UNIX) as connection:
                 connection.settimeout(6)
                 connection.connect('/tmp/.X11-unix/X' + display[1:])
