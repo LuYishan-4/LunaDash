@@ -23,6 +23,12 @@ LUDASH_SHELL_RENDERER=opengl LUDASH_TEST_HOST_WAYLAND=1 \
 
 Software rendering can increase CPU usage. Custom QML modules using GPU-only effects must provide their own software fallback. The bundled LunaDash logo therefore reveals with opacity only in this mode: an animated scale or rotation leaves stale pixels behind because the software renderer's damage tracking does not cover the old transformed bounds. This compatibility mode limits the affected shell buffer path; it does not repair the driver or guarantee resource safety for other GPU-rendered Wayland applications.
 
+## Shader asset conventions
+
+LunaDash keeps GLSL in `data/shaders/` as shader files rather than C/C++ string literals. The renderer resource scan accepts `.vert`, `.frag`, `.geom`, `.comp`, `.tesc`, `.tese` and the aliases `.vsh`, `.fsh`, `.gsh`, `.csh`, `.vs`, `.fs`, `.gs`, `.cs`, plus generic `.glsl` and `.shader` files. A generic suffix must either keep a stage-specific suffix before it (for example `blur.frag.glsl`) or declare `#pragma ludash_stage fragment` near the start of the file.
+
+The shader loader chooses the minimum GLSL language level implied by the stage when the source does not contain its own `#version`: desktop vertex/fragment/geometry use GLSL 330, tessellation uses 400, compute uses 430; GLES vertex/fragment use 300 ES, compute uses 310 ES, and geometry/tessellation use 320 ES. The active GL context still has to support that stage. The current wallpaper and blur passes remain ordinary `.vert` + `.frag` programs.
+
 ## Why the default changed
 
 On the tested NVIDIA 615.71.09 / Qt 6.11.2 host, GPU-backed Quickshell and the compositor accumulated `anon_inode:sync_file` descriptors during sustained rendering. Eventually, helpers could no longer create pipes. Quickshell's generic `likely because the binary could not be found` message was accompanied by `QProcess: Cannot create pipe (Too many open files)`; reinstalling `lunadashctl` would not fix descriptor exhaustion.
