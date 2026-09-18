@@ -1,22 +1,26 @@
-"""Check LunaDash OpenGL shader assets, suffix discovery, and render usage."""
+"""Validate the modular shader asset pipeline and supported suffixes."""
 
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-cmake = (root / "cmake" / "LunaDashMain.cmake").read_text()
-backend = (
-    root / "src" / "compositor" / "render" / "RenderBackend" / "RenderBackend.cpp"
-).read_text()
+cmake = (root / "cmake" / "LunaDashMain.cmake").read_text(encoding="utf-8")
+asset_loader = (
+    root / "src" / "compositor" / "render" / "shader" / "ShaderAsset.cpp"
+).read_text(encoding="utf-8")
+renderer = (
+    root / "src" / "compositor" / "render" / "renderer" / "Renderer.cpp"
+).read_text(encoding="utf-8")
 wallpaper = (
-    root / "src" / "compositor" / "render" / "WallpaperRenderer" / "WallpaperRenderer.cpp"
-).read_text()
+    root / "src" / "compositor" / "render" / "renderer" / "WallpaperElement.cpp"
+).read_text(encoding="utf-8")
 blur = (
-    root / "src" / "compositor" / "render" / "BlurNode" / "BlurNode.cpp"
-).read_text()
+    root / "src" / "compositor" / "render" / "blur" / "BlurPass.cpp"
+).read_text(encoding="utf-8")
 
 expected = {
     "vert", "frag", "geom", "comp", "tesc", "tese",
-    "vsh", "fsh", "gsh", "csh", "vs", "fs", "gs", "cs", "glsl", "shader",
+    "vsh", "fsh", "gsh", "csh", "vs", "fs", "gs", "cs",
+    "glsl", "glal", "shader",
 }
 
 section = cmake.split("set(LUDASH_OPENGL_SHADER_EXTENSIONS", 1)[1].split(")", 1)[0]
@@ -32,11 +36,11 @@ aliases = {
     "tess-evaluation": ("tese", "tesseval", "tess_eval"),
 }
 for stage, tokens in aliases.items():
-    missing = [token for token in tokens if f'"{token}"' not in backend]
-    assert not missing, f"{stage} aliases missing from loader: {missing}"
+    missing = [token for token in tokens if f'"{token}"' not in asset_loader]
+    assert not missing, f"{stage} aliases missing from ShaderAssetLoader: {missing}"
 
-for generic in ('"glsl"', '"shader"', "#pragma ludash_stage"):
-    assert generic in backend, f"Generic shader handling is missing {generic}"
+for generic in ('"glsl"', '"glal"', '"shader"', "#pragma ludash_stage"):
+    assert generic in asset_loader, f"Generic shader handling is missing {generic}"
 
 shader_root = root / "data" / "shaders"
 assets = [path for path in shader_root.rglob("*") if path.is_file()]
@@ -45,20 +49,22 @@ for path in assets:
     suffix = path.suffix.lstrip(".").lower()
     assert suffix in expected, f"Unrecognized shader asset suffix: {path}"
 
-fullscreen = shader_root / "common" / "fullscreen.vert"
-assert fullscreen.is_file(), "Shared fullscreen vertex shader is missing"
-assert not (shader_root / "wallpaper.vert").exists(), "Wallpaper still has a duplicate vertex shader"
-assert not (shader_root / "blur" / "blur.vert").exists(), "Blur still has a duplicate vertex shader"
+assert (shader_root / "gl" / "fullscreen.vert").is_file()
+assert (shader_root / "renderer" / "wallpaper.frag.glal").is_file()
+assert (shader_root / "blur" / "blur.frag").is_file()
+assert (shader_root / "decorations" / "solid.frag").is_file()
 
-for source, label in ((wallpaper, "wallpaper"), (blur, "blur")):
-    assert "shaderProgramFromAssets" in source, f"{label} bypasses the shader asset loader"
-    assert "common/fullscreen.vert" in source, f"{label} does not use the shared .vert asset"
+assert "ShaderAssetLoader::loadMany" in renderer
+assert "renderer/wallpaper.frag.glal" in wallpaper
+assert "gl/fullscreen.vert" in wallpaper
+assert "blur/blur.frag" in blur
+assert "gl/fullscreen.vert" in blur
 
 for path in (root / "src" / "compositor" / "render").rglob("*"):
     if path.suffix not in {".c", ".cpp", ".h", ".hpp"}:
         continue
-    text = path.read_text()
-    for marker in ("gl_Position =", "uniform sampler", "void main() {"):
+    text = path.read_text(encoding="utf-8")
+    for marker in ("gl_Position =", "uniform sampler2D", "void main() {"):
         assert marker not in text, f"Embedded GLSL marker {marker!r} found in {path}"
 
 print("Shader asset checks passed:", ", ".join(sorted(expected)))

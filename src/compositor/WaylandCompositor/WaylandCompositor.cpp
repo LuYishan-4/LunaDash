@@ -2,6 +2,7 @@
 
 #include "compositor/ClientWindow/ClientWindow.hpp"
 #include "compositor/wlroots/ClientLaunchCompat.hpp"
+#include "core/templates/WaylandListener.hpp"
 #include "compositor/SessionActions/SessionActions.hpp"
 #include "compositor/SessionEnvironment/SessionEnvironment.hpp"
 #include "compositor/ShellModules/ShellModules.hpp"
@@ -83,32 +84,10 @@ extern "C" {
 namespace LuDash {
 namespace {
 
-template <typename Owner> struct ListenerSlot {
-  wl_listener listener{};
-  Owner *owner = nullptr;
-  bool connected = false;
-};
-
-template <typename Owner>
-void attachListener(wl_signal *signal, ListenerSlot<Owner> &slot, Owner *owner,
-                    wl_notify_func_t notify) {
-  slot.owner = owner;
-  slot.listener.notify = notify;
-  wl_signal_add(signal, &slot.listener);
-  slot.connected = true;
-}
-
-template <typename Owner>
-void detachListener(ListenerSlot<Owner> &slot) {
-  if (!slot.connected)
-    return;
-  wl_list_remove(&slot.listener.link);
-  slot.connected = false;
-}
-
-template <typename Owner> Owner *listenerOwner(wl_listener *listener) {
-  return reinterpret_cast<ListenerSlot<Owner> *>(listener)->owner;
-}
+using Templates::ListenerSlot;
+using Templates::attachListener;
+using Templates::detachListener;
+using Templates::listenerOwner;
 
 QString safeUtf8(const char *text) {
   return QString::fromUtf8(text ? text : "");

@@ -25,17 +25,5 @@ jobs:
                     xvfb xauth python3
             - name: Build startup target
               run: cmake -S . -B build-startup -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build-startup --parallel 2
-            - name: Verify controlled wlroots startup errors
-              run: |
-                  runtime=$(mktemp -d)
-                  chmod 700 "$runtime"
-                  set +e
-                  xvfb-run -a env XDG_RUNTIME_DIR="$runtime" WLR_BACKENDS=x11 \
-                    WLR_RENDERER=not-a-renderer LUDASH_DISABLE_XWAYLAND=1 \
-                    timeout 8s build-startup/lunadash-compositor --no-shell \
-                    --socket ludash-invalid-renderer >build-startup/startup-failure.log 2>&1
-                  status=$?
-                  set -e
-                  cat build-startup/startup-failure.log
-                  rm -rf "$runtime"
-                  test "$status" -ne 0
+            - name: Verify controlled renderer startup errors
+              run: python3 tests/renderer/test_startup_failure.py build-startup/lunadash-compositor

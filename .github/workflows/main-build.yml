@@ -29,3 +29,4 @@ jobs:
               run: |
                   QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure -R '^lunadash-files$'
                   python3 tests/wayland/test_no_qtwayland.py
+                  python3 tests/renderer/test_render_architecture.py

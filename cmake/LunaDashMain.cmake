@@ -40,24 +40,25 @@ add_library(ludash-localization src/config/Localization/Localization.cpp)
 target_include_directories(ludash-localization PUBLIC src)
 target_link_libraries(ludash-localization PUBLIC Qt6::Core)
 qt_add_resources(ludash-localization translations PREFIX /LuDash FILES data/translations/en_US.json data/translations/zh_TW.json)
-add_library(ludash-render-core src/compositor/render/GLDispatch/GLDispatch.c src/compositor/render/ShaderProgram/ShaderProgram.c src/compositor/render/WallpaperPass/WallpaperPass.c src/compositor/render/BlurPass/BlurPass.c)
-target_include_directories(ludash-render-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${LUDASH_GL_INCLUDE_DIR})
-target_link_libraries(ludash-render-core PRIVATE m)
-target_compile_options(ludash-render-core PRIVATE -Wall -Wextra -Wpedantic)
-add_library(ludash-renderer src/compositor/render/RenderBackend/RenderBackend.cpp src/compositor/render/WallpaperItem/WallpaperItem.cpp src/compositor/render/WallpaperRenderer/WallpaperRenderer.cpp)
-add_library(ludash-shell-renderer src/compositor/render/ShellRenderer/ShellRenderer.cpp)
-target_include_directories(ludash-shell-renderer PUBLIC src)
-target_link_libraries(ludash-shell-renderer PUBLIC Qt6::Core)
-target_include_directories(ludash-renderer PUBLIC src)
-target_link_libraries(ludash-renderer PUBLIC ludash-render-core Qt6::Quick Qt6::OpenGL)
-# Keep shader assets as real OpenGL/GLSL files instead of embedding source text in
-# C++. Stage-specific and common alias suffixes are discovered recursively, so
-# new render passes can use the naming convention their shader tooling expects.
+# Modular render architecture. Low-level GL ownership, shader assets,
+# render elements and feature passes are separate targets so future renderers
+# can replace one layer without rewriting the rest of the pipeline.
+add_library(ludash-render-gl
+    src/compositor/render/gl/GLDispatch.c
+    src/compositor/render/gl/GLContext.cpp
+    src/compositor/render/gl/RenderBuffer.cpp
+    src/compositor/render/gl/FrameBuffer.cpp)
+target_include_directories(ludash-render-gl
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${LUDASH_GL_INCLUDE_DIR})
+target_link_libraries(ludash-render-gl
+    PUBLIC Qt6::Core Qt6::Quick Qt6::OpenGL)
+target_compile_options(ludash-render-gl PRIVATE -Wall -Wextra -Wpedantic)
+
 set(LUDASH_OPENGL_SHADER_EXTENSIONS
     vert frag geom comp tesc tese
     vsh fsh gsh csh
     vs fs gs cs
-    glsl shader)
+    glsl glal shader)
 set(LUDASH_RENDER_SHADER_FILES)
 foreach(_ludash_shader_ext IN LISTS LUDASH_OPENGL_SHADER_EXTENSIONS)
     file(GLOB_RECURSE _ludash_shader_files
@@ -71,15 +72,53 @@ list(SORT LUDASH_RENDER_SHADER_FILES)
 if(NOT LUDASH_RENDER_SHADER_FILES)
     message(FATAL_ERROR "No OpenGL shader assets were found under data/shaders")
 endif()
-qt_add_resources(ludash-renderer renderer_shaders
+
+add_library(ludash-render-shader
+    src/compositor/render/shader/ShaderAsset.cpp
+    src/compositor/render/shader/ShaderProgram.cpp)
+target_include_directories(ludash-render-shader PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(ludash-render-shader
+    PUBLIC ludash-render-gl Qt6::Core Qt6::OpenGL)
+qt_add_resources(ludash-render-shader renderer_shaders
     PREFIX /LuDash
     FILES ${LUDASH_RENDER_SHADER_FILES})
-add_library(ludash-blur src/compositor/render/BlurItem/BlurItem.cpp src/compositor/render/BlurNode/BlurNode.cpp src/compositor/render/BlurGeometry/BlurGeometry.cpp)
-target_include_directories(ludash-blur PUBLIC src)
-target_link_libraries(ludash-blur PUBLIC ludash-renderer Qt6::Quick Qt6::OpenGL)
-add_library(ludash-animation src/compositor/render/WindowAnimations/WindowAnimations.cpp)
-target_include_directories(ludash-animation PUBLIC src)
+
+add_library(ludash-render-core
+    src/compositor/render/async/RenderAsync.hpp
+    src/compositor/render/element/ElementRender.hpp
+    src/compositor/render/renderer/Renderer.cpp
+    src/compositor/render/renderer/WallpaperElement.cpp
+    src/compositor/render/renderer/WallpaperRenderer.cpp
+    src/compositor/render/renderer/WallpaperItem.cpp
+    src/compositor/render/decorations/DecorationElement.cpp)
+target_include_directories(ludash-render-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(ludash-render-core
+    PUBLIC ludash-render-shader Qt6::Quick Qt6::OpenGL Qt6::Concurrent)
+target_compile_options(ludash-render-core PRIVATE -Wall -Wextra -Wpedantic)
+
+add_library(ludash-renderer INTERFACE)
+target_include_directories(ludash-renderer INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(ludash-renderer INTERFACE ludash-render-core)
+
+add_library(ludash-blur
+    src/compositor/render/blur/BlurItem.cpp
+    src/compositor/render/blur/BlurNode.cpp
+    src/compositor/render/blur/BlurGeometry.cpp
+    src/compositor/render/blur/BlurPass.cpp)
+target_include_directories(ludash-blur PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(ludash-blur
+    PUBLIC ludash-renderer Qt6::Quick Qt6::OpenGL)
+
+add_library(ludash-animation
+    src/compositor/render/decorations/WindowAnimations.cpp)
+target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(ludash-animation PUBLIC Qt6::Quick)
+
+add_library(ludash-shell-renderer
+    src/compositor/render/renderer/ShellRenderer.cpp)
+target_include_directories(ludash-shell-renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(ludash-shell-renderer PUBLIC Qt6::Core)
+
 add_library(ludash-xwayland src/compositor/xwayland/XWaylandSupport/XWaylandSupport.cpp)
 target_include_directories(ludash-xwayland PUBLIC src)
 target_link_libraries(ludash-xwayland PUBLIC Qt6::Core)

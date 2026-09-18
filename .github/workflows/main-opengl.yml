@@ -23,8 +23,11 @@ jobs:
                     libwlroots-dev libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland \
                     libqt6opengl6-dev xvfb xauth
-            - name: Validate shader asset conventions
-              run: python3 tests/renderer/test_shader_extensions.py
+            - name: Validate modular render architecture
+              run: |
+                  python3 tests/renderer/test_render_architecture.py
+                  python3 tests/renderer/test_shader_extensions.py
+                  python3 tests/renderer/test_shader_diagnostics.py
             - name: Build renderer and compositor
               run: cmake -S . -B build-opengl -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-opengl --parallel 2
             - name: Run wlroots GLES2 smoke test
