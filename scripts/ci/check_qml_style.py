@@ -12,7 +12,10 @@ violations = []
 # styling Qt Quick Controls ad-hoc. Canonical components are the only exception.
 raw_controls = re.compile(r"(?m)^\s*(Button|ComboBox|TextField|Switch|Slider)\s*\{")
 hard_font = re.compile(r"font\.family\s*:\s*[\"']")
-literal_icon = re.compile(r'\bname\s*:\s*"([A-Za-z0-9_-]+)"')
+literal_icon = re.compile(
+    r'LineIcon\s*\{[^{}]*?\bname\s*:\s*"([A-Za-z0-9_-]+)"',
+    re.S,
+)
 icon_source = (CANONICAL / "LineIcon.qml").read_text(encoding="utf-8")
 known_icons = set(re.findall(r'^\s*([A-Za-z0-9_-]+)\s*:', icon_source, re.M))
 
