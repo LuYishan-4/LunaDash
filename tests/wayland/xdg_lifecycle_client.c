@@ -81,6 +81,11 @@ int main(void) {
   xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
   struct xdg_toplevel *toplevel = xdg_surface_get_toplevel(xdg_surface);
 
+  /* Exercise the wlroots 0.20 lifecycle edge case: state requests may arrive
+   * before the xdg_surface's first commit. The compositor must not schedule a
+   * configure until that initial commit has initialized the role. */
+  xdg_toplevel_set_maximized(toplevel);
+  xdg_toplevel_set_fullscreen(toplevel);
   wl_surface_commit(surface);
   if (wl_display_roundtrip(display) < 0 || !g_configured) {
     fputs("xdg-toplevel did not receive its initial configure\n", stderr);
