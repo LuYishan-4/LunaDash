@@ -8,7 +8,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | --- | --- | --- |
 | General | Extensible language drop-down, shell font, 12/24-hour clock, first-run guide, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
 | Appearance | Wallpaper image/palettes, in-shell PNG/JPEG/WebP picker, custom `#RRGGBB` accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Accent colors can be entered directly; the visible swatches are only quick presets. The picker is drawn inside the settings surface with a bounded preview; blur applies to application frames, with no KDE blur protocol |
-| Windows and workspaces | 1–9 workspaces, grouped columns, per-column widths, window gaps, default floating mode | Reducing the count moves windows to a remaining workspace |
+| Windows and workspaces | 1–9 workspaces, grouped columns, 50% default column width, per-column widths, window gaps, default floating mode | New windows open tiled and non-maximized; `Meta+F` maximizes/restores the focused column |
 | Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all nine workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Shell modules | JSON layout, dimensions, positions, colors and built-in recovery | [Module schema and contract](MODULES.md); custom QML modules are not loaded |
 | Display | Current output information and three nested window sizes | Physical modes, scale, rotation and refresh are managed by the host; host monitor settings can be opened when available. Standalone multi-monitor, HDR and night light remain unavailable |
@@ -34,7 +34,7 @@ Additional keys in the existing `[desktop]` group:
 | Key | Default | Accepted values |
 | --- | --- | --- |
 | `workspaceCount` | 4 | Integer 1–9 |
-| `masterRatio` | 56 | Legacy saved default width percentage used when creating columns |
+| `masterRatio` | 50 | Default tiled column width percentage used when creating new columns |
 | `defaultFloating` | false | Boolean |
 | `keyboardLayout` | us | us, gb, de, fr, es, jp, tw |
 | `keyRepeatRate` | 25 | Integer 0–60; zero disables repeat |
@@ -77,4 +77,4 @@ Default terminal and file-manager argument arrays are edited under Applications 
 
 The compact top `TopPanel` embeds theme-accented grouped-application cells inline after the workspace/session controls; the former separate `ColumnStrip` is not instantiated as a second layer. The inline area has one cell per column and app icons for all members, including minimized ones. Click an exact icon to restore, focus and reveal that member; drag it onto a member in another column to group it; right-click it or click its minus badge to expel it. A column accepts at most four total windows, including minimized members, and visible members receive equal vertical space.
 
-Defaults use `Super+H/L` between columns, `Super+J/K` within a grouped column, `Super+Shift+H/L` to merge the focused window into the adjacent column, `Super+Shift+E` to expel, `Super+Ctrl+H/L` to reorder columns, Super plus `+`/`-` to resize, and `Super+Shift+C` to center. `Super+C` closes the focused window and the remaining members immediately re-apply the 1/2/3/4 split. `Super+F` maximizes or restores the window under the pointer across the compositor `workArea`, whose top edge is below the top panel's `panelExtent`/exclusive area. Every new window otherwise opens as its own full-width column and the strip slides horizontally to reveal it. The frame's top-right minus and × controls provide quick minimize and close actions.
+Defaults use `Super+H/L` between columns, `Super+J/K` within a grouped column, `Super+Shift+H/L` to merge the focused window into the adjacent column, `Super+Shift+E` to expel, `Super+Ctrl+H/L` to reorder columns, Super plus `+`/`-` to resize, and `Super+Shift+C` to center. `Super+C` closes the focused window and the remaining members immediately re-apply the 1/2/3/4 split. New tiled windows open at the configured default column width (50% by default) and are not maximized implicitly. `Super+F` follows niri-style maximize-column behavior: it expands the focused tiled column to the compositor `workArea` width and restores that column's previous width when pressed again. Pointer clicks explicitly synchronize the selected client, keyboard focus and stacking order so typing stays on the surface the user clicked.
