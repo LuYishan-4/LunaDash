@@ -7,14 +7,12 @@ InitialWindowPolicy initialWindowPolicy(const QString &appId,
   InitialWindowPolicy policy;
 
   // Keep LunaDash's built-in rules aligned with niri's default configuration:
-  // regular windows open tiled and non-maximized. The Firefox picture-in-
-  // picture player is the one default special case: it opens floating at the
-  // same 480x270 logical size used by niri's example/default rule.
+  // regular windows open tiled and non-maximized. Firefox picture-in-picture
+  // is the default special case and opens floating.
   const QString normalizedAppId = appId.toLower();
   if (normalizedAppId.endsWith(QStringLiteral("firefox")) &&
       title == QStringLiteral("Picture-in-Picture")) {
     policy.floating = true;
-    policy.floatingSize = QSize(480, 270);
   }
 
   return policy;
