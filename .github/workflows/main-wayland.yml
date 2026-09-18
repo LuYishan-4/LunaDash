@@ -54,6 +54,8 @@ jobs:
                   test -S "$runtime/ludash-core-protocol"
                   XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol \
                     wayland-info > build-wayland/core-protocol-globals.txt
+                  cat "$log"
+                  cat build-wayland/core-protocol-globals.txt
                   grep -Eq "interface: 'wl_seat', version: ([5-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
                   grep -Eq "interface: 'wl_data_device_manager', version: ([3-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_layer_shell_v1'" build-wayland/core-protocol-globals.txt
@@ -65,3 +67,15 @@ jobs:
                   wait "$pid" || true
             - name: Run wlroots session
               run: LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh
+            - name: Preserve Wayland protocol diagnostics
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: main-wayland-protocol-diagnostics
+                  path: |
+                      build-wayland/core-protocol.log
+                      build-wayland/core-protocol-globals.txt
+                      build-wayland/wayland.log
+                      build-wayland/wayland-state.json
+                  if-no-files-found: ignore
+                  retention-days: 7
