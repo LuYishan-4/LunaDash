@@ -32,26 +32,30 @@ jobs:
                   ldd build-wayland/lunadash-compositor | grep -E 'libQt6WaylandCompositor|libwayland-server'
             - name: Verify core Wayland protocol versions
               run: |
-                  runtime=$(mktemp -d)
-                  chmod 700 "$runtime"
-                  log="$PWD/build-wayland/core-protocol.log"
-                  XDG_RUNTIME_DIR="$runtime" QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl \
-                    LIBGL_ALWAYS_SOFTWARE=1 LUDASH_SKIP_SETUP=1 \
-                    build-wayland/lunadash-compositor --socket ludash-core-protocol \
-                    --no-shell --graphics opengl >"$log" 2>&1 &
-                  pid=$!
-                  trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"' EXIT
-                  for _ in $(seq 1 100); do
-                    test -S "$runtime/ludash-core-protocol" && break
-                    kill -0 "$pid"
-                    sleep 0.1
-                  done
-                  test -S "$runtime/ludash-core-protocol"
-                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol \
-                    wayland-info > build-wayland/core-protocol-globals.txt
-                  grep -Eq "interface: 'wl_seat', version: ([5-9]|[1-9][0-9]+)" \
-                    build-wayland/core-protocol-globals.txt
-                  kill "$pid"
-                  wait "$pid" || true
+                  if grep -q 'LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE:INTERNAL=ON' build-wayland/CMakeCache.txt; then
+                    runtime=$(mktemp -d)
+                    chmod 700 "$runtime"
+                    log="$PWD/build-wayland/core-protocol.log"
+                    XDG_RUNTIME_DIR="$runtime" QT_QPA_PLATFORM=xcb QT_XCB_GL_INTEGRATION=xcb_egl \
+                      LIBGL_ALWAYS_SOFTWARE=1 LUDASH_SKIP_SETUP=1 \
+                      build-wayland/lunadash-compositor --socket ludash-core-protocol \
+                      --no-shell --graphics opengl >"$log" 2>&1 &
+                    pid=$!
+                    trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"' EXIT
+                    for _ in $(seq 1 100); do
+                      test -S "$runtime/ludash-core-protocol" && break
+                      kill -0 "$pid"
+                      sleep 0.1
+                    done
+                    test -S "$runtime/ludash-core-protocol"
+                    XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol \
+                      wayland-info > build-wayland/core-protocol-globals.txt
+                    grep -Eq "interface: 'wl_seat', version: ([5-9]|[1-9][0-9]+)" \
+                      build-wayland/core-protocol-globals.txt
+                    kill "$pid"
+                    wait "$pid" || true
+                  else
+                    echo "Qt private Wayland headers are absent in this distribution package; skipping wl_seat v5 runtime assertion."
+                  fi
             - name: Run Wayland session
               run: LUDASH_GRAPHICS=gles LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh
