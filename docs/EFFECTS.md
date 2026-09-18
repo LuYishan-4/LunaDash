@@ -4,7 +4,7 @@ New application windows use background blur by default. The compositor captures 
 
 The default window opacity is 96%, so blur is visible behind otherwise opaque clients too. Set opacity to 100% to preserve an application's opaque pixels; its transparent regions can still reveal blur. Blur strength is 18 by default and can be set from 0 to 32 or disabled. The current effect is rectangular and does not implement KDE's per-region blur protocol. Shell panels use translucent rounded surfaces; the C blur pass currently applies to application frames.
 
-Open Desktop settings → Glass and motion to change blur, opacity, animations and animation duration. Values are saved immediately. The default 220 ms transitions fade/scale windows when opened, closed, minimized, restored or shown/hidden by workspace switches. Shell panels animate their reveal, and buttons respond to hover/press. Animations do not delay a close request or bypass an application's save/cancel dialog. Turn them off, or set duration to zero, for reduced motion.
+Open Desktop settings → Glass and motion to change blur, opacity, animations and animation duration. Values are saved immediately. The default 220 ms compositor transitions fade and gently lift windows when they open. Closing/unmapping windows fade out from a retained wlroots scene snapshot so the animation can finish after the client surface disappears. Shell panels animate their reveal, and buttons respond to hover/press. Animations do not delay a close request or bypass an application's save/cancel dialog. Turn them off, or set duration to zero, for reduced motion.
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
