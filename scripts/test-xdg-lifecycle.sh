@@ -54,10 +54,11 @@ if ! env XDG_RUNTIME_DIR="${runtime_dir}" WAYLAND_DISPLAY="${socket_name}"     "
   exit 1
 fi
 
+sleep 0.6
 if ! kill -0 "${pid}" 2>/dev/null; then
   cat "${log_file}"
-  echo "LunaDash crashed during xdg-toplevel destruction" >&2
+  echo "LunaDash crashed during mapped xdg-toplevel teardown/animation" >&2
   exit 1
 fi
 
-echo "xdg-toplevel lifecycle check passed"
+echo "xdg-toplevel lifecycle and close-animation check passed"
