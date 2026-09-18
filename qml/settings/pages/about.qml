@@ -77,6 +77,16 @@ ColumnLayout {
     SettingsComponents.SettingsCard {
         title: shell.tr("Software updates")
         description: page.selectedChannel === "dev" ? shell.tr("Development follows commits on the dev branch.") : shell.tr("Stable follows published GitHub Releases from main.")
+        emphasized: page.installing || page.update.status === "available"
+        badge: page.installing
+            ? page.installProgress + "%"
+            : page.installCompleted
+                ? shell.tr("Completed")
+                : page.update.status === "available"
+                    ? shell.tr("Available")
+                    : page.update.status === "upToDate"
+                        ? shell.tr("Up to date")
+                        : ""
 
         RowLayout {
             Layout.fillWidth: true; spacing: 10
@@ -93,8 +103,10 @@ ColumnLayout {
             }
             Item { Layout.fillWidth: true }
             ShellButton {
+                iconName: "update"
                 text: page.update.status === "checking" ? shell.tr("Checking…") : shell.tr("Check now")
-                enabled: page.update.status !== "checking" && !page.installing
+                busy: page.update.status === "checking"
+                enabled: !page.installing
                 onClicked: shell.command("check-update", "")
             }
         }
@@ -305,10 +317,12 @@ ColumnLayout {
                 Text { visible: Boolean(page.install.target); text: shell.tr("Installer target: ") + String(page.install.target).slice(0, 18); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
                 Text { visible: Boolean(page.install.lastUpdate); text: shell.tr("Last installed: ") + String(page.install.lastUpdate); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
             }
-            ShellButton { visible: page.update.status === "available" && Boolean(page.update.releaseUrl); text: shell.tr("Details"); onClicked: shell.openUrl(page.update.releaseUrl) }
+            ShellButton { visible: page.update.status === "available" && Boolean(page.update.releaseUrl); iconName: "github"; text: shell.tr("Details"); onClicked: shell.openUrl(page.update.releaseUrl) }
             ShellButton {
                 visible: page.update.status === "available"
                 active: true
+                iconName: "update"
+                busy: page.installing
                 enabled: !page.installing
                 text: page.installing ? shell.tr("Installing…") : shell.tr("Update")
                 onClicked: shell.installUpdate(page.selectedChannel, page.selectedChannel === "dev" ? page.update.latestCommit : page.update.latestVersion)
@@ -316,6 +330,7 @@ ColumnLayout {
             ShellButton {
                 visible: page.restartRequired
                 active: true
+                iconName: "power"
                 enabled: page.sessionActions.reboot ?? false
                 text: shell.tr("Reboot now")
                 onClicked: shell.command("session-action", "reboot")
@@ -347,14 +362,14 @@ ColumnLayout {
         RowLayout {
             Layout.fillWidth: true
             Item { Layout.fillWidth: true }
-            ShellButton { text: shell.tr("Rollback previous update"); enabled: !page.installing; onClicked: shell.rollbackUpdate() }
+            ShellButton { iconName: "update"; text: shell.tr("Rollback previous update"); enabled: !page.installing; onClicked: shell.rollbackUpdate() }
         }
     }
 
     SettingsComponents.SettingsCard {
         title: shell.tr("Community and source")
         description: shell.tr("Follow development, report issues, and review the source code.")
-        ShellButton { text: "GitHub"; onClicked: shell.openUrl(page.update.repositoryUrl || "https://github.com/LuYishan-4/LunaDash") }
+        ShellButton { iconName: "github"; text: "GitHub"; onClicked: shell.openUrl(page.update.repositoryUrl || "https://github.com/LuYishan-4/LunaDash") }
     }
 
     SettingsComponents.SettingsCard {
