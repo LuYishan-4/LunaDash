@@ -126,7 +126,7 @@ QJsonObject ShortcutSettings::snapshot() const { return bindings_; }
 
 QString ShortcutSettings::actionFor(xkb_keysym_t keysym,
                                     uint32_t modifiers) const {
-  for (auto it = bindings_.cbegin(); it != bindings_.cend(); ++it) {
+  for (auto it = bindings_.begin(); it != bindings_.end(); ++it) {
     const ParsedShortcut shortcut = parseShortcut(it.value().toString());
     if (shortcut.canonical != "Disabled" && shortcut.symbol == keysym &&
         shortcut.modifiers == modifiers)
@@ -154,7 +154,7 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
   }
 
   QSet<QString> used;
-  for (auto it = candidate.cbegin(); it != candidate.cend(); ++it) {
+  for (auto it = candidate.begin(); it != candidate.end(); ++it) {
     const QString sequence = it.value().toString();
     if (sequence == "Disabled")
       continue;
