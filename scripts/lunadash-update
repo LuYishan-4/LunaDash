@@ -10,6 +10,7 @@ target=""
 rollback=false
 current_progress=0
 current_stage="idle"
+work=""
 
 json_escape() {
     printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -23,10 +24,13 @@ write_status() {
     current_progress=$progress
     current_stage=$stage
     tmp="$status_file.tmp"
-    printf '{"state":"%s","progress":%s,"stage":"%s","message":"%s","channel":"%s","target":"%s","rollback":%s}\n' \
+    status_pid=0
+    [ "$state" = "running" ] && status_pid=$
+    updated_at=$(date +%s)
+    printf '{"state":"%s","progress":%s,"stage":"%s","message":"%s","channel":"%s","target":"%s","rollback":%s,"pid":%s,"updatedAt":%s}\n' \
         "$(json_escape "$state")" "$progress" "$(json_escape "$stage")" \
         "$(json_escape "$message")" "$(json_escape "$channel")" \
-        "$(json_escape "$target")" "$rollback" > "$tmp"
+        "$(json_escape "$target")" "$rollback" "$status_pid" "$updated_at" > "$tmp"
     mv -f "$tmp" "$status_file"
 }
 
@@ -44,7 +48,7 @@ if [ "${1:-}" = "--status" ]; then
     if [ -f "$status_file" ]; then
         cat "$status_file"
     else
-        printf '%s\n' '{"state":"idle","progress":0,"stage":"idle","message":"","channel":"","target":"","rollback":false}'
+        printf '%s\n' '{"state":"idle","progress":0,"stage":"idle","message":"","channel":"","target":"","rollback":false,"pid":0,"updatedAt":0}'
     fi
     exit 0
 fi
@@ -77,7 +81,15 @@ need tar
 need pkexec
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/lunadash-update.XXXXXXXX")
-trap 'rm -rf "$work"' EXIT HUP INT TERM
+cleanup() {
+    [ -z "$work" ] || rm -rf "$work"
+}
+interrupted() {
+    write_status "error" "$current_progress" "interrupted" "The update was interrupted before it finished."
+    exit 130
+}
+trap cleanup EXIT
+trap interrupted HUP INT TERM
 src="$work/source"
 build="$work/build"
 
