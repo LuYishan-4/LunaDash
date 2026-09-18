@@ -1,36 +1,33 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
 repo=https://github.com/LuYishan-4/LunaDash.git
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/lunadash/update
 backup="$state_dir/rollback.tar.gz"
 status_file="$state_dir/progress.json"
+last_log="$state_dir/last-install.log"
 channel=""
 target=""
 rollback=false
 current_progress=0
 current_stage="idle"
 work=""
+installer_pid=0
 
 json_escape() {
     printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 write_status() {
-    state=$1
-    progress=$2
-    stage=$3
-    message=$4
+    local state=$1 progress=$2 stage=$3 message=$4
     current_progress=$progress
     current_stage=$stage
-    tmp="$status_file.tmp"
-    status_pid=0
-    [ "$state" = "running" ] && status_pid=$
+    local tmp="$status_file.tmp"
+    local status_pid=0
+    [[ "$state" == "running" ]] && status_pid=$$
+    local updated_at
     updated_at=$(date +%s)
-    printf '{"state":"%s","progress":%s,"stage":"%s","message":"%s","channel":"%s","target":"%s","rollback":%s,"pid":%s,"updatedAt":%s}\n' \
-        "$(json_escape "$state")" "$progress" "$(json_escape "$stage")" \
-        "$(json_escape "$message")" "$(json_escape "$channel")" \
-        "$(json_escape "$target")" "$rollback" "$status_pid" "$updated_at" > "$tmp"
+    printf '{"state":"%s","progress":%s,"stage":"%s","message":"%s","channel":"%s","target":"%s","rollback":%s,"pid":%s,"updatedAt":%s}\n'         "$(json_escape "$state")" "$progress" "$(json_escape "$stage")"         "$(json_escape "$message")" "$(json_escape "$channel")"         "$(json_escape "$target")" "$rollback" "$status_pid" "$updated_at" > "$tmp"
     mv -f "$tmp" "$status_file"
 }
 
@@ -44,8 +41,8 @@ need() { command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1";
 
 mkdir -p "$state_dir"
 
-if [ "${1:-}" = "--status" ]; then
-    if [ -f "$status_file" ]; then
+if [[ "${1:-}" == "--status" ]]; then
+    if [[ -f "$status_file" ]]; then
         cat "$status_file"
     else
         printf '%s\n' '{"state":"idle","progress":0,"stage":"idle","message":"","channel":"","target":"","rollback":false,"pid":0,"updatedAt":0}'
@@ -53,15 +50,12 @@ if [ "${1:-}" = "--status" ]; then
     exit 0
 fi
 
-if [ "${1:-}" = "--rollback" ]; then
+if [[ "${1:-}" == "--rollback" ]]; then
     rollback=true
     write_status "running" 10 "rollback" "Restoring the previous LunaDash installation."
-    [ -f "$backup" ] || fail "No LunaDash update backup is available."
-    if command -v pkexec >/dev/null 2>&1; then
-        pkexec tar -xzf "$backup" -C / || fail "Could not restore the previous installation."
-    else
-        fail "pkexec is required to restore system files."
-    fi
+    [[ -f "$backup" ]] || fail "No LunaDash update backup is available."
+    need pkexec
+    pkexec tar -xzf "$backup" -C / || fail "Could not restore the previous installation."
     write_status "completed" 100 "complete" "Rollback completed. Reboot to use the restored installation."
     echo "Rollback completed. Reboot to use the restored LunaDash installation."
     exit 0
@@ -70,19 +64,22 @@ fi
 channel=${1:-}
 target=${2:-}
 case "$channel" in stable|dev) ;; *) fail "Usage: lunadash-update stable|dev REF, --status, or --rollback" ;; esac
-[ -n "$target" ] || fail "The target release or commit is required."
-case "$target" in *[!A-Za-z0-9._-]*|'') fail "Rejected update ref." ;; esac
+[[ -n "$target" ]] || fail "The target release or commit is required."
+[[ "$target" != *[!A-Za-z0-9._-]* ]] || fail "Rejected update ref."
 
-write_status "running" 3 "prepare" "Checking update tools and preparing a temporary build directory."
+write_status "running" 3 "prepare" "Checking update tools and preparing a temporary source directory."
 need git
-need cmake
-need ninja
+need bash
 need tar
 need pkexec
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/lunadash-update.XXXXXXXX")
 cleanup() {
-    [ -z "$work" ] || rm -rf "$work"
+    if (( installer_pid > 1 )) && kill -0 "$installer_pid" 2>/dev/null; then
+        kill "$installer_pid" 2>/dev/null || true
+        wait "$installer_pid" 2>/dev/null || true
+    fi
+    [[ -z "$work" ]] || rm -rf "$work"
 }
 interrupted() {
     write_status "error" "$current_progress" "interrupted" "The update was interrupted before it finished."
@@ -91,48 +88,64 @@ interrupted() {
 trap cleanup EXIT
 trap interrupted HUP INT TERM
 src="$work/source"
-build="$work/build"
+installer_progress="$work/install-progress"
+installer_log="$work/install.log"
 
-write_status "running" 12 "download" "Downloading the selected LunaDash source."
-if [ "$channel" = dev ]; then
+write_status "running" 12 "download" "Cloning the selected LunaDash source from GitHub."
+if [[ "$channel" == dev ]]; then
     git clone --quiet --depth 1 --branch dev "$repo" "$src" || fail "Could not download the dev branch."
     write_status "running" 22 "verify" "Verifying the downloaded development commit."
     actual=$(git -C "$src" rev-parse HEAD)
-    case "$actual" in "$target"*) ;; *) fail "The downloaded dev commit does not match the selected update." ;; esac
+    [[ "$actual" == "$target"* ]] || fail "The downloaded dev commit does not match the selected update."
 else
     git clone --quiet --depth 1 --branch "$target" "$repo" "$src" || fail "Could not download release $target."
     write_status "running" 22 "verify" "Verifying the downloaded release tag."
     actual=$(git -C "$src" describe --tags --exact-match HEAD 2>/dev/null || true)
-    [ "$actual" = "$target" ] || fail "The downloaded release tag could not be verified."
+    [[ "$actual" == "$target" ]] || fail "The downloaded release tag could not be verified."
 fi
 
-write_status "running" 32 "configure" "Configuring the LunaDash release build."
-cmake -S "$src" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr >/dev/null \
-    || fail "CMake configuration failed."
-
-write_status "running" 46 "build" "Building LunaDash. This is usually the longest update step."
-cmake --build "$build" --parallel "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)" \
-    || fail "LunaDash build failed."
-
-write_status "running" 76 "backup" "Saving the current installation for rollback."
-paths=""
-for path in \
-    usr/bin/lunadash-desktop usr/bin/lunadash-compositor usr/bin/lunadashctl \
-    usr/bin/lunadash-session usr/bin/ludash-session usr/bin/lunadash-update \
-    usr/share/lunadash usr/share/wayland-sessions/lunadash.desktop \
-    usr/share/wayland-sessions/ludash.desktop usr/share/applications/lunadash-app.desktop; do
-    [ -e "/$path" ] && paths="$paths $path"
+write_status "running" 28 "backup" "Saving the current installation for rollback."
+paths=()
+for path in     usr/bin/lunadash-desktop usr/bin/lunadash-compositor usr/bin/lunadashctl     usr/bin/lunadash-session usr/bin/ludash-session usr/bin/lunadash-update     usr/share/lunadash usr/share/wayland-sessions/lunadash.desktop     usr/share/wayland-sessions/ludash.desktop usr/share/applications/lunadash-app.desktop; do
+    [[ -e "/$path" ]] && paths+=("$path")
 done
-if [ -n "$paths" ]; then
-    # shellcheck disable=SC2086
-    tar -czf "$backup.tmp" -C / $paths || fail "Could not create the rollback backup."
+if (("${#paths[@]}" > 0)); then
+    tar -czf "$backup.tmp" -C / "${paths[@]}" || fail "Could not create the rollback backup."
     mv -f "$backup.tmp" "$backup"
 fi
 
-write_status "running" 88 "install" "Installing the new LunaDash build. Authorization may be requested."
-pkexec cmake --install "$build" || fail "Installing the new LunaDash build failed."
+write_status "running" 34 "install-script" "Starting the repository installation script."
+LUDASH_INSTALL_PROGRESS_FILE="$installer_progress" LUDASH_PREFER_PKEXEC=1 LUDASH_UPDATE_MODE=1     bash "$src/scripts/install-session.sh" --skip-deps >"$installer_log" 2>&1 &
+installer_pid=$!
 
-write_status "running" 97 "finalize" "Finalizing the update and recording the installed target."
+last_progress_line=""
+while kill -0 "$installer_pid" 2>/dev/null; do
+    if [[ -s "$installer_progress" ]]; then
+        progress_line=$(cat "$installer_progress" 2>/dev/null || true)
+        if [[ -n "$progress_line" && "$progress_line" != "$last_progress_line" ]]; then
+            IFS='|' read -r progress stage message <<<"$progress_line"
+            if [[ "$progress" =~ ^[0-9]+$ ]] && (( progress >= 0 && progress <= 99 )) &&
+               [[ "$stage" =~ ^[A-Za-z0-9._-]+$ ]]; then
+                write_status "running" "$progress" "$stage" "$message"
+                last_progress_line="$progress_line"
+            fi
+        fi
+    fi
+    sleep 0.25
+done
+
+if ! wait "$installer_pid"; then
+    installer_pid=0
+    cp -f "$installer_log" "$last_log" 2>/dev/null || true
+    tail -n 40 "$installer_log" >&2 || true
+    fail "The repository installation script failed. See $last_log."
+fi
+installer_pid=0
+cp -f "$installer_log" "$last_log" 2>/dev/null || true
+
+write_status "running" 98 "cleanup" "Removing the downloaded Git repository and temporary build files."
+rm -rf "$work"
+work=""
 printf '%s\n' "$channel $target" > "$state_dir/last-update"
 write_status "completed" 100 "complete" "Update installed successfully. Reboot to start the new LunaDash installation."
 echo "LunaDash update installed successfully. Reboot to start the new LunaDash installation."
