@@ -70,14 +70,18 @@ fi
 
 case "$manager" in
     pacman)
-        run "${elevate[@]}" pacman -S --needed \
+        pacman_install=(pacman -S --needed)
+        if [[ ${LUDASH_ALLOW_ROOT_DEPS:-0} == 1 ]]; then
+            pacman_install+=(--noconfirm)
+        fi
+        run "${elevate[@]}" "${pacman_install[@]}" \
             base-devel cmake ninja git pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon \
             systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations \
             shared-mime-info fish \
             fcitx5 fcitx5-qt fcitx5-configtool
         if ! command -v quickshell >/dev/null 2>&1 && pacman -Si quickshell >/dev/null 2>&1; then
-            run "${elevate[@]}" pacman -S --needed quickshell
+            run "${elevate[@]}" "${pacman_install[@]}" quickshell
         fi
         ;;
     apt)
