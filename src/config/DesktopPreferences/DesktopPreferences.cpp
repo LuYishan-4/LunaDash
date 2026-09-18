@@ -21,7 +21,7 @@ QJsonObject defaults() {
             {"colorPins", QJsonArray{"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
             {"gap", 12}, {"panelHeight", 40},
             {"blur", true}, {"blurRadius", 18}, {"windowOpacity", 96}, {"animations", true}, {"animationDuration", 220},
-            {"workspaceCount", 4}, {"masterRatio", 56}, {"defaultFloating", false}, {"altMouseResize", true},
+            {"workspaceCount", 4}, {"masterRatio", 50}, {"defaultFloating", false}, {"altMouseResize", true},
             {"keyboardLayout", "us"}, {"cursorSize", 24},
             {"fontFamily", "sans-serif"}, {"clock24Hour", true}, {"startupApps", QJsonArray{}},
             {"proxyEnabled", false}, {"proxyHttp", ""}, {"proxyHttps", ""}, {"proxySocks", ""}, {"proxyBypass", ""},
