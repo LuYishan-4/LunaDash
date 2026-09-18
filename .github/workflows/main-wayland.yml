@@ -52,10 +52,12 @@ jobs:
                       wayland-info > build-wayland/core-protocol-globals.txt
                     grep -Eq "interface: 'wl_seat', version: ([5-9]|[1-9][0-9]+)" \
                       build-wayland/core-protocol-globals.txt
+                    grep -Eq "interface: 'wl_data_device_manager', version: ([3-9]|[1-9][0-9]+)" \
+                      build-wayland/core-protocol-globals.txt
                     kill "$pid"
                     wait "$pid" || true
                   else
-                    echo "Qt private Wayland headers are absent in this distribution package; skipping wl_seat v5 runtime assertion."
+                    echo "Qt private Wayland headers are absent in this distribution package; skipping wl_seat v5 / data-device v3 runtime assertions."
                   fi
             - name: Run Wayland session
               run: LUDASH_GRAPHICS=gles LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh
