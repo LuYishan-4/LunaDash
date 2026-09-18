@@ -14,6 +14,7 @@
 #include <QSettings>
 #include <QTimer>
 #include <QUrl>
+#include <algorithm>
 
 #ifndef LUNADASH_GIT_COMMIT
 #define LUNADASH_GIT_COMMIT "unknown"
