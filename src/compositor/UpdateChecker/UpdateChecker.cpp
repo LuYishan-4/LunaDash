@@ -76,6 +76,16 @@ QString updateStateDirectory() {
   return QDir(root).filePath(QStringLiteral("lunadash/update"));
 }
 
+bool updaterProcessAlive(qint64 pid) {
+  if (pid <= 1)
+    return false;
+  QFile commandLine(QStringLiteral("/proc/%1/cmdline").arg(pid));
+  if (!commandLine.open(QIODevice::ReadOnly))
+    return false;
+  const QByteArray command = commandLine.read(4096);
+  return command.contains("lunadash-update");
+}
+
 QJsonObject installSnapshot() {
   const QString directory = updateStateDirectory();
   const QString path = QDir(directory).filePath(QStringLiteral("progress.json"));
@@ -96,18 +106,38 @@ QJsonObject installSnapshot() {
       const auto document = QJsonDocument::fromJson(bytes, &error);
       if (error.error == QJsonParseError::NoError && document.isObject()) {
         const auto object = document.object();
-        const QString state = object.value("state").toString();
-        const QString stage = object.value("stage").toString();
+        QString state = object.value("state").toString();
+        QString stage = object.value("stage").toString();
+        QString message = object.value("message").toString().left(1024);
+        const qint64 pid =
+            static_cast<qint64>(object.value("pid").toDouble(0));
+        const qint64 updatedAt =
+            static_cast<qint64>(object.value("updatedAt").toDouble(0));
+
+        // progress.json survives shell/compositor restarts. A previous updater
+        // that was killed while building used to leave state="running" forever,
+        // which made About animate indefinitely at the last percentage. Running
+        // is valid only while the recorded lunadash-update process still exists.
+        if (state == "running" && !updaterProcessAlive(pid)) {
+          state = "error";
+          stage = "interrupted";
+          message =
+              "The previous update was interrupted and is no longer running.";
+        }
+
         if (QStringList{"idle", "running", "completed", "error"}.contains(state))
           install["state"] = state;
         if (!stage.isEmpty() && stage.size() <= 64)
           install["stage"] = stage;
         install["progress"] =
             std::clamp(object.value("progress").toInt(), 0, 100);
-        install["message"] = object.value("message").toString().left(1024);
+        install["message"] = message;
         install["channel"] = object.value("channel").toString().left(16);
         install["target"] = object.value("target").toString().left(128);
         install["rollback"] = object.value("rollback").toBool();
+        install["pid"] = pid;
+        install["updatedAt"] = updatedAt;
+        install["active"] = state == "running";
         install["available"] = true;
       }
     }
