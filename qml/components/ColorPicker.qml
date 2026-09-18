@@ -65,16 +65,20 @@ ColumnLayout {
         Rectangle {
             x: Math.max(0, Math.min(parent.width - width, picker.saturation * parent.width - width / 2))
             y: Math.max(0, Math.min(parent.height - height, (1 - picker.value) * parent.height - height / 2))
-            width: 16
-            height: 16
+            width: spectrumMouse.pressed ? 20 : 16
+            height: width
             radius: 8
             color: "transparent"
             border.width: 2
             border.color: Theme.focusRing
             Rectangle { anchors.centerIn: parent; width: 5; height: 5; radius: 3; color: picker.selectedColor }
+            Behavior on width { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+            Behavior on x { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
         }
 
         MouseArea {
+            id: spectrumMouse
             anchors.fill: parent
             cursorShape: Qt.CrossCursor
             function sample(mouse) {
@@ -134,12 +138,16 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 8
         Rectangle {
-            width: 34
-            height: 34
-            radius: 10
+            width: 38
+            height: 38
+            radius: 12
             color: picker.selectedColor
-            border.width: 1
-            border.color: Theme.border
+            border.width: 2
+            border.color: Theme.focusRing
+            scale: previewHover.hovered ? 1.06 : 1
+            HoverHandler { id: previewHover }
+            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+            Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
         }
         Text {
             Layout.fillWidth: true
@@ -160,18 +168,23 @@ ColumnLayout {
         Repeater {
             model: picker.pins
             Rectangle {
+                id: pinSwatch
                 required property var modelData
                 width: 34
                 height: 34
                 radius: 10
                 color: String(modelData)
-                border.width: 1
-                border.color: Theme.border
+                border.width: pinMouse.containsMouse ? 2 : 1
+                border.color: pinMouse.containsMouse ? Theme.focusRing : Theme.border
+                scale: pinMouse.pressed ? 0.92 : pinMouse.containsMouse ? 1.08 : 1
                 MouseArea {
+                    id: pinMouse
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     onClicked: picker.colorCommitted(String(modelData))
                 }
+                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+                Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
             }
         }
     }
