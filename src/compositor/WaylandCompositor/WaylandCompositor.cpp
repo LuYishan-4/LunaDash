@@ -328,8 +328,15 @@ public:
     attachListener(&backend->events.new_output, newOutput, this,
                    handleNewOutput);
     attachListener(&backend->events.new_input, newInput, this, handleNewInput);
+#if WLR_VERSION_MINOR < 20
     attachListener(&xdgShell->events.new_surface, newXdgSurface, this,
                    handleNewXdgSurface);
+#else
+    // wlroots 0.20 emits new_surface before an xdg role is assigned. Listen to
+    // new_toplevel so the object is fully role-initialized before tracking it.
+    attachListener(&xdgShell->events.new_toplevel, newXdgSurface, this,
+                   handleNewXdgToplevel);
+#endif
     attachListener(&layerShell->events.new_surface, newLayerSurface, this,
                    handleNewLayerSurface);
     attachListener(&seat->events.request_set_cursor, requestCursor, this,
@@ -580,6 +587,11 @@ public:
     wlr_box usable = full;
     for (auto *layer : layers) {
       if (!layer || !layer->sceneLayer || !layer->surface)
+        continue;
+      // wlroots 0.20 emits layer_shell.new_surface before the client's first
+      // commit. wlr_scene_layer_surface_v1_configure() is only valid after the
+      // role has been initialized by that commit.
+      if (!layer->surface->initialized)
         continue;
       if (!layer->surface->output && primaryOutput)
         layer->surface->output = primaryOutput;
@@ -1060,64 +1072,82 @@ public:
       self->updateTextInputFocus(event->new_surface);
   }
 
+  void addXdgToplevel(wlr_xdg_surface *surface,
+                      wlr_xdg_toplevel *toplevel) {
+    if (!surface || !toplevel)
+      return;
+
+    auto client = std::make_unique<ClientWindow>();
+        client->id = this->q->nextWindowId_++;
+        client->surface = surface;
+        client->toplevel = surface->toplevel;
+        client->workspace = this->q->workspace_;
+        client->sceneTree =
+            wlr_scene_xdg_surface_create(this->normalLayer, surface);
+        if (!client->sceneTree)
+          return;
+    
+        client->sceneTree->node.data = client.get();
+        if (surface->client && surface->client->client) {
+          pid_t pid = 0;
+          uid_t uid = 0;
+          gid_t gid = 0;
+          wl_client_get_credentials(surface->client->client, &pid, &uid, &gid);
+          client->processId = static_cast<qint64>(pid);
+        }
+    
+        auto *current = client.get();
+        auto *state = new ToplevelState;
+        state->impl = self;
+        state->client = current;
+        current->nativeState = state;
+        this->q->clients_.push_back(std::move(client));
+        this->q->updateClientMetadata(current);
+    
+        attachListener(&surface->surface->events.map, state->map, state,
+                       handleToplevelMap);
+        attachListener(&surface->surface->events.unmap, state->unmap, state,
+                       handleToplevelUnmap);
+        attachListener(&surface->surface->events.commit, state->commit, state,
+                       handleToplevelCommit);
+        // wlr_xdg_surface owns the role lifetime on every supported wlroots
+        // release. Using its destroy signal keeps 0.17 and 0.20 on the same path.
+        attachListener(&surface->events.destroy, state->destroy, state,
+                       handleToplevelDestroy);
+        attachListener(&toplevel->events.set_title, state->setTitle, state,
+                       handleToplevelMetadata);
+        attachListener(&toplevel->events.set_app_id, state->setAppId,
+                       state, handleToplevelMetadata);
+        attachListener(&toplevel->events.set_parent, state->setParent,
+                       state, handleToplevelParent);
+        attachListener(&toplevel->events.request_minimize,
+                       state->requestMinimize, state, handleToplevelMinimize);
+        attachListener(&toplevel->events.request_maximize,
+                       state->requestMaximize, state, handleToplevelMaximize);
+        attachListener(&toplevel->events.request_fullscreen,
+                       state->requestFullscreen, state, handleToplevelFullscreen);
+        wlr_scene_node_set_enabled(&current->sceneTree->node, false);
+    
+  }
+
+#if WLR_VERSION_MINOR < 20
   static void handleNewXdgSurface(wl_listener *listener, void *data) {
     auto *self = listenerOwner<Impl>(listener);
     auto *surface = static_cast<wlr_xdg_surface *>(data);
     if (!self || !surface || surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL ||
         !surface->toplevel)
       return;
-
-    auto client = std::make_unique<ClientWindow>();
-    client->id = self->q->nextWindowId_++;
-    client->surface = surface;
-    client->toplevel = surface->toplevel;
-    client->workspace = self->q->workspace_;
-    client->sceneTree =
-        wlr_scene_xdg_surface_create(self->normalLayer, surface);
-    if (!client->sceneTree)
-      return;
-
-    client->sceneTree->node.data = client.get();
-    if (surface->client && surface->client->client) {
-      pid_t pid = 0;
-      uid_t uid = 0;
-      gid_t gid = 0;
-      wl_client_get_credentials(surface->client->client, &pid, &uid, &gid);
-      client->processId = static_cast<qint64>(pid);
-    }
-
-    auto *current = client.get();
-    auto *state = new ToplevelState;
-    state->impl = self;
-    state->client = current;
-    current->nativeState = state;
-    self->q->clients_.push_back(std::move(client));
-    self->q->updateClientMetadata(current);
-
-    attachListener(&surface->surface->events.map, state->map, state,
-                   handleToplevelMap);
-    attachListener(&surface->surface->events.unmap, state->unmap, state,
-                   handleToplevelUnmap);
-    attachListener(&surface->surface->events.commit, state->commit, state,
-                   handleToplevelCommit);
-    // wlr_xdg_surface owns the role lifetime on every supported wlroots
-    // release. Using its destroy signal keeps 0.17 and 0.20 on the same path.
-    attachListener(&surface->events.destroy, state->destroy, state,
-                   handleToplevelDestroy);
-    attachListener(&surface->toplevel->events.set_title, state->setTitle, state,
-                   handleToplevelMetadata);
-    attachListener(&surface->toplevel->events.set_app_id, state->setAppId,
-                   state, handleToplevelMetadata);
-    attachListener(&surface->toplevel->events.set_parent, state->setParent,
-                   state, handleToplevelParent);
-    attachListener(&surface->toplevel->events.request_minimize,
-                   state->requestMinimize, state, handleToplevelMinimize);
-    attachListener(&surface->toplevel->events.request_maximize,
-                   state->requestMaximize, state, handleToplevelMaximize);
-    attachListener(&surface->toplevel->events.request_fullscreen,
-                   state->requestFullscreen, state, handleToplevelFullscreen);
-    wlr_scene_node_set_enabled(&current->sceneTree->node, false);
+    self->addXdgToplevel(surface, surface->toplevel);
   }
+#else
+  static void handleNewXdgToplevel(wl_listener *listener, void *data) {
+    auto *self = listenerOwner<Impl>(listener);
+    auto *toplevel = static_cast<wlr_xdg_toplevel *>(data);
+    if (!self || !toplevel || !toplevel->base)
+      return;
+    self->addXdgToplevel(toplevel->base, toplevel);
+  }
+#endif
 
   static void handleToplevelMap(wl_listener *listener, void *) {
     auto *state = listenerOwner<ToplevelState>(listener);
@@ -1262,7 +1292,8 @@ public:
                    handleLayerCommit);
     attachListener(&surface->events.destroy, state->destroy, state,
                    handleLayerDestroy);
-    self->arrangeLayers();
+    // The first surface commit marks the role initialized; handleLayerCommit
+    // will perform the initial configure/layout at that point.
   }
 
   static void handleLayerMap(wl_listener *listener, void *) {
@@ -1289,7 +1320,7 @@ public:
 
   static void handleLayerCommit(wl_listener *listener, void *) {
     auto *state = listenerOwner<LayerState>(listener);
-    if (!state)
+    if (!state || !state->surface || !state->surface->initialized)
       return;
     state->impl->arrangeLayers();
     state->impl->q->arrange();
