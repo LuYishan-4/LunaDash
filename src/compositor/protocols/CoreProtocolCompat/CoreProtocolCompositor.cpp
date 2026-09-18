@@ -1,8 +1,10 @@
 #include "compositor/protocols/CoreProtocolCompat/CoreProtocolCompositor.hpp"
 
+#include <QtWaylandCompositor/QWaylandSeat>
+
+#if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
 #include <QtWaylandCompositor/QWaylandKeyboard>
 #include <QtWaylandCompositor/QWaylandPointer>
-#include <QtWaylandCompositor/QWaylandSeat>
 #include <QtWaylandCompositor/QWaylandTouch>
 #include <QtWaylandCompositor/private/qwaylandcompositor_p.h>
 
@@ -13,10 +15,12 @@
 #define private public
 #include <QtWaylandCompositor/private/qwaylandseat_p.h>
 #undef private
+#endif
 
 namespace LuDash {
 namespace {
 
+#if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
 constexpr int kSeatProtocolVersion = 5;
 
 class CoreProtocolSeat final : public QWaylandSeat {
@@ -45,11 +49,19 @@ public:
     d->isInitialized = true;
   }
 };
+#endif
 
 } // namespace
 
 QWaylandSeat *CoreProtocolCompositor::createSeat() {
+#if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
   return new CoreProtocolSeat(this);
+#else
+  // Some distribution Qt packages ship a broken WaylandCompositorPrivate CMake
+  // target without the matching private headers. Keep those builds functional;
+  // Arch/full Qt development installations take the v5 path above.
+  return QWaylandQuickCompositor::createSeat();
+#endif
 }
 
 } // namespace LuDash
