@@ -105,7 +105,9 @@ int createAnonymousFile(const QByteArray &contents) {
 }
 
 int utf8BytesAtCharacter(const QString &text, int character) {
-  return text.left(std::clamp(character, 0, text.size())).toUtf8().size();
+  const int textSize = static_cast<int>(text.size());
+  return static_cast<int>(
+      text.left(std::clamp(character, 0, textSize)).toUtf8().size());
 }
 
 int charactersCoveredByUtf8Suffix(const QString &text, int endCharacter,
@@ -114,17 +116,20 @@ int charactersCoveredByUtf8Suffix(const QString &text, int endCharacter,
     return 0;
   const QString prefix = text.left(std::clamp(endCharacter, 0, text.size()));
   const QByteArray utf8 = prefix.toUtf8();
-  const int start = std::max(0, utf8.size() - static_cast<int>(bytes));
-  return QString::fromUtf8(utf8.mid(start)).size();
+  const int utf8Size = static_cast<int>(utf8.size());
+  const int start = std::max(0, utf8Size - static_cast<int>(bytes));
+  return static_cast<int>(QString::fromUtf8(utf8.mid(start)).size());
 }
 
 int charactersCoveredByUtf8Prefix(const QString &text, int startCharacter,
                                   uint32_t bytes) {
   if (bytes == 0)
     return 0;
+  const int textSize = static_cast<int>(text.size());
   const QByteArray utf8 =
-      text.mid(std::clamp(startCharacter, 0, text.size())).toUtf8();
-  return QString::fromUtf8(utf8.left(static_cast<int>(bytes))).size();
+      text.mid(std::clamp(startCharacter, 0, textSize)).toUtf8();
+  return static_cast<int>(
+      QString::fromUtf8(utf8.left(static_cast<int>(bytes))).size());
 }
 
 std::pair<uint32_t, uint32_t> contentTypeFromQtHints(Qt::InputMethodHints hints) {
@@ -172,11 +177,12 @@ std::pair<uint32_t, uint32_t> contentTypeFromQtHints(Qt::InputMethodHints hints)
 } // namespace
 
 class InputMethodSupport::Impl {
-public:
+private:
   struct InputMethodState;
   struct PopupState;
   struct VirtualKeyboardState;
 
+public:
   Impl(InputMethodSupport *owner, QWaylandCompositor *compositor,
        QQuickWindow *window, QWaylandOutput *output)
       : owner_(owner), compositor_(compositor), window_(window), output_(output) {
@@ -1115,22 +1121,22 @@ private:
   uint32_t lastLocked_ = UINT32_MAX;
   uint32_t lastGroup_ = UINT32_MAX;
 
-  static const zwp_input_method_manager_v2_interface inputMethodManagerImpl_;
-  static const zwp_input_method_v2_interface inputMethodImpl_;
-  static const zwp_input_popup_surface_v2_interface inputPopupImpl_;
-  static const zwp_input_method_keyboard_grab_v2_interface keyboardGrabImpl_;
-  static const zwp_virtual_keyboard_manager_v1_interface
+  static const struct zwp_input_method_manager_v2_interface inputMethodManagerImpl_;
+  static const struct zwp_input_method_v2_interface inputMethodImpl_;
+  static const struct zwp_input_popup_surface_v2_interface inputPopupImpl_;
+  static const struct zwp_input_method_keyboard_grab_v2_interface keyboardGrabImpl_;
+  static const struct zwp_virtual_keyboard_manager_v1_interface
       virtualKeyboardManagerImpl_;
-  static const zwp_virtual_keyboard_v1_interface virtualKeyboardImpl_;
+  static const struct zwp_virtual_keyboard_v1_interface virtualKeyboardImpl_;
 };
 
-const zwp_input_method_manager_v2_interface
+const struct zwp_input_method_manager_v2_interface
     InputMethodSupport::Impl::inputMethodManagerImpl_ = {
         InputMethodSupport::Impl::getInputMethod,
         InputMethodSupport::Impl::destroyInputMethodManager,
 };
 
-const zwp_input_method_v2_interface InputMethodSupport::Impl::inputMethodImpl_ = {
+const struct zwp_input_method_v2_interface InputMethodSupport::Impl::inputMethodImpl_ = {
     InputMethodSupport::Impl::inputMethodCommitString,
     InputMethodSupport::Impl::inputMethodSetPreedit,
     InputMethodSupport::Impl::inputMethodDeleteSurrounding,
@@ -1140,22 +1146,22 @@ const zwp_input_method_v2_interface InputMethodSupport::Impl::inputMethodImpl_ =
     InputMethodSupport::Impl::inputMethodDestroy,
 };
 
-const zwp_input_popup_surface_v2_interface
+const struct zwp_input_popup_surface_v2_interface
     InputMethodSupport::Impl::inputPopupImpl_ = {
         InputMethodSupport::Impl::popupDestroy,
 };
 
-const zwp_input_method_keyboard_grab_v2_interface
+const struct zwp_input_method_keyboard_grab_v2_interface
     InputMethodSupport::Impl::keyboardGrabImpl_ = {
         InputMethodSupport::Impl::keyboardGrabRelease,
 };
 
-const zwp_virtual_keyboard_manager_v1_interface
+const struct zwp_virtual_keyboard_manager_v1_interface
     InputMethodSupport::Impl::virtualKeyboardManagerImpl_ = {
         InputMethodSupport::Impl::createVirtualKeyboard,
 };
 
-const zwp_virtual_keyboard_v1_interface
+const struct zwp_virtual_keyboard_v1_interface
     InputMethodSupport::Impl::virtualKeyboardImpl_ = {
         InputMethodSupport::Impl::virtualKeyboardKeymap,
         InputMethodSupport::Impl::virtualKeyboardKey,
