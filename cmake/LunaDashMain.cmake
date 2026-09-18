@@ -50,18 +50,37 @@ if(NOT LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE)
     foreach(_ludash_qt_wayland_public_path IN LISTS _ludash_qt_wayland_public_includes)
         if(_ludash_qt_wayland_public_path MATCHES "/QtWaylandCompositor$")
             set(_ludash_wayland_private_root "${_ludash_qt_wayland_public_path}/${Qt6_VERSION}")
-            if(EXISTS "${_ludash_wayland_private_root}/QtWaylandCompositor/private/qwaylandseat_p.h")
-                get_filename_component(_ludash_qt_include_root "${_ludash_qt_wayland_public_path}" DIRECTORY)
+            get_filename_component(_ludash_qt_include_root "${_ludash_qt_wayland_public_path}" DIRECTORY)
+            set(_ludash_qtcore_private_root "${_ludash_qt_include_root}/QtCore/${Qt6_VERSION}/QtCore")
+            set(_ludash_qtgui_private_root "${_ludash_qt_include_root}/QtGui/${Qt6_VERSION}/QtGui")
+            set(_ludash_waylandglobal_private_root "${_ludash_qt_include_root}/QtWaylandGlobal/${Qt6_VERSION}/QtWaylandGlobal")
+
+            # A usable QtWayland private stack needs the transitive private
+            # headers too. Some distro packages expose qwaylandseat_p.h while
+            # omitting QtWaylandGlobalPrivate; enabling the path in that case
+            # only produces a later compiler error.
+            if(EXISTS "${_ludash_wayland_private_root}/QtWaylandCompositor/private/qwaylandseat_p.h"
+               AND EXISTS "${_ludash_qtcore_private_root}/private/qglobal_p.h"
+               AND EXISTS "${_ludash_qtgui_private_root}/private/qtguiglobal_p.h"
+               AND EXISTS "${_ludash_waylandglobal_private_root}/private/qtwaylandglobal-config_p.h")
                 list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS
                     "${_ludash_wayland_private_root}"
+                    "${_ludash_wayland_private_root}/QtWaylandCompositor"
                     "${_ludash_qt_include_root}/QtWaylandGlobal/${Qt6_VERSION}"
+                    "${_ludash_waylandglobal_private_root}"
                     "${_ludash_qt_include_root}/QtCore/${Qt6_VERSION}"
-                    "${_ludash_qt_include_root}/QtGui/${Qt6_VERSION}")
-                if(EXISTS "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}")
-                    list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}")
+                    "${_ludash_qtcore_private_root}"
+                    "${_ludash_qt_include_root}/QtGui/${Qt6_VERSION}"
+                    "${_ludash_qtgui_private_root}")
+                if(EXISTS "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}/QtQml")
+                    list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS
+                        "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}"
+                        "${_ludash_qt_include_root}/QtQml/${Qt6_VERSION}/QtQml")
                 endif()
-                if(EXISTS "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}")
-                    list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}")
+                if(EXISTS "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}/QtQuick")
+                    list(APPEND LUDASH_QT_WAYLAND_PRIVATE_INCLUDE_DIRS
+                        "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}"
+                        "${_ludash_qt_include_root}/QtQuick/${Qt6_VERSION}/QtQuick")
                 endif()
                 set(LUDASH_QT_WAYLAND_PRIVATE_AVAILABLE ON CACHE INTERNAL "Qt Wayland compositor private headers available" FORCE)
                 break()
