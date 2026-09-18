@@ -17,7 +17,12 @@
 #include <QtWaylandCompositor/QWaylandSurface>
 
 #if defined(LUDASH_HAS_QT_WAYLAND_PRIVATE)
+// Qt has no public API for applying modifier masks received through
+// virtual-keyboard-v1. Keep the one private keyboard-state access isolated to
+// this translation unit.
+#define private public
 #include <QtWaylandCompositor/private/qwaylandkeyboard_p.h>
+#undef private
 #endif
 
 #include "input-method-unstable-v2-server.h"
