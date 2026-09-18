@@ -12,6 +12,7 @@
 #include "compositor/ipc/ControlServer/ControlServer.hpp"
 #include "compositor/plugins/PluginManager/PluginManager.hpp"
 #include "compositor/wlroots/WlrootsCompat.hpp"
+#include "compositor/wlroots/WlrootsHeaders.hpp"
 #include "compositor/xwayland/XWaylandSupport/XWaylandSupport.hpp"
 #include "config/DesktopPreferences/DesktopPreferences.hpp"
 #include "config/Localization/Localization.hpp"
@@ -50,36 +51,6 @@
 #include <memory>
 #include <optional>
 
-extern "C" {
-#include <wayland-server-core.h>
-#include <wayland-server-protocol.h>
-#include <wlr/backend.h>
-#include <wlr/render/allocator.h>
-#include <wlr/render/wlr_renderer.h>
-#include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_cursor.h>
-#include <wlr/types/wlr_data_device.h>
-#include <wlr/types/wlr_idle_inhibit_v1.h>
-#include <wlr/types/wlr_input_device.h>
-#include <wlr/types/wlr_input_method_v2.h>
-#include <wlr/types/wlr_keyboard.h>
-#include <wlr/types/wlr_layer_shell_v1.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_output_layout.h>
-#include <wlr/types/wlr_pointer.h>
-#include <wlr/types/wlr_scene.h>
-#include <wlr/types/wlr_screencopy_v1.h>
-#include <wlr/types/wlr_seat.h>
-#include <wlr/types/wlr_subcompositor.h>
-#include <wlr/types/wlr_text_input_v3.h>
-#include <wlr/types/wlr_viewporter.h>
-#include <wlr/types/wlr_virtual_keyboard_v1.h>
-#include <wlr/types/wlr_xcursor_manager.h>
-#include <wlr/types/wlr_xdg_output_v1.h>
-#include <wlr/types/wlr_xdg_shell.h>
-#include <wlr/util/log.h>
-#include <xkbcommon/xkbcommon.h>
-}
 
 namespace LuDash {
 namespace {
@@ -1320,9 +1291,9 @@ public:
           current.preedit.cursor_end);
     if (current.commit_text)
       wlr_text_input_v3_send_commit_string(text, current.commit_text);
-    if (current.delete.before_length || current.delete.after_length)
+    if (current.delete_.before_length || current.delete_.after_length)
       wlr_text_input_v3_send_delete_surrounding_text(
-          text, current.delete.before_length, current.delete.after_length);
+          text, current.delete_.before_length, current.delete_.after_length);
     wlr_text_input_v3_send_done(text);
   }
 
