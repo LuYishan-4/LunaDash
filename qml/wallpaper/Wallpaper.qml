@@ -22,6 +22,7 @@ ModuleSurface {
     property string incomingSource: ""
     property string queuedSource: ""
     property real revealProgress: 1
+    property real fadeProgress: 1
     property bool transitioning: false
     readonly property string stateSource: String(wallpaper.shell.state.wallpaperImage || "")
     readonly property string desiredSource: wallpaper.shell.wallpaperOverride.length
@@ -29,12 +30,13 @@ ModuleSurface {
         : stateSource
 
     function commitImmediately(source) {
-        revealAnimation.stop()
+        transitionAnimation.stop()
         displayedSource = source
         incomingSource = ""
         queuedSource = ""
         transitioning = false
         revealProgress = 1
+        fadeProgress = 1
     }
 
     function requestSource(source) {
@@ -63,6 +65,7 @@ ModuleSurface {
         incomingSource = source
         queuedSource = ""
         revealProgress = 0
+        fadeProgress = 0
 
         if (!Style.Theme.animations) {
             commitImmediately(source)
@@ -70,7 +73,7 @@ ModuleSurface {
         }
 
         transitioning = true
-        revealAnimation.restart()
+        transitionAnimation.restart()
     }
 
     function finishTransition() {
@@ -140,6 +143,7 @@ ModuleSurface {
         maskThresholdMin: 0.45
         maskSpreadAtMin: 0.02
         visible: wallpaper.transitioning && wallpaper.incomingSource.length > 0
+        opacity: wallpaper.fadeProgress
     }
 
     Rectangle {
@@ -149,14 +153,24 @@ ModuleSurface {
         visible: Boolean(wallpaper.displayedSource || wallpaper.incomingSource)
     }
 
-    NumberAnimation {
-        id: revealAnimation
-        target: wallpaper
-        property: "revealProgress"
-        from: 0
-        to: 1
-        duration: Math.max(620, Style.Theme.animationDuration * 2.7)
-        easing.type: Easing.OutCubic
+    ParallelAnimation {
+        id: transitionAnimation
+        NumberAnimation {
+            target: wallpaper
+            property: "revealProgress"
+            from: 0
+            to: 1
+            duration: Math.max(620, Style.Theme.animationDuration * 2.7)
+            easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            target: wallpaper
+            property: "fadeProgress"
+            from: 0
+            to: 1
+            duration: Math.max(260, Style.Theme.animationDuration * 1.25)
+            easing.type: Easing.OutQuad
+        }
         onFinished: wallpaper.finishTransition()
     }
 

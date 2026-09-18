@@ -112,9 +112,13 @@ target_link_libraries(ludash-blur
     PUBLIC ludash-renderer Qt6::Quick Qt6::OpenGL)
 
 add_library(ludash-animation
-    src/compositor/render/decorations/WindowAnimations.cpp)
+    src/compositor/render/decorations/WindowAnimations.cpp
+    src/compositor/render/decorations/SceneWindowAnimations.cpp)
 target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(ludash-animation PUBLIC Qt6::Quick)
+target_compile_definitions(ludash-animation PRIVATE WLR_USE_UNSTABLE=1)
+target_link_libraries(ludash-animation
+    PUBLIC Qt6::Quick
+    PRIVATE PkgConfig::WLROOTS)
 
 add_library(ludash-shell-renderer
     src/compositor/render/renderer/ShellRenderer.cpp)
@@ -257,6 +261,7 @@ target_link_libraries(ludash-wayland
         ludash-input-settings
         ludash-system-metrics
         ludash-xwayland
+        ludash-animation
         ludash-configuration
         ludash-network
         ludash-wallpaper

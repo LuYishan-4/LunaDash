@@ -26,6 +26,7 @@ required = {
     "decorations": [
         "DecorationElement.hpp", "DecorationElement.cpp",
         "WindowAnimations.hpp", "WindowAnimations.cpp",
+        "SceneWindowAnimations.hpp", "SceneWindowAnimations.cpp",
     ],
 }
 
@@ -53,11 +54,13 @@ wayland = (
 ).read_text(encoding="utf-8")
 assert '#include "core/templates/WaylandListener.hpp"' in wayland
 assert "template <typename Owner> struct ListenerSlot" not in wayland
+assert "SceneWindowAnimations" in wayland
+assert '{"activeAnimations", 0}' not in wayland
 
 cmake = (root / "cmake" / "LunaDashMain.cmake").read_text(encoding="utf-8")
 for target in (
     "ludash-render-gl", "ludash-render-shader", "ludash-render-core",
-    "ludash-renderer", "ludash-blur",
+    "ludash-renderer", "ludash-blur", "ludash-animation",
 ):
     assert target in cmake, f"Missing modular render target {target}"
 

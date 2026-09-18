@@ -1,6 +1,7 @@
 #include "compositor/WaylandCompositor/WaylandCompositor.hpp"
 
 #include "compositor/ClientWindow/ClientWindow.hpp"
+#include "compositor/render/decorations/SceneWindowAnimations.hpp"
 #include "compositor/wlroots/ClientLaunchCompat.hpp"
 #include "core/templates/WaylandListener.hpp"
 #include "compositor/SessionActions/SessionActions.hpp"
@@ -1181,6 +1182,10 @@ public:
     client->initialRuleApplied = true;
     state->impl->q->updateClientMetadata(client);
     state->impl->q->arrange();
+    if (state->impl->q->windowAnimations_ && client->sceneTree &&
+        !client->utility)
+      state->impl->q->windowAnimations_->show(
+          client->sceneTree, client->geometry.topLeft());
     if (!client->utility)
       state->impl->q->focus(client);
   }
@@ -1189,6 +1194,12 @@ public:
     auto *state = listenerOwner<ToplevelState>(listener);
     if (!state || !state->client)
       return;
+    if (state->impl->q->windowAnimations_ && state->client->sceneTree)
+      state->impl->q->windowAnimations_->hideSnapshot(
+          state->client->sceneTree, state->impl->normalLayer);
+    if (state->impl->seat->keyboard_state.focused_surface ==
+        state->client->surface->surface)
+      wlr_seat_keyboard_notify_clear_focus(state->impl->seat);
     state->client->mapped = false;
     state->impl->q->tiling_.remove(state->client->id);
     if (state->impl->q->focused_ == state->client)
@@ -1282,6 +1293,8 @@ public:
     detachListener(state->requestMinimize);
     detachListener(state->requestMaximize);
     detachListener(state->requestFullscreen);
+    if (self->q->windowAnimations_ && client->sceneTree)
+      self->q->windowAnimations_->cancel(client->sceneTree);
     client->nativeState = nullptr;
     self->q->removeClient(client);
     delete state;
@@ -1565,6 +1578,13 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   if (!d->initialize())
     return;
 
+  windowAnimations_ = new SceneWindowAnimations(this);
+  const auto initialAppearance = desktopPreferences();
+  windowAnimations_->setDuration(
+      initialAppearance.value("animations").toBool()
+          ? initialAppearance.value("animationDuration").toInt()
+          : 0);
+
   controlPath_ =
       QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
       QString::fromUtf8(socket) + "-control";
@@ -1638,6 +1658,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
 
 WaylandCompositor::~WaylandCompositor() {
   shuttingDown_ = true;
+  if (windowAnimations_)
+    windowAnimations_->clear();
   if (xwayland_) {
     xwayland_->stop();
     delete xwayland_;
@@ -1834,8 +1856,11 @@ void WaylandCompositor::configure(ClientWindow *client,
       !client->surface->initialized || !client->sceneTree)
     return;
   client->geometry = rectangle;
-  wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
-                              rectangle.y());
+  if (windowAnimations_)
+    windowAnimations_->setPosition(client->sceneTree, rectangle.topLeft());
+  else
+    wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
+                                rectangle.y());
   const QSize size(std::max(1, rectangle.width()),
                    std::max(1, rectangle.height()));
   if (client->lastSize != size) {
@@ -1849,6 +1874,11 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   const auto preferences = desktopPreferences();
+  if (windowAnimations_)
+    windowAnimations_->setDuration(
+        preferences.value("animations").toBool()
+            ? preferences.value("animationDuration").toInt()
+            : 0);
   const int count = preferences.value("workspaceCount").toInt();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const QRect area = workArea();
@@ -2212,7 +2242,7 @@ QJsonObject WaylandCompositor::state() const {
       {"blurReady", false},
       {"blurFailed", false},
       {"blurFrames", 0},
-      {"activeAnimations", 0},
+      {"activeAnimations", windowAnimations_ ? windowAnimations_->activeCount() : 0},
       {"xwayland", xwayland_ ? xwayland_->snapshot() : QJsonObject{}},
       {"screenCapture",
        QJsonObject{{"protocol", "zwlr_screencopy_manager_v1"},

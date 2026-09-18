@@ -23,6 +23,7 @@ class NetworkStatus;
 class PluginManager;
 class ControlServer;
 class SessionActions;
+class SceneWindowAnimations;
 class ShortcutSettings;
 class UpdateChecker;
 struct ClientWindow;
@@ -50,6 +51,7 @@ private:
   SessionActions *sessionActions_ = nullptr;
   ShortcutSettings *shortcutSettings_ = nullptr;
   UpdateChecker *updateChecker_ = nullptr;
+  SceneWindowAnimations *windowAnimations_ = nullptr;
   SystemStatus *systemStatus_ = nullptr;
   NetworkStatus *networkStatus_ = nullptr;
   XWaylandSupport *xwayland_ = nullptr;
