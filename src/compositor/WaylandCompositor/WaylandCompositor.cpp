@@ -1506,6 +1506,14 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
   if (watched == &window_ && (event->type() == QEvent::KeyPress ||
                               event->type() == QEvent::KeyRelease)) {
     auto *key = static_cast<QKeyEvent *>(event);
+    if (qEnvironmentVariableIntValue("LUNADASH_INPUT_DEBUG") == 1) {
+      qInfo().noquote() << "LunaDash key event:"
+                        << (event->type() == QEvent::KeyPress ? "press" : "release")
+                        << "key" << key->key()
+                        << "scan" << key->nativeScanCode()
+                        << "mods" << static_cast<int>(key->modifiers())
+                        << "autoRepeat" << key->isAutoRepeat();
+    }
     handleKeyboardLockKey(key->key(), event->type() == QEvent::KeyPress,
                           key->isAutoRepeat());
 
@@ -1537,7 +1545,18 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
       return true;
     if (shortcutCapture_)
       return QObject::eventFilter(watched, event);
-    if (event->type() != QEvent::KeyPress || key->isAutoRepeat())
+
+    const bool modifierOnly =
+        key->key() == Qt::Key_Shift || key->key() == Qt::Key_Control ||
+        key->key() == Qt::Key_Alt || key->key() == Qt::Key_AltGr ||
+        key->key() == Qt::Key_Meta || key->key() == Qt::Key_CapsLock ||
+        key->key() == Qt::Key_NumLock || key->key() == Qt::Key_ScrollLock;
+
+    // Modifier-only events belong to the focused client/input method. Do not
+    // run them through global-shortcut normalization or synthesize a compositor
+    // action. In particular, Shift is commonly used as an input-method hotkey,
+    // but this rule is generic for every modifier-only key.
+    if (modifierOnly || event->type() != QEvent::KeyPress || key->isAutoRepeat())
       return QObject::eventFilter(watched, event);
 
     const QString action = shortcutSettings_->actionFor(*key);
