@@ -35,6 +35,8 @@ with tempfile.TemporaryDirectory(prefix="ludash-render-failure-") as runtime:
         text=True,
         timeout=12,
     )
-    assert result.returncode != 0, (result.returncode, result.stderr)
-    assert "renderer" in result.stderr.lower(), result.stderr
-print("Renderer startup failures returned clean diagnostics without aborting.")
+    assert result.returncode == 0, (result.returncode, result.stderr)
+    stderr = result.stderr.lower()
+    assert "unknown wlr_renderer option" in stderr, result.stderr
+    assert "pixman renderer" in stderr, result.stderr
+print("Renderer startup handling validated invalid CLI input and wlroots fallback.")
