@@ -1,4 +1,5 @@
 #pragma once
+#include "compositor/protocols/CoreProtocolCompat/CoreProtocolCompositor.hpp"
 #include "compositor/render/RenderBackend/RenderBackend.hpp"
 #include "compositor/tiling/TilingLayout/TilingLayout.hpp"
 #include <QHash>
@@ -9,7 +10,6 @@
 #include <QQuickWindow>
 #include <QRect>
 #include <QSet>
-#include <QtWaylandCompositor/QWaylandQuickCompositor>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -55,7 +55,7 @@ protected:
 private:
   std::shared_ptr<RenderState> renderState_;
   WallpaperItem *wallpaper_ = nullptr;
-  QWaylandQuickCompositor compositor_;
+  CoreProtocolCompositor compositor_;
   QQuickWindow window_;
   ShellModules *shellModules_ = nullptr;
   AudioSettings *audioSettings_ = nullptr;
