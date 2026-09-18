@@ -180,7 +180,35 @@ ShellRoot {
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
 
+    function syncPersistentUpdateInstall(result) {
+        const persistent = (((result || {}).update || {}).install || null)
+        if (!persistent)
+            return
+
+        const persistentState = String(persistent.state || "idle")
+        const runtimeRunning = updateAction.running || root.updateInstall.state === "running"
+        if (persistentState === "idle" && runtimeRunning)
+            return
+
+        root.updateInstall = {
+            state: persistentState,
+            channel: String(persistent.channel || root.updateInstall.channel || ""),
+            target: String(persistent.target || root.updateInstall.target || ""),
+            rollback: Boolean(persistent.rollback ?? root.updateInstall.rollback),
+            progress: Math.max(0, Math.min(100, Number(persistent.progress || 0))),
+            stage: String(persistent.stage || "idle"),
+            message: root.tr(String(persistent.message || "")),
+            details: root.updateInstall.details || "",
+            lastUpdate: String(persistent.lastUpdate || "")
+        }
+    }
+
     function applyPolledState(result) {
+        // The compositor reads the updater's progress.json directly. Synchronize
+        // install state before filtering high-frequency system metrics so About
+        // keeps showing progress even after a QML reload.
+        root.syncPersistentUpdateInstall(result)
+
         // System performance counters change every 1.5 s. Replacing the entire
         // root state object for those counters forces every settings binding to
         // re-evaluate while the user is typing. Keep the last system snapshot
@@ -298,40 +326,6 @@ ShellRoot {
         }
     }
 
-    Process {
-        id: updateStatusAction
-        command: [root.updaterExecutable, "--status"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (!text.trim() || root.updateInstall.state !== "running")
-                    return
-                try {
-                    const progress = JSON.parse(text)
-                    root.updateInstall = {
-                        state: String(progress.state || "running"),
-                        channel: String(progress.channel || root.updateInstall.channel || ""),
-                        target: String(progress.target || root.updateInstall.target || ""),
-                        rollback: Boolean(progress.rollback ?? root.updateInstall.rollback),
-                        progress: Math.max(0, Math.min(100, Number(progress.progress || 0))),
-                        stage: String(progress.stage || root.updateInstall.stage || ""),
-                        message: root.tr(String(progress.message || root.updateInstall.message || "")),
-                        details: root.updateInstall.details || ""
-                    }
-                } catch(error) {
-                    console.warn("Could not parse LunaDash update progress:", error)
-                }
-            }
-        }
-    }
-
-    Timer {
-        interval: 400
-        repeat: true
-        running: updateAction.running
-        triggeredOnStart: true
-        onTriggered: if (!updateStatusAction.running) updateStatusAction.running = true
-    }
-
     function launch(id) {
         if (id === "terminal" || id === "files") { command("launch-default", id); launcherOpen = false; return }
         if (id === "settings") { settingsOpen = true; launcherOpen = false; return }
@@ -368,7 +362,13 @@ ShellRoot {
 
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
     Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running) Qt.quit() }
-    Timer { interval: 1200; running: true; repeat: true; triggeredOnStart: true; onTriggered: if (!status.running) status.running = true }
+    Timer {
+        interval: updateAction.running ? 350 : 1200
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!status.running) status.running = true
+    }
 
     RemovableDeviceMonitor { shell: root }
     Wallpaper { shell: root; opened: !root.stopping }
