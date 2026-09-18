@@ -3,6 +3,7 @@
 #include <QtWaylandCompositor/QWaylandKeyboard>
 #include <QtWaylandCompositor/QWaylandKeymap>
 #include <QtWaylandCompositor/QWaylandSeat>
+#include <xkbcommon/xkbregistry.h>
 
 #ifdef LUDASH_USE_LIBINPUT
 #include <QSocketNotifier>
@@ -18,10 +19,35 @@
 
 namespace LuDash {
 namespace {
-QString xkbLayoutForPreference(const QString &layout) {
-  // Taiwan PC keyboards normally use US physical key positions. Traditional
-  // Chinese composition is handled by Fcitx rather than by the XKB "tw" map.
-  return layout == QStringLiteral("tw") ? QStringLiteral("us") : layout;
+QString xkbLayoutForPreference(const QString &requestedLayout) {
+  rxkb_context *ctx = rxkb_context_new(RXKB_CONTEXT_NO_FLAGS);
+  if (!ctx) {
+    qWarning() << "Failed to create xkb registry context";
+    return QStringLiteral("us");
+  }
+
+  if (!rxkb_context_parse_default_ruleset(ctx)) {
+    qWarning() << "Failed to parse default XKB ruleset";
+    rxkb_context_unref(ctx);
+    return QStringLiteral("us");
+  }
+  QString result = QStringLiteral("us");
+
+  for (rxkb_layout *layout = rxkb_layout_first(ctx); layout;
+       layout = rxkb_layout_next(layout)) {
+    const char *name = rxkb_layout_get_name(layout);
+    const char *variant = rxkb_layout_get_variant(layout);
+    if (!name)
+      continue;
+    const QString xkbName = QString::fromUtf8(name);
+    if (!variant && xkbName == requestedLayout) {
+      result = xkbName;
+      break;
+    }
+  }
+
+  rxkb_context_unref(ctx);
+  return result;
 }
 } // namespace
 
@@ -100,8 +126,8 @@ private:
       return;
     }
 
-    notifier_ = std::make_unique<QSocketNotifier>(
-        libinput_get_fd(input_), QSocketNotifier::Read, this);
+    notifier_ = std::make_unique<QSocketNotifier>(libinput_get_fd(input_),
+                                                  QSocketNotifier::Read, this);
     connect(notifier_.get(), &QSocketNotifier::activated, this,
             [this] { scheduleDispatch(); });
     scheduleDispatch();
@@ -142,8 +168,7 @@ private:
         }
       } else if (type == LIBINPUT_EVENT_DEVICE_REMOVED) {
         auto *device = libinput_event_get_device(event);
-        const auto it =
-            std::find(keyboards_.begin(), keyboards_.end(), device);
+        const auto it = std::find(keyboards_.begin(), keyboards_.end(), device);
         if (it != keyboards_.end()) {
           libinput_device_unref(*it);
           keyboards_.erase(it);

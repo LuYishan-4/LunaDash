@@ -1,37 +1,37 @@
-#include "compositor/render/WindowAnimations/WindowAnimations.hpp"
-#include "desktop/AudioSettings/AudioSettings.hpp"
-#include "compositor/render/BlurItem/BlurItem.hpp"
+#include "compositor/WaylandCompositor/WaylandCompositor.hpp"
 #include "compositor/ClientWindow/ClientWindow.hpp"
 #include "compositor/LuDashUtils/LuDashUtils.hpp"
 #include "compositor/ResizeGuideItem/ResizeGuideItem.hpp"
-#include "compositor/WaylandCompositor/WaylandCompositor.hpp"
-#include "compositor/protocols/ProtocolExtensions/ProtocolExtensions.hpp"
-#include "config/DesktopPreferences/DesktopPreferences.hpp"
-#include "desktop/DefaultApplications/DefaultApplications.hpp"
-#include "desktop/DisplaySettings/DisplaySettings.hpp"
-#include "compositor/input/InputMethodSupport/InputMethodSupport.hpp"
-#include "desktop/InputSettings/InputSettings.hpp"
-#include "compositor/ipc/ControlServer/ControlServer.hpp"
-#include "compositor/protocols/LayerShell/LayerShell.hpp"
-#include "config/Localization/Localization.hpp"
-#include "desktop/NetworkStatus/NetworkStatus.hpp"
-#include "compositor/plugins/PluginManager/PluginManager.hpp"
-#include "desktop/PowerSettings/PowerSettings.hpp"
-#include "compositor/render/WallpaperItem/WallpaperItem.hpp"
-#include "compositor/protocols/ScreenCapture/ScreenCapture.hpp"
 #include "compositor/SessionActions/SessionActions.hpp"
 #include "compositor/SessionEnvironment/SessionEnvironment.hpp"
 #include "compositor/ShellModules/ShellModules.hpp"
-#include "compositor/render/ShellRenderer/ShellRenderer.hpp"
-#include "desktop/ShortcutSettings/ShortcutSettings.hpp"
 #include "compositor/SystemStatus/SystemStatus.hpp"
-#include "desktop/SystemTools/SystemTools.hpp"
-#include "compositor/tiling/TilingLayout/TilingLayout.hpp"
 #include "compositor/UpdateChecker/UpdateChecker.hpp"
-#include "desktop/WallpaperSettings/WallpaperSettings.hpp"
 #include "compositor/WindowFrame/WindowFrame.hpp"
 #include "compositor/WindowRules/WindowRules.hpp"
+#include "compositor/input/InputMethodSupport/InputMethodSupport.hpp"
+#include "compositor/ipc/ControlServer/ControlServer.hpp"
+#include "compositor/plugins/PluginManager/PluginManager.hpp"
+#include "compositor/protocols/LayerShell/LayerShell.hpp"
+#include "compositor/protocols/ProtocolExtensions/ProtocolExtensions.hpp"
+#include "compositor/protocols/ScreenCapture/ScreenCapture.hpp"
+#include "compositor/render/BlurItem/BlurItem.hpp"
+#include "compositor/render/ShellRenderer/ShellRenderer.hpp"
+#include "compositor/render/WallpaperItem/WallpaperItem.hpp"
+#include "compositor/render/WindowAnimations/WindowAnimations.hpp"
+#include "compositor/tiling/TilingLayout/TilingLayout.hpp"
 #include "compositor/xwayland/XWaylandSupport/XWaylandSupport.hpp"
+#include "config/DesktopPreferences/DesktopPreferences.hpp"
+#include "config/Localization/Localization.hpp"
+#include "desktop/AudioSettings/AudioSettings.hpp"
+#include "desktop/DefaultApplications/DefaultApplications.hpp"
+#include "desktop/DisplaySettings/DisplaySettings.hpp"
+#include "desktop/InputSettings/InputSettings.hpp"
+#include "desktop/NetworkStatus/NetworkStatus.hpp"
+#include "desktop/PowerSettings/PowerSettings.hpp"
+#include "desktop/ShortcutSettings/ShortcutSettings.hpp"
+#include "desktop/SystemTools/SystemTools.hpp"
+#include "desktop/WallpaperSettings/WallpaperSettings.hpp"
 #include <QCommandLineParser>
 #include <QDateTime>
 #include <QDir>
@@ -64,7 +64,6 @@
 #include <QtWaylandCompositor/QWaylandXdgShell>
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <memory>
 #include <optional>
 
@@ -134,8 +133,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   if (previousBufferIntegration.isEmpty())
     qunsetenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION");
   else
-    qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION",
-            previousBufferIntegration);
+    qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION", previousBufferIntegration);
   layerShell_ = new LayerShell(&compositor_, output_, &window_);
   screenCapture_ = new ScreenCapture(&compositor_, output_, &window_);
   controlPath_ =
@@ -734,43 +732,40 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       auto launchedPid = std::make_shared<qint64>(0);
       connect(process, &QProcess::started, this,
               [process, launchedPid] { *launchedPid = process->processId(); });
-      connect(process, &QProcess::finished, this,
-              [this, process, originalCommand, launchedPid](
-                  int code, QProcess::ExitStatus status) {
-                if (shuttingDown_ || testStopping_ || !xwayland_)
-                  return;
-                // A crash is a real application failure, not evidence that its
-                // Wayland backend is unsupported. Do not immediately launch a
-                // second copy under XWayland after SIGSEGV/SIGABRT/coredump.
-                // Compatibility retry is only for a clean startup refusal
-                // (normal process exit with a non-zero code before a surface).
-                if (status != QProcess::NormalExit || code == 0)
-                  return;
-                const qint64 pid = *launchedPid;
-                const bool createdSurface =
-                    std::any_of(clients_.cbegin(), clients_.cend(),
-                                [pid](const auto &client) {
-                                  return pid > 0 && client->item &&
-                                         client->item->surface() &&
-                                         client->item->surface()->client() &&
-                                         client->item->surface()
-                                                 ->client()
-                                                 ->processId() == pid;
-                                });
-                if (createdSurface)
-                  return;
-                QString error;
-                if (!xwayland_->launch(originalCommand, &error))
-                  qWarning().noquote()
-                      << "LunaDash compatibility retry failed for"
-                      << process->program() << ":"
-                      << (error.isEmpty() ? "unknown XWayland error" : error);
-                else
-                  qInfo().noquote()
-                      << "LunaDash retried failed native application through "
-                         "XWayland:"
-                      << process->program();
-              });
+      connect(
+          process, &QProcess::finished, this,
+          [this, process, originalCommand,
+           launchedPid](int code, QProcess::ExitStatus status) {
+            if (shuttingDown_ || testStopping_ || !xwayland_)
+              return;
+            // A crash is a real application failure, not evidence that its
+            // Wayland backend is unsupported. Do not immediately launch a
+            // second copy under XWayland after SIGSEGV/SIGABRT/coredump.
+            // Compatibility retry is only for a clean startup refusal
+            // (normal process exit with a non-zero code before a surface).
+            if (status != QProcess::NormalExit || code == 0)
+              return;
+            const qint64 pid = *launchedPid;
+            const bool createdSurface = std::any_of(
+                clients_.cbegin(), clients_.cend(), [pid](const auto &client) {
+                  return pid > 0 && client->item && client->item->surface() &&
+                         client->item->surface()->client() &&
+                         client->item->surface()->client()->processId() == pid;
+                });
+            if (createdSurface)
+              return;
+            QString error;
+            if (!xwayland_->launch(originalCommand, &error))
+              qWarning().noquote()
+                  << "LunaDash compatibility retry failed for"
+                  << process->program() << ":"
+                  << (error.isEmpty() ? "unknown XWayland error" : error);
+            else
+              qInfo().noquote()
+                  << "LunaDash retried failed native application through "
+                     "XWayland:"
+                  << process->program();
+          });
     }
   } else if (method == "finish-setup")
     setSetupComplete(true);
@@ -1508,11 +1503,12 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
     auto *key = static_cast<QKeyEvent *>(event);
     if (qEnvironmentVariableIntValue("LUNADASH_INPUT_DEBUG") == 1) {
       qInfo().noquote() << "LunaDash key event:"
-                        << (event->type() == QEvent::KeyPress ? "press" : "release")
-                        << "key" << key->key()
-                        << "scan" << key->nativeScanCode()
-                        << "mods" << static_cast<int>(key->modifiers())
-                        << "autoRepeat" << key->isAutoRepeat();
+                        << (event->type() == QEvent::KeyPress ? "press"
+                                                              : "release")
+                        << "key" << key->key() << "scan"
+                        << key->nativeScanCode() << "mods"
+                        << static_cast<int>(key->modifiers()) << "autoRepeat"
+                        << key->isAutoRepeat();
     }
     handleKeyboardLockKey(key->key(), event->type() == QEvent::KeyPress,
                           key->isAutoRepeat());
@@ -1556,7 +1552,8 @@ bool WaylandCompositor::eventFilter(QObject *watched, QEvent *event) {
     // run them through global-shortcut normalization or synthesize a compositor
     // action. In particular, Shift is commonly used as an input-method hotkey,
     // but this rule is generic for every modifier-only key.
-    if (modifierOnly || event->type() != QEvent::KeyPress || key->isAutoRepeat())
+    if (modifierOnly || event->type() != QEvent::KeyPress ||
+        key->isAutoRepeat())
       return QObject::eventFilter(watched, event);
 
     const QString action = shortcutSettings_->actionFor(*key);
