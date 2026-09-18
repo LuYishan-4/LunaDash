@@ -133,4 +133,22 @@ void ensureWaylandChromiumFlags(QStringList &command) {
     command.append("--gtk-version=4");
 }
 
+
+void prepareXWaylandChromiumFlags(QStringList &command) {
+  // Until LunaDash has a complete text-input-v3 <-> input-method bridge and
+  // modern pointer/popup protocol coverage, Chromium is more reliable through
+  // XWayland. Remove Wayland-only switches inherited from desktop entries and
+  // select Ozone X11 explicitly; XMODIFIERS/GTK_IM_MODULE=fcitx remain in the
+  // XWayland environment.
+  command.erase(std::remove_if(command.begin(), command.end(),
+                               [](const QString &argument) {
+                                 return argument == "--enable-wayland-ime" ||
+                                        argument.startsWith("--wayland-text-input-version=") ||
+                                        argument.startsWith("--gtk-version=") ||
+                                        argument.startsWith("--ozone-platform=");
+                               }),
+                command.end());
+  command.append("--ozone-platform=x11");
+}
+
 } // namespace LuDash::Utils
