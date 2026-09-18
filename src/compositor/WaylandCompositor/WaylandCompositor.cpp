@@ -1063,7 +1063,9 @@ public:
                    handleToplevelUnmap);
     attachListener(&surface->surface->events.commit, state->commit, state,
                    handleToplevelCommit);
-    attachListener(&surface->toplevel->events.destroy, state->destroy, state,
+    // wlr_xdg_surface owns the role lifetime on every supported wlroots
+    // release. Using its destroy signal keeps 0.17 and 0.20 on the same path.
+    attachListener(&surface->events.destroy, state->destroy, state,
                    handleToplevelDestroy);
     attachListener(&surface->toplevel->events.set_title, state->setTitle, state,
                    handleToplevelMetadata);
