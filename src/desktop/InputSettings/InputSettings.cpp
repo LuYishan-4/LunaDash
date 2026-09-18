@@ -6,10 +6,7 @@
 #include <xkbcommon/xkbregistry.h>
 #endif
 
-extern "C" {
-#include <wlr/types/wlr_keyboard.h>
-#include <xkbcommon/xkbcommon.h>
-}
+#include "compositor/wlroots/WlrootsHeaders.hpp"
 
 namespace LuDash {
 namespace {
