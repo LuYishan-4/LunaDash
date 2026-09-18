@@ -51,6 +51,28 @@ inline wl_signal *newTextInputSignal(wlr_text_input_manager_v3 *manager) {
 #endif
 }
 
+inline void destroyRuntimeObjects(wlr_cursor *cursor, wlr_allocator *allocator,
+                                  wlr_renderer *renderer,
+                                  wlr_backend *backend) {
+#if WLR_VERSION_MINOR < 18
+  // wlroots 0.17 ties these objects into display/backend destruction. Its
+  // reference compositor does not destroy them individually at shutdown.
+  (void)cursor;
+  (void)allocator;
+  (void)renderer;
+  (void)backend;
+#else
+  if (cursor)
+    wlr_cursor_destroy(cursor);
+  if (allocator)
+    wlr_allocator_destroy(allocator);
+  if (renderer)
+    wlr_renderer_destroy(renderer);
+  if (backend)
+    wlr_backend_destroy(backend);
+#endif
+}
+
 inline int expectedSeatProtocolVersion() {
 #if WLR_VERSION_MINOR < 20
   return 8;
