@@ -20,6 +20,11 @@ ColumnLayout {
         DefaultAppEditor { shell: page.shell; role: "files"; title: ""; Layout.fillWidth: true }
     }
     SettingsComponents.SettingsCard {
+        title: shell.tr("Default browser")
+        description: shell.tr("Choose the browser LunaDash uses for web links. Google Chrome is the default when installed.")
+        DefaultAppEditor { shell: page.shell; role: "browser"; title: ""; Layout.fillWidth: true }
+    }
+    SettingsComponents.SettingsCard {
         title: shell.tr("Plugins")
         description: shell.tr("Manage installed QML plugins and C++ effects. The plugin store is reserved for a future release.")
         RowLayout {
