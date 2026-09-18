@@ -426,10 +426,87 @@ public:
     detachListener(newTextInput);
     detachListener(newVirtualKeyboard);
 
+    // Runtime wrappers keep listeners on wlroots-owned objects. Disconnect
+    // every wrapper before destroying the scene/backend so late output/input
+    // destruction cannot call back into already-freed scene nodes.
+    const auto outputStates = outputs;
+    outputs.clear();
+    primaryOutput = nullptr;
+    for (auto *state : outputStates) {
+      if (!state)
+        continue;
+      detachListener(state->frame);
+      detachListener(state->destroy);
+      detachListener(state->requestState);
+      delete state;
+    }
+
+    const auto layerStates = layers;
+    layers.clear();
+    for (auto *state : layerStates) {
+      if (!state)
+        continue;
+      detachListener(state->map);
+      detachListener(state->unmap);
+      detachListener(state->commit);
+      detachListener(state->destroy);
+      delete state;
+    }
+
+    const auto keyboardStates = keyboards;
+    keyboards.clear();
+    for (auto *state : keyboardStates) {
+      if (!state)
+        continue;
+      detachListener(state->key);
+      detachListener(state->modifiers);
+      detachListener(state->destroy);
+      delete state;
+    }
+
+    const auto textInputStates = textInputs;
+    textInputs.clear();
+    activeTextInput = nullptr;
+    for (auto *state : textInputStates) {
+      if (!state)
+        continue;
+      detachListener(state->enable);
+      detachListener(state->commit);
+      detachListener(state->disable);
+      detachListener(state->destroy);
+      delete state;
+    }
+
+    const auto popupStates = inputPopups;
+    inputPopups.clear();
+    for (auto *state : popupStates) {
+      if (!state)
+        continue;
+      detachListener(state->destroy);
+      delete state;
+    }
+
+    if (inputMethod) {
+      detachListener(inputMethod->commit);
+      detachListener(inputMethod->newPopup);
+      detachListener(inputMethod->grabKeyboard);
+      detachListener(inputMethod->destroy);
+      delete inputMethod;
+      inputMethod = nullptr;
+    }
+
     if (scene) {
       wlr_scene_node_destroy(&scene->tree.node);
       scene = nullptr;
     }
+    sceneLayout = nullptr;
+    backgroundLayer = nullptr;
+    bottomLayer = nullptr;
+    normalLayer = nullptr;
+    topLayer = nullptr;
+    overlayLayer = nullptr;
+    background = nullptr;
+
     if (cursorManager) {
       wlr_xcursor_manager_destroy(cursorManager);
       cursorManager = nullptr;
