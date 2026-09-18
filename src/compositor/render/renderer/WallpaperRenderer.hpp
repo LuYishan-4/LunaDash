@@ -17,7 +17,7 @@ public:
   void synchronize(QQuickFramebufferObject *item) override;
 
 private:
-  Renderer renderer_;
+  LuDash::Renderer renderer_;
   std::unique_ptr<WallpaperElement> element_;
   bool initialized_ = false;
   bool initialize();
