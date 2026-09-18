@@ -73,8 +73,6 @@ ColumnLayout {
             border.color: Theme.focusRing
             Rectangle { anchors.centerIn: parent; width: 5; height: 5; radius: 3; color: picker.selectedColor }
             Behavior on width { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-            Behavior on x { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
         }
 
         MouseArea {
