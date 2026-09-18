@@ -194,14 +194,30 @@ add_library(ludash-apps src/desktop/DesktopTheme/DesktopTheme.cpp src/desktop/Ap
 target_include_directories(ludash-apps PUBLIC src)
 target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-file-operations Qt6::Concurrent ludash-system-metrics ludash-localization ludash-plugins ludash-wallpaper Qt6::Widgets)
 target_compile_options(ludash-apps PRIVATE -Wall -Wextra -Wpedantic)
+# wlroots public layer-shell headers include the scanner-generated
+# protocol declaration. Some distributions do not install that generated
+# header with libwlroots-dev, so generate declarations locally without
+# compiling a second protocol implementation.
+set(LUDASH_WLR_LAYER_PROTOCOL_HEADER
+    ${CMAKE_CURRENT_BINARY_DIR}/wlr-layer-shell-unstable-v1-protocol.h)
+add_custom_command(
+    OUTPUT ${LUDASH_WLR_LAYER_PROTOCOL_HEADER}
+    COMMAND ${WAYLAND_SCANNER} server-header
+            ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml
+            ${LUDASH_WLR_LAYER_PROTOCOL_HEADER}
+    DEPENDS protocols/wlr-layer-shell-unstable-v1.xml
+    VERBATIM)
+
 add_library(ludash-wayland
     src/compositor/WaylandCompositor/WaylandCompositor.cpp
     src/compositor/WindowRules/WindowRules.cpp
     src/compositor/ipc/ControlServer/ControlServer.cpp
     src/compositor/SystemStatus/SystemStatus.cpp
-    src/compositor/LuDashUtils/LuDashUtils.cpp)
+    src/compositor/LuDashUtils/LuDashUtils.cpp
+    ${LUDASH_WLR_LAYER_PROTOCOL_HEADER})
 target_include_directories(ludash-wayland
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_compile_definitions(ludash-wayland
     PRIVATE
         WLR_USE_UNSTABLE=1
