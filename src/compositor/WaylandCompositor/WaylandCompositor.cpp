@@ -668,12 +668,28 @@ public:
     }
   }
 
+  wlr_keyboard *preferredKeyboard() const {
+    for (auto *state : keyboards)
+      if (state && state->keyboard && !state->virtualKeyboard)
+        return state->keyboard;
+    for (auto *state : keyboards)
+      if (state && state->keyboard)
+        return state->keyboard;
+    return nullptr;
+  }
+
+  void restorePreferredKeyboard() {
+    if (auto *keyboard = preferredKeyboard())
+      wlr_seat_set_keyboard(seat, keyboard);
+  }
+
   void focusSurface(wlr_surface *surface) {
     if (!surface)
       return;
-    wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+    wlr_keyboard *keyboard = preferredKeyboard();
     if (!keyboard)
       return;
+    wlr_seat_set_keyboard(seat, keyboard);
     wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes,
                                    keyboard->num_keycodes,
                                    &keyboard->modifiers);
@@ -710,7 +726,10 @@ public:
     attachListener(&keyboard->base.events.destroy, state->destroy, state,
                    handleKeyboardDestroy);
     keyboards.append(state);
-    wlr_seat_set_keyboard(seat, keyboard);
+    if (!isVirtual)
+      wlr_seat_set_keyboard(seat, keyboard);
+    else
+      restorePreferredKeyboard();
     updateSeatCapabilities();
   }
 
@@ -773,8 +792,11 @@ public:
       if (!state || !state->text)
         continue;
       auto *text = state->text;
-      if (text->focused_surface && text->focused_surface != surface)
-        wlr_text_input_v3_send_leave(text);
+      if (text->focused_surface && text->focused_surface != surface) {
+        deactivateTextInput(state);
+        if (text->focused_surface->resource)
+          wlr_text_input_v3_send_leave(text);
+      }
 
       if (!surface || !surface->resource || !text->resource)
         continue;
@@ -963,6 +985,8 @@ public:
 
     wlr_seat_keyboard_notify_key(self->seat, event->time_msec, event->keycode,
                                  event->state);
+    if (state->virtualKeyboard)
+      self->restorePreferredKeyboard();
   }
 
   static void handleKeyboardModifiers(wl_listener *listener, void *) {
@@ -981,6 +1005,8 @@ public:
       wlr_seat_keyboard_notify_modifiers(self->seat,
                                          &state->keyboard->modifiers);
     }
+    if (state->virtualKeyboard)
+      self->restorePreferredKeyboard();
   }
 
   static void handleKeyboardDestroy(wl_listener *listener, void *) {
@@ -993,6 +1019,7 @@ public:
     detachListener(state->destroy);
     self->keyboards.removeAll(state);
     delete state;
+    self->restorePreferredKeyboard();
     self->updateSeatCapabilities();
   }
 
@@ -1208,7 +1235,8 @@ public:
 
   static void handleToplevelMaximize(wl_listener *listener, void *) {
     auto *state = listenerOwner<ToplevelState>(listener);
-    if (!state || !state->client)
+    if (!state || !state->client || !state->client->surface ||
+        !state->client->surface->initialized)
       return;
     state->client->maximized = state->client->toplevel->requested.maximized;
     wlr_xdg_toplevel_set_maximized(state->client->toplevel,
@@ -1218,7 +1246,8 @@ public:
 
   static void handleToplevelFullscreen(wl_listener *listener, void *) {
     auto *state = listenerOwner<ToplevelState>(listener);
-    if (!state || !state->client)
+    if (!state || !state->client || !state->client->surface ||
+        !state->client->surface->initialized)
       return;
     const bool fullscreen = state->client->toplevel->requested.fullscreen;
     state->client->maximized = fullscreen;
@@ -1422,7 +1451,7 @@ public:
     auto *grab = static_cast<wlr_input_method_keyboard_grab_v2 *>(data);
     if (!state || !grab)
       return;
-    if (auto *keyboard = wlr_seat_get_keyboard(state->impl->seat))
+    if (auto *keyboard = state->impl->preferredKeyboard())
       wlr_input_method_keyboard_grab_v2_set_keyboard(grab, keyboard);
   }
 
@@ -1549,6 +1578,14 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   }
 
   publishSessionActivationEnvironment();
+
+  if (startShell &&
+      qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1 &&
+      qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
+    const QString fcitx = QStandardPaths::findExecutable("fcitx5");
+    if (!fcitx.isEmpty())
+      spawn({"--replace"}, fcitx, false);
+  }
 
   QObject::connect(shellModules_, &ShellModules::changed, this,
                    [this] { arrange(); });
@@ -1680,7 +1717,9 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
 void WaylandCompositor::launchExternalCommand(QStringList command) {
   if (command.isEmpty())
     return;
-  const bool chromium = isChromiumApplication(command.first());
+
+  const bool discord = isDiscordApplicationCommand(command);
+  const bool chromium = isChromiumApplicationCommand(command);
   if (chromium) {
     command.erase(std::remove_if(command.begin(), command.end(),
                                  [](const QString &argument) {
@@ -1688,15 +1727,28 @@ void WaylandCompositor::launchExternalCommand(QStringList command) {
                                  }),
                   command.end());
     ensureWaylandChromiumFlags(command);
-    if (!command.contains("--enable-wayland-ime"))
-      command.append("--enable-wayland-ime");
-    if (std::none_of(command.cbegin(), command.cend(),
-                     [](const QString &argument) {
-                       return argument.startsWith(
-                           "--wayland-text-input-version=");
-                     }))
-      command.append("--wayland-text-input-version=3");
+
+    if (discord) {
+      // Electron/Discord on NVIDIA currently fails when Ozone Wayland selects
+      // Vulkan. Keep the native Wayland path but force its GL renderer.
+      command.erase(std::remove_if(command.begin(), command.end(),
+                                   [](const QString &argument) {
+                                     return argument.startsWith("--gtk-version=");
+                                   }),
+                    command.end());
+      if (!command.contains("--disable-vulkan"))
+        command.append("--disable-vulkan");
+      if (!command.contains("--enable-wayland-ime"))
+        command.append("--enable-wayland-ime");
+      if (std::none_of(command.cbegin(), command.cend(),
+                       [](const QString &argument) {
+                         return argument.startsWith(
+                             "--wayland-text-input-version=");
+                       }))
+        command.append("--wayland-text-input-version=3");
+    }
   }
+
   const QString executable = command.takeFirst();
   spawn(command, executable, false);
 }
@@ -1767,7 +1819,8 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
 
 void WaylandCompositor::configure(ClientWindow *client,
                                   const QRect &rectangle) {
-  if (!client || !client->toplevel || !client->sceneTree)
+  if (!client || !client->toplevel || !client->surface ||
+      !client->surface->initialized || !client->sceneTree)
     return;
   client->geometry = rectangle;
   wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
@@ -1853,10 +1906,12 @@ void WaylandCompositor::arrange() {
 
 void WaylandCompositor::focus(ClientWindow *client) {
   if (!d || !client || !client->mapped || client->minimized ||
-      client->workspace != workspace_ || !client->surface)
+      client->workspace != workspace_ || !client->surface ||
+      !client->surface->initialized)
     return;
 
-  if (focused_ && focused_ != client && focused_->toplevel)
+  if (focused_ && focused_ != client && focused_->toplevel &&
+      focused_->surface && focused_->surface->initialized)
     wlr_xdg_toplevel_set_activated(focused_->toplevel, false);
 
   focused_ = client;
