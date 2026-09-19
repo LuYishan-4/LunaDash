@@ -4,7 +4,7 @@
   <img src="docs/brand/banner.svg" alt="LunaDash crescent moon logo and wordmark" width="880">
 </a>
 
-### Ready to use. Yours to shape.
+### a desktop environment.
 
 A Wayland desktop that brings everyday essentials together, with room to make it your own.<br>
 **Our goal: a useful first login, without giving up customization.**
@@ -36,12 +36,12 @@ Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. Luna
 
 <table>
   <tr>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024312-792.png"><img src="docs/image/LunaDash-20260920-024312-792.png" alt="LunaDash dashboard with a wallpaper preview, clock, system status and application shortcuts" width="440"></a><br><strong>A place to start</strong><br><sub>The dashboard brings everyday controls together.</sub></td>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024259-008.png"><img src="docs/image/LunaDash-20260920-024259-008.png" alt="LunaDash Appearance settings showing wallpaper selection and the accent color picker" width="440"></a><br><strong>Your colors, your desktop</strong><br><sub>Personalize the look from one settings center.</sub></td>
+    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024312-792.png"><img src="docs/image/LunaDash-20260920-024312-792.png" alt="LunaDash dashboard with a wallpaper preview, clock, system status and application shortcuts" width="440"></a><sub>The dashboard brings everyday controls together.</sub></td>
+    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024259-008.png"><img src="docs/image/LunaDash-20260920-024259-008.png" alt="LunaDash Appearance settings showing wallpaper selection and the accent color picker" width="440"></a><sub>Personalize the look from one settings center.</sub></td>
   </tr>
   <tr>
-    <td align="center"><a href="docs/image/LunaDash-20260920-024708-948.png"><img src="docs/image/LunaDash-20260920-024708-948.png" alt="LunaDash workspace with a terminal beside grouped Discord and Zed windows" width="440"></a><br><strong>Room for your workflow</strong><br><sub>Keep your tools together in scrollable columns.</sub></td>
-    <td align="center"><a href="docs/image/LunaDash-20260920-024455-959.png"><img src="docs/image/LunaDash-20260920-024455-959.png" alt="LunaDash desktop with the calendar panel and its customized header image" width="440"></a><br><strong>Small details, made personal</strong><br><sub>From the wallpaper to the calendar image.</sub></td>
+    <td align="center"><a href="docs/image/LunaDash-20260920-024708-948.png"><img src="docs/image/LunaDash-20260920-024708-948.png" alt="LunaDash workspace with a terminal beside grouped Discord and Zed windows" width="440"></a><sub>Keep your tools together in scrollable columns.</sub></td>
+    <td align="center"><a href="docs/image/LunaDash-20260920-024455-959.png"><img src="docs/image/LunaDash-20260920-024455-959.png" alt="LunaDash desktop with the calendar panel and its customized header image" width="440"></a><sub>From the wallpaper to the calendar image.</sub></td>
   </tr>
 </table>
 
