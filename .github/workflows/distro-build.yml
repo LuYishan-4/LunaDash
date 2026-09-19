@@ -71,6 +71,7 @@ jobs:
                 cmake --build build-distro --parallel 2
                 if command -v pacman >/dev/null; then
                   command -v quickshell
+                  dbus-uuidgen --ensure
                   python3 tests/wayland/test_shell_startup.py build-distro
                 fi
                 bash scripts/test-xdg-lifecycle.sh "\$PWD/build-distro"
