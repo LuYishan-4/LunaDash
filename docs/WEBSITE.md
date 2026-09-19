@@ -2,7 +2,7 @@
 
 The English site lives in `site/` and uses Astro, CSS and TypeScript. Its introduction follows LunaDash's goal: a useful desktop from the first login, with room for customization. README and website installation examples use `./scripts/install-session.sh`; manual builds belong in the technical guides.
 
-The home page presents the desktop, its customization options, screenshots, installation, distribution coverage and contribution guidance. The short opening animation respects reduced motion. There are no analytics or font services. Distribution badges load from Shields.io, and the contributor avatar loads from the maintainer's host. Clipboard access occurs only when Copy is clicked.
+The home page presents the desktop, its customization options, screenshots, installation and contribution guidance. The short opening animation respects reduced motion. There are no analytics or font services. The contributor avatar loads from the maintainer's host. Clipboard access occurs only when Copy is clicked.
 
 ## Screenshots and badges
 
@@ -10,7 +10,7 @@ The four original screenshots are maintained in `docs/image/` and referenced by 
 
 Update each image's caption and alternative text when replacing it. Show real desktop behavior and keep examples distinct: dashboard, appearance, grouped windows and calendar. The screenshot dates describe when the images were captured, not a release date or a claim about every machine.
 
-`site/src/data/distributions.ts` maintains the website's distribution badges and coverage labels. README uses the same Shields.io `flat-square` style, white distribution logos and matching versions. Keep both lists aligned with the dependency installer and configured CI. Ubuntu 24.04 has main build/runtime checks; Arch, Debian 13, Fedora 45, openSUSE Tumbleweed and Alpine Edge have distribution source-build jobs. Void and Gentoo have installer paths outside that matrix. These labels do not establish physical hardware compatibility.
+Distribution badges belong in README, using Shields.io’s `flat-square` style and white logos. Keep their versions and coverage labels aligned with the dependency installer and configured CI. The website keeps its installation section short and links to the installation guide for distribution details. CI labels do not establish physical hardware compatibility.
 
 ## Preview and validation
 

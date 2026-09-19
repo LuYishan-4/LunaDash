@@ -3,7 +3,6 @@ import "../styles.css";
 import "../docs.css";
 import CodeBlock from "../components/CodeBlock.astro";
 import ScreenshotCard from "../components/ScreenshotCard.astro";
-import { distributions } from "../data/distributions";
 import dashboard from "../../../docs/image/LunaDash-20260920-024312-792.png";
 import appearance from "../../../docs/image/LunaDash-20260920-024259-008.png";
 import workspace from "../../../docs/image/LunaDash-20260920-024708-948.png";
@@ -107,15 +106,6 @@ const shortcuts: Array<[string, string]> = [
     <CodeBlock label="INSTALL FROM THE DEV BRANCH" code={build} />
     <p>Log out and choose <strong>LunaDash</strong> in your display manager. Use <code>./scripts/install-session.sh --dry-run</code> to preview the installation. Options and recovery steps are in the <a class="inline-link" href={`${base}docs/start/`}>installation guide</a>.</p>
     <div class="callout">An active development preview, built primarily on Arch Linux. Quickshell 0.3+ is required; if it is unavailable from your distribution, the installer reports the missing dependency. Keep your current desktop available while trying LunaDash.</div>
-    <h3 class="distribution-heading">Find your distribution</h3>
-    <div class="distribution-grid">
-      {distributions.map(distro => <article class="distribution">
-        <div class="distribution-name"><a href={distro.url} aria-label={`${distro.name} website`}><img src={distro.badge} height="20" alt={`${distro.name} ${distro.version}`} loading="lazy" /></a><span>{distro.version}</span></div>
-        <span class:list={["coverage", distro.kind]}>{distro.coverage}</span>
-        <p>{distro.install}</p>
-      </article>)}
-    </div>
-    <p class="coverage-note">CI labels describe automated build and software-session coverage, not every hardware configuration. <a class="inline-link" href={`${repository}/actions?query=branch%3Adev`}>View the checks ↗</a> · Void and Gentoo have installer support outside the current CI matrix. Other distributions can use the standard CMake installation with the required dependencies.</p>
     <p class="coverage-note">Screen locking and screen-sharing/PipeWire portals are still incomplete. Native plugins stay disabled by default and execute without a sandbox when enabled.</p>
   </section>
 
