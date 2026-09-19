@@ -32,6 +32,7 @@ python3 tests/wayland/test_desktop_controls.py build
 python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
 python3 tests/wayland/test_window_tasks.py build
+python3 tests/wayland/test_window_animations.py build
 QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
   ./build/lunadash-renderer-test --opengl
 DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr
@@ -40,6 +41,8 @@ DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr
 Headless wlroots tests use pixman and private runtime/configuration directories. The lifecycle client exercises map, unmap and role destruction, including close animation cleanup. XWayland tests require an installed Xwayland binary, verify no server starts at login, exercise a native Wayland application with an authenticated X11 input-helper fixture, check that its root stays hidden, reuse the server for explicit X11 applications, reject unauthenticated connections and verify cleanup. Window-task tests exercise title-independent identity, offscreen column selection, group focus, minimized restore, workspace selection and closed-window IDs with GTK clients. The QML tests verify member padding, polling during a click, cancellation when a slot changes, desktop ID/startup-class matching and ambiguous identity fallback. `qmltestrunner -import tests/qml/mocks -input tests/qml` supplies a deterministic icon-catalog stub for Quickshell while exercising the real taskbar components offscreen; it does not test the host icon theme. Renderer tests independently cover resource relocation, error diagnostics, partial GL allocation cleanup and real software OpenGL shader compilation/drawing.
 
 For a real desktop, use `LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh`. It uses the host Wayland socket and writes `build/wayland.log` and `build/wayland-state.json`. Run without `LUDASH_TEST_NO_SHELL` to check Quickshell. A complete manual session also checks Chrome/Zed, pointer and physical keyboard input, Fcitx preedit/candidate positioning, wallpaper changes, animation, file chooser D-Bus activation and logout. Do not infer these results from successful compilation.
+
+The scene-animation unit test checks intermediate positions and sizes, retargeting, pointer pass-through, reduced motion and destruction during an effect without opening a display. The Wayland animation regression uses GTK, PyGObject/Cairo, Pillow and grim on an isolated pixman output. It compares captured window pixels during selection, maximize/restore and client-initiated close, then verifies cleanup and reduced motion. CI retains `motion-*.png` and `window-animations.log` for review. This verifies the software-rendered transitions; physical GPU pacing and hardware FPS still need a real-session check.
 
 Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. Internal GLSL is embedded and needs no installed shader directory. For explicit relocation testing, install `--component Tests` into a temporary prefix and run `libexec/lunadash/tests/lunadash-renderer-test` there; that component is excluded from normal installs.
 

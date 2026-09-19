@@ -420,12 +420,15 @@ void WaylandCompositor::configure(ClientWindow *client,
   if (!client || !client->toplevel || !client->surface ||
       !client->surface->initialized || !client->sceneTree)
     return;
-  client->geometry = rectangle;
   if (windowAnimations_)
-    windowAnimations_->setPosition(client->sceneTree, rectangle.topLeft());
+    windowAnimations_->setGeometry(
+        client->sceneTree, client->geometry, rectangle, d->animationLayer,
+        client->mapped && client->sceneTree->node.enabled &&
+            !client->manualResize);
   else
     wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
                                 rectangle.y());
+  client->geometry = rectangle;
   const QSize size(std::max(1, rectangle.width()),
                    std::max(1, rectangle.height()));
   if (client->lastSize != size) {
@@ -460,16 +463,22 @@ void WaylandCompositor::arrange() {
       tiling_.insert(client->workspace, client->id, defaultColumnWidth);
       tiling_.moveToWorkspace(client->id, client->workspace);
       tiling_.setMinimized(client->id, client->minimized);
-      if (client->maximized)
+      if (client->maximized) {
+        if (client->restoreColumnWidth <= 0)
+          client->restoreColumnWidth = defaultColumnWidth;
         tiling_.resize(client->id, area.width());
+      }
     } else {
       tiling_.remove(client->id);
     }
 
     const bool visible = client->mapped && !client->minimized &&
                          client->workspace == workspace_ && !client->utility;
-    if (client->sceneTree)
+    if (client->sceneTree) {
+      if (!visible && windowAnimations_)
+        windowAnimations_->cancel(client->sceneTree);
       wlr_scene_node_set_enabled(&client->sceneTree->node, visible);
+    }
 
     if (!visible)
       continue;
@@ -483,7 +492,8 @@ void WaylandCompositor::arrange() {
           area.x() + (area.width() - bounded.width()) / 2,
           area.y() + (area.height() - bounded.height()) / 2, bounded.width(),
           bounded.height());
-      configure(client.get(), client->manualGeometry.isValid()
+      configure(client.get(), client->maximized ? area
+                              : client->manualGeometry.isValid()
                                   ? client->manualGeometry
                                   : defaultGeometry);
     }
@@ -528,6 +538,8 @@ void WaylandCompositor::focus(ClientWindow *client) {
     arrange();
   if (client->sceneTree)
     wlr_scene_node_raise_to_top(&client->sceneTree->node);
+  if (changed && windowAnimations_ && client->sceneTree)
+    windowAnimations_->activate(client->sceneTree, client->geometry);
   if (changed)
     wlr_xdg_toplevel_set_activated(client->toplevel, true);
   d->focusSurface(client->surface->surface);
@@ -547,6 +559,26 @@ void WaylandCompositor::focusNext(int direction) {
   }
   const qsizetype index = visible.indexOf(focused_);
   focus(visible[(index + direction + visible.size()) % visible.size()]);
+}
+
+void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
+  if (!client || client->maximized == maximized)
+    return;
+  if (!client->floating) {
+    if (maximized) {
+      for (const auto &column : tiling_.snapshot(client->workspace).columns)
+        if (column.window == static_cast<TilingWindowId>(client->id)) {
+          client->restoreColumnWidth = column.width;
+          break;
+        }
+    } else if (client->restoreColumnWidth > 0) {
+      tiling_.resize(client->id, client->restoreColumnWidth);
+      client->restoreColumnWidth = 0;
+    }
+  }
+  client->maximized = maximized;
+  if (client->toplevel)
+    wlr_xdg_toplevel_set_maximized(client->toplevel, maximized);
 }
 
 void WaylandCompositor::synchronizeTilingFocus() {
@@ -673,9 +705,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     tiling_.resize(focused_->id,
                    std::max(120, focused_->geometry.width() - 80));
   else if (action == "maximizeWindow" && focused_) {
-    focused_->maximized = !focused_->maximized;
-    if (focused_->toplevel)
-      wlr_xdg_toplevel_set_maximized(focused_->toplevel, focused_->maximized);
+    setMaximized(focused_, !focused_->maximized);
   } else if ((action == "closeWindow" || action == "closeWindowAlternate") &&
              focused_ && focused_->toplevel)
     wlr_xdg_toplevel_send_close(focused_->toplevel);
@@ -731,6 +761,10 @@ QJsonObject WaylandCompositor::state() const {
         {"y", client->geometry.y()},
         {"width", client->geometry.width()},
         {"height", client->geometry.height()},
+        {"renderX",
+         client->sceneTree ? client->sceneTree->node.x : client->geometry.x()},
+        {"renderY",
+         client->sceneTree ? client->sceneTree->node.y : client->geometry.y()},
         {"minimized", client->minimized},
         {"maximized", client->maximized},
         {"manualResize", client->manualResize},

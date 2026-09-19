@@ -1,19 +1,18 @@
 #include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/wayland/wlroots/WlrootsSceneHeaders.hpp"
+#include "core/templates/WaylandListener.hpp"
 
 #include <QEasingCurve>
 #include <QElapsedTimer>
 #include <algorithm>
-#include <cmath>
 
 namespace LunaDash {
 namespace {
-
 using OpacityMap = QHash<quintptr, float>;
 
 struct OpacityContext {
-  OpacityMap *base = nullptr;
-  qreal factor = 1.0;
+  OpacityMap *base;
+  qreal factor;
 };
 
 void applyOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
@@ -21,189 +20,337 @@ void applyOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
   const auto key = reinterpret_cast<quintptr>(buffer);
   if (!context->base->contains(key))
     context->base->insert(key, buffer->opacity);
-  const float baseOpacity = context->base->value(key, 1.0f);
   wlr_scene_buffer_set_opacity(
-      buffer, std::clamp(baseOpacity * static_cast<float>(context->factor),
+      buffer, std::clamp(context->base->value(key) *
+                             static_cast<float>(context->factor),
                          0.0f, 1.0f));
 }
 
-void restoreOpacity(wlr_scene_tree *tree, OpacityMap &base) {
-  if (!tree)
-    return;
-  OpacityContext context{&base, 1.0};
-  wlr_scene_node_for_each_buffer(&tree->node, applyOpacity, &context);
-}
+struct SnapshotBuffer {
+  wlr_scene_buffer *buffer;
+  wlr_buffer *retained;
+  QRect geometry;
+  float opacity;
+};
 
 struct SnapshotBuildContext {
-  wlr_scene_tree *parent = nullptr;
-  int parentX = 0;
-  int parentY = 0;
-  OpacityMap *base = nullptr;
-  int count = 0;
+  wlr_scene_tree *parent;
+  QPoint origin;
+  QList<SnapshotBuffer> *buffers;
 };
 
 void cloneBuffer(wlr_scene_buffer *buffer, int sx, int sy, void *data) {
   auto *context = static_cast<SnapshotBuildContext *>(data);
   if (!buffer->buffer)
     return;
-
   auto *copy = wlr_scene_buffer_create(context->parent, buffer->buffer);
   if (!copy)
     return;
-
-  wlr_scene_node_set_position(&copy->node, sx - context->parentX,
-                              sy - context->parentY);
+  // Visual previews never take pointer focus away from the real surfaces.
+  copy->point_accepts_input = [](wlr_scene_buffer *, double *, double *) {
+    return false;
+  };
+  QSize size(buffer->dst_width, buffer->dst_height);
+  if (size.width() <= 0 || size.height() <= 0) {
+    size = QSize(buffer->buffer->width, buffer->buffer->height);
+    if (buffer->transform % 2)
+      size.transpose();
+  }
+  const QPoint position = QPoint(sx, sy) - context->origin;
+  wlr_scene_node_set_position(&copy->node, position.x(), position.y());
   wlr_scene_buffer_set_source_box(copy, &buffer->src_box);
-  wlr_scene_buffer_set_dest_size(copy, buffer->dst_width, buffer->dst_height);
+  wlr_scene_buffer_set_dest_size(copy, size.width(), size.height());
   wlr_scene_buffer_set_transform(copy, buffer->transform);
   wlr_scene_buffer_set_opacity(copy, buffer->opacity);
-  context->base->insert(reinterpret_cast<quintptr>(copy), buffer->opacity);
-  ++context->count;
+  // Scene buffers may release their backing buffer after texture upload.
+  // Hold it through this short transition so retarget/close can clone it again.
+  context->buffers->append({copy, wlr_buffer_lock(buffer->buffer),
+                            QRect(position, size), buffer->opacity});
 }
 
+QRect interpolate(const QRect &from, const QRect &to, qreal progress) {
+  auto blend = [progress](int a, int b) {
+    return qRound(a + (b - a) * progress);
+  };
+  return {blend(from.x(), to.x()), blend(from.y(), to.y()),
+          std::max(1, blend(from.width(), to.width())),
+          std::max(1, blend(from.height(), to.height()))};
+}
+
+qreal elapsedProgress(const QElapsedTimer &elapsed, int duration) {
+  return std::clamp(static_cast<double>(elapsed.nsecsElapsed()) /
+                        (std::max(1, duration) * 1000000.0),
+                    0.0, 1.0);
+}
 } // namespace
 
 struct SceneWindowAnimations::LiveState {
+  SceneWindowAnimations *owner = nullptr;
   wlr_scene_tree *tree = nullptr;
+  Templates::ListenerSlot<LiveState> destroy;
   QElapsedTimer elapsed;
   int duration = 0;
-  QPoint basePosition;
+  QRect from;
+  QRect target;
+  QRect current;
   OpacityMap opacity;
-  qreal progress = 0.0;
+  qreal initialOpacity = 1.0;
+  qreal currentOpacity = 1.0;
+  SnapshotState *preview = nullptr;
 };
 
 struct SceneWindowAnimations::SnapshotState {
+  SceneWindowAnimations *owner = nullptr;
+  LiveState *live = nullptr;
   wlr_scene_tree *tree = nullptr;
+  Templates::ListenerSlot<SnapshotState> destroy;
   QElapsedTimer elapsed;
   int duration = 0;
-  OpacityMap opacity;
+  QRect original;
+  QRect current;
+  QPoint parentOrigin;
+  QList<SnapshotBuffer> buffers;
+  ~SnapshotState() {
+    for (const auto &part : buffers)
+      wlr_buffer_unlock(part.retained);
+  }
 };
 
 SceneWindowAnimations::SceneWindowAnimations(QObject *parent)
     : QObject(parent) {}
-
 SceneWindowAnimations::~SceneWindowAnimations() { clear(); }
 
 void SceneWindowAnimations::setDuration(int milliseconds) {
-  const int next = std::clamp(milliseconds, 0, 600);
-  if (duration_ == next)
-    return;
-  duration_ = next;
-  if (duration_ != 0)
-    return;
-
-  const auto liveTrees = live_.keys();
-  for (auto *tree : liveTrees)
-    cancel(tree);
-
-  const auto snapshots = snapshots_;
-  for (auto *state : snapshots) {
-    snapshots_.removeAll(state);
-    if (state->tree)
-      wlr_scene_node_destroy(&state->tree->node);
-    delete state;
-  }
+  duration_ = std::clamp(milliseconds, 0, 600);
+  if (duration_ == 0)
+    clear();
 }
 
 int SceneWindowAnimations::activeCount() const {
-  return live_.size() + snapshots_.size();
+  int count = live_.size();
+  for (const auto *snapshot : snapshots_)
+    if (!snapshot->live)
+      ++count;
+  return count;
 }
 
-void SceneWindowAnimations::applyLive(LiveState *state, qreal progress) {
-  if (!state || !state->tree)
-    return;
-  state->progress = std::clamp(progress, 0.0, 1.0);
-  OpacityContext context{&state->opacity, state->progress};
-  wlr_scene_node_for_each_buffer(&state->tree->node, applyOpacity, &context);
-  const int lift =
-      qRound((1.0 - state->progress) * std::min(10, duration_ / 25 + 3));
-  wlr_scene_node_set_position(&state->tree->node, state->basePosition.x(),
-                              state->basePosition.y() + lift);
+QRect SceneWindowAnimations::visualGeometry(wlr_scene_tree *tree,
+                                            const QRect &fallback) const {
+  if (const auto *state = live_.value(tree))
+    return state->current;
+  return tree ? QRect(QPoint(tree->node.x, tree->node.y), fallback.size())
+              : fallback;
 }
 
-void SceneWindowAnimations::finishLive(wlr_scene_tree *tree, LiveState *state) {
-  if (!tree || !state || live_.value(tree) != state)
-    return;
-  restoreOpacity(tree, state->opacity);
-  wlr_scene_node_set_position(&tree->node, state->basePosition.x(),
-                              state->basePosition.y());
-  live_.remove(tree);
-  delete state;
-}
-
-void SceneWindowAnimations::show(wlr_scene_tree *tree, const QPoint &position) {
-  if (!tree)
-    return;
-
-  cancel(tree);
-  if (duration_ <= 0) {
-    wlr_scene_node_set_position(&tree->node, position.x(), position.y());
-    return;
-  }
-
-  auto *state = new LiveState;
-  state->tree = tree;
-  state->basePosition = position;
+void SceneWindowAnimations::startLive(LiveState *state) {
+  state->owner = this;
   state->duration = duration_;
   state->elapsed.start();
-  live_.insert(tree, state);
+  live_.insert(state->tree, state);
+  Templates::attachListener(&state->tree->node.events.destroy, state->destroy,
+                            state, [](wl_listener *listener, void *) {
+                              auto *live =
+                                  Templates::listenerOwner<LiveState>(listener);
+                              live->owner->finishLive(live->tree, live, false);
+                            });
   applyLive(state, 0.0);
 }
 
-void SceneWindowAnimations::setPosition(wlr_scene_tree *tree,
-                                        const QPoint &position) {
+void SceneWindowAnimations::applyLive(LiveState *state, qreal progress) {
+  state->current = interpolate(state->from, state->target, progress);
+  if (state->preview) {
+    // Configure the client only once at its final size. Stretch its previous
+    // frame during the transition, then reveal the newly laid-out content.
+    const qreal reveal = std::clamp((progress - 0.72) / 0.28, 0.0, 1.0);
+    applySnapshot(state->preview, state->current, 1.0 - reveal);
+    state->currentOpacity = reveal;
+    wlr_scene_node_set_position(&state->tree->node, state->target.x(),
+                                state->target.y());
+  } else {
+    state->currentOpacity =
+        state->initialOpacity + (1.0 - state->initialOpacity) * progress;
+    wlr_scene_node_set_position(&state->tree->node, state->current.x(),
+                                state->current.y());
+  }
+  if (state->preview || state->initialOpacity != 1.0) {
+    OpacityContext context{&state->opacity, state->currentOpacity};
+    wlr_scene_node_for_each_buffer(&state->tree->node, applyOpacity, &context);
+  }
+}
+
+void SceneWindowAnimations::finishLive(wlr_scene_tree *tree, LiveState *state,
+                                       bool restore) {
+  if (live_.value(tree) != state)
+    return;
+  Templates::detachListener(state->destroy);
+  live_.remove(tree);
+  if (restore) {
+    OpacityContext context{&state->opacity, 1.0};
+    wlr_scene_node_for_each_buffer(&tree->node, applyOpacity, &context);
+    wlr_scene_node_set_position(&tree->node, state->target.x(),
+                                state->target.y());
+  }
+  if (state->preview)
+    destroySnapshot(state->preview);
+  delete state;
+}
+
+void SceneWindowAnimations::show(wlr_scene_tree *tree, const QRect &geometry) {
   if (!tree)
     return;
-  if (auto *state = live_.value(tree)) {
-    state->basePosition = position;
-    applyLive(state, state->progress);
+  cancel(tree);
+  if (duration_ <= 0)
+    return;
+  auto *state = new LiveState;
+  state->tree = tree;
+  state->from = geometry.translated(0, 12);
+  state->target = geometry;
+  state->initialOpacity = 0.0;
+  startLive(state);
+}
+
+void SceneWindowAnimations::activate(wlr_scene_tree *tree,
+                                     const QRect &geometry) {
+  if (!tree || duration_ <= 0 || live_.contains(tree))
+    return;
+  auto *state = new LiveState;
+  state->tree = tree;
+  state->from = geometry;
+  state->target = geometry;
+  state->initialOpacity = 0.82;
+  startLive(state);
+}
+
+void SceneWindowAnimations::setGeometry(wlr_scene_tree *tree,
+                                        const QRect &previous,
+                                        const QRect &geometry,
+                                        wlr_scene_tree *overlay, bool animate) {
+  if (!tree)
+    return;
+  if (!animate || duration_ <= 0 || !previous.isValid()) {
+    cancel(tree);
+    wlr_scene_node_set_position(&tree->node, geometry.x(), geometry.y());
     return;
   }
-  wlr_scene_node_set_position(&tree->node, position.x(), position.y());
+  auto *old = live_.value(tree);
+  if ((old && old->target == geometry) || (!old && previous == geometry))
+    return;
+  const QRect from = visualGeometry(tree, previous);
+  const qreal opacity = old ? old->currentOpacity : 1.0;
+  SnapshotState *preview = nullptr;
+  if (from.size() != geometry.size()) {
+    if (old && old->preview)
+      applySnapshot(old->preview, old->current, 1.0);
+    else if (old) {
+      OpacityContext context{&old->opacity, 1.0};
+      wlr_scene_node_for_each_buffer(&tree->node, applyOpacity, &context);
+    }
+    auto *source = old && old->preview ? old->preview->tree : tree;
+    preview = createSnapshot(source, overlay, from);
+  }
+  cancel(tree);
+  auto *state = new LiveState;
+  state->tree = tree;
+  state->from = from;
+  state->target = geometry;
+  state->initialOpacity = preview ? 1.0 : opacity;
+  state->preview = preview;
+  if (preview)
+    preview->live = state;
+  startLive(state);
+}
+
+SceneWindowAnimations::SnapshotState *SceneWindowAnimations::createSnapshot(
+    wlr_scene_tree *source, wlr_scene_tree *parent, const QRect &geometry) {
+  if (!source || !parent)
+    return nullptr;
+  int sourceX = 0, sourceY = 0;
+  if (!wlr_scene_node_coords(&source->node, &sourceX, &sourceY))
+    return nullptr;
+  auto *tree = wlr_scene_tree_create(parent);
+  if (!tree)
+    return nullptr;
+  auto *state = new SnapshotState;
+  state->owner = this;
+  state->tree = tree;
+  int parentX = 0, parentY = 0;
+  wlr_scene_node_coords(&parent->node, &parentX, &parentY);
+  state->parentOrigin = {parentX, parentY};
+  SnapshotBuildContext context{tree, QPoint(sourceX, sourceY), &state->buffers};
+  wlr_scene_node_for_each_buffer(&source->node, cloneBuffer, &context);
+  if (state->buffers.isEmpty()) {
+    wlr_scene_node_destroy(&tree->node);
+    delete state;
+    return nullptr;
+  }
+  QRect bounds;
+  for (const auto &buffer : state->buffers)
+    bounds = bounds.united(buffer.geometry);
+  state->original = geometry.isValid()
+                        ? geometry
+                        : QRect(QPoint(sourceX, sourceY), bounds.size());
+  state->current = state->original;
+  state->duration = duration_;
+  state->elapsed.start();
+  snapshots_.append(state);
+  Templates::attachListener(
+      &tree->node.events.destroy, state->destroy, state,
+      [](wl_listener *listener, void *) {
+        auto *snapshot = Templates::listenerOwner<SnapshotState>(listener);
+        Templates::detachListener(snapshot->destroy);
+        snapshot->owner->snapshots_.removeAll(snapshot);
+        if (snapshot->live)
+          snapshot->live->preview = nullptr;
+        delete snapshot;
+      });
+  applySnapshot(state, state->original, 1.0);
+  return state;
+}
+
+void SceneWindowAnimations::applySnapshot(SnapshotState *state,
+                                          const QRect &geometry,
+                                          qreal opacity) {
+  state->current = geometry;
+  const qreal sx = qreal(geometry.width()) / state->original.width();
+  const qreal sy = qreal(geometry.height()) / state->original.height();
+  const QPoint origin = geometry.topLeft() - state->parentOrigin;
+  wlr_scene_node_set_position(&state->tree->node, origin.x(), origin.y());
+  for (const auto &part : state->buffers) {
+    wlr_scene_node_set_position(&part.buffer->node,
+                                qRound(part.geometry.x() * sx),
+                                qRound(part.geometry.y() * sy));
+    wlr_scene_buffer_set_dest_size(
+        part.buffer, std::max(1, qRound(part.geometry.width() * sx)),
+        std::max(1, qRound(part.geometry.height() * sy)));
+    wlr_scene_buffer_set_opacity(part.buffer, part.opacity * opacity);
+  }
+}
+
+void SceneWindowAnimations::destroySnapshot(SnapshotState *state) {
+  Templates::detachListener(state->destroy);
+  snapshots_.removeAll(state);
+  if (state->live)
+    state->live->preview = nullptr;
+  wlr_scene_node_destroy(&state->tree->node);
+  delete state;
 }
 
 void SceneWindowAnimations::hideSnapshot(wlr_scene_tree *source,
                                          wlr_scene_tree *parent) {
-  if (!source || !parent || duration_ <= 0)
+  if (!source || duration_ <= 0)
     return;
-
-  int sourceX = 0;
-  int sourceY = 0;
-  if (!wlr_scene_node_coords(&source->node, &sourceX, &sourceY))
-    return;
-
-  auto *snapshot = wlr_scene_tree_create(parent);
-  if (!snapshot)
-    return;
-
-  int parentX = 0;
-  int parentY = 0;
-  wlr_scene_node_coords(&parent->node, &parentX, &parentY);
-
-  auto *state = new SnapshotState;
-  state->tree = snapshot;
-  SnapshotBuildContext build{snapshot, parentX, parentY, &state->opacity, 0};
-  wlr_scene_node_for_each_buffer(&source->node, cloneBuffer, &build);
-  if (build.count == 0) {
-    wlr_scene_node_destroy(&snapshot->node);
-    delete state;
-    return;
-  }
-
-  wlr_scene_node_raise_to_top(&snapshot->node);
-  state->duration = duration_;
-  state->elapsed.start();
-  snapshots_.append(state);
+  auto *live = live_.value(source);
+  if (live && live->preview)
+    source = live->preview->tree;
+  createSnapshot(source, parent, live ? live->current : QRect());
 }
 
 void SceneWindowAnimations::advance() {
-  // Output frame callbacks drive effects at the actual display cadence rather
-  // than Qt's independent animation timer. Idle outputs remain undamaged.
+  // Follow output presentation cadence; no independent timer redraws idle
+  // frames.
   const auto live = live_.values();
   for (auto *state : live) {
-    const qreal t =
-        std::min(1.0, static_cast<double>(state->elapsed.nsecsElapsed()) /
-                          (state->duration * 1000000.0));
+    const qreal t = elapsedProgress(state->elapsed, state->duration);
     if (t >= 1.0)
       finishLive(state->tree, state);
     else
@@ -212,48 +359,34 @@ void SceneWindowAnimations::advance() {
   }
   const auto snapshots = snapshots_;
   for (auto *state : snapshots) {
-    const qreal t =
-        std::min(1.0, static_cast<double>(state->elapsed.nsecsElapsed()) /
-                          (state->duration * 1000000.0));
+    if (state->live)
+      continue;
+    const qreal t = elapsedProgress(state->elapsed, state->duration);
     if (t >= 1.0) {
-      snapshots_.removeAll(state);
-      wlr_scene_node_destroy(&state->tree->node);
-      delete state;
+      destroySnapshot(state);
       continue;
     }
-    const qreal opacity =
-        1.0 - QEasingCurve(QEasingCurve::InCubic).valueForProgress(t);
-    OpacityContext context{&state->opacity, opacity};
-    wlr_scene_node_for_each_buffer(&state->tree->node, applyOpacity, &context);
-    wlr_scene_node_set_position(&state->tree->node, 0,
-                                qRound((1.0 - opacity) * 8.0));
+    const qreal eased = QEasingCurve(QEasingCurve::InCubic).valueForProgress(t);
+    const QRect &from = state->original;
+    const QSize size(std::max(1, qRound(from.width() * 0.90)),
+                     std::max(1, qRound(from.height() * 0.90)));
+    const QRect target(from.x() + (from.width() - size.width()) / 2,
+                       from.y() + (from.height() - size.height()) / 2 + 14,
+                       size.width(), size.height());
+    applySnapshot(state, interpolate(from, target, eased), 1.0 - eased);
   }
 }
 
 void SceneWindowAnimations::cancel(wlr_scene_tree *tree) {
-  auto *state = live_.take(tree);
-  if (!state)
-    return;
-  if (tree) {
-    restoreOpacity(tree, state->opacity);
-    wlr_scene_node_set_position(&tree->node, state->basePosition.x(),
-                                state->basePosition.y());
-  }
-  delete state;
+  if (auto *state = live_.value(tree))
+    finishLive(tree, state);
 }
 
 void SceneWindowAnimations::clear() {
-  const auto trees = live_.keys();
-  for (auto *tree : trees)
+  for (auto *tree : live_.keys())
     cancel(tree);
-
   const auto snapshots = snapshots_;
-  snapshots_.clear();
-  for (auto *state : snapshots) {
-    if (state->tree)
-      wlr_scene_node_destroy(&state->tree->node);
-    delete state;
-  }
+  for (auto *state : snapshots)
+    destroySnapshot(state);
 }
-
 } // namespace LunaDash

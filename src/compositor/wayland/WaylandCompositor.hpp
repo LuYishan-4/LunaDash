@@ -102,6 +102,7 @@ private:
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);
+  void setMaximized(ClientWindow *client, bool maximized);
   void focusNext(int direction);
   void synchronizeTilingFocus();
   void updateClientMetadata(ClientWindow *client);

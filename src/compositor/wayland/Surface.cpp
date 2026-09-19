@@ -66,6 +66,11 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
                  handleToplevelMap);
   attachListener(&surface->surface->events.unmap, state->unmap, state,
                  handleToplevelUnmap);
+  // Capture the last mapped frame before wlroots disables the subsurface
+  // tree. The surface still owns its buffer at the start of the unmap signal.
+  wl_list_remove(&state->unmap.listener.link);
+  wl_list_insert(&surface->surface->events.unmap.listener_list,
+                 &state->unmap.listener.link);
   attachListener(&surface->surface->events.commit, state->commit, state,
                  handleToplevelCommit);
   attachListener(WlrootsCompat::xdgToplevelDestroySignal(surface, toplevel),
@@ -126,12 +131,12 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   client->initialRuleApplied = true;
   state->impl->q->updateClientMetadata(client);
   state->impl->q->arrange();
+  if (!client->utility)
+    state->impl->q->focus(client);
   if (state->impl->q->windowAnimations_ && client->sceneTree &&
       !client->utility)
     state->impl->q->windowAnimations_->show(client->sceneTree,
-                                            client->geometry.topLeft());
-  if (!client->utility)
-    state->impl->q->focus(client);
+                                            client->geometry);
 }
 
 void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
@@ -206,9 +211,8 @@ void WaylandCompositor::Impl::handleToplevelMaximize(wl_listener *listener,
   if (!state || !state->client || !state->client->surface ||
       !state->client->surface->initialized)
     return;
-  state->client->maximized = state->client->toplevel->requested.maximized;
-  wlr_xdg_toplevel_set_maximized(state->client->toplevel,
-                                 state->client->maximized);
+  state->impl->q->setMaximized(state->client,
+                               state->client->toplevel->requested.maximized);
   state->impl->q->arrange();
 }
 
@@ -219,7 +223,7 @@ void WaylandCompositor::Impl::handleToplevelFullscreen(wl_listener *listener,
       !state->client->surface->initialized)
     return;
   const bool fullscreen = state->client->toplevel->requested.fullscreen;
-  state->client->maximized = fullscreen;
+  state->impl->q->setMaximized(state->client, fullscreen);
   wlr_xdg_toplevel_set_fullscreen(state->client->toplevel, fullscreen);
   state->impl->q->arrange();
 }

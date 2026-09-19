@@ -3,8 +3,7 @@
 #include <QHash>
 #include <QList>
 #include <QObject>
-#include <QPoint>
-#include <functional>
+#include <QRect>
 
 struct wlr_scene_tree;
 
@@ -16,8 +15,12 @@ public:
   ~SceneWindowAnimations() override;
 
   void setDuration(int milliseconds);
-  void show(wlr_scene_tree *tree, const QPoint &position);
-  void setPosition(wlr_scene_tree *tree, const QPoint &position);
+  void show(wlr_scene_tree *tree, const QRect &geometry);
+  void activate(wlr_scene_tree *tree, const QRect &geometry);
+  void setGeometry(wlr_scene_tree *tree, const QRect &previous,
+                   const QRect &geometry, wlr_scene_tree *overlay,
+                   bool animate = true);
+  QRect visualGeometry(wlr_scene_tree *tree, const QRect &fallback) const;
   void hideSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent);
   void cancel(wlr_scene_tree *tree);
   void clear();
@@ -29,7 +32,13 @@ private:
   struct SnapshotState;
 
   void applyLive(LiveState *state, qreal progress);
-  void finishLive(wlr_scene_tree *tree, LiveState *state);
+  void finishLive(wlr_scene_tree *tree, LiveState *state, bool restore = true);
+  void startLive(LiveState *state);
+  SnapshotState *createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
+                                const QRect &geometry);
+  void destroySnapshot(SnapshotState *state);
+  void applySnapshot(SnapshotState *state, const QRect &geometry,
+                     qreal opacity);
 
   QHash<wlr_scene_tree *, LiveState *> live_;
   QList<SnapshotState *> snapshots_;

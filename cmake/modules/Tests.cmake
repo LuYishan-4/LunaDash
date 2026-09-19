@@ -24,4 +24,11 @@ if(LUDASH_BUILD_DESKTOP_TESTS)
         ludash-window-rules ludash-xwayland)
     add_test(NAME lunadash-desktop-controls COMMAND lunadash-desktop-controls-test)
     set_tests_properties(lunadash-desktop-controls PROPERTIES TIMEOUT 15)
+    add_executable(lunadash-scene-animations-test
+        tests/desktop/SceneWindowAnimationsTests.cpp)
+    target_compile_definitions(lunadash-scene-animations-test PRIVATE WLR_USE_UNSTABLE=1)
+    target_link_libraries(lunadash-scene-animations-test PRIVATE
+        ludash-animation PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
+    add_test(NAME lunadash-scene-animations COMMAND lunadash-scene-animations-test)
+    set_tests_properties(lunadash-scene-animations PROPERTIES TIMEOUT 15)
 endif()

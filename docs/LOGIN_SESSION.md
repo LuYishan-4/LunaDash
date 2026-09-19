@@ -195,3 +195,9 @@ A missing FileChooser interface is a separate startup defect: the backend uses a
 ### Taskbar identity and selection
 
 External window icons resolve from the Wayland application ID and the installed desktop entry's ID or startup class. Document titles remain visible in tooltips but cannot change an application's icon. Unknown or ambiguous identities use a generic icon. Task buttons retain the selected window ID through status polling and cancel a click if that slot was replaced. Selecting a window restores it if minimized, switches to its workspace and scrolls its tiled column into view. Group and member highlights follow the actual focused window.
+
+### Window animations
+
+Selecting an offscreen tiled window slides its column into view. Selecting an overlapping window uses a subtle fade, and new windows fade in with a short upward movement. Maximizing and restoring smoothly resize a retained frame before revealing the application's new layout; restoring also recovers the original column width. Closing a window shrinks and fades its last frame, including when the application closes itself.
+
+Use **Settings → Appearance → Animations** and **Animation duration** to control motion. The default is 220 ms; turning animations off or setting the duration to zero applies changes immediately. Interrupted movement continues from the current visible position. The compositor requests new frames only while an effect is active, and resize transitions send the final size to the client once instead of resizing it on every animation frame. Preview images do not intercept pointer input and are released when the effect ends or its scene is destroyed.

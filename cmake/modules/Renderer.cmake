@@ -66,10 +66,9 @@ target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/s
 target_compile_definitions(ludash-animation PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-animation
     PUBLIC Qt6::Quick
-    PRIVATE PkgConfig::WLROOTS)
+    PRIVATE PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
 
 add_library(ludash-shell-renderer
     src/shell/runtime/ShellRenderer.cpp)
 target_include_directories(ludash-shell-renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(ludash-shell-renderer PUBLIC Qt6::Core)
-
