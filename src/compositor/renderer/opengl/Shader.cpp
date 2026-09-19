@@ -20,9 +20,10 @@ bool supported(GLenum stage) {
 QString shaderLog(LuDashGLDispatch &gl, GLuint shader) {
   GLint length = 0;
   gl.GetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-  QByteArray message(std::max(1, length), '\0');
+  const GLsizei capacity = std::max(1, length);
+  QByteArray message(capacity, '\0');
   GLsizei written = 0;
-  gl.GetShaderInfoLog(shader, message.size(), &written, message.data());
+  gl.GetShaderInfoLog(shader, capacity, &written, message.data());
   message.resize(std::max<GLsizei>(0, written));
   return QString::fromLocal8Bit(message);
 }

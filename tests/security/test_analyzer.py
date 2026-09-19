@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-analyzer-") as directory:
         path = Path(directory) / (name + ".cpp")
         path.write_text(source, encoding="utf-8")
         result = subprocess.run(
-            [analyzer, str(path), "--config-file=" + str(root / ".clang-tidy"),
+            [analyzer, str(path), "--warnings-as-errors=*", "--config-file=" + str(root / ".clang-tidy"),
              "--extra-arg-before=--driver-mode=g++", "--", *flags],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             timeout=60, check=False)

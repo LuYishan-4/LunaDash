@@ -12,9 +12,10 @@ namespace {
 QString programLog(LuDashGLDispatch &gl, GLuint program) {
   GLint length = 0;
   gl.GetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
-  QByteArray message(std::max(1, length), '\0');
+  const GLsizei capacity = std::max(1, length);
+  QByteArray message(capacity, '\0');
   GLsizei written = 0;
-  gl.GetProgramInfoLog(program, message.size(), &written, message.data());
+  gl.GetProgramInfoLog(program, capacity, &written, message.data());
   message.resize(std::max<GLsizei>(0, written));
   return QString::fromLocal8Bit(message);
 }
