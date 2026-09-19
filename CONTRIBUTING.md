@@ -2,6 +2,12 @@
 
 LunaDash uses `dev` as the integration branch. All normal pull requests must target `dev`; do not open feature or fix pull requests directly against `main`.
 
+Our goal is a useful desktop from the first login, with room for personal customization. Contributions should make the default experience approachable or give users a clear, optional way to adapt it.
+
+## Titles and descriptions
+
+Use a specific title that describes the resulting change, such as `Restore screenshot selection after cancellation`. Start the description with the user-visible problem and result. Explain how the change affects the default experience, which preferences or modules users can customize, and any relevant limitations. For documentation changes, identify the information or workflow that becomes clearer.
+
 ## Pull request requirements
 
 Every pull request must:

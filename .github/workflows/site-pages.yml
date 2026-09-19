@@ -5,6 +5,7 @@ on:
         paths:
             - "site/**"
             - "docs/brand/**"
+            - "docs/image/**"
             - "tests/site/**"
             - "scripts/site/**"
             - ".github/workflows/site-pages.yml"

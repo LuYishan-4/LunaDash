@@ -2,11 +2,11 @@
 import DocsLayout from "../../layouts/DocsLayout.astro";
 import CodeBlock from "../../components/CodeBlock.astro";
 ---
-<DocsLayout title="Start small. Explore safely." section="start" summary="Build the preview, open it inside your existing desktop, and verify real windows, graphics and clean shutdown before trying a standalone session.">
-  <h2 id="linux">Build on Linux</h2>
+<DocsLayout title="Install. Settle in. Make it yours." section="start" summary="Install LunaDash with the session installer, follow the first-run guide and personalize your desktop. Advanced build and validation steps are included below.">
+  <h2 id="linux">Install on Linux</h2>
   <p>LunaDash is developed primarily on Arch Linux, but the installer also recognizes Debian/Ubuntu, Fedora, openSUSE, Alpine, Void and Gentoo package-manager families. Other distributions can use the same standard CMake install path after providing Qt 6.4+, wlroots 0.17–0.20, Wayland, libinput, libxkbcommon, GL, GLib, Ninja and a C++20 compiler.</p>
-  <CodeBlock code={'git clone --branch dev https://github.com/LuYishan-4/LunaDash.git\ncd LunaDash\n./scripts/install-session.sh --dry-run\n./scripts/install-session.sh'} />
-  <p><code>install-session.sh</code> delegates dependency provisioning to <code>install-dependencies.sh</code>. Arch uses makepkg/pacman; the other recognized distributions build with Ninja and install through CMake. If your package manager is unknown, preinstall the dependencies and use <code>./scripts/install-session.sh --skip-deps</code>. Quickshell 0.3+ is required for the shell and may need to be installed separately when the distribution does not package it.</p>
+  <CodeBlock code={'git clone --branch dev https://github.com/LuYishan-4/LunaDash.git\ncd LunaDash\n./scripts/install-session.sh'} />
+  <p>Run <code>./scripts/install-session.sh --dry-run</code> to preview the installation. <code>install-session.sh</code> delegates dependency provisioning to <code>install-dependencies.sh</code>. Arch uses makepkg/pacman; the other recognized distributions build with Ninja and install through CMake. If your package manager is unknown, preinstall the dependencies and use <code>./scripts/install-session.sh --skip-deps</code>. Quickshell 0.3+ is required for the shell and may need to be installed separately when the distribution does not package it.</p>
   <p>On non-systemd systems, install LunaDash normally but enable your display manager with the distribution's own OpenRC/runit procedure instead of <code>--enable-sddm</code>.</p>
 
   <h2 id="first">Your first session</h2><ol><li>Choose your interface language.</li><li>Review your connection. Existing network profiles are reused, and offline continuation is supported.</li><li>Choose a color, wallpaper, spacing and panel height.</li><li>Finish the guide, then use the panel gear for the complete settings center.</li></ol><p>Super+Return opens the default terminal; Super+E opens the default file manager. Native X11 apps can be launched through the authenticated XWayland path. Save work before testing a standalone session.</p>

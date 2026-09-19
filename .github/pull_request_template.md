@@ -1,3 +1,5 @@
+<!-- Title: describe the concrete change, for example "Restore screenshot selection after cancellation". -->
+
 ## Target branch
 
 - [ ] This pull request targets `dev`.
@@ -5,6 +7,10 @@
 ## Problem and resulting behavior
 
 <!-- Describe the concrete trigger, the previous behavior, and the observable result after this change. -->
+
+## Default experience and customization
+
+<!-- LunaDash aims for a useful first login with room for customization. Explain how this change affects the defaults or optional settings/modules. Omit this section when unrelated. -->
 
 ## Documentation and website
 
