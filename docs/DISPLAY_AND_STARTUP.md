@@ -4,7 +4,24 @@
 
 Settings → Display reads the machine-readable `brightnessctl` percentage field and selects the `backlight` class explicitly, avoiding keyboard LEDs and the maximum-brightness field. Changes target the detected device, run asynchronously and coalesce repeated slider movements. The installer includes brightnessctl. A rejected write keeps the control available and reports the permission error; LunaDash does not run the desktop as root or change device permissions.
 
-`lunadashctl brightness 60` requests 60% brightness. Status exposes `brightness.available`, `device`, `percent`, `busy` and `error`. External monitors without a kernel backlight still require DDC/CI controls; this change does not implement a DDC/CI service.
+`lunadashctl brightness 60` requests 60% brightness. Status exposes `brightness.available`, `device`, `percent`, `busy` and `error`. External monitors have separate DDC/CI controls below the internal-panel slider.
+
+### External monitors (DDC/CI)
+
+Install `ddcutil` (included by the dependency installer and Arch package), then enable DDC/CI in each monitor's on-screen menu. Settings → Display → External monitor brightness detects I2C displays, labels them individually and reads VCP brightness code `0x10`. Each slider targets its own bus; percentages are converted using that monitor's reported maximum, which need not be 100. Unsupported brightness features remain disabled with an explanation. Laptop backlight control continues to use brightnessctl independently.
+
+Detection, reads and verified writes run asynchronously with bounded timeouts. Requests are serialized and repeated slider changes are coalesced per monitor. Detection refreshes every minute; **Refresh monitors** discovers connections or permission changes immediately. Failed writes retain the last confirmed value and report the error. USB HID monitor control is not included.
+
+```sh
+lunadashctl ddc-refresh
+lunadashctl status
+# Copy the exact ID from status.ddcBrightness.devices:
+lunadashctl ddc-brightness '{"id":"i2c-7:DEL:DELL P2411H:F8NDP11G119U","percent":60}'
+```
+
+If detection fails, run `ddcutil detect --brief` as the session user. Check that the kernel `i2c-dev` module is loaded and the distribution's ddcutil udev rules grant access to the monitor's `/dev/i2c-*` device. After installing rules, reconnect the monitor or log out/in as required by the distribution. LunaDash does not run sudo, change device permissions or load kernel modules from the desktop. Some docks, drivers and monitor picture modes prevent DDC/CI access; check the monitor configuration and upstream troubleshooting.
+
+Protocol output and setup references: [ddcutil detection](https://www.ddcutil.com/command_detect/), [brightness reads](https://www.ddcutil.com/command_getvcp/), [verified writes](https://www.ddcutil.com/command_setvcp/), [I2C permissions](https://www.ddcutil.com/i2c_permissions/). Automated helper fixtures cover multiple monitors, non-100 maxima, write failures, request coalescing and refresh; physical monitor compatibility still requires hardware testing.
 
 ## Resolution, refresh rate and scale
 

@@ -16,6 +16,7 @@ namespace LunaDash {
 
 class ScreenCapture;
 class BrightnessSettings;
+class DdcBrightnessSettings;
 class ShellModules;
 class AudioSettings;
 class PowerSettings;
@@ -49,6 +50,7 @@ private:
 
   ScreenCapture *screenCapture_ = nullptr;
   BrightnessSettings *brightnessSettings_ = nullptr;
+  DdcBrightnessSettings *ddcBrightnessSettings_ = nullptr;
   ShellModules *shellModules_ = nullptr;
   AudioSettings *audioSettings_ = nullptr;
   PowerSettings *powerSettings_ = nullptr;

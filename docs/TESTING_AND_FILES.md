@@ -4,7 +4,7 @@ Finish code, packaging and documentation changes before building. Arch Linux is 
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GIO. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl.
+The toolchain requires CMake 3.21+, Ninja, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GIO. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -84,6 +84,6 @@ The source-build matrix does not verify physical hardware. Void/Gentoo have inst
 
 See [architecture](ARCHITECTURE.md) for ownership contracts. Existing historical Python tests that assume the previous Qt compositor or Xvfb keyboard injection are not part of the current wlroots CI gate; use the current lifecycle and protocol tests above and port a historical test before relying on it as release evidence.
 
-Desktop-control regressions use isolated settings and fake brightness/selector helpers. Region capture verifies actual grim PNG dimensions on a headless output, cancellation and nonblocking IPC; display tests verify invalid requests, confirmation, explicit revert and timeout rollback. Shared controls are checked against English, Traditional Chinese, Simplified Chinese, Japanese and long labels with `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 qmltestrunner -input tests/qml`. These tests do not change host backlight or display settings.
+Desktop-control regressions use isolated settings and fake brightness/selector helpers. DDC/CI fixtures verify per-monitor targeting, non-100 maxima, coalesced writes, errors, timeout handling and removal. The QML regression preserves slider delegates through status updates and rejects queued changes to a replacement monitor. Region capture verifies actual grim PNG dimensions on a headless output, cancellation and nonblocking IPC; display tests verify invalid requests, confirmation, explicit revert and timeout rollback. Shared controls are checked against English, Traditional Chinese, Simplified Chinese, Japanese and long labels with `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 qmltestrunner -input tests/qml`. These tests do not change host backlight or display settings.
 
 The Arch distribution job also runs `tests/wayland/test_shell_startup.py` with a complete Quickshell session on headless wlroots, checking startup-splash mapping/dismissal, wallpaper/panel mapping and localized Display settings. It requires Quickshell and a private D-Bus session; other distro jobs retain their source/lifecycle checks.

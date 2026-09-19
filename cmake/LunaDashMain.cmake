@@ -70,7 +70,10 @@ target_link_libraries(ludash-power-settings PUBLIC ludash-process-runner)
 add_library(ludash-system-tools src/desktop/system/SystemTools.cpp)
 target_include_directories(ludash-system-tools PUBLIC src)
 target_link_libraries(ludash-system-tools PUBLIC Qt6::Core)
-add_library(ludash-display-settings src/desktop/display/DisplaySettings.cpp src/desktop/display/BrightnessSettings.cpp)
+add_library(ludash-display-settings
+    src/desktop/display/DisplaySettings.cpp
+    src/desktop/display/BrightnessSettings.cpp
+    src/desktop/display/DdcBrightnessSettings.cpp)
 target_include_directories(ludash-display-settings PUBLIC src)
 target_link_libraries(ludash-display-settings PUBLIC Qt6::Gui ludash-process-runner)
 add_library(ludash-input-settings src/desktop/input/InputSettings.cpp)

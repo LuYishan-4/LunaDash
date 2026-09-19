@@ -129,7 +129,7 @@ See [Actions](https://github.com/LuYishan-4/LunaDash/actions?query=branch%3Adev)
 | --- | --- |
 | [Build and test](docs/TESTING_AND_FILES.md) | [Login session and recovery](docs/LOGIN_SESSION.md) |
 | [Appearance and configuration](docs/CONFIGURATION.md) | [Settings and keyboard shortcuts](docs/SETTINGS.md) |
-| [Display controls and startup](docs/DISPLAY_AND_STARTUP.md) | [Region screenshots](docs/SCREEN_CAPTURE.md) |
+| [Display, DDC/CI and startup](docs/DISPLAY_AND_STARTUP.md) | [Region screenshots](docs/SCREEN_CAPTURE.md) |
 | [Files and default apps](docs/DEFAULT_APPS_AND_FILES.md) | [Input methods](docs/INPUT_METHODS.md) |
 | [Shell modules](docs/MODULES.md) | [Plugins](docs/PLUGINS.md) |
 | [Source architecture](docs/ARCHITECTURE.md) | [Graphics](docs/GRAPHICS.md) · [C core](docs/C_CORE.md) |

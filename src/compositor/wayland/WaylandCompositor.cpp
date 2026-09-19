@@ -22,6 +22,7 @@
 #include "desktop/audio/AudioSettings.hpp"
 #include "desktop/browser/Browser.hpp"
 #include "desktop/display/BrightnessSettings.hpp"
+#include "desktop/display/DdcBrightnessSettings.hpp"
 #include "desktop/input/InputSettings.hpp"
 #include "desktop/network/NetworkStatus.hpp"
 #include "desktop/power/PowerSettings.hpp"
@@ -111,6 +112,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
             captureError_ = error;
           });
   brightnessSettings_ = new BrightnessSettings(this);
+  ddcBrightnessSettings_ = new DdcBrightnessSettings(this);
   shellModules_ = new ShellModules(this);
   systemStatus_ = new SystemStatus(this);
   audioSettings_ = new AudioSettings(this);
@@ -803,6 +805,7 @@ QJsonObject WaylandCompositor::state() const {
        QJsonObject{{"published", activationEnvironmentPublished_},
                    {"error", activationEnvironmentError_}}},
       {"brightness", brightnessSettings_->snapshot()},
+      {"ddcBrightness", ddcBrightnessSettings_->snapshot()},
       {"appearance", preferences},
       {"setupComplete", setupComplete()},
       {"network", networkStatus_->snapshot()},
@@ -992,6 +995,18 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!ok || !brightnessSettings_->setPercent(percent, &error))
       return {{"error",
                error.isEmpty() ? "Brightness must be an integer." : error}};
+  } else if (method == "ddc-brightness") {
+    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    const auto request = document.object();
+    const auto percent = request.value("percent");
+    QString error;
+    if (!document.isObject() || !percent.isDouble() ||
+        percent.toDouble() != percent.toInt(-1) ||
+        !ddcBrightnessSettings_->setPercent(request.value("id").toString(),
+                                           percent.toInt(-1), &error))
+      return {{"error", error.isEmpty() ? "Invalid DDC/CI brightness request." : error}};
+  } else if (method == "ddc-refresh") {
+    ddcBrightnessSettings_->refresh();
   } else if (method == "display-configure") {
     const auto changes = QJsonDocument::fromJson(value.toUtf8());
     QString error;

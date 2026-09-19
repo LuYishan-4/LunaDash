@@ -15,7 +15,9 @@ endif()
 option(LUDASH_BUILD_DESKTOP_TESTS "Build desktop controls and startup regression tests" OFF)
 if(LUDASH_BUILD_DESKTOP_TESTS)
     enable_testing()
-    add_executable(lunadash-desktop-controls-test tests/desktop/DesktopControlsTests.cpp)
+    add_executable(lunadash-desktop-controls-test
+        tests/desktop/DesktopControlsTests.cpp
+        tests/desktop/DdcBrightnessTests.cpp)
     target_link_libraries(lunadash-desktop-controls-test PRIVATE
         ludash-display-settings ludash-shortcut-settings ludash-session-environment)
     add_test(NAME lunadash-desktop-controls COMMAND lunadash-desktop-controls-test)

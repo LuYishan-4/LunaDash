@@ -41,11 +41,11 @@ export const groups: SettingGroup[] = [
     id: "display",
     name: "Display, keyboard & pointer",
     description:
-      "Adjust backlight brightness, select a supported primary-output mode and scale text and controls. Keyboard settings change the Wayland keymap and repeat behavior.",
+      "Adjust internal backlight and per-monitor DDC/CI brightness, select a supported primary-output mode and scale text and controls. Keyboard settings change the Wayland keymap and repeat behavior.",
     details: [
       "Available keyboard layouts: us, gb, de, fr, es, jp and tw. Repeat rate is 0–60; delay is 200–1500 ms.",
       "Cursor size applies to the next session. Host monitor, mouse and touchpad editors are labelled as host controls.",
-      "Confirm resolution, refresh-rate and scale changes within 15 seconds or they revert automatically. Physical modes in nested sessions belong to the host. Multi-monitor arrangement, HDR and external-monitor DDC/CI remain incomplete.",
+      "Confirm resolution, refresh-rate and scale changes within 15 seconds or they revert automatically. Physical modes in nested sessions belong to the host. External brightness requires DDC/CI and I2C access; multi-monitor arrangement and HDR remain incomplete.",
     ],
   },
   {

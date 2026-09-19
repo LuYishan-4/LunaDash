@@ -1,6 +1,7 @@
 #include "compositor/session/SessionEnvironment.hpp"
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
+#include "DdcBrightnessTests.hpp"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QFile>
@@ -15,6 +16,7 @@ void check(bool condition, const char *message) {
     qFatal("%s", message);
 }
 void runTests() {
+  testDdcBrightness();
   check(parseBacklight("intel_backlight,backlight,12000,60%,20000\n")
                 .value("percent")
                 .toInt() == 60,

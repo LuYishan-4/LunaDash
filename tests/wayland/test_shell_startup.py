@@ -12,12 +12,17 @@ import time
 build = Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix="lunadash-shell-") as directory:
     root = Path(directory)
+    fixture_bin = root / "bin"
+    fixture_bin.mkdir()
+    ddc = fixture_bin / "ddcutil"
+    ddc.write_text('#!/bin/sh\nif [ "$1" = detect ]; then\n printf "Display 1\\n I2C bus: /dev/i2c-7\\n Monitor: DEL:Fixture monitor:123\\n"\nelse\n printf "VCP 10 C 80 200\\n"\nfi\n')
+    ddc.chmod(0o700)
     env = os.environ | {"XDG_RUNTIME_DIR": directory, "XDG_CONFIG_HOME": directory,
         "XDG_DATA_HOME": directory, "XDG_STATE_HOME": directory, "XDG_CACHE_HOME": directory,
         "WLR_BACKENDS": "headless", "WLR_HEADLESS_OUTPUTS": "1", "WLR_RENDERER": "pixman",
         "QT_QPA_PLATFORM": "wayland", "QT_QUICK_BACKEND": "software",
         "LUDASH_DISABLE_XWAYLAND": "1", "LUDASH_SKIP_SETUP": "1", "LUNADASH_DISABLE_FCITX": "1",
-        "LUDASH_TEST_SETTINGS": "1"}
+        "LUDASH_TEST_SETTINGS": "1", "PATH": str(fixture_bin) + os.pathsep + os.environ["PATH"]}
     for key in ("WAYLAND_DISPLAY", "DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "LUNADASH_PUBLISH_ACTIVATION_ENV"):
         env.pop(key, None)
     control = root / "lunadash-shell-test-control"

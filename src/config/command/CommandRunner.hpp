@@ -10,7 +10,7 @@ public:
   explicit CommandRunner(QObject *parent = nullptr);
   ~CommandRunner() override;
   bool run(const QString &program, const QStringList &arguments,
-           Completion completion);
+           Completion completion, int timeoutMilliseconds = 2500);
   bool busy() const;
 
 private:

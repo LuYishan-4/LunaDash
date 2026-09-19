@@ -26,12 +26,16 @@ with tempfile.TemporaryDirectory(prefix="lunadash-controls-") as directory:
     brightness = tools / "brightnessctl"
     brightness.write_text('#!/bin/sh\nprintf "intel_backlight,backlight,12000,60%%,20000\\n"\n')
     brightness.chmod(0o700)
+    ddc = tools / "ddcutil"
+    ddc.write_text('#!/bin/sh\ncase "$1" in\n detect) printf "Display 1\\n I2C bus: /dev/i2c-7\\n Monitor: DEL:Fixture monitor:123\\n";;\n getvcp) printf "VCP 10 C 80 200\\n";;\n setvcp) printf "%s\\n" "$*" > "$LUNADASH_DDC_WRITE_FIXTURE";;\n *) exit 1;;\nesac\n')
+    ddc.chmod(0o700)
     (root / "Pictures").mkdir()
     (root / "user-dirs.dirs").write_text('XDG_PICTURES_DIR="' + str(root / "Pictures") + '"\n')
     env = os.environ | {"XDG_RUNTIME_DIR": directory,
         "XDG_CONFIG_HOME": directory, "XDG_DATA_HOME": directory,
         "PATH": str(tools) + os.pathsep + os.environ["PATH"],
         "LUNADASH_SELECTION_FIXTURE": str(selector_mode),
+        "LUNADASH_DDC_WRITE_FIXTURE": str(root / "ddc-write"),
         "WLR_BACKENDS": "headless", "WLR_HEADLESS_OUTPUTS": "1", "WLR_RENDERER": "pixman",
         "LUDASH_DISABLE_XWAYLAND": "1", "LUDASH_SKIP_SETUP": "1", "LUNADASH_DISABLE_FCITX": "1"}
     for key in ("WAYLAND_DISPLAY", "DISPLAY", "LUNADASH_PUBLISH_ACTIVATION_ENV"):
@@ -64,6 +68,14 @@ with tempfile.TemporaryDirectory(prefix="lunadash-controls-") as directory:
                 time.sleep(.05)
             state = until(lambda s: s["brightness"].get("available"))
             assert state["brightness"]["percent"] == 60, state["brightness"]
+            state = until(lambda s: len(s["ddcBrightness"]["devices"]) == 1 and not s["ddcBrightness"]["scanning"])
+            monitor = state["ddcBrightness"]["devices"][0]
+            assert monitor["available"] and monitor["percent"] == 40, monitor
+            for invalid in ({"id": monitor["id"], "percent": 101}, {"id":monitor["id"], "percent": 1.5}, {"id":"stale", "percent":50}):
+                assert "error" in request("ddc-brightness", json.dumps(invalid))
+            assert "error" not in request("ddc-brightness", json.dumps({"id":monitor["id"], "percent":60}))
+            until(lambda s: not s["ddcBrightness"]["busy"])
+            assert (root / "ddc-write").read_text().strip() == "setvcp 10 120 --bus 7 --verify"
             assert state["shortcuts"]["screenshot"] == "Meta+Shift+S"
             for value in ("-1", "101", "not-a-number"):
                 assert "error" in request("brightness", value)

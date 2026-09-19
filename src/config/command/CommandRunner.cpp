@@ -1,5 +1,6 @@
 #include "config/command/CommandRunner.hpp"
 #include <QProcessEnvironment>
+#include <algorithm>
 namespace LunaDash {
 CommandRunner::CommandRunner(QObject *parent) : QObject(parent) {
   process_.setProcessChannelMode(QProcess::MergedChannels);
@@ -36,7 +37,7 @@ CommandRunner::~CommandRunner() {
 }
 bool CommandRunner::busy() const { return bool(completion_); }
 bool CommandRunner::run(const QString &program, const QStringList &arguments,
-                        Completion completion) {
+                        Completion completion, int timeoutMilliseconds) {
   if (busy() || program.isEmpty() || !completion)
     return false;
   output_.clear();
@@ -45,6 +46,7 @@ bool CommandRunner::run(const QString &program, const QStringList &arguments,
   auto environment = QProcessEnvironment::systemEnvironment();
   environment.insert("LC_ALL", "C");
   process_.setProcessEnvironment(environment);
+  timeout_.setInterval(std::clamp(timeoutMilliseconds, 1, 60000));
   process_.start(program, arguments);
   timeout_.start();
   return true;

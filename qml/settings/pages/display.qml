@@ -42,6 +42,7 @@ ColumnLayout {
         }
         HelpText { shell: page.shell; visible: Boolean(page.backlight.error); message: page.backlight.error || "" }
     }
+    DdcBrightnessControls { shell: page.shell }
     SettingsCard {
         title: shell.tr("Resolution and refresh rate")
         description: page.output.nested ? shell.tr("Resize the LunaDash window while running as a nested compositor.") : shell.tr("Choose a mode supported by the active display.")
@@ -81,7 +82,6 @@ ColumnLayout {
     }
     HelpText { shell: page.shell; visible: Boolean(page.output.error); message: page.output.error || "" }
     HelpText { shell: page.shell; visible: page.output.nested || false; message: "In a nested session, physical monitor resolution and refresh rate are controlled by your host desktop." }
-    HelpText { shell: page.shell; message: "External monitors usually require DDC/CI rather than the kernel backlight interface, so they may not appear here." }
     Timer {
         id: brightnessDebounce
         interval: 120

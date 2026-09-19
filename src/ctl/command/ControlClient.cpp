@@ -50,7 +50,7 @@ int ControlClient::run(int argc, char **argv) {
         << "Usage: lunadashctl "
            "status|workspace|focus|group-window|expel-window|minimize|close|"
            "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
-           "capture|screenshot|brightness|display-configure|display-confirm|"
+           "capture|screenshot|brightness|ddc-brightness|ddc-refresh|display-configure|display-confirm|"
            "display-revert|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
            "appearance|setup|finish-setup|configure-network|launch-x11|"

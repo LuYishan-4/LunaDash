@@ -11,7 +11,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | Windows and workspaces | 1–9 workspaces, grouped columns, 50% default column width, per-column widths, window gaps, default floating mode | New windows open tiled and non-maximized; `Meta+F` maximizes/restores the focused column |
 | Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all nine workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Shell modules | JSON layout, dimensions, positions, colors and built-in recovery | [Module schema and contract](MODULES.md); custom QML modules are not loaded |
-| Display | Backlight brightness, primary-output resolution/refresh rate and 100–300% scale | Mode changes require confirmation within 15 seconds; nested physical modes belong to the host. Multi-monitor arrangement, rotation, HDR, DDC/CI and night light remain unavailable |
+| Display | Backlight and per-monitor DDC/CI brightness, primary-output resolution/refresh rate and 100–300% scale | Mode changes require confirmation within 15 seconds; nested physical modes belong to the host. Multi-monitor arrangement, rotation, HDR and night light remain unavailable |
 | Keyboard and pointer | Seven keyboard layouts, repeat rate/delay, cursor size for the next session, input test field | Input-method editor and host mouse/touchpad settings; standalone libinput device configuration remains unavailable |
 | Sound | Default output and microphone volume/mute through WirePlumber | Pavucontrol/pwvucontrol handles routing and devices; missing services disable direct controls |
 | Network | Current connection state | NetworkManager editor handles Wi-Fi, Ethernet, VPN and saved profiles; LunaDash does not store network passwords |
@@ -81,4 +81,4 @@ Defaults use `Super+H/L` between columns, `Super+J/K` within a grouped column, `
 
 ## Display and startup controls
 
-See [display controls and startup](DISPLAY_AND_STARTUP.md) for backlight brightness, primary-output resolution/refresh/scale, automatic rollback and the session loading animation. Translated settings labels wrap within their controls and cards instead of retaining a fixed single-line height.
+See [display controls and startup](DISPLAY_AND_STARTUP.md) for backlight/DDC/CI brightness, primary-output resolution/refresh/scale, automatic rollback and the session loading animation. Translated settings labels wrap within their controls and cards instead of retaining a fixed single-line height.
