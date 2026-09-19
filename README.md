@@ -103,7 +103,7 @@ Change bindings in **Settings → Keyboard shortcuts**. See [settings](docs/SETT
 
 Help make the default experience useful and customization approachable. Bug reports, design feedback, documentation and code contributions are welcome.
 
-Send pull requests to **`dev`**. Use a title that says what changes, explain the user-visible result, and list the checks you actually ran. Include matching **`docs/` and `site/` updates**, and say whether the change affects the defaults or an optional customization. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [PR template](.github/pull_request_template.md).
+Send pull requests to **`dev`**. Use a title that says what changes, explain the user-visible result, See [CONTRIBUTING.md](CONTRIBUTING.md) and the [PR template](.github/pull_request_template.md).
 
 ---
 
