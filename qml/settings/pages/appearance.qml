@@ -90,14 +90,15 @@ ColumnLayout {
         title: shell.tr("Wallpaper")
         description: shell.tr("Pick a wallpaper, preview the selection, then apply it once. LunaDash keeps recently used images here.")
 
-        RowLayout {
+        GridLayout {
+            columns: page.width < 700 ? 1 : 2
             Layout.fillWidth: true
-            Layout.preferredHeight: 250
             spacing: 14
 
             Rectangle {
                 Layout.preferredWidth: 360
-                Layout.fillHeight: true
+                Layout.fillWidth: true
+                Layout.preferredHeight: 250
                 radius: 20
                 color: Theme.surface
                 border.width: 1
@@ -246,6 +247,7 @@ ColumnLayout {
                 RowLayout {
                     Layout.fillWidth: true
                     ShellButton {
+                        Layout.fillWidth: true
                         iconName: "files"
                         text: shell.tr("Choose image")
                         onClicked: {
@@ -255,6 +257,7 @@ ColumnLayout {
                     }
                     Item { Layout.fillWidth: true }
                     ShellButton {
+                        Layout.fillWidth: true
                         iconName: "moon"
                         text: shell.tr("Use default")
                         enabled: page.bundledWallpaperPath.length > 0 && page.currentWallpaper !== page.bundledWallpaperPath
@@ -264,6 +267,7 @@ ColumnLayout {
                         }
                     }
                     ShellButton {
+                        Layout.fillWidth: true
                         iconName: "check"
                         text: shell.tr("Apply")
                         active: true

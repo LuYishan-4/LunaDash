@@ -63,7 +63,7 @@ ColumnLayout {
     }
 
     Text { text: editor.shell.tr(editor.title); color: Theme.text; font.pixelSize: 16; font.family: Theme.font }
-    Text {
+    Text { Layout.minimumWidth: 0;
         Layout.fillWidth: true
         text: editor.shell.tr("Choose an application to run for this action.")
         color: Theme.muted; font.pixelSize: 11; font.family: Theme.font; wrapMode: Text.WordWrap
@@ -86,7 +86,7 @@ ColumnLayout {
         }
         ShellButton { text: editor.shell.tr("Open"); onClicked: editor.shell.launch(editor.role) }
     }
-    Text {
+    Text { Layout.minimumWidth: 0;
         Layout.fillWidth: true
         visible: true
         text: editor.stored.length > 0

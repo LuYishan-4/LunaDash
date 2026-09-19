@@ -14,6 +14,8 @@
 
 namespace LunaDash {
 
+class ScreenCapture;
+class BrightnessSettings;
 class ShellModules;
 class AudioSettings;
 class PowerSettings;
@@ -45,6 +47,8 @@ private:
   class Impl;
   std::unique_ptr<Impl> d;
 
+  ScreenCapture *screenCapture_ = nullptr;
+  BrightnessSettings *brightnessSettings_ = nullptr;
   ShellModules *shellModules_ = nullptr;
   AudioSettings *audioSettings_ = nullptr;
   PowerSettings *powerSettings_ = nullptr;

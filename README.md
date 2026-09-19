@@ -102,6 +102,7 @@ Arch uses a local `makepkg` package; other supported distributions use a CMake i
 | `Super` + `H` / `L` | Focus the left / right column |
 | `Super` + `K` / `J` | Focus another window in the column |
 | `Super` + `Space` | Toggle floating |
+| `Super` + `Shift` + `S` | Select a screenshot region |
 | `Super` + `1`–`9` | Switch workspace |
 | `Super` + `Shift` + `1`–`9` | Move a window to a workspace |
 
@@ -128,6 +129,7 @@ See [Actions](https://github.com/LuYishan-4/LunaDash/actions?query=branch%3Adev)
 | --- | --- |
 | [Build and test](docs/TESTING_AND_FILES.md) | [Login session and recovery](docs/LOGIN_SESSION.md) |
 | [Appearance and configuration](docs/CONFIGURATION.md) | [Settings and keyboard shortcuts](docs/SETTINGS.md) |
+| [Display controls and startup](docs/DISPLAY_AND_STARTUP.md) | [Region screenshots](docs/SCREEN_CAPTURE.md) |
 | [Files and default apps](docs/DEFAULT_APPS_AND_FILES.md) | [Input methods](docs/INPUT_METHODS.md) |
 | [Shell modules](docs/MODULES.md) | [Plugins](docs/PLUGINS.md) |
 | [Source architecture](docs/ARCHITECTURE.md) | [Graphics](docs/GRAPHICS.md) · [C core](docs/C_CORE.md) |

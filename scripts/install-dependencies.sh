@@ -78,7 +78,7 @@ case "$manager" in
             base-devel cmake ninja git pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon \
             systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations \
-            shared-mime-info fish grim \
+            shared-mime-info fish grim slurp brightnessctl \
             fcitx5 fcitx5-qt fcitx5-configtool
         wlroots_package=wlroots0.20
         if ! pacman -Si "$wlroots_package" >/dev/null 2>&1; then
@@ -107,7 +107,7 @@ case "$manager" in
             libgl-dev libwayland-dev wayland-protocols libinput-dev \
             libxkbcommon-dev libudev-dev libglib2.0-dev \
             "$wlroots_package" qt6-base-dev qt6-declarative-dev qt6-wayland \
-            libqt6opengl6-dev shared-mime-info fish grim \
+            libqt6opengl6-dev shared-mime-info fish grim slurp brightnessctl \
             fcitx5 fcitx5-frontend-qt6 fcitx5-config-qt
         ;;
     dnf)
@@ -116,7 +116,7 @@ case "$manager" in
             mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel \
             wlroots-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland \
-            shared-mime-info fish grim \
+            shared-mime-info fish grim slurp brightnessctl \
             fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
         ;;
     zypper)
@@ -125,7 +125,7 @@ case "$manager" in
             Mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel \
             wlroots-devel qt6-base-devel qt6-declarative-devel qt6-wayland \
-            shared-mime-info fish grim \
+            shared-mime-info fish grim slurp brightnessctl \
             fcitx5 fcitx5-qt6 fcitx5-configtool
         ;;
     apk)
@@ -133,7 +133,7 @@ case "$manager" in
             build-base cmake ninja git pkgconf mesa-dev \
             wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev \
             glib-dev wlroots-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland \
-            shared-mime-info fish grim \
+            shared-mime-info fish grim slurp brightnessctl \
             fcitx5 fcitx5-qt fcitx5-configtool
         ;;
     xbps)
@@ -141,7 +141,7 @@ case "$manager" in
             base-devel cmake ninja git pkg-config MesaLib-devel \
             wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
             eudev-libudev-devel glib-devel wlroots-devel qt6-base-devel qt6-declarative-devel \
-            qt6-wayland shared-mime-info fish grim \
+            qt6-wayland shared-mime-info fish grim slurp brightnessctl \
             fcitx5 fcitx5-qt fcitx5-configtool
         ;;
     emerge)
@@ -150,7 +150,7 @@ case "$manager" in
             media-libs/mesa dev-libs/wayland dev-libs/wayland-protocols \
             dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib \
             gui-libs/wlroots dev-qt/qtbase:6 dev-qt/qtdeclarative:6 dev-qt/qtwayland:6 \
-            gui-apps/grim x11-misc/shared-mime-info app-shells/fish \
+            gui-apps/grim gui-apps/slurp app-misc/brightnessctl x11-misc/shared-mime-info app-shells/fish \
             app-i18n/fcitx app-i18n/fcitx-qt app-i18n/fcitx-configtool
         ;;
     generic)

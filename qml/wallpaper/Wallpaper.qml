@@ -18,6 +18,7 @@ ModuleSurface {
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
 
+    readonly property bool ready: !desiredSource.length || baseImage.status === Image.Ready || baseImage.status === Image.Error
     property string displayedSource: ""
     property string incomingSource: ""
     property string queuedSource: ""
@@ -104,8 +105,8 @@ ModuleSurface {
         source: wallpaper.displayedSource
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        sourceSize.width: 2560
-        sourceSize.height: 1600
+        sourceSize.width: Math.ceil(wallpaper.width * (wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1))
+        sourceSize.height: Math.ceil(wallpaper.height * (wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1))
         cache: true
         opacity: wallpaper.transitioning && !wallpaper.incomingSource.length
             ? 1 - wallpaper.fadeProgress
@@ -118,8 +119,8 @@ ModuleSurface {
         source: wallpaper.incomingSource
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        sourceSize.width: 2560
-        sourceSize.height: 1600
+        sourceSize.width: Math.ceil(wallpaper.width * (wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1))
+        sourceSize.height: Math.ceil(wallpaper.height * (wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1))
         cache: true
         visible: wallpaper.transitioning && wallpaper.incomingSource.length > 0
     }
@@ -127,7 +128,7 @@ ModuleSurface {
     Item {
         id: revealMask
         anchors.fill: parent
-        layer.enabled: true
+        layer.enabled: wallpaper.transitioning
         visible: false
         Rectangle {
             anchors.centerIn: parent

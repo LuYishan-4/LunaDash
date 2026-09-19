@@ -1,3 +1,4 @@
+#include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/Runtime.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
@@ -25,15 +26,31 @@ QSize WaylandCompositor::Impl::outputSize() const {
 
 QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
   const QSize size = outputSize();
-  return {{"width", size.width()},
-          {"height", size.height()},
-          {"scale", primaryOutput ? primaryOutput->scale : 1.0},
-          {"refreshRate",
-           primaryOutput ? static_cast<double>(primaryOutput->refresh) / 1000.0
-                         : 0.0},
-          {"output", primaryOutput ? safeUtf8(primaryOutput->name) : QString()},
-          {"nested", nested},
-          {"fullscreen", fullscreen}};
+  return {
+      {"width", size.width()},
+      {"pixelWidth", primaryOutput ? primaryOutput->width : 0},
+      {"pixelHeight", primaryOutput ? primaryOutput->height : 0},
+      {"modes", displayModes()},
+      {"mode", primaryOutput ? QString("%1x%2@%3")
+                                   .arg(primaryOutput->width)
+                                   .arg(primaryOutput->height)
+                                   .arg(wl_list_empty(&primaryOutput->modes)
+                                            ? 0
+                                            : primaryOutput->refresh)
+                             : QString()},
+      {"pending", pendingDisplay != nullptr},
+      {"revertSeconds", displayRevertTimer && displayRevertTimer->isActive()
+                            ? (displayRevertTimer->remainingTime() + 999) / 1000
+                            : 0},
+      {"error", displayError},
+      {"height", size.height()},
+      {"scale", primaryOutput ? primaryOutput->scale : 1.0},
+      {"refreshRate", primaryOutput
+                          ? static_cast<double>(primaryOutput->refresh) / 1000.0
+                          : 0.0},
+      {"output", primaryOutput ? safeUtf8(primaryOutput->name) : QString()},
+      {"nested", nested},
+      {"fullscreen", fullscreen}};
 }
 
 int WaylandCompositor::Impl::mappedLayerCount() const {
@@ -44,19 +61,22 @@ int WaylandCompositor::Impl::mappedLayerCount() const {
   return count;
 }
 
+QJsonArray WaylandCompositor::Impl::mappedLayerNamespaces() const {
+  QJsonArray result;
+  for (const auto *layer : layers)
+    if (layer && layer->mapped && layer->surface)
+      result.append(safeUtf8(layer->surface->namespace_));
+  return result;
+}
+
 void WaylandCompositor::Impl::updateBackground() {
   if (!background)
     return;
   const QSize size = outputSize();
   wlr_scene_rect_set_size(background, size.width(), size.height());
-  const int palette = QSettings().value("appearance/wallpaper", 0).toInt();
-  if (palette == 1) {
-    const float color[4] = {0.06f, 0.20f, 0.16f, 1.0f};
-    wlr_scene_rect_set_color(background, color);
-  } else {
-    const float color[4] = {0.07f, 0.09f, 0.18f, 1.0f};
-    wlr_scene_rect_set_color(background, color);
-  }
+  // Neutral fallback while the shell's startup surface and wallpaper map.
+  const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
+  wlr_scene_rect_set_color(background, color);
 }
 
 void WaylandCompositor::Impl::arrangeLayers() {
@@ -123,13 +143,47 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   wlr_output_state pending;
   wlr_output_state_init(&pending);
   wlr_output_state_set_enabled(&pending, true);
-  if (auto *mode = wlr_output_preferred_mode(output))
-    wlr_output_state_set_mode(&pending, mode);
+  auto *chosen = wlr_output_preferred_mode(output);
+  if (chosen && !self->nested) {
+    wlr_output_mode *candidate = nullptr;
+    wl_list_for_each(candidate, &output->modes, link) {
+      if (candidate->width == chosen->width &&
+          candidate->height == chosen->height &&
+          candidate->refresh > chosen->refresh)
+        chosen = candidate;
+    }
+  }
+  QSettings settings;
+  const QString prefix = "display/" + safeUtf8(output->name) + "/";
+  if (!self->nested) {
+    wlr_output_mode *candidate = nullptr;
+    wl_list_for_each(candidate, &output->modes, link) {
+      if (candidate->width == settings.value(prefix + "width").toInt() &&
+          candidate->height == settings.value(prefix + "height").toInt() &&
+          candidate->refresh == settings.value(prefix + "refresh").toInt()) {
+        chosen = candidate;
+        break;
+      }
+    }
+  }
+  if (chosen)
+    wlr_output_state_set_mode(&pending, chosen);
   else if (!self->fullscreen)
-    wlr_output_state_set_custom_mode(&pending, 1440, 900, 60000);
-
-  if (!wlr_output_commit_state(output, &pending))
-    qWarning("wlroots rejected the preferred output state.");
+    wlr_output_state_set_custom_mode(&pending, 1440, 900, 0);
+  const float scale =
+      std::clamp(settings.value(prefix + "scale", 1.0).toFloat(), 1.0f, 3.0f);
+  wlr_output_state_set_scale(&pending, scale);
+  if (!wlr_output_test_state(output, &pending) ||
+      !wlr_output_commit_state(output, &pending)) {
+    wlr_output_state_set_scale(&pending, 1.0f);
+    if (auto *preferred = wlr_output_preferred_mode(output))
+      wlr_output_state_set_mode(&pending, preferred);
+    if (!wlr_output_commit_state(output, &pending)) {
+      wlr_output_state_finish(&pending);
+      self->fail("wlroots rejected the output configuration.");
+      return;
+    }
+  }
   wlr_output_state_finish(&pending);
 
   auto *state = new OutputState;
@@ -160,19 +214,27 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *state = listenerOwner<OutputState>(listener);
   if (!state || !state->sceneOutput)
     return;
+  auto *animations = state->impl->q->windowAnimations_;
+  if (animations)
+    animations->advance();
   if (!wlr_scene_output_commit(state->sceneOutput, nullptr))
     qWarning("wlroots scene output commit failed.");
   timespec now{};
   clock_gettime(CLOCK_MONOTONIC, &now);
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
+  if (animations && animations->activeCount() > 0)
+    wlr_output_schedule_frame(state->output);
 }
 
 void WaylandCompositor::Impl::handleOutputRequestState(wl_listener *listener,
                                                        void *data) {
   auto *state = listenerOwner<OutputState>(listener);
   auto *event = static_cast<wlr_output_event_request_state *>(data);
-  if (state && event)
-    wlr_output_commit_state(state->output, event->state);
+  if (state && event && wlr_output_commit_state(state->output, event->state)) {
+    state->impl->updateBackground();
+    state->impl->arrangeLayers();
+    state->impl->q->arrange();
+  }
 }
 
 void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
@@ -181,6 +243,8 @@ void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
   if (!state)
     return;
   auto *self = state->impl;
+  if (self->pendingDisplay == state->output)
+    self->clearPendingDisplay();
   detachListener(state->frame);
   detachListener(state->destroy);
   detachListener(state->requestState);

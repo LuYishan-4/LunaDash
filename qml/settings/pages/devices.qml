@@ -114,7 +114,7 @@ ColumnLayout {
             Item { Layout.fillWidth: true }
         }
 
-        Text {
+        Text { Layout.minimumWidth: 0;
             Layout.fillWidth: true
             visible: page.hardwareDevices.length === 0
             text: shell.tr("No PCI or USB devices were reported. Install pciutils and usbutils for the complete device list.")
@@ -141,7 +141,7 @@ ColumnLayout {
                     anchors.top: parent.top
                     anchors.margins: 10
                     spacing: 3
-                    Text {
+                    Text { Layout.minimumWidth: 0;
                         Layout.fillWidth: true
                         text: modelData.name || modelData.category
                         color: Theme.text
@@ -150,7 +150,7 @@ ColumnLayout {
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
-                    Text {
+                    Text { Layout.minimumWidth: 0;
                         Layout.fillWidth: true
                         text: [modelData.bus, modelData.id, modelData.vendor, modelData.category].filter(Boolean).join("  ·  ")
                         color: Theme.muted
@@ -158,7 +158,7 @@ ColumnLayout {
                         font.pixelSize: 11
                         elide: Text.ElideRight
                     }
-                    Text {
+                    Text { Layout.minimumWidth: 0;
                         Layout.fillWidth: true
                         visible: text.length > 0
                         text: [modelData.driver ? shell.tr("Driver") + ": " + modelData.driver : "",
@@ -192,7 +192,7 @@ ColumnLayout {
             ShellButton { text: shell.tr("Printers and scanners"); onClicked: shell.command("system-tool", "printers") }
             Item { Layout.fillWidth: true }
         }
-        Text {
+        Text { Layout.minimumWidth: 0;
             Layout.fillWidth: true
             visible: page.deviceEventsVisible
             text: page.deviceEventsText || shell.tr("Collecting recent device events…")
@@ -213,7 +213,7 @@ ColumnLayout {
         title: shell.tr("Disk Management")
         description: shell.tr("Inspect disks and partitions, mount or unmount filesystems, safely power off removable drives, and open privileged partition, format, initialize, resize and SMART operations.")
 
-        Text {
+        Text { Layout.minimumWidth: 0;
             Layout.fillWidth: true
             visible: page.blockDevices.length === 0
             text: shell.tr("No block devices were reported. Install util-linux for lsblk support.")
@@ -245,7 +245,7 @@ ColumnLayout {
                         Layout.leftMargin: modelData.depth * 16
                         Layout.fillWidth: true
                         spacing: 2
-                        Text {
+                        Text { Layout.minimumWidth: 0;
                             Layout.fillWidth: true
                             text: [modelData.name, modelData.label, modelData.model].filter(Boolean).join("  ·  ")
                             color: Theme.text
@@ -254,7 +254,7 @@ ColumnLayout {
                             font.weight: modelData.type === "disk" ? Font.DemiBold : Font.Normal
                             elide: Text.ElideRight
                         }
-                        Text {
+                        Text { Layout.minimumWidth: 0;
                             Layout.fillWidth: true
                             text: [modelData.path, modelData.size, modelData.fstype, modelData.uuid,
                                    modelData.mountpoints ? modelData.mountpoints.filter(Boolean).join(", ") : "",
@@ -303,7 +303,7 @@ ColumnLayout {
         }
     }
 
-    Text {
+    Text { Layout.minimumWidth: 0;
         Layout.fillWidth: true
         visible: page.probeError.length > 0 || page.diskActionMessage.length > 0
         text: page.probeError || page.diskActionMessage

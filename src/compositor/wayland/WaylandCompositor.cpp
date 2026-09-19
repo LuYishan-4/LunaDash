@@ -3,6 +3,7 @@
 #include "compositor/wayland/SurfaceText.hpp"
 
 #include "compositor/animation/SceneWindowAnimations.hpp"
+#include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/input/Keyboard.hpp"
 #include "compositor/ipc/ControlServer.hpp"
@@ -20,6 +21,7 @@
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/audio/AudioSettings.hpp"
 #include "desktop/browser/Browser.hpp"
+#include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/input/InputSettings.hpp"
 #include "desktop/network/NetworkStatus.hpp"
 #include "desktop/power/PowerSettings.hpp"
@@ -101,6 +103,14 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell,
                                      const QString &rendererPreference)
     : d(std::make_unique<Impl>(this, socket, fullscreen, rendererPreference)) {
+  screenCapture_ = new ScreenCapture(this);
+  connect(screenCapture_, &ScreenCapture::completed, this,
+          [this](const QString &path, const QString &error) {
+            if (!path.isEmpty())
+              lastCapture_ = path;
+            captureError_ = error;
+          });
+  brightnessSettings_ = new BrightnessSettings(this);
   shellModules_ = new ShellModules(this);
   systemStatus_ = new SystemStatus(this);
   audioSettings_ = new AudioSettings(this);
@@ -196,6 +206,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
 
 WaylandCompositor::~WaylandCompositor() {
   shuttingDown_ = true;
+  delete screenCapture_;
+  screenCapture_ = nullptr;
   if (windowAnimations_)
     windowAnimations_->clear();
   if (xwayland_) {
@@ -270,6 +282,8 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       process->deleteLater();
       return nullptr;
     }
+    environment.insert("LUNADASH_WALLPAPER", wallpaperImageUrl());
+    process->setProcessEnvironment(environment);
     process->start(quickshell, {"--path", config, "--no-color"});
   } else {
     auto executable = program;
@@ -782,10 +796,13 @@ QJsonObject WaylandCompositor::state() const {
                                     {"version", 3},
                                     {"frames", 0},
                                     {"lastCapture", lastCapture_},
-                                    {"error", captureError_}}},
+                                    {"error", captureError_},
+                                    {"busy", screenCapture_->busy()},
+                                    {"phase", screenCapture_->phase()}}},
       {"activationEnvironment",
        QJsonObject{{"published", activationEnvironmentPublished_},
                    {"error", activationEnvironmentError_}}},
+      {"brightness", brightnessSettings_->snapshot()},
       {"appearance", preferences},
       {"setupComplete", setupComplete()},
       {"network", networkStatus_->snapshot()},
@@ -801,6 +818,7 @@ QJsonObject WaylandCompositor::state() const {
            {"columns", tilingColumns},
            {"groups", tilingGroups}}},
       {"layerSurfaces", d ? d->mappedLayerCount() : 0},
+      {"layerNamespaces", d ? d->mappedLayerNamespaces() : QJsonArray{}},
       {"language", selectedLanguage()},
       {"translations", languageDictionary(selectedLanguage())},
       {"wallpaper", QSettings().value("appearance/wallpaper", 0).toInt()},
@@ -853,7 +871,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     captureScreen();
     if (!captureError_.isEmpty())
       return {{"error", captureError_}};
-    return {{"path", lastCapture_}};
+    return {{"pending", screenCapture_->busy()},
+            {"phase", screenCapture_->phase()}};
   } else if (method == "check-update") {
     updateChecker_->check();
   } else if (method == "send-key") {
@@ -966,6 +985,23 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!isValidSessionAction(value) ||
         !sessionActions_->execute(value, &error))
       return {{"error", error.isEmpty() ? "Invalid session action." : error}};
+  } else if (method == "brightness") {
+    bool ok = false;
+    const int percent = value.toInt(&ok);
+    QString error;
+    if (!ok || !brightnessSettings_->setPercent(percent, &error))
+      return {{"error",
+               error.isEmpty() ? "Brightness must be an integer." : error}};
+  } else if (method == "display-configure") {
+    const auto changes = QJsonDocument::fromJson(value.toUtf8());
+    QString error;
+    if (!changes.isObject() || !d->configureDisplay(changes.object(), &error))
+      return {{"error",
+               error.isEmpty() ? "Invalid display configuration." : error}};
+  } else if (method == "display-confirm") {
+    d->confirmDisplay();
+  } else if (method == "display-revert") {
+    d->revertDisplay();
   } else if (method == "desktop-size") {
     QString error;
     if (!d || !d->resizePrimaryOutput(value, &error))
@@ -1095,15 +1131,11 @@ void WaylandCompositor::publishSessionActivationEnvironment() {
   auto environment = clientEnvironment_;
   if (xwayland_)
     xwayland_->applyEnvironment(environment);
-  QString error;
-  if (publishActivationEnvironment(environment, &error)) {
-    activationEnvironmentPublished_ = true;
-    return;
-  }
-  activationEnvironmentError_ =
-      error.isEmpty()
-          ? QStringLiteral("dbus-update-activation-environment failed.")
-          : error;
+  publishActivationEnvironment(environment, this,
+                               [this](bool ok, const QString &error) {
+                                 activationEnvironmentPublished_ = ok;
+                                 activationEnvironmentError_ = error;
+                               });
 }
 
 QString WaylandCompositor::nextCapturePath() const {
@@ -1119,14 +1151,15 @@ QString WaylandCompositor::nextCapturePath() const {
 }
 
 void WaylandCompositor::captureScreen() {
+  if (screenCapture_->busy())
+    return;
+  captureError_.clear();
   const QString path = nextCapturePath();
-  if (path.isEmpty() || !saveScreenshot(path)) {
-    captureError_ =
-        "Could not write the screenshot. Install grim for wlroots capture.";
+  if (path.isEmpty()) {
+    captureError_ = "Could not create the screenshot directory.";
     return;
   }
-  lastCapture_ = path;
-  captureError_.clear();
+  screenCapture_->selectRegion(clientEnvironment_, path, &captureError_);
 }
 
 void WaylandCompositor::closeTestSession(

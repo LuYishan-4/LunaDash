@@ -6,6 +6,8 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
       - "src/**"
+      - "qml/**"
+      - "tests/wayland/test_shell_startup.py"
       - "scripts/install-dependencies.sh"
       - "scripts/install-session.sh"
       - ".github/workflows/distro-build.yml"
@@ -67,7 +69,19 @@ jobs:
                 cmake -S . -B build-distro -G Ninja \\
                   -DCMAKE_BUILD_TYPE=Release -DLUDASH_BUILD_FILES_TESTS=ON
                 cmake --build build-distro --parallel 2
+                if command -v pacman >/dev/null; then
+                  command -v quickshell
+                  python3 tests/wayland/test_shell_startup.py build-distro
+                fi
                 bash scripts/test-xdg-lifecycle.sh "\$PWD/build-distro"
                 ctest --test-dir build-distro --output-on-failure -R \"^lunadash-files$\"
               "
             '
+      - name: Preserve shell startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: distro-shell-${{ strategy.job-index }}
+          path: build-distro/shell-startup.log
+          if-no-files-found: ignore
+          retention-days: 7

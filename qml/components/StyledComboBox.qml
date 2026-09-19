@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import "../style"
 
 ComboBox {
@@ -10,7 +11,8 @@ ComboBox {
         return translationContext ? translationContext.tr(String(text)) : String(text)
     }
     implicitWidth: Math.max(150, contentItem.implicitWidth + 54)
-    implicitHeight: 40
+    Layout.minimumWidth: 120
+    implicitHeight: Math.max(40, contentItem.implicitHeight + topPadding + bottomPadding)
     leftPadding: 14
     rightPadding: 38
     font.family: Theme.font
@@ -26,7 +28,7 @@ ComboBox {
         color: Theme.text
         font: control.font
         verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+        wrapMode: Text.Wrap
     }
 
     indicator: Item {
@@ -59,7 +61,7 @@ ComboBox {
         id: option
         required property int index
         width: control.popup.width - 12
-        height: 38
+        implicitHeight: Math.max(38, option.contentItem.implicitHeight + topPadding + bottomPadding)
         leftPadding: 12
         enabled: control.popupArmed
         highlighted: control.highlightedIndex === index
@@ -82,7 +84,7 @@ ComboBox {
             font.family: Theme.font
             font.pixelSize: 12
             verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
+                wrapMode: Text.Wrap
             }
         }
         background: Rectangle {

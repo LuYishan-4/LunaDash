@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import "../style"
 
 Rectangle {
@@ -12,7 +13,8 @@ Rectangle {
     signal clicked()
 
     implicitWidth: Math.max(32, label.implicitWidth + 28)
-    implicitHeight: 32
+    Layout.minimumWidth: 32
+    implicitHeight: Math.max(32, label.implicitHeight + 14)
     radius: height / 2
     color: selected
         ? accentColor
@@ -47,6 +49,9 @@ Rectangle {
     Text {
         id: label
         anchors.centerIn: parent
+        width: Math.max(0, root.width - 28)
+        wrapMode: Text.Wrap
+        horizontalAlignment: Text.AlignHCenter
         text: root.text
         color: root.selected ? Theme.accentInk : root.ink
         font.family: Theme.font

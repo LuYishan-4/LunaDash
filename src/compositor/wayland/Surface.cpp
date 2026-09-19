@@ -301,20 +301,44 @@ void WaylandCompositor::Impl::handleLayerUnmap(wl_listener *listener, void *) {
   if (!state)
     return;
   state->mapped = false;
+  state->configured = false;
   state->impl->arrangeLayers();
   state->impl->q->arrange();
+  state->impl->restoreLayerFocus();
 }
 
 void WaylandCompositor::Impl::handleLayerCommit(wl_listener *listener, void *) {
   auto *state = listenerOwner<LayerState>(listener);
   if (!state || !state->surface || !state->surface->initialized)
     return;
-  state->impl->arrangeLayers();
-  state->impl->q->arrange();
-  if (state->mapped && state->surface &&
-      state->surface->current.keyboard_interactive ==
-          ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE)
-    state->impl->focusSurface(state->surface->surface);
+  const auto &current = state->surface->current;
+  // Buffer-only commits (including every animated shell frame) do not change
+  // the work area. Reconfiguring all windows here caused continuous relayout.
+  if (!state->configured ||
+      (current.committed &
+       ~WLR_LAYER_SURFACE_V1_STATE_KEYBOARD_INTERACTIVITY)) {
+    wlr_scene_tree *parent = state->impl->topLayer;
+    switch (current.layer) {
+    case ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND:
+      parent = state->impl->backgroundLayer;
+      break;
+    case ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM:
+      parent = state->impl->bottomLayer;
+      break;
+    case ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY:
+      parent = state->impl->overlayLayer;
+      break;
+    default:
+      break;
+    }
+    wlr_scene_node_reparent(&state->sceneLayer->tree->node, parent);
+    state->impl->arrangeLayers();
+    state->impl->q->arrange();
+    state->configured = true;
+  }
+  if (state->mapped &&
+      (current.committed & WLR_LAYER_SURFACE_V1_STATE_KEYBOARD_INTERACTIVITY))
+    state->impl->restoreLayerFocus();
 }
 
 void WaylandCompositor::Impl::handleLayerDestroy(wl_listener *listener,
@@ -331,7 +355,29 @@ void WaylandCompositor::Impl::handleLayerDestroy(wl_listener *listener,
   delete state;
   self->arrangeLayers();
   self->q->arrange();
+  self->restoreLayerFocus();
 }
+void WaylandCompositor::Impl::restoreLayerFocus() {
+  if (q->shuttingDown_ || q->testStopping_)
+    return;
+  LayerState *target = nullptr;
+  for (auto *layer : layers) {
+    if (!layer->mapped || !layer->surface ||
+        layer->surface->current.keyboard_interactive !=
+            ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE)
+      continue;
+    if (!target ||
+        layer->surface->current.layer >= target->surface->current.layer)
+      target = layer;
+  }
+  if (target)
+    focusSurface(target->surface->surface);
+  else if (q->focused_ && q->focused_->mapped && !q->focused_->minimized)
+    focusSurface(q->focused_->surface->surface);
+  else if (seat)
+    wlr_seat_keyboard_notify_clear_focus(seat);
+}
+
 ClientWindow *
 WaylandCompositor::Impl::clientForSurface(wlr_surface *surface) const {
   if (!surface || !surface->resource)

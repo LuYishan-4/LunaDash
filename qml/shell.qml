@@ -16,7 +16,10 @@ import "compatibility"
 
 ShellRoot {
     id: root
-    property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0 })
+    property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0, wallpaperImage: Quickshell.env("LUNADASH_WALLPAPER") || "" })
+    property bool stateReady: false
+    property string settingsPage: "general"
+    property string lastCaptureError: ""
     readonly property string bin: Quickshell.env("LUNADASH_BIN_DIR") || Quickshell.env("LUDASH_BIN_DIR")
     readonly property string controlExecutable: bin ? bin + "/lunadashctl" : "lunadashctl"
     readonly property string desktopExecutable: bin ? bin + "/lunadash-desktop" : "lunadash-desktop"
@@ -207,6 +210,7 @@ ShellRoot {
     }
 
     function applyPolledState(result) {
+        root.stateReady = true;
         // The compositor reads the updater's progress.json directly. Synchronize
         // install state before filtering high-frequency system metrics so About
         // keeps showing progress even after a QML reload.
@@ -217,7 +221,7 @@ ShellRoot {
         // re-evaluate while the user is typing. Keep the last system snapshot
         // unless a page that actually displays live performance is open.
         const needsLiveSystem = root.overviewOpen ||
-            (root.settingsOpen && settingsCenter.category === "about")
+            (root.settingsOpen && root.settingsPage === "about")
         if (!needsLiveSystem && root.state.system !== undefined)
             result.system = root.state.system
 
@@ -228,9 +232,14 @@ ShellRoot {
         root.state = result
     }
 
+    function openSettingsPage(page) {
+        settingsPage = page
+        if (settingsLoader.active) settingsLoader.item.showCategory(page)
+        settingsOpen = true
+    }
     onStateChanged: {
-        if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; settingsCenter.showCategory(state.settingsPage || "general"); settingsOpen = true }
-        if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; settingsCenter.showCategory("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
+        if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; openSettingsPage(state.settingsPage || "general") }
+        if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; openSettingsPage("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
         Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
         Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
@@ -238,6 +247,10 @@ ShellRoot {
         Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true)
         Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
+        const captureError = String((state.screenCapture || {}).error || "")
+        if (captureError.length && captureError !== lastCaptureError)
+            notify(tr("Screenshot failed"), tr(captureError), "error", captureError)
+        lastCaptureError = captureError
         const capture = String((state.screenCapture || {}).lastCapture || "")
         if (capture.length && capture !== lastScreenshotSeen) {
             lastScreenshotSeen = capture
@@ -375,19 +388,53 @@ ShellRoot {
     }
 
     RemovableDeviceMonitor { shell: root }
-    Wallpaper { shell: root; opened: !root.stopping }
+    StartupSplash { shell: root; ready: root.stateReady && desktopWallpaper.ready }
+    Wallpaper { id: desktopWallpaper; shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
-    Overview { shell: root; opened: !root.stopping && root.overviewOpen }
-    CalendarPopup { shell: root; opened: !root.stopping && root.calendarOpen }
-    UsbDevicePopup { shell: root; opened: !root.stopping && root.usbPopupOpen }
-    AudioPopup { shell: root; opened: !root.stopping && root.volumePopupOpen }
-    WifiPopup { shell: root; opened: !root.stopping && root.wifiPopupOpen }
-    Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
+    LazyLoader {
+        loading: root.overviewOpen
+        Overview { shell: root; opened: !root.stopping && root.overviewOpen }
+    }
+    LazyLoader {
+        loading: root.calendarOpen
+        CalendarPopup { shell: root; opened: !root.stopping && root.calendarOpen }
+    }
+    LazyLoader {
+        loading: root.usbPopupOpen
+        UsbDevicePopup { shell: root; opened: !root.stopping && root.usbPopupOpen }
+    }
+    LazyLoader {
+        loading: root.volumePopupOpen
+        AudioPopup { shell: root; opened: !root.stopping && root.volumePopupOpen }
+    }
+    LazyLoader {
+        loading: root.wifiPopupOpen
+        WifiPopup { shell: root; opened: !root.stopping && root.wifiPopupOpen }
+    }
+    LazyLoader {
+        loading: root.launcherOpen
+        Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
+    }
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
-    SettingsPanel { id: settingsCenter; shell: root; opened: !root.stopping && root.settingsOpen }
+    LazyLoader {
+        id: settingsLoader
+        loading: root.settingsOpen
+        onActiveChanged: if (active) item.showCategory(root.settingsPage)
+        SettingsPanel {
+            shell: root
+            opened: !root.stopping && root.settingsOpen
+            onCategoryChanged: if (settingsLoader.active) root.settingsPage = category
+        }
+    }
     SetupWizard { shell: root; opened: !root.stopping && root.state.setupComplete === false && !root.setupPaused }
-    LogoutPanel { shell: root; opened: !root.stopping && root.logoutOpen }
-    X11Launcher { shell: root; opened: !root.stopping && root.x11Open }
+    LazyLoader {
+        loading: root.logoutOpen
+        LogoutPanel { shell: root; opened: !root.stopping && root.logoutOpen }
+    }
+    LazyLoader {
+        loading: root.x11Open
+        X11Launcher { shell: root; opened: !root.stopping && root.x11Open }
+    }
     Message { shell: root; opened: !root.stopping && root.errorMessage.length > 0 }
     NotificationToast { shell: root; opened: !root.stopping && root.notificationVisible }
     ScreenshotFeedback { shell: root; opened: !root.stopping }

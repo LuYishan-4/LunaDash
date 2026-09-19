@@ -30,7 +30,7 @@ ColumnLayout {
         description: shell.tr("Configure the physical keyboard layout used by the compositor seat.")
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Keyboard layout"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Keyboard layout"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             StyledComboBox {
                 model: page.keyboardLayouts.map(entry => entry.label)
                 currentIndex: Math.max(0, page.keyboardLayouts.findIndex(entry => entry.value === page.selectedLayout))
@@ -75,7 +75,7 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Input method environment"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Input method environment"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             Text { text: "QT_IM_MODULE=fcitx · GTK_IM_MODULE=fcitx · XMODIFIERS=@im=fcitx"; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideMiddle; Layout.maximumWidth: 430 }
         }
         HelpText { shell: page.shell; message: "Fcitx is started for LunaDash sessions when available. Traditional Chinese input should be configured inside Fcitx; the compositor keyboard layout only describes physical key positions." }

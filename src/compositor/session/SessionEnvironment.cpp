@@ -6,6 +6,8 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStringList>
+#include <QTimer>
+#include <memory>
 
 namespace LunaDash {
 namespace {
@@ -145,8 +147,9 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
   return true;
 }
 
-bool publishActivationEnvironment(const QProcessEnvironment &environment,
-                                  QString *error) {
+void publishActivationEnvironment(
+    const QProcessEnvironment &environment, QObject *owner,
+    std::function<void(bool, const QString &)> completion) {
   static const QStringList names = {
       QStringLiteral("WAYLAND_DISPLAY"),
       QStringLiteral("DISPLAY"),
@@ -179,44 +182,55 @@ bool publishActivationEnvironment(const QProcessEnvironment &environment,
   const auto tool = QStandardPaths::findExecutable(
       QStringLiteral("dbus-update-activation-environment"));
   if (tool.isEmpty()) {
-    if (error)
-      *error = "dbus-update-activation-environment is not installed.";
-    return false;
+    completion(false, "dbus-update-activation-environment is not installed.");
+    return;
   }
   QStringList available;
   for (const auto &name : names)
     if (environment.contains(name))
       available.append(name);
-  const auto run = [&](bool systemd, QString *output) {
-    QStringList arguments;
-    if (systemd)
-      arguments.append(QStringLiteral("--systemd"));
-    arguments += available;
-    QProcess process;
-    process.setProcessEnvironment(environment);
-    process.setProcessChannelMode(QProcess::MergedChannels);
-    process.start(tool, arguments);
-    if (!process.waitForStarted(3000) || !process.waitForFinished(3000)) {
-      process.kill();
-      process.waitForFinished(1000);
-      *output = "Timed out while publishing the activation environment.";
-      return false;
-    }
-    if (process.exitStatus() != QProcess::NormalExit ||
-        process.exitCode() != 0) {
-      *output = QString::fromLocal8Bit(process.readAll()).trimmed();
-      return false;
-    }
-    return true;
-  };
-  QString message;
-  if (run(true, &message))
-    return true;
-  QString fallback;
-  if (run(false, &fallback))
-    return true;
-  if (error)
-    *error = fallback.isEmpty() ? message : fallback;
-  return false;
+  auto *process = new QProcess(owner);
+  auto *timeout = new QTimer(process);
+  timeout->setSingleShot(true);
+  timeout->setInterval(3000);
+  process->setProcessEnvironment(environment);
+  process->setProcessChannelMode(QProcess::MergedChannels);
+  const auto fallback = std::make_shared<bool>(false);
+  QObject::connect(timeout, &QTimer::timeout, process,
+                   [process] { process->kill(); });
+  QObject::connect(
+      process, &QProcess::finished, owner,
+      [process, timeout, fallback, available, tool,
+       completion](int code, QProcess::ExitStatus status) {
+        timeout->stop();
+        const QString message =
+            QString::fromLocal8Bit(process->readAll()).trimmed().left(1024);
+        if (code == 0 && status == QProcess::NormalExit) {
+          completion(true, {});
+          process->deleteLater();
+        } else if (!*fallback) {
+          *fallback = true;
+          process->start(tool, available);
+          timeout->start();
+        } else {
+          completion(
+              false,
+              message.isEmpty()
+                  ? "Activation environment publication failed or timed out."
+                  : message);
+          process->deleteLater();
+        }
+      });
+  QObject::connect(
+      process, &QProcess::errorOccurred, owner,
+      [process, timeout, completion](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart)
+          return;
+        timeout->stop();
+        completion(false, process->errorString());
+        process->deleteLater();
+      });
+  process->start(tool, QStringList{"--systemd"} + available);
+  timeout->start();
 }
 } // namespace LunaDash

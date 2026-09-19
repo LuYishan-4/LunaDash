@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import "../../style"
 
-Text {
+Text { Layout.minimumWidth: 0;
     id: titleText
     required property var shell
     property string title: ""

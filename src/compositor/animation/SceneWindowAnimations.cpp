@@ -2,7 +2,7 @@
 #include "compositor/wayland/wlroots/WlrootsSceneHeaders.hpp"
 
 #include <QEasingCurve>
-#include <QVariantAnimation>
+#include <QElapsedTimer>
 #include <algorithm>
 #include <cmath>
 
@@ -65,7 +65,8 @@ void cloneBuffer(wlr_scene_buffer *buffer, int sx, int sy, void *data) {
 
 struct SceneWindowAnimations::LiveState {
   wlr_scene_tree *tree = nullptr;
-  QVariantAnimation *animation = nullptr;
+  QElapsedTimer elapsed;
+  int duration = 0;
   QPoint basePosition;
   OpacityMap opacity;
   qreal progress = 0.0;
@@ -73,7 +74,8 @@ struct SceneWindowAnimations::LiveState {
 
 struct SceneWindowAnimations::SnapshotState {
   wlr_scene_tree *tree = nullptr;
-  QVariantAnimation *animation = nullptr;
+  QElapsedTimer elapsed;
+  int duration = 0;
   OpacityMap opacity;
 };
 
@@ -97,10 +99,6 @@ void SceneWindowAnimations::setDuration(int milliseconds) {
   const auto snapshots = snapshots_;
   for (auto *state : snapshots) {
     snapshots_.removeAll(state);
-    if (state->animation) {
-      state->animation->stop();
-      state->animation->deleteLater();
-    }
     if (state->tree)
       wlr_scene_node_destroy(&state->tree->node);
     delete state;
@@ -130,8 +128,6 @@ void SceneWindowAnimations::finishLive(wlr_scene_tree *tree, LiveState *state) {
   wlr_scene_node_set_position(&tree->node, state->basePosition.x(),
                               state->basePosition.y());
   live_.remove(tree);
-  if (state->animation)
-    state->animation->deleteLater();
   delete state;
 }
 
@@ -148,21 +144,10 @@ void SceneWindowAnimations::show(wlr_scene_tree *tree, const QPoint &position) {
   auto *state = new LiveState;
   state->tree = tree;
   state->basePosition = position;
-  state->animation = new QVariantAnimation(this);
-  state->animation->setStartValue(0.0);
-  state->animation->setEndValue(1.0);
-  state->animation->setDuration(duration_);
-  state->animation->setEasingCurve(QEasingCurve::OutCubic);
+  state->duration = duration_;
+  state->elapsed.start();
   live_.insert(tree, state);
-
   applyLive(state, 0.0);
-  connect(state->animation, &QVariantAnimation::valueChanged, this,
-          [this, state](const QVariant &value) {
-            applyLive(state, value.toReal());
-          });
-  connect(state->animation, &QVariantAnimation::finished, this,
-          [this, tree, state] { finishLive(tree, state); });
-  state->animation->start();
 }
 
 void SceneWindowAnimations::setPosition(wlr_scene_tree *tree,
@@ -206,40 +191,49 @@ void SceneWindowAnimations::hideSnapshot(wlr_scene_tree *source,
   }
 
   wlr_scene_node_raise_to_top(&snapshot->node);
-  state->animation = new QVariantAnimation(this);
-  state->animation->setStartValue(1.0);
-  state->animation->setEndValue(0.0);
-  state->animation->setDuration(duration_);
-  state->animation->setEasingCurve(QEasingCurve::InCubic);
+  state->duration = duration_;
+  state->elapsed.start();
   snapshots_.append(state);
+}
 
-  connect(state->animation, &QVariantAnimation::valueChanged, this,
-          [state](const QVariant &value) {
-            OpacityContext context{&state->opacity, value.toReal()};
-            wlr_scene_node_for_each_buffer(&state->tree->node, applyOpacity,
-                                           &context);
-            const int drop = qRound((1.0 - value.toReal()) * 8.0);
-            wlr_scene_node_set_position(&state->tree->node, 0, drop);
-          });
-  connect(state->animation, &QVariantAnimation::finished, this, [this, state] {
-    snapshots_.removeAll(state);
-    if (state->tree)
+void SceneWindowAnimations::advance() {
+  // Output frame callbacks drive effects at the actual display cadence rather
+  // than Qt's independent animation timer. Idle outputs remain undamaged.
+  const auto live = live_.values();
+  for (auto *state : live) {
+    const qreal t =
+        std::min(1.0, static_cast<double>(state->elapsed.nsecsElapsed()) /
+                          (state->duration * 1000000.0));
+    if (t >= 1.0)
+      finishLive(state->tree, state);
+    else
+      applyLive(state,
+                QEasingCurve(QEasingCurve::OutCubic).valueForProgress(t));
+  }
+  const auto snapshots = snapshots_;
+  for (auto *state : snapshots) {
+    const qreal t =
+        std::min(1.0, static_cast<double>(state->elapsed.nsecsElapsed()) /
+                          (state->duration * 1000000.0));
+    if (t >= 1.0) {
+      snapshots_.removeAll(state);
       wlr_scene_node_destroy(&state->tree->node);
-    if (state->animation)
-      state->animation->deleteLater();
-    delete state;
-  });
-  state->animation->start();
+      delete state;
+      continue;
+    }
+    const qreal opacity =
+        1.0 - QEasingCurve(QEasingCurve::InCubic).valueForProgress(t);
+    OpacityContext context{&state->opacity, opacity};
+    wlr_scene_node_for_each_buffer(&state->tree->node, applyOpacity, &context);
+    wlr_scene_node_set_position(&state->tree->node, 0,
+                                qRound((1.0 - opacity) * 8.0));
+  }
 }
 
 void SceneWindowAnimations::cancel(wlr_scene_tree *tree) {
   auto *state = live_.take(tree);
   if (!state)
     return;
-  if (state->animation) {
-    state->animation->stop();
-    state->animation->deleteLater();
-  }
   if (tree) {
     restoreOpacity(tree, state->opacity);
     wlr_scene_node_set_position(&tree->node, state->basePosition.x(),
@@ -256,10 +250,6 @@ void SceneWindowAnimations::clear() {
   const auto snapshots = snapshots_;
   snapshots_.clear();
   for (auto *state : snapshots) {
-    if (state->animation) {
-      state->animation->stop();
-      state->animation->deleteLater();
-    }
     if (state->tree)
       wlr_scene_node_destroy(&state->tree->node);
     delete state;

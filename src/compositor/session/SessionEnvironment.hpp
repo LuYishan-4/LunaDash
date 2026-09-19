@@ -2,6 +2,8 @@
 
 #include <QProcessEnvironment>
 #include <QString>
+#include <functional>
+class QObject;
 
 namespace LunaDash {
 QProcessEnvironment createClientEnvironment(const QString &socketName,
@@ -14,6 +16,7 @@ bool publishClientEnvironment(const QProcessEnvironment &environment);
 // the compositor's own, so without this step they start with no display. Only a
 // real login session calls this: lunadash-session runs on a private session
 // bus, so the values never reach another desktop.
-bool publishActivationEnvironment(const QProcessEnvironment &environment,
-                                  QString *error = nullptr);
+void publishActivationEnvironment(
+    const QProcessEnvironment &environment, QObject *owner,
+    std::function<void(bool, const QString &)> completion);
 } // namespace LunaDash

@@ -111,10 +111,13 @@ Rectangle {
             font.family: Theme.font
             font.pixelSize: 16
             font.bold: true
+            wrapMode: Text.Wrap
+            Layout.minimumWidth: 0
+            Layout.rightMargin: 40
             Layout.fillWidth: true
         }
 
-        Text {
+        Text { Layout.minimumWidth: 0;
             visible: card.description.length > 0
             text: card.description
             color: Theme.muted

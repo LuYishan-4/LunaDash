@@ -1,9 +1,13 @@
 # Screen capture
 
-The compositor creates wlroots screencopy, xdg-output and idle-inhibit globals. Capture behavior and supported buffers follow the installed wlroots renderer/output implementation, rather than the previous Qt compositor's fixed protocol versions.
+Press **Meta+Shift+S** (Super+Shift+S) to select a rectangular region. Drag to select; press Escape to cancel. LunaDash starts `slurp` in its own Wayland session, waits for the selection overlay to close, and passes that geometry to `grim`. Both helpers are included in the installer dependencies. The compositor continues processing input and frames while you select.
 
-`lunadashctl screenshot` (also the default Alt+Shift+F5 action) chooses an unused PNG path in the user's Pictures/Screenshots directory. `lunadashctl capture /absolute/path.png` requests an explicit path and refuses to overwrite an existing file. The compositor launches `grim` in the isolated session environment; install grim to use this action. Status reports the most recent path or error under `screenCapture`.
+The screenshot is saved as a private PNG in Pictures/Screenshots. Cancelling leaves the previous screenshot untouched and writes no image. The previous shipped Alt+Shift+F5 binding is migrated unless Meta+Shift+S is already assigned to another action; custom bindings and disabled actions are preserved.
 
-The current CI checks screencopy and related protocol globals. Inspect actual captured content in a real session; a global being advertised does not establish every dmabuf format, cursor behavior or hardware encoder path. The historical screenshot test targets the previous Qt compositor and is not current wlroots release evidence.
+`lunadashctl screenshot` starts the same interactive selection and immediately returns `pending`/`phase`, rather than blocking until a path is available. Poll `lunadashctl status` for `screenCapture.phase` (`selecting`, `capturing`, `saved`, `cancelled`, `failed`), `busy`, `lastCapture` and `error`. The shell reports saved files and failures through notifications. Missing helpers produce an error rather than silently capturing the entire display.
 
-The file chooser portal is separate from capture. LunaDash does not yet implement a complete PipeWire screen-sharing portal, per-toplevel capture policy or screen-locking integration. See [graphics](GRAPHICS.md) and [testing](TESTING_AND_FILES.md).
+For automation, `lunadashctl capture /absolute/path.png` remains an explicit full-output capture and refuses to overwrite an existing file. `lunadash-compositor --screenshot PATH` also retains full-output capture for test runs. These commands do not open a region selector.
+
+The compositor advertises wlroots screencopy, xdg-output and idle-inhibit globals. The headless desktop-controls regression uses a fixture selector with real `grim`, verifies PNG dimensions, cancellation, errors, permissions and responsive IPC. It does not verify physical input or every hardware buffer format. Test drag selection and HiDPI/multiple-output geometry in a real session before release promotion.
+
+The file chooser portal is separate from capture. A complete PipeWire screen-sharing portal, per-toplevel capture policy and screen-locking integration remain incomplete. See [graphics](GRAPHICS.md) and [testing](TESTING_AND_FILES.md).

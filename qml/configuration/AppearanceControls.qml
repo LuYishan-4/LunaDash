@@ -90,6 +90,8 @@ ColumnLayout {
             color: Theme.text
             font.family: Theme.font
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            wrapMode: Text.Wrap
         }
         SoftField {
             id: gapField
@@ -111,6 +113,8 @@ ColumnLayout {
             color: Theme.text
             font.family: Theme.font
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            wrapMode: Text.Wrap
         }
         SoftField {
             Layout.preferredWidth: 92
@@ -131,6 +135,8 @@ ColumnLayout {
             color: Theme.text
             font.family: Theme.font
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            wrapMode: Text.Wrap
         }
         SoftField {
             Layout.preferredWidth: 92
@@ -146,11 +152,13 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         ShellButton {
+            Layout.fillWidth: true
             text: shell.tr("Desktop information")
             active: shell.overviewOpen
             onClicked: shell.setAppearance({overview: !shell.overviewOpen})
         }
         ShellButton {
+            Layout.fillWidth: true
             text: shell.tr("Show user and host")
             active: controls.appearance.showHostDetails ?? false
             onClicked: shell.setAppearance({showHostDetails: !(controls.appearance.showHostDetails ?? false)})

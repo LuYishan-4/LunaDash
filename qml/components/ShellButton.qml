@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import "../style"
 
 Rectangle {
@@ -15,8 +16,9 @@ Rectangle {
 
     signal clicked()
 
-    implicitWidth: Math.max(36, content.implicitWidth + 28)
-    implicitHeight: 36
+    Layout.minimumWidth: 36
+    implicitWidth: Math.max(36, label.implicitWidth + (root.iconName.length || root.busy ? 22 : 0) + 28)
+    implicitHeight: Math.max(36, label.implicitHeight + 16)
     radius: Math.min(13, height / 2)
     color: {
         if (root.active)
@@ -57,6 +59,7 @@ Rectangle {
     Row {
         id: content
         anchors.centerIn: parent
+        width: Math.max(0, root.width - 28)
         spacing: 7
 
         LineIcon {
@@ -91,6 +94,9 @@ Rectangle {
         Text {
             id: label
             anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(0, content.width - (root.iconName.length || root.busy ? 22 : 0))
+            wrapMode: Text.Wrap
+            horizontalAlignment: Text.AlignHCenter
             text: root.text
             color: root.active
                 ? Theme.accentInk

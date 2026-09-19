@@ -1,12 +1,14 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import "../style"
 
 Switch {
     id: control
 
     spacing: 10
-    implicitHeight: 38
+    Layout.minimumWidth: indicator.width + spacing + 24
+    implicitHeight: Math.max(38, contentItem.implicitHeight + topPadding + bottomPadding)
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
 
@@ -62,6 +64,7 @@ Switch {
 
     contentItem: Text {
         text: control.text
+        wrapMode: Text.Wrap
         color: control.enabled
             ? control.hovered ? Theme.moon : Theme.text
             : Theme.muted

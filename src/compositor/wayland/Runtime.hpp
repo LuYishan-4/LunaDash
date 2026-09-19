@@ -4,9 +4,11 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandListener.hpp"
+#include <QJsonArray>
 #include <QList>
 #include <QSize>
 class QSocketNotifier;
+class QTimer;
 
 namespace LunaDash {
 using Templates::ListenerSlot;
@@ -43,6 +45,7 @@ public:
     wlr_layer_surface_v1 *surface = nullptr;
     wlr_scene_layer_surface_v1 *sceneLayer = nullptr;
     bool mapped = false;
+    bool configured = false;
     Slot<LayerState> map;
     Slot<LayerState> unmap;
     Slot<LayerState> commit;
@@ -105,6 +108,10 @@ public:
   wlr_scene_tree *overlayLayer = nullptr;
   wlr_scene_rect *background = nullptr;
   wlr_output *primaryOutput = nullptr;
+  wlr_output *pendingDisplay = nullptr;
+  wlr_output_state previousDisplay{};
+  QTimer *displayRevertTimer = nullptr;
+  QString displayError;
   QRect usableArea{0, 0, 1440, 900};
 
   wlr_xdg_shell *xdgShell = nullptr;
@@ -161,14 +168,21 @@ public:
   QSize outputSize() const;
 
   QJsonObject displaySnapshot() const;
+  QJsonArray displayModes() const;
+  bool configureDisplay(const QJsonObject &changes, QString *error);
+  void confirmDisplay();
+  void revertDisplay();
+  void clearPendingDisplay();
 
   int mappedLayerCount() const;
+  QJsonArray mappedLayerNamespaces() const;
 
   bool inputBridgeReady() const;
 
   void updateBackground();
 
   void arrangeLayers();
+  void restoreLayerFocus();
 
   bool resizePrimaryOutput(const QString &preset, QString *error);
 

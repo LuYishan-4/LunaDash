@@ -131,7 +131,7 @@ SHORTCUT_DEFAULTS = {
     "launchTerminal": "Meta+Return",
     "launchFiles": "Meta+E",
     "launchLauncher": "Meta+D",
-    "screenshot": "Alt+Shift+F5",
+    "screenshot": "Meta+Shift+S",
 }
 for _workspace in range(1, 10):
     SHORTCUT_DEFAULTS["workspace%d" % _workspace] = "Meta+%d" % _workspace

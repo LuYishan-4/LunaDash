@@ -21,7 +21,7 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        Text {
+        Text { Layout.minimumWidth: 0;
             Layout.fillWidth: true
             text: row.label
             color: Theme.text

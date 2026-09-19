@@ -29,7 +29,7 @@ QJsonObject defaults() {
   result.insert("launchTerminal", "Meta+Return");
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
-  result.insert("screenshot", "Alt+Shift+F5");
+  result.insert("screenshot", "Meta+Shift+S");
   for (int workspace = 1; workspace <= 9; ++workspace) {
     result.insert(QString("workspace%1").arg(workspace),
                   QString("Meta+%1").arg(workspace));
@@ -115,8 +115,18 @@ ParsedShortcut parseShortcut(const QString &text) {
 
 ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   QSettings settings;
-  const auto configured =
+  auto configured =
       QJsonObject::fromVariantMap(settings.value("shortcuts/bindings").toMap());
+  // Migrate the previous shipped default without replacing custom bindings
+  // or stealing Meta+Shift+S from another explicitly assigned action.
+  if (configured.value("screenshot").toString() == "Alt+Shift+F5") {
+    bool used = false;
+    for (auto it = configured.begin(); it != configured.end(); ++it)
+      used |=
+          it.key() != "screenshot" && it.value().toString() == "Meta+Shift+S";
+    if (!used)
+      configured["screenshot"] = "Meta+Shift+S";
+  }
   QString error;
   if (!configured.isEmpty())
     apply(configured, &error);
@@ -128,7 +138,8 @@ QString ShortcutSettings::actionFor(xkb_keysym_t keysym,
                                     uint32_t modifiers) const {
   for (auto it = bindings_.begin(); it != bindings_.end(); ++it) {
     const ParsedShortcut shortcut = parseShortcut(it.value().toString());
-    if (shortcut.canonical != "Disabled" && shortcut.symbol == keysym &&
+    if (shortcut.canonical != "Disabled" &&
+        xkb_keysym_to_lower(shortcut.symbol) == xkb_keysym_to_lower(keysym) &&
         shortcut.modifiers == modifiers)
       return it.key();
   }

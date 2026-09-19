@@ -22,10 +22,12 @@ ColumnLayout {
     SettingsComponents.SettingsCard {
         title: shell.tr("Language and region")
         description: shell.tr("Choose the interface language. More language packs can be added later without changing this layout.")
-        RowLayout {
+        GridLayout {
+            columns: page.width < 500 ? 1 : 2
             Layout.fillWidth: true
-            Text { text: shell.tr("Interface language"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Interface language"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             StyledComboBox {
+                Layout.fillWidth: true
                 id: language
                 translationContext: page.shell
                 model: page.languages
@@ -40,10 +42,11 @@ ColumnLayout {
     SettingsComponents.SettingsCard {
         title: shell.tr("Typography and time")
         description: shell.tr("Adjust the shell typeface and clock format.")
-        RowLayout {
+        GridLayout {
+            columns: page.width < 500 ? 1 : 2
             Layout.fillWidth: true
-            Text { text: shell.tr("Shell font"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
-            StyledComboBox { translationContext: page.shell; model:["sans-serif","serif","monospace"]; currentIndex:model.indexOf(page.appearance.fontFamily||"sans-serif"); onActivated:shell.setAppearance({fontFamily:currentText}) }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Shell font"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            StyledComboBox { Layout.fillWidth:true; translationContext: page.shell; model:["sans-serif","serif","monospace"]; currentIndex:model.indexOf(page.appearance.fontFamily||"sans-serif"); onActivated:shell.setAppearance({fontFamily:currentText}) }
         }
         ShellButton { iconName:"general"; text:shell.tr("24-hour clock"); active:page.appearance.clock24Hour??true; onClicked:shell.setAppearance({clock24Hour:!(page.appearance.clock24Hour??true)}) }
     }
@@ -51,11 +54,11 @@ ColumnLayout {
         title: shell.tr("Notifications")
         description: shell.tr("Notifications appear from the bottom-right corner and can expose details for actionable events such as application crashes.")
         RowLayout { Layout.fillWidth:true
-            Text { text:shell.tr("Desktop notifications"); color:Theme.text; font.family:Theme.font; Layout.fillWidth:true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text:shell.tr("Desktop notifications"); color:Theme.text; font.family:Theme.font; Layout.fillWidth:true }
             SoftSwitch { checked:page.appearance.notificationsEnabled??true; onToggled:shell.setAppearance({notificationsEnabled:checked}) }
         }
         RowLayout { Layout.fillWidth:true
-            Text { text:shell.tr("Application crash alerts"); color:Theme.text; font.family:Theme.font; Layout.fillWidth:true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text:shell.tr("Application crash alerts"); color:Theme.text; font.family:Theme.font; Layout.fillWidth:true }
             SoftSwitch { checked:page.appearance.crashNotifications??true; enabled:page.appearance.notificationsEnabled??true; onToggled:shell.setAppearance({crashNotifications:checked}) }
         }
         ShellButton { iconName:"info"; text:shell.tr("Send test notification"); enabled:page.appearance.notificationsEnabled??true; onClicked:shell.notify(shell.tr("LunaDash notification"),shell.tr("Notifications are enabled."),"info","") }

@@ -43,13 +43,13 @@ ModuleSurface {
             spacing:12
             SettingsComponents.PageTitle{shell:settings.shell;title:"Settings";color:moduleForeground;font.pixelSize:23;Layout.fillWidth:true}
             Rectangle{
-                implicitWidth:categoryBadge.implicitWidth+26;implicitHeight:30;radius:15
+                Layout.maximumWidth:Math.max(100,settings.width*0.35);implicitWidth:categoryBadge.implicitWidth+48;implicitHeight:30;radius:15
                 color:Qt.rgba(moduleAccent.r,moduleAccent.g,moduleAccent.b,0.10)
                 border.width:1;border.color:Qt.rgba(moduleAccent.r,moduleAccent.g,moduleAccent.b,0.30)
                 Row{
-                    anchors.centerIn:parent;spacing:7
+                    anchors.centerIn:parent;width:parent.width-26;spacing:7
                     LineIcon{name:settings.currentCategory.id;width:15;height:15;ink:moduleAccent;anchors.verticalCenter:parent.verticalCenter}
-                    Text{id:categoryBadge;text:shell.tr(settings.currentCategory.name);color:moduleForeground;font.family:Theme.font;font.pixelSize:11;font.weight:Font.DemiBold}
+                    Text{id:categoryBadge;width:Math.max(0,parent.width-22);elide:Text.ElideRight;text:shell.tr(settings.currentCategory.name);color:moduleForeground;font.family:Theme.font;font.pixelSize:11;font.weight:Font.DemiBold}
                 }
                 Behavior on implicitWidth{NumberAnimation{duration:Theme.motionFast;easing.type:Easing.OutCubic}}
             }
@@ -59,14 +59,14 @@ ModuleSurface {
         RowLayout {
             Layout.fillWidth:true;Layout.fillHeight:true;spacing:24
             ColumnLayout {
-                Layout.preferredWidth:258;Layout.minimumWidth:258;Layout.maximumWidth:258;Layout.fillHeight:true;spacing:12
+                Layout.preferredWidth:Math.min(258,settings.width*0.28);Layout.minimumWidth:140;Layout.maximumWidth:258;Layout.fillHeight:true;spacing:12
                 SoftField {
                     id:search;Layout.fillWidth:true;implicitHeight:38;leftPadding:36;placeholderText:shell.tr("Search settings");Accessible.name:placeholderText
                     LineIcon{name:"search";width:17;height:17;anchors.left:parent.left;anchors.leftMargin:11;anchors.verticalCenter:parent.verticalCenter}
                     Keys.onDownPressed:{if(search.text.length>0&&resultList.count>0){resultList.currentIndex=0;resultList.forceActiveFocus()}else if(categoryList.count>0){categoryList.currentIndex=0;categoryList.forceActiveFocus()}}
                     Keys.onEscapePressed:shell.settingsOpen=false
                 }
-                Text{
+                Text{ wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                     visible:search.text.trim().length>0
                     Layout.fillWidth:true
                     text:resultList.count+" "+shell.tr(resultList.count===1?"result":"results")
@@ -80,13 +80,13 @@ ModuleSurface {
                     Keys.onUpPressed:event=>{if(currentIndex<=0){search.forceActiveFocus();event.accepted=true}else{currentIndex--;event.accepted=true}}
                     Keys.onDownPressed:event=>{if(count>0){currentIndex=(currentIndex+1)%count;event.accepted=true}}
                 }
-                Text{visible:resultList.visible&&resultList.count===0;Layout.fillWidth:true;text:shell.tr("No settings found");color:Theme.muted;font.family:Theme.font;wrapMode:Text.WordWrap}
+                Text{ Layout.minimumWidth: 0;visible:resultList.visible&&resultList.count===0;Layout.fillWidth:true;text:shell.tr("No settings found");color:Theme.muted;font.family:Theme.font;wrapMode:Text.WordWrap}
                 ListView {
                     id:categoryList;visible:!resultList.visible;Layout.fillWidth:true;Layout.fillHeight:true;clip:true;spacing:3;model:settings.categories;keyNavigationWraps:true;ScrollBar.vertical:ScrollBar{}
                     delegate:Rectangle {
-                        id:categoryRow;required property var modelData;required property int index;readonly property bool selected:settings.category===modelData.id;width:ListView.view.width-12;height:38;radius:10;color:selected?Qt.rgba(settings.moduleAccent.r,settings.moduleAccent.g,settings.moduleAccent.b,0.14):categoryMouse.containsMouse?Theme.controlHover:"transparent";scale:categoryMouse.pressed?0.985:categoryMouse.containsMouse?1.008:1;activeFocusOnTab:true;border.width:activeFocus?1:0;border.color:settings.moduleAccent;Accessible.role:Accessible.Button;Accessible.name:shell.tr(modelData.name)
+                        id:categoryRow;required property var modelData;required property int index;readonly property bool selected:settings.category===modelData.id;width:ListView.view.width-12;height:Math.max(38,categoryLabel.implicitHeight+16);radius:10;color:selected?Qt.rgba(settings.moduleAccent.r,settings.moduleAccent.g,settings.moduleAccent.b,0.14):categoryMouse.containsMouse?Theme.controlHover:"transparent";scale:categoryMouse.pressed?0.985:categoryMouse.containsMouse?1.008:1;activeFocusOnTab:true;border.width:activeFocus?1:0;border.color:settings.moduleAccent;Accessible.role:Accessible.Button;Accessible.name:shell.tr(modelData.name)
                         Keys.onReturnPressed:settings.showCategory(modelData.id);Keys.onEnterPressed:settings.showCategory(modelData.id);Keys.onSpacePressed:settings.showCategory(modelData.id);Keys.onEscapePressed:search.forceActiveFocus()
-                        Row{anchors.left:parent.left;anchors.leftMargin:12;anchors.verticalCenter:parent.verticalCenter;spacing:12;LineIcon{name:modelData.id;width:19;height:19;ink:categoryRow.selected?settings.moduleAccent:Theme.muted}Text{text:shell.tr(modelData.name);color:categoryRow.selected?settings.moduleAccent:Theme.text;font.pixelSize:12;font.family:Theme.font;anchors.verticalCenter:parent.verticalCenter}}
+                        Row{anchors.left:parent.left;anchors.right:parent.right;anchors.margins:12;anchors.verticalCenter:parent.verticalCenter;spacing:12;LineIcon{name:modelData.id;width:19;height:19;ink:categoryRow.selected?settings.moduleAccent:Theme.muted}Text{id:categoryLabel;width:Math.max(0,parent.width-31);wrapMode:Text.Wrap;text:shell.tr(modelData.name);color:categoryRow.selected?settings.moduleAccent:Theme.text;font.pixelSize:12;font.family:Theme.font;anchors.verticalCenter:parent.verticalCenter}}
                         Rectangle{visible:categoryRow.selected;width:3;height:15;radius:1.5;color:settings.moduleAccent;anchors.left:parent.left;anchors.verticalCenter:parent.verticalCenter}
                         MouseArea{id:categoryMouse;anchors.fill:parent;hoverEnabled:true;cursorShape:Qt.PointingHandCursor;onClicked:settings.showCategory(modelData.id)}
                         Behavior on color{ColorAnimation{duration:Theme.motionFast}}
@@ -98,7 +98,7 @@ ModuleSurface {
             }
             Rectangle{Layout.fillHeight:true;width:1;color:Theme.border}
             Rectangle {
-                Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumWidth:300;radius:moduleRadius;color:Qt.rgba(moduleBackground.r,moduleBackground.g,moduleBackground.b,0.94)
+                Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumWidth:0;radius:moduleRadius;color:Qt.rgba(moduleBackground.r,moduleBackground.g,moduleBackground.b,0.94)
                 ScrollView{id:scroll;anchors.fill:parent;anchors.margins:24;clip:true;contentWidth:availableWidth
                     Loader{
                         id:pageLoader
@@ -137,5 +137,5 @@ ModuleSurface {
             categoryList.focus = false
         }
     }
-    Component.onCompleted:showCategory("general")
+    Component.onCompleted:showCategory(shell.settingsPage || "general")
 }

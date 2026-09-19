@@ -70,9 +70,9 @@ target_link_libraries(ludash-power-settings PUBLIC ludash-process-runner)
 add_library(ludash-system-tools src/desktop/system/SystemTools.cpp)
 target_include_directories(ludash-system-tools PUBLIC src)
 target_link_libraries(ludash-system-tools PUBLIC Qt6::Core)
-add_library(ludash-display-settings src/desktop/display/DisplaySettings.cpp)
+add_library(ludash-display-settings src/desktop/display/DisplaySettings.cpp src/desktop/display/BrightnessSettings.cpp)
 target_include_directories(ludash-display-settings PUBLIC src)
-target_link_libraries(ludash-display-settings PUBLIC Qt6::Gui)
+target_link_libraries(ludash-display-settings PUBLIC Qt6::Gui ludash-process-runner)
 add_library(ludash-input-settings src/desktop/input/InputSettings.cpp)
 target_include_directories(ludash-input-settings PUBLIC src)
 target_link_libraries(ludash-input-settings PUBLIC Qt6::Core)
@@ -157,6 +157,9 @@ add_library(ludash-wayland
     src/compositor/wayland/WaylandCompositor.cpp
     src/compositor/wayland/Runtime.cpp
     src/compositor/wayland/Output.cpp
+    src/compositor/wayland/DisplayConfiguration.cpp
+    src/compositor/capture/ScreenCapture.hpp
+    src/compositor/capture/ScreenCapture.cpp
     src/compositor/wayland/Surface.cpp
     src/compositor/input/Input.cpp
     src/compositor/session/ClientLaunch.cpp
@@ -186,6 +189,7 @@ target_link_libraries(ludash-wayland
         ludash-power-settings
         ludash-system-tools
         ludash-input-settings
+        ludash-display-settings
         ludash-system-metrics
         ludash-xwayland
         ludash-animation

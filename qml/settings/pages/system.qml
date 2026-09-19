@@ -46,7 +46,7 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 3
-                Text {
+                Text { Layout.minimumWidth: 0;
                     Layout.fillWidth: true
                     text: page.systemInfo.displayName || page.systemInfo.user || shell.tr("User")
                     color: Theme.text
@@ -55,7 +55,7 @@ ColumnLayout {
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
-                Text {
+                Text { Layout.minimumWidth: 0;
                     Layout.fillWidth: true
                     text: [page.systemInfo.user, page.systemInfo.host].filter(Boolean).join("  ·  ")
                     color: Theme.muted
@@ -63,7 +63,7 @@ ColumnLayout {
                     font.pixelSize: 11
                     elide: Text.ElideRight
                 }
-                Text {
+                Text { Layout.minimumWidth: 0;
                     Layout.fillWidth: true
                     text: page.systemInfo.os || ""
                     color: Theme.muted

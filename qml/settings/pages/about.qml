@@ -203,7 +203,7 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 3
-                    Text {
+                    Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                         Layout.fillWidth: true
                         text: page.installing ? shell.tr("Installing update")
                             : page.installCompleted ? shell.tr(page.install.rollback ? "Rollback completed" : "Update completed")
@@ -217,7 +217,7 @@ ColumnLayout {
                         font.pixelSize: 14
                         font.weight: Font.DemiBold
                     }
-                    Text {
+                    Text { Layout.minimumWidth: 0;
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: page.installing || page.installCompleted || page.installFailed
@@ -242,7 +242,7 @@ ColumnLayout {
 
             RowLayout {
                 Layout.fillWidth: true
-                Text {
+                Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                     Layout.fillWidth: true
                     text: page.stageLabel(page.installStage)
                     color: page.installFailed ? Theme.danger : Theme.text
@@ -279,7 +279,7 @@ ColumnLayout {
                 }
             }
 
-            Text {
+            Text { Layout.minimumWidth: 0;
                 Layout.fillWidth: true
                 text: page.install.message || ""
                 visible: text.length > 0
@@ -304,7 +304,7 @@ ColumnLayout {
             LineIcon { width: 24; height: 24; name: "update"; ink: page.update.status === "available" ? Theme.accent : Theme.muted }
             ColumnLayout {
                 Layout.fillWidth: true
-                Text {
+                Text { Layout.minimumWidth: 0;
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.family: Theme.font; font.pixelSize: 12
                     text: page.update.status === "checking" ? shell.tr("Checking for updates…")
                         : page.update.status === "available" ? shell.tr("An update is ready to install.")
@@ -312,7 +312,7 @@ ColumnLayout {
                         : page.update.status === "error" ? shell.tr(page.update.error || "The update check failed.")
                         : shell.tr("Choose a channel and check for updates.")
                 }
-                Text { visible: page.update.channel === "dev" && Boolean(page.update.latestMessage); text: page.update.latestMessage || ""; color: Theme.muted; font.family: Theme.font; font.pixelSize: 10; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { Layout.minimumWidth: 0; visible: page.update.channel === "dev" && Boolean(page.update.latestMessage); text: page.update.latestMessage || ""; color: Theme.muted; font.family: Theme.font; font.pixelSize: 10; elide: Text.ElideRight; Layout.fillWidth: true }
                 Text { visible: Boolean(page.update.checkedAt); text: shell.tr("Last checked: ") + page.update.checkedAt; color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
                 Text { visible: Boolean(page.install.target); text: shell.tr("Installer target: ") + String(page.install.target).slice(0, 18); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
                 Text { visible: Boolean(page.install.lastUpdate); text: shell.tr("Last installed: ") + String(page.install.lastUpdate); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
@@ -337,7 +337,7 @@ ColumnLayout {
             }
         }
 
-        Text {
+        Text { Layout.minimumWidth: 0;
             visible: page.restartRequired && !(page.sessionActions.reboot ?? false)
             Layout.fillWidth: true
             text: shell.tr("The update finished, but reboot is unavailable in this session. Reboot from the host system to use the new installation.")
@@ -347,7 +347,7 @@ ColumnLayout {
             wrapMode: Text.WordWrap
         }
 
-        Text {
+        Text { Layout.minimumWidth: 0;
             visible: (page.installFailed || page.installCompleted) && Boolean(page.install.details)
             Layout.fillWidth: true
             text: page.install.details
@@ -376,9 +376,9 @@ ColumnLayout {
         title: shell.tr("System information")
         GridLayout {
             Layout.fillWidth: true; columns: 2
-            Text { text: shell.tr("Operating system"); color: Theme.muted; font.family: Theme.font } Text { Layout.fillWidth: true; text: page.system.os || "Linux"; color: Theme.text; font.family: Theme.font }
-            Text { text: shell.tr("Kernel and architecture"); color: Theme.muted; font.family: Theme.font } Text { Layout.fillWidth: true; text: (page.system.kernel || "—") + " · " + (page.system.architecture || "—"); color: Theme.text; font.family: Theme.font }
-            Text { text: shell.tr("Graphics API"); color: Theme.muted; font.family: Theme.font } Text { Layout.fillWidth: true; text: (shell.state.graphicsApi || "OpenGL") + " " + (shell.state.graphicsMajor || 0) + "." + (shell.state.graphicsMinor || 0); color: Theme.text; font.family: Theme.font }
+            Text { text: shell.tr("Operating system"); color: Theme.muted; font.family: Theme.font } Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: page.system.os || "Linux"; color: Theme.text; font.family: Theme.font }
+            Text { text: shell.tr("Kernel and architecture"); color: Theme.muted; font.family: Theme.font } Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: (page.system.kernel || "—") + " · " + (page.system.architecture || "—"); color: Theme.text; font.family: Theme.font }
+            Text { text: shell.tr("Graphics API"); color: Theme.muted; font.family: Theme.font } Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: (shell.state.graphicsApi || "OpenGL") + " " + (shell.state.graphicsMajor || 0) + "." + (shell.state.graphicsMinor || 0); color: Theme.text; font.family: Theme.font }
         }
     }
 }

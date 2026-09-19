@@ -50,7 +50,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Media player"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Media player"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             SoftSwitch {
                 checked: page.config.showMedia ?? true
                 onToggled: page.updateConfig("showMedia", checked)
@@ -59,7 +59,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Volume and Wi-Fi quick controls"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Volume and Wi-Fi quick controls"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             SoftSwitch {
                 checked: page.config.quickControls ?? true
                 onToggled: page.updateConfig("quickControls", checked)
@@ -82,7 +82,7 @@ ColumnLayout {
             RowLayout {
                 required property var modelData
                 Layout.fillWidth: true
-                Text {
+                Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                     text: shell.tr(modelData.label)
                     color: Theme.text
                     font.family: Theme.font
@@ -99,7 +99,7 @@ ColumnLayout {
     SettingsCard {
         title: shell.tr("Calendar image")
         description: shell.tr("The clock opens the calendar. Drop a local image onto the calendar image area to personalize it.")
-        Text {
+        Text { Layout.minimumWidth: 0;
             Layout.fillWidth: true
             text: page.config.calendarImage || shell.tr("No custom calendar image")
             color: Theme.muted

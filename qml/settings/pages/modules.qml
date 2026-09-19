@@ -90,7 +90,7 @@ ColumnLayout {
         message: "Every shell-modules.json field has a visual control below. Advanced JSON remains available for copying, review, and recovery."
     }
 
-    Text {
+    Text { Layout.minimumWidth: 0;
         text: page.state.path || ""
         color: Theme.muted
         font.family: Theme.font
@@ -98,7 +98,7 @@ ColumnLayout {
         Layout.fillWidth: true
     }
 
-    Text {
+    Text { Layout.minimumWidth: 0;
         visible: page.dirty && page.loadedRevision !== page.state.revision
         text: shell.tr("The file changed externally. Reload before saving to avoid replacing newer changes.")
         color: Theme.danger
@@ -113,7 +113,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Schema version")
                 color: Theme.muted
                 font.family: Theme.font
@@ -128,7 +128,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Shell block")
                 color: Theme.text
                 font.family: Theme.font
@@ -144,7 +144,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Enabled")
                 color: Theme.text
                 font.family: Theme.font
@@ -170,7 +170,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Automatic width")
                 color: Theme.text
                 font.family: Theme.font
@@ -195,7 +195,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Automatic height")
                 color: Theme.text
                 font.family: Theme.font
@@ -270,7 +270,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Edge")
                 color: Theme.text
                 font.family: Theme.font
@@ -334,7 +334,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Show panel background")
                 color: Theme.text
                 font.family: Theme.font
@@ -348,7 +348,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Contrast shells")
                 color: Theme.text
                 font.family: Theme.font
@@ -372,7 +372,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Pill workspaces")
                 color: Theme.text
                 font.family: Theme.font
@@ -416,7 +416,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Workspace teleport transition")
                 color: Theme.text
                 font.family: Theme.font
@@ -476,7 +476,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Accent glow")
                 color: Theme.text
                 font.family: Theme.font
@@ -490,7 +490,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Orbit ring")
                 color: Theme.text
                 font.family: Theme.font
@@ -509,7 +509,7 @@ ColumnLayout {
 
         RowLayout {
             Layout.fillWidth: true
-            Text {
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
                 text: shell.tr("Use custom QML")
                 color: Theme.text
                 font.family: Theme.font

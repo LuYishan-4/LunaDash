@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell.Io
 import "../components"
 import "../../components"
 import "../../style"
@@ -8,121 +7,88 @@ import "../../style"
 ColumnLayout {
     id: page
     required property var shell
-    property var output: shell.state.display || ({})
-    property bool brightnessAvailable: false
-    property int brightnessPercent: 0
+    readonly property var output: shell.state.display || ({})
+    readonly property var backlight: shell.state.brightness || ({})
     property int pendingBrightness: -1
+    readonly property var scales: [
+        {label:"100%", value:1}, {label:"125%", value:1.25},
+        {label:"150%", value:1.5}, {label:"175%", value:1.75},
+        {label:"200%", value:2}, {label:"250%", value:2.5}, {label:"300%", value:3}
+    ]
     spacing: 16
 
-    function parseBrightness(text) {
-        const line = String(text || "").trim().split("\n")[0]
-        const parts = line.split(",")
-        if (parts.length < 5) {
-            brightnessAvailable = false
-            return
-        }
-        const percentText = String(parts[parts.length - 1]).trim()
-        if (!percentText.endsWith("%")) {
-            brightnessAvailable = false
-            return
-        }
-        const percent = Number(percentText.slice(0, -1))
-        if (!Number.isFinite(percent)) {
-            brightnessAvailable = false
-            return
-        }
-        brightnessPercent = Math.max(0, Math.min(100, Math.round(percent)))
-        brightnessAvailable = true
-    }
-
-    function scheduleBrightness(value) {
-        pendingBrightness = Math.max(1, Math.min(100, Math.round(value)))
-        brightnessPercent = pendingBrightness
-        brightnessDebounce.restart()
-    }
-
-    function applyPendingBrightness() {
-        if (pendingBrightness < 0 || brightnessSet.running)
-            return
-        const target = pendingBrightness
-        pendingBrightness = -1
-        brightnessSet.command = ["brightnessctl", "set", target + "%"]
-        brightnessSet.running = true
-    }
-
     PageTitle { shell: page.shell; title: "Display" }
-
     SettingsCard {
         title: shell.tr("Display information")
-        description: (page.output.output || "") + "  ·  " + (page.output.width || 0) + " × " + (page.output.height || 0)
-        Text { text: "Scale  " + (page.output.scale || 1) + "×   /   " + Math.round(page.output.refreshRate || 0) + " Hz"; color: Theme.muted; font.family: Theme.font }
+        description: (page.output.output || "") + " · " + (page.output.pixelWidth || 0) + " × " + (page.output.pixelHeight || 0)
+        HelpText { shell: page.shell; message: Math.round((page.output.scale || 1) * 100) + "% · " + (page.output.refreshRate || 0).toFixed(2) + " Hz" }
     }
-
     SettingsCard {
         title: shell.tr("Brightness")
-        description: brightnessAvailable
-            ? shell.tr("Adjust the active backlight device.")
+        description: page.backlight.available ? shell.tr("Adjust the active backlight device.") + " " + page.backlight.device
             : shell.tr("No controllable backlight device was detected. brightnessctl is required for laptop/internal-panel brightness control.")
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Screen brightness"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
-            Text { text: brightnessAvailable ? brightnessPercent + "%" : "—"; color: Theme.muted; font.family: Theme.font }
+            Text { Layout.fillWidth:true; Layout.minimumWidth:0; wrapMode:Text.Wrap; text:shell.tr("Screen brightness"); color:Theme.text; font.family:Theme.font }
+            Text { text:page.backlight.available ? Math.round(brightness.value)+"%" : "—"; color:Theme.muted; font.family:Theme.font }
         }
         SoftSlider {
+            id: brightness
             Layout.fillWidth: true
-            from: 1
-            to: 100
-            stepSize: 1
-            value: page.brightnessPercent
-            enabled: page.brightnessAvailable
-            onMoved: page.scheduleBrightness(value)
+            from: 1; to: 100; stepSize: 1
+            value: page.backlight.percent || 1
+            enabled: page.backlight.available || false
+            onMoved: { page.pendingBrightness = Math.round(value); brightnessDebounce.restart() }
         }
+        HelpText { shell: page.shell; visible: Boolean(page.backlight.error); message: page.backlight.error || "" }
     }
-
     SettingsCard {
-        title: shell.tr("Nested desktop size")
-        description: shell.tr("Resize the LunaDash window while running as a nested compositor.")
-        RowLayout {
-            Repeater {
-                model: ["1280x720", "1440x900", "1920x1080"]
-                ShellButton { required property string modelData; text: modelData; enabled: page.output.nested && !page.output.fullscreen; onClicked: shell.command("desktop-size", modelData) }
-            }
+        title: shell.tr("Resolution and refresh rate")
+        description: page.output.nested ? shell.tr("Resize the LunaDash window while running as a nested compositor.") : shell.tr("Choose a mode supported by the active display.")
+        StyledComboBox {
+            Layout.fillWidth: true
+            translationContext: page.shell
+            model: page.output.modes || []
+            textRole: "label"; valueRole: "id"
+            currentIndex: model.findIndex(entry => entry.id === page.output.mode)
+            enabled: count > 0 && !page.output.pending
+            onActivated: shell.command("display-configure", JSON.stringify({mode: currentValue}))
         }
     }
-
-    HelpText { shell: page.shell; message: "In a nested session, physical monitor resolution, refresh rate, scaling, rotation and night light are controlled by your host desktop. Laptop/internal-panel brightness can still be adjusted when brightnessctl has access to a backlight device." }
+    SettingsCard {
+        title: shell.tr("Display scale")
+        description: shell.tr("Change the size of text and controls on the active display.")
+        StyledComboBox {
+            Layout.fillWidth: true
+            translationContext: page.shell
+            model: page.scales
+            textRole: "label"; valueRole: "value"
+            currentIndex: page.scales.findIndex(entry => Math.abs(entry.value - (page.output.scale || 1)) < 0.01)
+            enabled: !page.output.pending
+            onActivated: shell.command("display-configure", JSON.stringify({scale: currentValue}))
+        }
+    }
+    SettingsCard {
+        visible: page.output.pending || false
+        emphasized: true
+        title: shell.tr("Keep these display settings?")
+        description: shell.tr("The previous settings will be restored automatically.") + " " + (page.output.revertSeconds || 0) + " s"
+        RowLayout {
+            Layout.fillWidth: true
+            ShellButton { Layout.fillWidth:true; text:shell.tr("Keep changes"); active:true; onClicked:shell.command("display-confirm", "") }
+            ShellButton { Layout.fillWidth:true; text:shell.tr("Revert"); onClicked:shell.command("display-revert", "") }
+        }
+    }
+    HelpText { shell: page.shell; visible: Boolean(page.output.error); message: page.output.error || "" }
+    HelpText { shell: page.shell; visible: page.output.nested || false; message: "In a nested session, physical monitor resolution and refresh rate are controlled by your host desktop." }
     HelpText { shell: page.shell; message: "External monitors usually require DDC/CI rather than the kernel backlight interface, so they may not appear here." }
-
     Timer {
         id: brightnessDebounce
-        interval: 90
-        repeat: false
-        onTriggered: page.applyPendingBrightness()
-    }
-
-    Process {
-        id: brightnessQuery
-        command: ["brightnessctl", "-m"]
-        stdout: StdioCollector { onStreamFinished: page.parseBrightness(text) }
-        onExited: (code, status) => {
-            if (code !== 0)
-                page.brightnessAvailable = false
+        interval: 120
+        onTriggered: {
+            if (page.pendingBrightness < 0) return
+            page.shell.command("brightness", String(page.pendingBrightness))
+            page.pendingBrightness = -1
         }
     }
-    Process {
-        id: brightnessSet
-        command: ["brightnessctl", "set", "50%"]
-        onExited: (code, status) => {
-            if (code !== 0) {
-                page.brightnessAvailable = false
-                page.pendingBrightness = -1
-                return
-            }
-            if (page.pendingBrightness >= 0)
-                Qt.callLater(page.applyPendingBrightness)
-            else
-                brightnessQuery.running = true
-        }
-    }
-    Component.onCompleted: brightnessQuery.running = true
 }

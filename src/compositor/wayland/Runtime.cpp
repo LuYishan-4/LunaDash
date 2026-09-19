@@ -65,7 +65,7 @@ bool WaylandCompositor::Impl::initialize() {
   animationLayer = wlr_scene_tree_create(&scene->tree);
   topLayer = wlr_scene_tree_create(&scene->tree);
   overlayLayer = wlr_scene_tree_create(&scene->tree);
-  const float color[4] = {0.07f, 0.09f, 0.18f, 1.0f};
+  const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
   background = wlr_scene_rect_create(backgroundLayer, 1440, 900, color);
 
   xdgShell = wlr_xdg_shell_create(display, 3);
@@ -170,6 +170,7 @@ void WaylandCompositor::Impl::dispatch() {
 }
 
 void WaylandCompositor::Impl::shutdown() {
+  clearPendingDisplay();
   if (!display)
     return;
   if (waylandNotifier) {

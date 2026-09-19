@@ -64,7 +64,7 @@ ColumnLayout {
             Item { Layout.fillWidth: true }
         }
 
-        Text {
+        Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
             Layout.fillWidth: true
             visible: (page.network.devices || []).length === 0
             text: shell.tr("No network adapters were reported.")
@@ -91,8 +91,8 @@ ColumnLayout {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { Layout.fillWidth: true; text: modelData.device; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 }
-                        Text { Layout.fillWidth: true; text: [modelData.type, modelData.state, modelData.connection].filter(Boolean).join("  ·  "); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight }
+                        Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: modelData.device; color: Theme.text; font.family: Theme.font; font.pixelSize: 13 }
+                        Text { Layout.minimumWidth: 0; Layout.fillWidth: true; text: [modelData.type, modelData.state, modelData.connection].filter(Boolean).join("  ·  "); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight }
                     }
                     ShellButton {
                         text: modelData.state === "connected" ? shell.tr("Disconnect") : shell.tr("Connect")
@@ -115,8 +115,8 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
-                    Text { Layout.fillWidth: true; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight }
-                    Text { Layout.fillWidth: true; text: [modelData.type, modelData.device, modelData.state, modelData.uuid].filter(Boolean).join("  ·  "); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideMiddle }
+                    Text { Layout.minimumWidth: 0; Layout.fillWidth: true; text: modelData.name; color: Theme.text; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight }
+                    Text { Layout.minimumWidth: 0; Layout.fillWidth: true; text: [modelData.type, modelData.device, modelData.state, modelData.uuid].filter(Boolean).join("  ·  "); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideMiddle }
                 }
                 ShellButton {
                     text: modelData.autoconnect ? shell.tr("Auto") : shell.tr("Manual")
@@ -149,8 +149,8 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
-                    Text { Layout.fillWidth: true; text: modelData.ssid; color: Theme.text; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight }
-                    Text { Layout.fillWidth: true; text: [modelData.signal + "%", modelData.security, modelData.device].filter(Boolean).join("  ·  "); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
+                    Text { Layout.minimumWidth: 0; Layout.fillWidth: true; text: modelData.ssid; color: Theme.text; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight }
+                    Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: [modelData.signal + "%", modelData.security, modelData.device].filter(Boolean).join("  ·  "); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
                 }
                 ShellButton { text: shell.tr("Connect"); enabled: !modelData.active; onClicked: page.networkAction({action:"wifi-connect", ssid:modelData.ssid, password:wifiPassword.text}) }
             }
@@ -284,7 +284,7 @@ ColumnLayout {
             ShellButton { text: shell.tr("Flush DNS cache"); onClicked: flushDns.running = true }
             Item { Layout.fillWidth: true }
         }
-        Text {
+        Text { Layout.minimumWidth: 0;
             Layout.fillWidth: true
             text: page.diagnosticsText || shell.tr("Collecting network diagnostics…")
             color: Theme.muted

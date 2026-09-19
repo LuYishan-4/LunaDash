@@ -7,7 +7,6 @@
 #include <functional>
 
 struct wlr_scene_tree;
-class QVariantAnimation;
 
 namespace LunaDash {
 
@@ -23,6 +22,7 @@ public:
   void cancel(wlr_scene_tree *tree);
   void clear();
   int activeCount() const;
+  void advance();
 
 private:
   struct LiveState;
