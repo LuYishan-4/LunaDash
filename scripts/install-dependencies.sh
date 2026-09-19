@@ -78,7 +78,7 @@ case "$manager" in
             base-devel cmake ninja git pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon \
             systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations \
-            shared-mime-info fish grim slurp brightnessctl ddcutil \
+            shared-mime-info fish grim slurp brightnessctl ddcutil polkit-kde-agent \
             xdg-desktop-portal xdg-desktop-portal-gtk \
             fcitx5 fcitx5-qt fcitx5-configtool
         wlroots_package=wlroots0.20

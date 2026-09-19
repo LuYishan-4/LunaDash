@@ -168,6 +168,25 @@ install_system() {
 # graphical path uses the registered desktop authentication agent instead.
 $non_interactive && exec </dev/null
 
+# Start before building so registration can finish before privilege elevation.
+# An already registered session agent remains authoritative; duplicate agents
+# exit on registration failure. Only the child started here is cleaned up.
+auth_agent_pid=0
+cleanup_auth_agent() {
+    if (( auth_agent_pid > 0 )); then
+        kill "$auth_agent_pid" 2>/dev/null || true
+        wait "$auth_agent_pid" 2>/dev/null || true
+    fi
+}
+if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]] && ! $dry_run; then
+    if "$project_dir/scripts/lunadash-polkit-agent" --print >/dev/null 2>&1; then
+        "$project_dir/scripts/lunadash-polkit-agent" &
+        auth_agent_pid=$!
+        trap cleanup_auth_agent EXIT
+        trap 'exit 130' HUP INT TERM
+    fi
+fi
+
 report_progress 36 prepare "Preparing the LunaDash installation script."
 
 if ! $skip_deps; then

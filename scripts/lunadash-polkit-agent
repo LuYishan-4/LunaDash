@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Start one distribution-provided authentication agent in the current session.
+set -eu
+for candidate in \
+    polkit-kde-authentication-agent-1 lxqt-policykit-agent polkit-gnome-authentication-agent-1 \
+    /usr/lib/polkit-kde-authentication-agent-1 \
+    /usr/libexec/polkit-kde-authentication-agent-1 \
+    /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
+    /usr/libexec/polkit-gnome-authentication-agent-1; do
+    agent=$(command -v "$candidate" 2>/dev/null) || continue
+    [[ -x $agent ]] || continue
+    if [[ ${1:-} == --print ]]; then
+        printf '%s\n' "$agent"
+        exit 0
+    fi
+    # Authentication must not depend on a portal Settings round trip.
+    unset QT_QPA_PLATFORMTHEME
+    if [[ -n ${WAYLAND_DISPLAY:-} ]]; then export QT_QPA_PLATFORM=wayland; fi
+    exec "$agent"
+done
+echo 'No desktop polkit agent is installed. Install polkit-kde-agent (Arch), or your distribution authentication agent.' >&2
+exit 1

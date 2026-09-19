@@ -4,7 +4,7 @@ configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/scripts/lunadash-update
     ${CMAKE_CURRENT_BINARY_DIR}/lunadash-update
     COPYONLY)
-install(PROGRAMS scripts/lunadash-update DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(PROGRAMS scripts/lunadash-update scripts/lunadash-polkit-agent DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # lunadash-shell-tool is defined once in LunaDashShellTool.cmake. Keeping a
 # second executable target here caused Ninja to see two rules producing the

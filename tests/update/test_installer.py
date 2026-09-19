@@ -30,6 +30,14 @@ class InstallerTests(unittest.TestCase):
                         LUDASH_INSTALL_PROGRESS_FILE=str(self.root / "progress"))
         for name in ("LUDASH_PREFER_PKEXEC", "LUDASH_UPDATE_MODE", "LUDASH_BUILD_DIR"):
             self.env.pop(name, None)
+        agent = self.project / "scripts/lunadash-polkit-agent"
+        agent.write_text("#!/bin/bash\nif [[ ${1:-} == --print ]]; then echo available; exit 0; fi\nexec fake-agent\n")
+        agent.chmod(0o755)
+        self.tool("fake-agent", '''
+Path(os.environ["TEST_EVENTS"] + ".agent").write_text(str(os.getpid()))
+while True:
+    time.sleep(1)
+''')
         self.tool("makepkg", '''
 if "--packagelist" in args:
     print(Path.cwd() / "ludash.pkg.tar.zst")
@@ -50,6 +58,7 @@ assert Path(args[-1]).is_file()
 sys.exit(int(os.environ.get("TEST_INSTALL_EXIT", "0")))
 ''')
         self.tool("pkexec", '''
+assert Path(os.environ["TEST_EVENTS"] + ".agent").exists(), "authentication agent was never started"
 assert args.pop(0) == "--disable-internal-agent", "must not start an invisible terminal agent"
 assert Path(os.environ["LUDASH_INSTALL_PROGRESS_FILE"]).read_text().startswith("82|authorization|")
 assert sys.stdin.read() == ""
@@ -85,11 +94,29 @@ with open(os.environ["TEST_EVENTS"], "a") as log:
         path = self.root / "events"
         return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
+    def test_agent_launcher_uses_wayland_without_portal_theme(self):
+        self.tool("polkit-kde-authentication-agent-1", '''
+assert os.environ["QT_QPA_PLATFORM"] == "wayland"
+assert "QT_QPA_PLATFORMTHEME" not in os.environ
+''')
+        env = dict(self.env, WAYLAND_DISPLAY="isolated-test-display",
+                   QT_QPA_PLATFORM="eglfs", QT_QPA_PLATFORMTHEME="xdgdesktopportal")
+        launcher = str(ROOT / "scripts/lunadash-polkit-agent")
+        selected = subprocess.run([launcher, "--print"], env=env, text=True,
+                                  capture_output=True, timeout=5)
+        self.assertEqual(selected.returncode, 0, selected.stderr)
+        self.assertEqual(selected.stdout.strip(), str(self.bin / "polkit-kde-authentication-agent-1"))
+        result = subprocess.run([launcher], env=env, text=True, capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_graphical_update_confirms_packages_without_input(self):
         result = self.run_installer(extra_env={"LUDASH_UPDATE_MODE": "1"})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue((self.root / "progress").read_text().startswith("96|finalize|"))
         self.assertTrue(any(row[0] == "pacman" for row in self.events()))
+        pid = int(Path(str(self.root / "events") + ".agent").read_text())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
 
     def test_authorization_denial_never_runs_package_installation(self):
         result = self.run_installer("--non-interactive", extra_env={"TEST_AUTH_DENIED": "1"})

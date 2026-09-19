@@ -161,6 +161,13 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   publishSessionActivationEnvironment();
 
   if (startShell &&
+      qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
+    const QString agent = QStandardPaths::findExecutable("lunadash-polkit-agent");
+    if (!agent.isEmpty())
+      spawn({}, agent, false);
+  }
+
+  if (startShell &&
       qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1 &&
       qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
     const QString fcitx = QStandardPaths::findExecutable("fcitx5");
