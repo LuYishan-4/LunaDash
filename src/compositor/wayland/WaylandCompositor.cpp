@@ -315,25 +315,8 @@ void WaylandCompositor::launchExternalCommand(QStringList command) {
                   command.end());
     ensureWaylandChromiumFlags(command);
 
-    if (discord) {
-      // Electron/Discord on NVIDIA currently fails when Ozone Wayland selects
-      // Vulkan. Keep the native Wayland path but force its GL renderer.
-      command.erase(std::remove_if(command.begin(), command.end(),
-                                   [](const QString &argument) {
-                                     return argument.startsWith(
-                                         "--gtk-version=");
-                                   }),
-                    command.end());
-      if (!command.contains("--disable-vulkan"))
-        command.append("--disable-vulkan");
-      if (!command.contains("--enable-wayland-ime"))
-        command.append("--enable-wayland-ime");
-      if (std::none_of(
-              command.cbegin(), command.cend(), [](const QString &argument) {
-                return argument.startsWith("--wayland-text-input-version=");
-              }))
-        command.append("--wayland-text-input-version=3");
-    }
+    if (discord)
+      ensureDiscordWaylandFlags(command);
   }
 
   const QString executable = command.takeFirst();

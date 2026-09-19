@@ -39,4 +39,36 @@ void ensureWaylandChromiumFlags(QStringList &command) {
     command.append("--enable-features=UseOzonePlatform");
 }
 
+void ensureDiscordWaylandFlags(QStringList &command) {
+  QStringList disabled;
+  int featureIndex = -1;
+  for (auto it = command.begin(); it != command.end();) {
+    if (it->startsWith("--disable-features=")) {
+      if (featureIndex < 0)
+        featureIndex = static_cast<int>(it - command.begin());
+      disabled.append(it->mid(QStringLiteral("--disable-features=").size())
+                          .split(',', Qt::SkipEmptyParts));
+      it = command.erase(it);
+    } else {
+      if (*it == "--use-angle=vulkan")
+        *it = "--use-angle=gl";
+      ++it;
+    }
+  }
+  disabled.append({"Vulkan", "DefaultANGLEVulkan", "VulkanFromANGLE"});
+  disabled.removeDuplicates();
+  command.insert(featureIndex < 0 ? command.size() : featureIndex,
+                 "--disable-features=" + disabled.join(','));
+  if (std::none_of(command.cbegin(), command.cend(), [](const auto &arg) {
+        return arg.startsWith("--use-angle=");
+      }))
+    command.append("--use-angle=gl");
+  if (!command.contains("--enable-wayland-ime"))
+    command.append("--enable-wayland-ime");
+  if (std::none_of(command.cbegin(), command.cend(), [](const auto &arg) {
+        return arg.startsWith("--wayland-text-input-version=");
+      }))
+    command.append("--wayland-text-input-version=3");
+}
+
 } // namespace LunaDash

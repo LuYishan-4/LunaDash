@@ -164,6 +164,7 @@ add_library(ludash-wayland
     src/compositor/capture/ScreenCapture.hpp
     src/compositor/capture/ScreenCapture.cpp
     src/compositor/wayland/Surface.cpp
+    src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
     src/compositor/session/ClientLaunch.cpp
     src/compositor/input/Keyboard.cpp

@@ -1,7 +1,8 @@
+#include "DdcBrightnessTests.hpp"
+#include "compositor/session/ClientLaunch.hpp"
 #include "compositor/session/SessionEnvironment.hpp"
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
-#include "DdcBrightnessTests.hpp"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QFile>
@@ -16,6 +17,18 @@ void check(bool condition, const char *message) {
     qFatal("%s", message);
 }
 void runTests() {
+  QStringList discord{"flatpak", "run", "com.discordapp.Discord",
+                      "--disable-features=ExistingFeature",
+                      "--use-angle=vulkan"};
+  check(isDiscordApplicationCommand(discord), "Recognize Flatpak Discord");
+  ensureDiscordWaylandFlags(discord);
+  check(discord.contains("--use-angle=gl") &&
+            discord.contains("--disable-features=ExistingFeature,Vulkan,"
+                             "DefaultANGLEVulkan,VulkanFromANGLE"),
+        "Keep existing flags while disabling the incompatible Vulkan paths");
+  const auto once = discord;
+  ensureDiscordWaylandFlags(discord);
+  check(discord == once, "Discord compatibility flags are idempotent");
   testDdcBrightness();
   check(parseBacklight("intel_backlight,backlight,12000,60%,20000\n")
                 .value("percent")

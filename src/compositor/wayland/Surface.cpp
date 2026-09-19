@@ -40,6 +40,7 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
     return;
 
   client->sceneTree->node.data = client.get();
+  surface->data = client->sceneTree;
   if (surface->client && surface->client->client) {
     pid_t pid = 0;
     uid_t uid = 0;
@@ -91,10 +92,12 @@ void WaylandCompositor::Impl::handleNewXdgSurface(wl_listener *listener,
                                                   void *data) {
   auto *self = listenerOwner<Impl>(listener);
   auto *surface = static_cast<wlr_xdg_surface *>(data);
-  if (!self || !surface || surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL ||
-      !surface->toplevel)
+  if (!self || !surface)
     return;
-  self->addXdgToplevel(surface, surface->toplevel);
+  if (surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL && surface->toplevel)
+    self->addXdgToplevel(surface, surface->toplevel);
+  else if (surface->role == WLR_XDG_SURFACE_ROLE_POPUP && surface->popup)
+    self->addXdgPopup(surface->popup);
 }
 #endif
 
@@ -380,13 +383,17 @@ void WaylandCompositor::Impl::restoreLayerFocus() {
 
 ClientWindow *
 WaylandCompositor::Impl::clientForSurface(wlr_surface *surface) const {
-  if (!surface || !surface->resource)
+  if (!surface)
     return nullptr;
-  wl_client *owner = wl_resource_get_client(surface->resource);
+  surface = wlr_surface_get_root_surface(surface);
+  auto *xdg = wlr_xdg_surface_try_from_wlr_surface(surface);
+  while (xdg && xdg->role == WLR_XDG_SURFACE_ROLE_POPUP && xdg->popup &&
+         xdg->popup->parent) {
+    surface = wlr_surface_get_root_surface(xdg->popup->parent);
+    xdg = wlr_xdg_surface_try_from_wlr_surface(surface);
+  }
   for (const auto &client : q->clients_) {
-    if (!client->surface || !client->surface->resource)
-      continue;
-    if (wl_resource_get_client(client->surface->resource) == owner)
+    if (client->surface && client->surface->surface == surface)
       return client.get();
   }
   return nullptr;

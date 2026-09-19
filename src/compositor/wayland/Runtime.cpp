@@ -100,6 +100,8 @@ bool WaylandCompositor::Impl::initialize() {
   // Track the role as soon as it is created, then wait for initial_commit.
   attachListener(&xdgShell->events.new_toplevel, newXdgSurface, this,
                  handleNewXdgToplevel);
+  attachListener(&xdgShell->events.new_popup, newXdgPopup, this,
+                 handleNewXdgPopup);
 #endif
   attachListener(&layerShell->events.new_surface, newLayerSurface, this,
                  handleNewLayerSurface);
@@ -184,6 +186,7 @@ void WaylandCompositor::Impl::shutdown() {
   detachListener(newOutput);
   detachListener(newInput);
   detachListener(newXdgSurface);
+  detachListener(newXdgPopup);
   detachListener(newLayerSurface);
   detachListener(requestCursor);
   detachListener(requestSelection);

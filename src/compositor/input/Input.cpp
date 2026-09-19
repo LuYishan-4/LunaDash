@@ -321,9 +321,10 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
   auto *event = static_cast<wlr_pointer_button_event *>(data);
   if (!self || !event)
     return;
+  const bool grabbed = wlr_seat_pointer_has_grab(self->seat);
   wlr_seat_pointer_notify_button(self->seat, event->time_msec, event->button,
                                  event->state);
-  if (event->state != WL_POINTER_BUTTON_STATE_PRESSED)
+  if (event->state != WL_POINTER_BUTTON_STATE_PRESSED || grabbed)
     return;
 
   double sx = 0;

@@ -171,3 +171,18 @@ LunaDash can select software rendering for Quickshell when the NVIDIA driver is 
 Legacy `ludash-compositor`, `ludash-desktop`, `ludashctl`, `ludash-session`, and `ludash.desktop` names remain compatibility aliases. New integrations should use the LunaDash names. Installed shell QML lives under `/usr/share/lunadash/shell/`.
 
 References: [Qt embedded Linux/EGLFS](https://doc.qt.io/qt-6/embedded-linux.html), [SDDM configuration](https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in).
+
+### Discord and external application menus
+
+LunaDash supports xdg-popup menus and nested submenus, including their initial configure, scene rendering and reposition requests. Pointer grabs remain with the menu until the client dismisses it. Click focus resolves the actual parent surface, so applications with multiple windows do not always focus their first window.
+
+LunaDash's application launcher selects the native Wayland path for Discord and disables Chromium's Vulkan/ANGLE-Vulkan features while using ANGLE OpenGL. Existing unrelated disabled features are retained. A direct `flatpak run` command bypasses LunaDash's launcher adjustments. After completely exiting an existing Discord instance, use:
+
+```sh
+lunadashctl launch-command 'flatpak run com.discordapp.Discord'
+# Or supply the rendering options directly:
+flatpak run com.discordapp.Discord --ozone-platform=wayland --use-angle=gl \
+  --disable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE
+```
+
+These options address the reported Wayland/Vulkan incompatibility; they do not establish that every blank Discord window is caused by graphics. If content still fails to load, collect subsequent renderer/network errors and test the app on the same connection outside LunaDash. Fontconfig/theme warnings and a missing FileChooser portal should be diagnosed separately. For persistent Flatpak options, see the [upstream Discord Flatpak instructions](https://github.com/flathub/com.discordapp.Discord#persistent-launch-options); LunaDash does not rewrite personal Flatpak configuration.

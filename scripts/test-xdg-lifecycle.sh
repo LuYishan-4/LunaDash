@@ -61,4 +61,4 @@ if ! kill -0 "${pid}" 2>/dev/null; then
   exit 1
 fi
 
-echo "xdg-toplevel lifecycle and close-animation check passed"
+echo "xdg-toplevel lifecycle, popup/submenu rendering and close-animation check passed"

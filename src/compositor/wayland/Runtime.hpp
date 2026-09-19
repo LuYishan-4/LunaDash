@@ -52,6 +52,15 @@ public:
     Slot<LayerState> destroy;
   };
 
+  struct XdgPopupState {
+    Impl *impl = nullptr;
+    wlr_xdg_popup *popup = nullptr;
+    wlr_scene_tree *sceneTree = nullptr;
+    Slot<XdgPopupState> commit;
+    Slot<XdgPopupState> reposition;
+    Slot<XdgPopupState> destroy;
+  };
+
   struct KeyboardState {
     Impl *impl = nullptr;
     wlr_keyboard *keyboard = nullptr;
@@ -129,6 +138,7 @@ public:
   QSocketNotifier *waylandNotifier = nullptr;
   QList<OutputState *> outputs;
   QList<LayerState *> layers;
+  QList<XdgPopupState *> xdgPopups;
   QList<KeyboardState *> keyboards;
   QList<TextInputState *> textInputs;
   QList<PopupState *> inputPopups;
@@ -139,6 +149,7 @@ public:
   Slot<Impl> newOutput;
   Slot<Impl> newInput;
   Slot<Impl> newXdgSurface;
+  Slot<Impl> newXdgPopup;
   Slot<Impl> newLayerSurface;
   Slot<Impl> requestCursor;
   Slot<Impl> requestSelection;
@@ -183,6 +194,13 @@ public:
 
   void arrangeLayers();
   void restoreLayerFocus();
+  void addXdgPopup(wlr_xdg_popup *popup);
+  void configureXdgPopup(XdgPopupState *state);
+  wlr_scene_tree *sceneForSurface(wlr_surface *surface) const;
+  static void handleNewXdgPopup(wl_listener *listener, void *data);
+  static void handleXdgPopupCommit(wl_listener *listener, void *data);
+  static void handleXdgPopupReposition(wl_listener *listener, void *data);
+  static void handleXdgPopupDestroy(wl_listener *listener, void *data);
 
   bool resizePrimaryOutput(const QString &preset, QString *error);
 

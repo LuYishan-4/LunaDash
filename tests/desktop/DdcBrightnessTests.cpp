@@ -19,7 +19,7 @@ void write(const QString &path, const QByteArray &data) {
 }
 QByteArray read(const QString &path) {
   QFile file(path);
-  file.open(QIODevice::ReadOnly);
+  require(file.open(QIODevice::ReadOnly), "Read DDC fixture");
   return file.readAll();
 }
 void until(const std::function<bool()> &done) {
