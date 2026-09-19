@@ -176,13 +176,22 @@ References: [Qt embedded Linux/EGLFS](https://doc.qt.io/qt-6/embedded-linux.html
 
 LunaDash supports xdg-popup menus and nested submenus, including their initial configure, scene rendering and reposition requests. Pointer grabs remain with the menu until the client dismisses it. Focus changes precede the initiating button press, and clicks in an already focused window do not send redundant activation configures. Click focus resolves the actual parent surface, so applications with multiple windows do not always focus their first window.
 
-LunaDash's application launcher selects native Wayland for Discord and defaults to software rendering (`--disable-gpu`) after Vulkan feature switches alone failed to prevent the reported NVIDIA GPU-process crash. This affects Discord only and may increase CPU use. `LUNADASH_DISCORD_GPU=1` in the session environment opts back into ANGLE OpenGL with Vulkan features disabled. Existing unrelated disabled features are retained. A direct `flatpak run` command bypasses LunaDash's launcher adjustments. After completely exiting an existing Discord instance, use:
+Discord 1.0.157 can initialize an X11 input helper even when its main window uses native Wayland. The reported crash persisted with GPU rendering disabled: the captured crash was a null-display access in `XQueryExtension` on the native helper thread. Rendering flags alone cannot fix this failure. LunaDash's launcher now starts its authenticated XWayland service before Discord and passes `DISPLAY` and `XAUTHORITY` alongside `WAYLAND_DISPLAY`. The main window remains on Wayland. The helper's compatibility root stays hidden until an explicit X11 application is launched; it does not appear as an extra taskbar item. See [XWayland compatibility and limits](XWAYLAND.md).
+
+Install XWayland (`xorg-xwayland` on Arch) and leave it enabled. The launcher reports a compatibility error if the helper server cannot start. After updating LunaDash, logging into the new session and completely exiting any existing Discord instance, launch from the application menu or use:
 
 ```sh
-lunadashctl launch-command '["flatpak","run","com.discordapp.Discord"]'
-# Or supply the rendering options directly:
-flatpak run com.discordapp.Discord --ozone-platform=wayland --disable-gpu --use-angle=gl \
-  --disable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE
+lunadashctl launch-command '["flatpak","run","com.discordapp.Discord","--enable-logging=stderr"]'
+# Launcher and child diagnostics are written to the session log:
+tail -f ~/.local/state/lunadash/session.log
 ```
 
-These options address the reported Wayland/Vulkan incompatibility; they do not establish that every blank Discord window is caused by graphics. If content still fails to load, collect subsequent renderer/network errors and test the app on the same connection outside LunaDash. The session log records the launcher rendering mode. A missing FileChooser interface is a separate startup defect: the backend uses a local Qt theme to prevent circular portal activation, and the portal configuration uses GTK for other supported interfaces. Install `xdg-desktop-portal-gtk`; custom portal overrides take precedence. Fontconfig/theme warnings should be diagnosed separately. For persistent Flatpak options, see the [upstream Discord Flatpak instructions](https://github.com/flathub/com.discordapp.Discord#persistent-launch-options); LunaDash does not rewrite personal Flatpak configuration.
+A direct `flatpak run` command from an existing terminal bypasses server preparation and may have an unset or stale `DISPLAY`. Adding GPU flags to that command is not equivalent to launching through LunaDash. The Discord Flatpak must retain its X11 socket permission for the native helper; LunaDash does not rewrite personal Flatpak overrides.
+
+The existing Discord-only software rendering fallback (`--disable-gpu`) remains while hardware compatibility is checked and may increase CPU use. `LUNADASH_DISCORD_GPU=1` in the session environment opts into ANGLE OpenGL with Vulkan features disabled. The session log records the selected rendering mode. Helper initialization tests do not establish that Discord networking, voice, screen sharing or physical NVIDIA rendering all work.
+
+A missing FileChooser interface is a separate startup defect: the backend uses a local Qt theme to prevent circular portal activation, and the portal configuration uses GTK for other supported interfaces. Install `xdg-desktop-portal-gtk`; custom portal overrides take precedence. Fontconfig/theme warnings should be diagnosed separately. For persistent Flatpak options, see the [upstream Discord Flatpak instructions](https://github.com/flathub/com.discordapp.Discord#persistent-launch-options).
+
+### Taskbar identity and selection
+
+External window icons resolve from the Wayland application ID and the installed desktop entry's ID or startup class. Document titles remain visible in tooltips but cannot change an application's icon. Unknown or ambiguous identities use a generic icon. Task buttons retain the selected window ID through status polling and cancel a click if that slot was replaced. Selecting a window restores it if minimized, switches to its workspace and scrolls its tiled column into view. Group and member highlights follow the actual focused window.

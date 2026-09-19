@@ -16,6 +16,7 @@ public:
   void stop();
   bool stopped() const;
   bool startServer(QString *error = nullptr);
+  bool isHelperSurface(qint64 processId) const;
   QJsonObject snapshot() const;
   void applyEnvironment(QProcessEnvironment &environment) const;
   bool launch(const QStringList &command, QString *error);
@@ -25,6 +26,7 @@ private:
   QProcess server_;
   QList<QProcess *> clients_;
   QProcessEnvironment environment_;
+  QSize screenSize_;
   std::unique_ptr<QTemporaryDir> runtime_;
   QString display_;
   QString socketPath_;
@@ -33,5 +35,6 @@ private:
   int descriptor_ = -1;
   qint64 groupId_ = 0;
   bool stopping_ = false;
+  bool rootWindowVisible_ = false;
 };
 } // namespace LunaDash

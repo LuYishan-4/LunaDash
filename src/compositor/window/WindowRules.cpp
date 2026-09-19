@@ -19,18 +19,20 @@ InitialWindowPolicy initialWindowPolicy(const QString &appId,
 }
 
 QString windowIconName(const QString &appId, const QString &title) {
-  const auto identity = (appId + " " + title).toLower();
-  if (identity.contains("terminal") || identity.contains("console"))
-    return "utilities-terminal";
-  if (identity.contains("file") || identity.contains("nautilus") ||
-      identity.contains("dolphin"))
-    return "system-file-manager";
-  if (identity.contains("setting") || identity.contains("control-center"))
-    return "preferences-system";
-  if (identity.contains("monitor"))
-    return "utilities-system-monitor";
-  if (appId == "lunadash-app")
+  // External titles are document/tab names, not application identities.
+  // Only our own shared executable uses its known window titles as aliases.
+  if (appId == "lunadash-app") {
+    const auto name = title.toLower();
+    if (name.contains("terminal") || name.contains("console"))
+      return "utilities-terminal";
+    if (name.contains("file"))
+      return "system-file-manager";
+    if (name.contains("setting"))
+      return "preferences-system";
+    if (name.contains("monitor"))
+      return "utilities-system-monitor";
     return "lunadash";
+  }
   if (appId == "org.freedesktop.Xwayland")
     return "application-x-executable";
   return appId.isEmpty() ? QStringLiteral("application-x-executable") : appId;

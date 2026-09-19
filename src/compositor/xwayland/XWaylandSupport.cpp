@@ -95,6 +95,9 @@ void XWaylandSupport::releaseSocket() {
 }
 bool XWaylandSupport::start(const QProcessEnvironment &environment,
                             const QSize &screenSize) {
+  environment_ = environment;
+  screenSize_ = screenSize;
+  rootWindowVisible_ = false;
   const auto executable = QStandardPaths::findExecutable("Xwayland");
   if (executable.isEmpty()) {
     error_ = "Install Xwayland for X11 applications.";
@@ -108,7 +111,6 @@ bool XWaylandSupport::start(const QProcessEnvironment &environment,
   display_.clear();
   error_.clear();
   stopping_ = false;
-  environment_ = environment;
   runtime_ = std::make_unique<QTemporaryDir>(
       QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) +
       "/ludash-xwayland-XXXXXX");
@@ -189,11 +191,21 @@ bool XWaylandSupport::stopped() const {
   return server_.state() == QProcess::NotRunning;
 }
 bool XWaylandSupport::startServer(QString *error) {
-  if (stopping_ || server_.program().isEmpty() || !error_.isEmpty()) {
+  if (stopping_) {
     if (error)
-      *error = error_.isEmpty() ? "XWayland is not configured." : error_;
+      *error = "XWayland is shutting down.";
     return false;
   }
+  if (server_.state() == QProcess::Running)
+    return true;
+  // The listening descriptor belongs to the child after startup. Reuse a
+  // running server; reserve a new socket only after it has stopped.
+  if (descriptor_ < 0 && !start(environment_, screenSize_)) {
+    if (error)
+      *error = error_;
+    return false;
+  }
+  error_.clear();
   if (server_.state() == QProcess::NotRunning) {
     server_.start();
     if (!server_.waitForStarted(1000)) {
@@ -205,12 +217,17 @@ bool XWaylandSupport::startServer(QString *error) {
   }
   return true;
 }
+bool XWaylandSupport::isHelperSurface(qint64 processId) const {
+  return !rootWindowVisible_ && processId > 0 &&
+         processId == server_.processId();
+}
 QJsonObject XWaylandSupport::snapshot() const {
   const bool running = !stopping_ && server_.state() == QProcess::Running;
   return {{"available",
            !stopping_ && !server_.program().isEmpty() && error_.isEmpty()},
           {"mode", "rootful-on-demand"},
           {"running", running},
+          {"rootWindowVisible", running && rootWindowVisible_},
           {"display", running ? display_ : QString()},
           {"authority", running ? authority_ : QString()},
           {"error", error_}};
@@ -237,24 +254,11 @@ bool XWaylandSupport::launch(const QStringList &command, QString *error) {
       *error = "Executable not found: " + command.first();
     return false;
   }
+  if (!startServer(error))
+    return false;
+  rootWindowVisible_ = true;
   auto *process = new QProcess(this);
   auto environment = environment_;
-  if (stopping_ || server_.program().isEmpty() || !error_.isEmpty()) {
-    if (error)
-      *error = error_.isEmpty() ? "XWayland is not running." : error_;
-    process->deleteLater();
-    return false;
-  }
-  if (descriptor_ < 0 && !start(environment_)) {
-    if (error)
-      *error = error_;
-    process->deleteLater();
-    return false;
-  }
-  if (!startServer(error)) {
-    process->deleteLater();
-    return false;
-  }
   applyEnvironment(environment);
   environment.remove("WAYLAND_DISPLAY");
   environment.insert("QT_QPA_PLATFORM", "xcb");

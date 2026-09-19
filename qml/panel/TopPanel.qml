@@ -54,7 +54,7 @@ ModuleSurface {
                 tiledIds[String(member.window)] = true
         const floating = []
         for (const client of (shell.state.clients || [])) {
-            if (!client.desktop && client.mapped && !client.minimized &&
+            if (!client.desktop && client.mapped &&
                 Number(client.workspace) === Number(shell.state.workspace) &&
                 !tiledIds[String(client.id)]) {
                 floating.push({
@@ -237,18 +237,18 @@ ModuleSurface {
             spacing: 4
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            model: panel.groups
+            model: panel.groups.length
             visible: count > 0
             Behavior on contentX {
                 enabled: !columnTasks.flicking && !columnTasks.moving
                 NumberAnimation { duration: Math.max(120, Theme.motion); easing.type: Easing.OutCubic }
             }
             delegate: ColumnCell {
-                required property var modelData
+                required property int index
                 shell: panel.shell
-                group: modelData
+                group: panel.groups[index] || ({})
                 height: columnTasks.height
-                width: Math.max(38, Math.min(142, ((modelData.members || []).length * 30) + 12))
+                width: Math.max(38, Math.min(142, ((group.members || []).length * 30) + 12))
             }
         }
     }

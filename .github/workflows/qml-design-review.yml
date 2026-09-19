@@ -32,4 +32,4 @@ jobs:
       - name: Verify localized control layouts
         run: |
           QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 \
-            /usr/lib/qt6/bin/qmltestrunner -input tests/qml
+            /usr/lib/qt6/bin/qmltestrunner -import tests/qml/mocks -input tests/qml

@@ -93,7 +93,7 @@ private:
   void requestShutdown();
   void publishSessionActivationEnvironment();
   void captureScreen();
-  void launchExternalCommand(QStringList command);
+  bool launchExternalCommand(QStringList command, QString *error);
   void resendKeyboardModifiers();
   QString nextCapturePath() const;
   void configure(ClientWindow *client, const QRect &rectangle);

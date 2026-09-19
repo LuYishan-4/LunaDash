@@ -1,6 +1,7 @@
 #include "DdcBrightnessTests.hpp"
 #include "compositor/session/ClientLaunch.hpp"
 #include "compositor/session/SessionEnvironment.hpp"
+#include "compositor/window/WindowRules.hpp"
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 #include <QCoreApplication>
@@ -17,6 +18,15 @@ void check(bool condition, const char *message) {
     qFatal("%s", message);
 }
 void runTests() {
+  for (const auto &title : {"Files", "Terminal settings", "Monitor console"}) {
+    check(windowIconName("org.mozilla.firefox", title) == "org.mozilla.firefox",
+          "Document titles must not change external application identity");
+    check(windowIconName("", title) == "application-x-executable",
+          "Unknown application IDs must not borrow another app's icon");
+  }
+  check(windowIconName("lunadash-app", "LunaDash Console") ==
+            "utilities-terminal",
+        "Built-in application aliases are retained");
   qunsetenv("LUNADASH_DISCORD_GPU");
   QStringList discord{"flatpak", "run", "com.discordapp.Discord",
                       "--disable-features=ExistingFeature",

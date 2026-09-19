@@ -30,13 +30,14 @@ LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
 ./scripts/test-xdg-lifecycle.sh "$PWD/build"
 python3 tests/wayland/test_desktop_controls.py build
 python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
-python3 tests/wayland/test_xwayland.py build
+xvfb-run -a python3 tests/wayland/test_xwayland.py build
+python3 tests/wayland/test_window_tasks.py build
 QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
   ./build/lunadash-renderer-test --opengl
 DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr
 ```
 
-Headless wlroots tests use pixman and private runtime/configuration directories. The lifecycle client exercises map, unmap and role destruction, including close animation cleanup. XWayland tests require an installed Xwayland binary, verify no compatibility server starts at login, launch an X11 client on demand, reject unauthenticated connections and verify cleanup. Renderer tests independently cover resource relocation, error diagnostics, partial GL allocation cleanup and real software OpenGL shader compilation/drawing.
+Headless wlroots tests use pixman and private runtime/configuration directories. The lifecycle client exercises map, unmap and role destruction, including close animation cleanup. XWayland tests require an installed Xwayland binary, verify no server starts at login, exercise a native Wayland application with an authenticated X11 input-helper fixture, check that its root stays hidden, reuse the server for explicit X11 applications, reject unauthenticated connections and verify cleanup. Window-task tests exercise title-independent identity, offscreen column selection, group focus, minimized restore, workspace selection and closed-window IDs with GTK clients. The QML tests verify member padding, polling during a click, cancellation when a slot changes, desktop ID/startup-class matching and ambiguous identity fallback. `qmltestrunner -import tests/qml/mocks -input tests/qml` supplies a deterministic icon-catalog stub for Quickshell while exercising the real taskbar components offscreen; it does not test the host icon theme. Renderer tests independently cover resource relocation, error diagnostics, partial GL allocation cleanup and real software OpenGL shader compilation/drawing.
 
 For a real desktop, use `LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh`. It uses the host Wayland socket and writes `build/wayland.log` and `build/wayland-state.json`. Run without `LUDASH_TEST_NO_SHELL` to check Quickshell. A complete manual session also checks Chrome/Zed, pointer and physical keyboard input, Fcitx preedit/candidate positioning, wallpaper changes, animation, file chooser D-Bus activation and logout. Do not infer these results from successful compilation.
 

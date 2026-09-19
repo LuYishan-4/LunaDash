@@ -20,10 +20,16 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton
-        onClicked: {
+        property var pressedWindow: 0
+        onPressed: {
             const members = cell.group.members || []
-            if (members.length > 0)
-                cell.shell.command("focus", members[0].window)
+            const target = members.find(member => member.focused)
+                || members.find(member => !member.minimized) || members[0]
+            pressedWindow = target ? target.window : 0
+        }
+        onClicked: {
+            if (pressedWindow && (cell.group.members || []).some(member => member.window === pressedWindow))
+                cell.shell.command("focus", pressedWindow)
         }
     }
 
@@ -31,11 +37,13 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 4
         Repeater {
-            model: cell.visibleMembers
+            // Polling replaces the JSON array, but must not replace a delegate
+            // while it holds a mouse grab. MemberIcon captures the pressed ID.
+            model: cell.visibleMembers.length
             delegate: MemberIcon {
-                required property var modelData
+                required property int index
                 shell: cell.shell
-                member: modelData
+                member: cell.visibleMembers[index] || ({})
                 grouped: (cell.group.members || []).length > 1
             }
         }

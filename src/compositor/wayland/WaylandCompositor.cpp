@@ -310,11 +310,23 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
   return process;
 }
 
-void WaylandCompositor::launchExternalCommand(QStringList command) {
-  if (command.isEmpty())
-    return;
+bool WaylandCompositor::launchExternalCommand(QStringList command,
+                                              QString *error) {
+  if (command.isEmpty()) {
+    *error = "Expected an application command.";
+    return false;
+  }
 
   const bool discord = isDiscordApplicationCommand(command);
+  // Discord's native input helper opens an X display even when its Electron
+  // windows use Wayland. Keep the authenticated server alive before launch;
+  // changing GPU flags does not address that helper's null-display crash.
+  if (discord && (!xwayland_ || !xwayland_->startServer(error))) {
+    if (error->isEmpty())
+      *error = "Discord's input helper requires XWayland. Install and enable "
+               "it, then restart LunaDash.";
+    return false;
+  }
   const bool chromium = isChromiumApplicationCommand(command);
   if (chromium) {
     command.erase(std::remove_if(command.begin(), command.end(),
@@ -328,12 +340,13 @@ void WaylandCompositor::launchExternalCommand(QStringList command) {
       ensureDiscordWaylandFlags(command);
       qInfo() << "LunaDash Discord rendering:"
               << (command.contains("--disable-gpu") ? "software" : "OpenGL")
-              << "(native Wayland)";
+              << "(native Wayland, authenticated XWayland input helper)";
     }
   }
 
   const QString executable = command.takeFirst();
   spawn(command, executable, false);
+  return true;
 }
 
 bool WaylandCompositor::saveScreenshot(const QString &path) {
@@ -386,7 +399,9 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
     return;
   client->title = safeUtf8(client->toplevel->title);
   client->appId = safeUtf8(client->toplevel->app_id);
-  client->utility = isUtilityWindow(client->appId);
+  client->utility =
+      isUtilityWindow(client->appId) ||
+      (xwayland_ && xwayland_->isHelperSurface(client->processId));
   client->iconName = client->utility
                          ? QString()
                          : windowIconName(client->appId, client->title);
@@ -496,7 +511,7 @@ void WaylandCompositor::arrange() {
 
 void WaylandCompositor::focus(ClientWindow *client) {
   if (!d || !client || !client->mapped || client->minimized ||
-      client->workspace != workspace_ || !client->surface ||
+      client->utility || client->workspace != workspace_ || !client->surface ||
       !client->surface->initialized)
     return;
 
@@ -508,6 +523,10 @@ void WaylandCompositor::focus(ClientWindow *client) {
   focused_ = client;
   if (!client->floating)
     tiling_.focus(client->id);
+  // Selecting a tiled window must also scroll its column into view. Avoid
+  // relayout for repeated clicks in the same window (including popup grabs).
+  if (changed && !client->floating)
+    arrange();
   if (client->sceneTree)
     wlr_scene_node_raise_to_top(&client->sceneTree->node);
   if (changed)
@@ -738,21 +757,26 @@ QJsonObject WaylandCompositor::state() const {
       continue;
     emittedGroups.insert(column.columnIndex);
     QJsonArray members;
+    bool groupFocused = false;
     for (auto id : column.columnMembers) {
       const auto found = std::find_if(
           clients_.cbegin(), clients_.cend(), [id](const auto &client) {
             return client->id == static_cast<int>(id);
           });
-      members.append(QJsonObject{
-          {"window", static_cast<qint64>(id)},
-          {"title", found == clients_.cend() ? QString() : (*found)->title},
-          {"appId", found == clients_.cend() ? QString() : (*found)->appId},
-          {"icon", found == clients_.cend()
-                       ? QStringLiteral("application-x-executable")
-                       : (*found)->iconName}});
+      if (found == clients_.cend())
+        continue;
+      const auto *member = found->get();
+      const bool memberFocused = member == focused_ && !member->minimized;
+      groupFocused = groupFocused || memberFocused;
+      members.append(QJsonObject{{"window", static_cast<qint64>(id)},
+                                 {"title", member->title},
+                                 {"appId", member->appId},
+                                 {"icon", member->iconName},
+                                 {"focused", memberFocused},
+                                 {"minimized", member->minimized}});
     }
     tilingGroups.append(QJsonObject{{"index", column.columnIndex},
-                                    {"focused", column.focused},
+                                    {"focused", groupFocused},
                                     {"width", column.width},
                                     {"members", members}});
   }
@@ -947,7 +971,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     auto command = Browser::commandForUrl(QUrl(value), &error);
     if (!error.isEmpty())
       return {{"error", error}};
-    launchExternalCommand(command);
+    if (!launchExternalCommand(command, &error))
+      return {{"error", error}};
   } else if (method == "launch-default" &&
              (value == "terminal" || value == "files" || value == "browser")) {
     QString error;
@@ -959,7 +984,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         return {{"error", "No browser is available."}};
       spawn({"--app", value, "--builtin"});
     } else {
-      launchExternalCommand(command);
+      if (!launchExternalCommand(command, &error))
+        return {{"error", error}};
     }
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);
@@ -1043,6 +1069,9 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     QString error;
     if (!xwayland_ || !xwayland_->launch(QProcess::splitCommand(value), &error))
       return {{"error", error.isEmpty() ? "XWayland is unavailable." : error}};
+    for (const auto &client : clients_)
+      updateClientMetadata(client.get());
+    arrange();
   } else if (method == "launch-command") {
     const auto document = QJsonDocument::fromJson(value.toUtf8());
     if (!document.isArray() || document.array().isEmpty())
@@ -1053,7 +1082,9 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         return {{"error", "Command arguments must be short strings."}};
       command << entry.toString();
     }
-    launchExternalCommand(command);
+    QString error;
+    if (!launchExternalCommand(command, &error))
+      return {{"error", error}};
   } else if (method == "finish-setup") {
     setSetupComplete(true);
   } else if (method == "setup") {
@@ -1127,6 +1158,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         workspace_ = client->workspace;
         client->minimized = false;
         tiling_.setMinimized(client->id, false);
+        tiling_.focus(client->id);
         arrange();
         focus(client.get());
       }

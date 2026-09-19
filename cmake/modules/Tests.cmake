@@ -20,7 +20,8 @@ if(LUDASH_BUILD_DESKTOP_TESTS)
         src/compositor/session/ClientLaunch.cpp
         tests/desktop/DdcBrightnessTests.cpp)
     target_link_libraries(lunadash-desktop-controls-test PRIVATE
-        ludash-display-settings ludash-shortcut-settings ludash-session-environment)
+        ludash-display-settings ludash-shortcut-settings ludash-session-environment
+        ludash-window-rules)
     add_test(NAME lunadash-desktop-controls COMMAND lunadash-desktop-controls-test)
     set_tests_properties(lunadash-desktop-controls PROPERTIES TIMEOUT 15)
 endif()

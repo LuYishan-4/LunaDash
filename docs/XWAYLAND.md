@@ -8,7 +8,11 @@ On Arch:
 sudo pacman -S --needed xorg-xwayland
 ```
 
-Restart LunaDash after installing the optional packages. The compositor registers `wp_viewporter`, prepares a private display and starts XWayland on the first explicit X11 launch. Native Wayland applications continue to use Wayland. A normal launch does not pin a toolkit backend: the client environment asks for `QT_QPA_PLATFORM=wayland;xcb`, `GDK_BACKEND=wayland,x11` and `SDL_VIDEODRIVER=wayland,x11`, so each toolkit can try Wayland first. Before the compatibility server is actually started, the child environment intentionally omits `DISPLAY`; use an explicit X11 launch for an X11-only client. The application launcher uses explicit native Wayland flags for recognized Chromium browsers and Discord. Discord additionally uses OpenGL-compatible ANGLE flags; see [Discord troubleshooting](LOGIN_SESSION.md#discord-and-external-application-menus). Use the explicit X11 launch action when an application needs XWayland. Abnormal process exits are logged with the program name and exit status. Missing compatibility tools do not prevent the native desktop from starting.
+Restart LunaDash after installing the optional packages. The compositor registers `wp_viewporter` and prepares a private display. It starts XWayland for the first explicit X11 launch or for Discord's native input helper. Native Wayland applications continue to use Wayland. The client environment asks for `QT_QPA_PLATFORM=wayland;xcb`, `GDK_BACKEND=wayland,x11` and `SDL_VIDEODRIVER=wayland,x11`; `DISPLAY` is omitted until the authenticated compatibility server is running.
+
+Discord's helper requires a usable X display even when Electron uses Wayland. LunaDash starts the service before launching Discord, supplies its authentication, and keeps the owned root surface out of tiling, focus and the taskbar until an explicit X11 application is requested. The compositor identifies that surface by the owned server process, not a client-supplied title. Later launches reuse the same server, display and authority file. A direct terminal launch bypasses this preparation; use the application launcher or the command in [Discord troubleshooting](LOGIN_SESSION.md#discord-and-external-application-menus).
+
+Recognized Chromium browsers and Discord receive explicit native Wayland flags. Abnormal process exits are logged with the program name and exit status. Missing compatibility tools do not prevent the native desktop from starting; an application that requires the helper receives a launch error.
 
 The launcher and settings offer **Run an X11 application**. Enter a program and arguments, for example `xterm` if installed. Quotes group arguments; shell operators are not evaluated. The same action is available through IPC:
 
@@ -24,9 +28,9 @@ This launch path sets `DISPLAY`, `XAUTHORITY`, `QT_QPA_PLATFORM=xcb`, `GDK_BACKE
 
 LunaDash reserves an unused local X socket, restricts it to its owner and passes the listening descriptor to XWayland. It creates an owner-only MIT-MAGIC-COOKIE-1 authority file using system randomness and disables TCP listening. It does not use `-ac`, change the host display or overwrite the host authority file. Authentication is not an application sandbox: X11 applications sharing this instance retain the usual X11 trust model.
 
-Only this compatibility instance's process group is terminated during cleanup. The runtime authority file and owned socket are removed on normal shutdown. Status exposes `xwayland.available`, `xwayland.running`, `xwayland.mode`, its display/authority path and a diagnostic error. No cookie value is sent over IPC or logged. Set `LUDASH_DISABLE_XWAYLAND=1` before startup to disable the optional service.
+Only this compatibility instance's process group is terminated during cleanup. The runtime authority file and owned socket are removed on normal shutdown. Status exposes `xwayland.available`, `xwayland.running`, `xwayland.mode`, `xwayland.rootWindowVisible`, its display/authority path and a diagnostic error. No cookie value is sent over IPC or logged. Set `LUDASH_DISABLE_XWAYLAND=1` before startup to disable the optional service.
 
-The integration test launches a Qt application through its XCB backend, verifies it becomes a Wayland window, rejects an unauthenticated X11 setup request, and checks cleanup:
+The integration test first runs an X11 input-helper fixture through the native Wayland launch path and checks that its root is hidden. It then launches a Qt application through XCB, verifies the existing display is reused and visible, rejects an unauthenticated X11 setup request, and checks cleanup:
 
 ```sh
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
