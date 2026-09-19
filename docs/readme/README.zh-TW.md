@@ -15,13 +15,15 @@
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only license"></a>
 </p>
 
-[網站](https://luyishan-4.github.io/LunaDash/) · [安裝](#install) · [畫面預覽](#gallery) · [文件](#documentation) · [參與貢獻](#contribute)
+[![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793d1?logo=arch-linux&logoColor=white&style=flat-square)](https://archlinux.org)
+[![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu_Rolling-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com)
 
 </div>
 
 [English](../../README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-## 好上手，也留有調整空間
+## LunaDash
 
 - **日常功能一次備齊。** 面板、啟動器、儀表板、通知、設定與檔案工具都包含在桌面中。
 - **配合你的工作方式。** 支援可捲動的視窗欄、視窗分組、浮動視窗、鍵盤操作和視窗動畫。
@@ -36,12 +38,12 @@
 
 <table>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024312-792.png"><img src="../image/LunaDash-20260920-024312-792.png" alt="儀表板整合時鐘、系統狀態與常用控制。" width="440"></a><sub>儀表板整合時鐘、系統狀態與常用控制。</sub></td>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外觀設定中選擇桌布與強調色。" width="440"></a><sub>在外觀設定中選擇桌布與強調色。</sub></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024312-792.png"><img src="../image/LunaDash-20260920-024312-792.png" alt="儀表板整合時鐘、系統狀態與常用控制。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外觀設定中選擇桌布與強調色。" width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可捲動的視窗欄中使用終端機、Discord 和 Zed。" width="440"></a><sub>在可捲動的視窗欄中使用終端機、Discord 和 Zed。</sub></td>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日曆面板也能使用自訂圖片。" width="440"></a><sub>日曆面板也能使用自訂圖片。</sub></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可捲動的視窗欄中使用終端機、Discord 和 Zed。" width="440"></a><</td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日曆面板也能使用自訂圖片。" width="440"></a></td>
   </tr>
 </table>
 
@@ -64,21 +66,6 @@ cd LunaDash
 可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面 shell 需要 **Quickshell 0.3+**；若發行版未提供，安裝程式會指出缺少的依賴。選項與復原方式請見[安裝指南](../LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../TESTING_AND_FILES.md)。
 
 <a id="linux-distributions"></a>
-
-## Linux 發行版
-
-| 發行版 | 目前涵蓋範圍 |
-| --- | --- |
-| [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white&style=flat-square)](https://archlinux.org) | 主要開發平台；原始碼建置 CI；pacman/makepkg 安裝 |
-| [![Ubuntu 24.04](https://img.shields.io/badge/Ubuntu_24.04-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com) | 主要建置與執行檢查 CI；支援 apt 依賴安裝 |
-| [![Debian 13](https://img.shields.io/badge/Debian_13-A81D33?logo=debian&logoColor=white&style=flat-square)](https://www.debian.org) | 原始碼建置 CI；支援 apt 依賴安裝 |
-| [![Fedora 45](https://img.shields.io/badge/Fedora_45-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org) | 原始碼建置 CI；支援 dnf 依賴安裝 |
-| [![openSUSE Tumbleweed](https://img.shields.io/badge/openSUSE_Tumbleweed-73BA25?logo=opensuse&logoColor=white&style=flat-square)](https://www.opensuse.org) | 原始碼建置 CI；支援 zypper 依賴安裝 |
-| [![Alpine Edge](https://img.shields.io/badge/Alpine_Edge-0D597F?logo=alpinelinux&logoColor=white&style=flat-square)](https://alpinelinux.org) | 原始碼建置 CI；支援 apk 依賴安裝 |
-| [![Void Linux](https://img.shields.io/badge/Void_Linux-478061?logo=voidlinux&logoColor=white&style=flat-square)](https://voidlinux.org) | 安裝程式支援；未納入目前的發行版 CI 矩陣 |
-| [![Gentoo](https://img.shields.io/badge/Gentoo-54487A?logo=gentoo&logoColor=white&style=flat-square)](https://www.gentoo.org) | 安裝程式支援；未納入目前的發行版 CI 矩陣 |
-
-其他發行版備妥依賴後，可使用標準 CMake 安裝流程。每次提交的實際結果請查看 [Actions](https://github.com/LuYishan-4/LunaDash/actions?query=branch%3Adev)。建置與軟體渲染測試不代表所有 GPU、螢幕或獨立工作階段都已驗證。螢幕鎖定與螢幕分享／PipeWire portal 仍未完整實作。原生外掛預設停用，啟用後不在沙箱中執行。
 
 ## 常用快捷鍵
 
@@ -117,4 +104,4 @@ PR 請以 **`dev`** 為目標分支。主旨要清楚描述改動，說明使用
 
 ---
 
-<p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · 開箱即用，也能依你而變。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
+<p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · 目前該專案還不成熟歡迎回報或發PR。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
