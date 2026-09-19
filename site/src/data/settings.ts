@@ -19,21 +19,21 @@ export const groups: SettingGroup[] = [
     id: "appearance",
     name: "Color, wallpaper & soft blur",
     description:
-      "Choose a color swatch, an image or shader wallpaper, then tune gaps, panel height, background blur and motion.",
+      "Choose an accent color and wallpaper image, then tune gaps, panel height, background blur and motion.",
     details: [
       "Blur starts enabled at radius 18. Lower the radius to reduce GPU work; window opacity ranges from 60% to 100%.",
       "Set animation duration between 0 and 600 ms, or disable animations for reduced motion.",
-      "Files follows the accent immediately. New Konsole terminals receive the generated palette; third-party apps keep their own themes.",
+      "Built-in Files, plugin windows and LunaDash file dialogs follow the accent and font settings. Konsole retains your selected profile; third-party applications use their own themes.",
     ],
   },
   {
     id: "windows",
     name: "Tiling & workspaces",
     description:
-      "Choose 1–9 workspaces, a 30–70% master pane and whether new windows start floating.",
+      "Choose 1–9 workspaces, a default column width from 30% to 70%, and whether new windows start floating.",
     details: [
       "Super+1…9 switches workspaces; Super+Shift+1…9 moves the focused window to an existing workspace.",
-      "Super+J/K focuses, Super+H/L changes the master ratio, Super+Space toggles floating, and Super+Q closes the focused window.",
+      "Super+H/L focuses the left/right column; Super+K/J focuses windows within a column. Super+Space toggles floating, Super+F maximizes or restores, and Super+Q closes the focused window.",
       "Reducing workspace count moves windows from removed workspaces to the last remaining workspace.",
     ],
   },
@@ -57,18 +57,18 @@ export const groups: SettingGroup[] = [
       "Volume is capped at 100%. Unavailable devices and failed commands are shown rather than reported as successful changes.",
       "Existing network connections are reused. Network configuration opens NetworkManager's editor; passwords remain in that editor.",
       "Bluetooth, printers, disks, accounts, clock and accessibility pages show available system tools and packages to install.",
-      "Locking, a complete notification service, polkit agent and full portal integration remain incomplete.",
+      "LunaDash displays application notifications and starts an installed polkit authentication agent. Screen locking and screen-sharing/PipeWire portals remain incomplete.",
     ],
   },
   {
     id: "applications",
-    name: "Your terminal & file manager",
+    name: "Default applications & startup",
     description:
       "Applications and startup lists every installed application for each default role, with the built-in default pinned at the top of the list.",
     details: [
-      "Terminal defaults to Konsole with interactive Fish and a LunaDash prompt. The login shell and user Fish configuration are not rewritten.",
+      "Terminal defaults to Konsole and respects your existing profile, including a configured Flatpak Konsole profile. The login shell and user Fish configuration are not rewritten.",
       "Files defaults to the LunaDash file manager. Choose icon or details view, browse common locations, filter a folder, and use the compact toolbar.",
-      "These defaults affect LunaDash launchers and shortcuts, not system-wide MIME associations.",
+      "The browser role controls web links opened by LunaDash and prefers Chrome when available. Default application roles affect LunaDash launchers and shortcuts; file-type associations are configured separately.",
       "Startup selection currently covers built-in tools; general desktop-entry autostart and session restoration are not implemented.",
     ],
   },

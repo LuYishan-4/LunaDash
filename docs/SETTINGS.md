@@ -71,7 +71,7 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 References: [WirePlumber wpctl](https://pipewire.pages.freedesktop.org/wireplumber/man/wpctl.html) and the installed system tools' own help/documentation.
 
-Default terminal and file-manager argument arrays are edited under Applications and startup. Empty arrays select Konsole and LunaDash Files. See [Default apps and Files](DEFAULT_APPS_AND_FILES.md).
+Default terminal, file-manager and browser argument arrays are edited under Applications and startup. Empty arrays select Konsole, LunaDash Files and the detected default browser. Konsole uses your existing profile rather than resetting it to a LunaDash Fish profile. These role settings do not replace file-type associations. See [Default apps and Files](DEFAULT_APPS_AND_FILES.md).
 
 ## Window and column controls
 
