@@ -17,7 +17,8 @@ assert 'cmake --install "$build"' not in updater
 assert "report_progress" in installer
 assert "LUDASH_PREFER_PKEXEC" in installer
 assert "pkexec" in installer
-assert "cleanup" in about and "install-script" in about
+update_state = (root / "qml/settings/components/UpdateState.qml").read_text(encoding="utf-8")
+assert "cleanup" in update_state and "install-script" in update_state
 assert "Qt.openUrlExternally" not in about
 assert '"browser"' in defaults
 browser = (root / "src/desktop/browser/Browser.cpp").read_text(encoding="utf-8")

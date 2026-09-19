@@ -24,6 +24,7 @@ private:
   QNetworkAccessManager *network_ = nullptr;
   QNetworkReply *reply_ = nullptr;
   QTimer *timeout_ = nullptr;
+  qint64 startedAt_ = 0;
   QString channel_ = "stable";
   QString status_ = "idle";
   QString currentCommit_ = "unknown";

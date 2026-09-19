@@ -21,7 +21,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | Privacy and accessibility | Host-identity visibility, reduced motion, native-plugin access | Optional host accessibility/locking settings. LunaDash has no secure lock screen, notification service, screen reader integration or portal permission UI yet |
 | Users, date and time | Settings-tool discovery | Installed account/time editors handle authorization; LunaDash does not create users or retain passwords |
 | Printers and storage | Settings-tool discovery | system-config-printer and GNOME Disks; their confirmation flows govern destructive actions |
-| About | Animated moon artwork, version, development status, OS, kernel, architecture, actual graphics API, GitHub link, and manual update check | Update checks contact the fixed official GitHub Releases endpoint and never install packages |
+| About | Animated moon artwork, version, development status, OS, kernel, architecture, actual graphics API, GitHub link, and manual update check | Checks use the fixed official GitHub release/commit endpoints; installation and rollback require a separate user action |
 
 An installed executable means the editor can be launched, not that every system service or authorization agent is present. KDE module providers are offered only when their plugin file exists. Host-only tools use the original host environment and are not advertised as native LunaDash hardware controls. They are unavailable in standalone DRM/KMS sessions.
 
@@ -84,3 +84,7 @@ Defaults use `Super+H/L` between columns, `Super+J/K` within a grouped column, `
 See [display controls and startup](DISPLAY_AND_STARTUP.md) for backlight/DDC/CI brightness, primary-output resolution/refresh/scale, automatic rollback and the session loading animation. Translated settings labels wrap within their controls and cards instead of retaining a fixed single-line height.
 
 About displays the fixed tagline `⑨ baka ᗜˬᗜ` in every language. It is a brand string, not a translated description.
+
+### Update status
+
+About separates one current update status from the last installation record. The running version and latest checked version are labeled separately; an unchecked channel displays no invented latest version. Progress appears only while the installer is active. A completed update from this session requests a restart and cannot be installed again for the same target. Old success/failure records remain in history without hiding a new check. Restarting the compositor clears the restart prompt for previous-session installations, including rollbacks. Switching channels discards any in-flight response from the previous channel.

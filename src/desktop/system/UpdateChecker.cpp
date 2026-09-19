@@ -161,6 +161,7 @@ UpdateChecker::UpdateChecker(QObject *parent)
     : QObject(parent), network_(new QNetworkAccessManager(this)),
       timeout_(new QTimer(this)), channel_(selectedChannel()),
       currentCommit_(detectCurrentCommit()) {
+  startedAt_ = QDateTime::currentSecsSinceEpoch();
   timeout_->setSingleShot(true);
   timeout_->setInterval(8000);
   connect(timeout_, &QTimer::timeout, this, [this] {
@@ -175,6 +176,7 @@ QJsonObject UpdateChecker::snapshot() const {
           {"channel", channel_},
           {"currentVersion", QStringLiteral(LUDASH_VERSION)},
           {"currentCommit", currentCommit_},
+          {"startedAt", startedAt_},
           {"latestVersion", latestVersion_},
           {"latestCommit", latestCommit_},
           {"latestMessage", latestMessage_},
@@ -188,6 +190,16 @@ QJsonObject UpdateChecker::snapshot() const {
 bool UpdateChecker::setChannel(const QString &channel) {
   if (channel != "stable" && channel != "dev")
     return false;
+  if (channel == channel_)
+    return true;
+  timeout_->stop();
+  if (reply_) {
+    auto *previous = reply_;
+    reply_ = nullptr;
+    previous->disconnect(this);
+    previous->abort();
+    previous->deleteLater();
+  }
   channel_ = channel;
   QSettings().setValue("desktop/updateChannel", channel_);
   status_ = "idle";
@@ -196,14 +208,15 @@ bool UpdateChecker::setChannel(const QString &channel) {
   latestMessage_.clear();
   releaseUrl_.clear();
   error_.clear();
+  checkedAt_.clear();
   emit changed();
   return true;
 }
 
 void UpdateChecker::check() {
+  setChannel(selectedChannel());
   if (reply_)
     return;
-  channel_ = selectedChannel();
   status_ = "checking";
   latestVersion_.clear();
   latestCommit_.clear();

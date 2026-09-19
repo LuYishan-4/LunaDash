@@ -99,7 +99,9 @@ ShellRoot {
             rollback: false,
             progress: 0,
             stage: "prepare",
-            message: tr("Preparing the update…"),
+            startedAt: Math.floor(Date.now() / 1000),
+            updatedAt: Math.floor(Date.now() / 1000),
+            message: "Preparing the update…",
             details: ""
         }
         updateAction.command = [updaterExecutable, String(channel), String(ref)]
@@ -118,7 +120,9 @@ ShellRoot {
             rollback: true,
             progress: 0,
             stage: "rollback",
-            message: tr("Restoring the previous installation…"),
+            startedAt: Math.floor(Date.now() / 1000),
+            updatedAt: Math.floor(Date.now() / 1000),
+            message: "Restoring the previous installation…",
             details: ""
         }
         updateAction.command = [updaterExecutable, "--rollback"]
@@ -195,16 +199,23 @@ ShellRoot {
             return
         if (persistentState === "idle" && runtimeRunning)
             return
+        if (updateAction.running && Number(persistent.updatedAt || 0) < Number(root.updateInstall.startedAt || 0))
+            return
+        const sameOperation = String(persistent.channel || "") === String(root.updateInstall.channel || "")
+            && String(persistent.target || "") === String(root.updateInstall.target || "")
+            && Boolean(persistent.rollback) === Boolean(root.updateInstall.rollback)
 
         root.updateInstall = {
             state: persistentState,
-            channel: String(persistent.channel || root.updateInstall.channel || ""),
-            target: String(persistent.target || root.updateInstall.target || ""),
-            rollback: Boolean(persistent.rollback ?? root.updateInstall.rollback),
+            channel: String(persistent.channel || ""),
+            target: String(persistent.target || ""),
+            rollback: Boolean(persistent.rollback),
             progress: Math.max(0, Math.min(100, Number(persistent.progress || 0))),
             stage: String(persistent.stage || "idle"),
-            message: root.tr(String(persistent.message || "")),
-            details: root.updateInstall.details || "",
+            message: String(persistent.message || ""),
+            details: sameOperation ? root.updateInstall.details || "" : "",
+            startedAt: sameOperation ? root.updateInstall.startedAt || 0 : 0,
+            updatedAt: Number(persistent.updatedAt || 0),
             lastUpdate: String(persistent.lastUpdate || "")
         }
     }
@@ -323,7 +334,9 @@ ShellRoot {
                     rollback: rollback,
                     progress: 100,
                     stage: "complete",
-                    message: root.tr(rollback ? "Rollback completed." : "Update installed successfully."),
+                    startedAt: root.updateInstall.startedAt || 0,
+                    updatedAt: Math.floor(Date.now() / 1000),
+                    message: rollback ? "Rollback completed." : "Update installed successfully.",
                     details: detail
                 }
                 root.notify(root.tr(rollback ? "LunaDash rollback" : "LunaDash update"), root.tr(rollback ? "Rollback completed. Reboot to use the restored installation." : "Update completed. Reboot to start the new LunaDash installation."), "success", detail)
@@ -335,7 +348,9 @@ ShellRoot {
                     rollback: rollback,
                     progress: Number(root.updateInstall.progress || 0),
                     stage: String(root.updateInstall.stage || "error"),
-                    message: root.tr(rollback ? "Rollback failed." : "Update failed."),
+                    startedAt: root.updateInstall.startedAt || 0,
+                    updatedAt: Math.floor(Date.now() / 1000),
+                    message: rollback ? "Rollback failed." : "Update failed.",
                     details: detail
                 }
                 root.notify(root.tr("Update failed"), root.tr("The update could not be completed. Open details to view the log."), "error", detail)
