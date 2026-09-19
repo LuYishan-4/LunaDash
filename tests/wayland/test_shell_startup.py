@@ -68,7 +68,8 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-") as directory:
                 for page in pages:
                     marker = "Settings page loaded: " + page
                     previous_loads = log_path.read_text().count(marker)
-                    assert "error" not in request("open-settings", page)
+                    result = request("open-settings", page)
+                    assert "error" not in result, (page, result, log_path.read_text())
                     deadline = time.monotonic()+8
                     while ("lunadash-settings" not in request()["layerNamespaces"] or
                            log_path.read_text().count(marker) <= previous_loads):

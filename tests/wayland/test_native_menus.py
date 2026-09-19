@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-menu-") as directory:
     root = Path(directory)
     env = os.environ | {"XDG_RUNTIME_DIR": directory, "XDG_CONFIG_HOME": directory,
         "XDG_STATE_HOME": directory, "XDG_DATA_HOME": directory,
-        "WLR_BACKENDS": "x11", "WLR_X11_OUTPUTS": "1", "WLR_RENDERER": "gles2",
+        "WLR_BACKENDS": "x11", "WLR_X11_OUTPUTS": "1", "WLR_RENDERER": "pixman",
         "LIBGL_ALWAYS_SOFTWARE": "1", "LUDASH_DISABLE_XWAYLAND": "1",
         "LUDASH_SKIP_SETUP": "1", "LUNADASH_DISABLE_FCITX": "1",
         "QT_QPA_PLATFORMTHEME": "generic", "GTK_USE_PORTAL": "0"}

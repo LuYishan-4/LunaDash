@@ -179,7 +179,7 @@ LunaDash supports xdg-popup menus and nested submenus, including their initial c
 LunaDash's application launcher selects native Wayland for Discord and defaults to software rendering (`--disable-gpu`) after Vulkan feature switches alone failed to prevent the reported NVIDIA GPU-process crash. This affects Discord only and may increase CPU use. `LUNADASH_DISCORD_GPU=1` in the session environment opts back into ANGLE OpenGL with Vulkan features disabled. Existing unrelated disabled features are retained. A direct `flatpak run` command bypasses LunaDash's launcher adjustments. After completely exiting an existing Discord instance, use:
 
 ```sh
-lunadashctl launch-command 'flatpak run com.discordapp.Discord'
+lunadashctl launch-command '["flatpak","run","com.discordapp.Discord"]'
 # Or supply the rendering options directly:
 flatpak run com.discordapp.Discord --ozone-platform=wayland --disable-gpu --use-angle=gl \
   --disable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE
