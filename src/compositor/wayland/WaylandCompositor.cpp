@@ -722,8 +722,12 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     control({{"method", "launch-default"}, {"value", "files"}});
   else if (action == "launchLauncher")
     spawn({"--app", "launcher"});
-  else if (action == "screenshot")
+  else if (action == "screenshot") {
     captureScreen();
+    // A repeated shortcut must leave keyboard focus on the active selector so
+    // Escape can still cancel it.
+    return;
+  }
 
   arrange();
   synchronizeTilingFocus();

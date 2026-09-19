@@ -29,6 +29,7 @@ The architecture checker enforces lowercase domains, PascalCase C++ filenames, s
 LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
 ./scripts/test-xdg-lifecycle.sh "$PWD/build"
 python3 tests/wayland/test_desktop_controls.py build
+xvfb-run -a python3 tests/wayland/test_screenshot_shortcut.py build
 python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
 python3 tests/wayland/test_window_tasks.py build
@@ -43,6 +44,8 @@ Headless wlroots tests use pixman and private runtime/configuration directories.
 For a real desktop, use `LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh`. It uses the host Wayland socket and writes `build/wayland.log` and `build/wayland-state.json`. Run without `LUDASH_TEST_NO_SHELL` to check Quickshell. A complete manual session also checks Chrome/Zed, pointer and physical keyboard input, Fcitx preedit/candidate positioning, wallpaper changes, animation, file chooser D-Bus activation and logout. Do not infer these results from successful compilation.
 
 The scene-animation unit test checks intermediate positions and sizes, retargeting, pointer pass-through, reduced motion and destruction during an effect without opening a display. The Wayland animation regression uses GTK, PyGObject/Cairo, Pillow and grim on an isolated pixman output. It compares captured window pixels during selection, maximize/restore and client-initiated close, then verifies cleanup and reduced motion. CI retains `motion-*.png` and `window-animations.log` for review. This verifies the software-rendered transitions; physical GPU pacing and hardware FPS still need a real-session check.
+
+The capture unit test checks that selector startup reaches end of input, distinguishes cancellation from helper failure, and permits retries. The screenshot-shortcut regression requires slurp, grim, Xvfb and xdotool. It exercises Meta+Shift+S and a real drag selection, checks private PNG dimensions, and verifies that repeated shortcuts preserve Escape cancellation. The helpers run inside private runtime/configuration directories. CI retains the captured region and diagnostics.
 
 Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. Internal GLSL is embedded and needs no installed shader directory. For explicit relocation testing, install `--component Tests` into a temporary prefix and run `libexec/lunadash/tests/lunadash-renderer-test` there; that component is excluded from normal installs.
 

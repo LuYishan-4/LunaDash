@@ -31,4 +31,12 @@ if(LUDASH_BUILD_DESKTOP_TESTS)
         ludash-animation PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
     add_test(NAME lunadash-scene-animations COMMAND lunadash-scene-animations-test)
     set_tests_properties(lunadash-scene-animations PROPERTIES TIMEOUT 15)
+    add_executable(lunadash-screen-capture-test
+        tests/desktop/ScreenCaptureTests.cpp
+        src/compositor/capture/ScreenCapture.cpp
+        src/compositor/capture/ScreenCapture.hpp)
+    target_link_libraries(lunadash-screen-capture-test PRIVATE Qt6::Core)
+    target_include_directories(lunadash-screen-capture-test PRIVATE src)
+    add_test(NAME lunadash-screen-capture COMMAND lunadash-screen-capture-test)
+    set_tests_properties(lunadash-screen-capture PROPERTIES TIMEOUT 15)
 endif()

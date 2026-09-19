@@ -27,7 +27,7 @@ jobs:
               run: cmake -S . -B build-main -G Ninja -DCMAKE_BUILD_TYPE=Release -DLUDASH_BUILD_FILES_TESTS=ON -DLUDASH_BUILD_DESKTOP_TESTS=ON && cmake --build build-main --parallel 2
             - name: Test file operations and compositor architecture
               run: |
-                  QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure -R '^lunadash-(files|desktop-controls|scene-animations)$'
+                  QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure -R '^lunadash-(files|desktop-controls|scene-animations|screen-capture)$'
                   python3 scripts/check-source-layout.py
                   python3 tests/architecture/test_source_layout.py
                   python3 tests/wayland/test_no_qtwayland.py

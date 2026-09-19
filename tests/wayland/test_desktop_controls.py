@@ -21,7 +21,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-controls-") as directory:
     selector_mode = root / "selection"
     selector_mode.write_text("select")
     selector = tools / "slurp"
-    selector.write_text('#!/bin/sh\nsleep 0.3\ncase "$(cat "$LUNADASH_SELECTION_FIXTURE")" in\n cancel) exit 1;;\n invalid) printf "bad geometry\\n";;\n *) printf "10,20 160x90\\n";;\nesac\n')
+    selector.write_text('#!/bin/sh\ncat >/dev/null\nsleep 0.3\ncase "$(cat "$LUNADASH_SELECTION_FIXTURE")" in\n cancel) printf "selection cancelled\\n" >&2; exit 1;;\n invalid) printf "bad geometry\\n";;\n *) printf "10,20 160x90\\n";;\nesac\n')
     selector.chmod(0o700)
     brightness = tools / "brightnessctl"
     brightness.write_text('#!/bin/sh\nprintf "intel_backlight,backlight,12000,60%%,20000\\n"\n')

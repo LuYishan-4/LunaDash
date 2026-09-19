@@ -5,6 +5,9 @@
 
 namespace LunaDash {
 ScreenCapture::ScreenCapture(QObject *parent) : QObject(parent) {
+  // slurp reads optional rectangle candidates until stdin reaches EOF before
+  // connecting to Wayland. An open QProcess input pipe blocks its overlay.
+  process_.setStandardInputFile(QProcess::nullDevice());
   timeout_.setSingleShot(true);
   timeout_.setInterval(15000);
   connect(&timeout_, &QTimer::timeout, this, [this] {
@@ -70,7 +73,8 @@ void ScreenCapture::processFinished(int code, QProcess::ExitStatus status) {
   const QString diagnostic =
       QString::fromUtf8(process_.readAllStandardError()).trimmed().left(1024);
   if (phase_ == "selecting") {
-    if (status == QProcess::NormalExit && code == 1 && diagnostic.isEmpty()) {
+    if (status == QProcess::NormalExit && code == 1 && output.isEmpty() &&
+        (diagnostic.isEmpty() || diagnostic == "selection cancelled")) {
       finish({}, {});
       return;
     }
