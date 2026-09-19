@@ -15,6 +15,8 @@
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only license"></a>
 </p>
 
+<a id="linux-distributions"></a>
+
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793d1?logo=arch-linux&logoColor=white&style=flat-square)](https://archlinux.org)
 [![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu_Rolling-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com)
@@ -42,7 +44,7 @@
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外觀設定中選擇桌布與強調色。" width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可捲動的視窗欄中使用終端機、Discord 和 Zed。" width="440"></a><</td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可捲動的視窗欄中使用終端機、Discord 和 Zed。" width="440"></a></td>
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日曆面板也能使用自訂圖片。" width="440"></a></td>
   </tr>
 </table>
@@ -64,8 +66,6 @@ cd LunaDash
 安裝程式會處理發行版依賴、編譯 LunaDash 並安裝登入工作階段。完成後登出，在登入管理員中選擇 **LunaDash**。首次啟動會顯示歡迎訊息與網站求助連結。語言及桌面外觀可在設定中調整。
 
 可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面 shell 需要 **Quickshell 0.3+**；若發行版未提供，安裝程式會指出缺少的依賴。選項與復原方式請見[安裝指南](../LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../TESTING_AND_FILES.md)。
-
-<a id="linux-distributions"></a>
 
 ## 常用快捷鍵
 

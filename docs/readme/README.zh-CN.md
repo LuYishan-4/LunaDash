@@ -15,13 +15,17 @@
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only license"></a>
 </p>
 
-[网站](https://luyishan-4.github.io/LunaDash/) · [安装](#install) · [界面预览](#gallery) · [文档](#documentation) · [参与贡献](#contribute)
+<a id="linux-distributions"></a>
+
+[![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793d1?logo=arch-linux&logoColor=white&style=flat-square)](https://archlinux.org)
+[![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu_Rolling-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com)
 
 </div>
 
 [English](../../README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-## 易于上手，也留有调整空间
+## LunaDash
 
 - **日常功能一应俱全。** 面板、启动器、仪表盘、通知、设置与文件工具都包含在桌面中。
 - **配合你的工作方式。** 支持可滚动的窗口列、窗口分组、浮动窗口、键盘操作和窗口动画。
@@ -36,12 +40,12 @@
 
 <table>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024312-792.png"><img src="../image/LunaDash-20260920-024312-792.png" alt="仪表盘整合时钟、系统状态与常用控制。" width="440"></a><sub>仪表盘整合时钟、系统状态与常用控制。</sub></td>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外观设置中选择壁纸与强调色。" width="440"></a><sub>在外观设置中选择壁纸与强调色。</sub></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024312-792.png"><img src="../image/LunaDash-20260920-024312-792.png" alt="仪表盘整合时钟、系统状态与常用控制。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外观设置中选择壁纸与强调色。" width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可滚动的窗口列中使用终端、Discord 和 Zed。" width="440"></a><sub>在可滚动的窗口列中使用终端、Discord 和 Zed。</sub></td>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日历面板也能使用自定义图片。" width="440"></a><sub>日历面板也能使用自定义图片。</sub></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可滚动的窗口列中使用终端、Discord 和 Zed。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日历面板也能使用自定义图片。" width="440"></a></td>
   </tr>
 </table>
 
@@ -62,23 +66,6 @@ cd LunaDash
 安装程序会处理发行版依赖、编译 LunaDash 并安装登录会话。完成后注销，在登录管理器中选择 **LunaDash**。首次启动会显示欢迎消息与网站帮助链接。语言及桌面外观可在设置中调整。
 
 可先运行 `./scripts/install-session.sh --dry-run` 预览安装步骤。桌面 shell 需要 **Quickshell 0.3+**；若发行版未提供，安装程序会指出缺少的依赖。选项与恢复方法请见[安装指南](../LOGIN_SESSION.md)，手动编译与嵌套会话请见[构建与测试](../TESTING_AND_FILES.md)。
-
-<a id="linux-distributions"></a>
-
-## Linux 发行版
-
-| 发行版 | 当前覆盖范围 |
-| --- | --- |
-| [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white&style=flat-square)](https://archlinux.org) | 主要开发平台；源码构建 CI；pacman/makepkg 安装 |
-| [![Ubuntu 24.04](https://img.shields.io/badge/Ubuntu_24.04-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com) | 主要构建与运行检查 CI；支持 apt 依赖安装 |
-| [![Debian 13](https://img.shields.io/badge/Debian_13-A81D33?logo=debian&logoColor=white&style=flat-square)](https://www.debian.org) | 源码构建 CI；支持 apt 依赖安装 |
-| [![Fedora 45](https://img.shields.io/badge/Fedora_45-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org) | 源码构建 CI；支持 dnf 依赖安装 |
-| [![openSUSE Tumbleweed](https://img.shields.io/badge/openSUSE_Tumbleweed-73BA25?logo=opensuse&logoColor=white&style=flat-square)](https://www.opensuse.org) | 源码构建 CI；支持 zypper 依赖安装 |
-| [![Alpine Edge](https://img.shields.io/badge/Alpine_Edge-0D597F?logo=alpinelinux&logoColor=white&style=flat-square)](https://alpinelinux.org) | 源码构建 CI；支持 apk 依赖安装 |
-| [![Void Linux](https://img.shields.io/badge/Void_Linux-478061?logo=voidlinux&logoColor=white&style=flat-square)](https://voidlinux.org) | 安装程序支持；未纳入当前的发行版 CI 矩阵 |
-| [![Gentoo](https://img.shields.io/badge/Gentoo-54487A?logo=gentoo&logoColor=white&style=flat-square)](https://www.gentoo.org) | 安装程序支持；未纳入当前的发行版 CI 矩阵 |
-
-其他发行版备齐依赖后，可使用标准 CMake 安装流程。每次提交的实际结果请查看 [Actions](https://github.com/LuYishan-4/LunaDash/actions?query=branch%3Adev)。构建与软件渲染测试不代表所有 GPU、显示器或独立会话都已验证。屏幕锁定与屏幕共享／PipeWire portal 仍未完整实现。原生插件默认禁用，启用后不在沙箱中运行。
 
 ## 常用快捷键
 
@@ -117,4 +104,4 @@ PR 请以 **`dev`** 为目标分支。标题应清楚描述改动，说明用户
 
 ---
 
-<p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · 开箱即用，也能随你而变。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
+<p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · 项目目前尚不成熟，欢迎报告问题或提交 PR。<br><a href="../../LICENSE">GPL-3.0-only</a></p>

@@ -15,13 +15,17 @@
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only license"></a>
 </p>
 
-[ウェブサイト](https://luyishan-4.github.io/LunaDash/) · [インストール](#install) · [ギャラリー](#gallery) · [ドキュメント](#documentation) · [貢献する](#contribute)
+<a id="linux-distributions"></a>
+
+[![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793d1?logo=arch-linux&logoColor=white&style=flat-square)](https://archlinux.org)
+[![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu_Rolling-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com)
 
 </div>
 
 [English](../../README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-## すぐに使えて、自分に合わせられる
+## LunaDash
 
 - **日常の機能をひとつに。** パネル、ランチャー、ダッシュボード、通知、設定、ファイル管理ツールを備えています。
 - **作業に合ったウィンドウ管理。** スクロール可能なウィンドウ列、グループ化、フローティング表示、キーボード操作、ウィンドウアニメーションに対応しています。
@@ -36,12 +40,12 @@
 
 <table>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024312-792.png"><img src="../image/LunaDash-20260920-024312-792.png" alt="時計、システム状態、よく使う操作をダッシュボードに集約。" width="440"></a><sub>時計、システム状態、よく使う操作をダッシュボードに集約。</sub></td>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="外観設定で壁紙やアクセントカラーを変更。" width="440"></a><sub>外観設定で壁紙やアクセントカラーを変更。</sub></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024312-792.png"><img src="../image/LunaDash-20260920-024312-792.png" alt="時計、システム状態、よく使う操作をダッシュボードに集約。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="外観設定で壁紙やアクセントカラーを変更。" width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="スクロール可能な列でターミナル、Discord、Zed を利用。" width="440"></a><sub>スクロール可能な列でターミナル、Discord、Zed を利用。</sub></td>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="カレンダーパネルの画像もカスタマイズ可能。" width="440"></a><sub>カレンダーパネルの画像もカスタマイズ可能。</sub></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="スクロール可能な列でターミナル、Discord、Zed を利用。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="カレンダーパネルの画像もカスタマイズ可能。" width="440"></a></td>
   </tr>
 </table>
 
@@ -62,23 +66,6 @@ cd LunaDash
 インストーラーはディストリビューションの依存関係を処理し、LunaDash をビルドしてログインセッションをインストールします。完了したらログアウトし、ディスプレイマネージャーで **LunaDash** を選択してください。初回起動時には歓迎メッセージとヘルプサイトへのリンクが表示されます。言語とデスクトップの外観は設定画面で変更できます。
 
 `./scripts/install-session.sh --dry-run` で実行内容を事前に確認できます。デスクトップシェルには **Quickshell 0.3+** が必要です。ディストリビューションで提供されていない場合は、不足する依存関係が表示されます。オプションと復旧方法は[インストールガイド](../LOGIN_SESSION.md)、手動ビルドやネストしたセッションは[ビルドとテスト](../TESTING_AND_FILES.md)を参照してください。
-
-<a id="linux-distributions"></a>
-
-## Linux ディストリビューション
-
-| ディストリビューション | 現在の対応・検証範囲 |
-| --- | --- |
-| [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?logo=archlinux&logoColor=white&style=flat-square)](https://archlinux.org) | 主な開発環境。ソースビルド CI、pacman/makepkg によるインストール |
-| [![Ubuntu 24.04](https://img.shields.io/badge/Ubuntu_24.04-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com) | 主要なビルド・実行時 CI。apt による依存関係の導入 |
-| [![Debian 13](https://img.shields.io/badge/Debian_13-A81D33?logo=debian&logoColor=white&style=flat-square)](https://www.debian.org) | ソースビルド CI。apt による依存関係の導入 |
-| [![Fedora 45](https://img.shields.io/badge/Fedora_45-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org) | ソースビルド CI。dnf による依存関係の導入 |
-| [![openSUSE Tumbleweed](https://img.shields.io/badge/openSUSE_Tumbleweed-73BA25?logo=opensuse&logoColor=white&style=flat-square)](https://www.opensuse.org) | ソースビルド CI。zypper による依存関係の導入 |
-| [![Alpine Edge](https://img.shields.io/badge/Alpine_Edge-0D597F?logo=alpinelinux&logoColor=white&style=flat-square)](https://alpinelinux.org) | ソースビルド CI。apk による依存関係の導入 |
-| [![Void Linux](https://img.shields.io/badge/Void_Linux-478061?logo=voidlinux&logoColor=white&style=flat-square)](https://voidlinux.org) | インストーラー対応。現在のディストリビューション CI の対象外 |
-| [![Gentoo](https://img.shields.io/badge/Gentoo-54487A?logo=gentoo&logoColor=white&style=flat-square)](https://www.gentoo.org) | インストーラー対応。現在のディストリビューション CI の対象外 |
-
-その他のディストリビューションでも、依存関係を用意すれば標準の CMake インストール手順を利用できます。各コミットの結果は [Actions](https://github.com/LuYishan-4/LunaDash/actions?query=branch%3Adev) で確認してください。ビルドとソフトウェア描画のテストは、すべての GPU、モニター、独立したセッションの動作を保証するものではありません。画面ロックと画面共有／PipeWire portal はまだ未完成です。ネイティブプラグインは初期状態で無効で、有効にした場合はサンドボックス外で実行されます。
 
 ## 主なショートカット
 
@@ -117,4 +104,4 @@ PR の対象ブランチは **`dev`** です。変更内容が伝わるタイト
 
 ---
 
-<p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · すぐに使えて、自分らしく。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
+<p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · まだ未成熟なプロジェクトです。不具合報告や PR を歓迎します。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
