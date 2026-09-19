@@ -88,3 +88,5 @@ About displays the fixed tagline `⑨ baka ᗜˬᗜ` in every language. It is a 
 ### Update status
 
 About separates one current update status from the last installation record. The running version and latest checked version are labeled separately; an unchecked channel displays no invented latest version. Progress appears only while the installer is active. A completed update from this session requests a restart and cannot be installed again for the same target. Old success/failure records remain in history without hiding a new check. Restarting the compositor clears the restart prompt for previous-session installations, including rollbacks. Switching channels discards any in-flight response from the previous channel.
+
+Settings components in directories with a `qmldir` must be declared there, including helper objects used by loaded pages. The QML design-system check validates these declarations. Selecting the currently loaded category keeps its content visible instead of waiting for a new Loader event.

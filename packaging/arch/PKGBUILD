@@ -1,7 +1,7 @@
 # Local source release: run scripts/make-source.sh first, then makepkg -Cfs.
 pkgname=ludash
 pkgver=1.0.0
-pkgrel=17
+pkgrel=18
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')

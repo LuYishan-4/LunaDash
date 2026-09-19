@@ -7,3 +7,5 @@ DefaultAppEditor 1.0 DefaultAppEditor.qml
 SettingsCard 1.0 SettingsCard.qml
 DdcBrightnessControls 1.0 DdcBrightnessControls.qml
 ShortcutRecorder 1.0 ShortcutRecorder.qml
+UpdateCard 1.0 UpdateCard.qml
+UpdateState 1.0 UpdateState.qml

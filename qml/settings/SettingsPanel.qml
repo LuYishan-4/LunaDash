@@ -2,6 +2,7 @@ import "../modules"
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Wayland
 import "../components"
 import "../style"
@@ -18,6 +19,12 @@ ModuleSurface {
     readonly property var currentCategory:settings.categories.find(entry=>entry.id===settings.category)||settings.categories[0]
     function showCategory(id){
         if(!settings.categories.some(entry=>entry.id===id))return
+        if(category===id && pageLoader.status===Loader.Ready){
+            search.clear()
+            pageLoader.opacity=1
+            pageShift.y=0
+            return
+        }
         category=id
         search.clear()
         pageLoader.opacity=0

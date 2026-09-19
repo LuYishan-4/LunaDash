@@ -19,6 +19,15 @@ literal_icon = re.compile(
 icon_source = (CANONICAL / "LineIcon.qml").read_text(encoding="utf-8")
 known_icons = set(re.findall(r'^\s*([A-Za-z0-9_-]+)\s*:', icon_source, re.M))
 
+for manifest in sorted(QML.rglob("qmldir")):
+    declared = set(re.findall(r"\b([A-Za-z][A-Za-z0-9_]*\.qml)\b", manifest.read_text(encoding="utf-8")))
+    for component in sorted(manifest.parent.glob("*.qml")):
+        if component.name[0].isupper() and component.name not in declared:
+            violations.append(f"{component.relative_to(ROOT)}: missing from {manifest.relative_to(ROOT)}")
+    for filename in sorted(declared):
+        if not (manifest.parent / filename).is_file():
+            violations.append(f"{manifest.relative_to(ROOT)}: declared component does not exist: {filename}")
+
 for path in sorted(QML.rglob("*.qml")):
     text = path.read_text(encoding="utf-8")
     rel = path.relative_to(ROOT)
