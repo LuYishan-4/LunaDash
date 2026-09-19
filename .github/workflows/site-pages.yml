@@ -5,8 +5,12 @@ on:
         paths:
             - "site/**"
             - "docs/brand/**"
+            - "docs/image/**"
             - "tests/site/**"
+            - "scripts/site/**"
             - ".github/workflows/site-pages.yml"
+    release:
+        types: [published, edited, deleted]
     workflow_dispatch:
 permissions:
     contents: read
@@ -17,7 +21,7 @@ concurrency:
     cancel-in-progress: false
 jobs:
     deploy:
-        name: Deploy the website to GitHub Pages
+        name: Deploy website and GitHub release notes
         runs-on: ubuntu-24.04
         timeout-minutes: 20
         environment:
@@ -26,7 +30,12 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               with:
+                  ref: main
                   persist-credentials: false
+            - name: Sync published GitHub Release Markdown
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              run: python3 scripts/site/sync-releases.py
             - name: Set up Node.js
               uses: actions/setup-node@v4
               with:

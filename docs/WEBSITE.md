@@ -1,8 +1,20 @@
 # Website and GitHub Pages
 
-The English site lives in `site/`. It uses Astro components, CSS and strict TypeScript, base-aware asset URLs and local images. The landing page opens with a short boot animation that mirrors the shell's startup overlay, then shows the README banner, Installation, Getting started, the source links and the contributors. It has no analytics, font services or cookies, and clipboard access occurs only when Copy is clicked. The single external request is the contributor avatar, which is loaded from the maintainer's own host.
+The English site lives in `site/` and uses Astro, CSS and TypeScript. Its introduction follows LunaDash's goal: a useful desktop from the first login, with room for customization. README and website installation examples use `./scripts/install-session.sh`; manual builds belong in the technical guides.
 
-Preview from the repository root:
+The home page presents the desktop, its customization options, screenshots, installation and contribution guidance. The short opening animation respects reduced motion. There are no analytics or font services. The contributor avatar loads from the maintainer's host. Clipboard access occurs only when Copy is clicked.
+
+## Screenshots and badges
+
+The four original screenshots are maintained in `docs/image/` and referenced by both README and the website. `ScreenshotCard.astro` imports those originals and uses Astro's image pipeline for responsive WebP previews. Full-size links work without JavaScript; the website additionally offers a keyboard-accessible image dialog with Escape, a close button and focus restoration.
+
+Update each image's caption and alternative text when replacing it. Show real desktop behavior and keep examples distinct: dashboard, appearance, grouped windows and calendar. The screenshot dates describe when the images were captured, not a release date or a claim about every machine.
+
+Distribution badges belong in README, using Shields.io’s `flat-square` style and white logos. Keep their versions and coverage labels aligned with the dependency installer and configured CI. The website keeps its installation section short and links to the installation guide for distribution details. CI labels do not establish physical hardware compatibility.
+
+## Preview and validation
+
+From the repository root:
 
 ```sh
 npm ci --prefix site --include=dev --ignore-scripts
@@ -12,31 +24,15 @@ python3 tests/site/test_site.py site/dist
 npm run preview --prefix site -- --host 127.0.0.1
 ```
 
-The default port is 4321; open `http://localhost:4321/LunaDash/` while the local server is running. For the configured project base, use `npm run dev --prefix site -- --host 127.0.0.1` and open the printed `/LunaDash/` URL. Check desktop and mobile widths, keyboard focus, the boot animation, copy feedback and documentation links. Reduced motion skips the boot animation. `site/public/assets/banner.svg` is a copy of `docs/brand/banner.svg`, and `tests/site/test_site.py` fails if the two ever differ.
+Open `http://localhost:4321/LunaDash/` while the preview server is running. Check desktop and mobile layouts, all four images, the image dialog, keyboard focus, copy feedback and documentation links. Generated output under `site/dist/` is ignored. The shared brand banner remains in `docs/brand/banner.svg` and `site/public/assets/banner.svg`; the site checks keep the copies aligned. The navigation icon uses the same crescent mark as `docs/brand/icon.svg`.
 
-## Publishing
+## Contributions and publishing
 
-The intended project URL is `https://luyishan-4.github.io/LunaDash/`, the Pages address for the `LuYishan-4/LunaDash` repository. A URL in this document does not by itself confirm deployment.
+Normal pull requests target `dev` and include relevant `docs/` and website content changes. They must not change `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or the generated `site/src/data/releases.json` index. Release impact belongs in the PR body; maintainers publish it through GitHub Releases. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../CONTRIBUTING.md) and the [PR template](../.github/pull_request_template.md).
 
-Two workflows cover the website, and both are configured in this repository:
+- `main-site.yml` checks types, builds and validates local links/assets on pushes, pull requests, merge groups and manual runs.
+- `site-pages.yml` deploys from `main` when website, brand or screenshot assets change, when a GitHub Release changes, or when manually dispatched. It synchronizes published Release Markdown, repeats validation and deploys `site/dist` to GitHub Pages.
 
-- `.github/workflows/main-site.yml` checks types, builds the site and runs the site test on main pushes, pull requests, merge groups and manual runs. It holds read-only `contents` permission.
-- `.github/workflows/site-pages.yml` is the dedicated deployment workflow. It repeats the check, build and test, then uploads and deploys `site/dist` to GitHub Pages on main pushes that touch the website and on manual runs. `pages: write` and `id-token: write` are granted only to this workflow, and its `pages` concurrency group serialises deployments instead of cancelling them.
+A successful build on `dev` does not publish the website. After the intended revision reaches `main`, inspect the Pages workflow and the URL reported by its deployment. The configured address is `https://luyishan-4.github.io/LunaDash/`; Pages must use GitHub Actions as its publishing source. Update both `site` and `base` in `site/astro.config.mjs` if the repository URL changes. Roll back with a revert and redeployment rather than rewriting shared history.
 
-Neither workflow has been observed to run from this environment; a green local build is not evidence that a Pages job ran.
-
-1. Set **Settings → Pages → Build and deployment → Source** to **GitHub Actions** before expecting a deployment.
-2. Push the website to `main`, or run the deployment workflow manually, then open the deployment URL reported by the `github-pages` environment.
-3. Check the home page and all four guide routes under `/LunaDash/`.
-
-Website and documentation files cannot travel through a pull request: `.github/workflows/pr-documentation-scope.yml` rejects a pull request that modifies `docs/`, `site/` or Markdown. Website changes are therefore committed to `main`, which makes the main-push run of `main-site.yml` the only automated validation point.
-
-The `site` and `base` values in `site/astro.config.mjs` already match `https://luyishan-4.github.io/LunaDash/`; update both when changing the account, repository name or domain. GitHub Free supports Pages for public repositories; private repositories require an eligible plan. See [GitHub's publishing-source instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
-
-For a rollback, revert the website change and redeploy; do not force-push shared history.
-
-The site includes four English guide routes: `/docs/settings/`, `/docs/modules/`, `/docs/api/` and `/docs/start/`. They cover every settings category, a local-only JSON style playground, QML contracts, native plugin metadata and bounded Unix-socket examples. Markdown source guides remain linked for deeper detail. The source tree includes the entire per-file map and testing instructions. Astro generates the static browser HTML during build; no handwritten `.html` page is maintained. Astro and the TypeScript checker are pinned development dependencies. `site/src/app.ts` is the interaction source, and `site/dist/` is ignored generated output. No user configuration, logs, credentials or native binaries belong in `site/`.
-
-Reference: [GitHub custom Pages workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
-
-The source page is `site/src/pages/index.astro`; `site/astro.config.mjs` configures the GitHub Pages base. Setting the Pages source to GitHub Actions and approving the `github-pages` environment are repository-owner actions outside the source tree.
+Source guides live under `/docs/`, with release notes under `/releases/`. Keep technical detail in those guides so the home page can stay focused on the desktop and how to install it.

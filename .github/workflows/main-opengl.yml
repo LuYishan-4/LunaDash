@@ -7,7 +7,7 @@ concurrency:
     cancel-in-progress: true
 jobs:
     opengl:
-        name: OpenGL shader and context loading
+        name: GLSL assets and wlroots render loading
         runs-on: ubuntu-24.04
         timeout-minutes: 25
         steps:
@@ -18,18 +18,35 @@ jobs:
               run: |
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                    cmake g++ ninja-build pkg-config python3 python3-pil \
+                    cmake g++ ninja-build pkg-config python3 \
                     libgl-dev libgl1-mesa-dri libwayland-dev wayland-protocols \
-                    libinput-dev libxkbcommon-dev libudev-dev \
-                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev \
+                    libwlroots-dev libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
+                    qt6-base-dev qt6-declarative-dev qt6-wayland \
                     libqt6opengl6-dev xvfb xauth
-            - name: Build renderer
-              run: cmake -S . -B build-opengl -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-opengl --parallel 2
-            - name: Run desktop OpenGL smoke test
+            - name: Validate modular render architecture
               run: |
-                  LUDASH_GRAPHICS=opengl LUDASH_TEST_NO_SHELL=1 \
+                  python3 tests/renderer/test_render_architecture.py
+                  python3 tests/renderer/test_shader_extensions.py
+                  python3 tests/renderer/test_shader_diagnostics.py
+            - name: Build renderer and compositor
+              run: cmake -S . -B build-opengl -G Ninja -DCMAKE_BUILD_TYPE=Release -DLUDASH_BUILD_RENDERER_TESTS=ON && cmake --build build-opengl --parallel 2
+            - name: Test renderer resources and failure cleanup
+              run: ctest --test-dir build-opengl --output-on-failure -R '^lunadash-renderer$'
+            - name: Test installed shaders with software OpenGL
+              run: |
+                  cmake --install build-opengl --prefix "$RUNNER_TEMP/renderer-install" --component Tests
+                  cd "$RUNNER_TEMP"
+                  QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
+                    "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
+            - name: Run wlroots session smoke test
+              run: |
+                  # Xvfb on GitHub runners has no DRI3/DRM render node, so a
+                  # forced wlroots GLES2 renderer cannot be created here.
+                  # Shader/GL code is compiled above; use wlroots' CI-capable
+                  # renderer for the nested session lifecycle smoke test.
+                  LUDASH_TEST_NO_SHELL=1 \
                     LUDASH_BUILD_DIR="$PWD/build-opengl" ./scripts/test-wayland.sh
-            - name: Preserve OpenGL diagnostics
+            - name: Preserve graphics diagnostics
               if: always()
               uses: actions/upload-artifact@v4
               with:
@@ -37,6 +54,5 @@ jobs:
                   path: |
                       build-opengl/wayland.log
                       build-opengl/wayland-state.json
-                      build-opengl/wayland-preview.png
                   if-no-files-found: ignore
                   retention-days: 7

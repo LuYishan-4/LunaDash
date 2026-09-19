@@ -44,6 +44,7 @@ ModuleSurface {
         if (!opened)
             return
         search.forceActiveFocus(Qt.PopupFocusReason)
+        search.prepareInputMethod()
         search.selectAll()
     }
 
@@ -63,6 +64,23 @@ ModuleSurface {
             Keys.onEnterPressed: if (applications.count) launcher.activate(launcher.results[applications.currentIndex < 0 ? 0 : applications.currentIndex])
             Keys.onEscapePressed: shell.launcherOpen = false
         }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                text: applications.count + " " + shell.tr(applications.count === 1 ? "application" : "applications")
+                color: Theme.muted
+                font.family: Theme.font
+                font.pixelSize: 10
+            }
+            Text {
+                text: shell.tr("↑↓ Navigate  ·  Enter Open  ·  Esc Close")
+                color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.78)
+                font.family: Theme.font
+                font.pixelSize: 9
+            }
+        }
         ListView {
             id: applications; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 4; model: launcher.results; currentIndex: count > 0 ? 0 : -1; keyNavigationWraps: true
             ScrollBar.vertical: ScrollBar {}
@@ -70,17 +88,88 @@ ModuleSurface {
                 id: applicationRow
                 required property var modelData
                 required property int index
-                width: ListView.view.width; height: 64; hoverEnabled: true; highlighted: ListView.isCurrentItem; Accessible.name: modelData.name
-                background: Rectangle { radius: 12; color: applicationRow.highlighted || applicationRow.hovered ? Qt.rgba(launcher.moduleAccent.r, launcher.moduleAccent.g, launcher.moduleAccent.b, 0.14) : "transparent" }
+                width: ListView.view.width
+                height: 66
+                hoverEnabled: true
+                highlighted: ListView.isCurrentItem
+                scale: down ? 0.985 : hovered || highlighted ? 1.006 : 1
+                Accessible.name: modelData.name
+
+                background: Rectangle {
+                    radius: 13
+                    color: applicationRow.highlighted
+                        ? Qt.rgba(launcher.moduleAccent.r, launcher.moduleAccent.g, launcher.moduleAccent.b, 0.18)
+                        : applicationRow.hovered
+                            ? Theme.surfaceElevated
+                            : "transparent"
+                    border.width: applicationRow.highlighted ? 1 : 0
+                    border.color: Qt.rgba(launcher.moduleAccent.r, launcher.moduleAccent.g, launcher.moduleAccent.b, 0.36)
+                    Rectangle {
+                        visible: applicationRow.highlighted
+                        width: 3
+                        radius: 1.5
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.margins: 10
+                        color: launcher.moduleAccent
+                    }
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+                }
+
                 contentItem: Row {
                     spacing: 14
-                    ApplicationIcon { shell: launcher.shell; width: 36; height: 36; anchors.verticalCenter: parent.verticalCenter; iconName: String(applicationRow.modelData.icon || ""); appId: String(applicationRow.modelData.id || ""); title: String(applicationRow.modelData.name || "") }
-                    Column { anchors.verticalCenter: parent.verticalCenter; width: parent.width - 50; spacing: 3
-                        Text { width: parent.width; text: shell.tr(applicationRow.modelData.name); color: Theme.text; font.family: Theme.font; font.pixelSize: 14; elide: Text.ElideRight }
-                        Text { width: parent.width; text: shell.tr(applicationRow.modelData.description || applicationRow.modelData.genericName); color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight }
+                    ApplicationIcon {
+                        shell: launcher.shell
+                        width: 38
+                        height: 38
+                        anchors.verticalCenter: parent.verticalCenter
+                        iconName: String(applicationRow.modelData.icon || "")
+                        appId: String(applicationRow.modelData.id || "")
+                        title: String(applicationRow.modelData.name || "")
+                        scale: applicationRow.hovered || applicationRow.highlighted ? 1.06 : 1
+                        Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+                    }
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(0, parent.width - 82)
+                        spacing: 3
+                        Text {
+                            width: parent.width
+                            text: shell.tr(applicationRow.modelData.name)
+                            color: applicationRow.highlighted ? Theme.moon : Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: 14
+                            font.weight: applicationRow.highlighted ? Font.DemiBold : Font.Medium
+                            elide: Text.ElideRight
+                            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+                        }
+                        Text {
+                            width: parent.width
+                            text: shell.tr(applicationRow.modelData.description || applicationRow.modelData.genericName)
+                            color: Theme.muted
+                            font.family: Theme.font
+                            font.pixelSize: 11
+                            elide: Text.ElideRight
+                        }
+                    }
+                    LineIcon {
+                        width: 16
+                        height: 16
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "chevronRight"
+                        ink: launcher.moduleAccent
+                        opacity: applicationRow.hovered || applicationRow.highlighted ? 0.95 : 0.25
+                        transform: Translate { x: applicationRow.hovered || applicationRow.highlighted ? 3 : 0 }
+                        Behavior on opacity { NumberAnimation { duration: Theme.motionFast } }
                     }
                 }
-                onClicked: launcher.activate(modelData); Keys.onReturnPressed: launcher.activate(modelData); Keys.onEnterPressed: launcher.activate(modelData); Keys.onEscapePressed: shell.launcherOpen = false
+
+                onClicked: launcher.activate(modelData)
+                Keys.onReturnPressed: launcher.activate(modelData)
+                Keys.onEnterPressed: launcher.activate(modelData)
+                Keys.onEscapePressed: shell.launcherOpen = false
+                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
             }
             Keys.onUpPressed: event => { if (currentIndex <= 0) { launcher.focusSearch(); event.accepted = true } else { currentIndex--; event.accepted = true } }
             Keys.onDownPressed: event => { if (count) { currentIndex = (currentIndex + 1) % count; event.accepted = true } }

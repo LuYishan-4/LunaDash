@@ -2,6 +2,11 @@
 import "../styles.css";
 import "../docs.css";
 import CodeBlock from "../components/CodeBlock.astro";
+import ScreenshotCard from "../components/ScreenshotCard.astro";
+import dashboard from "../../../docs/image/LunaDash-20260920-024312-792.png";
+import appearance from "../../../docs/image/LunaDash-20260920-024259-008.png";
+import workspace from "../../../docs/image/LunaDash-20260920-024708-948.png";
+import calendar from "../../../docs/image/LunaDash-20260920-024455-959.png";
 
 const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 const asset = (name: string): string => `${base}assets/${name}`;
@@ -9,12 +14,11 @@ const repository = "https://github.com/LuYishan-4/LunaDash";
 const profile = "https://github.com/LuYishan-4";
 const avatar = "https://luyishan-4-blog.wuming381906.workers.dev/assets/images/avatar.webp";
 
-const dependencies = `sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-wayland \\
-  qt6-translations quickshell fish wayland libglvnd dbus mesa`;
-const build = `git clone ${repository}.git
+const build = `git clone --branch dev ${repository}.git
 cd LunaDash
 ./scripts/install-session.sh`;
 const shortcuts: Array<[string, string]> = [
+  ["Super + Shift + S", "Select a screenshot region (Escape cancels)"],
   ["Super + Return / E / D", "Default terminal / file manager / launcher"],
   ["Super + H / L", "Focus the column to the left / right"],
   ["Super + K / J", "Focus the previous / next member inside the column"],
@@ -36,9 +40,9 @@ const shortcuts: Array<[string, string]> = [
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="LunaDash is a Wayland desktop built with C++20, OpenGL and Quickshell. Installation, getting started, source code and contributors.">
+  <meta name="description" content="A useful desktop from the first login, with room to make it yours. Explore LunaDash, a customizable Wayland desktop for Linux.">
   <meta name="theme-color" content="#101b1d">
-  <title>LunaDash — A moonlit, focused Linux desktop</title>
+  <title>LunaDash — Ready to use. Yours to shape.</title>
   <link rel="icon" href={asset("mark.svg")} type="image/svg+xml">
   <script>import "../app";</script>
 </head>
@@ -58,42 +62,58 @@ const shortcuts: Array<[string, string]> = [
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav wrap">
   <a class="brand" href="#main" aria-label="LunaDash home"><img src={asset("mark.svg")} alt="" width="28" height="28"> LunaDash</a>
-  <nav aria-label="Main navigation"><a href="#install">Installation</a><a href="#start">Getting started</a><a href={`${base}docs/start/`}>Guides</a><a class="source" href={repository}>GitHub <span aria-hidden="true">↗</span></a></nav>
+  <nav aria-label="Main navigation"><a href="#gallery">Gallery</a><a href="#install">Install</a><a href={`${base}releases/`}>Release notes</a><a href={`${base}docs/start/`}>Guides</a><a class="source" href={repository}>GitHub <span aria-hidden="true">↗</span></a></nav>
 </header>
 <main id="main">
   <section class="hero wrap">
-    <img class="banner" src={asset("banner.svg")} alt="LunaDash wordmark beside the crescent moon application mark" width="1600" height="400" fetchpriority="high">
-    <h1 class="tagline">A moonlit, focused Linux desktop.</h1>
-    <p class="hero-note">LunaDash is a C++20 / OpenGL Wayland compositor with a Quickshell / QML shell. Windows live in scrollable columns across four workspaces, and the panel keeps the workspace, the launcher and the settings in one place.</p>
+    <div class="hero-label"><span class="eyebrow">LUNADASH / WAYLAND DESKTOP</span><span class="preview-label">Development preview</span></div>
+    <h1 class="tagline">Ready to use.<br><span>Yours to shape.</span></h1>
+    <p class="hero-note">A useful desktop from the first login, with room to make it yours. LunaDash brings your workspaces, apps and everyday controls together, then lets you choose how they look and work.</p>
     <div class="actions">
-      <a class="button primary" href="#install">Installation <span aria-hidden="true">↓</span></a>
-      <a class="text-link" href="#start">Getting started ↗</a>
-      <a class="text-link" href={repository}>Source on GitHub ↗</a>
+      <a class="button primary" href="#install">Install LunaDash <span aria-hidden="true">↓</span></a>
+      <a class="text-link" href={`${base}docs/modules/`}>Make it yours ↗</a>
+      <a class="text-link" href={repository}>Explore the source ↗</a>
+    </div>
+    <ScreenshotCard src={dashboard} featured title="Your everyday starting point" description="Dashboard, system status and useful shortcuts, together."
+      alt="LunaDash dashboard showing a wallpaper preview, clock, system status and application shortcuts" />
+  </section>
+
+  <section id="desktop" class="wrap section">
+    <span class="eyebrow">01 / THE IDEA</span>
+    <div class="intro-grid">
+      <div><h2>Start with a desktop.</h2><p>A panel, launcher, notifications, settings and file tools are already part of the experience. Dismiss the welcome screen and settle into your workspace.</p><a class="text-link" href="#start">Your first login ↓</a></div>
+      <div><h2>Make it your own.</h2><p>Choose your colors, wallpaper, shortcuts and default apps in Settings. Go further with shell modules, Quickshell/QML and a local control interface.</p><a class="text-link" href={`${base}docs/settings/`}>Explore customization ↗</a></div>
+    </div>
+  </section>
+
+  <section id="gallery" class="wrap section">
+    <span class="eyebrow">02 / A LOOK AROUND</span>
+    <div class="section-heading"><h2>One desktop. Your way.</h2><p>Actual screenshots from September 20, 2026.<br>Select an image to take a closer look.</p></div>
+    <div class="gallery-grid">
+      <ScreenshotCard src={appearance} title="Set the mood" description="Wallpaper and colors, from one settings center."
+        alt="LunaDash Appearance settings with wallpaper selection and an accent color picker" />
+      <ScreenshotCard src={workspace} title="Keep your tools close" description="Scrollable columns, grouped windows and familiar apps."
+        alt="LunaDash workspace with a terminal beside grouped Discord and Zed windows" />
+      <ScreenshotCard src={calendar} title="Make the details yours" description="A personal touch, right down to the calendar."
+        alt="LunaDash desktop with the calendar panel and its customized header image" />
     </div>
   </section>
 
   <section id="install" class="wrap section">
-    <span class="eyebrow">01 / INSTALLATION</span>
-    <h2>Installation</h2>
-    <div class="callout">This is a 0.1 development preview, not a production-ready desktop. Start with a nested session inside the desktop you already use, and keep a way back to it.</div>
-    <p>Arch Linux is the first target. The backend needs CMake 3.21+, a C11/C++20 compiler, Qt 6.4+, the Wayland development headers and the Khronos GL headers. The shell targets Quickshell 0.3, which may need a newer Qt than the backend's minimum.</p>
-    <CodeBlock label="ARCH LINUX · DEPENDENCIES" code={dependencies} />
-    <p>Ubuntu 24.04 backend packages: <code>build-essential cmake ninja-build pkg-config libwayland-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland libqt6opengl6-dev</code>. Fedora backend packages: <code>gcc-c++ cmake ninja-build pkgconf-pkg-config wayland-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland-devel</code>.</p>
-    <CodeBlock label="BUILD AND RUN A NESTED SESSION" code={build} />
-    <p>Run it from inside an existing Wayland or X11 desktop and it opens as a nested desktop in a window. To register a real login session, use <code>./scripts/install-session.sh</code>; preflight checks, limits and recovery are documented in the repository. Full instructions, packaging and the complete file map live in the <a href={`${base}docs/start/`}>run and test guide</a>.</p>
+    <span class="eyebrow">03 / INSTALL</span>
+    <h2>Start with one installer.</h2>
+    <p>Clone the development branch, then run <code>./scripts/install-session.sh</code>. It handles dependencies, builds LunaDash and installs the login session.</p>
+    <CodeBlock label="INSTALL FROM THE DEV BRANCH" code={build} />
+    <p>Log out and choose <strong>LunaDash</strong> in your display manager. Use <code>./scripts/install-session.sh --dry-run</code> to preview the installation. Options and recovery steps are in the <a class="inline-link" href={`${base}docs/start/`}>installation guide</a>.</p>
+    <div class="callout">An active development preview, built primarily on Arch Linux. Quickshell 0.3+ is required; if it is unavailable from your distribution, the installer reports the missing dependency. Keep your current desktop available while trying LunaDash.</div>
+    <p class="coverage-note">Screen locking and screen-sharing/PipeWire portals are still incomplete. Native plugins stay disabled by default and execute without a sandbox when enabled.</p>
   </section>
 
   <section id="start" class="wrap section">
-    <span class="eyebrow">02 / GETTING STARTED</span>
+    <span class="eyebrow">04 / FIRST LOGIN</span>
     <h2>Getting started</h2>
-    <p>The first-run guide appears only until it is completed, works fully offline and saves every choice immediately.</p>
-    <ol class="steps">
-      <li><span>01</span>Choose English or Traditional Chinese.</li>
-      <li><span>02</span>Review your connection. Existing profiles are reused, and you can continue offline.</li>
-      <li><span>03</span>Pick a colour, a wallpaper, window gaps and a panel height.</li>
-      <li><span>04</span>Finish the guide, then open the panel gear for the complete settings centre.</li>
-    </ol>
-    <h3>Keyboard shortcuts</h3>
+    <p>The first launch shows a welcome message and a link to this website for help. Select <strong>Start desktop</strong> to close it, even when offline. Language, wallpaper, network and other preferences are available in Settings.</p>
+    <details class="shortcut-details"><summary>Keyboard shortcuts</summary>
     <p><strong>Super</strong> is the Meta key. Every binding can be changed or disabled in <strong>Settings → Keyboard shortcuts</strong>.</p>
     <div class="table-scroll">
       <table class="shortcuts" aria-label="Default keyboard shortcuts">
@@ -101,23 +121,28 @@ const shortcuts: Array<[string, string]> = [
         <tbody>{shortcuts.map(([keys, action]) => <tr><th scope="row"><code>{keys}</code></th><td>{action}</td></tr>)}</tbody>
       </table>
     </div>
-    <p>The settings overlay takes exclusive keyboard focus and closes with <code>Escape</code> from search or its quick-hide control. While you test in a nested session, your host desktop may intercept <code>Super</code> shortcuts first.</p>
+    <p>While you test in a nested session, your host desktop may intercept <code>Super</code> shortcuts first.</p>
+    </details>
   </section>
 
   <section id="github" class="wrap section">
-    <span class="eyebrow">03 / SOURCE</span>
-    <h2>Source</h2>
-    <p>LunaDash is developed in the open under the GPL-3.0-only licence. Issues, questions and pull requests are welcome on GitHub.</p>
+    <span class="eyebrow">05 / BUILD WITH US</span>
+    <h2>Help shape the desktop.</h2>
+    <p>Help make the default experience useful and customization approachable. Code, design feedback, documentation and bug reports all move LunaDash forward.</p>
+    <p>Pull requests target <code>dev</code>. Choose a clear title, describe the user-visible change and the validation actually run, and include matching docs and website content updates. Do not change GitHub workflows or generated release notes; describe release impact in the PR body. Explain whether the change affects the defaults or an optional customization.</p>
     <div class="link-list">
-      <a href={repository}>Repository <span aria-hidden="true">↗</span></a>
+      <a href={`${repository}/pulls`}>Pull requests <span aria-hidden="true">↗</span></a>
+      <a href={`${repository}/blob/dev/CONTRIBUTING.md`}>Contribution guide <span aria-hidden="true">↗</span></a>
+      <a href={`${base}docs/architecture/`}>Source architecture <span aria-hidden="true">↗</span></a>
       <a href={`${repository}/issues`}>Issues <span aria-hidden="true">↗</span></a>
-      <a href={`${repository}/blob/main/docs/TESTING_AND_FILES.md`}>Testing &amp; file map <span aria-hidden="true">↗</span></a>
+      <a href={`${base}releases/`}>Website release notes <span aria-hidden="true">↗</span></a>
+      <a href={`${repository}/releases`}>GitHub Releases <span aria-hidden="true">↗</span></a>
       <a href={`${repository}/blob/main/LICENSE`}>Licence <span aria-hidden="true">↗</span></a>
     </div>
   </section>
 
   <section id="contributors" class="wrap section">
-    <span class="eyebrow">04 / CONTRIBUTORS</span>
+    <span class="eyebrow">06 / PEOPLE</span>
     <h2>Contributors</h2>
     <p>LunaDash is maintained by one person, with code, documentation and testing help from the community.</p>
     <ul class="contributors">
@@ -126,10 +151,15 @@ const shortcuts: Array<[string, string]> = [
     <p>Open an issue or a pull request on <a class="inline-link" href={repository}>GitHub</a> to take part.</p>
   </section>
 </main>
+<dialog class="image-dialog" aria-labelledby="image-dialog-title">
+  <div class="image-dialog-bar"><h2 id="image-dialog-title">Desktop screenshot</h2><button type="button" class="image-dialog-close" aria-label="Close screenshot">Close ×</button></div>
+  <img class="image-dialog-image" alt="" width="1920" height="1080" />
+  <a class="image-dialog-original" href="#gallery" target="_blank" rel="noopener">Open original image ↗</a>
+</dialog>
 <footer class="wrap">
   <a class="brand" href="#main"><img src={asset("mark.svg")} alt="" width="25" height="25"> LunaDash</a>
-  <span>GPL-3.0-only · Wayland, C++20 and Quickshell.</span>
-  <a href={repository}>GitHub <span aria-hidden="true">↗</span></a>
+  <span>Ready to use. Yours to shape. · GPL-3.0-only</span>
+  <a href={`${base}releases/`}>Release notes <span aria-hidden="true">↗</span></a>
 </footer>
 </body>
 </html>

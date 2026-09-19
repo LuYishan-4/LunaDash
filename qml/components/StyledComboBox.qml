@@ -1,21 +1,25 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import "../style"
 
 ComboBox {
     id: control
-    // Translate presentation only. Models and saved values stay stable when the
-    // shell publishes a new status snapshot or the interface language changes.
     property var translationContext: null
+    property bool popupArmed: false
     function translated(text) {
         return translationContext ? translationContext.tr(String(text)) : String(text)
     }
     implicitWidth: Math.max(150, contentItem.implicitWidth + 54)
-    implicitHeight: 40
+    Layout.minimumWidth: 120
+    implicitHeight: Math.max(40, contentItem.implicitHeight + topPadding + bottomPadding)
     leftPadding: 14
     rightPadding: 38
     font.family: Theme.font
     font.pixelSize: 12
+    focusPolicy: Qt.StrongFocus
+    hoverEnabled: true
+    scale: down ? 0.985 : hovered ? 1.008 : 1
 
     contentItem: Text {
         leftPadding: control.leftPadding
@@ -24,7 +28,7 @@ ComboBox {
         color: Theme.text
         font: control.font
         verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+        wrapMode: Text.Wrap
     }
 
     indicator: Item {
@@ -57,18 +61,31 @@ ComboBox {
         id: option
         required property int index
         width: control.popup.width - 12
-        height: 38
+        implicitHeight: Math.max(38, option.contentItem.implicitHeight + topPadding + bottomPadding)
         leftPadding: 12
+        enabled: control.popupArmed
         highlighted: control.highlightedIndex === index
         text: control.translated(control.textAt(index))
         Accessible.name: text
-        contentItem: Text {
-            text: option.text
+        contentItem: Row {
+            spacing: 8
+            LineIcon {
+                visible: option.index === control.currentIndex
+                width: visible ? 14 : 0
+                height: 14
+                anchors.verticalCenter: parent.verticalCenter
+                name: "check"
+                ink: Theme.accent
+            }
+            Text {
+                width: Math.max(0, parent.width - (option.index === control.currentIndex ? 22 : 0))
+                text: option.text
             color: option.highlighted ? Theme.accent : Theme.text
             font.family: Theme.font
             font.pixelSize: 12
             verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
+                wrapMode: Text.Wrap
+            }
         }
         background: Rectangle {
             radius: 9
@@ -76,32 +93,51 @@ ComboBox {
         }
     }
 
+    Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+
     popup: Popup {
         id: menuPopup
         y: control.height + 6
         width: Math.max(control.width, 180)
         implicitHeight: Math.min(menuList.contentHeight + 12, 320)
         padding: 6
+        modal: false
+        focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-        onOpened: Qt.callLater(function() {
-            if (control.currentIndex >= 0)
-                menuList.positionViewAtIndex(control.currentIndex, ListView.Contain)
-        })
+        onOpened: {
+            control.popupArmed = false
+            armTimer.restart()
+            Qt.callLater(function() {
+                if (control.currentIndex >= 0)
+                    menuList.positionViewAtIndex(control.currentIndex, ListView.Contain)
+                menuList.forceActiveFocus()
+            })
+        }
+        onClosed: {
+            armTimer.stop()
+            control.popupArmed = false
+            control.forceActiveFocus()
+        }
+
+        Timer {
+            id: armTimer
+            interval: 140
+            onTriggered: control.popupArmed = true
+        }
 
         contentItem: ListView {
             id: menuList
             clip: true
             implicitHeight: contentHeight
             model: control.delegateModel
-            // Keep pointer highlighting independent from scroll positioning.
             currentIndex: -1
             boundsBehavior: Flickable.StopAtBounds
             flickDeceleration: 7000
             maximumFlickVelocity: 4200
-            ScrollBar.vertical: ScrollBar {
-                policy: ScrollBar.AsNeeded
-            }
+            keyNavigationWraps: true
+            Keys.onEscapePressed: menuPopup.close()
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
         }
         background: Rectangle {
             radius: 14
@@ -115,6 +151,6 @@ ComboBox {
                 NumberAnimation { property: "scale"; from: 0.96; to: 1; duration: Theme.motion; easing.type: Easing.OutCubic }
             }
         }
-        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Math.min(Theme.motion, 100) } }
+        exit: Transition { NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Math.min(Theme.motion, 120) } }
     }
 }

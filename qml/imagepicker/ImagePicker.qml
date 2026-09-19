@@ -6,81 +6,111 @@ import Quickshell
 import "../components"
 import "../style"
 
-// Wallpaper picker drawn inside the settings surface. It shares the settings
-// layer-shell surface, keyboard focus and visual style, so it always appears
-// above the settings content instead of opening a separate window behind it.
 Item {
     id: picker
     required property var shell
     property bool opened: false
     property string folder: Quickshell.env("HOME") || "/"
     property string selectedPath: ""
-    property bool gridView: true
     property real cornerRadius: 24
     signal closed()
 
-    readonly property var imageExtensions: ["png", "jpg", "jpeg", "webp"]
-    readonly property int maximumBytes: 64 * 1024 * 1024
     readonly property string homePath: Quickshell.env("HOME") || "/"
+    readonly property bool calendarMode: shell.pickerPurpose === "calendar"
 
-    function extensionOf(name) {
-        const parts = String(name).split(".")
-        return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ""
-    }
-    function isImageName(name) {
-        return picker.imageExtensions.indexOf(picker.extensionOf(name)) >= 0
-    }
-    function formatBytes(bytes) {
-        if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + " MiB"
-        if (bytes >= 1024) return Math.round(bytes / 1024) + " KiB"
-        return bytes + " B"
-    }
-    function openDirectory(path) { picker.folder = path; picker.selectedPath = "" }
     function parentDirectory() {
-        const trimmed = String(picker.folder).replace(/\/+$/, "")
+        const trimmed = String(folder).replace(/\/+$/, "")
         const index = trimmed.lastIndexOf("/")
         return index <= 0 ? "/" : trimmed.slice(0, index)
     }
-    function select(path) { picker.selectedPath = path }
-    function useSelected() {
-        if (picker.selectedPath.length === 0) return
-        picker.shell.command("wallpaper-image", picker.selectedPath)
-        picker.close()
+    function openDirectory(path) {
+        folder = path
+        selectedPath = ""
     }
-    function close() { picker.closed() }
+    function saveCalendarImage(path) {
+        const document = JSON.parse(JSON.stringify((shell.state.shellModules || {}).document || {schemaVersion:1, modules:{}}))
+        if (!document.modules || !document.modules.overview)
+            return false
+        if (!document.modules.overview.config)
+            document.modules.overview.config = {}
+        document.modules.overview.config.calendarImage = "file://" + path
+        shell.command("module-save", JSON.stringify(document))
+        return true
+    }
+    function acceptSelection() {
+        if (!selectedPath.length)
+            return
+        if (calendarMode) {
+            if (!saveCalendarImage(selectedPath))
+                return
+            shell.pickerPurpose = "wallpaper"
+            closed()
+            shell.settingsOpen = false
+            shell.calendarOpen = true
+            return
+        }
+        shell.pendingWallpaper = selectedPath
+        shell.pickerPurpose = "wallpaper"
+        closed()
+    }
 
-    onOpenedChanged: if (opened) { selectedPath = ""; folder = homePath }
+    onOpenedChanged: if (opened) {
+        folder = homePath
+        selectedPath = ""
+    }
 
     visible: opened
     focus: opened
-    Keys.onEscapePressed: picker.close()
+    Keys.onEscapePressed: {
+        const returnToCalendar = calendarMode
+        shell.pickerPurpose = "wallpaper"
+        closed()
+        if (returnToCalendar) {
+            shell.settingsOpen = false
+            shell.calendarOpen = true
+        }
+    }
 
     FolderListModel {
         id: entries
-        // Only scan while the picker is on screen.
         folder: picker.opened ? "file://" + picker.folder : ""
         showDirs: true
         showDirsFirst: true
         showDotAndDotDot: false
         showHidden: false
         sortField: FolderListModel.Name
-        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP"]
+        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"]
     }
 
     Rectangle {
         anchors.fill: parent
         radius: picker.cornerRadius
-        color: Qt.rgba(0, 0, 0, 0.55)
-        MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton; onClicked: picker.close() }
+        color: Qt.rgba(0, 0, 0, 0.64)
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                const returnToCalendar = picker.calendarMode
+                picker.shell.pickerPurpose = "wallpaper"
+                picker.closed()
+                if (returnToCalendar) {
+                    picker.shell.settingsOpen = false
+                    picker.shell.calendarOpen = true
+                }
+            }
+        }
     }
 
     Rectangle {
         anchors.fill: parent
-        anchors.margins: 26
-        radius: 16
-        color: Theme.background
+        anchors.margins: 28
+        radius: 22
+        color: Theme.surfaceOpaque
         border.width: 1
-        border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
+        border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.38)
+        scale: picker.opened ? 1 : 0.96
+        opacity: picker.opened ? 1 : 0
+        Behavior on scale { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: Theme.motion } }
 
         ColumnLayout {
             anchors.fill: parent
@@ -89,14 +119,28 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
-                LineIcon { Layout.preferredWidth: 20; Layout.preferredHeight: 20; name: "files"; ink: Theme.accent }
+                LineIcon { width: 20; height: 20; name: picker.calendarMode ? "dashboard" : "appearance"; ink: Theme.accent }
                 Text {
                     Layout.fillWidth: true
-                    text: picker.shell.tr("Choose a wallpaper image")
-                    color: Theme.text; font.family: Theme.font; font.pixelSize: 18; font.bold: true
+                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : "Choose a wallpaper image")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
                 }
-                ShellButton { text: "×"; Accessible.name: picker.shell.tr("Cancel"); onClicked: picker.close() }
+                ShellButton {
+                    text: "×"
+                    Accessible.name: picker.shell.tr("Cancel")
+                    onClicked: {
+                        const returnToCalendar = picker.calendarMode
+                        picker.shell.pickerPurpose = "wallpaper"
+                        picker.closed()
+                        if (returnToCalendar) {
+                            picker.shell.settingsOpen = false
+                            picker.shell.calendarOpen = true
+                        }
+                    }
+                }
             }
 
             RowLayout {
@@ -105,183 +149,122 @@ Item {
                 ShellButton { text: picker.shell.tr("Up"); onClicked: picker.openDirectory(picker.parentDirectory()) }
                 ShellButton { text: picker.shell.tr("Home"); onClicked: picker.openDirectory(picker.homePath) }
                 ShellButton { text: picker.shell.tr("Pictures"); onClicked: picker.openDirectory(picker.homePath + "/Pictures") }
-                ShellButton { text: picker.gridView ? picker.shell.tr("List view") : picker.shell.tr("Grid view"); onClicked: picker.gridView = !picker.gridView }
                 Text {
                     Layout.fillWidth: true
                     text: picker.folder
-                    color: Theme.muted; font.family: Theme.font; font.pixelSize: 11
+                    color: Theme.muted
+                    font.family: Theme.font
+                    font.pixelSize: 11
                     elide: Text.ElideLeft
-                    verticalAlignment: Text.AlignVCenter
+                    horizontalAlignment: Text.AlignRight
+                }
+            }
+
+            GridView {
+                id: grid
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: entries
+                cellWidth: 146
+                cellHeight: 140
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                delegate: Item {
+                    required property var model
+                    width: grid.cellWidth
+                    height: grid.cellHeight
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 5
+                        radius: 14
+                        color: picker.selectedPath === model.filePath
+                            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.20)
+                            : tileMouse.containsMouse ? Theme.controlHover : Theme.control
+                        border.width: picker.selectedPath === model.filePath ? 2 : 1
+                        border.color: picker.selectedPath === model.filePath ? Theme.accent : Theme.border
+                        clip: true
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: 0
+
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+
+                                Image {
+                                    anchors.fill: parent
+                                    visible: !model.fileIsDir
+                                    source: model.fileIsDir ? "" : "file://" + model.filePath
+                                    sourceSize.width: 320
+                                    sourceSize.height: 220
+                                    fillMode: Image.PreserveAspectCrop
+                                    asynchronous: true
+                                    smooth: true
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    visible: model.fileIsDir
+                                    color: "transparent"
+                                    LineIcon { anchors.centerIn: parent; width: 34; height: 34; name: "files"; ink: Theme.accent }
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 30
+                                Layout.leftMargin: 8
+                                Layout.rightMargin: 8
+                                text: model.fileName
+                                color: Theme.text
+                                font.family: Theme.font
+                                font.pixelSize: 11
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                elide: Text.ElideMiddle
+                                maximumLineCount: 1
+                            }
+                        }
+                    }
+                    MouseArea {
+                        id: tileMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: model.fileIsDir ? picker.openDirectory(model.filePath) : picker.selectedPath = model.filePath
+                        onDoubleClicked: if (!model.fileIsDir) picker.acceptSelection()
+                    }
                 }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 16
-
-                ListView {
-                    visible: !picker.gridView
+                Text {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: entries
-                    spacing: 2
-                    ScrollBar.vertical: ScrollBar {}
-                    delegate: Rectangle {
-                        required property var model
-                        width: ListView.view.width
-                        height: 38
-                        radius: 8
-                        color: picker.selectedPath === model.filePath
-                            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.2)
-                            : rowMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.1) : "transparent"
-                        Row {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.leftMargin: 10
-                            spacing: 10
-                            LineIcon { width: 17; height: 17; name: model.fileIsDir ? "files" : "appearance"; ink: model.fileIsDir ? Theme.accent : Theme.muted; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: model.fileName; color: Theme.text; font.family: Theme.font; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
-                            Text { visible: !model.fileIsDir; text: picker.formatBytes(model.fileSize); color: Theme.muted; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
-                        }
-                        MouseArea {
-                            id: rowMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: model.fileIsDir ? picker.openDirectory(model.filePath) : picker.select(model.filePath)
-                            onDoubleClicked: if (!model.fileIsDir) picker.useSelected()
+                    text: picker.selectedPath.length ? picker.selectedPath.split("/").pop() : picker.shell.tr("Select an image")
+                    color: picker.selectedPath.length ? Theme.text : Theme.muted
+                    font.family: Theme.font
+                    elide: Text.ElideMiddle
+                }
+                ShellButton {
+                    text: picker.shell.tr("Cancel")
+                    onClicked: {
+                        const returnToCalendar = picker.calendarMode
+                        picker.shell.pickerPurpose = "wallpaper"
+                        picker.closed()
+                        if (returnToCalendar) {
+                            picker.shell.settingsOpen = false
+                            picker.shell.calendarOpen = true
                         }
                     }
                 }
-
-                GridView {
-                    id: fileGrid
-                    visible: picker.gridView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: entries
-                    cellWidth: 108
-                    cellHeight: 112
-                    ScrollBar.vertical: ScrollBar {}
-                    delegate: Item {
-                        required property var model
-                        width: fileGrid.cellWidth
-                        height: fileGrid.cellHeight
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.margins: 5
-                            radius: 10
-                            color: picker.selectedPath === model.filePath
-                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                                : cellMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.1) : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.6)
-                            border.width: picker.selectedPath === model.filePath ? 1 : 0
-                            border.color: Theme.accent
-
-                            Image {
-                                anchors.fill: parent
-                                anchors.margins: model.fileIsDir ? 26 : 8
-                                anchors.bottomMargin: model.fileIsDir ? 26 : 22
-                                visible: !model.fileIsDir
-                                source: model.fileIsDir ? "" : "file://" + model.filePath
-                                sourceSize.width: 96
-                                sourceSize.height: 96
-                                fillMode: Image.PreserveAspectCrop
-                                asynchronous: true
-                                smooth: true
-                            }
-                            LineIcon {
-                                anchors.centerIn: parent
-                                visible: model.fileIsDir
-                                width: 30; height: 30
-                                name: "files"; ink: Theme.accent
-                            }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottom: parent.bottom
-                                anchors.bottomMargin: 4
-                                width: parent.width - 10
-                                text: model.fileName
-                                color: Theme.muted
-                                font.pixelSize: 9
-                                elide: Text.ElideMiddle
-                                horizontalAlignment: Text.AlignHCenter
-                            }
-                        }
-                        MouseArea {
-                            id: cellMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: model.fileIsDir ? picker.openDirectory(model.filePath) : picker.select(model.filePath)
-                            onDoubleClicked: if (!model.fileIsDir) picker.useSelected()
-                        }
-                    }
+                ShellButton {
+                    text: picker.shell.tr(picker.calendarMode ? "Use image" : "Add to wallpapers")
+                    active: true
+                    enabled: picker.selectedPath.length > 0
+                    onClicked: picker.acceptSelection()
                 }
-
-                Rectangle {
-                    Layout.preferredWidth: 284
-                    Layout.fillHeight: true
-                    radius: 12
-                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.6)
-                    border.width: 1
-                    border.color: Theme.border
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 10
-
-                        Text { text: picker.shell.tr("Preview"); color: Theme.text; font.family: Theme.font; font.pixelSize: 13; font.bold: true }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 170
-                            radius: 10
-                            color: Qt.rgba(0, 0, 0, 0.35)
-                            Image {
-                                anchors.fill: parent
-                                anchors.margins: 6
-                                source: picker.selectedPath.length > 0 ? "file://" + picker.selectedPath : ""
-                                sourceSize.width: 512
-                                sourceSize.height: 512
-                                fillMode: Image.PreserveAspectFit
-                                asynchronous: true
-                                smooth: true
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                visible: picker.selectedPath.length === 0
-                                text: picker.shell.tr("Select an image")
-                                color: Theme.muted; font.pixelSize: 11
-                            }
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: picker.selectedPath.length > 0 ? picker.selectedPath.split("/").pop() : picker.shell.tr("No file selected")
-                            color: Theme.text; font.family: Theme.font; font.pixelSize: 12
-                            wrapMode: Text.WrapAnywhere
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: picker.shell.tr("Readable PNG, JPEG or WebP files up to 64 MiB. Larger or corrupt images are rejected when applied.")
-                            color: Theme.muted; font.pixelSize: 10; wrapMode: Text.WordWrap
-                        }
-                        Item { Layout.fillHeight: true }
-                        ShellButton { Layout.fillWidth: true; text: picker.shell.tr("Use this image"); active: picker.selectedPath.length > 0; enabled: picker.selectedPath.length > 0; onClicked: picker.useSelected() }
-                        ShellButton { Layout.fillWidth: true; text: picker.shell.tr("Cancel"); onClicked: picker.close() }
-                    }
-                }
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: entries.count === 0
-                text: picker.shell.tr("No folders or supported images here.")
-                color: Theme.muted; font.family: Theme.font; font.pixelSize: 11
             }
         }
     }

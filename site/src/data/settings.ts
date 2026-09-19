@@ -9,7 +9,7 @@ export const groups: SettingGroup[] = [
     id: "general",
     name: "Language & everyday preferences",
     description:
-      "Open General to select English or Traditional Chinese, a font family, the clock format, or the first-run guide.",
+      "Open General to select your language, font family or clock format, or reopen the welcome screen.",
     details: [
       "The shell updates language live; reopen native applications to apply a different language.",
       "Reset desktop preferences restores LunaDash appearance, keyboard and workspace defaults. It does not erase files or network profiles.",
@@ -41,11 +41,11 @@ export const groups: SettingGroup[] = [
     id: "display",
     name: "Display, keyboard & pointer",
     description:
-      "Display reports the current output and can resize a nested session. Keyboard settings change the Wayland keymap and repeat behavior.",
+      "Adjust internal backlight and per-monitor DDC/CI brightness, select a supported primary-output mode and scale text and controls. Keyboard settings change the Wayland keymap and repeat behavior.",
     details: [
       "Available keyboard layouts: us, gb, de, fr, es, jp and tw. Repeat rate is 0–60; delay is 200–1500 ms.",
       "Cursor size applies to the next session. Host monitor, mouse and touchpad editors are labelled as host controls.",
-      "Standalone multiple outputs, physical modes, scaling, refresh rate, HDR and full libinput device controls are not implemented.",
+      "Confirm resolution, refresh-rate and scale changes within 15 seconds or they revert automatically. Physical modes in nested sessions belong to the host. External brightness requires DDC/CI and I2C access; multi-monitor arrangement and HDR remain incomplete.",
     ],
   },
   {

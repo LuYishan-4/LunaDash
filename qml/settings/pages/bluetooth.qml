@@ -19,7 +19,7 @@ ColumnLayout {
         title: shell.tr("Nearby devices")
         description: shell.tr("Search for Bluetooth devices with the system adapter.")
         ShellButton { text: shell.tr("Search for devices"); onClicked: shell.command("network", JSON.stringify({action: "bluetooth-scan"})) }
-        Text {
+        Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0;
             Layout.fillWidth: true
             visible: page.devices.length === 0
             text: shell.tr("No Bluetooth devices were reported. Search to scan again.")
@@ -31,8 +31,8 @@ ColumnLayout {
                 required property var modelData
                 Layout.fillWidth: true
                 spacing: 2
-                Text { Layout.fillWidth: true; text: modelData.name || modelData.address; color: Theme.text; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight }
-                Text { Layout.fillWidth: true; visible: Boolean(modelData.name); text: modelData.address; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight }
+                Text { Layout.minimumWidth: 0; Layout.fillWidth: true; text: modelData.name || modelData.address; color: Theme.text; font.family: Theme.font; font.pixelSize: 13; elide: Text.ElideRight }
+                Text { Layout.minimumWidth: 0; Layout.fillWidth: true; visible: Boolean(modelData.name); text: modelData.address; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight }
             }
         }
     }

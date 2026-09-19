@@ -1,0 +1,10 @@
+{
+  "The installation changed during this session. Restart to use it.": "本次会话中已完成安装更改，请重新启动以使用新安装。",
+  "Running version": "当前运行版本",
+  "Latest on this channel": "此频道最新版本",
+  "Last installation": "上次安装记录",
+  "Waiting for authorization": "等待授权",
+  "Approve the system authorization dialog. Package confirmation is handled automatically.": "请完成系统授权窗口中的确认。软件包安装确认会自动处理。",
+  "Approve the system authorization request to continue installation.": "请完成系统授权以继续安装。",
+  "Approve the system authorization request to restore the previous installation.": "请完成系统授权以恢复上次安装。"
+}

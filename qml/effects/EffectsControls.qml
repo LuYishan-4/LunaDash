@@ -9,9 +9,11 @@ ColumnLayout {
     property var preferences: shell.state.appearance || ({})
     spacing: 10
     Text { text: shell.tr("Glass and motion"); color: Theme.accent; font.pixelSize: 16; font.weight: Font.Medium }
-    RowLayout {
-        SoftSwitch { text: shell.tr("Background blur"); checked: effects.preferences.blur ?? true; onToggled: shell.setAppearance({ blur: !(effects.preferences.blur ?? true) }) }
-        SoftSwitch { text: shell.tr("Animations"); checked: effects.preferences.animations ?? true; onToggled: shell.setAppearance({ animations: !(effects.preferences.animations ?? true) }) }
+    GridLayout {
+        Layout.fillWidth: true
+        columns: effects.width < 500 ? 1 : 2
+        SoftSwitch { Layout.fillWidth:true; text: shell.tr("Background blur"); checked: effects.preferences.blur ?? true; onToggled: shell.setAppearance({ blur: !(effects.preferences.blur ?? true) }) }
+        SoftSwitch { Layout.fillWidth:true; text: shell.tr("Animations"); checked: effects.preferences.animations ?? true; onToggled: shell.setAppearance({ animations: !(effects.preferences.animations ?? true) }) }
     }
     Repeater {
         model: [
@@ -23,7 +25,8 @@ ColumnLayout {
             required property var modelData
             Layout.fillWidth: true; spacing: 2
             RowLayout {
-                Text { text: shell.tr(modelData.label); color: Theme.muted; Layout.fillWidth: true }
+                Layout.fillWidth: true
+                Text { Layout.minimumWidth:0; wrapMode:Text.Wrap; text: shell.tr(modelData.label); color: Theme.muted; Layout.fillWidth: true }
                 Text { text: (effects.preferences[modelData.key] ?? modelData.fallback) + modelData.suffix; color: Theme.text }
             }
             SoftSlider {

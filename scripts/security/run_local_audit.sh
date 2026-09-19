@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
@@ -10,7 +10,12 @@ python3 scripts/security/check_repository_hygiene.py paths
 python3 tests/security/test_source_language.py
 
 shellcheck --version >/dev/null
-find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 sh -n
+while IFS= read -r -d '' file; do
+    case "$(head -n 1 "$file")" in
+        *bash*) bash -n "$file" ;;
+        *) sh -n "$file" ;;
+    esac
+done < <(find scripts -type f -name '*.sh' -print0)
 find scripts -type f -name '*.sh' -print0 | xargs -0 shellcheck --severity=error
 
 python3 tests/security/test_analyzer.py clang-tidy

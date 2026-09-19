@@ -6,7 +6,7 @@ four workspaces and a zero panel margin:
 * the workspace strip starts 8 px from the left edge with 3 px spacing, the
   selected 32 px wide segment is followed by 24 px wide segments, so the second
   workspace is centred on x = 55 (qml/panel/TopPanel.qml, qml/components/Segment.qml
-  and the "panel" margin default in src/shell_modules/ModuleSchema.cpp);
+  and the "panel" margin default in src/shell/modules/ShellModuleSchema.cpp);
 * the centred selector is 28 + 2 + 54 + 2 + 28 = 114 px wide, which centres the
   overview button on 677, the launcher on 720 and settings on 763;
 * the panel occupies y 0..40 with a zero margin, so the row centre is y = 20.

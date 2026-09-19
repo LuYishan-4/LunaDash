@@ -7,7 +7,7 @@ concurrency:
     cancel-in-progress: true
 jobs:
     qt:
-        name: Qt module and compositor loading
+        name: Qt client modules with wlroots compositor
         runs-on: ubuntu-24.04
         timeout-minutes: 25
         steps:
@@ -19,17 +19,56 @@ jobs:
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
                     cmake g++ ninja-build pkg-config libgl-dev \
-                    libwayland-dev wayland-protocols \
-                    libinput-dev libxkbcommon-dev libudev-dev \
-                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev libqt6opengl6-dev \
-                    xvfb xauth python3 python3-pil
-            - name: Build Qt compositor
+                    libwayland-dev wayland-protocols libwlroots-dev \
+                    libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
+                    qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
+                    xvfb xauth python3
+            - name: Build
               run: cmake -S . -B build-qt -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-qt --parallel 2
-            - name: Verify Qt libraries and runtime loading
+            - name: Verify Qt stays on the client side
               run: |
                   test -f /usr/lib/x86_64-linux-gnu/libQt6Core.so.6
-                  test -f /usr/lib/x86_64-linux-gnu/libQt6WaylandCompositor.so.6
-                  ldd build-qt/lunadash-compositor | grep -E 'libQt6(Core|Gui|Quick|WaylandCompositor)'
-                  QT_QPA_PLATFORM=xcb LUDASH_BUILD_DIR="$GITHUB_WORKSPACE/build-qt" \
-                    LUDASH_GRAPHICS=opengl \
-                    LUDASH_TEST_NO_SHELL=1 ./scripts/test-wayland.sh
+                  ldd build-qt/lunadash-desktop | grep -E 'libQt6(Core|Gui|Widgets)'
+                  ldd build-qt/lunadash-compositor | grep libwlroots
+                  ! ldd build-qt/lunadash-compositor | grep -q libQt6WaylandCompositor
+                  python3 tests/wayland/test_no_qtwayland.py
+            - name: Run compositor session
+              run: LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-qt" ./scripts/test-wayland.sh
+            - name: Verify Qt Wayland client startup
+              run: |
+                  runtime=$(mktemp -d)
+                  chmod 700 "$runtime"
+                  log="$PWD/build-qt/qt-client-session.log"
+                  env XDG_RUNTIME_DIR="$runtime" \
+                    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+                    LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 \
+                    build-qt/lunadash-compositor --socket ludash-qt-client \
+                    --no-shell --exit-after 12000 >"$log" 2>&1 &
+                  pid=$!
+                  trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"' EXIT
+                  for _ in $(seq 1 120); do
+                    test -S "$runtime/ludash-qt-client" && break
+                    kill -0 "$pid"
+                    sleep 0.1
+                  done
+                  test -S "$runtime/ludash-qt-client"
+                  env XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-qt-client \
+                    QT_QPA_PLATFORM=wayland QT_QUICK_BACKEND=software \
+                    QSG_RHI_BACKEND=software QT_OPENGL=software \
+                    LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe \
+                    build-qt/lunadash-desktop --help >build-qt/qt-client.log 2>&1
+                  cat build-qt/qt-client.log
+                  kill "$pid"
+                  wait "$pid" || true
+            - name: Preserve Qt session diagnostics
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: main-qt-session-diagnostics
+                  path: |
+                      build-qt/wayland.log
+                      build-qt/wayland-state.json
+                      build-qt/qt-client-session.log
+                      build-qt/qt-client.log
+                  if-no-files-found: ignore
+                  retention-days: 7

@@ -34,13 +34,13 @@ ColumnLayout {
         GridLayout {
             Layout.fillWidth: true; columns: 2; columnSpacing: 16; rowSpacing: 8
             Text { text: "Qt"; color: Theme.muted; font.family: Theme.font }
-            Text { Layout.fillWidth: true; text: "QT_IM_MODULE=fcitx · QT_IM_MODULES=wayland;fcitx;ibus"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideMiddle }
+            Text { Layout.minimumWidth: 0; Layout.fillWidth: true; text: "QT_IM_MODULE=fcitx · QT_IM_MODULES=wayland;fcitx;ibus"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideMiddle }
             Text { text: "GTK"; color: Theme.muted; font.family: Theme.font }
-            Text { Layout.fillWidth: true; text: "GTK_IM_MODULE=fcitx"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: "GTK_IM_MODULE=fcitx"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
             Text { text: "X11"; color: Theme.muted; font.family: Theme.font }
-            Text { Layout.fillWidth: true; text: "XMODIFIERS=@im=fcitx"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: "XMODIFIERS=@im=fcitx"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
             Text { text: "SDL"; color: Theme.muted; font.family: Theme.font }
-            Text { Layout.fillWidth: true; text: "SDL_IM_MODULE=fcitx"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; Layout.fillWidth: true; text: "SDL_IM_MODULE=fcitx"; color: Theme.text; font.family: Theme.font; font.pixelSize: 11 }
         }
     }
 

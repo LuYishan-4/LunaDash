@@ -7,7 +7,7 @@ concurrency:
     cancel-in-progress: true
 jobs:
     wayland:
-        name: Wayland protocol and compositor loading
+        name: wlroots protocol and compositor loading
         runs-on: ubuntu-24.04
         timeout-minutes: 25
         steps:
@@ -19,16 +19,69 @@ jobs:
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
                     cmake g++ ninja-build pkg-config libgl-dev \
-                    libwayland-dev wayland-protocols \
-                    libinput-dev libxkbcommon-dev libudev-dev \
-                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev libqt6opengl6-dev \
-                    xvfb xauth python3 python3-pil
-            - name: Build Wayland compositor
+                    libwayland-dev wayland-protocols libwlroots-dev \
+                    libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
+                    qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
+                    xvfb xauth xdotool xwayland python3 wayland-utils
+            - name: Reject QtWayland compositor dependencies
+              run: python3 tests/wayland/test_no_qtwayland.py
+            - name: Build wlroots compositor
               run: cmake -S . -B build-wayland -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-wayland --parallel 2
-            - name: Verify Wayland libraries
+            - name: Verify linked compositor libraries
               run: |
-                  test -f /usr/lib/x86_64-linux-gnu/libwayland-server.so.0
-                  test -f /usr/lib/x86_64-linux-gnu/libwayland-client.so.0
-                  ldd build-wayland/lunadash-compositor | grep -E 'libQt6WaylandCompositor|libwayland-server'
-            - name: Run Wayland session
-              run: LUDASH_GRAPHICS=gles LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh
+                  ldd build-wayland/lunadash-compositor | grep -E 'libwlroots|libwayland-server'
+                  if ldd build-wayland/lunadash-compositor | grep -q 'libQt6WaylandCompositor'; then
+                    echo 'QtWaylandCompositor must not be linked into lunadash-compositor' >&2
+                    exit 1
+                  fi
+            - name: Exercise xdg-toplevel lifecycle
+              run: ./scripts/test-xdg-lifecycle.sh "$PWD/build-wayland"
+            - name: Verify XWayland is on demand
+              run: xvfb-run -a python3 tests/wayland/test_xwayland.py build-wayland
+            - name: Verify wlroots protocol globals
+              run: |
+                  runtime=$(mktemp -d)
+                  chmod 700 "$runtime"
+                  log="$PWD/build-wayland/core-protocol.log"
+                  env XDG_RUNTIME_DIR="$runtime" \
+                    WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+                    LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 \
+                    build-wayland/lunadash-compositor --socket ludash-core-protocol \
+                    --no-shell --exit-after 12000 >"$log" 2>&1 &
+                  pid=$!
+                  trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"' EXIT
+                  for _ in $(seq 1 120); do
+                    test -S "$runtime/ludash-core-protocol" && break
+                    kill -0 "$pid"
+                    sleep 0.1
+                  done
+                  test -S "$runtime/ludash-core-protocol"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol \
+                    wayland-info > build-wayland/core-protocol-globals.txt
+                  cat "$log"
+                  cat build-wayland/core-protocol-globals.txt
+                  grep -Eq "interface: 'wl_seat',[[:space:]]+version:[[:space:]]+([5-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
+                  grep -Eq "interface: 'wl_data_device_manager',[[:space:]]+version:[[:space:]]+([3-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwlr_layer_shell_v1'" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwlr_screencopy_manager_v1'" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwp_text_input_manager_v3'" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwp_input_method_manager_v2'" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwp_virtual_keyboard_manager_v1'" build-wayland/core-protocol-globals.txt
+                  kill "$pid"
+                  wait "$pid" || true
+            - name: Run wlroots session
+              run: LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-wayland" ./scripts/test-wayland.sh
+            - name: Preserve Wayland protocol diagnostics
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: main-wayland-protocol-diagnostics
+                  path: |
+                      build-wayland/core-protocol.log
+                      build-wayland/xdg-lifecycle.log
+                      build-wayland/xwayland.log
+                      build-wayland/core-protocol-globals.txt
+                      build-wayland/wayland.log
+                      build-wayland/wayland-state.json
+                  if-no-files-found: ignore
+                  retention-days: 7

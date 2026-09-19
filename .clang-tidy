@@ -1,12 +1,23 @@
+---
+# Keep this file compatible with clangd, which is the language server Zed
+# uses for C and C++.  Diagnostics remain warnings in the editor; CI can
+# decide separately whether a warning is fatal.
 Checks: >-
   -*,
-  clang-analyzer-core.*,clang-analyzer-cplusplus.*,clang-analyzer-deadcode.*,
+  clang-analyzer-core.*,
+  clang-analyzer-cplusplus.*,
+  clang-analyzer-deadcode.*,
   clang-analyzer-security.*,
-  bugprone-dangling-handle,bugprone-use-after-move,
-  bugprone-sizeof-expression,bugprone-suspicious-memory-comparison,
-  bugprone-suspicious-memset-usage,bugprone-undefined-memory-manipulation,
-  bugprone-integer-division,bugprone-infinite-loop,
-  bugprone-misplaced-widening-cast,bugprone-narrowing-conversions
-WarningsAsErrors: '*'
-HeaderFilterRegex: '(^|/)(include/LuDash|src)/'
+  bugprone-dangling-handle,
+  bugprone-use-after-move,
+  bugprone-sizeof-expression,
+  bugprone-suspicious-memory-comparison,
+  bugprone-suspicious-memset-usage,
+  bugprone-undefined-memory-manipulation,
+  bugprone-integer-division,
+  bugprone-infinite-loop,
+  bugprone-misplaced-widening-cast,
+  bugprone-narrowing-conversions
+WarningsAsErrors: ''
+HeaderFilterRegex: '(^|/)src/'
 SystemHeaders: false

@@ -10,26 +10,40 @@ ColumnLayout {
     id: page
     required property var shell
     spacing: 16
-    readonly property var inputTools: (shell.state.systemTools || []).filter(tool => tool.category === "input")
-    readonly property var imeTool: inputTools.find(tool => tool.id === "ime") || ({available:false, package:"fcitx5-configtool"})
+    readonly property var inputTools: (shell.state.settingsTools || shell.state.systemTools || []).filter(tool => tool.category === "input")
+    readonly property var imeTool: inputTools.find(tool => tool.id === "ime") || ({available:false, configurable:false, package:"fcitx5 + fcitx5-configtool"})
+    readonly property var keyboardLayouts: [
+        {value:"us", label:"US"},
+        {value:"gb", label:"United Kingdom"},
+        {value:"de", label:"German"},
+        {value:"fr", label:"French"},
+        {value:"es", label:"Spanish"},
+        {value:"jp", label:"Japanese"},
+        {value:"tw", label:"Taiwan (US physical + Fcitx)"}
+    ]
+    readonly property string selectedLayout: (shell.state.appearance || {}).keyboardLayout || "us"
 
     PageTitle { shell: page.shell; title: "Keyboard and pointer" }
 
     SettingsComponents.SettingsCard {
         title: shell.tr("Keyboard")
-        description: shell.tr("Configure the layout and repeat behavior used by the compositor seat.")
+        description: shell.tr("Configure the physical keyboard layout used by the compositor seat.")
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Keyboard layout"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Keyboard layout"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             StyledComboBox {
-                model: ["us", "gb", "de", "fr", "es", "jp", "tw"]
-                currentIndex: model.indexOf((shell.state.appearance || {}).keyboardLayout || "us")
-                onActivated: shell.setAppearance({keyboardLayout: currentText})
+                model: page.keyboardLayouts.map(entry => entry.label)
+                currentIndex: Math.max(0, page.keyboardLayouts.findIndex(entry => entry.value === page.selectedLayout))
+                onActivated: shell.setAppearance({keyboardLayout: page.keyboardLayouts[index].value})
                 Accessible.name: shell.tr("Keyboard layout")
             }
         }
-        PreferenceSlider { shell: page.shell; preference: "keyRepeatRate"; label: "Key repeat rate"; minimum: 0; maximum: 60; suffix: " / s" }
-        PreferenceSlider { shell: page.shell; preference: "keyRepeatDelay"; label: "Key repeat delay"; minimum: 200; maximum: 1500; step: 50; suffix: " ms" }
+        HelpText {
+            shell: page.shell
+            message: page.selectedLayout === "tw"
+                ? "Taiwan mode keeps the standard US physical key positions and uses Fcitx for Traditional Chinese input such as Zhuyin or Chewing. The XKB tw symbol map is not used as an input method."
+                : "Key repeat uses a fixed desktop-friendly timing of 25 repeats per second after a 600 ms delay."
+        }
     }
 
     SettingsComponents.SettingsCard {
@@ -40,22 +54,31 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true
                 Text { text: shell.tr("Fcitx 5"); color: Theme.text; font.family: Theme.font; font.pixelSize: 15 }
-                HelpText { shell: page.shell; message: page.imeTool.available ? "Fcitx configuration is available." : "Install fcitx5-configtool to configure Fcitx from LunaDash." }
+                HelpText {
+                    shell: page.shell
+                    message: page.imeTool.available
+                        ? (page.imeTool.configurable ? "Fcitx 5 is running-capable and its configuration tool is available." : "Fcitx 5 is installed, but fcitx5-configtool is not installed.")
+                        : "Fcitx 5 was not found in PATH. Install fcitx5 and fcitx5-configtool."
+                }
+            }
+            Rectangle {
+                width: 10; height: 10; radius: 5
+                color: page.imeTool.available ? Theme.accent : Theme.danger
             }
             ShellButton {
                 text: shell.tr("Configure Fcitx")
                 active: true
-                enabled: page.imeTool.available
+                enabled: page.imeTool.configurable ?? false
                 onClicked: shell.command("system-tool", "ime")
                 Accessible.name: shell.tr("Configure Fcitx")
             }
         }
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Input method environment"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Input method environment"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
             Text { text: "QT_IM_MODULE=fcitx · GTK_IM_MODULE=fcitx · XMODIFIERS=@im=fcitx"; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideMiddle; Layout.maximumWidth: 430 }
         }
-        HelpText { shell: page.shell; message: "Fcitx is started for LunaDash sessions when available. Native Wayland applications should prefer the compositor/text-input path; toolkit variables remain useful for compatibility applications." }
+        HelpText { shell: page.shell; message: "Fcitx is started for LunaDash sessions when available. Traditional Chinese input should be configured inside Fcitx; the compositor keyboard layout only describes physical key positions." }
     }
 
     SettingsComponents.SettingsCard {
@@ -66,7 +89,7 @@ ColumnLayout {
 
     SettingsComponents.SettingsCard {
         title: shell.tr("Input test")
-        description: shell.tr("Use this field to verify the keyboard layout, preedit, candidate selection, and Fcitx input path.")
+        description: shell.tr("Use this field to verify single key presses, key repeat, the physical layout, Fcitx preedit, and candidate selection.")
         SoftField { Layout.fillWidth: true; placeholderText: shell.tr("Type here to test your keyboard or input method"); Accessible.name: placeholderText }
     }
 }

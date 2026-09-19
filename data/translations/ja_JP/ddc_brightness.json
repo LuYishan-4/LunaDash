@@ -1,0 +1,14 @@
+{
+  "External monitor brightness": "外部モニターの明るさ",
+  "Adjust each monitor through DDC/CI.": "DDC/CI でモニターごとに調整します。",
+  "Detecting monitors…": "モニターを検出中…",
+  "Refresh monitors": "モニターを再検出",
+  "No DDC/CI monitors detected. Enable DDC/CI in the monitor menu, then refresh.": "DDC/CI モニターが見つかりません。モニターのメニューで DDC/CI を有効にして再検出してください。",
+  "Requires ddcutil, enabled DDC/CI and access to the monitor's I2C device.": "ddcutil、DDC/CI の有効化、モニターの I2C デバイスへのアクセス権が必要です。",
+  "Install ddcutil to control external monitor brightness.": "外部モニターの明るさを調整するには ddcutil をインストールしてください。",
+  "Choose an available DDC/CI monitor and a brightness from 0 to 100.": "利用可能な DDC/CI モニターを選択し、明るさを 0～100 に設定してください。",
+  "DDC/CI brightness change failed. Check the monitor connection, DDC/CI setting and I2C permissions.": "DDC/CI の明るさ変更に失敗しました。接続、DDC/CI 設定、I2C アクセス権を確認してください。",
+  "This monitor did not report DDC/CI brightness. Enable DDC/CI and check I2C permissions, then refresh.": "このモニターから DDC/CI の明るさを取得できませんでした。DDC/CI と I2C アクセス権を確認して再検出してください。",
+  "DDC/CI detection failed for one or more displays. Check DDC/CI, the i2c-dev module and I2C permissions.": "一部またはすべてのモニターで DDC/CI 検出に失敗しました。DDC/CI、i2c-dev モジュール、I2C アクセス権を確認してください。",
+  "Invalid DDC/CI brightness request.": "DDC/CI の明るさ要求が無効です。"
+}

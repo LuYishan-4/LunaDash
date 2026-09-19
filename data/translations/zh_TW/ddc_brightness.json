@@ -1,0 +1,14 @@
+{
+  "External monitor brightness": "外接螢幕亮度",
+  "Adjust each monitor through DDC/CI.": "透過 DDC/CI 分別調整每台螢幕。",
+  "Detecting monitors…": "正在偵測螢幕…",
+  "Refresh monitors": "重新偵測螢幕",
+  "No DDC/CI monitors detected. Enable DDC/CI in the monitor menu, then refresh.": "未偵測到 DDC/CI 螢幕。請在螢幕選單啟用 DDC/CI，再重新偵測。",
+  "Requires ddcutil, enabled DDC/CI and access to the monitor's I2C device.": "需要 ddcutil、螢幕已啟用 DDC/CI，以及該螢幕 I2C 裝置的存取權限。",
+  "Install ddcutil to control external monitor brightness.": "請安裝 ddcutil 以控制外接螢幕亮度。",
+  "Choose an available DDC/CI monitor and a brightness from 0 to 100.": "請選擇可用的 DDC/CI 螢幕，並設定 0 到 100 的亮度。",
+  "DDC/CI brightness change failed. Check the monitor connection, DDC/CI setting and I2C permissions.": "DDC/CI 亮度調整失敗。請檢查螢幕連線、DDC/CI 設定與 I2C 權限。",
+  "This monitor did not report DDC/CI brightness. Enable DDC/CI and check I2C permissions, then refresh.": "此螢幕未回報 DDC/CI 亮度。請啟用 DDC/CI 並檢查 I2C 權限，再重新偵測。",
+  "DDC/CI detection failed for one or more displays. Check DDC/CI, the i2c-dev module and I2C permissions.": "部分或全部螢幕的 DDC/CI 偵測失敗。請檢查 DDC/CI、i2c-dev 模組與 I2C 權限。",
+  "Invalid DDC/CI brightness request.": "無效的 DDC/CI 亮度請求。"
+}

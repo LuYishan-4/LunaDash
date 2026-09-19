@@ -1,4 +1,5 @@
 {
+    "If you need help, please visit:": "若有問題，請至：",
     "Make this space yours": "打造你的工作空間",
     "Interface language": "介面語言",
     "Traditional Chinese": "繁體中文",
@@ -339,7 +340,6 @@
     "Check now": "立即檢查",
     "View release": "查看版本",
     "System information": "系統資訊",
-    "A moonlit, focused Linux desktop.": "月光般寧靜、專注的 Linux 桌面。",
     "Input test": "輸入測試",
     "Use this field to verify the keyboard layout and Fcitx input path.": "使用此欄位確認鍵盤配置與 Fcitx 輸入路徑。",
     "Open terminal": "開啟終端機",

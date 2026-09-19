@@ -1,55 +1,71 @@
-# Architecture
+# Source architecture
+
+LunaDash is a development Wayland desktop built with C++20, C11, wlroots and Qt 6. Quickshell/QML owns the desktop shell. Qt Widgets implements the native tools; Qt Wayland is used by clients, not as the compositor server. Arch Linux is the primary development platform. Passing nested or software-rendered tests does not establish complete hardware or login-session support.
+
+## Source domains
+
+Headers and implementations are colocated. Directories use lowercase domain names, C++ files use PascalCase `.hpp` / `.cpp`, and C interfaces retain `.h` / `.c`. Project C++ uses `LunaDash`; C symbols keep their `ludash_` prefix and existing C type names. Settings keys, resource IDs for translations, executable aliases and protocol names retain their existing compatibility spellings.
 
 ```text
-Existing Wayland host / experimental EGLFS-KMS session
-  lunadash-compositor: C++20 Qt Wayland integration + C11 OpenGL / GLES core
-    xdg-shell: native windows and the XWayland compatibility container
-    viewporter: client viewport scaling
-    layer-shell v2 subset: Quickshell desktop surfaces
-    text-input v2, optional v3 and Qt input-method protocol
-    keyboard: evdev rules, pc105 model, configured layout, keypad keys forwarded from their scan code
-    niri-inspired scrollable grouped columns, four workspaces, focus and window effects
-    asynchronous NetworkManager status and saved desktop preferences
-    user-only local JSON control socket
-      lunadashctl <-> Quickshell status and commands
-    quickshell --path qml/shell.qml (source) or /usr/share/lunadash/shell/shell.qml (installed)
-      setup / wallpaper / single panel with inline grouped cells / overview / launcher / fullscreen settings / wallpaper picker / session
-    lunadash-desktop --app <id>
-      files / console / monitor / packages / plugins / settings
+src/
+  compositor/
+    animation/       wlroots scene transitions and retained Qt adapters
+    client/          compositor-owned client state
+    input/           seat events, keyboard maps and input-method bridge
+    ipc/             bounded local JSON control socket
+    plugins/         native effect loading and versioned interface
+    renderer/        rendering orchestration and render elements
+      opengl/        C GL dispatch, context, shader/program/texture/FBO ownership
+        shaders/     explicitly embedded built-in GLSL
+      blur/          Qt Quick item and geometry adapter
+      wallpaper/     Qt Quick wallpaper item
+    session/         compositor startup, child environment and launch policy
+    tiling/          scrollable grouped columns and C geometry
+    wayland/         runtime, output and surface lifetimes
+      wlroots/       version compatibility and external C header boundaries
+    window/          rules and retained Qt Quick window adapters
+    xwayland/        authenticated, on-demand X11 compatibility container
+    Main.cpp
+  config/            command runner, preferences, localization, plugin catalog
+  core/              reusable contracts, listener helpers and build definitions
+  ctl/               control client and Main.cpp
+  desktop/           data/actions exposed to shell and native tools
+  service/portal/    file chooser D-Bus service and Main.cpp
+  shell/             generic module schema/runtime, media tool and Main.cpp
 ```
 
-Quickshell/QML implements the desktop shell. Built-in applications currently use C++ Qt Widgets and tile alongside other Wayland applications. A tiled column has an independently resizable width and can contain up to four total members, including minimized windows. The C layout divides the compositor `workArea` equally among visible members; focus scrolls the selected column/member into view, and columns can be grouped, expelled, reordered or centered. The compositor owns Wayland window lifetimes, resolved per-window icon names and rendering; Quickshell runs in a separate process with its own graphics context.
+Each `Main.cpp` delegates to a module implementing `run(argc, argv)`. `SessionApplication`, `DesktopApplication`, `ControlClient`, `ShellTool` and `Portal` own their startup and event loop. The portal's file chooser implementation is separate from D-Bus service registration. `JsonTranslator` is separate from dictionary loading. Shell module configuration belongs to `shell/modules`; metrics, status and update checking belong to `desktop/system`.
 
-Each C++ feature has a matching `include/LuDash/<feature>/` and `src/<feature>/` directory. Headers declare types and interfaces; `.cpp` files implement them. Entry points live in `src/entrypoints/`; CMake lists sources explicitly. QML features live under `qml/<feature>/`. Project code is English and uses namespace `LuDash`, except `main`, Qt-generated resource initialization and scanner-generated C protocol symbols.
+## Dependency and ownership rules
 
-Qt Wayland Compositor forwards key events to the focused client and repairs its own modifier tracking by sending a modifiers event with both the latched and locked masks set to zero. That repair runs whenever a key event's Qt modifiers differ from the state Qt tracks, and its tracking never contains `Qt::KeypadModifier`, which every numeric keypad key carries. Left alone, the first keypad key after a modifier transition clears NumLock and CapsLock for the focused client, and the key that follows a keypad key clears them again. The compositor therefore consumes keypad key events and forwards them from their native scan code with `QWaylandSeat::sendKeyPressEvent()`, which keeps the repair from running; lock keys, Meta and AltGr still go through Qt's path, and the compositor re-asserts the tracked modifier state after those with `QWaylandKeyboard::sendKeyModifiers()`. `input.keypadKeyForwards` and `input.modifierResends` report both counters in the status output. Qt's evdev keyboard handler drives the `NumLock`, `CapsLock` and `ScrollLock` LEDs itself in a standalone EGLFS session, so the compositor does not touch them.
+Dependencies flow from `core` to `config` to runtime domains. Core cannot include any higher domain. Configuration cannot include compositor or desktop services. Desktop code cannot include compositor internals. Renderer code cannot depend on desktop UI. The source-root include style is uniform, for example `"compositor/renderer/Renderer.hpp"`; deep relative includes are rejected.
 
-| Module | Responsibility |
-| --- | --- |
-| render_core / renderer / blur | C shader/FBO passes with C++ context and scene-graph adapters |
-| animation | Safe fade/scale transitions and reduced-motion controls |
-| xwayland | Optional authenticated XWayland service and X11 launcher |
-| tiling_core / system_metrics | Qt-independent C geometry and bounded proc parsers |
-| compositor / tiling / window_frame / window_rules | Window lifetime, grouped-column layout, initial window policy and decorations |
-| input_settings | Client keymap rules, model and layout, repeat rate and delay, and the keypad forwarding that keeps lock modifiers intact |
-| file_manager / file_operations | Local filesystem browsing and guarded asynchronous file operations for the built-in Files app |
-| default_applications | Built-in Fish terminal or user-selected launch commands |
-| layer_shell | Background, panel and overlay surfaces; negotiated v2 subset |
-| ipc | User-only local socket, 64 KiB request limit, three-second timeout |
-| configuration | Validated saved appearance and first-run completion |
-| network | Nonblocking NetworkManager D-Bus reads, interface fallback |
-| session_environment | Prepare isolated Wayland, desktop and toolkit-module variables for compositor children |
-| session_actions | Query logind action availability and request suspend, reboot or poweroff over D-Bus without shell execution |
-| system_status / wallpaper | Local system statistics and validated local images |
-| localization / input_method | Translation resources and input protocol registration |
-| plugins / fade_plugin / plugin_settings | Metadata discovery, explicit enablement and native example |
-| packages | Read-only queries and confirmed terminal-based pacman changes |
-| remaining app modules | Separate files, console, monitor and application tools |
+`WaylandCompositor` owns desktop/session integration. Its private `Runtime.hpp` declares wlroots state; `Runtime.cpp` owns setup/teardown, `Output.cpp` owns output state, `Surface.cpp` owns xdg/layer surfaces, and `input/Input.cpp` owns input event and input-method handling. `input/Keyboard.cpp` applies physical keyboard maps; `desktop/input` validates preferences without including wlroots. Version-dependent xdg role events and destruction preserve the remote implementation's wlroots 0.17/0.18+ distinctions.
 
-The shell controls LunaDash through allowlisted JSON methods. It instantiates one compact, niri-inspired `TopPanel`: workspace/session controls and inline grouped-application cells on the left, a centered three-part overview / accent launcher / settings selector with a Lambda (`Λ`) glyph, and StatusNotifier items plus clock/network/battery on the right. The former `ColumnStrip` is not instantiated as a second layer; `TopPanel` embeds `ColumnCell`/`MemberIcon` behavior inline. One cell represents each column and one icon represents each member. Exact-member focus, cross-column drag/drop grouping and right-click/minus expulsion route through compositor IPC. The launcher merges four built-ins with installed `DesktopEntries` into one metadata-ranked, token-searchable list. Settings uses a fullscreen QML overlay with quick hide and a top margin below `Theme.barHeight`. Appearance updates reject unknown keys, incorrect types and out-of-range numbers before changing settings. Network status is read asynchronously with a 1.5-second D-Bus timeout every five seconds. Passwords are handled by the external network editor, never passed through LunaDash's control socket.
+`core/templates/WaylandListener.hpp` centralizes listener registration and detachment. Listeners disconnect before their wlroots owner is destroyed. Window close transitions retain scene snapshots without retaining dead surface callbacks. `SceneWindowAnimations` remains the active wlroots animation controller. Qt scene-graph adapters are compiled separately and must not be mistaken for active wlroots effects.
 
-The current compositor uses one output. `ShellModules::panelExtent()` reports the active panel's total reserved extent, corresponding to `TopPanel`'s layer-shell exclusive area. `WaylandCompositor::workArea()` starts application geometry below that extent for a top panel (then applies the configured gap), so tiled, maximized and normally placed windows do not cover it. `SettingsPanel` independently starts below `Theme.barHeight`, keeping the overlay off the panel. This is not a general implementation of arbitrary exclusive zones. Layer-shell popups and some double-buffered state behavior remain incomplete. Multiple outputs, locking, portals, PipeWire capture, an audio service, a polkit agent and a full input-method-v2 bridge are not implemented. StatusNotifier hosting is implemented through Quickshell with Fcitx/Discord/Docker icon fallbacks; this does not imply a notification daemon or complete input-method integration. The EGLFS/KMS launcher is experimental; evaluate nested sessions first.
+Plugin metadata discovery is configuration (`config/plugins/PluginCatalog`), so desktop settings can inspect plugins without depending on the compositor loader. Native effects remain disabled by default and require explicit user enablement. Metadata is not a sandbox. Rebuild native plugins against the current installed header after this source namespace change; a stable native binary ABI is not promised for development builds.
 
-See [C core](C_CORE.md), [Effects](EFFECTS.md) and [X11 compatibility](XWAYLAND.md) for implementation boundaries.
+## Rendering
 
-The Quickshell settings center delegates fixed system-tool IDs to `system_tools`, bounded helper processes to `process_runner`, audio to `audio_settings`, power profiles to `power_settings`, keyboard configuration to `input_settings`, and nested output resizing to `display_settings`. Native settings entry points route to this shared interface. Wallpaper selection opens the in-shell picker inside the settings surface (`qml/imagepicker`); accepted local paths are returned through `lunadashctl wallpaper-image`, while cancellation leaves the wallpaper unchanged.
+The active compositor uses wlroots renderer/allocator/scene ownership. Its `--graphics opengl` and `--graphics gles` preferences both request wlroots' GLES2 renderer; wlroots can select another available renderer in automatic mode. Headless CI explicitly selects pixman. These are distinct from the retained Qt OpenGL render-element library.
+
+The render-element library has one `Renderer`, one compile-time `ActiveGraphics` selection in `RendererConfig.hpp`, and an `OpenGL` implementation. `RendererTypes.hpp` carries common state without exposing GL handles. `Feature`, `Module` and `RendererTemplate` provide small, consumed lifecycle contracts rather than a global singleton framework. Only create additional provider/manager abstractions when there is an actual extension boundary.
+
+All project-owned raw OpenGL implementation lives in `renderer/opengl`, including blur, wallpaper and decoration passes. `GLDispatch.c` is the C11 function-loading core. `Shader`, `Program`, `Texture` and `Framebuffer` own their GL resources. Failed shader compilation, later-stage creation failure and linking failure release previously allocated objects. Qt owns the active context; render resources must be destroyed on its render thread while that context is current.
+
+Built-in shaders are listed explicitly in `cmake/modules/Renderer.cmake` and embedded at `:/LunaDash/renderer/shaders/`. They load from the same IDs after installation or relocation. `data/` contains application assets, module templates, translations and plugin/portal metadata, not internal GLSL. Future plugin-provided shaders are a separate, explicitly trusted resource class.
+
+## Extending a feature
+
+Choose an existing domain, add a cohesive interface/implementation pair, identify the lifetime owner, and list each source in the owning CMake target. Add shared types only when needed. Keep QML under `qml/<feature>/`, translation strings in external catalogs, and platform switches near implementation boundaries. The public compile definitions use `LUDASH_*`; `core/Defines.hpp` and `config/BuildConfig.hpp` expose common capabilities and version metadata. Native rendering selection is centralized rather than repeated throughout feature code.
+
+Reusable module contracts use composition and C++20 concepts. Runtime virtual dispatch is appropriate for existing render elements and the native plugin boundary. Do not introduce an inheritance hierarchy, empty directory or singleton merely to match a diagram.
+
+## Enforcement and limitations
+
+Run `python3 scripts/check-source-layout.py`. It rejects incorrect source naming, old renderer names, duplicate render trees, forbidden include directions, missing explicit CMake sources, shaders outside their owner and raw OpenGL implementation outside its module. `tests/architecture/test_source_layout.py` verifies rejection behavior. Existing source-style and Ubuntu workflows run these checks.
+
+The renderer regression tests load embedded assets from an unrelated directory, report missing-context errors, inject GL failures to check cleanup, and optionally compile/draw through a software OpenGL context after a staged install. These checks do not establish physical GPU correctness.
+
+Wayland CI exercises protocol globals, xdg-toplevel commit/map/unmap/destroy, client startup, on-demand XWayland and clean shutdown. Chrome, Zed, Fcitx candidate placement, physical input, multiple physical outputs and display-manager login still need application/hardware testing. The current file chooser portal is not a complete screen-sharing/PipeWire portal. There is no complete screen-locking or polkit-agent implementation. See [testing](TESTING_AND_FILES.md), [graphics](GRAPHICS.md), [input methods](INPUT_METHODS.md) and [release process](RELEASE_PROCESS.md).

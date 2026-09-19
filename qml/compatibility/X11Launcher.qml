@@ -12,8 +12,20 @@ ModuleSurface {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "lunadash-x11-launcher"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
+    onOpenedChanged: {
+        if (opened) {
+            Qt.callLater(function() {
+                if (!panel.opened)
+                    return
+                command.forceActiveFocus(Qt.OtherFocusReason)
+                command.prepareInputMethod()
+            })
+        } else {
+            command.focus = false
+        }
+    }
     Timer { id:dismissTimer; interval:2000; running:panel.opened; repeat:false; onTriggered:if(!panelMouse.containsMouse)shell.x11Open=false }
     MouseArea { id:panelMouse; anchors.fill:parent; hoverEnabled:true; acceptedButtons:Qt.NoButton; onEntered:dismissTimer.stop(); onExited:dismissTimer.restart(); onPositionChanged:dismissTimer.stop() }
     Rectangle { anchors.fill:parent; color:moduleBackground; radius:moduleRadius }

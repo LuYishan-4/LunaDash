@@ -209,9 +209,10 @@ footer {
   }
 }
 
-/* Hero banner. */
+/* Landing page. */
 .hero {
-  padding-top: 56px;
+  padding-top: 48px;
+  padding-bottom: 76px;
 }
 .banner {
   display: block;
@@ -219,15 +220,20 @@ footer {
   height: auto;
 }
 .tagline {
-  font-size: 22px;
+  font-size: clamp(48px, 6.8vw, 88px);
+  line-height: 1.06;
+  letter-spacing: -3.5px;
   font-weight: 500;
   color: var(--text);
-  margin: 34px 0 0;
+  margin: 30px 0 0;
 }
+.tagline span { color: #9ccbfb; }
+.hero-label { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.preview-label { color: #d3bfe6; border: 1px solid #51445d; border-radius: 20px; padding: 4px 11px; font-size: 11px; }
 .hero-note {
-  font-size: 15px;
-  max-width: 780px;
-  margin: 12px 0 0;
+  font-size: 18px;
+  max-width: 680px;
+  margin: 25px 0 0;
 }
 .actions {
   display: flex;
@@ -368,14 +374,42 @@ footer {
   border-bottom: 1px solid var(--line);
 }
 
+/* Screenshots keep their original aspect ratios at every viewport size. */
+.screenshot { margin: 0; min-width: 0; }
+.screenshot.featured { margin-top: 52px; }
+.screenshot-link { display: block; position: relative; border: 1px solid #526471; border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: 0 16px 40px #0003; }
+.screenshot-link img { display: block; width: 100%; height: auto; }
+.screenshot-link:hover { border-color: #9ccbfb; }
+.screenshot-open { position: absolute; right: 12px; bottom: 12px; padding: 5px 10px; background: #101b1dea; border: 1px solid #ffffff30; border-radius: 5px; color: #edf5fc; font-size: 11px; }
+.screenshot figcaption { display: flex; flex-direction: column; gap: 4px; padding-top: 16px; font-size: 13px; color: var(--muted); }
+.screenshot figcaption strong { color: var(--text); font-size: 16px; font-weight: 500; }
+.featured figcaption { flex-direction: row; justify-content: space-between; gap: 20px; }
+.intro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; }
+.intro-grid p { max-width: 500px; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-bottom: 32px; }
+.section-heading h2 { margin-bottom: 0; }
+.section-heading p { font-size: 13px; margin-bottom: 0; }
+.gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.coverage-note { font-size: 13px; }
+.shortcut-details { border-top: 1px solid var(--line); margin-top: 32px; padding-top: 20px; }
+.shortcut-details summary { cursor: pointer; font-size: 18px; }
+.image-dialog { width: min(1440px, 96vw); max-height: 94vh; padding: 18px; border: 1px solid #526471; border-radius: 14px; background: #101b1d; color: var(--text); }
+.image-dialog::backdrop { background: #050b11e8; }
+.image-dialog-bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 15px; }
+.image-dialog-bar h2 { font-size: 18px; letter-spacing: 0; line-height: 1.3; margin: 0; }
+.image-dialog-close { border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; background: var(--surface); color: var(--text); cursor: pointer; flex-shrink: 0; }
+.image-dialog-image { display: block; max-width: 100%; width: auto; height: auto; max-height: 74vh; object-fit: contain; margin: 0 auto; }
+.image-dialog-original { display: inline-block; font-size: 12px; color: var(--accent); margin-top: 14px; }
+html:has(.image-dialog[open]) { overflow: hidden; }
+
 @media (max-width: 1000px) {
   .wrap {
     padding-left: 30px;
     padding-right: 30px;
   }
-  .link-list {
-    grid-template-columns: 1fr;
-  }
+  .link-list { grid-template-columns: 1fr; }
+  .gallery-grid { grid-template-columns: 1fr; gap: 32px; }
+  .intro-grid { gap: 36px; }
 }
 @media (max-width: 680px) {
   .wrap {
@@ -391,15 +425,21 @@ footer {
   .nav nav > a:not(.source) {
     display: none;
   }
-  .hero {
-    padding-top: 38px;
-  }
+  .hero { padding-top: 28px; padding-bottom: 52px; }
+  .hero-note { font-size: 16px; }
+  .hero-label { gap: 12px; }
+  .intro-grid { grid-template-columns: 1fr; }
+  .section-heading { display: block; }
+  .section-heading p { margin-top: 20px; }
+  .featured figcaption { flex-direction: column; gap: 4px; }
+  .image-dialog { padding: 12px; }
   .eyebrow {
     font-size: 9px;
     letter-spacing: 1px;
   }
   .tagline {
-    font-size: 18px;
+    font-size: clamp(42px, 10vw, 62px);
+    letter-spacing: -2px;
   }
   .actions {
     gap: 18px;

@@ -1,8 +1,19 @@
 # Small optional install additions kept out of the main build definition so
 # packaging and maintenance changes do not require rewriting LunaDashMain.cmake.
-install(PROGRAMS scripts/lunadash-update DESTINATION ${CMAKE_INSTALL_BINDIR})
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/scripts/lunadash-update
+    ${CMAKE_CURRENT_BINARY_DIR}/lunadash-update
+    COPYONLY)
+install(PROGRAMS scripts/lunadash-update scripts/lunadash-polkit-agent DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-add_executable(lunadash-portal src/entrypoints/portal_main.cpp)
+# lunadash-shell-tool is defined once in LunaDashShellTool.cmake. Keeping a
+# second executable target here caused Ninja to see two rules producing the
+# same lunadash-shell-tool output.
+
+add_executable(lunadash-portal src/service/portal/Main.cpp
+    src/service/portal/Portal.cpp
+    src/service/portal/FileChooserPortal.cpp
+    src/service/portal/FileChooserPortal.hpp)
 target_link_libraries(lunadash-portal PRIVATE ludash-apps Qt6::Widgets Qt6::DBus)
 set_target_properties(lunadash-portal PROPERTIES OUTPUT_NAME xdg-desktop-portal-lunadash)
 

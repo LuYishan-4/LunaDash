@@ -52,7 +52,7 @@ ColumnLayout {
         description: shell.tr("Every global shortcut uses Meta or Alt. Duplicate or invalid combinations are rejected before they are saved.")
         RowLayout {
             Layout.fillWidth: true
-            Text { text: shell.tr("Changes apply immediately"); color: Theme.muted; font.family: Theme.font; Layout.fillWidth: true }
+            Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Changes apply immediately"); color: Theme.muted; font.family: Theme.font; Layout.fillWidth: true }
             ShellButton { text: shell.tr("Restore shortcut defaults"); onClicked: shell.command("reset-shortcuts", "") }
         }
     }
@@ -63,7 +63,7 @@ ColumnLayout {
             title: page.actionLabel(modelData)
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: modelData.id; color: Theme.muted; font.family: Theme.font; Layout.fillWidth: true }
+                Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: modelData.id; color: Theme.muted; font.family: Theme.font; Layout.fillWidth: true }
                 SettingsComponents.ShortcutRecorder {
                     shell: page.shell
                     sequence: String((shell.state.shortcuts || {})[modelData.id] || "Disabled")

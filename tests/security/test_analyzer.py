@@ -19,11 +19,11 @@ for flag in cflags:
 sources = {
     "valid_guard": """#include <QObject>
 #include <QPointer>
-namespace LuDash {
+namespace LunaDash {
 void watch(QObject* object) { const QPointer<QObject> guard(object); }
 }
 """,
-    "invalid_lifetime": """namespace LuDash {
+    "invalid_lifetime": """namespace LunaDash {
 int readAfterFree() { int* value = new int(7); delete value; return *value; }
 }
 """,
@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-analyzer-") as directory:
         path = Path(directory) / (name + ".cpp")
         path.write_text(source, encoding="utf-8")
         result = subprocess.run(
-            [analyzer, str(path), "--config-file=" + str(root / ".clang-tidy"),
+            [analyzer, str(path), "--warnings-as-errors=*", "--config-file=" + str(root / ".clang-tidy"),
              "--extra-arg-before=--driver-mode=g++", "--", *flags],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             timeout=60, check=False)

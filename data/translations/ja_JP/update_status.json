@@ -1,0 +1,10 @@
+{
+  "The installation changed during this session. Restart to use it.": "このセッション中にインストール内容が変更されました。反映するには再起動してください。",
+  "Running version": "実行中のバージョン",
+  "Latest on this channel": "このチャンネルの最新バージョン",
+  "Last installation": "前回のインストール",
+  "Waiting for authorization": "認証を待っています",
+  "Approve the system authorization dialog. Package confirmation is handled automatically.": "システムの認証ダイアログで承認してください。パッケージの確認は自動で処理されます。",
+  "Approve the system authorization request to continue installation.": "インストールを続けるにはシステムの認証を承認してください。",
+  "Approve the system authorization request to restore the previous installation.": "以前のインストールを復元するにはシステムの認証を承認してください。"
+}

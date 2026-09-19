@@ -23,6 +23,5 @@ LUDASH_GRAPHICS="${LUDASH_GRAPHICS:-gles}" \
   "$project_dir/scripts/test-wayland.sh"
 
 printf '\nOne-shot LunaDash window test passed.\n'
-printf 'Log: %s/host-wayland.log\n' "$build_dir"
-printf 'State: %s/host-wayland-state.json\n' "$build_dir"
-printf 'Screenshot: %s/host-wayland-preview.png\n' "$build_dir"
+printf 'Log: %s/wayland.log\n' "$build_dir"
+printf 'State: %s/wayland-state.json\n' "$build_dir"

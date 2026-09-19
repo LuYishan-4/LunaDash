@@ -18,6 +18,8 @@ ColumnLayout {
 
     SettingsComponents.SettingsCard {
         title: shell.tr("Playback device")
+        badge: page.audio.busy ? shell.tr("Applying…") : ""
+        emphasized: page.audio.busy
         description: shell.tr("Choose the PipeWire output used by the desktop.")
         StyledComboBox {
             Layout.fillWidth: true
@@ -62,6 +64,7 @@ ColumnLayout {
                 }
                 ShellButton {
                     Layout.alignment: Qt.AlignRight
+                    iconName: "sound"
                     text: deviceRow.deviceInfo.muted ? shell.tr("Unmute") : shell.tr("Mute")
                     active: deviceRow.deviceInfo.muted ?? false
                     enabled: deviceRow.ready

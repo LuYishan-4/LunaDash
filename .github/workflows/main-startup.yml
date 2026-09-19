@@ -7,7 +7,7 @@ concurrency:
     cancel-in-progress: true
 jobs:
     startup:
-        name: Graphics startup failure handling
+        name: wlroots startup handling
         runs-on: ubuntu-24.04
         timeout-minutes: 25
         steps:
@@ -18,12 +18,12 @@ jobs:
               run: |
                   sudo apt-get update
                   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                    cmake g++ ninja-build pkg-config libgl-dev libgl1-mesa-dri \
-                    libwayland-dev wayland-protocols \
-                    libinput-dev libxkbcommon-dev libudev-dev \
-                    qt6-base-dev qt6-declarative-dev qt6-wayland-dev libqt6opengl6-dev \
+                    cmake g++ ninja-build pkg-config libgl-dev \
+                    libwayland-dev wayland-protocols libwlroots-dev \
+                    libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
+                    qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
                     xvfb xauth python3
             - name: Build startup target
               run: cmake -S . -B build-startup -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build-startup --parallel 2
-            - name: Verify controlled graphics startup errors
-              run: xvfb-run -a -s '-screen 0 1440x900x24' python3 tests/renderer/test_startup_failure.py build-startup/lunadash-compositor
+            - name: Verify renderer startup handling
+              run: python3 tests/renderer/test_startup_failure.py build-startup/lunadash-compositor

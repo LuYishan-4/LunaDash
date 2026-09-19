@@ -51,13 +51,13 @@ export const methods: Method[] = [
   },
   {
     name: "default-apps",
-    value: 'JSON object: {"terminal":[],"files":[]}',
+    value: 'JSON object: {"terminal":[],"files":[],"browser":[]}',
     behavior:
       "Save literal executable/argument arrays. Empty arrays select LunaDash defaults; executables must be available.",
   },
   {
     name: "launch-default",
-    value: "terminal or files",
+    value: "terminal, files or browser",
     behavior:
       "Launch the selected default application in this Wayland session.",
   },
@@ -106,7 +106,7 @@ export const methods: Method[] = [
     name: "desktop-size",
     value: "1280x720, 1440x900 or 1920x1080",
     behavior:
-      "Resize a nested window. Fullscreen and standalone EGLFS are rejected.",
+      "Resize a nested window. Only a supported size in a windowed nested wlroots session is accepted.",
   },
   {
     name: "configure-network",
@@ -117,7 +117,7 @@ export const methods: Method[] = [
   {
     name: "setup / finish-setup",
     value: "Empty",
-    behavior: "Reopen the first-run guide or mark it complete.",
+    behavior: "Reopen the welcome screen or mark it complete.",
   },
   {
     name: "reset-preferences",

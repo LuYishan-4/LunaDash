@@ -1,8 +1,6 @@
 
 import QtQuick
 import QtQuick.Controls
-import Quickshell
-import Quickshell.Widgets
 import "../components"
 import "../style"
 
@@ -11,7 +9,7 @@ Item {
     required property var shell
     required property var member
     required property bool grouped
-    readonly property var windowId: memberIcon.member.window
+    readonly property var windowId: memberMouse.pressedWindow || memberIcon.member.window
 
     function resetGlyph() {
         glyph.x = 2
@@ -106,34 +104,50 @@ Item {
             title: String(memberIcon.member.title || "")
         }
 
-        MouseArea {
-            id: memberMouse
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            hoverEnabled: true
-            cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.PointingHandCursor
-            drag.target: glyph
-            drag.threshold: 6
-            onClicked: mouse => {
-                if (mouse.button === Qt.RightButton)
-                    memberIcon.shell.command("expel-window", memberIcon.windowId)
-                else
-                    memberIcon.shell.command("focus", memberIcon.windowId)
-            }
-            onReleased: {
-                const target = memberIcon.shell.dropTarget
-                memberIcon.shell.dropTarget = 0
-                if (target && String(target) !== String(memberIcon.windowId))
-                    memberIcon.shell.command("group-window", JSON.stringify({window: memberIcon.windowId, target: target}))
-                memberIcon.resetGlyph()
-            }
-        }
-
         Behavior on color { ColorAnimation { duration: Theme.motion } }
         Behavior on opacity { NumberAnimation { duration: Theme.motion } }
         Behavior on scale { NumberAnimation { duration: Math.min(Theme.motion, 100) } }
         Behavior on x { enabled: !memberMouse.drag.active; NumberAnimation { duration: Math.min(Theme.motion, 140); easing.type: Easing.OutCubic } }
         Behavior on y { enabled: !memberMouse.drag.active; NumberAnimation { duration: Math.min(Theme.motion, 140); easing.type: Easing.OutCubic } }
+    }
+
+    MouseArea {
+        id: memberMouse
+        objectName: "windowTaskButton"
+        anchors.fill: parent
+        z: 2
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        hoverEnabled: true
+        cursorShape: drag.active ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+        drag.target: glyph
+        drag.threshold: 6
+        property var pressedWindow: 0
+        property bool wasDragged: false
+        onPressed: {
+            pressedWindow = memberIcon.member.window
+            wasDragged = false
+        }
+        onPositionChanged: { if (drag.active) wasDragged = true }
+        onClicked: mouse => {
+            // A status update may reorder or replace the item under the pointer.
+            // Cancel that click instead of dispatching it to a different window.
+            if (!wasDragged && pressedWindow && String(pressedWindow) === String(memberIcon.member.window))
+                memberIcon.shell.command(mouse.button === Qt.RightButton ? "expel-window" : "focus", pressedWindow)
+            pressedWindow = 0
+        }
+        onReleased: {
+            const target = memberIcon.shell.dropTarget
+            memberIcon.shell.dropTarget = 0
+            if (wasDragged && target && pressedWindow && String(target) !== String(pressedWindow))
+                memberIcon.shell.command("group-window", JSON.stringify({window: pressedWindow, target: target}))
+            memberIcon.resetGlyph()
+            Qt.callLater(() => { if (!memberMouse.pressed) memberMouse.pressedWindow = 0 })
+        }
+        onCanceled: {
+            pressedWindow = 0
+            memberIcon.shell.dropTarget = 0
+            memberIcon.resetGlyph()
+        }
     }
 
     Rectangle {
@@ -151,7 +165,12 @@ Item {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: memberIcon.shell.command("expel-window", memberIcon.windowId)
+            property var pressedWindow: 0
+            onPressed: pressedWindow = memberIcon.member.window
+            onClicked: {
+                if (pressedWindow && String(pressedWindow) === String(memberIcon.member.window))
+                    memberIcon.shell.command("expel-window", pressedWindow)
+            }
         }
         ToolTip.visible: expelMouse.containsMouse
         ToolTip.delay: 350

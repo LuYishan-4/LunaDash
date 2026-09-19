@@ -50,6 +50,23 @@ class TranslationChecks(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.validate(value)
 
+    def test_report_all_cross_catalog_duplicates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first, second = Path(directory) / 'first.json', Path(directory) / 'second.json'
+            first.write_text(json.dumps({'One': 'first', 'Two': 'second'}), encoding='utf-8')
+            second.write_text(json.dumps({'One': 'override', 'Two': 'duplicate', 'Three': 'third'}), encoding='utf-8')
+            messages, errors = checker.merge_catalogs([first, second])
+            self.assertEqual(messages, {'One': 'first', 'Two': 'second', 'Three': 'third'})
+            self.assertEqual(len(errors), 2)
+            self.assertIn("'One'", errors[0])
+            self.assertIn("'Two'", errors[1])
+
+    def test_clean_catalog_merge(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'catalog.json'
+            path.write_text(json.dumps({'Hello': 'hello'}), encoding='utf-8')
+            self.assertEqual(checker.merge_catalogs([path]), ({'Hello': 'hello'}, []))
+
 
 if __name__ == '__main__':
     unittest.main()

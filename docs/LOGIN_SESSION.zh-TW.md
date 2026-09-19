@@ -2,7 +2,7 @@
 
 這份文件說明如何安裝 LunaDash，讓電腦開機後能從登入畫面進入 LunaDash，以及如何選擇自動登入。
 
-**目前 LunaDash 仍是開發預覽版。** 已有巢狀 Wayland 測試結果，但實體 GPU 的 EGLFS/KMS 啟動、輸入裝置權限與 VT 切換尚未完成驗證。鎖定畫面、多螢幕、完整桌面 portal 與 polkit 驗證代理也尚未完成。測試期間請保留原本可使用的桌面。
+**目前 LunaDash 仍是開發預覽版。** 已有巢狀 Wayland 測試結果，但實體 GPU 的 wlroots DRM/KMS 啟動、輸入裝置權限與 VT 切換尚未完成驗證。鎖定畫面、多螢幕、完整桌面 portal 與 polkit 驗證代理也尚未完成。測試期間請保留原本可使用的桌面。
 
 ## 1. 先選擇你的使用方式
 
@@ -91,7 +91,7 @@ Arch 套件會安裝這些入口：
 | 檔案 | 用途 |
 | --- | --- |
 | `/usr/share/wayland-sessions/lunadash.desktop` | 讓登入管理器列出 LunaDash 工作階段 |
-| `/usr/bin/lunadash-session` | 檢查環境、建立日誌，透過 EGLFS/KMS 與 D-Bus 啟動桌面 |
+| `/usr/bin/lunadash-session` | 檢查環境、建立日誌，透過 wlroots DRM/KMS 與 D-Bus 啟動桌面 |
 | `/usr/bin/lunadash-compositor` | 管理 Wayland 視窗、平鋪與合成繪製 |
 | `/usr/bin/lunadash-desktop` | 啟動 LunaDash 內建應用程式 |
 | `/usr/bin/lunadashctl` | 向執行中的桌面傳送控制指令 |
@@ -118,7 +118,7 @@ LUNADASH_DISABLE_FCITX=1 QT_QPA_PLATFORM=wayland ./build/lunadash-compositor --s
 
 ## 6. 第一次登入與自訂
 
-首次啟動的設定精靈提供語言、網路與外觀設定，也允許離線繼續。LunaDash 會使用系統既有網路連線，安裝腳本不會替換網路服務。
+首次啟動只顯示歡迎訊息與網站求助連結；按下「開始使用桌面」即可關閉，離線時也能完成。語言、網路與外觀請在設定中調整。LunaDash 會使用系統既有網路連線，安裝腳本不會替換網路服務。
 
 之後可開啟設定，使用以設定項目為單位的斷詞搜尋，並查看擴充後的「關於」頁面；也可調整主題色、模糊、視窗間距、動畫、工作區與預設應用程式。工作階段選單支援登出，並透過 logind D-Bus 執行系統允許的暫停、重新開機與關機；破壞性操作會先確認並檢查可用性，不會執行 shell 指令。預設終端機為 Kitty，搭配 LunaDash 的 Fish 設定；內建檔案管理器會跟隨桌面色彩。
 
