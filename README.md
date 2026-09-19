@@ -23,6 +23,8 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 
 </div>
 
+[English](README.md) · [繁體中文](docs/readme/README.zh-TW.md) · [简体中文](docs/readme/README.zh-CN.md) · [日本語](docs/readme/README.ja.md)
+
 ## A starting point, with possibilities
 
 - **Everyday essentials, together.** A panel, launcher, dashboard, notifications, settings and file tools are part of the desktop.
@@ -103,7 +105,7 @@ Change bindings in **Settings → Keyboard shortcuts**. See [settings](docs/SETT
 
 Help make the default experience useful and customization approachable. Bug reports, design feedback, documentation and code contributions are welcome.
 
-Send pull requests to **`dev`**. Use a title that says what changes, explain the user-visible result, See [CONTRIBUTING.md](CONTRIBUTING.md) and the [PR template](.github/pull_request_template.md).
+Send pull requests to **`dev`**. Use a clear title and explain the user-visible result. PRs must not change **GitHub workflows or generated website release notes**. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [PR template](.github/pull_request_template.md).
 
 ---
 

@@ -9,11 +9,13 @@ Every pull request must update both:
 - `docs/` — the technical or user-facing documentation for the changed behavior.
 - `site/` — the public website copy, guide, API page, or other matching public content.
 
-This is intentionally strict so the repository documentation and public website do not drift behind implementation work.
+PRs must not add, modify, delete or rename GitHub workflow files under `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or `site/src/data/releases.json`. Workflow maintenance is handled separately by the maintainer. Generated release notes do not satisfy the website-update requirement: update relevant guides or product copy instead, and describe release impact in the PR body.
+
+The policy script runs from the base commit, inspecting both sides of renames without checking out or executing PR code. This keeps changes to the proposed policy script from bypassing the check.
 
 PR CI is split by cost:
 
-- **PR policy gate** always checks the base branch and required documentation/site updates.
+- **PR policy gate** checks the base branch, required documentation/site updates, and protected workflow/release paths.
 - **Repository hygiene** runs for every PR targeting `dev`.
 - **Source/QML style** checks source architecture on `dev`/`main` pushes and on source-scoped PRs.
 - **Qt lifetime**, **Clang-Tidy**, and **CodeQL** run only when C/C++ or build-system code changes.

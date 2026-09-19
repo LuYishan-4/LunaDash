@@ -15,7 +15,8 @@
 ## Documentation and website
 
 - [ ] Updated the relevant file(s) under `docs/`.
-- [ ] Updated the matching public content under `site/`.
+- [ ] Updated matching guides or public content under `site/`, excluding generated release notes.
+- [ ] Did not change `.github/workflows/`, release Markdown under `site/src/pages/releases/`, or `site/src/data/releases.json`.
 - [ ] The documentation and website describe the same behavior as the code.
 
 ## Validation
@@ -31,4 +32,4 @@
 
 ## Release impact
 
-<!-- If user-visible, note what should appear in a future GitHub Release Markdown entry. -->
+<!-- Describe release impact here. Maintainers publish GitHub Release Markdown; do not edit generated website release notes or their index. -->

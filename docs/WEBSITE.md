@@ -28,7 +28,7 @@ Open `http://localhost:4321/LunaDash/` while the preview server is running. Chec
 
 ## Contributions and publishing
 
-Normal pull requests target `dev` and include relevant `docs/` and `site/` changes. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../CONTRIBUTING.md) and the [PR template](../.github/pull_request_template.md).
+Normal pull requests target `dev` and include relevant `docs/` and website content changes. They must not change `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or the generated `site/src/data/releases.json` index. Release impact belongs in the PR body; maintainers publish it through GitHub Releases. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../CONTRIBUTING.md) and the [PR template](../.github/pull_request_template.md).
 
 - `main-site.yml` checks types, builds and validates local links/assets on pushes, pull requests, merge groups and manual runs.
 - `site-pages.yml` deploys from `main` when website, brand or screenshot assets change, when a GitHub Release changes, or when manually dispatched. It synchronizes published Release Markdown, repeats validation and deploys `site/dist` to GitHub Pages.
