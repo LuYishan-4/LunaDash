@@ -5,7 +5,7 @@ import CodeBlock from "../../components/CodeBlock.astro";
 <DocsLayout title="Start small. Explore safely." section="start" summary="Build the preview, open it inside your existing desktop, and verify real windows, graphics and clean shutdown before trying a standalone session.">
   <h2 id="linux">Build on Linux</h2>
   <p>LunaDash is developed primarily on Arch Linux, but the installer also recognizes Debian/Ubuntu, Fedora, openSUSE, Alpine, Void and Gentoo package-manager families. Other distributions can use the same standard CMake install path after providing Qt 6.4+, wlroots 0.17–0.20, Wayland, libinput, libxkbcommon, GL, GLib, Ninja and a C++20 compiler.</p>
-  <CodeBlock code={'git clone https://github.com/LuYishan-4/LunaDash.git\ncd LunaDash\n./scripts/install-session.sh --dry-run\n./scripts/install-session.sh'} />
+  <CodeBlock code={'git clone --branch dev https://github.com/LuYishan-4/LunaDash.git\ncd LunaDash\n./scripts/install-session.sh --dry-run\n./scripts/install-session.sh'} />
   <p><code>install-session.sh</code> delegates dependency provisioning to <code>install-dependencies.sh</code>. Arch uses makepkg/pacman; the other recognized distributions build with Ninja and install through CMake. If your package manager is unknown, preinstall the dependencies and use <code>./scripts/install-session.sh --skip-deps</code>. Quickshell 0.3+ is required for the shell and may need to be installed separately when the distribution does not package it.</p>
   <p>On non-systemd systems, install LunaDash normally but enable your display manager with the distribution's own OpenRC/runit procedure instead of <code>--enable-sddm</code>.</p>
 

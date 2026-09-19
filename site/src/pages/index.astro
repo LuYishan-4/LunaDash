@@ -11,7 +11,7 @@ const avatar = "https://luyishan-4-blog.wuming381906.workers.dev/assets/images/a
 
 const dependencies = `./scripts/install-dependencies.sh --dry-run
 ./scripts/install-dependencies.sh`;
-const build = `git clone ${repository}.git
+const build = `git clone --branch dev ${repository}.git
 cd LunaDash
 ./scripts/install-session.sh`;
 const shortcuts: Array<[string, string]> = [
@@ -64,7 +64,7 @@ const shortcuts: Array<[string, string]> = [
   <section class="hero wrap">
     <img class="banner" src={asset("banner.svg")} alt="LunaDash wordmark beside the crescent moon application mark" width="1600" height="400" fetchpriority="high">
     <h1 class="tagline">A moonlit, focused Linux desktop.</h1>
-    <p class="hero-note">LunaDash is a C++20 / OpenGL compositor built on wlroots with a Quickshell / QML shell. Windows live in scrollable columns while the panel brings workspaces, applications, dashboard, launcher, devices and settings together.</p>
+    <p class="hero-note">A Wayland desktop with scrollable window columns and a customizable Quickshell shell. Your workspaces, apps and everyday controls, together.</p>
     <div class="actions">
       <a class="button primary" href="#install">Installation <span aria-hidden="true">↓</span></a>
       <a class="text-link" href={`${base}releases/`}>Release notes ↗</a>
