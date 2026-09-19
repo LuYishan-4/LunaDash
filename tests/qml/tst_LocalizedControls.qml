@@ -46,7 +46,8 @@ Item {
                 verify(item.paintedHeight <= item.height + 1, "Text exceeds height: " + item.text)
             }
             if (item.children)
-                for (const child of item.children) checkText(child)
+                for (let index = 0; index < item.children.length; ++index)
+                    checkText(item.children[index])
         }
         function test_controls(data) {
             for (const factory of [buttonFactory, switchFactory, segmentFactory]) {
@@ -62,7 +63,8 @@ Item {
             const row = createTemporaryObject(rowFactory, parent, {label:data.label})
             verify(row !== null)
             wait(20)
-            for (const control of row.children) {
+            for (let index = 0; index < row.children.length; ++index) {
+                const control = row.children[index]
                 verify(control.x + control.width <= row.width + 1, "Button exceeds its row")
                 checkText(control)
             }
