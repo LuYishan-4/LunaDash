@@ -16,12 +16,14 @@ QWidget *createPluginSettings() {
   titleFont.setPointSize(titleFont.pointSize() + 6);
   titleFont.setBold(true);
   title->setFont(titleFont);
+  title->setObjectName("heading");
   layout->addWidget(title);
 
   auto *tabs = new QTabWidget;
   layout->addWidget(tabs, 1);
 
   auto *installedPage = new QWidget;
+  installedPage->setObjectName("pluginPage");
   auto *installedLayout = new QVBoxLayout(installedPage);
   installedLayout->setContentsMargins(12, 16, 12, 12);
   installedLayout->setSpacing(12);
@@ -31,6 +33,7 @@ QWidget *createPluginSettings() {
       "inside the compositor and require a session restart after changing "
       "their state."));
   hint->setWordWrap(true);
+  hint->setObjectName("description");
   installedLayout->addWidget(hint);
 
   const auto plugins = discoverPlugins();
@@ -44,12 +47,13 @@ QWidget *createPluginSettings() {
 
   for (const auto &plugin : plugins) {
     auto *card = new QFrame;
-    card->setFrameShape(QFrame::StyledPanel);
+    card->setObjectName("pluginCard");
     auto *cardLayout = new QHBoxLayout(card);
     cardLayout->setContentsMargins(14, 12, 14, 12);
     cardLayout->setSpacing(14);
 
     auto *icon = new QLabel;
+    icon->setObjectName("pluginIcon");
     QIcon themed = QIcon::fromTheme(plugin.icon);
     if (!themed.isNull())
       icon->setPixmap(themed.pixmap(42, 42));
@@ -66,6 +70,8 @@ QWidget *createPluginSettings() {
     QFont nameFont = name->font();
     nameFont.setBold(true);
     name->setFont(nameFont);
+    name->setObjectName("pluginName");
+    name->setWordWrap(true);
     textLayout->addWidget(name);
 
     const QString typeLabel = plugin.type == "qml"
@@ -80,14 +86,16 @@ QWidget *createPluginSettings() {
                      ? QStringLiteral(" · ") +
                            LunaDash::translate("Restart required")
                      : QString()));
+    meta->setObjectName("muted");
+    meta->setWordWrap(true);
     meta->setTextInteractionFlags(Qt::TextSelectableByMouse);
     textLayout->addWidget(meta);
 
     auto *description =
         new QLabel(plugin.error.isEmpty() ? plugin.description : plugin.error);
     description->setWordWrap(true);
-    description->setStyleSheet(
-        plugin.error.isEmpty() ? QString() : QStringLiteral("color:#d75f5f"));
+    description->setObjectName(plugin.error.isEmpty() ? "description"
+                                                      : "danger");
     textLayout->addWidget(description);
     cardLayout->addLayout(textLayout, 1);
 
@@ -121,6 +129,7 @@ QWidget *createPluginSettings() {
   tabs->addTab(installedScroll, LunaDash::translate("Installed"));
 
   auto *storePage = new QWidget;
+  storePage->setObjectName("pluginStore");
   auto *storeLayout = new QVBoxLayout(storePage);
   storeLayout->setContentsMargins(30, 30, 30, 30);
   auto *storeTitle =
@@ -129,6 +138,7 @@ QWidget *createPluginSettings() {
   storeFont.setPointSize(storeFont.pointSize() + 3);
   storeFont.setBold(true);
   storeTitle->setFont(storeFont);
+  storeTitle->setWordWrap(true);
   storeTitle->setAlignment(Qt::AlignCenter);
   storeLayout->addStretch();
   storeLayout->addWidget(storeTitle);
@@ -137,6 +147,7 @@ QWidget *createPluginSettings() {
       "plugins and C++ effects can already be discovered from their "
       "manifest.json files."));
   storeDescription->setWordWrap(true);
+  storeDescription->setObjectName("description");
   storeDescription->setAlignment(Qt::AlignCenter);
   storeLayout->addWidget(storeDescription);
   storeLayout->addStretch();

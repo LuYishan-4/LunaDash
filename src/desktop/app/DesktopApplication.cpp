@@ -24,6 +24,7 @@ int DesktopApplication::run(int argc, char **argv) {
   format.setSwapInterval(1);
   QSurfaceFormat::setDefaultFormat(format);
   QApplication app(argc, argv);
+  QApplication::setStyle("Fusion");
   LunaDash::WaylandClientShutdown shutdown(app);
   app.setApplicationName("LunaDash");
   app.setOrganizationName("LunaDash");

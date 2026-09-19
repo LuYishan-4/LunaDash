@@ -11,6 +11,7 @@ int Portal::run(int argc, char **argv) {
   qputenv("QT_QPA_PLATFORMTHEME", "generic");
   qunsetenv("GTK_USE_PORTAL");
   QApplication app(argc, argv);
+  QApplication::setStyle("Fusion");
   app.setQuitOnLastWindowClosed(false);
   app.setApplicationName(QStringLiteral("LunaDash File Chooser"));
   app.setOrganizationName(QStringLiteral("LunaDash"));

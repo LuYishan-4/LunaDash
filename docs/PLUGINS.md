@@ -67,3 +67,5 @@ The native example is in `src/compositor/plugins/fade/FadePlugin.hpp`, `src/comp
 The loader validates JSON size, ID, API/type, canonical entry paths, and the Qt plugin IID for native effects. There is currently no signing or sandbox for C++ effects, so enabling one explicitly trusts its native code.
 
 Metadata discovery lives in `src/config/plugins/PluginCatalog`, independently of the compositor loader. The C++ namespace is now `LunaDash`; rebuild native plugins against the current header. The retained effect interface uses Qt Quick items and is not yet connected to wlroots scene-window callbacks. Loading a native module does not establish that its visual effects are active in the wlroots session.
+
+Built-in plugin and portal file chooser windows use the shell palette, rounded controls, and the configured font and accent. Open windows follow appearance changes. These Qt Widgets windows use opaque surfaces; compositor blur and QML motion effects are not reproduced. External applications that bypass the LunaDash portal use their own file chooser theme.

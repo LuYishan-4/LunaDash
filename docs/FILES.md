@@ -99,3 +99,5 @@ They cover extension rules, corrupt-config preservation, first-use prompts,
 selection/context behavior, the shared clipboard, directories and symlinks,
 no-overwrite and recursion checks, special-file rejection, same-filesystem moves,
 and desktop-launch arguments containing quotes and shell metacharacters.
+
+Built-in plugin and portal file chooser windows use the shell palette, rounded controls, and the configured font and accent. Open windows follow appearance changes. These Qt Widgets windows use opaque surfaces; compositor blur and QML motion effects are not reproduced. External applications that bypass the LunaDash portal use their own file chooser theme.

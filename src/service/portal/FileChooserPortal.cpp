@@ -51,6 +51,7 @@ QVariantMap uriResults(const QStringList &paths) {
 void styleDialog(QFileDialog &dialog) {
   dialog.setOption(QFileDialog::DontUseNativeDialog, true);
   dialog.setOption(QFileDialog::DontResolveSymlinks, false);
+  dialog.resize(880, 580);
   LunaDash::watchDesktopTheme(&dialog);
 }
 } // namespace
