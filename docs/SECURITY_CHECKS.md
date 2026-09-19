@@ -1,10 +1,11 @@
 # Security and crash checks
 
-The build and security workflows run on pull requests, pushes to `main`, merge groups and manual dispatch. Core checks have no path filter. Pull-request code executes on GitHub-hosted runners, never through `pull_request_target`; checkout does not retain credentials. Only CodeQL has `security-events: write`. The website deployment workflow is the only one with `pages: write` and `id-token: write`; it is path-filtered to website changes and runs on `main` pushes and manual dispatch, never on pull requests.
+Core build/runtime workflows run on pushes, pull requests, merge groups and manual dispatch. Source architecture also runs on `dev`/`main` pushes. Expensive PR analysis is path-scoped; inspect the exact workflow and commit result instead of assuming a push ran every PR-only analyzer. Pull-request code executes on GitHub-hosted runners, never through `pull_request_target`; checkout does not retain credentials. Only CodeQL has `security-events: write`. The website deployment workflow is the only one with `pages: write` and `id-token: write`; it is path-filtered to website changes and runs on `main` pushes and manual dispatch, never on pull requests.
 
 | Check | Coverage | Failure condition |
 | --- | --- | --- |
-| Ubuntu build | Ubuntu 24.04 backend build and desktop OpenGL smoke test | Nonzero build or graphics test exit |
+| Ubuntu build | Ubuntu 24.04 C/C++ build, file tests and architecture checks | Nonzero build/test exit |
+| Source architecture | Naming, dependency direction, GL ownership and explicit source/resource inventory | Any architecture violation |
 | Workflow policy and style | Workflow structure, permissions, credential persistence and unsafe triggers | Policy or style violation |
 | Credential and personal path scan | API keys, tokens, private keys and user-specific filesystem paths in source/configuration | Any high-confidence match |
 | Source language and shell style | English source policy, shell syntax and shellcheck errors | Any violation |
@@ -14,13 +15,13 @@ The build and security workflows run on pull requests, pushes to `main`, merge g
 
 CodeQL builds a real CMake database including Qt/moc. A completed analysis is not the same as no findings: `scripts/security/check_sarif.py` makes reported findings fail the job without printing source snippets. Public repositories or appropriately licensed private repositories are required for GitHub code scanning. Setup/licensing failures remain visible failures. The CodeQL job also grants `actions: read`, which its workflow-run lookup needs in private repositories (see the [official workflow template](https://github.com/actions/starter-workflows/blob/main/code-scanning/codeql.yml)). Exported SARIF files are checked even when the analysis upload step fails; the failed upload still fails the job.
 
-The Ubuntu build job tests desktop OpenGL loading with the software Mesa driver. Dynamic checks cover only executed paths; static analysis is not a proof that the application is secure.
+Main OpenGL tests the separately built renderer with software Mesa and a staged test installation; wlroots session tests select headless pixman. Dynamic checks cover only executed paths; static analysis is not a proof that the application is secure.
 
 Ubuntu 24.04 static analysis uses the distribution's Clang and clang-tidy packages. The workflow first runs `tests/security/test_analyzer.py`, which requires both a valid Qt guard to pass and an intentionally invalid lifetime to fail with `clang-analyzer-cplusplus.NewDelete`. No check is disabled and warnings remain errors.
 
 ## Require checks on GitHub
 
-After the workflows have run, configure repository Rulesets / Branch protection to require **Ubuntu 24.04 build and OpenGL smoke test**, **C/C++ static analysis**, and **CodeQL security analysis**. YAML alone cannot enable branch protection. The repository includes configuration, not a claim that remote policies have been enabled.
+After the workflows have run, configure repository Rulesets / Branch protection to require the current build/runtime jobs plus the website, architecture and relevant PR analysis jobs. YAML alone cannot enable branch protection. The repository includes configuration, not a claim that remote policies have been enabled.
 
 ## Local checks
 
@@ -36,6 +37,6 @@ LUDASH_GRAPHICS=opengl LUDASH_TEST_NO_SHELL=1 \
   LUDASH_BUILD_DIR="$PWD/build-checked" ./scripts/test-wayland.sh
 ```
 
-The graphics smoke test uses Xvfb/Mesa and does not verify physical GPU drivers or a complete standalone login session.
+The command above checks a headless wlroots pixman session. For the separate Xvfb/Mesa OpenGL regression, use the commands in [Graphics](GRAPHICS.md). Neither verifies physical GPU drivers or a complete standalone login session.
 
 References: [CodeQL builds](https://docs.github.com/en/code-security/reference/code-scanning/codeql/build-options-for-compiled-languages), [clang-tidy](https://clang.llvm.org/extra/clang-tidy/index.html).

@@ -7,7 +7,7 @@ feature catalogs in `data/translations/zh_TW/`. New catalog files must be listed
 The same merged dictionary feeds native Qt translations and shell status snapshots.
 English and unknown application text fall back to the source string.
 
-Use `shell.tr(source)` in QML and `LuDash::translate(source)` in native UI code.
+Use `shell.tr(source)` in QML and `LunaDash::translate(source)` in native UI code.
 Translate a template before substituting variables, for example
 `shell.tr("Switch to workspace %1").arg(number)`. Preserve every placeholder.
 Do not translate serialized shortcut sequences, channel IDs, font-family values,

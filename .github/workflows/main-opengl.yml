@@ -29,7 +29,15 @@ jobs:
                   python3 tests/renderer/test_shader_extensions.py
                   python3 tests/renderer/test_shader_diagnostics.py
             - name: Build renderer and compositor
-              run: cmake -S . -B build-opengl -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-opengl --parallel 2
+              run: cmake -S . -B build-opengl -G Ninja -DCMAKE_BUILD_TYPE=Release -DLUDASH_BUILD_RENDERER_TESTS=ON && cmake --build build-opengl --parallel 2
+            - name: Test renderer resources and failure cleanup
+              run: ctest --test-dir build-opengl --output-on-failure -R '^lunadash-renderer$'
+            - name: Test installed shaders with software OpenGL
+              run: |
+                  cmake --install build-opengl --prefix "$RUNNER_TEMP/renderer-install" --component Tests
+                  cd "$RUNNER_TEMP"
+                  QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
+                    "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
             - name: Run wlroots session smoke test
               run: |
                   # Xvfb on GitHub runners has no DRI3/DRM render node, so a

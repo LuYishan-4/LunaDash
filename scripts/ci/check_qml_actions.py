@@ -5,12 +5,12 @@ import sys
 
 root = Path(__file__).resolve().parents[2]
 qml_root = root / "qml"
-compositor = (root / "src/compositor/WaylandCompositor/WaylandCompositor.cpp").read_text(encoding="utf-8")
-desktop = (root / "src/desktop/desktop_main.cpp").read_text(encoding="utf-8")
+compositor = (root / "src/compositor/wayland/WaylandCompositor.cpp").read_text(encoding="utf-8")
+desktop = (root / "src/desktop/app/DesktopApplication.cpp").read_text(encoding="utf-8")
 shell = (qml_root / "shell.qml").read_text(encoding="utf-8")
 cmake_text = "\n".join(
     path.read_text(encoding="utf-8")
-    for path in (root / "cmake").glob("*.cmake")
+    for path in (root / "cmake").rglob("*.cmake")
 )
 
 supported_methods = set(re.findall(r'method\s*==\s*"([^"]+)"', compositor))

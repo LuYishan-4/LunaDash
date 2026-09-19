@@ -19,11 +19,11 @@ for flag in cflags:
 sources = {
     "valid_guard": """#include <QObject>
 #include <QPointer>
-namespace LuDash {
+namespace LunaDash {
 void watch(QObject* object) { const QPointer<QObject> guard(object); }
 }
 """,
-    "invalid_lifetime": """namespace LuDash {
+    "invalid_lifetime": """namespace LunaDash {
 int readAfterFree() { int* value = new int(7); delete value; return *value; }
 }
 """,

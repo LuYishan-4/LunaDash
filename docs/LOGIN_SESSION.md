@@ -2,7 +2,7 @@
 
 [Traditional Chinese guide](LOGIN_SESSION.zh-TW.md)
 
-LunaDash is a development preview. The installer registers a real Wayland login entry, but nested testing does not prove that every physical EGLFS/KMS GPU, input-seat, VT or display-manager combination works. Keep another desktop or TTY available during evaluation.
+LunaDash is a development preview. The installer registers a real Wayland login entry, but nested testing does not prove that every physical DRM/KMS GPU, input-seat, VT or display-manager combination works. Keep another desktop or TTY available during evaluation.
 
 ## Supported installer paths
 
@@ -77,9 +77,9 @@ Auto-login writes only `/etc/sddm.conf.d/90-ludash-autologin.conf` with `Session
 
 ## Startup and configuration
 
-The installed entry is `/usr/share/wayland-sessions/lunadash.desktop`. It calls `/usr/bin/lunadash-session`, which starts a private D-Bus session and the compositor using Qt EGLFS/KMS. After the Wayland socket exists, the compositor prepares an environment for Quickshell, optional Fcitx5 and applications. The session publishes display and input-method variables to its private D-Bus and, when available, the systemd user manager.
+The installed entry is `/usr/share/wayland-sessions/lunadash.desktop`. It calls `/usr/bin/lunadash-session`, which starts a private D-Bus session and the compositor using the wlroots DRM/KMS backend. After the Wayland socket exists, the compositor prepares an environment for Quickshell, optional Fcitx5 and applications. The session publishes display and input-method variables to its private D-Bus and, when available, the systemd user manager.
 
-A nested compositor started directly from another desktop keeps the host activation environment untouched. Quickshell and applications connect to LunaDash through Wayland. GLES 3 is the standalone default; `LUDASH_GRAPHICS=opengl` requests OpenGL 3.3 compatibility instead. A suitable GPU driver and Qt EGLFS/KMS platform integration are required. Package installation does not create GPU/input permissions; those come from PAM/logind/seat configuration. Do not work around permission failures by running LunaDash as root or making device nodes world-writable.
+A nested compositor started directly from another desktop keeps the host activation environment untouched. Quickshell and applications connect to LunaDash through Wayland. GLES 3 is the standalone default; `LUDASH_GRAPHICS=opengl` requests OpenGL 3.3 compatibility instead. A suitable GPU driver and Qt DRM/KMS platform integration are required. Package installation does not create GPU/input permissions; those come from PAM/logind/seat configuration. Do not work around permission failures by running LunaDash as root or making device nodes world-writable.
 
 From a normal login, check installed commands and runtime paths:
 

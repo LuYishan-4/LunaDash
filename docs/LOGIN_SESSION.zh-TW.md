@@ -2,7 +2,7 @@
 
 這份文件說明如何安裝 LunaDash，讓電腦開機後能從登入畫面進入 LunaDash，以及如何選擇自動登入。
 
-**目前 LunaDash 仍是開發預覽版。** 已有巢狀 Wayland 測試結果，但實體 GPU 的 EGLFS/KMS 啟動、輸入裝置權限與 VT 切換尚未完成驗證。鎖定畫面、多螢幕、完整桌面 portal 與 polkit 驗證代理也尚未完成。測試期間請保留原本可使用的桌面。
+**目前 LunaDash 仍是開發預覽版。** 已有巢狀 Wayland 測試結果，但實體 GPU 的 wlroots DRM/KMS 啟動、輸入裝置權限與 VT 切換尚未完成驗證。鎖定畫面、多螢幕、完整桌面 portal 與 polkit 驗證代理也尚未完成。測試期間請保留原本可使用的桌面。
 
 ## 1. 先選擇你的使用方式
 
@@ -91,7 +91,7 @@ Arch 套件會安裝這些入口：
 | 檔案 | 用途 |
 | --- | --- |
 | `/usr/share/wayland-sessions/lunadash.desktop` | 讓登入管理器列出 LunaDash 工作階段 |
-| `/usr/bin/lunadash-session` | 檢查環境、建立日誌，透過 EGLFS/KMS 與 D-Bus 啟動桌面 |
+| `/usr/bin/lunadash-session` | 檢查環境、建立日誌，透過 wlroots DRM/KMS 與 D-Bus 啟動桌面 |
 | `/usr/bin/lunadash-compositor` | 管理 Wayland 視窗、平鋪與合成繪製 |
 | `/usr/bin/lunadash-desktop` | 啟動 LunaDash 內建應用程式 |
 | `/usr/bin/lunadashctl` | 向執行中的桌面傳送控制指令 |

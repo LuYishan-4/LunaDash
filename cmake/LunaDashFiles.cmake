@@ -1,13 +1,13 @@
 # Desktop-entry parsing, field-code expansion and MIME defaults belong to GIO.
 # Avoid launching a raw Exec string through a shell.
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-unix-2.0)
-add_library(ludash-file-associations src/desktop/FileAssociations/FileAssociations.cpp)
+add_library(ludash-file-associations src/desktop/filemanager/FileAssociations.cpp)
 target_include_directories(ludash-file-associations PUBLIC src)
 target_link_libraries(ludash-file-associations PUBLIC ludash-localization Qt6::Core PRIVATE PkgConfig::GIO)
 target_sources(ludash-apps PRIVATE
-    src/desktop/FileAssociationUi/FileAssociationUi.cpp
-    src/desktop/LegacyFileAssociations/LegacyFileAssociations.cpp
-    src/desktop/FileManagerActions/FileManagerActions.cpp
+    src/desktop/filemanager/FileAssociationUi.cpp
+    src/desktop/filemanager/LegacyFileAssociations.cpp
+    src/desktop/filemanager/FileManagerActions.cpp
 )
 target_link_libraries(ludash-apps PUBLIC ludash-file-associations)
 option(LUDASH_BUILD_FILES_TESTS "Build file manager and association regression tests" OFF)

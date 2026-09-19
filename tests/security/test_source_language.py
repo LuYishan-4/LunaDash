@@ -6,7 +6,7 @@ root = pathlib.Path(__file__).resolve().parents[2]
 violations = []
 for directory in ('src', 'include', 'qml'):
     for path in (root / directory).rglob('*'):
-        if path.suffix in {'.cpp', '.c', '.h', '.qml'} and re.search(r'[\u3400-\u9fff]', path.read_text()):
+        if path.suffix in {'.cpp', '.c', '.h', '.hpp', '.qml'} and re.search(r'[\u3400-\u9fff]', path.read_text()):
             violations.append(str(path.relative_to(root)))
 for path in [root / 'README.md', root / 'AGENTS.md', *(root / 'docs').glob('*.md'),
              root / '.github/pull_request_template.md', *(root / 'site').glob('*'), *(root / 'site/src').rglob('*')]:

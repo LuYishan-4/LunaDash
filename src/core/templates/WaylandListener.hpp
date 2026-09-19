@@ -4,7 +4,7 @@ extern "C" {
 #include <wayland-server-core.h>
 }
 
-namespace LuDash::Templates {
+namespace LunaDash::Templates {
 
 template <typename Owner> struct ListenerSlot {
   wl_listener listener{};
@@ -40,4 +40,4 @@ template <typename Owner> Owner *listenerOwner(wl_listener *listener) {
   return slot ? slot->owner : nullptr;
 }
 
-} // namespace LuDash::Templates
+} // namespace LunaDash::Templates

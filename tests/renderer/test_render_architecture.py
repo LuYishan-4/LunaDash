@@ -1,67 +1,31 @@
-"""Keep the render tree modular and extension-oriented."""
-
+"""Validate the renderer's public boundary, resources and build targets."""
 from pathlib import Path
+import subprocess
+import sys
 
 root = Path(__file__).resolve().parents[2]
-render = root / "src" / "compositor" / "render"
-
-required = {
-    "renderer": [
-        "Renderer.hpp", "Renderer.cpp", "WallpaperElement.hpp",
-        "WallpaperElement.cpp", "WallpaperRenderer.hpp", "WallpaperRenderer.cpp",
-    ],
-    "gl": [
-        "GLContext.hpp", "GLContext.cpp", "GLDispatch.h", "GLDispatch.c",
-        "RenderBuffer.hpp", "RenderBuffer.cpp", "FrameBuffer.hpp", "FrameBuffer.cpp",
-    ],
-    "shader": [
-        "ShaderAsset.hpp", "ShaderAsset.cpp", "ShaderProgram.hpp", "ShaderProgram.cpp",
-    ],
-    "element": ["ElementRender.hpp"],
-    "async": ["RenderAsync.hpp"],
-    "blur": [
-        "BlurPass.hpp", "BlurPass.cpp", "BlurNode.hpp", "BlurNode.cpp",
-        "BlurItem.hpp", "BlurItem.cpp", "BlurGeometry.hpp", "BlurGeometry.cpp",
-    ],
-    "decorations": [
-        "DecorationElement.hpp", "DecorationElement.cpp",
-        "WindowAnimations.hpp", "WindowAnimations.cpp",
-        "SceneWindowAnimations.hpp", "SceneWindowAnimations.cpp",
-    ],
-}
-
-for folder, files in required.items():
-    for name in files:
-        path = render / folder / name
-        assert path.is_file(), f"Missing render module: {path.relative_to(root)}"
-
-legacy = [
-    "RenderBackend", "GLDispatch", "ShaderProgram", "BlurPass", "BlurNode",
-    "BlurItem", "BlurGeometry", "WallpaperRenderer", "WallpaperItem",
-    "WallpaperPass", "ShellRenderer", "WindowAnimations",
-]
-for folder in legacy:
-    assert not (render / folder).exists(), f"Legacy render folder still exists: {folder}"
-
-element = (render / "element" / "ElementRender.hpp").read_text(encoding="utf-8")
-assert "template <typename Element" in element
-assert "std::derived_from<Element, ElementRender>" in element
-
-wayland_template = root / "src" / "core" / "templates" / "WaylandListener.hpp"
-assert wayland_template.is_file(), "Reusable Wayland listener template is missing"
-wayland = (
-    root / "src" / "compositor" / "WaylandCompositor" / "WaylandCompositor.cpp"
-).read_text(encoding="utf-8")
-assert '#include "core/templates/WaylandListener.hpp"' in wayland
-assert "template <typename Owner> struct ListenerSlot" not in wayland
-assert "SceneWindowAnimations" in wayland
-assert '{"activeAnimations", 0}' not in wayland
-
-cmake = (root / "cmake" / "LunaDashMain.cmake").read_text(encoding="utf-8")
-for target in (
-    "ludash-render-gl", "ludash-render-shader", "ludash-render-core",
-    "ludash-renderer", "ludash-blur", "ludash-animation",
+subprocess.run([sys.executable, str(root / "scripts/check-source-layout.py")], check=True)
+renderer = root / "src/compositor/renderer"
+for name in (
+    "Renderer.cpp", "Renderer.hpp", "RendererConfig.hpp", "RendererTypes.hpp",
+    "opengl/OpenGL.cpp", "opengl/GLDispatch.c", "opengl/Shader.cpp",
+    "opengl/Program.cpp", "opengl/Texture.cpp", "opengl/Framebuffer.cpp",
+    "opengl/ShaderAsset.cpp", "element/ElementRender.hpp", "async/RenderAsync.hpp",
+    "blur/BlurItem.cpp", "blur/BlurGeometry.cpp", "opengl/blur/BlurPass.cpp",
+    "opengl/blur/BlurNode.cpp", "opengl/wallpaper/WallpaperElement.cpp",
+    "opengl/decoration/DecorationElement.cpp",
 ):
-    assert target in cmake, f"Missing modular render target {target}"
-
-print("Render architecture checks passed")
+    assert (renderer / name).is_file(), name
+for name in ("Feature.hpp", "Module.hpp", "Renderer.hpp", "WaylandListener.hpp"):
+    assert (root / "src/core/templates" / name).is_file(), name
+runtime = (root / "src/compositor/wayland/Runtime.hpp").read_text()
+assert '"core/templates/WaylandListener.hpp"' in runtime
+assert "template <typename Owner> struct ListenerSlot" not in runtime
+cmake = (root / "cmake/modules/Renderer.cmake").read_text()
+for target in ("ludash-render-gl", "ludash-render-shader", "ludash-render-core", "ludash-renderer", "ludash-blur", "ludash-animation"):
+    assert target in cmake, target
+assert "src/compositor/animation/SceneWindowAnimations.cpp" in cmake
+assert "PREFIX /LunaDash/renderer/shaders" in cmake
+assert "LUDASH_RENDERER_OPENGL=1" in cmake
+assert "file(GLOB" not in cmake, "Renderer sources/resources must be explicit"
+print("Renderer boundaries and embedded resource build passed")

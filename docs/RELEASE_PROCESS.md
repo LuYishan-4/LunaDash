@@ -15,7 +15,7 @@ PR CI is split by cost:
 
 - **PR policy gate** always checks the base branch and required documentation/site updates.
 - **Repository hygiene** runs for every PR targeting `dev`.
-- **Source/QML style** runs only when source, QML, scripts, tests, or build files change.
+- **Source/QML style** checks source architecture on `dev`/`main` pushes and on source-scoped PRs.
 - **Qt lifetime**, **Clang-Tidy**, and **CodeQL** run only when C/C++ or build-system code changes.
 - **Website build** runs for PRs targeting `dev` because every PR must include a `site/` update.
 
@@ -73,3 +73,9 @@ feature/fix branch -> PR -> dev -> stabilization -> main -> release tag
 ```
 
 `main` is the release branch. Ordinary feature/fix PRs do not target `main` directly.
+
+## Architecture migration release checks
+
+Before promoting the refactor, inspect every workflow run for its exact commit SHA, including website, source architecture and the distribution matrix. Build a source archive and stage a normal CMake installation; verify executables, compatibility aliases, session/portal entries, QML and translations. Built-in shaders are embedded from `renderer/opengl/shaders` and must not require a checkout after installation. The optional `Tests` install component exercises the relocated renderer executable and is not part of normal packages.
+
+Release notes should mention the `LunaDash` C++ namespace, colocated PascalCase interfaces and domain-local entrypoints for contributors/plugin authors. Existing user settings and executable names remain compatible. Keep native effects disabled by default and rebuild external native plugins against the current header. Publish only validation actually performed: software OpenGL/pixman and distribution builds do not establish physical GPU, input-seat, Chrome/Zed, multiple-output or display-manager support. The architecture refactor does not turn the development desktop into a production-ready KDE replacement.

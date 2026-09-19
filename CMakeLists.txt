@@ -9,7 +9,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashShellTool.cmake)
 # compositor unbuildable when only libxkbcommon is packaged.
 pkg_check_modules(XKBREGISTRY QUIET IMPORTED_TARGET xkbregistry)
 if(XKBREGISTRY_FOUND)
-    target_compile_definitions(ludash-input-settings PRIVATE LUDASH_USE_XKBREGISTRY=1)
+    target_compile_definitions(ludash-input-settings PRIVATE LUDASH_HAS_XKBREGISTRY=1)
     target_link_libraries(ludash-input-settings PRIVATE PkgConfig::XKBREGISTRY)
 endif()
 
@@ -18,3 +18,5 @@ endif()
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashExtras.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashFiles.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashTranslations.cmake)
+
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/modules/Tests.cmake)

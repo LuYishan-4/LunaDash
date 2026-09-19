@@ -5,8 +5,8 @@ import re
 
 root = Path(__file__).resolve().parents[2]
 roots = [
-    root / "src" / "compositor",
-    root / "src" / "desktop" / "InputSettings",
+    root / "src/compositor",
+    root / "src/desktop/input",
     root / "cmake",
 ]
 patterns = (
@@ -26,21 +26,18 @@ for base in roots:
 
 assert not violations, "QtWayland compositor dependency remains:\n" + "\n".join(violations)
 
-cmake = (root / "cmake" / "LunaDashMain.cmake").read_text(encoding="utf-8")
+cmake = (root / "cmake/LunaDashMain.cmake").read_text(encoding="utf-8")
 assert "PkgConfig::WLROOTS" in cmake
 assert "WLR_USE_UNSTABLE" in cmake
 assert "Qt6::WaylandCompositor" not in cmake
 
-compat = (root / "src" / "compositor" / "wlroots" / "WlrootsCompat.hpp").read_text(
+compat = (root / "src/compositor/wayland/wlroots/WlrootsCompat.hpp").read_text(
     encoding="utf-8"
 )
-compositor = (
-    root
-    / "src"
-    / "compositor"
-    / "WaylandCompositor"
-    / "WaylandCompositor.cpp"
-).read_text(encoding="utf-8")
+compositor = "\n".join(
+    (root / "src/compositor/wayland" / name).read_text(encoding="utf-8")
+    for name in ("Runtime.cpp", "Surface.cpp", "WaylandCompositor.cpp")
+)
 
 assert "xdgToplevelDestroySignal" in compat
 assert re.search(
@@ -51,8 +48,8 @@ assert re.search(
 ), "xdg-toplevel destroy compatibility must preserve wlroots 0.17 and >=0.18 lifetimes"
 assert "WlrootsCompat::xdgToplevelDestroySignal(surface, toplevel)" in compositor
 
-destroy_start = compositor.index("static void handleToplevelDestroy")
-destroy_end = compositor.index("static void handleNewLayerSurface", destroy_start)
+destroy_start = compositor.index("void WaylandCompositor::Impl::handleToplevelDestroy")
+destroy_end = compositor.index("void WaylandCompositor::Impl::handleNewLayerSurface", destroy_start)
 destroy_block = compositor[destroy_start:destroy_end]
 for listener in (
     "map",

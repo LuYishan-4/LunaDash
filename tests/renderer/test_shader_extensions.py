@@ -3,18 +3,18 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-cmake = (root / "cmake" / "LunaDashMain.cmake").read_text(encoding="utf-8")
+cmake = (root / "cmake/modules/Renderer.cmake").read_text(encoding="utf-8")
 asset_loader = (
-    root / "src" / "compositor" / "render" / "shader" / "ShaderAsset.cpp"
+    root / "src/compositor/renderer/opengl/ShaderAsset.cpp"
 ).read_text(encoding="utf-8")
 renderer = (
-    root / "src" / "compositor" / "render" / "renderer" / "Renderer.cpp"
+    root / "src/compositor/renderer/Renderer.cpp"
 ).read_text(encoding="utf-8")
 wallpaper = (
-    root / "src" / "compositor" / "render" / "renderer" / "WallpaperElement.cpp"
+    root / "src/compositor/renderer/opengl/wallpaper/WallpaperElement.cpp"
 ).read_text(encoding="utf-8")
 blur = (
-    root / "src" / "compositor" / "render" / "blur" / "BlurPass.cpp"
+    root / "src/compositor/renderer/opengl/blur/BlurPass.cpp"
 ).read_text(encoding="utf-8")
 
 expected = {
@@ -22,10 +22,6 @@ expected = {
     "vsh", "fsh", "gsh", "csh", "vs", "fs", "gs", "cs",
     "glsl", "glal", "shader",
 }
-
-section = cmake.split("set(LUDASH_OPENGL_SHADER_EXTENSIONS", 1)[1].split(")", 1)[0]
-missing_resources = sorted(ext for ext in expected if ext not in section.split())
-assert not missing_resources, f"Missing shader resource suffixes: {missing_resources}"
 
 aliases = {
     "vertex": ("vert", "vertex", "vsh", "vs"),
@@ -42,25 +38,26 @@ for stage, tokens in aliases.items():
 for generic in ('"glsl"', '"glal"', '"shader"', "#pragma ludash_stage"):
     assert generic in asset_loader, f"Generic shader handling is missing {generic}"
 
-shader_root = root / "data" / "shaders"
+shader_root = root / "src/compositor/renderer/opengl/shaders"
 assets = [path for path in shader_root.rglob("*") if path.is_file()]
 assert assets, "No shader assets found"
 for path in assets:
     suffix = path.suffix.lstrip(".").lower()
+    assert str(path.relative_to(root)) in cmake, f"Shader missing from CMake: {path}"
     assert suffix in expected, f"Unrecognized shader asset suffix: {path}"
 
-assert (shader_root / "gl" / "fullscreen.vert").is_file()
-assert (shader_root / "renderer" / "wallpaper.frag.glal").is_file()
-assert (shader_root / "blur" / "blur.frag").is_file()
-assert (shader_root / "decorations" / "solid.frag").is_file()
+assert (shader_root / "Fullscreen.vert").is_file()
+assert (shader_root / "Wallpaper.frag").is_file()
+assert (shader_root / "Blur.frag").is_file()
+assert (shader_root / "Decoration.frag").is_file()
 
 assert "ShaderAssetLoader::loadMany" in renderer
-assert "renderer/wallpaper.frag.glal" in wallpaper
-assert "gl/fullscreen.vert" in wallpaper
-assert "blur/blur.frag" in blur
-assert "gl/fullscreen.vert" in blur
+assert "Wallpaper.frag" in wallpaper
+assert "Fullscreen.vert" in wallpaper
+assert "Blur.frag" in blur
+assert "Fullscreen.vert" in blur
 
-for path in (root / "src" / "compositor" / "render").rglob("*"):
+for path in (root / "src/compositor/renderer").rglob("*"):
     if path.suffix not in {".c", ".cpp", ".h", ".hpp"}:
         continue
     text = path.read_text(encoding="utf-8")

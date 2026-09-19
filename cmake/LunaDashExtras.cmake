@@ -10,7 +10,10 @@ install(PROGRAMS scripts/lunadash-update DESTINATION ${CMAKE_INSTALL_BINDIR})
 # second executable target here caused Ninja to see two rules producing the
 # same lunadash-shell-tool output.
 
-add_executable(lunadash-portal src/service/portal_main.cpp)
+add_executable(lunadash-portal src/service/portal/Main.cpp
+    src/service/portal/Portal.cpp
+    src/service/portal/FileChooserPortal.cpp
+    src/service/portal/FileChooserPortal.hpp)
 target_link_libraries(lunadash-portal PRIVATE ludash-apps Qt6::Widgets Qt6::DBus)
 set_target_properties(lunadash-portal PROPERTIES OUTPUT_NAME xdg-desktop-portal-lunadash)
 

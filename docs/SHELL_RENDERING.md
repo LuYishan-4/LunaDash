@@ -1,51 +1,20 @@
-# Shell rendering and NVIDIA compatibility
+# Shell rendering
 
-The compositor and Quickshell render in separate processes. `--graphics opengl|gles` selects the compositor API and its wallpaper/blur shaders. `LUDASH_SHELL_RENDERER` selects only Quickshell's Qt Quick backend:
+Quickshell and the compositor are separate processes with independent rendering. The compositor uses wlroots. The shell uses Qt Quick and inherits session rendering variables; `SessionEnvironment` defaults `QSG_RHI_BACKEND` to `opengl` when neither it nor `QT_QUICK_BACKEND` is specified.
 
-| Value | Behavior |
-| --- | --- |
-| `auto` (default) | Software when `/proc/driver/nvidia/version` exists; OpenGL otherwise. |
-| `software` | CPU-rendered Quickshell surfaces; the compositor retains its requested GPU API and effects. |
-| `opengl` | GPU-rendered Quickshell, including on NVIDIA. |
-
-Detection is deliberately conservative on hybrid systems with a loaded NVIDIA driver. Explicit overrides take precedence. Invalid values fail startup with code 2. The selected backend is logged as `LuDash shell renderer: ...`. Changes apply when starting a new session.
+For a manual software-shell comparison in a nested session:
 
 ```sh
-# Nested session from an existing Wayland desktop:
-env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE \
-  LUDASH_SHELL_RENDERER=software QT_QPA_PLATFORM=wayland \
-  ./build/lunadash-compositor --graphics gles
-
-# Manual GPU-shell comparison on a driver that supports it:
-LUDASH_SHELL_RENDERER=opengl LUDASH_TEST_HOST_WAYLAND=1 \
-  python3 tests/wayland/test_resource_lifetime.py build
+QT_QUICK_BACKEND=software LUDASH_TEST_HOST_WAYLAND=1 \
+  LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
 ```
 
-Software rendering can increase CPU usage. Custom QML modules using GPU-only effects must provide their own software fallback. The bundled LunaDash logo therefore reveals with opacity only in this mode: an animated scale or rotation leaves stale pixels behind because the software renderer's damage tracking does not cover the old transformed bounds. This compatibility mode limits the affected shell buffer path; it does not repair the driver or guarantee resource safety for other GPU-rendered Wayland applications.
+Software rendering can increase CPU usage, and custom GPU-only QML effects need a fallback. The retained `shell/runtime/ShellRenderer` policy helper is compiled, but the current wlroots startup path does not call it; do not assume `LUDASH_SHELL_RENDERER=auto` activates NVIDIA detection in this path.
 
-## Shader asset conventions
+Earlier NVIDIA/Qt observations motivated that compatibility helper and descriptor-soak tests. Those historical measurements are not evidence for the current wlroots renderer or every driver. Diagnose the current process and preserve its logs before making hardware claims. `QProcess: Cannot create pipe (Too many open files)` indicates resource exhaustion, not necessarily a missing executable.
 
-LunaDash keeps GLSL in `data/shaders/` as shader files rather than C/C++ string literals. The renderer resource scan accepts `.vert`, `.frag`, `.geom`, `.comp`, `.tesc`, `.tese` and the aliases `.vsh`, `.fsh`, `.gsh`, `.csh`, `.vs`, `.fs`, `.gs`, `.cs`, plus generic `.glsl` and `.shader` files. A generic suffix must either keep a stage-specific suffix before it (for example `blur.frag.glsl`) or declare `#pragma ludash_stage fragment` near the start of the file.
+## Built-in GLSL
 
-The shader loader chooses the minimum GLSL language level implied by the stage when the source does not contain its own `#version`: desktop vertex/fragment/geometry use GLSL 330, tessellation uses 400, compute uses 430; GLES vertex/fragment use 300 ES, compute uses 310 ES, and geometry/tessellation use 320 ES. The active GL context still has to support that stage. The current wallpaper and blur passes remain ordinary `.vert` + `.frag` programs.
+The separate Qt render-element library embeds explicitly listed shaders from `src/compositor/renderer/opengl/shaders/`. `ShaderAssetLoader` recognizes vertex/fragment/geometry/compute/tessellation suffixes and aliases, including `.glsl`, `.glal` and `.shader` when a stage suffix or `#pragma ludash_stage` supplies the stage. The loader adds an appropriate GLSL version when absent; the active context must support it.
 
-## Why the default changed
-
-On the tested NVIDIA 615.71.09 / Qt 6.11.2 host, GPU-backed Quickshell and the compositor accumulated `anon_inode:sync_file` descriptors during sustained rendering. Eventually, helpers could no longer create pipes. Quickshell's generic `likely because the binary could not be found` message was accompanied by `QProcess: Cannot create pipe (Too many open files)`; reinstalling `lunadashctl` would not fix descriptor exhaustion.
-
-A 40-second diagnostic comparison with software Quickshell kept its fence count at zero and the compositor at two or three fences before teardown. Disabling explicit synchronization alone did not prevent growth in the longer comparison, so LunaDash does not set that driver workaround. These observations establish an effective workaround on the tested configuration, not the exact defect inside the driver or Qt. Raising the descriptor limit only delays exhaustion. Rebuild and restart LunaDash to apply the fix to an existing session.
-
-## Sustained resource regression
-
-```sh
-# Headless Mesa check, also configured in Arch CI:
-xvfb-run -a -s '-screen 0 1440x900x24' \
-  python3 tests/wayland/test_resource_lifetime.py build
-
-# Actual host Wayland/GPU path, with automatic shell compatibility selection:
-LUDASH_TEST_HOST_WAYLAND=1 python3 tests/wayland/test_resource_lifetime.py build
-```
-
-The test uses private runtime/configuration directories, creates three native clients, changes the accent every second and samples only its own compositor and Quickshell. After a six-second warmup, growth above 96 file descriptors or 32 synchronization fences fails the test. It also requires a normal session exit and rejects graphics/pipe-exhaustion diagnostics. `LUDASH_SOAK_SECONDS` accepts 30 through 180 seconds; the default is 45 seconds plus startup and shutdown time.
-
-Evidence is saved as `build/ci-evidence/resource-host.{log,json}` or `resource-software.{log,json}`. This catches the observed sustained leak that an eight-second smoke test missed. Bounded counts over one short run do not prove absence of every GPU or memory leak; ASan leak detection remains disabled separately.
+Renderer tests check embedded resource relocation, software OpenGL and failure cleanup. They do not prove absence of all GPU/fence leaks or that those retained Qt effects are connected to the wlroots scene. See [graphics](GRAPHICS.md), [effects](EFFECTS.md) and [testing](TESTING_AND_FILES.md).

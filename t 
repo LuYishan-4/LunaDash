@@ -1,0 +1,2386 @@
+           PID: [0;1;39m1971[0m (quickshell)
+           TID: 35667 (QSGRenderThread)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Wed 2026-08-26 12:52:08 CST (3 weeks 1 day ago)
+  Command Line: /usr/bin/quickshell -d -n -p /home/luyishan4/.config/quickshell/caelestia/shell.qml
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/app-caelestiashell@autostart.service
+          Unit: user@1000.service
+     User Unit: app-caelestiashell@autostart.service
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 86425d567c794fefaac212a215edd2c4
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: [0;38:5:245m/var/lib/systemd/coredump/core.quickshell.1000.86425d567c794fefaac212a215edd2c4.1971.1787719928000000.zst (missing)[0m
+       Message: Process 1971 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 35667:
+                #0  0x0000000000000000 n/a (n/a + 0x0)
+                #1  0x0000000000000000 n/a (n/a + 0x0)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m416012[0m (quickshell)
+           TID: 416012 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 6 (ABRT) si_code: SI_TKILL
+     Timestamp: Mon 2026-09-14 00:13:56 CST (4 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/app-codex-379462.scope
+          Unit: user@1000.service
+     User Unit: app-codex-379462.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 7e397a4e68ed4f65961822e7549dd209
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.7e397a4e68ed4f65961822e7549dd209.416012.1789316036000000.zst (present)[0m
+  Size on Disk: 1M
+       Message: Process 416012 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 416012:
+                #0  0x00007f51cde9a17c n/a (libc.so.6 + 0x9a17c)
+                #1  0x00007f51cde3e5d0 raise (libc.so.6 + 0x3e5d0)
+                #2  0x00007f51cde25685 abort (libc.so.6 + 0x25685)
+                #3  0x00007f51ce697369 n/a (libQt6Core.so.6 + 0x97369)
+                #4  0x00007f51ce6981a1 _ZNK14QMessageLogger5fatalEPKcz (libQt6Core.so.6 + 0x981a1)
+                #5  0x00007f51cf6e7314 n/a (libQt6Gui.so.6 + 0xe7314)
+                #6  0x00007f51cf7ad2e8 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt6Gui.so.6 + 0x1ad2e8)
+                #7  0x00007f51ce785095 _ZN23QCoreApplicationPrivate4initEv (libQt6Core.so.6 + 0x185095)
+                #8  0x00007f51cf7ad3eb _ZN22QGuiApplicationPrivate4initEv (libQt6Gui.so.6 + 0x1ad3eb)
+                #9  0x00007f51cf7ae78e _ZN15QGuiApplicationC2ERiPPci (libQt6Gui.so.6 + 0x1ae78e)
+                #10 0x0000558389f5dcd9 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xdecd9)
+                #11 0x0000558389f4cf85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #12 0x0000558389f51922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #13 0x0000558389f3a87f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #14 0x00007f51cde27781 n/a (libc.so.6 + 0x27781)
+                #15 0x00007f51cde278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #16 0x0000558389f3d445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 416024:
+                #0  0x00007f51cdea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f51cdf11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f51d11aaf59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f51d11ab055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f51cea96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f51ce78f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f51ce8b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f51d1076951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f51ce9721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f51cde980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f51cdf2080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m1836[0m (quickshell)
+           TID: 1836 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Mon 2026-09-14 03:58:00 CST (4 days ago)
+  Command Line: /usr/bin/quickshell -n -p /home/luyishan4/.config/quickshell/caelestia/shell.qml
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/app-caelestiashell@autostart.service
+          Unit: user@1000.service
+     User Unit: app-caelestiashell@autostart.service
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 7e397a4e68ed4f65961822e7549dd209
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.7e397a4e68ed4f65961822e7549dd209.1836.1789329480000000.zst (present)[0m
+  Size on Disk: 135.1M
+       Message: Process 1836 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 1836:
+                #0  0x00007f77b7aa5ab8 _ZNK16QFontEngineMulti7descentEv (libQt6Gui.so.6 + 0x4a5ab8)
+                #1  0x00007f77b7ab2621 _ZNK13QFontMetricsF6heightEv (libQt6Gui.so.6 + 0x4b2621)
+                #2  0x00007f77b81f6686 _ZNK17QQuickTextPrivate16lineHeightOffsetEv (libQt6Quick.so.6 + 0x1f6686)
+                #3  0x00007f77b81fadb6 _ZN17QQuickTextPrivate10updateSizeEv (libQt6Quick.so.6 + 0x1fadb6)
+                #4  0x00007f77b81fbe1a _ZN17QQuickTextPrivate12updateLayoutEv (libQt6Quick.so.6 + 0x1fbe1a)
+                #5  0x00007f77b81ffea6 _ZN10QQuickText7setTextERK7QString (libQt6Quick.so.6 + 0x1ffea6)
+                #6  0x00007f77b728623b n/a (libQt6Qml.so.6 + 0x28623b)
+                #7  0x00007f77b7372648 _ZN19QQmlPropertyPrivate5writeEP7QObjectRK16QQmlPropertyDataRK8QVariantRK14QQmlRefPointerI15QQmlContextDataE6QFlagsINS2_9WriteFlagEE (libQt6Qml.so.6 + 0x372648)
+                #8  0x00007f77b7373480 _ZN19QQmlPropertyPrivate18writeValuePropertyERK8QVariant6QFlagsIN16QQmlPropertyData9WriteFlagEE (libQt6Qml.so.6 + 0x373480)
+                #9  0x00007f77b74153d8 _ZN25QQmlInterceptorMetaObject11doInterceptEN11QMetaObject4CallEiPPv (libQt6Qml.so.6 + 0x4153d8)
+                #10 0x00007f77b741617d _ZN17QQmlVMEMetaObject8metaCallEP7QObjectN11QMetaObject4CallEiPPv (libQt6Qml.so.6 + 0x41617d)
+                #11 0x00007f77b7286266 n/a (libQt6Qml.so.6 + 0x286266)
+                #12 0x00007f77b72acb62 n/a (libQt6Qml.so.6 + 0x2acb62)
+                #13 0x00007f77b72a8805 _ZN11QQmlBinding8doUpdateERKN24QQmlJavaScriptExpression13DeleteWatcherE6QFlagsIN16QQmlPropertyData9WriteFlagEERN3QV45ScopeE (libQt6Qml.so.6 + 0x2a8805)
+                #14 0x00007f77b729f861 _ZN11QQmlBinding6updateE6QFlagsIN16QQmlPropertyData9WriteFlagEE (libQt6Qml.so.6 + 0x29f861)
+                #15 0x00007f77b734cc20 _ZN12QQmlNotifier10emitNotifyEP20QQmlNotifierEndpointPPv (libQt6Qml.so.6 + 0x34cc20)
+                #16 0x00007f77b67eef5f n/a (libQt6Core.so.6 + 0x1eef5f)
+                #17 0x00007f77b74165c4 _ZN17QQmlVMEMetaObject8metaCallEP7QObjectN11QMetaObject4CallEiPPv (libQt6Qml.so.6 + 0x4165c4)
+                #18 0x00007f77b7286266 n/a (libQt6Qml.so.6 + 0x286266)
+                #19 0x00007f77b72acb62 n/a (libQt6Qml.so.6 + 0x2acb62)
+                #20 0x00007f77b72a8805 _ZN11QQmlBinding8doUpdateERKN24QQmlJavaScriptExpression13DeleteWatcherE6QFlagsIN16QQmlPropertyData9WriteFlagEERN3QV45ScopeE (libQt6Qml.so.6 + 0x2a8805)
+                #21 0x00007f77b729f861 _ZN11QQmlBinding6updateE6QFlagsIN16QQmlPropertyData9WriteFlagEE (libQt6Qml.so.6 + 0x29f861)
+                #22 0x00007f77b734cc20 _ZN12QQmlNotifier10emitNotifyEP20QQmlNotifierEndpointPPv (libQt6Qml.so.6 + 0x34cc20)
+                #23 0x00007f77b67eef5f n/a (libQt6Core.so.6 + 0x1eef5f)
+                #24 0x00007f77b74165c4 _ZN17QQmlVMEMetaObject8metaCallEP7QObjectN11QMetaObject4CallEiPPv (libQt6Qml.so.6 + 0x4165c4)
+                #25 0x00007f77b7286266 n/a (libQt6Qml.so.6 + 0x286266)
+                #26 0x00007f77b7372997 _ZN19QQmlPropertyPrivate5writeEP7QObjectRK16QQmlPropertyDataRK8QVariantRK14QQmlRefPointerI15QQmlContextDataE6QFlagsINS2_9WriteFlagEE (libQt6Qml.so.6 + 0x372997)
+                #27 0x00007f77b72a5531 _ZN11QQmlBinding9slowWriteERK16QQmlPropertyDataS2_RKN3QV45ValueEb6QFlagsINS0_9WriteFlagEE (libQt6Qml.so.6 + 0x2a5531)
+                #28 0x00007f77b72a72f9 n/a (libQt6Qml.so.6 + 0x2a72f9)
+                #29 0x00007f77b72a8805 _ZN11QQmlBinding8doUpdateERKN24QQmlJavaScriptExpression13DeleteWatcherE6QFlagsIN16QQmlPropertyData9WriteFlagEERN3QV45ScopeE (libQt6Qml.so.6 + 0x2a8805)
+                #30 0x00007f77b729f861 _ZN11QQmlBinding6updateE6QFlagsIN16QQmlPropertyData9WriteFlagEE (libQt6Qml.so.6 + 0x29f861)
+                #31 0x00007f77b734cc20 _ZN12QQmlNotifier10emitNotifyEP20QQmlNotifierEndpointPPv (libQt6Qml.so.6 + 0x34cc20)
+                #32 0x00007f77b67eef5f n/a (libQt6Core.so.6 + 0x1eef5f)
+                #33 0x00007f77b74165c4 _ZN17QQmlVMEMetaObject8metaCallEP7QObjectN11QMetaObject4CallEiPPv (libQt6Qml.so.6 + 0x4165c4)
+                #34 0x00007f77b7286266 n/a (libQt6Qml.so.6 + 0x286266)
+                #35 0x00007f77b72acb62 n/a (libQt6Qml.so.6 + 0x2acb62)
+                #36 0x00007f77b72a8805 _ZN11QQmlBinding8doUpdateERKN24QQmlJavaScriptExpression13DeleteWatcherE6QFlagsIN16QQmlPropertyData9WriteFlagEERN3QV45ScopeE (libQt6Qml.so.6 + 0x2a8805)
+                #37 0x00007f77b729f861 _ZN11QQmlBinding6updateE6QFlagsIN16QQmlPropertyData9WriteFlagEE (libQt6Qml.so.6 + 0x29f861)
+                #38 0x00007f77b734cc20 _ZN12QQmlNotifier10emitNotifyEP20QQmlNotifierEndpointPPv (libQt6Qml.so.6 + 0x34cc20)
+                #39 0x00007f77b67eef5f n/a (libQt6Core.so.6 + 0x1eef5f)
+                #40 0x0000558b1cb82407 _ZN11SystemClock11dateChangedEv (quickshell + 0x334407)
+                #41 0x0000558b1cb826ad _ZN11SystemClock9onTimeoutEv (quickshell + 0x3346ad)
+                #42 0x00007f77b67eeff3 n/a (libQt6Core.so.6 + 0x1eeff3)
+                #43 0x00007f77b680146f _ZN6QTimer10timerEventEP11QTimerEvent (libQt6Core.so.6 + 0x20146f)
+                #44 0x00007f77b67e6b49 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b49)
+                #45 0x00007f77b67822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #46 0x00007f77b69648f5 _ZN14QTimerInfoList14activateTimersEv (libQt6Core.so.6 + 0x3648f5)
+                #47 0x00007f77b6a9a471 n/a (libQt6Core.so.6 + 0x49a471)
+                #48 0x00007f77b9142c76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #49 0x00007f77b9144ed7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #50 0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #51 0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #52 0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #53 0x00007f77b678685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #54 0x0000558b1c92c7c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #55 0x0000558b1c91bf85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #56 0x0000558b1c920922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #57 0x0000558b1c90987f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #58 0x00007f77b5e27781 n/a (libc.so.6 + 0x27781)
+                #59 0x00007f77b5e278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #60 0x0000558b1c90c445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 1964:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b6972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2592:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b9553f81 n/a (libpipewire-0.3.so.0 + 0x8df81)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3630:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 1962:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f77b9631728 n/a (libQt6WaylandClient.so.6 + 0x70728)
+                #3  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #4  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #5  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2873:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f777e636234 n/a (libQt6LabsFolderListModel.so.6 + 0xd234)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2951:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b91450a2 n/a (libglib-2.0.so.0 + 0x640a2)
+                #5  0x00007f77b917bb14 n/a (libglib-2.0.so.0 + 0x9ab14)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3618:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f77a7b80987 n/a (libnvidia-eglcore.so.615.71.09 + 0x980987)
+                #3  0x00007f77a7b7edea n/a (libnvidia-eglcore.so.615.71.09 + 0x97edea)
+                #4  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #5  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2949:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f52 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f52)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b6972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2593:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b6972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 1963:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f77b9631728 n/a (libQt6WaylandClient.so.6 + 0x70728)
+                #3  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #4  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #5  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2591:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b6972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4901:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b94eb471 n/a (libpipewire-0.3.so.0 + 0x25471)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4291:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b94eb471 n/a (libpipewire-0.3.so.0 + 0x25471)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3743:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3627:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4900:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b9553f81 n/a (libpipewire-0.3.so.0 + 0x8df81)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3716:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2950:
+                #0  0x00007f77b5f1e4ed syscall (libc.so.6 + 0x11e4ed)
+                #1  0x00007f77b917215e g_cond_wait (libglib-2.0.so.0 + 0x9115e)
+                #2  0x00007f77b910752d n/a (libglib-2.0.so.0 + 0x2652d)
+                #3  0x00007f77b917c017 n/a (libglib-2.0.so.0 + 0x9b017)
+                #4  0x00007f77b917bb14 n/a (libglib-2.0.so.0 + 0x9ab14)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4243:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b9553f81 n/a (libpipewire-0.3.so.0 + 0x8df81)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863632:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863627:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3970:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f771d97eba7 n/a (libcuda.so.1 + 0x37eba7)
+                #3  0x00007f771da4ea34 n/a (libcuda.so.1 + 0x44ea34)
+                #4  0x00007f771d966bc3 n/a (libcuda.so.1 + 0x366bc3)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863629:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4242:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b9553f81 n/a (libpipewire-0.3.so.0 + 0x8df81)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3677:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b83d03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863637:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 5866:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f52 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f52)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b6972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2952:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145217 g_main_loop_run (libglib-2.0.so.0 + 0x64217)
+                #4  0x00007f77b93c6ed4 n/a (libgio-2.0.so.0 + 0x11fed4)
+                #5  0x00007f77b917bb14 n/a (libglib-2.0.so.0 + 0x9ab14)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4240:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b6972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863658:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3663:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863633:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 5070:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f777e636234 n/a (libQt6LabsFolderListModel.so.6 + 0xd234)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863650:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 2157:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b6972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863628:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 858183:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4290:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b9553f81 n/a (libpipewire-0.3.so.0 + 0x8df81)
+                #5  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #6  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863631:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 4899:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f20cab epoll_wait (libc.so.6 + 0x120cab)
+                #2  0x00007f777f9f0569 n/a (libspa-support.so + 0x1d569)
+                #3  0x00007f777f9d98e9 n/a (libspa-support.so + 0x68e9)
+                #4  0x00007f77b951ae01 pw_main_loop_run (libpipewire-0.3.so.0 + 0x54e01)
+                #5  0x00007f778f50c510 _ZN9caelestia8services14PipeWireWorkerC1ESt10stop_tokenPNS0_14AudioCollectorE (libcaelestia-services.so + 0x30c510)
+                #6  0x00007f778f50cb04 _ZNSt6thread11_State_implINS_8_InvokerISt5tupleIJZN9caelestia8services14AudioCollector5startEvEUlSt10stop_tokenE_S6_EEEEE6_M_runEv (libcaelestia-services.so + 0x30cb04)
+                #7  0x00007f77b62ea859 n/a (libstdc++.so.6 + 0xea859)
+                #8  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3676:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 1950:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5f11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77b9144f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77b9145055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77b6a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77b678f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77b68b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77b9010951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 863659:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77b696b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77b68b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3650:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 3589:
+                #0  0x00007f77b5ea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77b5e94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77b5e9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77b696b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77b84c349e n/a (libQt6Quick.so.6 + 0x4c349e)
+                #5  0x00007f77b69721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77b5e980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77b5f2080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m973799[0m (quickshell)
+           TID: 973799 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 6 (ABRT) si_code: SI_TKILL
+     Timestamp: Mon 2026-09-14 04:42:15 CST (4 days ago)
+  Command Line: /usr/bin/quickshell
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/kitty-744847-0.scope
+          Unit: user@1000.service
+     User Unit: kitty-744847-0.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 7e397a4e68ed4f65961822e7549dd209
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.7e397a4e68ed4f65961822e7549dd209.973799.1789332135000000.zst (present)[0m
+  Size on Disk: 997.4K
+       Message: Process 973799 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 973799:
+                #0  0x00007f9edb29a17c n/a (libc.so.6 + 0x9a17c)
+                #1  0x00007f9edb23e5d0 raise (libc.so.6 + 0x3e5d0)
+                #2  0x00007f9edb225685 abort (libc.so.6 + 0x25685)
+                #3  0x00007f9edba97369 n/a (libQt6Core.so.6 + 0x97369)
+                #4  0x00007f9edba981a1 _ZNK14QMessageLogger5fatalEPKcz (libQt6Core.so.6 + 0x981a1)
+                #5  0x00007f9edcae7314 n/a (libQt6Gui.so.6 + 0xe7314)
+                #6  0x00007f9edcbad2e8 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt6Gui.so.6 + 0x1ad2e8)
+                #7  0x00007f9edbb85095 _ZN23QCoreApplicationPrivate4initEv (libQt6Core.so.6 + 0x185095)
+                #8  0x00007f9edcbad3eb _ZN22QGuiApplicationPrivate4initEv (libQt6Gui.so.6 + 0x1ad3eb)
+                #9  0x00007f9eddcfe236 _ZN19QApplicationPrivate4initEv (libQt6Widgets.so.6 + 0xfe236)
+                #10 0x000055cee2eb3053 _Z12qsCheckCrashiPPc (quickshell + 0x12c053)
+                #11 0x000055cee2e4286c _ZN2qs6launch4mainEiPPc (quickshell + 0xbb86c)
+                #12 0x00007f9edb227781 n/a (libc.so.6 + 0x27781)
+                #13 0x00007f9edb2278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #14 0x000055cee2e45445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 973848:
+                #0  0x00007f9edb2a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f9edb311a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f9ede5c1f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f9ede5c2055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f9edbe96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f9edbb8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f9edbcb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f9ede48d951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f9edbd721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f9edb2980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f9edb32080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m973871[0m (quickshell)
+           TID: 973871 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 6 (ABRT) si_code: SI_TKILL
+     Timestamp: Mon 2026-09-14 04:42:15 CST (4 days ago)
+  Command Line: /usr/bin/quickshell
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/kitty-744847-0.scope
+          Unit: user@1000.service
+     User Unit: kitty-744847-0.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 7e397a4e68ed4f65961822e7549dd209
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.7e397a4e68ed4f65961822e7549dd209.973871.1789332135000000.zst (present)[0m
+  Size on Disk: 1M
+       Message: Process 973871 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 973871:
+                #0  0x00007ff15c89a17c n/a (libc.so.6 + 0x9a17c)
+                #1  0x00007ff15c83e5d0 raise (libc.so.6 + 0x3e5d0)
+                #2  0x00005644e6497239 _ZN2qs5crash12_GLOBAL__N_1L13signalHandlerEiP9siginfo_tPv (quickshell + 0x125239)
+                #3  0x00007ff15c83e6f0 n/a (libc.so.6 + 0x3e6f0)
+                #4  0x00007ff15c89a17c n/a (libc.so.6 + 0x9a17c)
+                #5  0x00007ff15c83e5d0 raise (libc.so.6 + 0x3e5d0)
+                #6  0x00007ff15c825685 abort (libc.so.6 + 0x25685)
+                #7  0x00007ff15d097369 n/a (libQt6Core.so.6 + 0x97369)
+                #8  0x00007ff15d0981a1 _ZNK14QMessageLogger5fatalEPKcz (libQt6Core.so.6 + 0x981a1)
+                #9  0x00007ff15e0e7314 n/a (libQt6Gui.so.6 + 0xe7314)
+                #10 0x00007ff15e1ad2e8 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt6Gui.so.6 + 0x1ad2e8)
+                #11 0x00007ff15d185095 _ZN23QCoreApplicationPrivate4initEv (libQt6Core.so.6 + 0x185095)
+                #12 0x00007ff15e1ad3eb _ZN22QGuiApplicationPrivate4initEv (libQt6Gui.so.6 + 0x1ad3eb)
+                #13 0x00007ff15e1ae78e _ZN15QGuiApplicationC2ERiPPci (libQt6Gui.so.6 + 0x1ae78e)
+                #14 0x00005644e6450cd9 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xdecd9)
+                #15 0x00005644e63ca6d4 _ZN2qs6launch12_GLOBAL__N_1L18checkCrashRelaunchEPPc.cold (quickshell + 0x586d4)
+                #16 0x00005644e642d874 _ZN2qs6launch4mainEiPPc (quickshell + 0xbb874)
+                #17 0x00007ff15c827781 n/a (libc.so.6 + 0x27781)
+                #18 0x00007ff15c8278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #19 0x00005644e6430445 _start (quickshell + 0xbe445)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m973875[0m (quickshell)
+           TID: 973875 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 6 (ABRT) si_code: SI_TKILL
+     Timestamp: Mon 2026-09-14 04:42:15 CST (4 days ago)
+  Command Line: /usr/bin/quickshell
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/kitty-744847-0.scope
+          Unit: user@1000.service
+     User Unit: kitty-744847-0.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 7e397a4e68ed4f65961822e7549dd209
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.7e397a4e68ed4f65961822e7549dd209.973875.1789332135000000.zst (present)[0m
+  Size on Disk: 998.3K
+       Message: Process 973875 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 973875:
+                #0  0x00007f85a489a17c n/a (libc.so.6 + 0x9a17c)
+                #1  0x00007f85a483e5d0 raise (libc.so.6 + 0x3e5d0)
+                #2  0x00007f85a4825685 abort (libc.so.6 + 0x25685)
+                #3  0x00007f85a5097369 n/a (libQt6Core.so.6 + 0x97369)
+                #4  0x00007f85a50981a1 _ZNK14QMessageLogger5fatalEPKcz (libQt6Core.so.6 + 0x981a1)
+                #5  0x00007f85a60e7314 n/a (libQt6Gui.so.6 + 0xe7314)
+                #6  0x00007f85a61ad2e8 _ZN22QGuiApplicationPrivate21createEventDispatcherEv (libQt6Gui.so.6 + 0x1ad2e8)
+                #7  0x00007f85a5185095 _ZN23QCoreApplicationPrivate4initEv (libQt6Core.so.6 + 0x185095)
+                #8  0x00007f85a61ad3eb _ZN22QGuiApplicationPrivate4initEv (libQt6Gui.so.6 + 0x1ad3eb)
+                #9  0x00007f85a72fe236 _ZN19QApplicationPrivate4initEv (libQt6Widgets.so.6 + 0xfe236)
+                #10 0x000055a63b8b9053 _Z12qsCheckCrashiPPc (quickshell + 0x12c053)
+                #11 0x000055a63b84886c _ZN2qs6launch4mainEiPPc (quickshell + 0xbb86c)
+                #12 0x00007f85a4827781 n/a (libc.so.6 + 0x27781)
+                #13 0x00007f85a48278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #14 0x000055a63b84b445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 973912:
+                #0  0x00007f85a48a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f85a4911a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f85a7b99f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f85a7b9a055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f85a5496f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f85a518f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f85a52b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f85a7a65951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f85a53721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f85a48980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f85a492080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m973794[0m (quickshell)
+           TID: 973794 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SI_TKILL
+     Timestamp: Mon 2026-09-14 04:42:15 CST (4 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/kitty-744847-0.scope
+          Unit: user@1000.service
+     User Unit: kitty-744847-0.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 7e397a4e68ed4f65961822e7549dd209
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.7e397a4e68ed4f65961822e7549dd209.973794.1789332135000000.zst (present)[0m
+  Size on Disk: 26.5M
+       Message: Process 973794 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 973794:
+                #0  0x00007fe22529a17c n/a (libc.so.6 + 0x9a17c)
+                #1  0x00007fe22523e5d0 raise (libc.so.6 + 0x3e5d0)
+                #2  0x00005579783b0239 _ZN2qs5crash12_GLOBAL__N_1L13signalHandlerEiP9siginfo_tPv (quickshell + 0x125239)
+                #3  0x00007fe22523e6f0 n/a (libc.so.6 + 0x3e6f0)
+                #4  0x00007fe22892b467 _ZN15QtWaylandClient17QWaylandShmBufferC2EPNS_15QWaylandDisplayERK5QSizeN6QImage6FormatEdP14wl_event_queue (libQt6WaylandClient.so.6 + 0xa2467)
+                #5  0x00007fe22892c1fb _ZN15QtWaylandClient23QWaylandShmBackingStore9getBufferERK5QSizeRb (libQt6WaylandClient.so.6 + 0xa31fb)
+                #6  0x00007fe22892ca9d _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3a9d)
+                #7  0x00007fe22892d715 n/a (libQt6WaylandClient.so.6 + 0xa4715)
+                #8  0x00007fe225beeff3 n/a (libQt6Core.so.6 + 0x1eeff3)
+                #9  0x00007fe22890bd7e n/a (libQt6WaylandClient.so.6 + 0x82d7e)
+                #10 0x00007fe2289013df _ZN15QtWaylandClient15QWaylandDisplay9reconnectEv (libQt6WaylandClient.so.6 + 0x783df)
+                #11 0x00007fe225be6b96 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b96)
+                #12 0x00007fe225b822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #13 0x00007fe225b826c1 _ZN23QCoreApplicationPrivate16sendPostedEventsEP7QObjectiP11QThreadData (libQt6Core.so.6 + 0x1826c1)
+                #14 0x00007fe225e9a4b8 n/a (libQt6Core.so.6 + 0x49a4b8)
+                #15 0x00007fe22840ac76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #16 0x00007fe22840ced7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #17 0x00007fe22840d055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #18 0x00007fe225e96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #19 0x00007fe225b8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #20 0x00007fe225b8685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #21 0x00005579783697c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #22 0x0000557978358f85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #23 0x000055797835d922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #24 0x000055797834687f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #25 0x00007fe225227781 n/a (libc.so.6 + 0x27781)
+                #26 0x00007fe2252278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #27 0x0000557978349445 _start (quickshell + 0xbe445)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m325140[0m (quickshell)
+           TID: 325454 (QSGSoftwareRend)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Tue 2026-09-15 00:07:03 CST (3 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/run-p5634-i45325.scope
+          Unit: user@1000.service
+     User Unit: run-p5634-i45325.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 848240b3b8c64bb285d7cbbfac2cbe7a
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.848240b3b8c64bb285d7cbbfac2cbe7a.325140.1789402023000000.zst (present)[0m
+  Size on Disk: 24.4M
+       Message: Process 325140 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 325454:
+                #0  0x00007f32f8c6e984 _ZNK12QQuickWindow17rendererInterfaceEv (libQt6Quick.so.6 + 0x26e984)
+                #1  0x00007f32f01849a9 n/a (libQt6QuickShapes.so.6 + 0x389a9)
+                #2  0x00007f32f8c92336 _ZN25QSGSoftwareRenderableNode10renderNodeEP8QPainterb (libQt6Quick.so.6 + 0x292336)
+                #3  0x00007f32f8c7e289 _ZN27QSGAbstractSoftwareRenderer11renderNodesEP8QPainter (libQt6Quick.so.6 + 0x27e289)
+                #4  0x00007f32f8ca010c _ZN19QSGSoftwareRenderer6renderEv (libQt6Quick.so.6 + 0x2a010c)
+                #5  0x00007f32f8cd97a1 n/a (libQt6Quick.so.6 + 0x2d97a1)
+                #6  0x00007f32f8c653d5 _ZN19QQuickWindowPrivate16renderSceneGraphEv (libQt6Quick.so.6 + 0x2653d5)
+                #7  0x00007f32f8ebde30 n/a (libQt6Quick.so.6 + 0x4bde30)
+                #8  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325140:
+                #0  0x00007f32f0170e84 n/a (libQt6QuickShapes.so.6 + 0x24e84)
+                #1  0x00007f32f01715d7 n/a (libQt6QuickShapes.so.6 + 0x255d7)
+                #2  0x00007f32f0163c7a _ZN22QQuickShapePathPrivateC2Ev (libQt6QuickShapes.so.6 + 0x17c7a)
+                #3  0x00007f32f0163d4a _ZN15QQuickShapePathC2EP7QObject (libQt6QuickShapes.so.6 + 0x17d4a)
+                #4  0x00007f32f0188647 n/a (libQt6QuickShapes.so.6 + 0x3c647)
+                #5  0x00007f32f7d9a739 _ZNK8QQmlType6createEPPvm (libQt6Qml.so.6 + 0x39a739)
+                #6  0x00007f32f7da05d1 _ZNK8QQmlType18createWithQQmlDataEv (libQt6Qml.so.6 + 0x3a05d1)
+                #7  0x00007f32f7d5e85a _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35e85a)
+                #8  0x00007f32f7d50c02 _ZN17QQmlObjectCreator18setPropertyBindingEPK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x350c02)
+                #9  0x00007f32f7d54a6e _ZN17QQmlObjectCreator13setupBindingsE6QFlagsINS_11BindingModeEE (libQt6Qml.so.6 + 0x354a6e)
+                #10 0x00007f32f7d5cfce _ZN17QQmlObjectCreator16populateInstanceEiP7QObjectS1_PK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x35cfce)
+                #11 0x00007f32f7d5e51a _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35e51a)
+                #12 0x00007f32f7d50c02 _ZN17QQmlObjectCreator18setPropertyBindingEPK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x350c02)
+                #13 0x00007f32f7d54a6e _ZN17QQmlObjectCreator13setupBindingsE6QFlagsINS_11BindingModeEE (libQt6Qml.so.6 + 0x354a6e)
+                #14 0x00007f32f7d5cfce _ZN17QQmlObjectCreator16populateInstanceEiP7QObjectS1_PK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x35cfce)
+                #15 0x00007f32f7d5e51a _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35e51a)
+                #16 0x00007f32f7d50c02 _ZN17QQmlObjectCreator18setPropertyBindingEPK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x350c02)
+                #17 0x00007f32f7d54a6e _ZN17QQmlObjectCreator13setupBindingsE6QFlagsINS_11BindingModeEE (libQt6Qml.so.6 + 0x354a6e)
+                #18 0x00007f32f7d5cfce _ZN17QQmlObjectCreator16populateInstanceEiP7QObjectS1_PK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x35cfce)
+                #19 0x00007f32f7d5e51a _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35e51a)
+                #20 0x00007f32f7d66225 n/a (libQt6Qml.so.6 + 0x366225)
+                #21 0x00007f32f7d5f022 _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35f022)
+                #22 0x00007f32f7d50c02 _ZN17QQmlObjectCreator18setPropertyBindingEPK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x350c02)
+                #23 0x00007f32f7d54a6e _ZN17QQmlObjectCreator13setupBindingsE6QFlagsINS_11BindingModeEE (libQt6Qml.so.6 + 0x354a6e)
+                #24 0x00007f32f7d5cfce _ZN17QQmlObjectCreator16populateInstanceEiP7QObjectS1_PK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x35cfce)
+                #25 0x00007f32f7d5e51a _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35e51a)
+                #26 0x00007f32f7d50c02 _ZN17QQmlObjectCreator18setPropertyBindingEPK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x350c02)
+                #27 0x00007f32f7d54a6e _ZN17QQmlObjectCreator13setupBindingsE6QFlagsINS_11BindingModeEE (libQt6Qml.so.6 + 0x354a6e)
+                #28 0x00007f32f7d5cfce _ZN17QQmlObjectCreator16populateInstanceEiP7QObjectS1_PK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x35cfce)
+                #29 0x00007f32f7d5e51a _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35e51a)
+                #30 0x00007f32f7d50c02 _ZN17QQmlObjectCreator18setPropertyBindingEPK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x350c02)
+                #31 0x00007f32f7d54a6e _ZN17QQmlObjectCreator13setupBindingsE6QFlagsINS_11BindingModeEE (libQt6Qml.so.6 + 0x354a6e)
+                #32 0x00007f32f7d5cfce _ZN17QQmlObjectCreator16populateInstanceEiP7QObjectS1_PK16QQmlPropertyDataPKN3QV412CompiledData7BindingE (libQt6Qml.so.6 + 0x35cfce)
+                #33 0x00007f32f7d5e51a _ZN17QQmlObjectCreator14createInstanceEiP7QObjectb (libQt6Qml.so.6 + 0x35e51a)
+                #34 0x00007f32f7d66225 n/a (libQt6Qml.so.6 + 0x366225)
+                #35 0x00007f32f7d14b9d _ZN20QQmlIncubatorPrivate8incubateER26QQmlInstantiationInterrupt (libQt6Qml.so.6 + 0x314b9d)
+                #36 0x00007f32f7d156b2 _ZN17QQmlEnginePrivate8incubateER13QQmlIncubatorRK14QQmlRefPointerI15QQmlContextDataE (libQt6Qml.so.6 + 0x3156b2)
+                #37 0x00007f32f7cc7a9d _ZN13QQmlComponent6createER13QQmlIncubatorP11QQmlContextS3_ (libQt6Qml.so.6 + 0x2c7a9d)
+                #38 0x00007f32f8bb52e2 n/a (libQt6Quick.so.6 + 0x1b52e2)
+                #39 0x00007f32f8bb9a5a _ZN12QQuickLoader9setSourceERK4QUrl8QJSValue (libQt6Quick.so.6 + 0x1b9a5a)
+                #40 0x00007f32f8bbb779 n/a (libQt6Quick.so.6 + 0x1bb779)
+                #41 0x00007f32f8bbbc7f _ZN12QQuickLoader11qt_metacallEN11QMetaObject4CallEiPPv (libQt6Quick.so.6 + 0x1bbc7f)
+                #42 0x00007f32f7d66663 n/a (libQt6Qml.so.6 + 0x366663)
+                #43 0x00007f32f7c016bb n/a (libQt6Qml.so.6 + 0x2016bb)
+                #44 0x00007f32f7c03508 _ZN3QV413QObjectMethod11callPreciseERK18QQmlObjectOrGadgetRK16QQmlPropertyDataPNS_15ExecutionEngineEPNS_8CallDataEN11QMetaObject4CallE (libQt6Qml.so.6 + 0x203508)
+                #45 0x00007f32f7c05855 _ZNK3QV413QObjectMethod12callInternalEPKNS_5ValueES3_i (libQt6Qml.so.6 + 0x205855)
+                #46 0x00007f32f7c642c8 n/a (libQt6Qml.so.6 + 0x2642c8)
+                #47 0x00007f32f7c70fd2 n/a (libQt6Qml.so.6 + 0x270fd2)
+                #48 0x00007f32f7bb7497 n/a (libQt6Qml.so.6 + 0x1b7497)
+                #49 0x00007f32f7c297d6 _ZN3QV47Runtime18CallPropertyLookup4callEPNS_15ExecutionEngineERKNS_5ValueEjPS4_i (libQt6Qml.so.6 + 0x2297d6)
+                #50 0x00007f32ef400379 n/a (n/a + 0x0)
+                #51 0x00007f32f7c70cb8 n/a (libQt6Qml.so.6 + 0x270cb8)
+                #52 0x00007f32f7ba8874 n/a (libQt6Qml.so.6 + 0x1a8874)
+                #53 0x00007f32f7baee55 _ZN3QV48Function4callEP7QObjectPPvPK9QMetaTypeiPNS_16ExecutionContextE (libQt6Qml.so.6 + 0x1aee55)
+                #54 0x00007f32f7d1f908 _ZN24QQmlJavaScriptExpression8evaluateEPPvPK9QMetaTypei (libQt6Qml.so.6 + 0x31f908)
+                #55 0x00007f32f7cade0b _ZN25QQmlBoundSignalExpression8evaluateEPPv (libQt6Qml.so.6 + 0x2ade0b)
+                #56 0x00007f32f7cb3939 n/a (libQt6Qml.so.6 + 0x2b3939)
+                #57 0x00007f32f7d4cc20 _ZN12QQmlNotifier10emitNotifyEP20QQmlNotifierEndpointPPv (libQt6Qml.so.6 + 0x34cc20)
+                #58 0x00007f32f71eef5f n/a (libQt6Core.so.6 + 0x1eef5f)
+                #59 0x00007f32f7bf928b _ZN3QV414QObjectWrapper11setPropertyEPNS_15ExecutionEngineEP7QObjectPK16QQmlPropertyDataRKNS_5ValueE (libQt6Qml.so.6 + 0x1f928b)
+                #60 0x00007f32f7bfa5e1 _ZN3QV414QObjectWrapper14setQmlPropertyEPNS_15ExecutionEngineERK14QQmlRefPointerI15QQmlContextDataEP7QObjectPNS_6StringE6QFlagsINS0_4FlagEERKNS_5ValueE (libQt6Qml.so.6 + 0x1fa5e1)
+                #61 0x00007f32f7bfa77a _ZN3QV414QObjectWrapper10virtualPutEPNS_7ManagedENS_11PropertyKeyERKNS_5ValueEPS4_ (libQt6Qml.so.6 + 0x1fa77a)
+                #62 0x00007f32f7bcb340 _ZN3QV46Lookup14setterFallbackEPS0_PNS_15ExecutionEngineERNS_5ValueERKS4_ (libQt6Qml.so.6 + 0x1cb340)
+                #63 0x00007f32e955330c n/a (n/a + 0x0)
+                
+                Stack trace of thread 325227:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f689754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f32f736b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f32f8ebe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325231:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325229:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325165:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6911365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f32fa0a2728 n/a (libQt6WaylandClient.so.6 + 0x70728)
+                #3  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #4  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #5  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325167:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6911a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f32f9bb5f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f32f9bb6055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f32f7496f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f32f718f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f32f72b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f32f7372285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325230:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325235:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325144:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6911a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f32f9bb5f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f32f9bb6055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f32f7496f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f32f718f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f32f72b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f32f9a81951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325233:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325234:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325166:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6911365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f32fa0a2728 n/a (libQt6WaylandClient.so.6 + 0x70728)
+                #3  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #4  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #5  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325232:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325169:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6911a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f32f9bb5f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f32f9bb6055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f32f7496f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f32f718f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f32f72b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f32f7372285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325236:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f6897762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f32f736b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f32f72b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325237:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6894cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f32f689754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f32f736b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f32f8ebe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 325257:
+                #0  0x00007f32f68a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f32f6911a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f32f9bb5f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f32f9bb6055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f32f7496f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f32f718f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f32f72b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f32f8dd03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f32f73721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f32f68980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f32f692080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m326086[0m (quickshell)
+           TID: 326086 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Tue 2026-09-15 00:07:18 CST (3 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/run-p5634-i45325.scope
+          Unit: user@1000.service
+     User Unit: run-p5634-i45325.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 848240b3b8c64bb285d7cbbfac2cbe7a
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.848240b3b8c64bb285d7cbbfac2cbe7a.326086.1789402038000000.zst (present)[0m
+  Size on Disk: 26.7M
+       Message: Process 326086 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 326086:
+                #0  0x00007f24b371caea _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3aea)
+                #1  0x00007f24b372b47f _ZN15QtWaylandClient14QWaylandWindow11setGeometryERK5QRect (libQt6WaylandClient.so.6 + 0xb247f)
+                #2  0x00007f24b3723cea _ZN15QtWaylandClient14QWaylandWindow24resizeFromApplyConfigureERK5QSizeRK6QPoint (libQt6WaylandClient.so.6 + 0xaacea)
+                #3  0x00005562f49db706 _ZN2qs7wayland10layershell12LayerSurface14applyConfigureEv (quickshell + 0x232706)
+                #4  0x00007f24b372ba5e _ZN15QtWaylandClient14QWaylandWindow14applyConfigureEv (libQt6WaylandClient.so.6 + 0xb2a5e)
+                #5  0x00007f24b07e6b96 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b96)
+                #6  0x00007f24b07822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #7  0x00007f24b07826c1 _ZN23QCoreApplicationPrivate16sendPostedEventsEP7QObjectiP11QThreadData (libQt6Core.so.6 + 0x1826c1)
+                #8  0x00007f24b0a9a4b8 n/a (libQt6Core.so.6 + 0x49a4b8)
+                #9  0x00007f24b31fac76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #10 0x00007f24b31fced7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #11 0x00007f24b31fd055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #12 0x00007f24b0a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #13 0x00007f24b078f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #14 0x00007f24b078685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #15 0x00005562f48877c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #16 0x00005562f4876f85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #17 0x00005562f487b922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #18 0x00005562f486487f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #19 0x00007f24afe27781 n/a (libc.so.6 + 0x27781)
+                #20 0x00007f24afe278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #21 0x00005562f4867445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 326111:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24aff11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f24b31fcf59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f24b31fd055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f24b0a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f24b078f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f24b08b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f24b0972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326158:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f24b096b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f24b24be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326161:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326091:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24aff11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f24b31fcf59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f24b31fd055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f24b0a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f24b078f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f24b08b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f24b30c8951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326110:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24aff11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f24b31fcf59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f24b31fd055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f24b0a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f24b078f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f24b08b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f24b0972285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326108:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24aff11365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f24b36e9728 n/a (libQt6WaylandClient.so.6 + 0x70728)
+                #3  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #4  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #5  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326487:
+                #0  0x00007f24b1c73b14 n/a (libQt6Gui.so.6 + 0x673b14)
+                #1  0x00007f24b1dd1a42 n/a (libQt6Gui.so.6 + 0x7d1a42)
+                #2  0x00007f24b1925391 n/a (libQt6Gui.so.6 + 0x325391)
+                #3  0x00007f24b192ad22 _ZN18QRasterPaintEngine8fillRectERK6QRectFP9QSpanData (libQt6Gui.so.6 + 0x32ad22)
+                #4  0x00007f24b1952948 _ZN8QPainter8fillRectERK5QRectRK6QColor (libQt6Gui.so.6 + 0x352948)
+                #5  0x00007f24b371ce25 _ZN15QtWaylandClient23QWaylandShmBackingStore10beginPaintERK7QRegion (libQt6WaylandClient.so.6 + 0xa3e25)
+                #6  0x00007f24b184e1a2 _ZN13QBackingStore10beginPaintERK7QRegion (libQt6Gui.so.6 + 0x24e1a2)
+                #7  0x00007f24b22a035c _ZN19QSGSoftwareRenderer6renderEv (libQt6Quick.so.6 + 0x2a035c)
+                #8  0x00007f24b22d97a1 n/a (libQt6Quick.so.6 + 0x2d97a1)
+                #9  0x00007f24b22653d5 _ZN19QQuickWindowPrivate16renderSceneGraphEv (libQt6Quick.so.6 + 0x2653d5)
+                #10 0x00007f24b24bde30 n/a (libQt6Quick.so.6 + 0x4bde30)
+                #11 0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #12 0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #13 0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326109:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24aff11365 __poll (libc.so.6 + 0x111365)
+                #2  0x00007f24b36e9728 n/a (libQt6WaylandClient.so.6 + 0x70728)
+                #3  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #4  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #5  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326178:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24aff11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f24b31fcf59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f24b31fd055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f24b0a96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f24b078f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f24b08b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f24b23d03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326163:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326168:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326166:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326169:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f24b096b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f24b24be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326563:
+                #0  0x00007f24b371caea _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3aea)
+                #1  0x00007f24b371cc7f _ZN15QtWaylandClient23QWaylandShmBackingStore10beginPaintERK7QRegion (libQt6WaylandClient.so.6 + 0xa3c7f)
+                #2  0x00007f24b184e1a2 _ZN13QBackingStore10beginPaintERK7QRegion (libQt6Gui.so.6 + 0x24e1a2)
+                #3  0x00007f24b22a02d7 _ZN19QSGSoftwareRenderer6renderEv (libQt6Quick.so.6 + 0x2a02d7)
+                #4  0x00007f24b22d97a1 n/a (libQt6Quick.so.6 + 0x2d97a1)
+                #5  0x00007f24b22653d5 _ZN19QQuickWindowPrivate16renderSceneGraphEv (libQt6Quick.so.6 + 0x2653d5)
+                #6  0x00007f24b24bde30 n/a (libQt6Quick.so.6 + 0x4bde30)
+                #7  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #8  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326167:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326162:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326164:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326546:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f24b096b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f24b24be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 326165:
+                #0  0x00007f24afea0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f24afe94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f24afe97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f24b096b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f24b08b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f24b09721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f24afe980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f24aff2080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m443313[0m (quickshell)
+           TID: 443313 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Tue 2026-09-15 00:49:59 CST (3 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/run-p5634-i45325.scope
+          Unit: user@1000.service
+     User Unit: run-p5634-i45325.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 848240b3b8c64bb285d7cbbfac2cbe7a
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.848240b3b8c64bb285d7cbbfac2cbe7a.443313.1789404599000000.zst (present)[0m
+  Size on Disk: 17.4M
+       Message: Process 443313 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 443313:
+                #0  0x00007f360de70467 _ZN15QtWaylandClient17QWaylandShmBufferC2EPNS_15QWaylandDisplayERK5QSizeN6QImage6FormatEdP14wl_event_queue (libQt6WaylandClient.so.6 + 0xa2467)
+                #1  0x00007f360de711fb _ZN15QtWaylandClient23QWaylandShmBackingStore9getBufferERK5QSizeRb (libQt6WaylandClient.so.6 + 0xa31fb)
+                #2  0x00007f360de71a9d _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3a9d)
+                #3  0x00007f360de72715 n/a (libQt6WaylandClient.so.6 + 0xa4715)
+                #4  0x00007f360afeeff3 n/a (libQt6Core.so.6 + 0x1eeff3)
+                #5  0x00007f360de50d7e n/a (libQt6WaylandClient.so.6 + 0x82d7e)
+                #6  0x00007f360de463df _ZN15QtWaylandClient15QWaylandDisplay9reconnectEv (libQt6WaylandClient.so.6 + 0x783df)
+                #7  0x00007f360afe6b96 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b96)
+                #8  0x00007f360af822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #9  0x00007f360af826c1 _ZN23QCoreApplicationPrivate16sendPostedEventsEP7QObjectiP11QThreadData (libQt6Core.so.6 + 0x1826c1)
+                #10 0x00007f360b29a4b8 n/a (libQt6Core.so.6 + 0x49a4b8)
+                #11 0x00007f360d94fc76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #12 0x00007f360d951ed7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #13 0x00007f360d952055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #14 0x00007f360b296f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #15 0x00007f360af8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #16 0x00007f360af8685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #17 0x0000560cb14747c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #18 0x0000560cb1463f85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #19 0x0000560cb1468922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #20 0x0000560cb145187f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #21 0x00007f360a627781 n/a (libc.so.6 + 0x27781)
+                #22 0x00007f360a6278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #23 0x0000560cb1454445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 443371:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a711a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f360d951f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f360d952055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f360b296f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f360af8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f360b0b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f360b172285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443366:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a711a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f360d951f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f360d952055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f360b296f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f360af8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f360b0b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f360b172285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443383:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a711a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f360d951f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f360d952055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f360b296f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f360af8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f360b0b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f360cbd03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443390:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443388:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443398:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443389:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443360:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a711a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f360d951f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f360d952055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f360b296f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f360af8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f360b0b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f360d81d951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443397:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a69754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f360b16b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f360ccbe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443384:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a69754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f360b16b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f3603393234 n/a (libQt6LabsFolderListModel.so.6 + 0xd234)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443401:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443741:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a69754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f360b16b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f360de3e6c7 n/a (libQt6WaylandClient.so.6 + 0x706c7)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443400:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443399:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443391:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a697762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f360b16b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f360b0b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443402:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a69754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f360b16b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f360ccbe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 443406:
+                #0  0x00007f360a6a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f360a694cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f360a69754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f360b16b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f360ccbe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f360b1721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f360a6980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f360a72080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m444047[0m (quickshell)
+           TID: 444047 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Tue 2026-09-15 00:50:23 CST (3 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/run-p5634-i45325.scope
+          Unit: user@1000.service
+     User Unit: run-p5634-i45325.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 848240b3b8c64bb285d7cbbfac2cbe7a
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.848240b3b8c64bb285d7cbbfac2cbe7a.444047.1789404623000000.zst (present)[0m
+  Size on Disk: 16.9M
+       Message: Process 444047 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 444047:
+                #0  0x00007f0830215467 _ZN15QtWaylandClient17QWaylandShmBufferC2EPNS_15QWaylandDisplayERK5QSizeN6QImage6FormatEdP14wl_event_queue (libQt6WaylandClient.so.6 + 0xa2467)
+                #1  0x00007f08302161fb _ZN15QtWaylandClient23QWaylandShmBackingStore9getBufferERK5QSizeRb (libQt6WaylandClient.so.6 + 0xa31fb)
+                #2  0x00007f0830216a9d _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3a9d)
+                #3  0x00007f0830217715 n/a (libQt6WaylandClient.so.6 + 0xa4715)
+                #4  0x00007f082d3eeff3 n/a (libQt6Core.so.6 + 0x1eeff3)
+                #5  0x00007f08301f5d7e n/a (libQt6WaylandClient.so.6 + 0x82d7e)
+                #6  0x00007f08301eb3df _ZN15QtWaylandClient15QWaylandDisplay9reconnectEv (libQt6WaylandClient.so.6 + 0x783df)
+                #7  0x00007f082d3e6b96 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b96)
+                #8  0x00007f082d3822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #9  0x00007f082d3826c1 _ZN23QCoreApplicationPrivate16sendPostedEventsEP7QObjectiP11QThreadData (libQt6Core.so.6 + 0x1826c1)
+                #10 0x00007f082d69a4b8 n/a (libQt6Core.so.6 + 0x49a4b8)
+                #11 0x00007f082fcf4c76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #12 0x00007f082fcf6ed7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #13 0x00007f082fcf7055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #14 0x00007f082d696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #15 0x00007f082d38f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #16 0x00007f082d38685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #17 0x0000562ce54547c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #18 0x0000562ce5443f85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #19 0x0000562ce5448922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #20 0x0000562ce543187f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #21 0x00007f082ca27781 n/a (libc.so.6 + 0x27781)
+                #22 0x00007f082ca278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #23 0x0000562ce5434445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 444099:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082cb11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f082fcf6f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f082fcf7055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f082d696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f082d38f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f082d4b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f082d572285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444107:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082cb11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f082fcf6f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f082fcf7055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f082d696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f082d38f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f082d4b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f082efd03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444101:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082cb11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f082fcf6f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f082fcf7055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f082d696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f082d38f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f082d4b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f082d572285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444113:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444114:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444111:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f082d56b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f0828c2e234 n/a (libQt6LabsFolderListModel.so.6 + 0xd234)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444115:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444122:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f082d56b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f082f0be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444132:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444130:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444116:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444131:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444090:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082cb11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f082fcf6f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f082fcf7055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f082d696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f082d38f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f082d4b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f082d975951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444515:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f082d56b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f08301e36c7 n/a (libQt6WaylandClient.so.6 + 0x706c7)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444135:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f082d56b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f082f0be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 444133:
+                #0  0x00007f082caa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f082ca94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f082ca97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f082d56b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f082d4b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f082d5721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f082ca980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f082cb2080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m446916[0m (quickshell)
+           TID: 446916 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Tue 2026-09-15 00:52:00 CST (3 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/run-p5634-i45325.scope
+          Unit: user@1000.service
+     User Unit: run-p5634-i45325.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 848240b3b8c64bb285d7cbbfac2cbe7a
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.848240b3b8c64bb285d7cbbfac2cbe7a.446916.1789404720000000.zst (present)[0m
+  Size on Disk: 17.7M
+       Message: Process 446916 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 446916:
+                #0  0x00007f661aa3d467 _ZN15QtWaylandClient17QWaylandShmBufferC2EPNS_15QWaylandDisplayERK5QSizeN6QImage6FormatEdP14wl_event_queue (libQt6WaylandClient.so.6 + 0xa2467)
+                #1  0x00007f661aa3e1fb _ZN15QtWaylandClient23QWaylandShmBackingStore9getBufferERK5QSizeRb (libQt6WaylandClient.so.6 + 0xa31fb)
+                #2  0x00007f661aa3ea9d _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3a9d)
+                #3  0x00007f661aa3f715 n/a (libQt6WaylandClient.so.6 + 0xa4715)
+                #4  0x00007f6617beeff3 n/a (libQt6Core.so.6 + 0x1eeff3)
+                #5  0x00007f661aa1dd7e n/a (libQt6WaylandClient.so.6 + 0x82d7e)
+                #6  0x00007f661aa133df _ZN15QtWaylandClient15QWaylandDisplay9reconnectEv (libQt6WaylandClient.so.6 + 0x783df)
+                #7  0x00007f6617be6b96 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b96)
+                #8  0x00007f6617b822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #9  0x00007f6617b826c1 _ZN23QCoreApplicationPrivate16sendPostedEventsEP7QObjectiP11QThreadData (libQt6Core.so.6 + 0x1826c1)
+                #10 0x00007f6617e9a4b8 n/a (libQt6Core.so.6 + 0x49a4b8)
+                #11 0x00007f661a51cc76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #12 0x00007f661a51eed7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #13 0x00007f661a51f055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #14 0x00007f6617e96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #15 0x00007f6617b8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #16 0x00007f6617b8685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #17 0x000055f86ac677c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #18 0x000055f86ac56f85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #19 0x000055f86ac5b922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #20 0x000055f86ac4487f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #21 0x00007f6617227781 n/a (libc.so.6 + 0x27781)
+                #22 0x00007f66172278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #23 0x000055f86ac47445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 446966:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617311a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f661a51ef59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f661a51f055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f6617e96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f6617b8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f6617cb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f6617d72285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446970:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617311a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f661a51ef59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f661a51f055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f6617e96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f6617b8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f6617cb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f6617d72285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446990:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f661729754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f6617d6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f66198be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446991:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446962:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617311a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f661a51ef59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f661a51f055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f6617e96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f6617b8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f6617cb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f661a3ea951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446979:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446977:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617311a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f661a51ef59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f661a51f055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f6617e96f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f6617b8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f6617cb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f66197d03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 447147:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f661729754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f6617d6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f661aa0b6c7 n/a (libQt6WaylandClient.so.6 + 0x706c7)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446978:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f661729754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f6617d6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f6612036234 n/a (libQt6LabsFolderListModel.so.6 + 0xd234)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446981:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446980:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446992:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446982:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446993:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446994:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f6617297762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f6617d6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f6617cb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 446995:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f661729754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f6617d6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f66198be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 447088:
+                #0  0x00007f66172a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f6617294cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f661729754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f6617d6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f66198be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f6617d721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f66172980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f661732080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m452233[0m (quickshell)
+           TID: 452233 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Tue 2026-09-15 00:54:53 CST (3 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/run-p5634-i45325.scope
+          Unit: user@1000.service
+     User Unit: run-p5634-i45325.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 848240b3b8c64bb285d7cbbfac2cbe7a
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.848240b3b8c64bb285d7cbbfac2cbe7a.452233.1789404893000000.zst (present)[0m
+  Size on Disk: 17.7M
+       Message: Process 452233 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 452233:
+                #0  0x00007f77eeb71467 _ZN15QtWaylandClient17QWaylandShmBufferC2EPNS_15QWaylandDisplayERK5QSizeN6QImage6FormatEdP14wl_event_queue (libQt6WaylandClient.so.6 + 0xa2467)
+                #1  0x00007f77eeb721fb _ZN15QtWaylandClient23QWaylandShmBackingStore9getBufferERK5QSizeRb (libQt6WaylandClient.so.6 + 0xa31fb)
+                #2  0x00007f77eeb72a9d _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3a9d)
+                #3  0x00007f77eeb73715 n/a (libQt6WaylandClient.so.6 + 0xa4715)
+                #4  0x00007f77ebdeeff3 n/a (libQt6Core.so.6 + 0x1eeff3)
+                #5  0x00007f77eeb51d7e n/a (libQt6WaylandClient.so.6 + 0x82d7e)
+                #6  0x00007f77eeb473df _ZN15QtWaylandClient15QWaylandDisplay9reconnectEv (libQt6WaylandClient.so.6 + 0x783df)
+                #7  0x00007f77ebde6b96 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b96)
+                #8  0x00007f77ebd822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #9  0x00007f77ebd826c1 _ZN23QCoreApplicationPrivate16sendPostedEventsEP7QObjectiP11QThreadData (libQt6Core.so.6 + 0x1826c1)
+                #10 0x00007f77ec09a4b8 n/a (libQt6Core.so.6 + 0x49a4b8)
+                #11 0x00007f77ee650c76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #12 0x00007f77ee652ed7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #13 0x00007f77ee653055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #14 0x00007f77ec096f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #15 0x00007f77ebd8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #16 0x00007f77ebd8685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #17 0x0000559fe1af17c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #18 0x0000559fe1ae0f85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #19 0x0000559fe1ae5922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #20 0x0000559fe1ace87f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #21 0x00007f77eb427781 n/a (libc.so.6 + 0x27781)
+                #22 0x00007f77eb4278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #23 0x0000559fe1ad1445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 452290:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb511a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77ee652f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77ee653055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77ec096f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77ebd8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77ebeb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77ed9d03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452276:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb511a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77ee652f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77ee653055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77ec096f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77ebd8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77ebeb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77ec375951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452282:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb511a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77ee652f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77ee653055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77ec096f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77ebd8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77ebeb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77ebf72285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452286:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb511a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f77ee652f59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f77ee653055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f77ec096f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f77ebd8f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f77ebeb7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f77ebf72285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452294:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb49754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77ebf6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77e40ab234 n/a (libQt6LabsFolderListModel.so.6 + 0xd234)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452296:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452297:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452307:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb49754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77ebf6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77edabe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452308:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452310:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452424:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb49754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77ebf6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77edabe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452298:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452309:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452311:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452312:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb49754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77ebf6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77edabe146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452528:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb49754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f77ebf6b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f77eeb3f6c7 n/a (libQt6WaylandClient.so.6 + 0x706c7)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 452295:
+                #0  0x00007f77eb4a0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f77eb494cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f77eb497762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f77ebf6b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f77ebeb5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f77ebf721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f77eb4980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f77eb52080c n/a (libc.so.6 + 0x12080c)
+                ELF object binary architecture: AMD x86-64
+
+           PID: [0;1;39m466722[0m (quickshell)
+           TID: 466722 (quickshell)
+           UID: 1000 (luyishan4)
+           GID: 1000 (luyishan4)
+        Signal: 11 (SEGV) si_code: SEGV_MAPERR
+     Timestamp: Tue 2026-09-15 01:02:57 CST (3 days ago)
+  Command Line: /usr/bin/quickshell --path /home/luyishan4/Documents/linyx/qml/shell.qml --no-color
+    Executable: [0;1;39m/usr/bin/quickshell[0m
+ Control Group: /user.slice/user-1000.slice/user@1000.service/app.slice/run-p5634-i45325.scope
+          Unit: user@1000.service
+     User Unit: run-p5634-i45325.scope
+         Slice: user-1000.slice
+     Owner UID: 1000 (luyishan4)
+       Boot ID: 848240b3b8c64bb285d7cbbfac2cbe7a
+    Machine ID: cec85a7cb8d745a2a82d873b66cb55d1
+      Hostname: luo
+       Storage: /var/lib/systemd/coredump/core.quickshell.1000.848240b3b8c64bb285d7cbbfac2cbe7a.466722.1789405377000000.zst (present)[0m
+  Size on Disk: 16.9M
+       Message: Process 466722 (quickshell) of user 1000 dumped core.
+                
+                Stack trace of thread 466722:
+                #0  0x00007f2ea730e467 _ZN15QtWaylandClient17QWaylandShmBufferC2EPNS_15QWaylandDisplayERK5QSizeN6QImage6FormatEdP14wl_event_queue (libQt6WaylandClient.so.6 + 0xa2467)
+                #1  0x00007f2ea730f1fb _ZN15QtWaylandClient23QWaylandShmBackingStore9getBufferERK5QSizeRb (libQt6WaylandClient.so.6 + 0xa31fb)
+                #2  0x00007f2ea730fa9d _ZN15QtWaylandClient23QWaylandShmBackingStore26recreateBackBufferIfNeededEv (libQt6WaylandClient.so.6 + 0xa3a9d)
+                #3  0x00007f2ea7310715 n/a (libQt6WaylandClient.so.6 + 0xa4715)
+                #4  0x00007f2ea43eeff3 n/a (libQt6Core.so.6 + 0x1eeff3)
+                #5  0x00007f2ea72eed7e n/a (libQt6WaylandClient.so.6 + 0x82d7e)
+                #6  0x00007f2ea72e43df _ZN15QtWaylandClient15QWaylandDisplay9reconnectEv (libQt6WaylandClient.so.6 + 0x783df)
+                #7  0x00007f2ea43e6b96 _ZN7QObject5eventEP6QEvent (libQt6Core.so.6 + 0x1e6b96)
+                #8  0x00007f2ea43822b8 _ZN16QCoreApplication15notifyInternal2EP7QObjectP6QEvent (libQt6Core.so.6 + 0x1822b8)
+                #9  0x00007f2ea43826c1 _ZN23QCoreApplicationPrivate16sendPostedEventsEP7QObjectiP11QThreadData (libQt6Core.so.6 + 0x1826c1)
+                #10 0x00007f2ea469a4b8 n/a (libQt6Core.so.6 + 0x49a4b8)
+                #11 0x00007f2ea6dedc76 n/a (libglib-2.0.so.0 + 0x61c76)
+                #12 0x00007f2ea6defed7 n/a (libglib-2.0.so.0 + 0x63ed7)
+                #13 0x00007f2ea6df0055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #14 0x00007f2ea4696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #15 0x00007f2ea438f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #16 0x00007f2ea438685a _ZN16QCoreApplication4execEv (libQt6Core.so.6 + 0x18685a)
+                #17 0x00005612298117c4 _ZN2qs6launch6launchERKNS0_10LaunchArgsEPPc (quickshell + 0xde7c4)
+                #18 0x0000561229800f85 _ZN2qs6launch12_GLOBAL__N_1L17launchFromCommandERNS0_12CommandStateE (quickshell + 0xcdf85)
+                #19 0x0000561229805922 _ZN2qs6launch10runCommandEiPPc (quickshell + 0xd2922)
+                #20 0x00005612297ee87f _ZN2qs6launch4mainEiPPc (quickshell + 0xbb87f)
+                #21 0x00007f2ea3a27781 n/a (libc.so.6 + 0x27781)
+                #22 0x00007f2ea3a278b9 __libc_start_main (libc.so.6 + 0x278b9)
+                #23 0x00005612297f1445 _start (quickshell + 0xbe445)
+                
+                Stack trace of thread 466776:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3b11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f2ea6deff59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f2ea6df0055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f2ea4696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f2ea438f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f2ea44b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f2ea4572285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466774:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3b11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f2ea6deff59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f2ea6df0055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f2ea4696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f2ea438f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f2ea44b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f2ea4572285 n/a (libQt6Core.so.6 + 0x372285)
+                #8  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #9  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466786:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3a94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f2ea3a9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f2ea456b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f2e9d435234 n/a (libQt6LabsFolderListModel.so.6 + 0xd234)
+                #5  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466785:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3b11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f2ea6deff59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f2ea6df0055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f2ea4696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f2ea438f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f2ea44b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f2ea5fd03ed n/a (libQt6Quick.so.6 + 0x3d03ed)
+                #8  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466768:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3b11a57 ppoll (libc.so.6 + 0x111a57)
+                #2  0x00007f2ea6deff59 n/a (libglib-2.0.so.0 + 0x63f59)
+                #3  0x00007f2ea6df0055 g_main_context_iteration (libglib-2.0.so.0 + 0x64055)
+                #4  0x00007f2ea4696f32 _ZN20QEventDispatcherGlib13processEventsE6QFlagsIN10QEventLoop17ProcessEventsFlagEE (libQt6Core.so.6 + 0x496f32)
+                #5  0x00007f2ea438f664 _ZN10QEventLoop4execE6QFlagsINS_17ProcessEventsFlagEE (libQt6Core.so.6 + 0x18f664)
+                #6  0x00007f2ea44b7ce2 _ZN7QThread4execEv (libQt6Core.so.6 + 0x2b7ce2)
+                #7  0x00007f2ea6cbb951 n/a (libQt6DBus.so.6 + 0x39951)
+                #8  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #9  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #10 0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466789:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3a94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f2ea3a97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f2ea456b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f2ea44b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466803:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3a94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f2ea3a9754c pthread_cond_wait (libc.so.6 + 0x9754c)
+                #3  0x00007f2ea456b5e1 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b5e1)
+                #4  0x00007f2ea60be146 n/a (libQt6Quick.so.6 + 0x4be146)
+                #5  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466790:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3a94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f2ea3a97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f2ea456b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f2ea44b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466787:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3a94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f2ea3a97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f2ea456b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f2ea44b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466805:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3a94cd9 n/a (libc.so.6 + 0x94cd9)
+                #2  0x00007f2ea3a97762 pthread_cond_timedwait (libc.so.6 + 0x97762)
+                #3  0x00007f2ea456b549 _ZN14QWaitCondition4waitEP6QMutex14QDeadlineTimer (libQt6Core.so.6 + 0x36b549)
+                #4  0x00007f2ea44b5817 n/a (libQt6Core.so.6 + 0x2b5817)
+                #5  0x00007f2ea45721eb n/a (libQt6Core.so.6 + 0x3721eb)
+                #6  0x00007f2ea3a980a2 n/a (libc.so.6 + 0x980a2)
+                #7  0x00007f2ea3b2080c n/a (libc.so.6 + 0x12080c)
+                
+                Stack trace of thread 466788:
+                #0  0x00007f2ea3aa0952 n/a (libc.so.6 + 0xa0952)
+                #1  0x00007f2ea3a94cd9 n/a (libc.s

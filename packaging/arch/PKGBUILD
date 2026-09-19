@@ -1,12 +1,12 @@
 # Local source release: run scripts/make-source.sh first, then makepkg -Cfs.
 pkgname=ludash
 pkgver=1.0.0
-pkgrel=7
+pkgrel=8
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'polkit' 'git' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl')
-makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'polkit' 'git' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl')
+makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel' 'wayland-protocols')
 optdepends=('networkmanager: Network status and connection management'
             'nm-connection-editor: Graphical network setup'
             'wireplumber: Native volume and microphone controls'
@@ -24,8 +24,7 @@ sha256sums=('SKIP') # Local generated source, not a downloaded release.
 
 build() {
   cmake -S "ludash-${pkgver}" -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
-    -DLUDASH_USE_LIBINPUT=ON
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
   cmake --build build
 }
 
@@ -33,5 +32,7 @@ package() {
   DESTDIR="$pkgdir" cmake --install build
   install -Dm644 "ludash-${pkgver}/README.md" "$pkgdir/usr/share/doc/ludash/README.md"
   install -Dm644 "ludash-${pkgver}/docs/LOGIN_SESSION.md" "$pkgdir/usr/share/doc/ludash/LOGIN_SESSION.md"
+  install -Dm644 "ludash-${pkgver}/docs/ARCHITECTURE.md" "$pkgdir/usr/share/doc/ludash/ARCHITECTURE.md"
+  install -Dm644 "ludash-${pkgver}/docs/GRAPHICS.md" "$pkgdir/usr/share/doc/ludash/GRAPHICS.md"
   install -Dm644 "ludash-${pkgver}/docs/FILES.md" "$pkgdir/usr/share/doc/ludash/FILES.md"
 }

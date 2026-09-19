@@ -31,6 +31,10 @@ If a change does not need a large documentation rewrite, add a concise note to t
 
 ## Release notes
 
-GitHub Release Markdown is the source of truth for release notes. When a GitHub Release is published or edited, `.github/workflows/release-notes.yml` copies the release body into the Astro website under `/releases/<tag>/` and updates the release index.
+GitHub Release Markdown is the source of truth for release notes. When a GitHub Release is published or edited, `.github/workflows/site-pages.yml` copies the release body into the Astro website under `/releases/<tag>/` and updates the release index.
 
 See `docs/RELEASE_PROCESS.md` for the release-note format and automation details.
+
+## Native architecture
+
+Follow [the source architecture](docs/ARCHITECTURE.md): lowercase domains, PascalCase C++ files, `LunaDash` namespace, small domain-local `Main.cpp`, and explicit CMake sources. Keep OpenGL implementation/resources under `compositor/renderer/opengl`. Run `python3 scripts/check-source-layout.py` and its fixture regressions before submitting. Finish related docs, site and packaging changes before building; preserve remote `dev` behavior when resolving a structural move.

@@ -1,7 +1,7 @@
-#include "desktop/FileAssociations/FileAssociations.hpp"
-#include "desktop/FileAssociationUi/FileAssociationUi.hpp"
-#include "desktop/FileManager/FileManager.hpp"
-#include "desktop/FileOperations/FileOperations.hpp"
+#include "desktop/filemanager/FileAssociations.hpp"
+#include "desktop/filemanager/FileAssociationUi.hpp"
+#include "desktop/filemanager/FileManager.hpp"
+#include "desktop/fileoperations/FileOperations.hpp"
 #include <QtTest>
 #include <QtWidgets>
 #include <QTemporaryDir>
@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-namespace LuDash {
+namespace LunaDash {
 namespace {
 bool writeFile(const QString& path, const QByteArray& bytes) {
     QFile file(path); return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
@@ -262,7 +262,7 @@ private Q_SLOTS:
         QCOMPARE(QApplication::clipboard()->text(), temporary.path());
     }
 };
-} // namespace LuDash
+} // namespace LunaDash
 
 int main(int argc, char** argv) {
     QTemporaryDir sandbox;
@@ -276,18 +276,18 @@ int main(int argc, char** argv) {
     qputenv("XDG_DATA_HOME", QFile::encodeName(data));
     qputenv("LUNADASH_TEST_CAPTURE", QFile::encodeName(sandbox.filePath("capture")));
     const auto script = sandbox.filePath("capture.sh");
-    if (!LuDash::writeFile(script, "printf '%s\\n' \"$@\" > \"$LUNADASH_TEST_CAPTURE\"\n")) return 2;
+    if (!LunaDash::writeFile(script, "printf '%s\\n' \"$@\" > \"$LUNADASH_TEST_CAPTURE\"\n")) return 2;
     const auto desktop = "[Desktop Entry]\nType=Application\nName=LunaDash Test Editor\nExec=/bin/sh " +
         QFile::encodeName(script) + " %F\nMimeType=text/plain;\nIcon=text-editor\n";
-    if (!LuDash::writeFile(data + "/applications/" + LuDash::appId, desktop)) return 2;
+    if (!LunaDash::writeFile(data + "/applications/" + LunaDash::appId, desktop)) return 2;
     for (const auto& fixture : QList<QPair<QString, QByteArray>>{
         {"Dispatcher", "Exec=gio open %U\n"}, {"NonFileApp", "Exec=/bin/true\n"},
         {"BusApp", "Exec=/bin/true\nDBusActivatable=true\n"}}) {
-        if (!LuDash::writeFile(data + "/applications/org.lunadash.test." + fixture.first + ".desktop",
+        if (!LunaDash::writeFile(data + "/applications/org.lunadash.test." + fixture.first + ".desktop",
             "[Desktop Entry]\nType=Application\nName=Test fixture\n" + fixture.second)) return 2;
     }
     QApplication app(argc, argv); app.setOrganizationName("LunaDash"); app.setApplicationName("FilesTest");
-    LuDash::FileManagerTests tests;
+    LunaDash::FileManagerTests tests;
     return QTest::qExec(&tests, argc, argv);
 }
 #include "FileManagerTests.moc"

@@ -1,8 +1,8 @@
 # Files and file associations
 
 Files uses the existing native Qt interface and shared desktop theme. Layout,
-interaction and association logic are separated into `file_manager`,
-`file_manager_actions`, `file_association_ui` and `file_associations`.
+interaction and association logic are separated into `src/desktop/filemanager/` and `src/desktop/fileoperations/`, with separate
+interfaces for actions, association UI and GIO integration.
 
 ## First use and opening documents
 

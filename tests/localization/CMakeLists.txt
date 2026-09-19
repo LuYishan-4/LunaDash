@@ -4,7 +4,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core)
 get_filename_component(REPOSITORY_ROOT ${CMAKE_CURRENT_LIST_DIR}/../.. ABSOLUTE)
-add_library(ludash-localization ${REPOSITORY_ROOT}/src/config/Localization/Localization.cpp)
+add_library(ludash-localization ${REPOSITORY_ROOT}/src/config/localization/Localization.cpp
+    ${REPOSITORY_ROOT}/src/config/localization/JsonTranslator.cpp)
 target_include_directories(ludash-localization PUBLIC ${REPOSITORY_ROOT}/src)
 target_link_libraries(ludash-localization PUBLIC Qt6::Core)
 qt_add_resources(ludash-localization translations PREFIX /LuDash BASE ${REPOSITORY_ROOT}

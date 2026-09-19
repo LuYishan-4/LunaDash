@@ -20,7 +20,7 @@
 
 </div>
 
-LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland Compositor, C11 cores for rendering, tiling and metrics, and a Quickshell/QML shell. Windows live in niri-inspired scrollable columns, while the shell provides the panel, launcher, dashboard, settings, notifications, file tools and desktop integrations.
+LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on wlroots, C11 cores for rendering, tiling and metrics, and a Quickshell/QML shell. Windows live in niri-inspired scrollable columns, while the shell provides the panel, launcher, dashboard, settings, notifications, file tools and desktop integrations.
 
 > [!WARNING]
 > LunaDash is still in active pre-release development. Nested sessions are the safest way to test it. Keep your existing desktop/login session available as a recovery path.
@@ -48,7 +48,7 @@ LunaDash is a Wayland desktop: a C++20 / OpenGL compositor built on Qt Wayland C
 - **Notifications and removable media.** Desktop notifications, crash details and removable USB notifications/operations are integrated into the shell.
 - **Plugins.** Metadata-driven QML plugins and native C++ effects use a common manifest model; native effects remain opt-in because they execute in-process.
 - **X11 compatibility.** X11 applications run through an authenticated XWayland instance.
-- **Explicit graphics.** OpenGL 3.3 compatibility or OpenGL ES 3.0 contexts with a software-friendly shell rendering path for problematic drivers.
+- **Explicit graphics.** wlroots renderer selection, a separately tested OpenGL 3.3 / OpenGL ES 3.0 render-element library, and a separately configurable Qt Quick shell renderer.
 
 ## Linux distribution support
 
@@ -65,7 +65,7 @@ LunaDash uses standard CMake install rules and is not tied to one package manage
 | Gentoo Linux | `emerge` | dependencies + standard CMake install | Installer-supported |
 | Other Linux distributions | any / manual | validate existing toolchain + standard CMake install | Generic source-build path |
 
-The backend requires CMake 3.21+, Ninja, a C11/C++20 compiler, Qt 6.4+ Base/Declarative/Wayland/OpenGL development packages, Wayland/wayland-protocols, libinput, libxkbcommon, udev-compatible development headers, GL development headers, GLib and shared-mime-info. The shell requires [Quickshell 0.3 or newer](https://quickshell.org/docs/v0.3.0/guide/install-setup/). Quickshell packaging differs between distributions, so LunaDash does **not** add unofficial repositories automatically.
+The backend requires CMake 3.21+, Ninja, a C11/C++20 compiler, Qt 6.4+ Base/Declarative/OpenGL development packages, the Qt Wayland client plugin, wlroots 0.17–0.20, Wayland/wayland-protocols, libinput, libxkbcommon, udev-compatible development headers, GL development headers, GLib and shared-mime-info. The shell requires [Quickshell 0.3 or newer](https://quickshell.org/docs/v0.3.0/guide/install-setup/). Quickshell packaging differs between distributions, so LunaDash does **not** add unofficial repositories automatically.
 
 On non-systemd systems such as typical Alpine/Void/OpenRC installations, LunaDash itself can be built and installed, but `install-session.sh --enable-sddm` is intentionally unavailable. Enable your display manager using that distribution's normal OpenRC/runit procedure instead.
 
@@ -82,42 +82,42 @@ Typical package sets are handled automatically. Examples:
 ```sh
 # Arch Linux
 sudo pacman -S --needed base-devel cmake ninja git pkgconf libglvnd mesa \
-  wayland wayland-protocols libinput libxkbcommon systemd glib2 \
+  wayland wayland-protocols wlroots0.20 libinput libxkbcommon systemd glib2 \
   qt6-base qt6-declarative qt6-wayland qt6-translations shared-mime-info fish
 
 # Debian / Ubuntu
 sudo apt-get install build-essential cmake ninja-build git pkg-config libgl-dev \
-  libwayland-dev wayland-protocols libinput-dev libxkbcommon-dev libudev-dev \
+  libwayland-dev wayland-protocols libwlroots-dev libinput-dev libxkbcommon-dev libudev-dev \
   libglib2.0-dev qt6-base-dev qt6-declarative-dev qt6-wayland-dev qt6-wayland \
   libqt6opengl6-dev shared-mime-info fish
 
 # Fedora
 sudo dnf install gcc gcc-c++ cmake ninja-build git pkgconf-pkg-config \
-  mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
+  mesa-libGL-devel wayland-devel wayland-protocols-devel wlroots-devel libinput-devel \
   libxkbcommon-devel systemd-devel glib2-devel qt6-qtbase-devel \
   qt6-qtdeclarative-devel qt6-qtwayland-devel shared-mime-info fish
 
 # openSUSE
 sudo zypper install gcc gcc-c++ cmake ninja git pkg-config Mesa-libGL-devel \
-  wayland-devel wayland-protocols-devel libinput-devel libxkbcommon-devel \
+  wayland-devel wayland-protocols-devel wlroots-devel libinput-devel libxkbcommon-devel \
   systemd-devel glib2-devel qt6-base-devel qt6-declarative-devel \
   qt6-wayland-devel shared-mime-info fish
 
 # Alpine Linux
 sudo apk add build-base cmake ninja git pkgconf mesa-dev wayland-dev \
-  wayland-protocols libinput-dev libxkbcommon-dev eudev-dev glib-dev \
+  wayland-protocols wlroots-dev libinput-dev libxkbcommon-dev eudev-dev glib-dev \
   qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland-dev shared-mime-info fish
 
 # Void Linux
 sudo xbps-install -Sy base-devel cmake ninja git pkg-config MesaLib-devel \
-  wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
+  wayland-devel wayland-protocols wlroots-devel libinput-devel libxkbcommon-devel \
   eudev-libudev-devel glib-devel qt6-base-devel qt6-declarative-devel \
   qt6-wayland-devel shared-mime-info fish
 
 # Gentoo Linux
 sudo emerge --noreplace dev-build/cmake app-alternatives/ninja virtual/pkgconfig \
   dev-vcs/git media-libs/mesa dev-libs/wayland dev-libs/wayland-protocols \
-  dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib \
+  gui-libs/wlroots dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib \
   dev-qt/qtbase:6 dev-qt/qtdeclarative:6 dev-qt/qtwayland:6 \
   x11-misc/shared-mime-info app-shells/fish
 ```
@@ -213,6 +213,10 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadashctl screenshot
 ```
 
+## Source architecture
+
+Native code is organized into `compositor`, `config`, `core`, `ctl`, `desktop`, `service` and `shell`. Lowercase domain directories contain adjacent PascalCase C++ interfaces and implementations. Built-in OpenGL shaders are embedded from `src/compositor/renderer/opengl/shaders`; installed applications do not read renderer files from the checkout. Run `python3 scripts/check-source-layout.py` to check the same architecture rules used by CI. See [Architecture](docs/ARCHITECTURE.md) for extension and ownership contracts.
+
 ## Contributing and releases
 
 All pull requests must target **`dev`**. PRs are expected to update both relevant files under `docs/` and the user-facing website under `site/`; the PR policy workflow enforces this. Heavy C++/Qt/security analysis is scoped to source changes instead of running unnecessarily for documentation-only changes.
@@ -223,7 +227,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the PR contract and [Release process]
 
 - [Testing guide and maintained files](docs/TESTING_AND_FILES.md)
 - [Architecture](docs/ARCHITECTURE.md) · [C core](docs/C_CORE.md) · [Graphics contexts](docs/GRAPHICS.md)
-- [Appearance](docs/APPEARANCE.md) · [Effects](docs/EFFECTS.md) · [Shell rendering](docs/SHELL_RENDERING.md)
+- [Appearance](docs/CONFIGURATION.md) · [Effects](docs/EFFECTS.md) · [Shell rendering](docs/SHELL_RENDERING.md)
 - [Configuration](docs/CONFIGURATION.md) · [Settings](docs/SETTINGS.md) · [Modules](docs/MODULES.md)
 - [Default applications and Files](docs/DEFAULT_APPS_AND_FILES.md) · [Input methods](docs/INPUT_METHODS.md)
 - [Plugins](docs/PLUGINS.md) · [Security checks](docs/SECURITY_CHECKS.md)

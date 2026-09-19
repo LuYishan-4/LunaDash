@@ -16,9 +16,9 @@ New plugins use `metadata.json` (also referred to as the plugin manifest):
   "schemaVersion": 1,
   "id": "org.example.clock",
   "name": "Example Clock",
-  "name[zh_TW]": "範例時鐘",
+  "name[zh_TW]": "\u7bc4\u4f8b\u6642\u9418",
   "description": "A desktop clock plugin.",
-  "description[zh_TW]": "桌面時鐘插件。",
+  "description[zh_TW]": "\u684c\u9762\u6642\u9418\u63d2\u4ef6。",
   "version": "1.0.0",
   "author": {
     "name": "Example Author"
@@ -60,8 +60,10 @@ For backward compatibility, LunaDash also accepts the older KDE-inspired metadat
 }
 ```
 
-Native plugins are discovered from `~/.local/share/ludash/plugins/<id>/`, `$prefix/share/ludash/plugins/<id>/`, and `plugins/` next to the executable. Derive the C++ class from `QObject` and `LuDash::CompositorPlugin`. Implement `windowOpened(QQuickItem*)` and `windowFocused(QQuickItem*)`, embed matching metadata using `Q_PLUGIN_METADATA`, and declare the interface with `Q_INTERFACES`. Use `QPointer<QQuickItem>` if retaining a window reference.
+Native plugins are discovered from `~/.local/share/ludash/plugins/<id>/`, `$prefix/share/ludash/plugins/<id>/`, and `plugins/` next to the executable. Derive the C++ class from `QObject` and `LunaDash::CompositorPlugin`. Implement `windowOpened(QQuickItem*)` and `windowFocused(QQuickItem*)`, embed matching metadata using `Q_PLUGIN_METADATA`, and declare the interface with `Q_INTERFACES`. Use `QPointer<QQuickItem>` if retaining a window reference.
 
-The native example is in `src/compositor/plugins/FadePlugin/FadePlugin.hpp`, `src/compositor/plugins/FadePlugin/FadePlugin.cpp`, and `data/plugins/fade/metadata.json`. It builds into `build/plugins/org.ludash.fade/`.
+The native example is in `src/compositor/plugins/fade/FadePlugin.hpp`, `src/compositor/plugins/fade/FadePlugin.cpp`, and `data/plugins/fade/metadata.json`. It builds into `build/plugins/org.ludash.fade/`.
 
 The loader validates JSON size, ID, API/type, canonical entry paths, and the Qt plugin IID for native effects. There is currently no signing or sandbox for C++ effects, so enabling one explicitly trusts its native code.
+
+Metadata discovery lives in `src/config/plugins/PluginCatalog`, independently of the compositor loader. The C++ namespace is now `LunaDash`; rebuild native plugins against the current header. The retained effect interface uses Qt Quick items and is not yet connected to wlroots scene-window callbacks. Loading a native module does not establish that its visual effects are active in the wlroots session.
