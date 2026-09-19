@@ -52,10 +52,10 @@ fi
 
 if [[ "${1:-}" == "--rollback" ]]; then
     rollback=true
-    write_status "running" 10 "rollback" "Restoring the previous LunaDash installation."
+    write_status "running" 10 "authorization" "Approve the system authorization request to restore the previous installation."
     [[ -f "$backup" ]] || fail "No LunaDash update backup is available."
     need pkexec
-    pkexec tar -xzf "$backup" -C / || fail "Could not restore the previous installation."
+    pkexec --disable-internal-agent tar -xzf "$backup" -C / </dev/null || fail "Could not authorize or restore the previous installation. Use a desktop polkit agent, or restore from a terminal."
     write_status "completed" 100 "complete" "Rollback completed. Reboot to use the restored installation."
     echo "Rollback completed. Reboot to use the restored LunaDash installation."
     exit 0
@@ -115,7 +115,7 @@ if (("${#paths[@]}" > 0)); then
 fi
 
 write_status "running" 34 "install-script" "Starting the repository installation script."
-LUDASH_INSTALL_PROGRESS_FILE="$installer_progress" LUDASH_PREFER_PKEXEC=1 LUDASH_UPDATE_MODE=1     bash "$src/scripts/install-session.sh" --skip-deps >"$installer_log" 2>&1 &
+LUDASH_INSTALL_PROGRESS_FILE="$installer_progress" LUDASH_PREFER_PKEXEC=1 LUDASH_UPDATE_MODE=1     bash "$src/scripts/install-session.sh" --skip-deps </dev/null >"$installer_log" 2>&1 &
 installer_pid=$!
 
 last_progress_line=""

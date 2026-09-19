@@ -2,5 +2,9 @@
   "The installation changed during this session. Restart to use it.": "此工作階段中已完成安裝變更，請重新啟動以使用新安裝。",
   "Running version": "目前執行版本",
   "Latest on this channel": "此頻道最新版本",
-  "Last installation": "上次安裝紀錄"
+  "Last installation": "上次安裝紀錄",
+  "Waiting for authorization": "等待授權",
+  "Approve the system authorization dialog. Package confirmation is handled automatically.": "請完成系統授權視窗中的確認。套件安裝確認會自動處理。",
+  "Approve the system authorization request to continue installation.": "請完成系統授權以繼續安裝。",
+  "Approve the system authorization request to restore the previous installation.": "請完成系統授權以還原上次安裝。"
 }

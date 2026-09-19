@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import subprocess
+import sys
 
 root = Path(__file__).resolve().parents[2]
 updater = (root / "scripts/lunadash-update").read_text(encoding="utf-8")
@@ -25,4 +27,5 @@ browser = (root / "src/desktop/browser/Browser.cpp").read_text(encoding="utf-8")
 assert "google-chrome-stable" in browser
 assert "Browser::defaultCommand" in defaults
 assert "function openUrl(url)" in shell
+subprocess.run([sys.executable, str(root / "tests/update/test_installer.py")], check=True)
 print("update/default-browser contract passed")

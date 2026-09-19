@@ -7,6 +7,8 @@ enable_sddm=false
 autologin=""
 dry_run=false
 skip_deps=false
+non_interactive=false
+[[ ${LUDASH_UPDATE_MODE:-0} == 1 ]] && non_interactive=true
 build_dir=${LUDASH_BUILD_DIR:-"$project_dir/build-install"}
 progress_file=${LUDASH_INSTALL_PROGRESS_FILE:-}
 
@@ -20,7 +22,7 @@ report_progress() {
 
 usage() {
     cat <<'EOF'
-Usage: ./scripts/install-session.sh [--enable-sddm] [--autologin USER] [--skip-deps] [--dry-run]
+Usage: ./scripts/install-session.sh [--enable-sddm] [--autologin USER] [--skip-deps] [--non-interactive] [--dry-run]
 
 Supported installation paths:
   Arch Linux / derivatives      makepkg + pacman package installation
@@ -38,6 +40,10 @@ Options:
                   Opt into passwordless SDDM login for this user on boot.
                   Requires --enable-sddm. Existing auto-login config is preserved.
   --skip-deps     Do not invoke scripts/install-dependencies.sh.
+  --non-interactive
+                  Accept package confirmation prompts and never read terminal input.
+                  Requires --skip-deps; cannot configure SDDM/autologin.
+                  Administrator authorization is still required.
   --dry-run       Print commands without building or modifying the system.
 
 Run as your normal user. Privilege elevation is requested only for package/system
@@ -55,12 +61,18 @@ while (($#)); do
             shift
             ;;
         --skip-deps) skip_deps=true ;;
+        --non-interactive) non_interactive=true ;;
         --dry-run) dry_run=true ;;
         --help|-h) usage; exit 0 ;;
         *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
     esac
     shift
 done
+
+if $non_interactive && { ! $skip_deps || $enable_sddm || [[ -n $autologin ]]; }; then
+    echo 'Non-interactive updates require --skip-deps and cannot configure the display manager.' >&2
+    exit 2
+fi
 
 if ((EUID == 0)); then
     echo 'Run as a normal user; build/package tools must not run as root.' >&2
@@ -72,11 +84,13 @@ if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]]; then
         echo 'pkexec is required for graphical LunaDash updates.' >&2
         exit 1
     }
-    elevate=(pkexec)
+    elevate=(pkexec --disable-internal-agent)
 elif command -v sudo >/dev/null 2>&1; then
     elevate=(sudo)
+    $non_interactive && elevate+=(-n)
 elif command -v doas >/dev/null 2>&1; then
     elevate=(doas)
+    $non_interactive && elevate+=(-n)
 else
     echo 'sudo, doas, or graphical pkexec elevation is required for system installation.' >&2
     exit 1
@@ -125,6 +139,35 @@ run() {
     if ! $dry_run; then "$@"; fi
 }
 
+install_system() {
+    local message=$1
+    shift
+    if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]]; then
+        report_progress 82 authorization "Approve the system authorization request to continue installation."
+        # Emit this marker only after pkexec has authorized the operation. Keep
+        # progress-file writes in the unprivileged reader, not the root command.
+        if ! run "${elevate[@]}" /bin/sh -c \
+            'printf "%s\n" LUNADASH_INSTALL_AUTHORIZED; exec "$@"' \
+            lunadash-install "$@" </dev/null 2>&1 | while IFS= read -r line; do
+                if [[ $line == LUNADASH_INSTALL_AUTHORIZED ]]; then
+                    report_progress 84 install "$message"
+                else
+                    printf '%s\n' "$line"
+                fi
+            done; then
+            echo 'System installation failed or authorization was cancelled/unavailable. Use a desktop polkit agent, or run ./scripts/install-session.sh from a terminal.' >&2
+            return 1
+        fi
+    else
+        report_progress 84 install "$message"
+        run "${elevate[@]}" "$@"
+    fi
+}
+
+# Background updates must not wait on a hidden package/password prompt. The
+# graphical path uses the registered desktop authentication agent instead.
+$non_interactive && exec </dev/null
+
 report_progress 36 prepare "Preparing the LunaDash installation script."
 
 if ! $skip_deps; then
@@ -140,16 +183,17 @@ if [[ $package_manager == pacman ]]; then
     run "$project_dir/scripts/make-source.sh"
     (
         cd -- "$project_dir/packaging/arch"
-        if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]]; then
+        if $non_interactive || [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]]; then
             report_progress 54 build "Building the Arch Linux package."
-            run makepkg --force --cleanbuild
+            run makepkg --force --cleanbuild --noconfirm
             mapfile -t packages < <(makepkg --packagelist)
             (("${#packages[@]}" > 0)) || { echo 'makepkg produced no package paths.' >&2; exit 1; }
-            for package in "${packages[@]}"; do
-                [[ -f $package ]] || { echo "Built package is missing: $package" >&2; exit 1; }
-            done
-            report_progress 84 install "Installing the newly built LunaDash package."
-            run "${elevate[@]}" pacman -U --noconfirm "${packages[@]}"
+            if ! $dry_run; then
+                for package in "${packages[@]}"; do
+                    [[ -f $package ]] || { echo "Built package is missing: $package" >&2; exit 1; }
+                done
+            fi
+            install_system "Installing the newly built LunaDash package." pacman -U --noconfirm "${packages[@]}"
         else
             report_progress 54 build "Building and installing the Arch Linux package."
             run makepkg --syncdeps --force --install
@@ -164,8 +208,7 @@ else
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
     report_progress 58 build "Building LunaDash."
     run cmake --build "$build_dir" --parallel
-    report_progress 84 install "Installing LunaDash system files."
-    run "${elevate[@]}" cmake --install "$build_dir"
+    install_system "Installing LunaDash system files." cmake --install "$build_dir"
 fi
 
 report_progress 96 finalize "Finalizing the LunaDash installation."

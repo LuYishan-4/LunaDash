@@ -94,6 +94,15 @@ TestCase {
         verify(model.canInstall)
         compare(model.status, "available")
     }
+    function test_authorization_is_distinct_from_installation() {
+        backendShell.updateInstall = {state: "running", progress: 82, stage: "authorization"}
+        verify(model.authorizing)
+        verify(!model.canInstall)
+        compare(model.stageLabel("authorization"), "Waiting for authorization")
+        backendShell.updateInstall = {state: "running", progress: 84, stage: "install"}
+        verify(!model.authorizing)
+        verify(model.installing)
+    }
     function test_invalid_progress_and_unknown_commit() {
         backendShell.updateInstall = {state: "running", progress: "not a number"}
         compare(model.progress, 0)

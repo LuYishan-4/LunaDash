@@ -8,6 +8,7 @@ QtObject {
     readonly property string channel: (shell.state.appearance || {}).updateChannel === "dev" ? "dev" : "stable"
     readonly property string checkStatus: update.channel === channel ? String(update.status || "idle") : "idle"
     readonly property bool installing: install.state === "running"
+    readonly property bool authorizing: installing && install.stage === "authorization"
     readonly property bool completed: install.state === "completed"
     readonly property bool failed: install.state === "error"
     readonly property bool hasHistory: completed || failed
@@ -43,7 +44,7 @@ QtObject {
 
     function stageLabel(stage) {
         const labels = {
-            prepare: "Preparing", download: "Downloading source", verify: "Verifying update",
+            prepare: "Preparing", authorization: "Waiting for authorization", download: "Downloading source", verify: "Verifying update",
             dependencies: "Checking dependencies", package: "Preparing package",
             "install-script": "Running install script", configure: "Configuring build",
             build: "Building LunaDash", backup: "Creating rollback backup", install: "Installing files",

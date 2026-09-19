@@ -33,6 +33,7 @@ ModuleSurface {
     }
     function openResult(entry){showCategory(entry.page)}
     readonly property int overlayMargin:Math.max(8,Math.min(moduleMargin,24))
+    readonly property bool updateAuthorizing:(shell.updateInstall || {}).state==="running" && (shell.updateInstall || {}).stage==="authorization"
     readonly property int configuredX:Number.isFinite(Number(moduleStyle.x))?Number(moduleStyle.x):0
     readonly property int configuredY:Number.isFinite(Number(moduleStyle.y))?Number(moduleStyle.y):0
     anchors.top:true;anchors.left:true
@@ -40,7 +41,7 @@ ModuleSurface {
     margins.top:configuredY===0?Theme.barHeight+overlayMargin:configuredY
     implicitWidth:moduleWidth(1120);implicitHeight:moduleHeight(720)
     exclusionMode:ExclusionMode.Ignore
-    WlrLayershell.layer:WlrLayer.Overlay;WlrLayershell.namespace:"lunadash-settings";WlrLayershell.keyboardFocus:opened?WlrKeyboardFocus.Exclusive:WlrKeyboardFocus.None
+    WlrLayershell.layer:updateAuthorizing?WlrLayer.Bottom:WlrLayer.Overlay;WlrLayershell.namespace:"lunadash-settings";WlrLayershell.keyboardFocus:opened&&!updateAuthorizing?WlrKeyboardFocus.Exclusive:WlrKeyboardFocus.None
     color:"transparent"
     Rectangle{anchors.fill:parent;color:moduleBackground;border.color:Theme.border;radius:moduleRadius}
     ColumnLayout {

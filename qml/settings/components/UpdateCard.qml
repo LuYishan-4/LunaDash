@@ -38,7 +38,8 @@ SettingsCard {
     Text {
         Layout.fillWidth: true
         Layout.minimumWidth: 0
-        text: updateState.status === "installing" ? shell.tr(updateState.install.rollback ? "Restoring previous installation" : "Installing update")
+        text: updateState.authorizing ? shell.tr("Waiting for authorization")
+            : updateState.status === "installing" ? shell.tr(updateState.install.rollback ? "Restoring previous installation" : "Installing update")
             : updateState.status === "restart" ? shell.tr("Restart required")
             : updateState.status === "checking" ? shell.tr("Checking for updates…")
             : updateState.status === "available" ? shell.tr("An update is ready to install.")
@@ -49,6 +50,15 @@ SettingsCard {
         font.family: Theme.font
         font.pixelSize: 16
         font.weight: Font.DemiBold
+        wrapMode: Text.WordWrap
+    }
+    Text {
+        Layout.fillWidth: true
+        visible: updateState.authorizing
+        text: shell.tr("Approve the system authorization dialog. Package confirmation is handled automatically.")
+        color: Theme.muted
+        font.family: Theme.font
+        font.pixelSize: 12
         wrapMode: Text.WordWrap
     }
     Text {
