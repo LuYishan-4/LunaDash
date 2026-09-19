@@ -17,6 +17,7 @@ void check(bool condition, const char *message) {
     qFatal("%s", message);
 }
 void runTests() {
+  qunsetenv("LUNADASH_DISCORD_GPU");
   QStringList discord{"flatpak", "run", "com.discordapp.Discord",
                       "--disable-features=ExistingFeature",
                       "--use-angle=vulkan"};
@@ -26,6 +27,7 @@ void runTests() {
             discord.contains("--disable-features=ExistingFeature,Vulkan,"
                              "DefaultANGLEVulkan,VulkanFromANGLE"),
         "Keep existing flags while disabling the incompatible Vulkan paths");
+  check(discord.contains("--disable-gpu"), "Discord uses the scoped software fallback");
   const auto once = discord;
   ensureDiscordWaylandFlags(discord);
   check(discord == once, "Discord compatibility flags are idempotent");

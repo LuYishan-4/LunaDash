@@ -6,7 +6,12 @@
 
 namespace LunaDash {
 int Portal::run(int argc, char **argv) {
+  // A portal backend must not query its own frontend while the frontend is
+  // waiting for this service to acquire its bus name.
+  qputenv("QT_QPA_PLATFORMTHEME", "generic");
+  qunsetenv("GTK_USE_PORTAL");
   QApplication app(argc, argv);
+  app.setQuitOnLastWindowClosed(false);
   app.setApplicationName(QStringLiteral("LunaDash File Chooser"));
   app.setOrganizationName(QStringLiteral("LunaDash"));
   LunaDash::initializeLocalization(app);

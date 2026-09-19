@@ -268,11 +268,15 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
             [this, process] { shellProcessIds_.insert(process->processId()); });
     const QString sourceConfig =
         QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
-    QString config =
-        QFileInfo::exists(sourceConfig)
-            ? sourceConfig
-            : QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                     "lunadash/shell/shell.qml");
+    // Use assets next to the installed executable before any build checkout.
+    // This also supports a staged/relocated installation in CI.
+    QString config = QDir(QCoreApplication::applicationDirPath())
+                         .absoluteFilePath("../share/lunadash/shell/shell.qml");
+    if (!QFileInfo::exists(config))
+      config = QFileInfo::exists(sourceConfig)
+                   ? sourceConfig
+                   : QStandardPaths::locate(QStandardPaths::GenericDataLocation,
+                                            "lunadash/shell/shell.qml");
     if (config.isEmpty())
       config = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
                                       "ludash/shell/shell.qml");
@@ -285,6 +289,11 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       return nullptr;
     }
     environment.insert("LUNADASH_WALLPAPER", wallpaperImageUrl());
+    // The shell draws its own theme. A blocking portal Settings query here
+    // would prevent even the startup splash from reaching its first frame.
+    environment.insert("QT_QPA_PLATFORMTHEME", "generic");
+    environment.remove("GTK_USE_PORTAL");
+    qInfo().noquote() << "LunaDash shell config:" << config;
     process->setProcessEnvironment(environment);
     process->start(quickshell, {"--path", config, "--no-color"});
   } else {
@@ -315,8 +324,12 @@ void WaylandCompositor::launchExternalCommand(QStringList command) {
                   command.end());
     ensureWaylandChromiumFlags(command);
 
-    if (discord)
+    if (discord) {
       ensureDiscordWaylandFlags(command);
+      qInfo() << "LunaDash Discord rendering:"
+              << (command.contains("--disable-gpu") ? "software" : "OpenGL")
+              << "(native Wayland)";
+    }
   }
 
   const QString executable = command.takeFirst();
@@ -491,12 +504,14 @@ void WaylandCompositor::focus(ClientWindow *client) {
       focused_->surface && focused_->surface->initialized)
     wlr_xdg_toplevel_set_activated(focused_->toplevel, false);
 
+  const bool changed = focused_ != client;
   focused_ = client;
   if (!client->floating)
     tiling_.focus(client->id);
   if (client->sceneTree)
     wlr_scene_node_raise_to_top(&client->sceneTree->node);
-  wlr_xdg_toplevel_set_activated(client->toplevel, true);
+  if (changed)
+    wlr_xdg_toplevel_set_activated(client->toplevel, true);
   d->focusSurface(client->surface->surface);
 }
 
@@ -805,6 +820,7 @@ QJsonObject WaylandCompositor::state() const {
            {"groups", tilingGroups}}},
       {"layerSurfaces", d ? d->mappedLayerCount() : 0},
       {"layerNamespaces", d ? d->mappedLayerNamespaces() : QJsonArray{}},
+      {"xdgPopupCount", d ? d->xdgPopups.size() : 0},
       {"language", selectedLanguage()},
       {"translations", languageDictionary(selectedLanguage())},
       {"wallpaper", QSettings().value("appearance/wallpaper", 0).toInt()},

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import Quickshell
 import Quickshell.Wayland
 import "../components"
@@ -9,6 +10,7 @@ PanelWindow {
     required property var shell
     property bool ready: false
     property bool minimumElapsed: false
+    property bool firstFrameSeen: false
     property bool finished: false
     property bool delayed: false
     property real reveal: 1
@@ -27,7 +29,16 @@ PanelWindow {
         }
     }
     onReadyChanged: finishIfReady()
-    Timer { interval: 400; running: true; onTriggered: { splash.minimumElapsed = true; splash.finishIfReady() } }
+    Connections {
+        target: splash.contentItem.Window.window
+        function onFrameSwapped() {
+            if (!splash.firstFrameSeen) {
+                splash.firstFrameSeen = true
+                minimumTimer.start()
+            }
+        }
+    }
+    Timer { id: minimumTimer; interval: 650; onTriggered: { splash.minimumElapsed = true; splash.finishIfReady() } }
     Timer { interval: 10000; running: !splash.finished; onTriggered: splash.delayed = true }
 
     Rectangle {

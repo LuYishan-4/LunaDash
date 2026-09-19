@@ -93,7 +93,8 @@ ColumnLayout {
         GridLayout {
             columns: page.width < 700 ? 1 : 2
             Layout.fillWidth: true
-            spacing: 14
+            rowSpacing: 14
+            columnSpacing: 14
 
             Rectangle {
                 Layout.preferredWidth: 360

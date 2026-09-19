@@ -18,10 +18,15 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
   if (!client || !client->surface || !client->toplevel ||
       !client->surface->initialized)
     return;
-  wlr_xdg_toplevel_set_size(client->toplevel, 0, 0);
-  if (client->toplevel->requested.maximized)
+  const bool fullscreen = client->toplevel->requested.fullscreen;
+  const bool maximized = client->toplevel->requested.maximized;
+  const QSize size = fullscreen ? outputSize() : q->workArea().size();
+  wlr_xdg_toplevel_set_size(client->toplevel,
+                            fullscreen || maximized ? std::max(1, size.width()) : 0,
+                            fullscreen || maximized ? std::max(1, size.height()) : 0);
+  if (maximized)
     wlr_xdg_toplevel_set_maximized(client->toplevel, true);
-  if (client->toplevel->requested.fullscreen)
+  if (fullscreen)
     wlr_xdg_toplevel_set_fullscreen(client->toplevel, true);
 }
 
@@ -161,7 +166,7 @@ void WaylandCompositor::Impl::handleToplevelCommit(wl_listener *listener,
 
   // Requests such as set_maximized can arrive before the first surface
   // commit. Apply them only after wlroots marks the role initialized.
-  configureInitialToplevel(state->client);
+  state->impl->configureInitialToplevel(state->client);
 }
 
 void WaylandCompositor::Impl::handleToplevelMetadata(wl_listener *listener,

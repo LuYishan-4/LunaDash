@@ -70,6 +70,28 @@ static const struct xdg_surface_listener xdg_surface_listener = {
     .configure = handle_xdg_surface_configure,
 };
 
+static void toplevel_configure(void *data, struct xdg_toplevel *toplevel,
+                               int32_t width, int32_t height,
+                               struct wl_array *states) {
+  (void)data;
+  (void)toplevel;
+  uint32_t *state;
+  wl_array_for_each(state, states) {
+    if ((*state == XDG_TOPLEVEL_STATE_MAXIMIZED ||
+         *state == XDG_TOPLEVEL_STATE_FULLSCREEN) && (width <= 0 || height <= 0)) {
+      fputs("maximized/fullscreen configure has an invalid size\n", stderr);
+      abort();
+    }
+  }
+}
+static void toplevel_close(void *data, struct xdg_toplevel *toplevel) {
+  (void)data;
+  (void)toplevel;
+}
+static const struct xdg_toplevel_listener toplevel_listener = {
+    .configure = toplevel_configure, .close = toplevel_close,
+};
+
 static struct wl_buffer *create_buffer(int width, int height) {
   const int stride = width * 4;
   const size_t size = (size_t)stride * (size_t)height;
@@ -212,6 +234,8 @@ int main(void) {
       xdg_wm_base_get_xdg_surface(g_wm_base, surface);
   xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
   struct xdg_toplevel *toplevel = xdg_surface_get_toplevel(xdg_surface);
+
+  xdg_toplevel_add_listener(toplevel, &toplevel_listener, NULL);
 
   /* Exercise the wlroots 0.20 lifecycle edge case: state requests may arrive
    * before the xdg_surface's first commit. The compositor must not schedule a

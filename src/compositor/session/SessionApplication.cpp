@@ -1,6 +1,7 @@
 #include "compositor/session/SessionApplication.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "config/localization/Localization.hpp"
+#include "config/BuildConfig.hpp"
 
 #include <QAbstractEventDispatcher>
 #include <QCommandLineParser>
@@ -14,12 +15,15 @@ int SessionApplication::run(int argc, char **argv) {
   QCoreApplication app(argc, argv);
   app.setApplicationName("LunaDash");
   app.setOrganizationName("LunaDash");
+  app.setApplicationVersion(QString::fromLatin1(BuildConfig::version) + " (" +
+                            QString::fromLatin1(BuildConfig::commit) + ")");
   LunaDash::initializeLocalization(app);
 
   QCommandLineParser parser;
   parser.setApplicationDescription(
       "LunaDash wlroots Wayland tiling compositor");
   parser.addHelpOption();
+  parser.addVersionOption();
   parser.addOption({"graphics",
                     "Renderer preference: auto, opengl or gles. OpenGL and "
                     "GLES select wlroots' GLES2 renderer.",
@@ -45,6 +49,8 @@ int SessionApplication::run(int argc, char **argv) {
     return 2;
   }
 
+  qInfo().noquote() << "LunaDash version:" << app.applicationVersion()
+                    << "executable:" << app.applicationFilePath();
   qInfo("LunaDash input: wlroots seat + libinput/xkbcommon (no Qt input path)");
 
   QElapsedTimer activeTurn;

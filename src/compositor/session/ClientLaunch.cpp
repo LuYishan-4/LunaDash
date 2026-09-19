@@ -69,6 +69,12 @@ void ensureDiscordWaylandFlags(QStringList &command) {
         return arg.startsWith("--wayland-text-input-version=");
       }))
     command.append("--wayland-text-input-version=3");
+  // Feature switches alone did not prevent Discord's GPU process from
+  // crashing on the reported NVIDIA/Wayland session. Keep this fallback
+  // local to Discord; users can explicitly opt back into GPU rendering.
+  if (qEnvironmentVariable("LUNADASH_DISCORD_GPU") != "1" &&
+      !command.contains("--disable-gpu"))
+    command.append("--disable-gpu");
 }
 
 } // namespace LunaDash

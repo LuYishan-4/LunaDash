@@ -174,15 +174,15 @@ References: [Qt embedded Linux/EGLFS](https://doc.qt.io/qt-6/embedded-linux.html
 
 ### Discord and external application menus
 
-LunaDash supports xdg-popup menus and nested submenus, including their initial configure, scene rendering and reposition requests. Pointer grabs remain with the menu until the client dismisses it. Click focus resolves the actual parent surface, so applications with multiple windows do not always focus their first window.
+LunaDash supports xdg-popup menus and nested submenus, including their initial configure, scene rendering and reposition requests. Pointer grabs remain with the menu until the client dismisses it. Focus changes precede the initiating button press, and clicks in an already focused window do not send redundant activation configures. Click focus resolves the actual parent surface, so applications with multiple windows do not always focus their first window.
 
-LunaDash's application launcher selects the native Wayland path for Discord and disables Chromium's Vulkan/ANGLE-Vulkan features while using ANGLE OpenGL. Existing unrelated disabled features are retained. A direct `flatpak run` command bypasses LunaDash's launcher adjustments. After completely exiting an existing Discord instance, use:
+LunaDash's application launcher selects native Wayland for Discord and defaults to software rendering (`--disable-gpu`) after Vulkan feature switches alone failed to prevent the reported NVIDIA GPU-process crash. This affects Discord only and may increase CPU use. `LUNADASH_DISCORD_GPU=1` in the session environment opts back into ANGLE OpenGL with Vulkan features disabled. Existing unrelated disabled features are retained. A direct `flatpak run` command bypasses LunaDash's launcher adjustments. After completely exiting an existing Discord instance, use:
 
 ```sh
 lunadashctl launch-command 'flatpak run com.discordapp.Discord'
 # Or supply the rendering options directly:
-flatpak run com.discordapp.Discord --ozone-platform=wayland --use-angle=gl \
+flatpak run com.discordapp.Discord --ozone-platform=wayland --disable-gpu --use-angle=gl \
   --disable-features=Vulkan,DefaultANGLEVulkan,VulkanFromANGLE
 ```
 
-These options address the reported Wayland/Vulkan incompatibility; they do not establish that every blank Discord window is caused by graphics. If content still fails to load, collect subsequent renderer/network errors and test the app on the same connection outside LunaDash. Fontconfig/theme warnings and a missing FileChooser portal should be diagnosed separately. For persistent Flatpak options, see the [upstream Discord Flatpak instructions](https://github.com/flathub/com.discordapp.Discord#persistent-launch-options); LunaDash does not rewrite personal Flatpak configuration.
+These options address the reported Wayland/Vulkan incompatibility; they do not establish that every blank Discord window is caused by graphics. If content still fails to load, collect subsequent renderer/network errors and test the app on the same connection outside LunaDash. The session log records the launcher rendering mode. A missing FileChooser interface is a separate startup defect: the backend uses a local Qt theme to prevent circular portal activation, and the portal configuration uses GTK for other supported interfaces. Install `xdg-desktop-portal-gtk`; custom portal overrides take precedence. Fontconfig/theme warnings should be diagnosed separately. For persistent Flatpak options, see the [upstream Discord Flatpak instructions](https://github.com/flathub/com.discordapp.Discord#persistent-launch-options); LunaDash does not rewrite personal Flatpak configuration.

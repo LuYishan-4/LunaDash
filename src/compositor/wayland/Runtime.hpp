@@ -264,7 +264,7 @@ public:
 
   static void handleKeyboardFocusChange(wl_listener *listener, void *data);
 
-  static void configureInitialToplevel(ClientWindow *client);
+  void configureInitialToplevel(ClientWindow *client);
 
   void addXdgToplevel(wlr_xdg_surface *surface, wlr_xdg_toplevel *toplevel);
 

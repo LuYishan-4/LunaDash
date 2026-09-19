@@ -322,17 +322,18 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
   if (!self || !event)
     return;
   const bool grabbed = wlr_seat_pointer_has_grab(self->seat);
+  if (event->state == WL_POINTER_BUTTON_STATE_PRESSED && !grabbed) {
+    double sx = 0;
+    double sy = 0;
+    wlr_surface *surface =
+        self->surfaceAt(self->cursor->x, self->cursor->y, &sx, &sy);
+    // Deliver focus before the press which may open a grabbed popup. Do not
+    // send a redundant toplevel configure after every context-menu click.
+    if (auto *client = self->clientForSurface(surface))
+      self->q->focus(client);
+  }
   wlr_seat_pointer_notify_button(self->seat, event->time_msec, event->button,
                                  event->state);
-  if (event->state != WL_POINTER_BUTTON_STATE_PRESSED || grabbed)
-    return;
-
-  double sx = 0;
-  double sy = 0;
-  wlr_surface *surface =
-      self->surfaceAt(self->cursor->x, self->cursor->y, &sx, &sy);
-  if (auto *client = self->clientForSurface(surface))
-    self->q->focus(client);
 }
 
 void WaylandCompositor::Impl::handleCursorAxis(wl_listener *listener,

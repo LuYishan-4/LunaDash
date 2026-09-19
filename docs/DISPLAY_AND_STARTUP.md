@@ -43,8 +43,12 @@ Unavailable modes and invalid scales are rejected. Output removal cancels a pend
 
 The compositor uses a neutral dark fallback while the shell maps, replacing the old blue background. D-Bus/systemd activation environment publication is asynchronous, so a slow service no longer blocks the Wayland event loop. The shell receives the initial wallpaper path directly, avoiding a first-status delay.
 
-The shell shows the LunaDash logo and a short loading animation while waiting for compositor state and wallpaper readiness, then fades into the desktop. Slow startup exposes a message and a dismiss action. Reduced-motion settings disable the pulse/fade. This is the desktop session startup animation, not a firmware or Plymouth boot splash.
+The shell uses a local Qt theme so portal startup cannot block its first frame. The FileChooser backend also avoids querying its own frontend during activation; the session selects the GTK backend for other supported portal interfaces instead of activating unrelated KDE/GNOME services. Install `xdg-desktop-portal-gtk` alongside `xdg-desktop-portal`.
+
+The shell shows the LunaDash logo and a short loading animation while waiting for compositor state and wallpaper readiness, then fades into the desktop after at least 650 ms measured from its first rendered frame. Slow startup exposes a message and a dismiss action. Reduced-motion settings disable the pulse/fade. This is the desktop session startup animation, not a firmware or Plymouth boot splash.
 
 Hidden panels load lazily. Buffer-only shell commits no longer rearrange every client or repeatedly steal keyboard focus from the active region selector. Wallpaper decode size follows the output size/scale, and its transition mask is disabled when idle. Native window effects advance from output frame callbacks instead of a separate Qt animation timer; active effects schedule another frame, and idle scenes do not repaint continuously.
+
+Installed sessions load QML beside their installed executable before considering a source checkout. `lunadash-compositor --version` and the session log identify the compiled revision; source archives preserve that revision. Arch CI stages an installation, opens every settings page in four languages and activates the actual FileChooser frontend.
 
 Use `lunadash-compositor --profile` to report event-loop stalls. Automated tests cover asynchronous startup, control geometry with translated labels, and headless display rollback. Actual FPS, physical refresh rate switching and backlight writes require testing on the target hardware; CI alone does not establish those results.
