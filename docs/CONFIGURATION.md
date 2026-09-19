@@ -1,12 +1,12 @@
 # First-run setup and configuration
 
-The first launch presents four steps: language, network, appearance and a short desktop introduction. Continue offline if needed. Changes to language and appearance are saved as they are made; **Start desktop** marks the guide complete. Desktop settings can reopen the guide at any time.
+The first launch shows a single welcome screen with a help link to https://luyishan-4.github.io/LunaDash/. **Start desktop** dismisses it and saves completion, including when offline. Opening the help link also completes the welcome screen before launching the default browser. General settings can reopen it. Language, network and appearance remain available in Settings; the welcome screen does not change those preferences.
 
 ## Network
 
 LunaDash reads the existing system connection state through NetworkManager's D-Bus API every five seconds. It does not create accounts, modify connection profiles, enable services or send connectivity probes. A connected interface is not automatically labeled as Internet access: captive portals and unknown connectivity have separate labels. Without NetworkManager, interface detection reports only a possible link, with Internet access unverified.
 
-**Configure network** opens `nm-connection-editor`. If it is unavailable, LunaDash tries `nmtui` in Konsole, foot or Alacritty. The first-run guide temporarily yields to the editor and returns after its window closes. Passwords remain in the external editor; LunaDash never stores them or sends them over its IPC. Changing system connections may require the distribution's working polkit authentication agent. LunaDash does not currently provide one.
+**Configure network** opens `nm-connection-editor`. If it is unavailable, LunaDash tries `nmtui` in Konsole, foot or Alacritty. Passwords remain in the external editor; LunaDash never stores them or sends them over its IPC. Changing system connections may require the distribution's working polkit authentication agent. LunaDash does not currently provide one.
 
 Arch optional packages: `networkmanager nm-connection-editor`. Do not enable NetworkManager alongside a conflicting manager. Existing host connections need no changes. A native Wi-Fi scanner, credential form and captive-portal browser flow are not implemented.
 
@@ -26,7 +26,7 @@ With normal XDG settings, the compositor stores configuration in `~/.config/LuDa
 | `desktop/animations` | true | Boolean |
 | `desktop/animationDuration` | 220 | Integer, 0–600 milliseconds |
 | `desktop/showHostDetails` | false | Boolean |
-| `appearance/language` | System locale | `en_US`, `zh_TW` |
+| `appearance/language` | System locale | `en_US`, `zh_TW`, `zh_CN`, `ja_JP` |
 | `appearance/wallpaperMode` | image | image or shader |
 | `appearance/wallpaperImage` | Bundled image | Validated local image path |
 | `appearance/wallpaper` | 0 | Shader palette 0 or 1 |

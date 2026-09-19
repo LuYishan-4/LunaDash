@@ -6,7 +6,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 
 | Page | Direct LunaDash controls | System or host integration / limits |
 | --- | --- | --- |
-| General | Extensible language drop-down, shell font, 12/24-hour clock, first-run guide, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
+| General | Extensible language drop-down, shell font, 12/24-hour clock, welcome screen, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
 | Appearance | Wallpaper image/palettes, in-shell PNG/JPEG/WebP picker, custom `#RRGGBB` accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Accent colors can be entered directly; the visible swatches are only quick presets. The picker is drawn inside the settings surface with a bounded preview; blur applies to application frames, with no KDE blur protocol |
 | Windows and workspaces | 1–9 workspaces, grouped columns, 50% default column width, per-column widths, window gaps, default floating mode | New windows open tiled and non-maximized; `Meta+F` maximizes/restores the focused column |
 | Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all nine workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
@@ -44,7 +44,7 @@ Additional keys in the existing `[desktop]` group:
 | `clock24Hour` | true | Boolean |
 | `startupApps` | empty | Unique built-in IDs: files, console, monitor, welcome |
 
-Startup selection runs after the shell starts in sessions whose first-run guide has been completed. Network, audio, power and account settings belong to their system services and are not copied into LunaDash's INI file. Resetting desktop preferences does not delete documents, reset language/wallpaper selections or modify system-service configuration. Nested window size is session-local.
+Startup selection runs after the shell starts in sessions whose welcome screen has been dismissed. Network, audio, power and account settings belong to their system services and are not copied into LunaDash's INI file. Resetting desktop preferences does not delete documents, reset language/wallpaper selections or modify system-service configuration. Nested window size is session-local.
 
 ## IPC and tests
 
@@ -82,3 +82,5 @@ Defaults use `Super+H/L` between columns, `Super+J/K` within a grouped column, `
 ## Display and startup controls
 
 See [display controls and startup](DISPLAY_AND_STARTUP.md) for backlight/DDC/CI brightness, primary-output resolution/refresh/scale, automatic rollback and the session loading animation. Translated settings labels wrap within their controls and cards instead of retaining a fixed single-line height.
+
+About displays the fixed tagline `⑨ baka ᗜˬᗜ` in every language. It is a brand string, not a translated description.

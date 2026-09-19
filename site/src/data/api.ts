@@ -117,7 +117,7 @@ export const methods: Method[] = [
   {
     name: "setup / finish-setup",
     value: "Empty",
-    behavior: "Reopen the first-run guide or mark it complete.",
+    behavior: "Reopen the welcome screen or mark it complete.",
   },
   {
     name: "reset-preferences",

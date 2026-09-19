@@ -68,7 +68,7 @@ ColumnLayout {
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 6
                 Text { text: "LunaDash " + (page.update.currentVersion || "1.0.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.bold: true }
-                Text { text: shell.tr("A moonlit, focused Linux desktop."); color: Theme.muted; font.family: Theme.font; font.pixelSize: 13 }
+                Text { text: "⑨ baka ᗜˬᗜ"; color: Theme.muted; font.family: Theme.font; font.pixelSize: 13 }
                 Text { visible: Boolean(page.update.currentCommit); text: (page.selectedChannel === "dev" ? "dev · " : "") + String(page.update.currentCommit || "").slice(0, 12); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
             }
         }

@@ -59,7 +59,7 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first-run guide helps you choose your language and personalize the desktop.
+The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch shows a welcome message and a help link. Use Settings to choose your language and personalize the desktop.
 
 Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/TESTING_AND_FILES.md) for manual builds and nested sessions.
 

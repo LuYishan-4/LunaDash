@@ -9,7 +9,7 @@ export const groups: SettingGroup[] = [
     id: "general",
     name: "Language & everyday preferences",
     description:
-      "Open General to select English or Traditional Chinese, a font family, the clock format, or the first-run guide.",
+      "Open General to select your language, font family or clock format, or reopen the welcome screen.",
     details: [
       "The shell updates language live; reopen native applications to apply a different language.",
       "Reset desktop preferences restores LunaDash appearance, keyboard and workspace defaults. It does not erase files or network profiles.",

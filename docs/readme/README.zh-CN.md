@@ -59,7 +59,7 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-安装程序会处理发行版依赖、编译 LunaDash 并安装登录会话。完成后注销，在登录管理器中选择 **LunaDash**。首次使用向导会引导你选择语言并设置桌面。
+安装程序会处理发行版依赖、编译 LunaDash 并安装登录会话。完成后注销，在登录管理器中选择 **LunaDash**。首次启动会显示欢迎消息与网站帮助链接。语言及桌面外观可在设置中调整。
 
 可先运行 `./scripts/install-session.sh --dry-run` 预览安装步骤。桌面 shell 需要 **Quickshell 0.3+**；若发行版未提供，安装程序会指出缺少的依赖。选项与恢复方法请见[安装指南](../LOGIN_SESSION.md)，手动编译与嵌套会话请见[构建与测试](../TESTING_AND_FILES.md)。
 

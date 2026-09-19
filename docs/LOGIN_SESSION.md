@@ -97,7 +97,7 @@ env -u MESA_GL_VERSION_OVERRIDE -u MESA_GLSL_VERSION_OVERRIDE \
 
 Logs are owner-readable files under `${XDG_STATE_HOME:-$HOME/.local/state}/lunadash/session-*.log`. Inspect EGL/DRM/input errors there and the display-manager journal if login returns immediately.
 
-The first-run guide provides language, network/offline setup and appearance. Existing NetworkManager connections are reused. Session controls use logind D-Bus for supported suspend/reboot/poweroff actions and do not store passwords.
+The first launch displays a welcome message and a website help link. Dismiss it with **Start desktop**, then use Settings for language, network and appearance. Existing NetworkManager connections are reused. Session controls use logind D-Bus for supported suspend/reboot/poweroff actions and do not store passwords.
 
 ## Distribution notes
 

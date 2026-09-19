@@ -67,7 +67,7 @@ ColumnLayout {
         title:shell.tr("Setup and recovery")
         description:shell.tr("Preferences are saved automatically. Resetting does not remove personal files or network profiles.")
         RowLayout {
-            ShellButton{iconName:"settings";text:shell.tr("First-run guide");onClicked:{shell.settingsOpen=false;shell.command("setup","")}}
+            ShellButton{iconName:"settings";text:shell.tr("Welcome");onClicked:{shell.settingsOpen=false;shell.command("setup","")}}
             ShellButton{iconName:"warning";destructive:page.confirmReset;text:shell.tr("Reset desktop preferences");onClicked:page.confirmReset=!page.confirmReset}
         }
         RowLayout {

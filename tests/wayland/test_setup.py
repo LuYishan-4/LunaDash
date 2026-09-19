@@ -1,4 +1,4 @@
-"""Click through first-run setup and verify preferences survive a new session."""
+"""Dismiss the welcome screen and verify preferences survive a new session."""
 
 import json
 import os
@@ -102,36 +102,9 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                         ["xdotool", "windowfocus", "--sync", window], check=True
                     )
 
-                    def click(x, y):
-                        subprocess.run(
-                            [
-                                "xdotool",
-                                "mousemove",
-                                "--window",
-                                window,
-                                str(x),
-                                str(y),
-                                "click",
-                                "1",
-                            ],
-                            check=True,
-                        )
-                        time.sleep(0.35)
-
-                    click(
-                        980, 672
-                    )  # Language -> network; never changes host connections.
-                    click(980, 672)  # Continue offline -> appearance.
-                    click(
-                        # The accent swatches sit in the third wizard step. The logo
-                        # row above them is 42 px tall, which moves the 46 px swatch
-                        # row down to y 359..405 on this 1440x900 screen.
-                        515,
-                        380,
-                    )  # Lavender preset.
-                    wait_for(lambda data: data["appearance"]["accent"] == "#c4b5fd")
-                    click(980, 672)  # Appearance -> ready.
-                    click(980, 672)  # Complete the guide.
+                    # Start desktop is focused initially; completing the welcome
+                    # screen must not depend on a fixed panel size or language.
+                    subprocess.run(["xdotool", "key", "Return"], check=True)
                     wait_for(
                         lambda data: (
                             data["setupComplete"] and data["layerSurfaces"] == 2
@@ -141,6 +114,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                         "appearance",
                         json.dumps(
                             {
+                                "accent": "#c4b5fd",
                                 "gap": 20,
                                 "panelHeight": 36,
                                 "startupApps": ["console"],
@@ -187,5 +161,5 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                         process.kill()
                         process.wait(timeout=5)
     print(
-        "First-run setup passed: offline flow, appearance clicks, invalid update rejection and persisted restart."
+        "Welcome completion passed: offline dismissal, preference validation and persisted restart."
     )
