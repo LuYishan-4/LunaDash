@@ -16,6 +16,9 @@ import "compatibility"
 
 ShellRoot {
     id: root
+    // Package managers replace QML files individually. Keep the running shell
+    // intact until the next login instead of loading a partial installation.
+    Component.onCompleted: Quickshell.watchFiles = Quickshell.env("LUNADASH_QML_WATCH") === "1"
     property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0, wallpaperImage: Quickshell.env("LUNADASH_WALLPAPER") || "" })
     property bool stateReady: false
     property string settingsPage: "general"
@@ -90,6 +93,7 @@ ShellRoot {
 
     function installUpdate(channel, ref) {
         if (updateAction.running || !ref) return
+        Quickshell.watchFiles = false
         updateAction.output = ""
         updateAction.errorOutput = ""
         updateInstall = {
@@ -111,6 +115,7 @@ ShellRoot {
 
     function rollbackUpdate() {
         if (updateAction.running) return
+        Quickshell.watchFiles = false
         updateAction.output = ""
         updateAction.errorOutput = ""
         updateInstall = {
