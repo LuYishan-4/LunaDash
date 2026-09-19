@@ -98,6 +98,10 @@ Gtk.main()
             assert "error" in request("focus", windows[2]), "Stale task must not select a different client"
             selected(request("focus", windows[-1]), windows[-1])
             print("Window tasks passed: title-independent icons, offscreen focus, grouped selection, restore, workspace switch and stale IDs.")
+        except BaseException:
+            log.flush()
+            print((build / "window-tasks.log").read_text(), file=sys.stderr)
+            raise
         finally:
             try:
                 request("quit")

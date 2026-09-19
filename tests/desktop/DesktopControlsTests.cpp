@@ -2,6 +2,7 @@
 #include "compositor/session/ClientLaunch.hpp"
 #include "compositor/session/SessionEnvironment.hpp"
 #include "compositor/window/WindowRules.hpp"
+#include "compositor/xwayland/XWaylandSupport.hpp"
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 #include <QCoreApplication>
@@ -18,6 +19,12 @@ void check(bool condition, const char *message) {
     qFatal("%s", message);
 }
 void runTests() {
+  XWaylandSupport disabledXwayland;
+  QString compatibilityError;
+  check(!disabledXwayland.startServer(&compatibilityError) &&
+            compatibilityError.contains("disabled") &&
+            !disabledXwayland.snapshot().value("running").toBool(),
+        "A disabled compatibility service must not start for a native helper");
   for (const auto &title : {"Files", "Terminal settings", "Monitor console"}) {
     check(windowIconName("org.mozilla.firefox", title) == "org.mozilla.firefox",
           "Document titles must not change external application identity");

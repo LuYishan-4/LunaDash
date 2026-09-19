@@ -26,6 +26,7 @@ jobs:
             - name: Reject QtWayland compositor dependencies
               run: python3 tests/wayland/test_no_qtwayland.py
             - name: Build wlroots compositor
+              id: build
               run: cmake -S . -B build-wayland -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-wayland --parallel 2
             - name: Verify linked compositor libraries
               run: |
@@ -43,6 +44,7 @@ jobs:
             - name: Verify region capture and display controls
               run: python3 tests/wayland/test_desktop_controls.py build-wayland
             - name: Verify XWayland is on demand
+              if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
               run: xvfb-run -a python3 tests/wayland/test_xwayland.py build-wayland
             - name: Verify wlroots protocol globals
               run: |

@@ -155,8 +155,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     if (!xwayland_->start(environment, d->outputSize()))
       qWarning("XWayland could not be prepared; X11 clients are unavailable.");
     // Do not start the rootful XWayland server during desktop startup.
-    // It is launched on demand by the explicit X11 compatibility path, so
-    // normal Wayland sessions never flash an "Xwayland :NN" desktop window.
+    // Explicit X11 launches show its root; native input helpers keep it hidden.
   }
 
   publishSessionActivationEnvironment();

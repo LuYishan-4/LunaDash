@@ -97,6 +97,7 @@ bool XWaylandSupport::start(const QProcessEnvironment &environment,
                             const QSize &screenSize) {
   environment_ = environment;
   screenSize_ = screenSize;
+  configured_ = true;
   rootWindowVisible_ = false;
   const auto executable = QStandardPaths::findExecutable("Xwayland");
   if (executable.isEmpty()) {
@@ -191,6 +192,11 @@ bool XWaylandSupport::stopped() const {
   return server_.state() == QProcess::NotRunning;
 }
 bool XWaylandSupport::startServer(QString *error) {
+  if (!configured_) {
+    if (error)
+      *error = "XWayland is disabled or not configured.";
+    return false;
+  }
   if (stopping_) {
     if (error)
       *error = "XWayland is shutting down.";

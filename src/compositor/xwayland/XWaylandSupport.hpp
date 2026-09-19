@@ -35,6 +35,7 @@ private:
   int descriptor_ = -1;
   qint64 groupId_ = 0;
   bool stopping_ = false;
+  bool configured_ = false;
   bool rootWindowVisible_ = false;
 };
 } // namespace LunaDash
