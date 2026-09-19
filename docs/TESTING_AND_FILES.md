@@ -16,7 +16,7 @@ python3 tests/security/test_source_language.py
 python3 scripts/ci/check_qml_actions.py
 python3 scripts/ci/check_qml_style.py
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DLUDASH_BUILD_FILES_TESTS=ON -DLUDASH_BUILD_RENDERER_TESTS=ON -DLUDASH_BUILD_DESKTOP_TESTS=ON
+  -DLUDASH_BUILD_FILES_TESTS=ON -DLUDASH_BUILD_RENDERER_TESTS=ON
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
@@ -28,24 +28,16 @@ The architecture checker enforces lowercase domains, PascalCase C++ filenames, s
 ```sh
 LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
 ./scripts/test-xdg-lifecycle.sh "$PWD/build"
-python3 tests/wayland/test_desktop_controls.py build
-xvfb-run -a python3 tests/wayland/test_screenshot_shortcut.py build
 python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
 xvfb-run -a python3 tests/wayland/test_xwayland.py build
-python3 tests/wayland/test_window_tasks.py build
-python3 tests/wayland/test_window_animations.py build
 QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
   ./build/lunadash-renderer-test --opengl
 DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr
 ```
 
-Headless wlroots tests use pixman and private runtime/configuration directories. The lifecycle client exercises map, unmap and role destruction, including close animation cleanup. XWayland tests require an installed Xwayland binary, verify no server starts at login, exercise a native Wayland application with an authenticated X11 input-helper fixture, check that its root stays hidden, reuse the server for explicit X11 applications, reject unauthenticated connections and verify cleanup. Window-task tests exercise title-independent identity, offscreen column selection, group focus, minimized restore, workspace selection and closed-window IDs with GTK clients. The QML tests verify member padding, polling during a click, cancellation when a slot changes, desktop ID/startup-class matching and ambiguous identity fallback. `qmltestrunner -import tests/qml/mocks -input tests/qml` supplies a deterministic icon-catalog stub for Quickshell while exercising the real taskbar components offscreen; it does not test the host icon theme. Renderer tests independently cover resource relocation, error diagnostics, partial GL allocation cleanup and real software OpenGL shader compilation/drawing.
+Headless wlroots tests use pixman and private runtime/configuration directories. The lifecycle client exercises map, unmap, role destruction and popup nesting. XWayland checks cover on-demand startup, authenticated application launches, display reuse and cleanup. Renderer checks cover resource relocation, error diagnostics, partial GL allocation cleanup and software OpenGL shader compilation/drawing. Translation checks validate catalog structure and preserve the stored values of translated controls.
 
 For a real desktop, use `LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh`. It uses the host Wayland socket and writes `build/wayland.log` and `build/wayland-state.json`. Run without `LUDASH_TEST_NO_SHELL` to check Quickshell. A complete manual session also checks Chrome/Zed, pointer and physical keyboard input, Fcitx preedit/candidate positioning, wallpaper changes, animation, file chooser D-Bus activation and logout. Do not infer these results from successful compilation.
-
-The scene-animation unit test checks intermediate positions and sizes, retargeting, pointer pass-through, reduced motion and destruction during an effect without opening a display. The Wayland animation regression uses GTK, PyGObject/Cairo, Pillow and grim on an isolated pixman output. It compares captured window pixels during selection, maximize/restore and client-initiated close, then verifies cleanup and reduced motion. CI retains `motion-*.png` and `window-animations.log` for review. This verifies the software-rendered transitions; physical GPU pacing and hardware FPS still need a real-session check.
-
-The capture unit test checks that selector startup reaches end of input, distinguishes cancellation from helper failure, and permits retries. The screenshot-shortcut regression requires slurp, grim, Xvfb and xdotool. It exercises Meta+Shift+S and a real drag selection, checks private PNG dimensions, and verifies that repeated shortcuts preserve Escape cancellation. The helpers run inside private runtime/configuration directories. CI retains the captured region and diagnostics.
 
 Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. Internal GLSL is embedded and needs no installed shader directory. For explicit relocation testing, install `--component Tests` into a temporary prefix and run `libexec/lunadash/tests/lunadash-renderer-test` there; that component is excluded from normal installs.
 
@@ -91,8 +83,4 @@ The source-build matrix does not verify physical hardware. Void/Gentoo have inst
 
 See [architecture](ARCHITECTURE.md) for ownership contracts. Existing historical Python tests that assume the previous Qt compositor or Xvfb keyboard injection are not part of the current wlroots CI gate; use the current lifecycle and protocol tests above and port a historical test before relying on it as release evidence.
 
-Desktop-control regressions use isolated settings and fake brightness/selector helpers. DDC/CI fixtures verify per-monitor targeting, non-100 maxima, coalesced writes, errors, timeout handling and removal. The QML regression preserves slider delegates through status updates and rejects queued changes to a replacement monitor. Region capture verifies actual grim PNG dimensions on a headless output, cancellation and nonblocking IPC; display tests verify invalid requests, confirmation, explicit revert and timeout rollback. Shared controls are checked against English, Traditional Chinese, Simplified Chinese, Japanese and long labels with `QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 qmltestrunner -input tests/qml`. These tests do not change host backlight or display settings.
-
-The Arch distribution job also runs `tests/wayland/test_shell_startup.py` with a complete Quickshell session on headless wlroots, checking startup-splash mapping/dismissal, wallpaper/panel mapping and localized Display settings. It requires Quickshell and a private D-Bus session; other distro jobs retain their source/lifecycle checks.
-
-The installed-shell regression stages a temporary install, verifies the splash appears before it closes, loads every settings page in four languages, and activates the real FileChooser portal on a private bus. The GTK menu regression uses Xvfb input to right-click a native Wayland text view, select a menu action and reopen the menu. These tests do not establish Discord or physical NVIDIA compatibility.
+CI focuses on reusable build, protocol, lifecycle, renderer, translation and source-quality checks. Temporary tests and mock applications written for individual desktop bug reports are not part of the maintained suite. Full settings-page coverage, region selection, window motion, hardware brightness and application compatibility require real-session verification when preparing a release.

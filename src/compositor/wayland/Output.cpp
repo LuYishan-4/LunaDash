@@ -61,14 +61,6 @@ int WaylandCompositor::Impl::mappedLayerCount() const {
   return count;
 }
 
-QJsonArray WaylandCompositor::Impl::mappedLayerNamespaces() const {
-  QJsonArray result;
-  for (const auto *layer : layers)
-    if (layer && layer->mapped && layer->surface)
-      result.append(safeUtf8(layer->surface->namespace_));
-  return result;
-}
-
 void WaylandCompositor::Impl::updateBackground() {
   if (!background)
     return;

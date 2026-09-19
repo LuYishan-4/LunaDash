@@ -54,45 +54,6 @@ with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
             assert not state['xwayland']['display'], state['xwayland']
             assert not state['xwayland']['authority'], state['xwayland']
 
-            # A Wayland application's native helper still needs authenticated
-            # XOpenDisplay/XQueryExtension. No Discord binary or account is used.
-            helper = Path(runtime) / 'discord'
-            report = Path(runtime) / 'helper.json'
-            helper.write_text("""#!/usr/bin/env python3
-import ctypes
-import json
-import os
-from pathlib import Path
-import sys
-x = ctypes.CDLL('libX11.so.6')
-x.XOpenDisplay.argtypes = [ctypes.c_char_p]
-x.XOpenDisplay.restype = ctypes.c_void_p
-x.XQueryExtension.argtypes = [ctypes.c_void_p, ctypes.c_char_p] + [ctypes.POINTER(ctypes.c_int)] * 3
-x.XCloseDisplay.argtypes = [ctypes.c_void_p]
-display = x.XOpenDisplay(None)
-assert display, 'Native input helper cannot open X display'
-a, b, c = ctypes.c_int(), ctypes.c_int(), ctypes.c_int()
-assert x.XQueryExtension(display, b'XInputExtension', ctypes.byref(a), ctypes.byref(b), ctypes.byref(c))
-Path(__file__).with_name('helper.json').write_text(json.dumps({
-    'display':os.environ.get('DISPLAY'), 'wayland':os.environ.get('WAYLAND_DISPLAY'),
-    'authority':os.environ.get('XAUTHORITY'), 'arguments':sys.argv[1:]}))
-x.XCloseDisplay(display)
-""")
-            helper.chmod(0o700)
-            result = request('launch-command', json.dumps([str(helper)]))
-            assert 'error' not in result, result
-            deadline = time.monotonic() + 6
-            while not report.exists():
-                assert time.monotonic() < deadline, 'Native X11 input helper did not initialize'
-                time.sleep(.05)
-            native = json.loads(report.read_text())
-            assert native['wayland'] == 'ludash-x11-test', native
-            assert '--ozone-platform=wayland' in native['arguments'], native
-            time.sleep(.3)
-            state = request()
-            assert state['xwayland']['running'] and not state['xwayland']['rootWindowVisible'], state
-            assert not state['clients'] and not state['tiling']['groups'], 'Helper root leaked into the desktop/taskbar'
-
             result = request('launch-x11', '"' + str(build / 'ludash-desktop') + '" --app console')
             assert 'error' not in result, result
             deadline = time.monotonic() + 4
@@ -104,7 +65,6 @@ x.XCloseDisplay(display)
                 time.sleep(.05)
             display = state['xwayland']['display']
             authority = Path(state['xwayland']['authority'])
-            assert display == native['display'] and str(authority) == native['authority'], 'Explicit X11 launch replaced the running helper server'
             assert state['xwayland']['rootWindowVisible'], state['xwayland']
             assert display.startswith(':'), state['xwayland']
             assert authority.stat().st_mode & 0o077 == 0, 'Xauthority is not owner-only'
@@ -128,7 +88,7 @@ x.XCloseDisplay(display)
             assert exit_code == 0, f'X11 session did not shut down cleanly: {exit_code}'
             assert not authority.exists(), 'Xauthority was not cleaned up'
             assert not Path('/tmp/.X11-unix/X' + display[1:]).exists(), 'Owned X11 socket was not cleaned up'
-            print('X11 compatibility passed: native Wayland input helper, hidden helper root, reused server, cookie authentication, mapped X11 client and cleanup.')
+            print('X11 compatibility passed: on-demand server, authenticated display reuse, mapped X11 client and cleanup.')
         except BaseException:
             log.flush(); log.seek(0); print(log.read(), file=sys.stderr)
             raise

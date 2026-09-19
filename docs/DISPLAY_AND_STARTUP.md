@@ -21,7 +21,7 @@ lunadashctl ddc-brightness '{"id":"i2c-7:DEL:DELL P2411H:F8NDP11G119U","percent"
 
 If detection fails, run `ddcutil detect --brief` as the session user. Check that the kernel `i2c-dev` module is loaded and the distribution's ddcutil udev rules grant access to the monitor's `/dev/i2c-*` device. After installing rules, reconnect the monitor or log out/in as required by the distribution. LunaDash does not run sudo, change device permissions or load kernel modules from the desktop. Some docks, drivers and monitor picture modes prevent DDC/CI access; check the monitor configuration and upstream troubleshooting.
 
-Protocol output and setup references: [ddcutil detection](https://www.ddcutil.com/command_detect/), [brightness reads](https://www.ddcutil.com/command_getvcp/), [verified writes](https://www.ddcutil.com/command_setvcp/), [I2C permissions](https://www.ddcutil.com/i2c_permissions/). Automated helper fixtures cover multiple monitors, non-100 maxima, write failures, request coalescing and refresh; physical monitor compatibility still requires hardware testing.
+Protocol output and setup references: [ddcutil detection](https://www.ddcutil.com/command_detect/), [brightness reads](https://www.ddcutil.com/command_getvcp/), [verified writes](https://www.ddcutil.com/command_setvcp/), [I2C permissions](https://www.ddcutil.com/i2c_permissions/). Verify detection, brightness reads/writes and reconnection on the target monitor; generic build checks do not establish physical monitor compatibility.
 
 ## Resolution, refresh rate and scale
 
@@ -49,6 +49,6 @@ The shell shows the LunaDash logo and a short loading animation while waiting fo
 
 Hidden panels load lazily. Buffer-only shell commits no longer rearrange every client or repeatedly steal keyboard focus from the active region selector. Wallpaper decode size follows the output size/scale, and its transition mask is disabled when idle. Native window effects advance from output frame callbacks instead of a separate Qt animation timer; active effects schedule another frame, and idle scenes do not repaint continuously.
 
-Installed sessions load QML beside their installed executable before considering a source checkout. `lunadash-compositor --version` and the session log identify the compiled revision; source archives preserve that revision. Arch CI stages an installation, opens every settings page in four languages and activates the actual FileChooser frontend.
+Installed sessions load QML beside their installed executable before considering a source checkout. `lunadash-compositor --version` and the session log identify the compiled revision; source archives preserve that revision.
 
-Use `lunadash-compositor --profile` to report event-loop stalls. Automated tests cover asynchronous startup, control geometry with translated labels, and headless display rollback. Actual FPS, physical refresh rate switching and backlight writes require testing on the target hardware; CI alone does not establish those results.
+Use `lunadash-compositor --profile` to report event-loop stalls. The maintained CI covers general startup, protocol and rendering behavior. Actual FPS, physical refresh rate switching and backlight writes require testing on the target hardware; CI alone does not establish those results.

@@ -30,7 +30,7 @@ LunaDash reserves an unused local X socket, restricts it to its owner and passes
 
 Only this compatibility instance's process group is terminated during cleanup. The runtime authority file and owned socket are removed on normal shutdown. Status exposes `xwayland.available`, `xwayland.running`, `xwayland.mode`, `xwayland.rootWindowVisible`, its display/authority path and a diagnostic error. No cookie value is sent over IPC or logged. Set `LUDASH_DISABLE_XWAYLAND=1` before startup to disable the optional service.
 
-The integration test first runs an X11 input-helper fixture through the native Wayland launch path and checks that its root is hidden. It then launches a Qt application through XCB, verifies the existing display is reused and visible, rejects an unauthenticated X11 setup request, and checks cleanup:
+The generic integration test launches Qt applications through XCB, verifies on-demand startup and display reuse, rejects an unauthenticated X11 setup request, and checks cleanup:
 
 ```sh
 xvfb-run -a python3 tests/wayland/test_xwayland.py build

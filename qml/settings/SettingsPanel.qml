@@ -2,7 +2,6 @@ import "../modules"
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell
 import Quickshell.Wayland
 import "../components"
 import "../style"
@@ -110,7 +109,6 @@ ModuleSurface {
                             scroll.contentItem.contentY=0
                             Qt.callLater(function(){if(scroll.contentItem)scroll.contentItem.contentY=0})
                             pageEnter.restart()
-                            if(Quickshell.env("LUDASH_TEST_SETTINGS")==="1")console.info("Settings page loaded: "+settings.category)
                         }
                     }
                     ParallelAnimation{

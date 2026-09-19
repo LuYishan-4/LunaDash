@@ -186,7 +186,6 @@ public:
   void clearPendingDisplay();
 
   int mappedLayerCount() const;
-  QJsonArray mappedLayerNamespaces() const;
 
   bool inputBridgeReady() const;
 

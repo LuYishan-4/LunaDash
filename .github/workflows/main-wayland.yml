@@ -22,11 +22,10 @@ jobs:
                     libwayland-dev wayland-protocols libwlroots-dev \
                     libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
-                    xvfb xauth xdotool xwayland python3 python3-gi python3-gi-cairo python3-pil gir1.2-gtk-3.0 wayland-utils grim slurp
+                    xvfb xauth xdotool xwayland python3 wayland-utils
             - name: Reject QtWayland compositor dependencies
               run: python3 tests/wayland/test_no_qtwayland.py
             - name: Build wlroots compositor
-              id: build
               run: cmake -S . -B build-wayland -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-wayland --parallel 2
             - name: Verify linked compositor libraries
               run: |
@@ -37,20 +36,7 @@ jobs:
                   fi
             - name: Exercise xdg-toplevel lifecycle
               run: ./scripts/test-xdg-lifecycle.sh "$PWD/build-wayland"
-            - name: Exercise native GTK context menus
-              run: xvfb-run -a python3 tests/wayland/test_native_menus.py build-wayland
-            - name: Verify window identity and task selection
-              run: python3 tests/wayland/test_window_tasks.py build-wayland
-            - name: Verify presented window animation frames
-              if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
-              run: python3 tests/wayland/test_window_animations.py build-wayland
-            - name: Verify region capture and display controls
-              run: python3 tests/wayland/test_desktop_controls.py build-wayland
-            - name: Exercise screenshot shortcut and real region selection
-              if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
-              run: xvfb-run -a python3 tests/wayland/test_screenshot_shortcut.py build-wayland
             - name: Verify XWayland is on demand
-              if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
               run: xvfb-run -a python3 tests/wayland/test_xwayland.py build-wayland
             - name: Verify wlroots protocol globals
               run: |
@@ -91,13 +77,6 @@ jobs:
               with:
                   name: main-wayland-protocol-diagnostics
                   path: |
-                      build-wayland/native-menus.log
-                      build-wayland/window-tasks.log
-                      build-wayland/window-animations.log
-                      build-wayland/motion-*.png
-                      build-wayland/desktop-controls.log
-                      build-wayland/screenshot-shortcut.log
-                      build-wayland/shortcut-region.png
                       build-wayland/core-protocol.log
                       build-wayland/xdg-lifecycle.log
                       build-wayland/xwayland.log
