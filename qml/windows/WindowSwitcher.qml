@@ -33,20 +33,21 @@ PanelWindow {
             anchors.fill: background
             source: background
             blurEnabled: true
-            blurMax: 48
+            blurMax: 24
             blur: panel.reveal
             saturation: -0.25
         }
-        Rectangle { anchors.fill: parent; color: Theme.background; opacity: 0.60 }
+        Rectangle { anchors.fill: parent; color: Theme.background; opacity: 0.18 }
         MouseArea { anchors.fill: parent; onClicked: panel.shell.command("switch-cancel", "") }
         SwitcherContent {
-            anchors.centerIn: parent
-            width: Math.min(parent.width - 40, 1240)
-            height: Math.min(parent.height - 40, 480)
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: Math.min(Math.max(64, parent.height * 0.12), parent.height - height - 20)
+            width: Math.max(240, parent.width - Math.min(96, parent.width * 0.08))
+            height: Math.min(parent.height - 80, (width - 10) * 0.225 + 10)
             shell: panel.shell
             selection: panel.interaction
-            scale: 0.94 + 0.06 * panel.reveal
-            transform: Translate { y: 18 * (1 - panel.reveal) }
+            scale: 0.98 + 0.02 * panel.reveal
+            transform: Translate { y: -10 * (1 - panel.reveal) }
         }
     }
 }

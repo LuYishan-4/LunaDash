@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import "../components"
 import "../style"
 
@@ -8,51 +7,41 @@ Rectangle {
     required property var shell
     required property var selection
     readonly property var workspaces: selection.workspaces || []
-    radius: 24
-    color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.96)
-    border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.45)
+    radius: 8
+    color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.92)
+    border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.32)
     border.width: 1
     clip: true
-    Text {
-        x: 24; y: 18; width: parent.width - 48
-        text: selector.shell.tr("Workspaces")
-        color: Theme.text; font.family: Theme.font; font.pixelSize: 18; font.bold: true
-        elide: Text.ElideRight
-    }
     Grid {
         id: grid
-        anchors { left: parent.left; right: parent.right; top: parent.top; bottom: hint.top; margins: 20; topMargin: 54; bottomMargin: 12 }
+        anchors { fill: parent; margins: 5 }
         columns: 5
         rows: 2
-        spacing: 10
+        spacing: 2
         Repeater {
             model: 10
-            delegate: Rectangle {
+            delegate: Item {
                 id: cell
                 required property int index
                 readonly property var workspace: selector.workspaces[index] || ({id: index + 1, windows: []})
                 readonly property bool selected: index === Number(selector.selection.index || 0)
                 width: (grid.width - 4 * grid.spacing) / 5
                 height: (grid.height - grid.spacing) / 2
-                radius: 12
-                color: selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.19) : Theme.surface
-                border.color: selected ? Theme.accent : Theme.border
-                border.width: selected ? 2 : 1
-                scale: selected ? 1 : 0.96
-                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
-                Behavior on scale { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
+                Accessible.role: Accessible.Button
+                Accessible.name: selector.shell.tr("Workspace") + " " + (index + 1)
+                Accessible.focused: selected
                 Text {
                     anchors.centerIn: parent
                     text: cell.index + 1
-                    color: Theme.muted
-                    opacity: 0.42
+                    color: Theme.text
+                    opacity: 0.25
                     font.family: Theme.font
-                    font.pixelSize: Math.min(36, cell.height * 0.24)
+                    font.pixelSize: Math.min(28, cell.height * 0.20)
                     font.bold: true
                 }
                 Item {
                     id: preview
-                    anchors { fill: parent; margins: 6; bottomMargin: 25 }
+                    anchors { fill: parent; margins: 3 }
                     clip: true
                     readonly property real ratio: Math.min(width / Math.max(1, Number(cell.workspace.width || 1440)), height / Math.max(1, Number(cell.workspace.height || 900)))
                     readonly property real offsetX: (width - Number(cell.workspace.width || 1440) * ratio) / 2
@@ -67,8 +56,8 @@ Rectangle {
                             width: Math.max(1, Number(member.width || 720) * preview.ratio)
                             height: Math.max(1, Number(member.height || 500) * preview.ratio)
                             visible: !member.minimized
-                            color: Theme.surfaceOpaque
-                            border.color: member.focused ? Theme.accent : Theme.border
+                            color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.65)
+                            border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.20)
                             border.width: 1
                             clip: true
                             Image {
@@ -79,10 +68,9 @@ Rectangle {
                                 cache: false
                             }
                             ApplicationIcon {
-                                visible: !parent.member.thumbnail
                                 shell: selector.shell
                                 anchors.centerIn: parent
-                                width: Math.max(1, Math.min(28, parent.width - 4, parent.height - 4)); height: width
+                                width: Math.max(1, Math.min(44, parent.width - 6, parent.height - 6)); height: width
                                 iconName: String(parent.member.icon || "")
                                 appId: String(parent.member.appId || "")
                                 title: String(parent.member.title || "")
@@ -90,16 +78,10 @@ Rectangle {
                         }
                     }
                 }
-                Text {
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 8 }
-                    text: String(cell.index + 1) + "  ·  " + (cell.workspace.windows || []).length
-                    color: cell.selected ? Theme.text : Theme.muted
-                    font.family: Theme.font; font.pixelSize: 11
-                    horizontalAlignment: Text.AlignHCenter
-                    elide: Text.ElideRight
-                }
                 MouseArea {
+                    id: cellMouse
                     anchors.fill: parent
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         selector.shell.command("switch-window", cell.index + 1)
@@ -109,11 +91,16 @@ Rectangle {
             }
         }
     }
-    Text {
-        id: hint
-        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 18 }
-        text: selector.shell.tr("Release Alt to switch workspace · Esc to cancel")
-        color: Theme.muted; font.family: Theme.font; font.pixelSize: 12
-        horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
+    Rectangle {
+        x: grid.x + (Number(selector.selection.index || 0) % 5) * ((grid.width - 4 * grid.spacing) / 5 + grid.spacing)
+        y: grid.y + Math.floor(Number(selector.selection.index || 0) / 5) * ((grid.height - grid.spacing) / 2 + grid.spacing)
+        width: (grid.width - 4 * grid.spacing) / 5
+        height: (grid.height - grid.spacing) / 2
+        radius: 3
+        color: "transparent"
+        border.color: Theme.text
+        border.width: 1
+        Behavior on x { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+        Behavior on y { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
     }
 }
