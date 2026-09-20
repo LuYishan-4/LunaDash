@@ -46,10 +46,22 @@ References: [xwayland-satellite](https://github.com/Supreeeme/xwayland-satellite
 
 ## GPU Screen Recorder UI
 
-The GTK frontend can show a message saying the new UI needs X11 when `XOpenDisplay` cannot connect, even inside a Wayland session. For the Flatpak package, explicitly use the existing compatibility launcher:
+The GTK frontend can show a message saying the new UI needs X11 when `XOpenDisplay` cannot connect, even inside a Wayland session. The Flatpak package also uses a host-side Wayland bridge for GPU and capture discovery. Flatpak exposes the session socket inside its sandbox as `wayland-0`; passing that name back to the host fails when the actual session uses a different name, such as `lunadash-0`.
+
+Run this from a terminal inside LunaDash to request the new UI immediately, with authenticated X11 access and the original Wayland socket name restored **inside** the sandbox:
 
 ```sh
-lunadashctl launch-x11 'flatpak run --socket=x11 com.dec05eba.gpu_screen_recorder'
+lunadashctl launch-x11 "flatpak run --socket=x11 --command=env com.dec05eba.gpu_screen_recorder WAYLAND_DISPLAY=${WAYLAND_DISPLAY:?Run this from a LunaDash terminal} gsr-ui launch-show"
 ```
 
-This opens the UI through the authenticated XWayland container; it does not provide a full native-desktop ScreenCast portal. Recording the compatibility window and recording the native Wayland desktop are different capture paths. LunaDash's current portal backend implements FileChooser, not PipeWire ScreenCast. See the [upstream UI notes](https://git.dec05eba.com/gpu-screen-recorder-ui/about/) for its platform limitations.
+`--command=env` applies the socket name after Flatpak prepares the sandbox; Flatpak's `--env=WAYLAND_DISPLAY=...` alone is overwritten by its socket mapping. `launch-show` requests a visible UI instead of the default background launch. The `lunadashctl` JSON response reports desktop state, not the recorder's log or whether its window finished opening. Application output goes to the current `~/.local/state/lunadash/session-*.log`.
+
+To check GPU and capture discovery without starting a recording:
+
+```sh
+flatpak run --command=env com.dec05eba.gpu_screen_recorder \
+  "WAYLAND_DISPLAY=${WAYLAND_DISPLAY:?Run this from a LunaDash terminal}" \
+  gpu-screen-recorder --info
+```
+
+This corrected discovery command has been checked with Flatpak GPU Screen Recorder 6.1.2: it returned successfully and listed the connected HDMI output. That check does not verify UI rendering or recording. LunaDash's portal backend implements FileChooser, not PipeWire ScreenCast; the recorder's separate KMS monitor capture path is not the same as portal capture or capture of the XWayland compatibility window. See the [upstream UI notes](https://git.dec05eba.com/gpu-screen-recorder-ui/about/) and [host bridge implementation](https://git.dec05eba.com/gpu-screen-recorder-ui/tree/src/WaylandHostBridge.cpp) for platform limitations and connection handling.
