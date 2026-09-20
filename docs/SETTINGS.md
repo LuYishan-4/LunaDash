@@ -8,7 +8,7 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | --- | --- | --- |
 | General | Extensible language drop-down, shell font, 12/24-hour clock, welcome screen, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
 | Appearance | Wallpaper image/palettes, in-shell PNG/JPEG/WebP picker, custom `#RRGGBB` accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Accent colors can be entered directly; the visible swatches are only quick presets. The picker is drawn inside the settings surface with a bounded preview; blur applies to application frames, with no KDE blur protocol |
-| Windows and workspaces | 1–10 workspaces, eight-member vertical columns, 33% default column width, per-column widths and window gaps | New windows open tiled and non-maximized; `Meta+F` maximizes one window or restores all workspace tiles |
+| Windows and workspaces | 1–10 workspaces, bounded split tiles, eight-member vertical groups and window gaps | New windows open tiled and non-maximized; `Meta+F` maximizes one window or restores all workspace tiles |
 | Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all ten workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Shell modules | JSON layout, dimensions, positions, colors and built-in recovery | [Module schema and contract](MODULES.md); custom QML modules are not loaded |
 | Display | Backlight and per-monitor DDC/CI brightness, primary-output resolution/refresh rate and 100–300% scale | Mode changes require confirmation within 15 seconds; nested physical modes belong to the host. Multi-monitor arrangement, rotation, HDR and night light remain unavailable |
@@ -34,7 +34,6 @@ Additional keys in the existing `[desktop]` group:
 | Key | Default | Accepted values |
 | --- | --- | --- |
 | `workspaceCount` | 10 | Integer 1–10 |
-| `masterRatio` | 33 | Default tiled column width percentage used when creating new columns |
 | `keyboardLayout` | us | us, gb, de, fr, es, jp, tw |
 | `keyRepeatRate` | 25 | Integer 0–60; zero disables repeat |
 | `keyRepeatDelay` | 600 | Integer 200–1500 ms |
@@ -50,7 +49,7 @@ Startup selection runs after the shell starts in sessions whose welcome screen h
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadashctl open-settings appearance
-./build/lunadashctl appearance '{"workspaceCount":6,"masterRatio":60}'
+./build/lunadashctl appearance '{"workspaceCount":6,"gap":8}'
 ./build/lunadashctl appearance '{"keyboardLayout":"us","keyRepeatRate":25,"keyRepeatDelay":600}'
 ./build/lunadashctl appearance '{"startupApps":["files"]}'
 ./build/lunadashctl shortcuts '{"focusLeft":"Meta+U"}'
@@ -76,7 +75,7 @@ Default terminal, file-manager and browser argument arrays are edited under Appl
 
 The top panel groups mapped application windows into one capsule per workspace, including minimized and temporarily hidden windows. Each app remains independently clickable; capsules are independent of tiling columns. The active workspace uses a brighter accent tint, other capsules use a darker shade, and app icons have no numeric workspace badges. Click empty capsule padding to switch workspace without changing its layout. Clicking a tiled task maximizes it and temporarily hides the other windows in its workspace. Those windows remain available in the taskbar. Clicking the active maximized task again, using the application restore button or pressing `Meta+F` restores the saved tiling layout and sizes. A task selected from another workspace first switches to that workspace with an animation. The separate `ColumnStrip` is not instantiated by default.
 
-Columns tile vertically with at most eight total members, including minimized windows. New windows open in a separate column immediately after the focused column. Ordinary windows cannot float or overlap; transient dialogs remain above their parent. Alt + left-drag swaps slots at a target's center, or inserts beside its top/bottom edge. Slot swapping preserves slot sizes. With one active window, Alt dragging translates it without resizing. Shift + Alt + left-drag changes column width and row height while redistributing remaining height without reordering. `Meta+Shift+H/L` merges into a neighboring column; `Meta+Shift+E` separates a member into its own column.
+Columns tile vertically with at most eight total members, including minimized windows. All tiles stay within one screen. A new window splits the largest tile along its longer edge, keeping a stable arrangement. Ordinary windows cannot float or overlap; transient dialogs remain above their parent. Alt + left-drag swaps slots at a target's center, or inserts beside its top/bottom edge. Slot swapping preserves slot sizes. With one active window, Alt dragging translates it without resizing or leaving the work area. Shift + Alt + left-drag adjusts shared split boundaries and grouped row heights while redistributing remaining height without reordering. `Meta+Shift+H/L` merges into a neighboring column; `Meta+Shift+E` separates a member into its own column.
 
 Alt+Tab opens a fixed 2×5 overview for workspaces 1–10, with thumbnails arranged like the windows in each workspace. Empty workspaces remain selectable. Tab/Shift+Tab, Left/Right and scrolling move one cell; Up/Down moves one row. Release Alt or click a cell to switch workspace; Esc cancels. Selecting an unused workspace expands a smaller configured workspace count as needed. `Meta+0` and `Meta+Shift+0` address workspace 10. The taskbar uses workspace capsules instead of numeric labels and switches there with an animation before focusing and enlarging a selected task.
 
@@ -84,7 +83,7 @@ Thumbnails are rendered to bounded 320×200 buffers before readback, then encode
 
 `defaultFloating`, `altMouseResize` and the floating-toggle shortcut are retired. See [window interaction validation](WINDOWS.md) for behavior and validation limits.
 
-Defaults use `Super+H/L` between columns, `Super+J/K` within a grouped column, `Super+Shift+H/L` to merge the focused window into the adjacent column, `Super+Shift+E` to expel, `Super+Ctrl+H/L` to reorder columns, Super plus `+`/`-` to resize, and `Super+Shift+C` to center. `Super+C` closes the focused window and the remaining members share the available height. New tiled windows open at the configured default column width (33% by default) and are not maximized implicitly. `Super+F` maximizes the focused tiled window to the work area and hides its workspace peers; pressing it again restores the saved tiling arrangement without changing column widths or row heights. Dialogs belonging to the maximized window remain usable. Closing or minimizing it also reveals the other tiles. Each Alt+Tab cell represents a whole workspace and reflects its tiled or maximized presentation. Pointer clicks explicitly synchronize the selected client, keyboard focus and stacking order so typing stays on the surface the user clicked.
+Defaults use `Super+H/L` to focus left/right and `Super+J/K` to focus down/up, `Super+Shift+H/L` to merge the focused window into the adjacent column, `Super+Shift+E` to expel, `Super+Ctrl+H/L` to exchange neighboring groups, Super plus `+`/`-` to resize, and `Super+Shift+C` to center a single window. `Super+C` closes the focused window and the remaining members share the available height. The first window uses its requested size, proportionally fitted to the screen when necessary. Later windows split existing tiles; clients redraw at the requested tile size. The old default column-width setting no longer applies. New windows restore the tiled arrangement instead of opening maximized. `Super+F` maximizes the focused tiled window to the work area and hides its workspace peers; pressing it again restores the saved tiling arrangement without changing saved split ratios or row heights. Dialogs belonging to the maximized window remain usable. Closing or minimizing it also reveals the other tiles. Each Alt+Tab cell represents a whole workspace and reflects its tiled or maximized presentation. Pointer clicks explicitly synchronize the selected client, keyboard focus and stacking order so typing stays on the surface the user clicked.
 
 ## Display and startup controls
 

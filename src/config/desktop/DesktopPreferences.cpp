@@ -29,7 +29,6 @@ QJsonObject defaults() {
           {"animations", true},
           {"animationDuration", 220},
           {"workspaceCount", 10},
-          {"masterRatio", 33},
           {"keyboardLayout", "us"},
           {"cursorSize", 24},
           {"fontFamily", "sans-serif"},
@@ -220,7 +219,6 @@ bool valid(const QString &key, const QJsonValue &value) {
     return true;
   }
   const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 10}},
-                                              {"masterRatio", {30, 70}},
                                               {"cursorSize", {16, 64}}};
   if (ranges.contains(key)) {
     const double number = value.toDouble(-1);

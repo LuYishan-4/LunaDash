@@ -476,16 +476,20 @@ void WaylandCompositor::arrange() {
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const QRect area = workArea();
   const int gap = preferences.value("gap").toInt();
-  const int defaultColumnWidth = std::clamp(
-      qRound(area.width() * preferences.value("masterRatio").toInt() / 100.0),
-      1, std::max(1, area.width()));
   tiling_.setGap(gap);
 
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
     const bool tiled = client->mapped && !client->floating && !client->utility;
     if (tiled) {
-      tiling_.insert(client->workspace, client->id, defaultColumnWidth);
+      wlr_box initialGeometry{};
+#if WLR_VERSION_MINOR >= 19
+      initialGeometry = client->surface->geometry;
+#else
+      wlr_xdg_surface_get_geometry(client->surface, &initialGeometry);
+#endif
+      tiling_.insert(client->workspace, client->id,
+                     QSize(initialGeometry.width, initialGeometry.height));
       tiling_.moveToWorkspace(client->id, client->workspace);
       tiling_.setMinimized(client->id, client->minimized);
       if (client->maximized)
@@ -763,33 +767,14 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     tiling_.reorder(focused_->id, -1);
   else if (action == "reorderRight" && focused_)
     tiling_.reorder(focused_->id, 1);
-  else if (action == "groupLeft" && focused_) {
-    const auto snap = tiling_.snapshot(workspace_);
-    const auto current = std::find_if(
-        snap.columns.cbegin(), snap.columns.cend(), [this](const auto &entry) {
-          return entry.window == static_cast<TilingWindowId>(focused_->id);
-        });
-    if (current != snap.columns.cend() && current->columnIndex > 0) {
-      const auto target = std::find_if(
-          snap.columns.cbegin(), snap.columns.cend(), [current](const auto &e) {
-            return e.columnIndex == current->columnIndex - 1;
-          });
-      if (target != snap.columns.cend())
-        tiling_.groupWith(focused_->id, target->window);
-    }
-  } else if (action == "groupRight" && focused_) {
-    const auto snap = tiling_.snapshot(workspace_);
-    const auto current = std::find_if(
-        snap.columns.cbegin(), snap.columns.cend(), [this](const auto &entry) {
-          return entry.window == static_cast<TilingWindowId>(focused_->id);
-        });
-    if (current != snap.columns.cend()) {
-      const auto target = std::find_if(
-          snap.columns.cbegin(), snap.columns.cend(), [current](const auto &e) {
-            return e.columnIndex == current->columnIndex + 1;
-          });
-      if (target != snap.columns.cend())
-        tiling_.groupWith(focused_->id, target->window);
+  else if ((action == "groupLeft" || action == "groupRight") && focused_) {
+    tiling_.focus(focused_->id);
+    const bool found = action == "groupLeft" ? tiling_.focusLeft(workspace_)
+                                            : tiling_.focusRight(workspace_);
+    if (found) {
+      const auto target = tiling_.snapshot(workspace_).focusedWindow;
+      tiling_.groupWith(focused_->id, target);
+      tiling_.focus(focused_->id);
     }
   } else if (action == "expelWindow" && focused_)
     tiling_.expel(focused_->id);
@@ -969,7 +954,6 @@ QJsonObject WaylandCompositor::state() const {
                                   {"edge", d ? d->pointerEdge : 0}}},
       {"tiling",
        QJsonObject{
-           {"scrollOffset", tilingSnapshot.scrollOffset},
            {"focusedWindow", static_cast<qint64>(tilingSnapshot.focusedWindow)},
            {"columns", tilingColumns},
            {"groups", tilingGroups}}},

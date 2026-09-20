@@ -1,48 +1,41 @@
 #include "compositor/tiling/TilingGeometry.h"
 
 #include <limits.h>
-#include <math.h>
 #include <stdint.h>
-#include <stdlib.h>
-
-#define LUDASH_MAX_COLUMNS 4096U
 
 static int ludash_valid_area(LuDashRectangle area) {
-  // Off-screen columns legitimately have negative x/y when the strip is
-  // scrolled; only reject empty sizes and upper overflow, not negative
-  // coordinates. Lower overflow is guarded by ludash_layout_columns.
   return area.width > 0 && area.height > 0 && area.x <= INT_MAX - area.width &&
          area.y <= INT_MAX - area.height;
 }
 
-size_t ludash_layout_columns(LuDashRectangle area, const int *widths,
-                             size_t count, int gap, int scroll_offset,
-                             LuDashRectangle *output, size_t capacity) {
-  if (!output || !widths || count == 0 || count > capacity ||
-      count > LUDASH_MAX_COLUMNS || !ludash_valid_area(area) || gap < 0 ||
-      scroll_offset < 0) {
+int ludash_split_rectangle(LuDashRectangle area, int vertical, int ratio,
+                           int gap, int first_minimum, int second_minimum,
+                           LuDashRectangle output[2]) {
+  const int length = vertical ? area.width : area.height;
+  if (!output || !ludash_valid_area(area) || gap < 0 || ratio < 0 ||
+      ratio > 1000000 || first_minimum < 1 || second_minimum < 1 ||
+      (int64_t)first_minimum + second_minimum > length)
     return 0;
+  const int maximum_gap = length - first_minimum - second_minimum;
+  if (gap > maximum_gap)
+    gap = maximum_gap;
+  const int available = length - gap;
+  int first = (int)(((int64_t)available * ratio + 500000) / 1000000);
+  if (first < first_minimum)
+    first = first_minimum;
+  if (first > available - second_minimum)
+    first = available - second_minimum;
+  output[0] = output[1] = area;
+  if (vertical) {
+    output[0].width = first;
+    output[1].x += first + gap;
+    output[1].width = available - first;
+  } else {
+    output[0].height = first;
+    output[1].y += first + gap;
+    output[1].height = available - first;
   }
-
-  int64_t x = (int64_t)area.x - scroll_offset;
-  for (size_t i = 0; i < count; ++i) {
-    if (widths[i] <= 0 || x < INT_MIN || x > INT_MAX ||
-        x + widths[i] < INT_MIN || x + widths[i] > INT_MAX) {
-      return 0;
-    }
-    if (i + 1 < count) {
-      if (x > INT64_MAX - widths[i] - gap)
-        return 0;
-      x += (int64_t)widths[i] + gap;
-    }
-  }
-
-  x = (int64_t)area.x - scroll_offset;
-  for (size_t i = 0; i < count; ++i) {
-    output[i] = (LuDashRectangle){(int)x, area.y, widths[i], area.height};
-    x += (int64_t)widths[i] + gap;
-  }
-  return count;
+  return 1;
 }
 
 size_t ludash_layout_weighted_column_windows(LuDashRectangle column,
@@ -82,33 +75,4 @@ size_t ludash_layout_column_windows(LuDashRectangle column, size_t count,
   const int weights[8] = {1, 1, 1, 1, 1, 1, 1, 1};
   return ludash_layout_weighted_column_windows(column, weights, count, gap,
                                                output, capacity);
-}
-
-size_t ludash_tile_rectangles(LuDashRectangle area, size_t count, double ratio,
-                              int gap, LuDashRectangle *output,
-                              size_t capacity) {
-  if (!output || count == 0 || count > capacity || count > LUDASH_MAX_COLUMNS ||
-      !ludash_valid_area(area) || !isfinite(ratio)) {
-    return 0;
-  }
-  if (ratio < 0.1)
-    ratio = 0.1;
-  if (ratio > 1.0)
-    ratio = 1.0;
-  if (gap < 0)
-    gap = 0;
-
-  int width = (int)((double)area.width * ratio);
-  if (width < 1)
-    width = 1;
-
-  int *widths = (int *)malloc(count * sizeof(*widths));
-  if (!widths)
-    return 0;
-  for (size_t i = 0; i < count; ++i)
-    widths[i] = width;
-  const size_t result =
-      ludash_layout_columns(area, widths, count, gap, 0, output, capacity);
-  free(widths);
-  return result;
 }

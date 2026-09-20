@@ -137,7 +137,7 @@ int SceneWindowAnimations::activeCount() const {
 QRect SceneWindowAnimations::visualGeometry(wlr_scene_tree *tree,
                                             const QRect &fallback) const {
   if (const auto *state = live_.value(tree))
-    return state->current;
+    return state->preview ? state->preview->current : state->current;
   return tree ? QRect(QPoint(tree->node.x, tree->node.y), fallback.size())
               : fallback;
 }
@@ -159,8 +159,8 @@ void SceneWindowAnimations::startLive(LiveState *state) {
 void SceneWindowAnimations::applyLive(LiveState *state, qreal progress) {
   state->current = interpolate(state->from, state->target, progress);
   if (state->preview) {
-    // Configure the client only once at its final size. Stretch its previous
-    // frame during the transition, then reveal the newly laid-out content.
+    // Configure the client once at its final size. Fit the previous frame
+    // without distortion, then reveal the newly laid-out content.
     const qreal reveal = std::clamp((progress - 0.72) / 0.28, 0.0, 1.0);
     applySnapshot(state->preview, state->current, 1.0 - reveal);
     state->currentOpacity = reveal;
@@ -310,18 +310,22 @@ SceneWindowAnimations::SnapshotState *SceneWindowAnimations::createSnapshot(
 void SceneWindowAnimations::applySnapshot(SnapshotState *state,
                                           const QRect &geometry,
                                           qreal opacity) {
-  state->current = geometry;
-  const qreal sx = qreal(geometry.width()) / state->original.width();
-  const qreal sy = qreal(geometry.height()) / state->original.height();
-  const QPoint origin = geometry.topLeft() - state->parentOrigin;
+  const qreal scale = std::min(qreal(geometry.width()) / state->original.width(),
+                               qreal(geometry.height()) / state->original.height());
+  const QSize fitted(std::max(1, qRound(state->original.width() * scale)),
+                     std::max(1, qRound(state->original.height() * scale)));
+  state->current = QRect(geometry.topLeft() +
+                         QPoint((geometry.width() - fitted.width()) / 2,
+                                (geometry.height() - fitted.height()) / 2), fitted);
+  const QPoint origin = state->current.topLeft() - state->parentOrigin;
   wlr_scene_node_set_position(&state->tree->node, origin.x(), origin.y());
   for (const auto &part : state->buffers) {
     wlr_scene_node_set_position(&part.buffer->node,
-                                qRound(part.geometry.x() * sx),
-                                qRound(part.geometry.y() * sy));
+                                qRound(part.geometry.x() * scale),
+                                qRound(part.geometry.y() * scale));
     wlr_scene_buffer_set_dest_size(
-        part.buffer, std::max(1, qRound(part.geometry.width() * sx)),
-        std::max(1, qRound(part.geometry.height() * sy)));
+        part.buffer, std::max(1, qRound(part.geometry.width() * scale)),
+        std::max(1, qRound(part.geometry.height() * scale)));
     wlr_scene_buffer_set_opacity(part.buffer, part.opacity * opacity);
   }
 }
@@ -342,7 +346,7 @@ void SceneWindowAnimations::hideSnapshot(wlr_scene_tree *source,
   auto *live = live_.value(source);
   if (live && live->preview)
     source = live->preview->tree;
-  createSnapshot(source, parent, live ? live->current : QRect());
+  createSnapshot(source, parent, live ? visualGeometry(live->tree, live->current) : QRect());
 }
 
 void SceneWindowAnimations::advance() {

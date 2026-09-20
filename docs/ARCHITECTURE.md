@@ -20,7 +20,7 @@ src/
       blur/          Qt Quick item and geometry adapter
       wallpaper/     Qt Quick wallpaper item
     session/         compositor startup, child environment and launch policy
-    tiling/          scrollable grouped columns and C geometry
+    tiling/          bounded split tree, grouped rows and C geometry
     wayland/         runtime, output and surface lifetimes
       wlroots/       version compatibility and external C header boundaries
     window/          rules and retained Qt Quick window adapters

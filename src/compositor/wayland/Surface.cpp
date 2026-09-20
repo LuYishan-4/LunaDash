@@ -131,6 +131,12 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   client->mapped = true;
   client->initialRuleApplied = true;
   state->impl->q->updateClientMetadata(client);
+  // A new ordinary window joins the visible layout instead of inheriting zoom.
+  if (!client->floating && !client->utility)
+    for (const auto &peer : state->impl->q->clients_)
+      if (peer.get() != client && peer->workspace == client->workspace &&
+          !peer->floating && peer->maximized)
+        state->impl->q->setMaximized(peer.get(), false);
   state->impl->q->arrange();
   if (!client->utility)
     state->impl->q->focus(client);

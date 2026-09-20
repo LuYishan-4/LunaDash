@@ -66,7 +66,7 @@ Rectangle {
                             Image {
                                 anchors { fill: parent; margins: 1 }
                                 source: parent.member.thumbnail || ""
-                                fillMode: Image.Stretch
+                                fillMode: Image.PreserveAspectFit
                                 asynchronous: true
                                 cache: false
                             }

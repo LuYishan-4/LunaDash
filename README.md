@@ -28,7 +28,7 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 ## LunaDash
 
 - **Everyday essentials, together.** A panel, launcher, dashboard, notifications, settings and file tools are part of the desktop.
-- **A workspace that moves with you.** Scrollable tiled columns with up to eight windows, Alt dragging, a ten-workspace thumbnail overview and a taskbar spanning all workspaces.
+- **A workspace that moves with you.** Tiles contained within one screen, groups of up to eight windows, Alt dragging, a ten-workspace thumbnail overview and a taskbar spanning all workspaces.
 - **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings.
 - **Go further when you want.** Arrange shell modules, customize Quickshell/QML and use the local control interface for your own workflow.
 
@@ -44,7 +44,7 @@ Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. Luna
     <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024259-008.png"><img src="docs/image/LunaDash-20260920-024259-008.png" alt="Choose wallpaper and accent colors in Appearance settings." width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024708-948.png"><img src="docs/image/LunaDash-20260920-024708-948.png" alt="Use the terminal, Discord and Zed in scrollable window columns." width="440"></a></td>
+    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024708-948.png"><img src="docs/image/LunaDash-20260920-024708-948.png" alt="Use the terminal, Discord and Zed in tiled windows." width="440"></a></td>
     <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024455-959.png"><img src="docs/image/LunaDash-20260920-024455-959.png" alt="The calendar panel also supports custom images." width="440"></a></td>
   </tr>
 </table>
@@ -73,8 +73,8 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 | --- | --- |
 | `Super` + `Return` / `E` / `D` | Terminal / Files / launcher |
 | `Super` + `T` | Open Kitty (default terminal) |
-| `Super` + `H` / `L` | Focus the left / right column |
-| `Super` + `K` / `J` | Focus another window in the column |
+| `Super` + `H` / `L` | Focus the window to the left / right |
+| `Super` + `K` / `J` | Focus the window above / below |
 | `Super` + `F` | Maximize one window / restore all workspace tiles |
 | `Alt` + `Tab` | Ten workspace previews; release Alt to switch |
 | `Alt` + drag | Move or swap slots; add Shift to resize |

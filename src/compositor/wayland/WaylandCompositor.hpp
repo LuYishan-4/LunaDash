@@ -78,7 +78,7 @@ private:
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
-  ScrollableTilingLayout tiling_;
+  TilingLayout tiling_;
   QHash<int, int> resizeOriginalWidths_;
   bool shuttingDown_ = false;
   bool logoutPending_ = false;

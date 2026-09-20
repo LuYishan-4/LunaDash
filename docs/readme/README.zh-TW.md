@@ -28,7 +28,7 @@
 ## LunaDash
 
 - **日常功能一次備齊。** 面板、啟動器、儀表板、通知、設定與檔案工具都包含在桌面中。
-- **配合你的工作方式。** 可捲動的平鋪視窗欄，每欄最多 8 個視窗；支援 Alt 拖曳、十格工作區縮圖總覽，工作列可切換所有工作區的視窗。
+- **配合你的工作方式。** 限制在單一畫面內的平鋪布局，每組最多 8 個視窗；支援 Alt 拖曳、十格工作區縮圖總覽，工作列可切換所有工作區的視窗。
 - **把預設變成自己的風格。** 在設定中調整桌布、色彩、間距、快捷鍵和預設應用程式。
 - **需要時再深入。** 排列 shell 模組、修改 Quickshell/QML，或透過本機控制介面安排工作流程。
 
@@ -44,7 +44,7 @@
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外觀設定中選擇桌布與強調色。" width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可捲動的視窗欄中使用終端機、Discord 和 Zed。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在平鋪布局中使用終端機、Discord 和 Zed。" width="440"></a></td>
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日曆面板也能使用自訂圖片。" width="440"></a></td>
   </tr>
 </table>
@@ -73,8 +73,8 @@ cd LunaDash
 | --- | --- |
 | `Super` + `Return` / `E` / `D` | 終端機／檔案／啟動器 |
 | `Super` + `T` | 開啟 Kitty（預設終端機） |
-| `Super` + `H` / `L` | 聚焦左／右視窗欄 |
-| `Super` + `K` / `J` | 聚焦欄內其他視窗 |
+| `Super` + `H` / `L` | 聚焦左／右方視窗 |
+| `Super` + `K` / `J` | 聚焦上／下方視窗 |
 | `Super` + `F` | 放大單一視窗／還原工作區內全部平鋪視窗 |
 | `Alt` + `Tab` | 十格工作區縮圖；放開 Alt 切換 |
 | `Alt` + drag | 移動或交換位置；加 Shift 調整大小 |

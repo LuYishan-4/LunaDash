@@ -4,12 +4,12 @@
     "Switch windows": "切換視窗",
     "Release Alt to switch · Esc to cancel": "放開 Alt 切換 · Esc 取消",
     "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing.": "Alt＋滑鼠左鍵拖曳可交換視窗格子；拖到頂端或底端邊緣可插入同欄。只有一個視窗時，Alt 拖曳只移動位置。",
-    "Shift + Alt + left-drag resizes a window and redistributes space in its column without changing the window order.": "Shift＋Alt＋滑鼠左鍵拖曳可調整視窗大小，同欄視窗會重新分配空間並保持順序。",
     "Alt+Tab is reserved for the window switcher.": "Alt＋Tab 保留供視窗切換器使用。",
     "Workspace %1": "工作區 %1",
-    "New windows open in separate columns. Each column can hold up to eight vertically tiled windows. Dialogs stay above their parent window.": "新視窗各自開啟一欄，每欄最多可合併 8 個上下平鋪視窗。對話框維持顯示於所屬視窗上方。",
     "Alt + Tab shows workspaces 1–10 in a two-row overview with window thumbnails. Use Tab, arrow keys or scrolling; release Alt to switch workspace, or press Esc to cancel.": "Alt＋Tab 以兩排十格顯示工作區 1–10，包含視窗縮圖。使用 Tab、方向鍵或捲動選取，放開 Alt 切換工作區，Esc 取消。",
     "Release Alt to switch workspace · Esc to cancel": "放開 Alt 切換工作區 · Esc 取消",
-    "Super + 1–9 switches workspaces; Super + 0 selects workspace 10. Add Shift to move a window. Super + H / L focuses columns; Super + J / K focuses rows. Super + F maximizes or restores the focused window.": "Super＋1–9 切換工作區，Super＋0 選取工作區 10。加上 Shift 可移動視窗。Super＋H／L 切換欄位，Super＋J／K 切換欄內視窗，Super＋F 放大或還原目前視窗。",
-    "The taskbar groups windows by workspace in capsules. The current workspace is brighter; other workspaces are darker. Select a tiled task to maximize it and hide its workspace peers. Click it again or press Super + F to restore the saved tiling layout.": "工作列以膠囊區分各工作區，當前工作區較亮，其他工作區較深。點選平鋪視窗會放大並暫時隱藏同工作區的其他視窗；再次點選或按 Super＋F，即可恢復原本的平鋪排列。"
+    "The taskbar groups windows by workspace in capsules. The current workspace is brighter; other workspaces are darker. Select a tiled task to maximize it and hide its workspace peers. Click it again or press Super + F to restore the saved tiling layout.": "工作列以膠囊區分各工作區，當前工作區較亮，其他工作區較深。點選平鋪視窗會放大並暫時隱藏同工作區的其他視窗；再次點選或按 Super＋F，即可恢復原本的平鋪排列。",
+    "Windows stay inside one screen. Two windows split left and right; later windows split the largest tile. Groups can hold up to eight vertical rows. Dialogs stay above their parent window.": "視窗限制在單一畫面內。兩個視窗左右排列，之後的新視窗會分割最大的格子；每組最多可排成 8 列。對話框維持顯示於所屬視窗上方。",
+    "Shift + Alt + left-drag moves shared tile boundaries or resizes grouped rows. Neighbors share the available space without overlapping or changing order.": "Shift＋Alt＋滑鼠左鍵拖曳可調整格子的共用邊界或群組內的列高。相鄰視窗會分配剩餘空間，不重疊也不改變順序。",
+    "Super + 1–9 switches workspaces; Super + 0 selects workspace 10. Add Shift to move a window. Super + H / J / K / L focuses left / down / up / right. Super + F maximizes one window or restores all tiles.": "Super＋1–9 切換工作區，Super＋0 選取工作區 10。加上 Shift 可移動視窗。Super＋H／J／K／L 聚焦左／下／上／右的視窗，Super＋F 放大單一視窗或還原全部格子。"
 }

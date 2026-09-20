@@ -39,8 +39,123 @@ private Q_SLOTS:
     QCoreApplication::setApplicationName("WindowLayout");
     QStandardPaths::setTestModeEnabled(true);
   }
+  void fixedSplitsStayOnScreen() {
+    TilingLayout layout(960, 6);
+    QVERIFY(layout.insert(0, 1, QSize(900, 600)));
+    QCOMPARE(layout.layout(0, area).first().geometry.size(), QSize(900, 600));
+    QVERIFY(layout.insert(0, 2));
+    auto two = geometries(layout.layout(0, area));
+    QCOMPARE(two[1].height(), area.height());
+    QCOMPARE(two[2].height(), area.height());
+    QCOMPARE(two[1].right() + 7, two[2].left());
+    QVERIFY(layout.insert(0, 3));
+    auto three = geometries(layout.layout(0, area));
+    QCOMPARE(three[1], two[1]);
+    QCOMPARE(three[2].left(), two[2].left());
+    QCOMPARE(three[3].left(), two[2].left());
+    QCOMPARE(three[2].bottom() + 7, three[3].top());
+    QVERIFY(layout.focus(1));
+    const auto unchanged = geometries(layout.layout(0, area));
+    QCOMPARE(unchanged, three); // Focusing never scrolls or rearranges slots.
+    QVERIFY(layout.focusRight(0));
+    QVERIFY(layout.focusDown(0));
+    QCOMPARE(layout.snapshot(0).focusedWindow, TilingWindowId(3));
+    QVERIFY(layout.resize(3, 900));
+    QVERIFY(layout.resizeHeight(3, 600));
+    auto resized = layout.layout(0, area);
+    verifyNoOverlap(resized);
+    for (const auto &slot : resized)
+      QVERIFY(area.contains(slot.geometry));
+    const auto beforeMinimize = geometries(resized);
+    QVERIFY(layout.setMinimized(2, true));
+    verifyNoOverlap(layout.layout(0, area));
+    QVERIFY(layout.setMinimized(2, false));
+    QCOMPARE(geometries(layout.layout(0, area)), beforeMinimize);
+    QVERIFY(layout.remove(3));
+    QCOMPARE(geometries(layout.layout(0, area))[2].height(), area.height());
+  }
+  void manyWindowsAndOutputChanges() {
+    for (const QRect bounds :
+         {area, QRect(-800, 20, 800, 1200), QRect(0, 0, 320, 240)}) {
+      TilingLayout layout(960, 6);
+      for (int id = 1; id <= 64; ++id) {
+        QVERIFY(layout.insert(0, id));
+        const auto placements = layout.layout(0, bounds);
+        QCOMPARE(placements.size(), id);
+        verifyNoOverlap(placements);
+        for (const auto &slot : placements)
+          QVERIFY(bounds.contains(slot.geometry));
+      }
+      for (const QRect resized : {QRect(0, 0, 500, 300), area}) {
+        const auto placements = layout.layout(0, resized);
+        QCOMPARE(placements.size(), 64);
+        verifyNoOverlap(placements);
+        for (const auto &slot : placements)
+          QVERIFY(resized.contains(slot.geometry));
+      }
+    }
+  }
+  void mixedLayoutEditsRemainBounded() {
+    TilingLayout layout(960, 6);
+    for (int id = 1; id <= 16; ++id)
+      layout.insert(0, id);
+    quint32 random = 12345;
+    for (int step = 0; step < 400; ++step) {
+      random = random * 1664525U + 1013904223U;
+      const int id = 1 + (random >> 8) % 16;
+      const int target = 1 + (random >> 16) % 16;
+      switch (step % 8) {
+      case 0:
+        layout.groupWith(id, target);
+        break;
+      case 1:
+        layout.expel(id);
+        break;
+      case 2:
+        layout.swapWindows(id, target);
+        break;
+      case 3:
+        layout.setMinimized(id, true);
+        break;
+      case 4:
+        layout.setMinimized(id, false);
+        break;
+      case 5:
+        layout.moveToWorkspace(id, (random >> 24) % 2);
+        break;
+      case 6:
+        layout.resize(id, 120 + target * 60);
+        break;
+      case 7:
+        layout.resizeHeight(id, 80 + target * 40);
+        break;
+      }
+      int total = 0;
+      for (int workspace = 0; workspace < 2; ++workspace) {
+        const auto placements = layout.layout(workspace, area);
+        total += placements.size();
+        verifyNoOverlap(placements);
+        for (const auto &slot : placements)
+          if (!slot.minimized)
+            QVERIFY(area.contains(slot.geometry));
+      }
+      QCOMPARE(total, 16);
+    }
+  }
+  void singleWindowProportionsAndBounds() {
+    TilingLayout layout;
+    layout.insert(0, 1, QSize(2400, 1600));
+    const auto fitted = layout.layout(0, area).first().geometry;
+    QVERIFY(area.contains(fitted));
+    QCOMPARE(fitted.width() * 2, fitted.height() * 3);
+    QVERIFY(layout.moveSingle(1, QPoint(10000, -10000), area));
+    QVERIFY(area.contains(layout.layout(0, area).first().geometry));
+    QVERIFY(layout.resize(1, 10000));
+    QVERIFY(layout.resizeHeight(1, 10000));
+    QCOMPARE(layout.layout(0, area).first().geometry, area);
+  }
   void eightRowsAndOverflow() {
-    ScrollableTilingLayout layout;
+    TilingLayout layout;
     for (int i = 1; i <= 9; ++i)
       QVERIFY(layout.insert(0, i));
     auto placements = layout.layout(0, area);
@@ -71,7 +186,7 @@ private Q_SLOTS:
     verifyNoOverlap(placements);
   }
   void swapsPreserveSlots() {
-    ScrollableTilingLayout layout;
+    TilingLayout layout;
     for (int i = 1; i <= 3; ++i)
       layout.insert(0, i);
     layout.groupWith(2, 1);
@@ -92,7 +207,7 @@ private Q_SLOTS:
     verifyNoOverlap(placements);
   }
   void resizingAndSingleMovement() {
-    ScrollableTilingLayout layout;
+    TilingLayout layout;
     layout.insert(0, 1);
     const auto before = layout.layout(0, area).first().geometry;
     QVERIFY(layout.moveSingle(1, QPoint(60, 30), area));
@@ -125,11 +240,11 @@ private Q_SLOTS:
     QCOMPARE(layout.layout(1, area).size(), 1);
   }
   void workspaceMaximizePreservesTiling() {
-    ScrollableTilingLayout layout(450, 6);
+    TilingLayout layout(450, 6);
     for (int id = 1; id <= 4; ++id)
       QVERIFY(layout.insert(0, id));
     QVERIFY(layout.groupWith(2, 1));
-    QVERIFY(layout.insert(1, 10, 500));
+    QVERIFY(layout.insert(1, 10, QSize(500, 400)));
     layout.layout(0, area);
     QVERIFY(layout.resizeHeight(2, 300));
     QVERIFY(layout.focus(2));
@@ -175,6 +290,24 @@ private Q_SLOTS:
     }
   }
   void geometryBounds() {
+    LuDashRectangle halves[2];
+    for (const int vertical : {0, 1}) {
+      QVERIFY(ludash_split_rectangle({-10, 20, 31, 29}, vertical, 500000, 6, 1,
+                                     1, halves));
+      const auto a =
+          QRect(halves[0].x, halves[0].y, halves[0].width, halves[0].height);
+      const auto b =
+          QRect(halves[1].x, halves[1].y, halves[1].width, halves[1].height);
+      QVERIFY(!a.intersects(b));
+      QVERIFY(QRect(-10, 20, 31, 29).contains(a));
+      QVERIFY(QRect(-10, 20, 31, 29).contains(b));
+    }
+    QVERIFY(ludash_split_rectangle({0, 0, 2, 8}, 1, 0, INT_MAX, 1, 1, halves));
+    QCOMPARE(halves[0].width, 1);
+    QCOMPARE(halves[1].x, 1);
+    QVERIFY(!ludash_split_rectangle({0, 0, 1, 8}, 1, 500000, 0, 1, 1, halves));
+    QVERIFY(!ludash_split_rectangle({INT_MAX, 0, 10, 8}, 1, 500000, 0, 1, 1,
+                                    halves));
     LuDashRectangle output[9];
     for (int count = 1; count <= 8; ++count) {
       const LuDashRectangle small{0, 0, 120, count};

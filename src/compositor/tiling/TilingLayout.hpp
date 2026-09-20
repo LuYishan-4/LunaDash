@@ -24,24 +24,23 @@ struct TilingColumnSnapshot {
 
 struct TilingWorkspaceSnapshot {
   TilingWorkspaceId workspace = 0;
-  int scrollOffset = 0;
   TilingWindowId focusedWindow = 0;
   QList<TilingColumnSnapshot> columns;
   TilingWindowId maximizedWindow = 0;
 };
 
-class ScrollableTilingLayout {
+class TilingLayout {
 public:
-  explicit ScrollableTilingLayout(int defaultWidth = 720, int gap = 12);
-  ~ScrollableTilingLayout();
-  ScrollableTilingLayout(ScrollableTilingLayout &&) noexcept;
-  ScrollableTilingLayout &operator=(ScrollableTilingLayout &&) noexcept;
-  ScrollableTilingLayout(const ScrollableTilingLayout &) = delete;
-  ScrollableTilingLayout &operator=(const ScrollableTilingLayout &) = delete;
+  explicit TilingLayout(int defaultWidth = 960, int gap = 12);
+  ~TilingLayout();
+  TilingLayout(TilingLayout &&) noexcept;
+  TilingLayout &operator=(TilingLayout &&) noexcept;
+  TilingLayout(const TilingLayout &) = delete;
+  TilingLayout &operator=(const TilingLayout &) = delete;
 
   void setGap(int gap);
   bool insert(TilingWorkspaceId workspace, TilingWindowId window,
-              int width = 0);
+              QSize preferredSize = {});
   bool remove(TilingWindowId window);
   bool setMinimized(TilingWindowId window, bool minimized);
   bool setMaximized(TilingWindowId window, bool maximized);
@@ -71,8 +70,5 @@ private:
   class Impl;
   std::unique_ptr<Impl> d;
 };
-
-QList<QRect> tileRectangles(QRect area, int count, double columnRatio = 0.56,
-                            int gap = 12);
 
 } // namespace LunaDash
