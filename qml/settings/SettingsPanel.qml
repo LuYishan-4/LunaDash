@@ -115,7 +115,8 @@ ModuleSurface {
                         forceBuiltin: settings.category === "modules"
                         context: ({page: settings.category})
                         width: scroll.availableWidth - 12
-                        height: replacementReady ? Math.max(120, pluginImplicitHeight) : pageLoader.height
+                        // Shader replacements retain the original page as their texture input.
+                        height: builtinVisible ? pageLoader.height : Math.max(120, pluginImplicitHeight)
                     Loader{
                         id:pageLoader
                         width:scroll.availableWidth-12
