@@ -52,6 +52,15 @@ For a real desktop, use `LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build
 
 Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. Internal GLSL is embedded and needs no installed shader directory. For explicit relocation testing, install `--component Tests` into a temporary prefix and run `libexec/lunadash/tests/lunadash-renderer-test` there; that component is excluded from normal installs.
 
+On Arch, also verify the source archive used by `./scripts/install-session.sh`, since a checkout build cannot detect missing archive contents:
+
+```sh
+./scripts/make-source.sh
+(cd packaging/arch && makepkg --cleanbuild --force --nosign)
+```
+
+This builds packages without installing them. The archive must include `examples/` for native plugin examples and `templates/` for the installed plugin SDK, in addition to the main source tree. Inspect the resulting package for the SDK templates and plugin examples before publishing it.
+
 ## CI coverage
 
 | Workflow | Configured coverage |
