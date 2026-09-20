@@ -30,8 +30,6 @@ QJsonObject defaults() {
           {"animationDuration", 220},
           {"workspaceCount", 4},
           {"masterRatio", 50},
-          {"defaultFloating", false},
-          {"altMouseResize", true},
           {"keyboardLayout", "us"},
           {"cursorSize", 24},
           {"fontFamily", "sans-serif"},
@@ -234,8 +232,7 @@ bool valid(const QString &key, const QJsonValue &value) {
   if (key == "accent" || key == "secondaryAccent")
     return validColor(value);
   if (key == "overview" || key == "showHostDetails" || key == "blur" ||
-      key == "animations" || key == "defaultFloating" ||
-      key == "altMouseResize" || key == "clock24Hour" || key == "proxyEnabled")
+      key == "animations" || key == "clock24Hour" || key == "proxyEnabled")
     return value.isBool();
   if (key == "gap" || key == "panelHeight" || key == "blurRadius" ||
       key == "windowOpacity" || key == "animationDuration") {

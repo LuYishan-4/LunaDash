@@ -1,0 +1,14 @@
+{
+    "Kitty (default)": "Kitty（既定）",
+    "Open terminal alternative": "ターミナルを開く（別のキー）",
+    "Switch windows": "ウィンドウを切り替え",
+    "Release Alt to switch · Esc to cancel": "Alt を離して切り替え · Esc でキャンセル",
+    "Columns hold up to eight tiled windows. New windows join the focused column when it has room. Dialogs stay above their parent window.": "各列に最大 8 個のウィンドウを縦に配置します。新しいウィンドウは空きのある現在の列に加わります。ダイアログは親ウィンドウの前面に表示します。",
+    "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing.": "Alt＋左ドラッグで配置を交換し、上下の端にドロップすると列に挿入します。ウィンドウが 1 個の場合はサイズを変えずに移動します。",
+    "Shift + Alt + left-drag resizes a window and redistributes space in its column without changing the window order.": "Shift＋Alt＋左ドラッグでサイズを変更します。同じ列の空間を再配分し、ウィンドウの順序は維持します。",
+    "The taskbar lists individual windows. Selecting one enlarges its column and gives it more height while keeping the other windows visible.": "タスクバーは各ウィンドウを一覧表示します。選択すると列幅と高さを広げ、同じ列の他のウィンドウも表示し続けます。",
+    "Alt + Tab opens the horizontal window selector. Use Tab, Shift + Tab, arrow keys or scrolling; release Alt to switch, or press Esc to cancel.": "Alt＋Tab で横方向の選択画面を開きます。Tab、Shift＋Tab、矢印キー、スクロールで選び、Alt を離して確定、Esc でキャンセルします。",
+    "Super + 1–9 switches workspaces. Add Shift to move a window. Super + H / L focuses columns; Super + J / K focuses rows. Super + F maximizes or restores the column width.": "Super＋1–9 でワークスペースを切り替え、Shift を加えるとウィンドウを移動します。Super＋H／L は列、Super＋J／K は行を選択し、Super＋F は列幅を最大化・復元します。",
+    "Alt+Tab is reserved for the window switcher.": "Alt＋Tab はウィンドウ切り替え専用です。",
+    "Workspace %1": "ワークスペース %1"
+}

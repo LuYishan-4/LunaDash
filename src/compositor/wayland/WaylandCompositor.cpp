@@ -1,6 +1,7 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/wayland/Runtime.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
+#include "compositor/window/WindowSwitcher.hpp"
 
 #include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/capture/ScreenCapture.hpp"
@@ -104,6 +105,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell,
                                      const QString &rendererPreference)
     : d(std::make_unique<Impl>(this, socket, fullscreen, rendererPreference)) {
+  windowSwitcher_ = new WindowSwitcher(this);
   screenCapture_ = new ScreenCapture(this);
   connect(screenCapture_, &ScreenCapture::completed, this,
           [this](const QString &path, const QString &error) {
@@ -137,6 +139,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   controlPath_ =
       QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
       QString::fromUtf8(socket) + "-control";
+  windowSwitcher_->setChannelPath(controlPath_ + "-interaction.json");
   controlServer_ = new ControlServer(
       controlPath_,
       [this](const QJsonObject &request) { return control(request); }, this);
@@ -162,7 +165,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
 
   if (startShell &&
       qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
-    const QString agent = QStandardPaths::findExecutable("lunadash-polkit-agent");
+    const QString agent =
+        QStandardPaths::findExecutable("lunadash-polkit-agent");
     if (!agent.isEmpty())
       spawn({}, agent, false);
   }
@@ -412,11 +416,7 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
                          ? QString()
                          : windowIconName(client->appId, client->title);
   if (!client->initialRuleApplied) {
-    const auto policy = initialWindowPolicy(client->appId, client->title);
-    client->maximized = policy.maximized;
-    client->floating = desktopPreferences().value("defaultFloating").toBool() ||
-                       policy.floating || client->toplevel->parent;
-    client->preferredFloatingSize = policy.floatingSize;
+    client->floating = client->toplevel->parent != nullptr;
   } else if (client->toplevel->parent) {
     client->floating = true;
   }
@@ -431,11 +431,30 @@ void WaylandCompositor::configure(ClientWindow *client,
     windowAnimations_->setGeometry(
         client->sceneTree, client->geometry, rectangle, d->animationLayer,
         client->mapped && client->sceneTree->node.enabled &&
-            !client->manualResize);
+            !client->manualResize && !d->pointerWindow);
   else
     wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
                                 rectangle.y());
   client->geometry = rectangle;
+  wlr_box geometry{};
+#if WLR_VERSION_MINOR >= 19
+  geometry = client->surface->geometry;
+#else
+  wlr_xdg_surface_get_geometry(client->surface, &geometry);
+#endif
+  const wlr_box clip{geometry.x, geometry.y, rectangle.width(),
+                     rectangle.height()};
+  wlr_scene_node *child;
+  wl_list_for_each(child, &client->sceneTree->children, link) {
+    const bool popup = std::any_of(
+        d->xdgPopups.begin(), d->xdgPopups.end(), [child](const auto *state) {
+          return state->sceneTree && &state->sceneTree->node == child;
+        });
+    // Clip client content, never popup menus attached beside that content.
+    if (!popup)
+      wlr_scene_subsurface_tree_set_clip(child,
+                                         client->floating ? nullptr : &clip);
+  }
   const QSize size(std::max(1, rectangle.width()),
                    std::max(1, rectangle.height()));
   if (client->lastSize != size) {
@@ -537,6 +556,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
 
   const bool changed = focused_ != client;
   focused_ = client;
+  windowSwitcher_->recordFocus(client->id);
   if (!client->floating)
     tiling_.focus(client->id);
   // Selecting a tiled window must also scroll its column into view. Avoid
@@ -609,6 +629,7 @@ void WaylandCompositor::removeClient(ClientWindow *client) {
     return;
   if (focused_ == client)
     focused_ = nullptr;
+  windowSwitcher_->remove(client->id);
   tiling_.remove(client->id);
   std::erase_if(clients_,
                 [client](const auto &entry) { return entry.get() == client; });
@@ -719,11 +740,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
   else if (action == "minimizeWindow" && focused_) {
     focused_->minimized = true;
     tiling_.setMinimized(focused_->id, true);
-  } else if (action == "toggleFloating" && focused_) {
-    focused_->floating = !focused_->floating;
-    if (focused_->floating)
-      tiling_.remove(focused_->id);
-  } else if (action == "launchTerminal")
+  } else if (action == "launchTerminal" || action == "launchTerminalAlternate")
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
@@ -876,6 +893,9 @@ QJsonObject WaylandCompositor::state() const {
       {"workspace", workspace_},
       {"processFailure", processFailure_},
       {"clients", entries},
+      {"pointerDrag", QJsonObject{{"window", d ? d->pointerWindow : 0},
+                                  {"target", d ? d->pointerTarget : 0},
+                                  {"edge", d ? d->pointerEdge : 0}}},
       {"tiling",
        QJsonObject{
            {"scrollOffset", tilingSnapshot.scrollOffset},
@@ -969,11 +989,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                                  WL_KEYBOARD_KEY_STATE_RELEASED);
   } else if (method == "open-settings") {
     static const QStringList pages{
-        "general",   "appearance", "windows",      "shortcuts",
-        "display",   "input",      "sound",        "network",
-        "bluetooth", "power",      "applications", "privacy",
-        "system",    "devices",    "about",        "modules",
-        "dashboard", "input-method"};
+        "general",      "appearance", "windows",     "shortcuts", "display",
+        "input",        "sound",      "network",     "bluetooth", "power",
+        "applications", "privacy",    "system",      "devices",   "about",
+        "modules",      "dashboard",  "input-method"};
     if (!value.isEmpty() && !pages.contains(value))
       return {{"error", "Unknown settings page."}};
     settingsPage_ = value.isEmpty() ? "general" : value;
@@ -1068,8 +1087,9 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!document.isObject() || !percent.isDouble() ||
         percent.toDouble() != percent.toInt(-1) ||
         !ddcBrightnessSettings_->setPercent(request.value("id").toString(),
-                                           percent.toInt(-1), &error))
-      return {{"error", error.isEmpty() ? "Invalid DDC/CI brightness request." : error}};
+                                            percent.toInt(-1), &error))
+      return {{"error",
+               error.isEmpty() ? "Invalid DDC/CI brightness request." : error}};
   } else if (method == "ddc-refresh") {
     ddcBrightnessSettings_->refresh();
   } else if (method == "display-configure") {
@@ -1133,7 +1153,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     QStringList arguments;
     if (program.isEmpty() &&
         !QStandardPaths::findExecutable("nmtui").isEmpty()) {
-      for (const auto &terminal : {"konsole", "alacritty", "foot"}) {
+      for (const auto &terminal : {"kitty", "konsole", "alacritty", "foot"}) {
         program = QStandardPaths::findExecutable(terminal);
         if (!program.isEmpty()) {
           arguments = {"-e", "nmtui"};
@@ -1178,6 +1198,19 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     synchronizeTilingFocus();
   } else if (method == "quit") {
     QTimer::singleShot(0, this, &WaylandCompositor::requestShutdown);
+  } else if (method == "switch-window") {
+    const auto id = textWindowId(value);
+    if (!id || !windowSwitcher_->select(*id))
+      return {{"error", "Unknown selection"}};
+  } else if (method == "switch-step") {
+    windowSwitcher_->step(value == "previous" ? -1 : 1);
+  } else if (method == "switch-accept" || method == "switch-cancel") {
+    finishWindowSwitch(method == "switch-accept");
+  } else if (method == "activate-window") {
+    const auto id = textWindowId(value);
+    if (!id)
+      return {{"error", "Expected a window ID"}};
+    activateTask(*id);
   } else if (method == "focus" || method == "close" || method == "minimize") {
     const auto id = textWindowId(value);
     if (!id)

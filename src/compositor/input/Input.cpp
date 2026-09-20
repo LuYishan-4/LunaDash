@@ -2,11 +2,13 @@
 #include "compositor/input/Keyboard.hpp"
 #include "compositor/wayland/Runtime.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
+#include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 #include <QDateTime>
 #include <QTimer>
 #include <algorithm>
+#include <linux/input-event-codes.h>
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -33,6 +35,8 @@ bool keypadSymbol(xkb_keysym_t symbol) {
 
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
+  if (updateTiledPointer())
+    return;
   double sx = 0;
   double sy = 0;
   wlr_surface *surface = surfaceAt(cursor->x, cursor->y, &sx, &sy);
@@ -57,8 +61,16 @@ void WaylandCompositor::Impl::focusSurface(wlr_surface *surface) {
   if (!keyboard)
     return;
   wlr_seat_set_keyboard(seat, keyboard);
-  wlr_seat_keyboard_notify_enter(seat, surface, keyboard->keycodes,
-                                 keyboard->num_keycodes, &keyboard->modifiers);
+  QList<uint32_t> pressed;
+  QSet<uint32_t> consumed;
+  for (const auto *state : keyboards)
+    if (state->keyboard == keyboard)
+      consumed = state->consumedKeys;
+  for (size_t i = 0; i < keyboard->num_keycodes; ++i)
+    if (!consumed.contains(keyboard->keycodes[i]))
+      pressed.append(keyboard->keycodes[i]);
+  wlr_seat_keyboard_notify_enter(seat, surface, pressed.data(), pressed.size(),
+                                 &keyboard->modifiers);
 }
 
 void WaylandCompositor::Impl::updateSeatCapabilities() {
@@ -219,8 +231,39 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
           ? xkb_state_key_get_syms(keyboard->xkb_state, keycode, &symbols)
           : 0;
 
+  if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
+      state->consumedKeys.remove(event->keycode))
+    return;
+  const bool shortcutPress = !state->virtualKeyboard &&
+                             event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+                             !self->q->shortcutCapture_;
+  if (shortcutPress)
+    state->consumedKeys.insert(event->keycode);
   bool handled = false;
   if (!state->virtualKeyboard &&
+      event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+      !self->q->shortcutCapture_) {
+    const auto modifiers = wlr_keyboard_get_modifiers(keyboard);
+    for (int i = 0; i < count; ++i) {
+      const auto symbol = symbols[i];
+      const bool tab = symbol == XKB_KEY_Tab || symbol == XKB_KEY_ISO_Left_Tab;
+      if (tab && (modifiers & WLR_MODIFIER_ALT) &&
+          !(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_LOGO))) {
+        self->q->beginWindowSwitch(modifiers & WLR_MODIFIER_SHIFT ? -1 : 1);
+        handled = true;
+      } else if (self->q->windowSwitcher_->active()) {
+        if (symbol == XKB_KEY_Escape)
+          self->q->finishWindowSwitch(false);
+        else if (symbol == XKB_KEY_Return)
+          self->q->finishWindowSwitch(true);
+        else if (symbol == XKB_KEY_Left || symbol == XKB_KEY_Right)
+          self->q->windowSwitcher_->step(symbol == XKB_KEY_Left ? -1 : 1);
+        handled = symbol != XKB_KEY_Alt_L && symbol != XKB_KEY_Alt_R &&
+                  symbol != XKB_KEY_Shift_L && symbol != XKB_KEY_Shift_R;
+      }
+    }
+  }
+  if (!handled && !state->virtualKeyboard &&
       event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
       !self->q->shortcutCapture_) {
     const uint32_t modifiers =
@@ -242,8 +285,13 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
         break;
       }
 
-  if (handled)
+  if (handled) {
+    state->consumedKeys.insert(event->keycode);
     return;
+  }
+
+  if (shortcutPress)
+    state->consumedKeys.remove(event->keycode);
 
   if (self->inputMethod && self->inputMethod->method &&
       self->inputMethod->method->keyboard_grab && !state->virtualKeyboard) {
@@ -274,6 +322,9 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
   } else {
     wlr_seat_keyboard_notify_modifiers(self->seat, &state->keyboard->modifiers);
   }
+  if (!state->virtualKeyboard && self->q->windowSwitcher_->active() &&
+      !(wlr_keyboard_get_modifiers(state->keyboard) & WLR_MODIFIER_ALT))
+    self->q->finishWindowSwitch(true);
   if (state->virtualKeyboard)
     self->restorePreferredKeyboard();
 }
@@ -284,6 +335,8 @@ void WaylandCompositor::Impl::handleKeyboardDestroy(wl_listener *listener,
   if (!state)
     return;
   auto *self = state->impl;
+  if (!state->virtualKeyboard)
+    self->q->finishWindowSwitch(false);
   detachListener(state->key);
   detachListener(state->modifiers);
   detachListener(state->destroy);
@@ -321,7 +374,22 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
   auto *event = static_cast<wlr_pointer_button_event *>(data);
   if (!self || !event)
     return;
+  if (self->pointerWindow) {
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
+        event->button == BTN_LEFT)
+      self->finishTiledPointer(true);
+    return;
+  }
+  if (self->q->windowSwitcher_->active()) {
+    double sx = 0, sy = 0;
+    if (self->clientForSurface(
+            self->surfaceAt(self->cursor->x, self->cursor->y, &sx, &sy)))
+      return;
+  }
   const bool grabbed = wlr_seat_pointer_has_grab(self->seat);
+  if (!grabbed && event->state == WL_POINTER_BUTTON_STATE_PRESSED &&
+      self->beginTiledPointer(event->button))
+    return;
   if (event->state == WL_POINTER_BUTTON_STATE_PRESSED && !grabbed) {
     double sx = 0;
     double sy = 0;
@@ -340,6 +408,11 @@ void WaylandCompositor::Impl::handleCursorAxis(wl_listener *listener,
                                                void *data) {
   auto *self = listenerOwner<Impl>(listener);
   auto *event = static_cast<wlr_pointer_axis_event *>(data);
+  if (self && event && self->q->windowSwitcher_->active()) {
+    if (event->delta != 0)
+      self->q->windowSwitcher_->step(event->delta < 0 ? -1 : 1);
+    return;
+  }
   if (self && event)
     WlrootsCompat::notifyPointerAxis(self->seat, event);
 }

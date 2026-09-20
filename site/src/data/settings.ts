@@ -23,17 +23,19 @@ export const groups: SettingGroup[] = [
     details: [
       "Blur starts enabled at radius 18. Lower the radius to reduce GPU work; window opacity ranges from 60% to 100%.",
       "Set animation duration between 0 and 600 ms, or disable animations for reduced motion.",
-      "Built-in Files, plugin windows and LunaDash file dialogs follow the accent and font settings. Konsole retains your selected profile; third-party applications use their own themes.",
+      "Built-in Files, plugin windows and LunaDash file dialogs follow the accent and font settings. Kitty retains your configuration; third-party applications use their own themes.",
     ],
   },
   {
     id: "windows",
     name: "Tiling & workspaces",
     description:
-      "Choose 1–9 workspaces, a default column width from 30% to 70%, and whether new windows start floating.",
+      "Choose 1–9 workspaces, a default column width from 30% to 70%, and window gaps. Each column holds up to eight vertically tiled windows.",
     details: [
       "Super+1…9 switches workspaces; Super+Shift+1…9 moves the focused window to an existing workspace.",
-      "Super+H/L focuses the left/right column; Super+K/J focuses windows within a column. Super+Space toggles floating, Super+F maximizes or restores, and Super+Q closes the focused window.",
+      "Super+H/L focuses the left/right column; Super+K/J focuses windows within a column. Super+F maximizes or restores the column width, and Super+Q closes the focused window.",
+      "Alt + left-drag swaps window slots; drop at a top/bottom edge to insert into a column. A single window moves without resizing. Add Shift to resize and redistribute space within the column.",
+      "The taskbar lists individual windows. Selecting one enlarges it while retaining its neighbors. Alt+Tab opens one horizontal selector over a blurred background; release Alt to switch or press Esc to cancel.",
       "Reducing workspace count moves windows from removed workspaces to the last remaining workspace.",
     ],
   },
@@ -66,7 +68,7 @@ export const groups: SettingGroup[] = [
     description:
       "Applications and startup lists every installed application for each default role, with the built-in default pinned at the top of the list.",
     details: [
-      "Terminal defaults to Konsole and respects your existing profile, including a configured Flatpak Konsole profile. The login shell and user Fish configuration are not rewritten.",
+      "Terminal defaults to Kitty, opened with Super+T or Super+Return, and respects your existing configuration. The login shell and user Fish configuration are not rewritten.",
       "Files defaults to the LunaDash file manager. Choose icon or details view, browse common locations, filter a folder, and use the compact toolbar.",
       "The browser role controls web links opened by LunaDash and prefers Chrome when available. Default application roles affect LunaDash launchers and shortcuts; file-type associations are configured separately.",
       "Startup selection currently covers built-in tools; general desktop-entry autostart and session restoration are not implemented.",

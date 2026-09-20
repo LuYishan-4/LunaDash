@@ -3,6 +3,7 @@
 #include "compositor/wayland/Runtime.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
+#include "compositor/window/WindowSwitcher.hpp"
 #include <QTimer>
 #include <algorithm>
 
@@ -21,9 +22,9 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
   const bool fullscreen = client->toplevel->requested.fullscreen;
   const bool maximized = client->toplevel->requested.maximized;
   const QSize size = fullscreen ? outputSize() : q->workArea().size();
-  wlr_xdg_toplevel_set_size(client->toplevel,
-                            fullscreen || maximized ? std::max(1, size.width()) : 0,
-                            fullscreen || maximized ? std::max(1, size.height()) : 0);
+  wlr_xdg_toplevel_set_size(
+      client->toplevel, fullscreen || maximized ? std::max(1, size.width()) : 0,
+      fullscreen || maximized ? std::max(1, size.height()) : 0);
   if (maximized)
     wlr_xdg_toplevel_set_maximized(client->toplevel, true);
   if (fullscreen)
@@ -153,6 +154,9 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
       state->client->surface->surface)
     wlr_seat_keyboard_notify_clear_focus(state->impl->seat);
   state->client->mapped = false;
+  state->impl->q->windowSwitcher_->remove(state->client->id);
+  if (state->impl->pointerWindow == state->client->id)
+    state->impl->finishTiledPointer(false);
   state->impl->q->tiling_.remove(state->client->id);
   if (state->impl->q->focused_ == state->client)
     state->impl->q->focused_ = nullptr;

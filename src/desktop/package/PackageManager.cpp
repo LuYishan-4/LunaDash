@@ -96,8 +96,8 @@ QWidget *createPackageManager() {
               "Ask your system administrator to manage packages."));
       return;
     }
-    for (const auto &terminal :
-         {QString("konsole"), QString("foot"), QString("alacritty")}) {
+    for (const auto &terminal : {QString("kitty"), QString("konsole"),
+                                 QString("foot"), QString("alacritty")}) {
       const auto path = QStandardPaths::findExecutable(terminal);
       if (path.isEmpty())
         continue;

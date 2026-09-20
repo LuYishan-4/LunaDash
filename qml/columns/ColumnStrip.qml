@@ -8,26 +8,13 @@ import "../style"
 ModuleSurface {
     id: strip
     moduleId: "columns"
-    readonly property var groups: ((shell.state.tiling || {}).groups || [])
+    readonly property var groups: (shell.state.clients || [])
+        .filter(client => !client.desktop && client.mapped && Number(client.workspace) === Number(shell.state.workspace))
+        .map(client => ({focused: client.focused, members: [{window: client.id, title: client.title,
+            appId: client.appId, icon: client.icon, minimized: client.minimized, focused: client.focused}]}))
     readonly property int stripMargin: Math.max(8, Math.min(strip.moduleMargin, 24))
-
-    function memberCount(group) {
-        return Math.min(4, (group.members || []).length)
-    }
-
-    function cellWidth(group) {
-        const iconWidth = 30
-        const iconSpacing = 4
-        const memberWidth = memberCount(group) * iconWidth + Math.max(0, memberCount(group) - 1) * iconSpacing + 14
-        return Math.max(memberWidth, Math.min(168, Math.max(52, Number(group.width || 0) * 0.18)))
-    }
-
-    function desiredWidth() {
-        let width = 12
-        for (let index = 0; index < groups.length; ++index)
-            width += cellWidth(groups[index]) + (index > 0 ? 5 : 0)
-        return width
-    }
+    function cellWidth(group) { return 40 }
+    function desiredWidth() { return 12 + groups.length * 45 }
 
     anchors { top: true; left: true }
     margins { top: Theme.barHeight + Math.max(6, Math.min(strip.moduleMargin, 12)); left: strip.stripMargin }

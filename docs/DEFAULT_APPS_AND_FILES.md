@@ -1,19 +1,19 @@
 # Default applications, Fish, Files, and image selection
 
-Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of every installed desktop application that the launcher can also find, with a role default pinned at the top (`Konsole (default)` for the terminal, `LunaDash default` for files). `[]` selects the role default. Examples are `["konsole"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
+Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of every installed desktop application that the launcher can also find, with a role default pinned at the top (`Kitty (default)` for the terminal, `LunaDash default` for files). `[]` selects the role default. Examples are `["kitty"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
 
 Super+Return and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadash-desktop --app files` also respects the preference; `--builtin` explicitly opens LunaDash Files for recovery. `--path /absolute/folder` navigates the built-in manager or appends the folder as one argument for a custom manager. These choices apply to LunaDash launchers, not system-wide MIME associations or every third-party application's embedded terminal.
 
 ## Terminal and Fish
 
-The default terminal is **Konsole**. LunaDash reads Konsole's user `konsolerc` `DefaultProfile`, starts a separate Konsole process with that profile, and does not replace its shell, colours, or other user configuration. A user-configured non-empty command remains supported after the existing executable and recursive-launch validation; a plain `["konsole"]` command is normalized to the same user profile.
+The default terminal is **Kitty**, opened with `Meta+T` or `Meta+Return`. LunaDash leaves Kitty configuration and the login shell unchanged. Non-empty user commands remain supported; explicitly selecting Konsole continues to use its configured profile.
 
 LunaDash's Command Console remains a separate non-interactive diagnostic tool (`--app console`), not the default terminal.
 
 ```sh
 lunadashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'  # explicit command example
 lunadashctl launch-default terminal
-lunadashctl default-apps '{"terminal":[],"files":[]}'                            # Konsole and built-in Files
+lunadashctl default-apps '{"terminal":[],"files":[]}'                            # Kitty and built-in Files
 ```
 
 ## Wallpaper picker

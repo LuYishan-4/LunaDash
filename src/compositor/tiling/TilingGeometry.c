@@ -45,50 +45,43 @@ size_t ludash_layout_columns(LuDashRectangle area, const int *widths,
   return count;
 }
 
+size_t ludash_layout_weighted_column_windows(LuDashRectangle column,
+                                             const int *weights, size_t count,
+                                             int gap, LuDashRectangle *output,
+                                             size_t capacity) {
+  if (!output || !weights || count == 0 || count > capacity || count > 8 ||
+      !ludash_valid_area(column) || gap < 0 || column.height < (int)count)
+    return 0;
+  int64_t total = 0;
+  for (size_t i = 0; i < count; ++i) {
+    if (weights[i] <= 0 || weights[i] > INT_MAX / 8)
+      return 0;
+    total += weights[i];
+  }
+  if (count > 1 && gap > (column.height - (int)count) / (int)(count - 1))
+    gap = (column.height - (int)count) / (int)(count - 1);
+  const int available = column.height - gap * (int)(count - 1);
+  const int extra = available - (int)count;
+  int64_t prefix = 0;
+  int used = 0;
+  int y = column.y;
+  for (size_t i = 0; i < count; ++i) {
+    prefix += weights[i];
+    const int boundary = (int)((int64_t)extra * prefix / total);
+    const int height = 1 + boundary - used;
+    output[i] = (LuDashRectangle){column.x, y, column.width, height};
+    used = boundary;
+    y += height + (i + 1 < count ? gap : 0);
+  }
+  return count;
+}
+
 size_t ludash_layout_column_windows(LuDashRectangle column, size_t count,
                                     int gap, LuDashRectangle *output,
                                     size_t capacity) {
-  if (!output || count == 0 || count > capacity || count > 4 ||
-      !ludash_valid_area(column) || gap < 0)
-    return 0;
-  if (count == 1) {
-    output[0] = column;
-    return 1;
-  }
-  if (gap >= column.width)
-    return 0;
-  const int left_width = (column.width - gap) / 2;
-  const int right_width = column.width - left_width - gap;
-  if (left_width <= 0 || right_width <= 0)
-    return 0;
-  const int right_x = column.x + left_width + gap;
-  if (count == 2) {
-    output[0] =
-        (LuDashRectangle){column.x, column.y, left_width, column.height};
-    output[1] =
-        (LuDashRectangle){right_x, column.y, right_width, column.height};
-    return 2;
-  }
-  if (gap >= column.height)
-    return 0;
-  const int top_height = (column.height - gap) / 2;
-  const int bottom_height = column.height - top_height - gap;
-  if (top_height <= 0 || bottom_height <= 0)
-    return 0;
-  const int bottom_y = column.y + top_height + gap;
-  if (count == 3) {
-    output[0] =
-        (LuDashRectangle){column.x, column.y, left_width, column.height};
-    output[1] = (LuDashRectangle){right_x, column.y, right_width, top_height};
-    output[2] =
-        (LuDashRectangle){right_x, bottom_y, right_width, bottom_height};
-    return 3;
-  }
-  output[0] = (LuDashRectangle){column.x, column.y, left_width, top_height};
-  output[1] = (LuDashRectangle){right_x, column.y, right_width, top_height};
-  output[2] = (LuDashRectangle){column.x, bottom_y, left_width, bottom_height};
-  output[3] = (LuDashRectangle){right_x, bottom_y, right_width, bottom_height};
-  return 4;
+  const int weights[8] = {1, 1, 1, 1, 1, 1, 1, 1};
+  return ludash_layout_weighted_column_windows(column, weights, count, gap,
+                                               output, capacity);
 }
 
 size_t ludash_tile_rectangles(LuDashRectangle area, size_t count, double ratio,

@@ -46,36 +46,10 @@ ModuleSurface {
     readonly property int capsuleGap: 8
     readonly property var networkState: shell.state.network || ({})
 
-    readonly property var groups: {
-        const tiled = ((shell.state.tiling || {}).groups || []).slice()
-        const tiledIds = ({})
-        for (const group of tiled)
-            for (const member of (group.members || []))
-                tiledIds[String(member.window)] = true
-        const floating = []
-        for (const client of (shell.state.clients || [])) {
-            if (!client.desktop && client.mapped &&
-                Number(client.workspace) === Number(shell.state.workspace) &&
-                !tiledIds[String(client.id)]) {
-                floating.push({
-                    index: 10000 + Number(client.id || 0),
-                    focused: Boolean(client.focused),
-                    floating: true,
-                    width: Math.max(38, Math.min(142, Number(client.width || 80))),
-                    members: [{
-                        window: client.id,
-                        title: client.title || "",
-                        appId: client.appId || "",
-                        icon: client.icon || "application-x-executable",
-                        minimized: Boolean(client.minimized),
-                        focused: Boolean(client.focused),
-                        floating: true
-                    }]
-                })
-            }
-        }
-        return tiled.concat(floating)
-    }
+    readonly property var groups: (shell.state.clients || [])
+        .filter(client => !client.desktop && client.mapped && Number(client.workspace) === Number(shell.state.workspace))
+        .map(client => ({focused: client.focused, members: [{window: client.id, title: client.title,
+            appId: client.appId, icon: client.icon, minimized: client.minimized, focused: client.focused}]}))
 
     readonly property var launcherModule: (((shell.state.shellModules || {}).modules || {}).launcher || ({}))
     readonly property var launcherConfig: launcherModule.config || ({})
@@ -248,7 +222,7 @@ ModuleSurface {
                 shell: panel.shell
                 group: panel.groups[index] || ({})
                 height: columnTasks.height
-                width: Math.max(38, Math.min(142, ((group.members || []).length * 30) + 12))
+                width: 40
             }
         }
     }

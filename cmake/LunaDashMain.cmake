@@ -111,7 +111,7 @@ target_include_directories(ludash-system-metrics PUBLIC src)
 add_library(ludash-tiling src/compositor/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
 target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core Qt6::Core)
-add_library(ludash-window-rules src/compositor/window/WindowRules.cpp)
+add_library(ludash-window-rules src/compositor/window/WindowRules.cpp src/compositor/window/WindowSwitcher.cpp)
 target_include_directories(ludash-window-rules PUBLIC src)
 target_link_libraries(ludash-window-rules PUBLIC Qt6::Core)
 add_library(ludash-plugin-catalog src/config/plugins/PluginCatalog.cpp)
@@ -170,9 +170,10 @@ add_library(ludash-wayland
     src/compositor/wayland/Surface.cpp
     src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
+    src/compositor/input/TiledPointer.cpp
+    src/compositor/input/WindowSwitch.cpp
     src/compositor/session/ClientLaunch.cpp
     src/compositor/input/Keyboard.cpp
-    src/compositor/window/WindowRules.cpp
     src/compositor/ipc/ControlServer.cpp
     src/desktop/system/SystemStatus.cpp
     ${LUDASH_WLR_LAYER_PROTOCOL_HEADER}
@@ -205,6 +206,7 @@ target_link_libraries(ludash-wayland
         ludash-network
         ludash-wallpaper
         ludash-tiling
+        ludash-window-rules
         ludash-localization
         ludash-plugins
         Qt6::Core

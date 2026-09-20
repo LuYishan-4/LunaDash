@@ -50,6 +50,10 @@ public:
   bool focusDown(TilingWorkspaceId workspace);
   bool groupWith(TilingWindowId window, TilingWindowId targetWindow);
   bool expel(TilingWindowId window);
+  bool swapWindows(TilingWindowId window, TilingWindowId target);
+  bool insertBeside(TilingWindowId window, TilingWindowId target, bool after);
+  bool resizeHeight(TilingWindowId window, int height);
+  bool moveSingle(TilingWindowId window, QPoint delta, QRect area);
   bool reorder(TilingWindowId window, int direction);
   bool resize(TilingWindowId window, int width);
   bool center(TilingWindowId window, QRect area);

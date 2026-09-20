@@ -13,6 +13,7 @@ import "feedback"
 import "setup"
 import "style"
 import "compatibility"
+import "windows"
 
 ShellRoot {
     id: root
@@ -407,6 +408,18 @@ ShellRoot {
         onTriggered: if (!status.running) status.running = true
     }
 
+    property var interaction: ({})
+    FileView {
+        id: interactionFile
+        path: (Quickshell.env("LUNADASH_CONTROL") || Quickshell.env("LUDASH_CONTROL")) + "-interaction.json"
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try { root.interaction = JSON.parse(text()) } catch (error) { root.interaction = ({}) }
+        }
+    }
+    WindowSwitcher { shell: root; interaction: root.interaction }
+    TilingDropHint { drag: root.interaction.drag || ({}) }
     RemovableDeviceMonitor { shell: root }
     StartupSplash { shell: root; ready: root.stateReady && desktopWallpaper.ready }
     Wallpaper { id: desktopWallpaper; shell: root; opened: !root.stopping }

@@ -28,7 +28,7 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 ## LunaDash
 
 - **Everyday essentials, together.** A panel, launcher, dashboard, notifications, settings and file tools are part of the desktop.
-- **A workspace that moves with you.** Scrollable window columns, grouped and floating windows, keyboard controls and window animations.
+- **A workspace that moves with you.** Scrollable tiled columns with up to eight windows, Alt dragging, a horizontal window selector and an independent taskbar list.
 - **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings.
 - **Go further when you want.** Arrange shell modules, customize Quickshell/QML and use the local control interface for your own workflow.
 
@@ -72,9 +72,11 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 | Shortcut | Action |
 | --- | --- |
 | `Super` + `Return` / `E` / `D` | Terminal / Files / launcher |
+| `Super` + `T` | Open Kitty (default terminal) |
 | `Super` + `H` / `L` | Focus the left / right column |
 | `Super` + `K` / `J` | Focus another window in the column |
-| `Super` + `Space` | Toggle floating |
+| `Alt` + `Tab` | Select horizontally; release Alt to switch |
+| `Alt` + drag | Move or swap slots; add Shift to resize |
 | `Super` + `Shift` + `S` | Select a screenshot region |
 | `Super` + `1`–`9` | Switch workspace |
 

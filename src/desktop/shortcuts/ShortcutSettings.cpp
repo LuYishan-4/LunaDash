@@ -25,8 +25,8 @@ QJsonObject defaults() {
   result.insert("closeWindow", "Meta+C");
   result.insert("minimizeWindow", "Meta+M");
   result.insert("closeWindowAlternate", "Meta+Q");
-  result.insert("toggleFloating", "Meta+Space");
-  result.insert("launchTerminal", "Meta+Return");
+  result.insert("launchTerminal", "Meta+T");
+  result.insert("launchTerminalAlternate", "Meta+Return");
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
   result.insert("screenshot", "Meta+Shift+S");
@@ -117,6 +117,33 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   QSettings settings;
   auto configured =
       QJsonObject::fromVariantMap(settings.value("shortcuts/bindings").toMap());
+  configured.remove("toggleFloating");
+  // Older settings may reserve Meta+T for a different action. Keep those
+  // assignments; add the terminal defaults only when their keys are free.
+  const auto uses = [&configured](const QString &sequence,
+                                  const QString &except) {
+    for (auto it = configured.begin(); it != configured.end(); ++it)
+      if (it.key() != except && it.value().toString() == sequence)
+        return true;
+    return false;
+  };
+  if (configured.value("launchTerminal").toString() == "Meta+Return" &&
+      !uses("Meta+T", "launchTerminal"))
+    configured["launchTerminal"] = "Meta+T";
+  if (!configured.contains("launchTerminal") &&
+      uses("Meta+T", "launchTerminal"))
+    bindings_["launchTerminal"] = "Disabled";
+  if (!configured.contains("launchTerminalAlternate") &&
+      uses("Meta+Return", "launchTerminalAlternate"))
+    bindings_["launchTerminalAlternate"] = "Disabled";
+  for (auto it = configured.begin(); it != configured.end(); ++it) {
+    const auto binding = parseShortcut(it.value().toString());
+    if ((binding.symbol == XKB_KEY_Tab ||
+         binding.symbol == XKB_KEY_ISO_Left_Tab) &&
+        (binding.modifiers == ShortcutAlt ||
+         binding.modifiers == (ShortcutAlt | ShortcutShift)))
+      it.value() = "Disabled";
+  }
   // Migrate the previous shipped default without replacing custom bindings
   // or stealing Meta+Shift+S from another explicitly assigned action.
   if (configured.value("screenshot").toString() == "Alt+Shift+F5") {
@@ -159,6 +186,14 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
     if (parsed.canonical.isEmpty()) {
       if (error)
         *error = "Shortcut must be one Meta or Alt key combination.";
+      return false;
+    }
+    if ((parsed.symbol == XKB_KEY_Tab ||
+         parsed.symbol == XKB_KEY_ISO_Left_Tab) &&
+        (parsed.modifiers == ShortcutAlt ||
+         parsed.modifiers == (ShortcutAlt | ShortcutShift))) {
+      if (error)
+        *error = "Alt+Tab is reserved for the window switcher.";
       return false;
     }
     candidate.insert(it.key(), parsed.canonical);

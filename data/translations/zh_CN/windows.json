@@ -1,0 +1,14 @@
+{
+    "Kitty (default)": "Kitty（默认）",
+    "Open terminal alternative": "打开终端（备用快捷键）",
+    "Switch windows": "切换窗口",
+    "Release Alt to switch · Esc to cancel": "松开 Alt 切换 · Esc 取消",
+    "Columns hold up to eight tiled windows. New windows join the focused column when it has room. Dialogs stay above their parent window.": "每列最多容纳 8 个平铺窗口。新窗口会加入尚有空间的当前列。对话框保持显示在所属窗口上方。",
+    "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing.": "Alt＋鼠标左键拖动可交换窗口格子；拖到顶端或底端边缘可插入同列。只有一个窗口时，Alt 拖动只移动位置。",
+    "Shift + Alt + left-drag resizes a window and redistributes space in its column without changing the window order.": "Shift＋Alt＋鼠标左键拖动可调整窗口大小，同列窗口会重新分配空间并保持顺序。",
+    "The taskbar lists individual windows. Selecting one enlarges its column and gives it more height while keeping the other windows visible.": "任务栏逐一列出窗口。选取窗口会放大其列宽与高度，同列其他窗口仍会保留显示。",
+    "Alt + Tab opens the horizontal window selector. Use Tab, Shift + Tab, arrow keys or scrolling; release Alt to switch, or press Esc to cancel.": "Alt＋Tab 打开横向窗口选择器。使用 Tab、Shift＋Tab、方向键或滚动选取；松开 Alt 切换，Esc 取消。",
+    "Super + 1–9 switches workspaces. Add Shift to move a window. Super + H / L focuses columns; Super + J / K focuses rows. Super + F maximizes or restores the column width.": "Super＋1–9 切换工作区，加上 Shift 可移动窗口。Super＋H／L 切换列；Super＋J／K 切换列内窗口。Super＋F 放大或还原列宽。",
+    "Alt+Tab is reserved for the window switcher.": "Alt＋Tab 保留给窗口切换器使用。",
+    "Workspace %1": "工作区 %1"
+}

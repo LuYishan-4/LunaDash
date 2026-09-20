@@ -17,8 +17,11 @@ size_t ludash_layout_columns(LuDashRectangle area, const int *widths,
                              size_t count, int gap, int scroll_offset,
                              LuDashRectangle *output, size_t capacity);
 
-/* Splits up to four windows into a grid: 1 full, 2 left/right, 3 left + two
- * stacked right, 4 quadrants. */
+/* Up to eight vertical rows. Weights divide height without overlap. */
+size_t ludash_layout_weighted_column_windows(LuDashRectangle column,
+                                             const int *weights, size_t count,
+                                             int gap, LuDashRectangle *output,
+                                             size_t capacity);
 size_t ludash_layout_column_windows(LuDashRectangle column, size_t count,
                                     int gap, LuDashRectangle *output,
                                     size_t capacity);

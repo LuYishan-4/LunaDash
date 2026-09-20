@@ -14,6 +14,7 @@
 
 namespace LunaDash {
 
+class WindowSwitcher;
 class ScreenCapture;
 class BrightnessSettings;
 class DdcBrightnessSettings;
@@ -48,6 +49,7 @@ private:
   class Impl;
   std::unique_ptr<Impl> d;
 
+  WindowSwitcher *windowSwitcher_ = nullptr;
   ScreenCapture *screenCapture_ = nullptr;
   BrightnessSettings *brightnessSettings_ = nullptr;
   DdcBrightnessSettings *ddcBrightnessSettings_ = nullptr;
@@ -102,6 +104,9 @@ private:
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);
+  void activateTask(int window);
+  void beginWindowSwitch(int direction);
+  void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
   void focusNext(int direction);
   void synchronizeTilingFocus();

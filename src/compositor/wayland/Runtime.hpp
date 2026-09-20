@@ -6,6 +6,7 @@
 #include "core/templates/WaylandListener.hpp"
 #include <QJsonArray>
 #include <QList>
+#include <QPointF>
 #include <QSize>
 class QSocketNotifier;
 class QTimer;
@@ -65,6 +66,7 @@ public:
     Impl *impl = nullptr;
     wlr_keyboard *keyboard = nullptr;
     bool virtualKeyboard = false;
+    QSet<uint32_t> consumedKeys;
     Slot<KeyboardState> key;
     Slot<KeyboardState> modifiers;
     Slot<KeyboardState> destroy;
@@ -145,6 +147,14 @@ public:
   InputMethodState *inputMethod = nullptr;
   TextInputState *activeTextInput = nullptr;
   int pointerDevices = 0;
+  int pointerWindow = 0;
+  int pointerTarget = 0;
+  int pointerEdge = 0;
+  bool pointerResize = false;
+  QPointF pointerLast;
+  bool beginTiledPointer(uint32_t button);
+  bool updateTiledPointer();
+  void finishTiledPointer(bool apply);
 
   Slot<Impl> newOutput;
   Slot<Impl> newInput;

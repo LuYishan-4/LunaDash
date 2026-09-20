@@ -6,7 +6,7 @@ Rectangle {
     id: cell
     required property var shell
     required property var group
-    readonly property var visibleMembers: (group.members || []).slice(0, 4)
+    readonly property var visibleMembers: (group.members || []).slice(0, 8)
 
     radius: Math.min(13, height / 2)
     color: group.focused
@@ -29,7 +29,7 @@ Rectangle {
         }
         onClicked: {
             if (pressedWindow && (cell.group.members || []).some(member => member.window === pressedWindow))
-                cell.shell.command("focus", pressedWindow)
+                cell.shell.command("activate-window", pressedWindow)
         }
     }
 
@@ -44,7 +44,6 @@ Rectangle {
                 required property int index
                 shell: cell.shell
                 member: cell.visibleMembers[index] || ({})
-                grouped: (cell.group.members || []).length > 1
             }
         }
     }

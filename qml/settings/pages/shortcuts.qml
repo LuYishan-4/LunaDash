@@ -28,8 +28,8 @@ ColumnLayout {
             {id:"closeWindow", name:"Close window"},
             {id:"closeWindowAlternate", name:"Close window alternative"},
             {id:"minimizeWindow", name:"Minimize window"},
-            {id:"toggleFloating", name:"Toggle floating"},
             {id:"launchTerminal", name:"Open terminal"},
+            {id:"launchTerminalAlternate", name:"Open terminal alternative"},
             {id:"launchFiles", name:"Open files"},
             {id:"launchLauncher", name:"Open launcher"},
             {id:"screenshot", name:"Take a screenshot"}
