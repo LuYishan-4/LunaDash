@@ -14,7 +14,7 @@ TextArea {
     font.pixelSize: 12
     selectByMouse: true
     persistentSelection: true
-    focusPolicy: Qt.StrongFocus
+    activeFocusOnTab: true
     activeFocusOnPress: true
     leftPadding: 14
     rightPadding: 14

@@ -18,7 +18,7 @@ TextField {
     font.pixelSize: 12
     selectByMouse: true
     persistentSelection: true
-    focusPolicy: Qt.StrongFocus
+    activeFocusOnTab: true
     activeFocusOnPress: true
 
     function prepareInputMethod() {
