@@ -73,13 +73,15 @@ TestCase {
         view.pageSource = Qt.resolvedUrl("../../qml/settings/pages/plugins.qml");
         tryCompare(view, "ready", true);
         tryCompare(view.contentItem, "contentY", 0);
+        waitForRendering(view.pageItem);
+        wait(300);
         verify(findChild(view, "extensionJsonEditor") !== null);
         const advanced = findButton(view, "Advanced JSON");
         verify(advanced !== null);
         const before = view.contentHeight;
         // Activate the real settings control after scrolling it into view.
         view.contentItem.contentY = Math.max(0, view.contentHeight - view.height);
-        mouseClick(advanced);
+        mouseClick(advanced, advanced.width / 2, advanced.height / 2);
         tryVerify(() => view.contentHeight > before + 200);
         verify(view.ScrollBar.vertical.size < 1);
     }
@@ -97,8 +99,9 @@ TestCase {
     function findButton(item, text) {
         if (item.text === text && item.clicked !== undefined)
             return item;
-        for (const child of item.children || []) {
-            const match = findButton(child, text);
+        const children = item.children || [];
+        for (let i = 0; i < children.length; ++i) {
+            const match = findButton(children[i], text);
             if (match)
                 return match;
         }
