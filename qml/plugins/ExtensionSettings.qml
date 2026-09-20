@@ -120,7 +120,7 @@ ColumnLayout {
         }
         HelpText {
             shell: page.shell
-            message: "Shell layout and appearance controls remain below. A duration or gap of -1 follows the desktop preference."
+            message: "A duration or gap of -1 follows the desktop preference."
         }
     }
 

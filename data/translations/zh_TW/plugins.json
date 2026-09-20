@@ -80,5 +80,9 @@
   "Devices settings": "裝置設定",
   "About settings": "關於設定",
   "Dashboard settings": "儀表板設定",
-  "Image picker": "圖片選擇器"
+  "Image picker": "圖片選擇器",
+  "Plugin settings": "插件設定",
+  "Plugins reload live between hook calls. Configure them in Settings > Plugins.": "插件會在 hook 呼叫之間即時重新載入。請至「設定 > 插件」調整。",
+  "A duration or gap of -1 follows the desktop preference.": "時長或間距設為 -1 時，會沿用桌面偏好設定。",
+  "plugins addons native Quickshell OpenGL effect hooks enable disable settings JSON stacking window layout animation": "插件 擴充 原生 Quickshell OpenGL 特效 hook 啟用 停用 設定 JSON 堆疊 視窗 布局 動畫"
 }

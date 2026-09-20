@@ -43,3 +43,13 @@ Rootless satellite integration is not enabled. The compatibility container has n
 Compatibility depends on the installed XWayland version and the application's protocol use. Clipboard, drag-and-drop, games, input grabs, HiDPI, menus and Wine/Java applications need broader application-specific testing. The integration test is not evidence that every legacy application works. Multiple outputs, pointer constraints and full portal integration remain incomplete in LunaDash.
 
 References: [xwayland-satellite](https://github.com/Supreeeme/xwayland-satellite), [Wayland X11 compatibility architecture](https://wayland.freedesktop.org/docs/book/Xwayland.html).
+
+## GPU Screen Recorder UI
+
+The GTK frontend can show a message saying the new UI needs X11 when `XOpenDisplay` cannot connect, even inside a Wayland session. For the Flatpak package, explicitly use the existing compatibility launcher:
+
+```sh
+lunadashctl launch-x11 'flatpak run --socket=x11 com.dec05eba.gpu_screen_recorder'
+```
+
+This opens the UI through the authenticated XWayland container; it does not provide a full native-desktop ScreenCast portal. Recording the compatibility window and recording the native Wayland desktop are different capture paths. LunaDash's current portal backend implements FileChooser, not PipeWire ScreenCast. See the [upstream UI notes](https://git.dec05eba.com/gpu-screen-recorder-ui/about/) for its platform limitations.

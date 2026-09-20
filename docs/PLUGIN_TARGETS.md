@@ -20,7 +20,7 @@ Every visual slot has its host's dimensions. The host retains layer placement, i
 | `audio`, `network`, `devices` | Audio/network/removable-device popup content |
 | `session` | Logout/session controls |
 | `image-picker` | Local image chooser; `picker` controller, `purpose` |
-| `settings` | Settings window content; Modules bypasses replacement for recovery |
+| `settings` | Settings window content; Plugins and Shell modules bypass replacement for recovery |
 | `setup` | Welcome view |
 | `compatibility` | Compatibility launcher |
 | `feedback`, `notifications`, `screenshot` | Messages, notifications, screenshot feedback |
@@ -31,7 +31,7 @@ Every visual slot has its host's dimensions. The host retains layer placement, i
 | `blur` | Switcher backdrop blur; `image` (unblurred snapshot), `reveal` |
 | `settings.*` | Individual settings pages; `page` and plugin `implicitHeight` control scrolling |
 
-Settings-page targets: `general`, `appearance`, `windows`, `shortcuts`, `display`, `input`, `input-method`, `sound`, `network`, `bluetooth`, `power`, `applications`, `privacy`, `system`, `devices`, `about`, `dashboard`. `settings.modules` is intentionally reserved for built-in recovery. Replacing a settings page changes its interface; the host continues to own validated display/input/power/system operations.
+Settings-page targets: `general`, `appearance`, `windows`, `shortcuts`, `display`, `input`, `input-method`, `sound`, `network`, `bluetooth`, `power`, `applications`, `privacy`, `system`, `devices`, `about`, `dashboard`. `settings.modules` and `settings.plugins` are reserved for built-in recovery. Replacing a settings page changes its interface; the host continues to own validated display/input/power/system operations.
 
 `desktop-widgets` accepts **Quickshell only**. Its root item has no surface; it can create its own PanelWindows. It is hosted independently of the wallpaper and unloaded during shutdown. Use ordinary item plugins for the other slots so the host can preserve input, visibility and fallback behavior.
 

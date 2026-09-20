@@ -1067,7 +1067,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         "general",      "appearance", "windows",     "shortcuts", "display",
         "input",        "sound",      "network",     "bluetooth", "power",
         "applications", "privacy",    "system",      "devices",   "about",
-        "modules",      "dashboard",  "input-method"};
+        "modules",      "plugins",    "dashboard",   "input-method"};
     if (!value.isEmpty() && !pages.contains(value))
       return {{"error", "Unknown settings page."}};
     settingsPage_ = value.isEmpty() ? "general" : value;

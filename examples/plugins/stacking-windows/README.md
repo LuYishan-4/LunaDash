@@ -2,7 +2,7 @@
 
 A native SDK 2 plugin that selects conventional overlapping windows with independent movement and sizing. New windows start in a configurable cascade. Existing positions and sizes survive focus changes, closing neighbors, minimization and maximize/restore.
 
-The standard LunaDash build includes this plugin **disabled**. Open Settings → Shell modules → Desktop extensions → Windows → Window layout, enable **Stacking windows**, keep **Plugin only**, and save. The layout changes live; no reboot or logout is required. Disabling it restores built-in tiling. Existing windows are migrated between strategies; tiling split weights are reset when changing strategy.
+The standard LunaDash build includes this plugin **disabled**. Open Settings → Plugins → Desktop extensions → Windows → Window layout, enable **Stacking windows**, keep **Plugin only**, and save. The layout changes live; no reboot or logout is required. Disabling it restores built-in tiling. Existing windows are migrated between strategies; tiling split weights are reset when changing strategy.
 
 To build the example separately:
 

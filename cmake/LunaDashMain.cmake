@@ -137,9 +137,9 @@ target_link_libraries(ludash-default-applications PUBLIC ludash-configuration Qt
 add_library(ludash-file-operations src/desktop/fileoperations/FileOperations.cpp)
 target_include_directories(ludash-file-operations PUBLIC src)
 target_link_libraries(ludash-file-operations PUBLIC Qt6::Core)
-add_library(ludash-apps src/desktop/theme/DesktopTheme.cpp src/desktop/app/ApplicationCatalog.cpp src/desktop/app/ApplicationWindow.cpp src/desktop/filemanager/FileManager.cpp src/desktop/filemanager/FileIcons.cpp src/desktop/filemanager/FileIconDelegate.cpp src/desktop/console/Console.cpp src/desktop/system/SystemMonitor.cpp src/desktop/welcome/Welcome.cpp src/desktop/launcher/Launcher.cpp src/desktop/package/PackageManager.cpp src/desktop/plugins/PluginSettings.cpp)
+add_library(ludash-apps src/desktop/theme/DesktopTheme.cpp src/desktop/app/ApplicationCatalog.cpp src/desktop/app/ApplicationWindow.cpp src/desktop/filemanager/FileManager.cpp src/desktop/filemanager/FileIcons.cpp src/desktop/filemanager/FileIconDelegate.cpp src/desktop/console/Console.cpp src/desktop/system/SystemMonitor.cpp src/desktop/welcome/Welcome.cpp src/desktop/launcher/Launcher.cpp src/desktop/package/PackageManager.cpp)
 target_include_directories(ludash-apps PUBLIC src)
-target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-file-operations Qt6::Concurrent ludash-system-metrics ludash-localization ludash-plugin-catalog ludash-wallpaper Qt6::Widgets)
+target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-file-operations Qt6::Concurrent ludash-system-metrics ludash-localization ludash-wallpaper Qt6::Widgets)
 target_compile_options(ludash-apps PRIVATE -Wall -Wextra -Wpedantic)
 # wlroots public layer-shell headers include the scanner-generated
 # protocol declaration. Some distributions do not install that generated

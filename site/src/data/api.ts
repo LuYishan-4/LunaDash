@@ -20,7 +20,7 @@ export const methods: Method[] = [
     name: "open-settings",
     value: "Category ID or empty",
     behavior:
-      "Open the settings center. IDs include general, appearance, windows, modules, display, input, sound, network, bluetooth, power, applications, privacy, system, devices and about.",
+      "Open the settings center. IDs include general, appearance, windows, plugins, modules, display, input, sound, network, bluetooth, power, applications, privacy, system, devices and about.",
   },
   {
     name: "workspace",

@@ -367,6 +367,7 @@ ShellRoot {
 
     function launch(id) {
         if (id === "terminal" || id === "files" || id === "browser") { command("launch-default", id); launcherOpen = false; return }
+        if (id === "plugins") { openSettingsPage("plugins"); launcherOpen = false; return }
         if (id === "settings") { settingsOpen = true; launcherOpen = false; return }
         Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false
     }

@@ -52,7 +52,7 @@ AnimatedPanel {
                 entry: host.specification.custom.source,
                 revision: (host.shell.state.shellModules || {}).revision
             } : null
-            forceBuiltin: host.moduleId === "settings" && host.shell.settingsPage === "modules"
+            forceBuiltin: host.moduleId === "settings" && (host.shell.settingsPage === "modules" || host.shell.settingsPage === "plugins")
         }
     ]
     function resolveColor(key, fallback) {

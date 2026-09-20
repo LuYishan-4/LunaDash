@@ -4,7 +4,6 @@ import QtQuick.Layouts
 import "../components"
 import "../../components"
 import "../../style"
-import "../../plugins"
 
 ColumnLayout {
     id: page
@@ -81,8 +80,6 @@ ColumnLayout {
 
     onStateChanged: if (!dirty && loadedRevision !== (state.revision ?? 0)) reloadEditor()
 
-    ExtensionSettings { Layout.fillWidth: true; shell: page.shell }
-
     PageTitle {
         shell: page.shell
         title: "Shell modules"
@@ -91,6 +88,11 @@ ColumnLayout {
     HelpText {
         shell: page.shell
         message: "Every shell-modules.json field has a visual control below. Advanced JSON remains available for copying, review, and recovery."
+    }
+
+    ShellButton {
+        text: shell.tr("Plugin settings")
+        onClicked: shell.command("open-settings", "plugins")
     }
 
     Text { Layout.minimumWidth: 0;

@@ -6,5 +6,5 @@ Rectangle {
     property bool pluginReady: settings.ready ?? true
     objectName: "testPlugin"
     color: settings.color
-    implicitHeight: 70
+    implicitHeight: settings.pageHeight ?? 70
 }

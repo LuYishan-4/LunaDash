@@ -60,7 +60,7 @@ Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs
 }
 ```
 
-`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Shell modules → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `layoutMode: stacking` must be replacements: two layout owners cannot simultaneously place the same windows.
+`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `layoutMode: stacking` must be replacements: two layout owners cannot simultaneously place the same windows.
 
 The settings schema supports `boolean`, `string`, `number`, `integer`, `default`, numeric `minimum`/`maximum`, and `enum`. Unknown settings and invalid values are rejected before saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
 
@@ -72,7 +72,7 @@ Native SDK 2 deliberately uses synchronous, stateless hooks. Authors implement `
 
 Do not retain host pointers, start background threads, register process-wide callbacks, run nested event loops or block inside a hook. Libraries are unloaded after the current callback returns. Native code is unrestricted and a crash or hang can still take down the compositor; metadata validation does not isolate it. SDK 2 does not expose scene pointers or a general asynchronous service ABI.
 
-Quickshell entry points declare `required property var shell`, `settings` and `context`. These are supplied **before** component construction. The context includes the feature's state and `source`, the built-in visual item. Use `shell.command`, `shell.launch` and `shell.openUrl` for the existing desktop actions. See the target reference for additional context fields. Plugins can expose `pluginReady: false` until ready; the replacement stays hidden until then. The Modules settings page itself always remains built-in as the recovery route.
+Quickshell entry points declare `required property var shell`, `settings` and `context`. These are supplied **before** component construction. The context includes the feature's state and `source`, the built-in visual item. Use `shell.command`, `shell.launch` and `shell.openUrl` for the existing desktop actions. See the target reference for additional context fields. Plugins can expose `pluginReady: false` until ready; the replacement stays hidden until then. The Plugins and Shell modules settings pages always remain built-in as recovery routes.
 
 ## OpenGL shader packages
 
@@ -90,7 +90,7 @@ Qt references: [ShaderEffect](https://doc.qt.io/qt-6/qml-qtquick-shadereffect.ht
 
 ## Settings and recovery
 
-Settings → Shell modules groups features into Desktop, Windows, Animation, Effects, System, Feedback and Settings pages. Each target shows its built-in options and installed plugins, with separate plugin options, enabled state and composition mode. Existing shell layout controls and `shell-modules.json` remain available below. Advanced JSON edits `~/.config/LuDash/extensions.json`; saving validates the complete document (maximum 24 KiB) and writes it atomically. Native defaults such as duration/gap use `-1` to inherit the existing desktop preference.
+Settings → Plugins groups features into Desktop, Windows, Animation, Effects, System, Feedback and Settings pages. Each target shows its built-in options and installed plugins, with separate plugin options, enabled state and composition mode. Shell layout controls and `shell-modules.json` remain in Settings → Shell modules. Advanced JSON edits `~/.config/LuDash/extensions.json`; saving validates the complete document (maximum 24 KiB) and writes it atomically. Native defaults such as duration/gap use `-1` to inherit the existing desktop preference.
 
 ```json
 {
@@ -104,7 +104,7 @@ Settings → Shell modules groups features into Desktop, Windows, Animation, Eff
 }
 ```
 
-The corresponding control commands are `lunadashctl extension-save '<JSON>'` and `lunadashctl open-settings modules`. To restore all extension defaults, save `{"schemaVersion":1,"builtins":{},"plugins":{}}` and disable legacy plugin preferences if any were previously enabled. To explicitly turn off an individual installed plugin, keep its entry with `enabled: false`.
+The corresponding control commands are `lunadashctl extension-save '<JSON>'` and `lunadashctl open-settings plugins`. To restore all extension defaults, save `{"schemaVersion":1,"builtins":{},"plugins":{}}` and disable legacy plugin preferences if any were previously enabled. To explicitly turn off an individual installed plugin, keep its entry with `enabled: false`.
 
 Discovery prefers the user's data directory, then system data directories: `lunadash/plugins`, legacy `lunadash/shell/plugins`, legacy `ludash/plugins`; an executable-adjacent `plugins` directory supports development builds. Legacy schema-1 QML widgets continue as desktop widgets. The old Qt Quick native effect ABI is rejected with a rebuild message; it never drove the active wlroots scene. Existing trusted custom module QML remains a migration path, but new plugin packages use SDK 2.
 

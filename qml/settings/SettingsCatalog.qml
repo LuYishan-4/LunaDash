@@ -10,6 +10,7 @@ QtObject {
         {page:"appearance", pageName:"Appearance", name:"Animations", keywords:"motion blur opacity duration effects"},
         {page:"windows", pageName:"Windows and workspaces", name:"Number of workspaces", keywords:"tiling floating master window gap resize guide Alt"},
         {page:"shortcuts", pageName:"Keyboard shortcuts", name:"Global shortcuts", keywords:"keys Meta bind launch focus group workspace close maximize"},
+        {page:"plugins", pageName:"Plugins", name:"Desktop extensions", keywords:"plugins addons native Quickshell OpenGL effect hooks enable disable settings JSON stacking window layout animation"},
         {page:"modules", pageName:"Shell modules", name:"Module layout", keywords:"panel overview dashboard JSON size position color"},
         {page:"dashboard", pageName:"Dashboard", name:"Dashboard cards", keywords:"overview volume Wi-Fi media player MPRIS Spotify YouTube VLC calendar artwork cover shortcuts quick launch"},
         {page:"dashboard", pageName:"Dashboard", name:"Quick launch", keywords:"files terminal settings monitor network plugins customize"},

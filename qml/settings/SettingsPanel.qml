@@ -1,5 +1,4 @@
 import "../modules"
-import "../plugins"
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -14,23 +13,14 @@ ModuleSurface {
     id:settings
     moduleId:"settings"
     property string category:"general"
-    property var categories:[{id:"general",name:"General"},{id:"appearance",name:"Appearance"},{id:"windows",name:"Windows and workspaces"},{id:"shortcuts",name:"Keyboard shortcuts"},{id:"modules",name:"Shell modules"},{id:"dashboard",name:"Dashboard"},{id:"display",name:"Display"},{id:"input",name:"Keyboard and pointer"},{id:"input-method",name:"Input method"},{id:"sound",name:"Sound"},{id:"network",name:"Internet and network"},{id:"bluetooth",name:"Bluetooth"},{id:"devices",name:"Device manager and disks"},{id:"power",name:"Power and battery"},{id:"privacy",name:"Privacy and accessibility"},{id:"system",name:"Users, date and time"},{id:"applications",name:"Applications and startup"},{id:"about",name:"About LunaDash"}]
+    property var categories:[{id:"general",name:"General"},{id:"appearance",name:"Appearance"},{id:"windows",name:"Windows and workspaces"},{id:"shortcuts",name:"Keyboard shortcuts"},{id:"plugins",name:"Plugins"},{id:"modules",name:"Shell modules"},{id:"dashboard",name:"Dashboard"},{id:"display",name:"Display"},{id:"input",name:"Keyboard and pointer"},{id:"input-method",name:"Input method"},{id:"sound",name:"Sound"},{id:"network",name:"Internet and network"},{id:"bluetooth",name:"Bluetooth"},{id:"devices",name:"Device manager and disks"},{id:"power",name:"Power and battery"},{id:"privacy",name:"Privacy and accessibility"},{id:"system",name:"Users, date and time"},{id:"applications",name:"Applications and startup"},{id:"about",name:"About LunaDash"}]
     SettingsCatalog{id:catalog}
     readonly property var searchResults:catalog.matches(search.text,shell.tr).filter(result=>settings.categories.some(category=>category.id===result.page))
     readonly property var currentCategory:settings.categories.find(entry=>entry.id===settings.category)||settings.categories[0]
     function showCategory(id){
         if(!settings.categories.some(entry=>entry.id===id))return
-        if(category===id && pageLoader.status===Loader.Ready){
-            search.clear()
-            pageLoader.opacity=1
-            pageShift.y=0
-            return
-        }
         category=id
         search.clear()
-        pageLoader.opacity=0
-        pageShift.y=12
-        pageLoader.setSource(Qt.resolvedUrl("pages/"+id+".qml"),{shell:settings.shell})
     }
     function openResult(entry){showCategory(entry.page)}
     readonly property int overlayMargin:Math.max(8,Math.min(moduleMargin,24))
@@ -107,34 +97,11 @@ ModuleSurface {
             Rectangle{Layout.fillHeight:true;width:1;color:Theme.border}
             Rectangle {
                 Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumWidth:0;radius:moduleRadius;color:Qt.rgba(moduleBackground.r,moduleBackground.g,moduleBackground.b,0.94)
-                ScrollView{id:scroll;anchors.fill:parent;anchors.margins:24;clip:true;contentWidth:availableWidth
-                    ExtensionSlot {
-                        id: pageExtension
-                        shell: settings.shell
-                        target: "settings." + settings.category
-                        forceBuiltin: settings.category === "modules"
-                        context: ({page: settings.category})
-                        width: scroll.availableWidth - 12
-                        // Shader replacements retain the original page as their texture input.
-                        height: builtinVisible ? pageLoader.height : Math.max(120, pluginImplicitHeight)
-                    Loader{
-                        id:pageLoader
-                        width:scroll.availableWidth-12
-                        height:item?item.implicitHeight:0
-                        transform:Translate{id:pageShift;y:0}
-                        onStatusChanged:if(status===Loader.Error)console.warn("Settings page failed to load: "+settings.category)
-                        onLoaded:{
-                            scroll.contentItem.contentY=0
-                            Qt.callLater(function(){if(scroll.contentItem)scroll.contentItem.contentY=0})
-                            pageEnter.restart()
-                        }
-                    }
-                    }
-                    ParallelAnimation{
-                        id:pageEnter
-                        NumberAnimation{target:pageLoader;property:"opacity";from:0;to:1;duration:Theme.motion;easing.type:Easing.OutCubic}
-                        NumberAnimation{target:pageShift;property:"y";from:12;to:0;duration:Theme.motion;easing.type:Easing.OutCubic}
-                    }
+                SettingsPageView {
+                    anchors.fill: parent
+                    anchors.margins: 24
+                    shell: settings.shell
+                    category: settings.category
                 }
             }
         }

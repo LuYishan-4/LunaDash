@@ -31,10 +31,10 @@ ColumnLayout {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true
-                Text { text: shell.tr("Installed plugins") + ": " + (((shell.state.appearance || {}).plugins || []).length); color: Theme.text; font.family: Theme.font }
-                HelpText { shell: page.shell; message: "Plugins reload live between hook calls. Configure their categories and settings in Shell modules." }
+                Text { text: shell.tr("Installed plugins") + ": " + (((shell.state.extensions || {}).installed || []).length); color: Theme.text; font.family: Theme.font }
+                HelpText { shell: page.shell; message: "Plugins reload live between hook calls. Configure them in Settings > Plugins." }
             }
-            ShellButton { text: shell.tr("Open plugin manager"); active: true; onClicked: shell.launch("plugins") }
+            ShellButton { text: shell.tr("Plugin settings"); active: true; onClicked: shell.command("open-settings", "plugins") }
         }
     }
     SettingsComponents.SettingsCard {
