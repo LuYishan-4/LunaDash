@@ -43,8 +43,19 @@ class Page(HTMLParser):
 
 pages = {}
 for path in root.rglob("*.html"):
+    content = path.read_text()
+
+    # Google Search Console verification files are intentionally plain text,
+    # despite using the .html extension, so they are not normal site pages.
+    if (
+        path.name.startswith("google")
+        and path.name.endswith(".html")
+        and content.strip().startswith("google-site-verification:")
+    ):
+        continue
+
     page = Page()
-    page.feed(path.read_text())
+    page.feed(content)
     assert page.english, path
     pages[path.resolve()] = page
 for path, page in pages.items():
