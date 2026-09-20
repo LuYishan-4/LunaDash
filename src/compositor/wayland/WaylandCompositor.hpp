@@ -95,7 +95,8 @@ private:
   void requestShutdown();
   void publishSessionActivationEnvironment();
   void captureScreen();
-  bool launchExternalCommand(QStringList command, QString *error);
+  bool launchExternalCommand(QStringList command, QString *error,
+                             bool x11Helper = false);
   void resendKeyboardModifiers();
   QString nextCapturePath() const;
   void configure(ClientWindow *client, const QRect &rectangle);

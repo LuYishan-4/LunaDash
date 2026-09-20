@@ -136,6 +136,12 @@ export const methods: Method[] = [
       "Reset LunaDash desktop preferences; module JSON and default-app commands have separate reset controls.",
   },
   {
+    name: "launch-command / launch-with-x11",
+    value: "JSON array of program and arguments",
+    behavior:
+      "Launch a native application. launch-with-x11 also prepares authenticated X11 helpers while preserving Wayland and keeping the compatibility root hidden. The CLI accepts launch-with-x11 -- program arguments.",
+  },
+  {
     name: "launch-x11",
     value: "Program and quoted arguments",
     behavior:

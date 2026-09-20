@@ -325,20 +325,22 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
 }
 
 bool WaylandCompositor::launchExternalCommand(QStringList command,
-                                              QString *error) {
-  if (command.isEmpty()) {
+                                              QString *error, bool x11Helper) {
+  if (command.isEmpty() || command.first().isEmpty()) {
     *error = "Expected an application command.";
     return false;
   }
 
   const bool discord = isDiscordApplicationCommand(command);
-  // Discord's native input helper opens an X display even when its Electron
-  // windows use Wayland. Keep the authenticated server alive before launch;
-  // changing GPU flags does not address that helper's null-display crash.
-  if (discord && (!xwayland_ || !xwayland_->startServer(error))) {
+  // Some native Wayland applications still use X11 helpers for input or
+  // clipboard access. Prepare authentication without exposing the X11 root
+  // window or replacing the native Wayland client environment.
+  if ((x11Helper || discord) &&
+      (!xwayland_ || !xwayland_->startServer(error))) {
     if (error->isEmpty())
-      *error = "Discord's input helper requires XWayland. Install and enable "
-               "it, then restart LunaDash.";
+      *error =
+          "This application's helper requires XWayland. Install and enable "
+          "it, then restart LunaDash.";
     return false;
   }
   const bool chromium = isChromiumApplicationCommand(command);
@@ -1215,7 +1217,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     for (const auto &client : clients_)
       updateClientMetadata(client.get());
     arrange();
-  } else if (method == "launch-command") {
+  } else if (method == "launch-command" || method == "launch-with-x11") {
     const auto document = QJsonDocument::fromJson(value.toUtf8());
     if (!document.isArray() || document.array().isEmpty())
       return {{"error", "Expected a non-empty command array."}};
@@ -1226,7 +1228,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       command << entry.toString();
     }
     QString error;
-    if (!launchExternalCommand(command, &error))
+    if (!launchExternalCommand(command, &error, method == "launch-with-x11"))
       return {{"error", error}};
   } else if (method == "finish-setup") {
     setSetupComplete(true);

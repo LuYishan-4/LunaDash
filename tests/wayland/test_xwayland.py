@@ -54,8 +54,50 @@ with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
             assert not state['xwayland']['display'], state['xwayland']
             assert not state['xwayland']['authority'], state['xwayland']
 
+            # A native client can request X11 helpers without exposing the
+            # compatibility desktop or losing its Wayland environment.
+            for invalid in ('[]', '[""]', '[42]', '{}'):
+                assert 'error' in request('launch-with-x11', invalid)
+            assert not request()['xwayland']['running']
+            probe = Path(runtime) / 'helper-environment.json'
+            probe_code = (
+                'import json,os,pathlib,sys; '
+                'p=pathlib.Path(sys.argv[1]); tmp=p.with_suffix(".tmp"); '
+                'tmp.write_text(json.dumps('
+                '{key:os.environ.get(key) for key in '
+                '["DISPLAY","XAUTHORITY","WAYLAND_DISPLAY","QT_QPA_PLATFORM"]})); '
+                'tmp.replace(p)'
+            )
+            command = ['python3', '-c', probe_code, str(probe)]
+            cli = build / 'lunadashctl'
+            if not cli.exists():
+                cli = build / 'ludashctl'
+            launched = subprocess.run(
+                [str(cli), 'launch-with-x11', '--', *command],
+                env=env | {'LUNADASH_CONTROL': control, 'LUDASH_CONTROL': control},
+                capture_output=True, text=True, timeout=5)
+            assert launched.returncode == 0, launched.stderr or launched.stdout
+            deadline = time.monotonic() + 4
+            while not probe.exists():
+                assert time.monotonic() < deadline, 'Native helper launch did not run'
+                time.sleep(.05)
+            helper = json.loads(probe.read_text())
+            assert helper['WAYLAND_DISPLAY'] == 'ludash-x11-test', helper
+            assert helper['QT_QPA_PLATFORM'].startswith('wayland'), helper
+            helper_state = request()['xwayland']
+            assert helper_state['running'] and not helper_state['rootWindowVisible'], helper_state
+            assert helper['DISPLAY'] == helper_state['display'], helper
+            assert helper['XAUTHORITY'] == helper_state['authority'], helper
+            authenticated = subprocess.run(
+                ['xdotool', 'getdisplaygeometry'],
+                env=env | {'DISPLAY': helper['DISPLAY'], 'XAUTHORITY': helper['XAUTHORITY']},
+                capture_output=True, timeout=5)
+            assert authenticated.returncode == 0, authenticated.stderr
+            assert not request()['clients'], 'Helper root must stay out of the taskbar and tiling'
+
             result = request('launch-x11', '"' + str(build / 'ludash-desktop') + '" --app console')
             assert 'error' not in result, result
+            assert result['xwayland']['display'] == helper['DISPLAY'], 'Explicit X11 launch must reuse the helper server'
             deadline = time.monotonic() + 4
             while True:
                 state = request()
@@ -88,7 +130,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
             assert exit_code == 0, f'X11 session did not shut down cleanly: {exit_code}'
             assert not authority.exists(), 'Xauthority was not cleaned up'
             assert not Path('/tmp/.X11-unix/X' + display[1:]).exists(), 'Owned X11 socket was not cleaned up'
-            print('X11 compatibility passed: on-demand server, authenticated display reuse, mapped X11 client and cleanup.')
+            print('X11 compatibility passed: hidden native helpers, authenticated display reuse, mapped X11 client and cleanup.')
         except BaseException:
             log.flush(); log.seek(0); print(log.read(), file=sys.stderr)
             raise
