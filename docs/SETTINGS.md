@@ -102,3 +102,9 @@ Background updates run the installer in non-interactive update mode: package con
 LunaDash starts a distribution-provided polkit authentication agent in its login session. Graphical updates also start an available agent before building, so existing sessions can update without logging out first. Arch installation includes `polkit-kde-agent`; other distributions must install a KDE, LXQt, or GNOME polkit agent. The daemon/package `polkit` alone does not provide a graphical password dialog. Existing registered agents are not replaced, and the installer stops only its own temporary agent when it exits.
 
 The desktop does not automatically reload its QML files during package replacement. Log out and back in after installing an update (or reboot) to load the complete new shell. Developers can opt into file watching with `LUNADASH_QML_WATCH=1` before starting the shell; starting an About update or rollback disables watching for the rest of that shell process.
+
+## Wallpaper transitions
+
+Changing the selected wallpaper animates the large preview. Applying it uses the same transition on the desktop: the old image remains visible until the new image loads, then a circle grows from the bottom-right corner to cover it. Rapid selections finish at the latest choice, and failed loads keep the previous image. The GPU path uses a masked image; the software-rendering fallback clips the same circle in a canvas. Turning animations off applies a ready image immediately.
+
+See [Media](MEDIA.md) for the player controls and lyrics area, and [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md) for the reserved stacking extension point.

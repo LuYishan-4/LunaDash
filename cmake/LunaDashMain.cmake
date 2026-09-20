@@ -108,7 +108,10 @@ add_library(ludash-tiling-core src/compositor/tiling/TilingGeometry.c)
 target_include_directories(ludash-tiling-core PUBLIC src)
 add_library(ludash-system-metrics src/desktop/system/SystemMetrics.c)
 target_include_directories(ludash-system-metrics PUBLIC src)
-add_library(ludash-tiling src/compositor/tiling/TilingLayout.cpp)
+add_library(ludash-tiling
+    src/compositor/layout/WindowLayout.cpp
+    src/compositor/layout/LayoutTemplates.cpp
+    src/compositor/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
 target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core Qt6::Core)
 add_library(ludash-window-rules src/compositor/window/WindowRules.cpp src/compositor/window/WindowSwitcher.cpp)

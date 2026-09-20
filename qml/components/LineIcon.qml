@@ -9,6 +9,14 @@ Item {
     property color ink: Theme.muted
     implicitWidth: 22; implicitHeight: 22
     readonly property var paths: ({
+        music: "M9 18 V5 L20 3 V16 M9 8 L20 6 M9 18 C9 23 1 23 1 19 C1 16 9 15 9 18 M20 16 C20 21 12 21 12 17 C12 14 20 13 20 16",
+        play: "M8 4 L20 12 L8 20 Z",
+        pause: "M8 5 V19 M16 5 V19",
+        previous: "M6 5 V19 M19 5 L8 12 L19 19 Z",
+        next: "M18 5 V19 M5 5 L16 12 L5 19 Z",
+        shuffle: "M3 6 H6 C11 6 13 18 18 18 H21 M18 15 L21 18 L18 21 M3 18 H6 C8 18 9 15 10 13 M14 9 C15 6 17 6 21 6 M18 3 L21 6 L18 9",
+        repeat: "M4 10 V6 H19 L16 3 M19 6 L16 9 M20 14 V18 H5 L8 15 M5 18 L8 21",
+        lyrics: "M4 5 H20 M4 10 H16 M4 15 H12 M4 20 H9 M18 14 V20 M18 20 C18 23 13 23 13 20 C13 17 18 17 18 20 M18 14 L22 13",
         general: "M4 6 H20 M4 12 H20 M4 18 H20 M8 3 V9 M16 9 V15 M10 15 V21",
         appearance: "M12 3 C6 3 3 7 3 12 C3 18 8 21 12 21 H15 C18 21 18 17 15 17 C12 17 14 14 17 14 C23 14 22 3 12 3 M7 10 H7.1 M10 6 H10.1 M16 7 H16.1",
         windows: "M4 4 H20 V20 H4 Z M12 4 V20 M12 12 H20",

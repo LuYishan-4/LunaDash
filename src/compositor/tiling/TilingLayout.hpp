@@ -1,5 +1,6 @@
 #pragma once
 
+#include "compositor/layout/WindowLayout.hpp"
 #include <QList>
 #include <QRect>
 #include <QtGlobal>
@@ -7,64 +8,46 @@
 
 namespace LunaDash {
 
-using TilingWindowId = quint64;
-using TilingWorkspaceId = quint64;
-
-struct TilingColumnSnapshot {
-  TilingWindowId window = 0;
-  int width = 0;
-  bool minimized = false;
-  bool focused = false;
-  QRect geometry;
-  int columnIndex = -1;
-  int rowIndex = -1;
-  QList<TilingWindowId> columnMembers;
-  bool hiddenByMaximize = false;
-};
-
-struct TilingWorkspaceSnapshot {
-  TilingWorkspaceId workspace = 0;
-  TilingWindowId focusedWindow = 0;
-  QList<TilingColumnSnapshot> columns;
-  TilingWindowId maximizedWindow = 0;
-};
-
-class TilingLayout {
+class TilingLayout final : public WindowLayout {
 public:
   explicit TilingLayout(int defaultWidth = 960, int gap = 12);
-  ~TilingLayout();
+  ~TilingLayout() override;
+  WindowLayoutMode mode() const noexcept override;
   TilingLayout(TilingLayout &&) noexcept;
   TilingLayout &operator=(TilingLayout &&) noexcept;
   TilingLayout(const TilingLayout &) = delete;
   TilingLayout &operator=(const TilingLayout &) = delete;
 
-  void setGap(int gap);
-  bool insert(TilingWorkspaceId workspace, TilingWindowId window,
-              QSize preferredSize = {});
-  bool remove(TilingWindowId window);
-  bool setMinimized(TilingWindowId window, bool minimized);
-  bool setMaximized(TilingWindowId window, bool maximized);
-  bool moveToWorkspace(TilingWindowId window, TilingWorkspaceId workspace);
-  bool focus(TilingWindowId window);
-  bool focusLeft(TilingWorkspaceId workspace);
-  bool focusRight(TilingWorkspaceId workspace);
-  bool focusUp(TilingWorkspaceId workspace);
-  bool focusDown(TilingWorkspaceId workspace);
-  bool groupWith(TilingWindowId window, TilingWindowId targetWindow);
-  bool expel(TilingWindowId window);
-  bool swapWindows(TilingWindowId window, TilingWindowId target);
-  bool insertBeside(TilingWindowId window, TilingWindowId target, bool after);
-  bool resizeHeight(TilingWindowId window, int height);
-  bool moveSingle(TilingWindowId window, QPoint delta, QRect area);
-  bool reorder(TilingWindowId window, int direction);
-  bool resize(TilingWindowId window, int width);
-  bool center(TilingWindowId window, QRect area);
+  void setGap(int gap) override;
+  bool insert(LayoutWorkspaceId workspace, LayoutWindowId window,
+              QSize preferredSize = {}) override;
+  bool remove(LayoutWindowId window) override;
+  bool setMinimized(LayoutWindowId window, bool minimized) override;
+  bool setMaximized(LayoutWindowId window, bool maximized) override;
+  bool moveToWorkspace(LayoutWindowId window,
+                       LayoutWorkspaceId workspace) override;
+  bool focus(LayoutWindowId window) override;
+  bool focusLeft(LayoutWorkspaceId workspace) override;
+  bool focusRight(LayoutWorkspaceId workspace) override;
+  bool focusUp(LayoutWorkspaceId workspace) override;
+  bool focusDown(LayoutWorkspaceId workspace) override;
+  bool groupWith(LayoutWindowId window, LayoutWindowId targetWindow) override;
+  bool expel(LayoutWindowId window) override;
+  bool swapWindows(LayoutWindowId window, LayoutWindowId target) override;
+  bool insertBeside(LayoutWindowId window, LayoutWindowId target,
+                    bool after) override;
+  bool resizeHeight(LayoutWindowId window, int height) override;
+  bool moveSingle(LayoutWindowId window, QPoint delta, QRect area) override;
+  bool reorder(LayoutWindowId window, int direction) override;
+  bool resize(LayoutWindowId window, int width) override;
+  bool center(LayoutWindowId window, QRect area) override;
 
-  QList<TilingColumnSnapshot> layout(TilingWorkspaceId workspace, QRect area);
+  QList<WindowPlacement> layout(LayoutWorkspaceId workspace,
+                                QRect area) override;
   // Overlay maximization without changing the saved tile sizes or membership.
-  QList<TilingColumnSnapshot> presentation(TilingWorkspaceId workspace,
-                                           QRect area);
-  TilingWorkspaceSnapshot snapshot(TilingWorkspaceId workspace) const;
+  QList<WindowPlacement> presentation(LayoutWorkspaceId workspace,
+                                      QRect area) override;
+  WorkspaceLayoutSnapshot snapshot(LayoutWorkspaceId workspace) const override;
 
 private:
   class Impl;

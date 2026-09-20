@@ -19,7 +19,7 @@ export const groups: SettingGroup[] = [
     id: "appearance",
     name: "Color, wallpaper & soft blur",
     description:
-      "Choose an accent color and wallpaper image, then tune gaps, panel height, background blur and motion.",
+      "Choose an accent color and wallpaper image, then tune gaps, panel height, background blur and motion. Wallpaper previews and the desktop reveal new images with a circle expanding from the bottom-right corner.",
     details: [
       "Blur starts enabled at radius 18. Lower the radius to reduce GPU work; window opacity ranges from 60% to 100%.",
       "Set animation duration between 0 and 600 ms, or disable animations for reduced motion.",

@@ -105,6 +105,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell,
                                      const QString &rendererPreference)
     : d(std::make_unique<Impl>(this, socket, fullscreen, rendererPreference)) {
+  windowLayout_ = createWindowLayout(WindowLayoutMode::Tiling);
   windowSwitcher_ = new WindowSwitcher(this);
   screenCapture_ = new ScreenCapture(this);
   connect(screenCapture_, &ScreenCapture::completed, this,
@@ -476,7 +477,7 @@ void WaylandCompositor::arrange() {
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const QRect area = workArea();
   const int gap = preferences.value("gap").toInt();
-  tiling_.setGap(gap);
+  windowLayout_->setGap(gap);
 
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
@@ -488,26 +489,26 @@ void WaylandCompositor::arrange() {
 #else
       wlr_xdg_surface_get_geometry(client->surface, &initialGeometry);
 #endif
-      tiling_.insert(client->workspace, client->id,
+      windowLayout_->insert(client->workspace, client->id,
                      QSize(initialGeometry.width, initialGeometry.height));
-      tiling_.moveToWorkspace(client->id, client->workspace);
-      tiling_.setMinimized(client->id, client->minimized);
+      windowLayout_->moveToWorkspace(client->id, client->workspace);
+      windowLayout_->setMinimized(client->id, client->minimized);
       if (client->maximized)
-        tiling_.setMaximized(client->id, true);
+        windowLayout_->setMaximized(client->id, true);
     } else {
-      tiling_.remove(client->id);
+      windowLayout_->remove(client->id);
     }
   }
 
   QList<ClientWindow *> revealed;
-  QHash<int, TilingWindowId> maximizedWindows;
+  QHash<int, LayoutWindowId> maximizedWindows;
   for (const auto &client : clients_) {
     if (!maximizedWindows.contains(client->workspace))
       maximizedWindows.insert(client->workspace,
-                              tiling_.snapshot(client->workspace).maximizedWindow);
+                              windowLayout_->snapshot(client->workspace).maximizedWindow);
     const auto maximized = maximizedWindows.value(client->workspace);
     if (!client->floating)
-      client->maximized = maximized == static_cast<TilingWindowId>(client->id);
+      client->maximized = maximized == static_cast<LayoutWindowId>(client->id);
     bool inMaximizedFamily = client->id == static_cast<int>(maximized);
     auto *parent = client->toplevel ? client->toplevel->parent : nullptr;
     for (std::size_t depth = 0; parent && depth < clients_.size(); ++depth) {
@@ -519,17 +520,16 @@ void WaylandCompositor::arrange() {
         inMaximizedFamily = true;
       parent = parent->parent;
     }
-    const bool wasHidden = client->hiddenByMaximize;
     client->hiddenByMaximize =
         maximized && !inMaximizedFamily && !client->desktop;
     const bool visible = client->mapped && !client->minimized &&
                          client->workspace == workspace_ && !client->utility &&
                          !client->hiddenByMaximize;
     if (client->sceneTree) {
-      if (client->hiddenByMaximize && !wasHidden &&
-          client->sceneTree->node.enabled && windowAnimations_)
+      const bool wasVisible = client->sceneTree->node.enabled;
+      if (!visible && wasVisible && client->mapped && windowAnimations_)
         windowAnimations_->hideSnapshot(client->sceneTree, d->animationLayer);
-      if (visible && wasHidden)
+      if (visible && !wasVisible && client->geometry.isValid())
         revealed.append(client.get());
       if (!visible && windowAnimations_)
         windowAnimations_->cancel(client->sceneTree);
@@ -555,7 +555,7 @@ void WaylandCompositor::arrange() {
     }
   }
 
-  const auto placements = tiling_.presentation(workspace_, area);
+  const auto placements = windowLayout_->presentation(workspace_, area);
   for (const auto &placement : placements) {
     auto found = std::find_if(
         clients_.begin(), clients_.end(), [&placement](const auto &client) {
@@ -620,10 +620,10 @@ void WaylandCompositor::focus(ClientWindow *client) {
     arrange();
   }
   if (!client->floating && !client->maximized &&
-      tiling_.snapshot(client->workspace).maximizedWindow)
+      windowLayout_->snapshot(client->workspace).maximizedWindow)
     setMaximized(client, true);
   if (!client->floating)
-    tiling_.focus(client->id);
+    windowLayout_->focus(client->id);
   // Selecting a tiled window must also scroll its column into view. Avoid
   // relayout for repeated clicks in the same window (including popup grabs).
   if (changed && !client->floating)
@@ -668,7 +668,7 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
           wlr_xdg_toplevel_set_maximized(other->toplevel, false);
       }
     }
-    tiling_.setMaximized(client->id, maximized);
+    windowLayout_->setMaximized(client->id, maximized);
   }
   client->maximized = maximized;
   if (client->toplevel)
@@ -676,7 +676,7 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
 }
 
 void WaylandCompositor::synchronizeTilingFocus() {
-  const auto target = tiling_.snapshot(workspace_).focusedWindow;
+  const auto target = windowLayout_->snapshot(workspace_).focusedWindow;
   if (target) {
     auto found = std::find_if(clients_.begin(), clients_.end(),
                               [target](const auto &client) {
@@ -697,7 +697,7 @@ void WaylandCompositor::removeClient(ClientWindow *client) {
   if (focused_ == client)
     focused_ = nullptr;
   windowSwitcher_->remove(client->id);
-  tiling_.remove(client->id);
+  windowLayout_->remove(client->id);
   std::erase_if(clients_,
                 [client](const auto &entry) { return entry.get() == client; });
   arrange();
@@ -739,7 +739,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     if (ok && focused_ && target > 0 &&
         target <= desktopPreferences().value("workspaceCount").toInt()) {
       focused_->workspace = target - 1;
-      tiling_.moveToWorkspace(focused_->id, focused_->workspace);
+      windowLayout_->moveToWorkspace(focused_->id, focused_->workspace);
       arrange();
       synchronizeTilingFocus();
     }
@@ -756,36 +756,36 @@ void WaylandCompositor::handleShortcut(const QString &action) {
   }
 
   if (action == "focusLeft")
-    tiling_.focusLeft(workspace_);
+    windowLayout_->focusLeft(workspace_);
   else if (action == "focusRight")
-    tiling_.focusRight(workspace_);
+    windowLayout_->focusRight(workspace_);
   else if (action == "focusUp")
-    tiling_.focusUp(workspace_);
+    windowLayout_->focusUp(workspace_);
   else if (action == "focusDown")
-    tiling_.focusDown(workspace_);
+    windowLayout_->focusDown(workspace_);
   else if (action == "reorderLeft" && focused_)
-    tiling_.reorder(focused_->id, -1);
+    windowLayout_->reorder(focused_->id, -1);
   else if (action == "reorderRight" && focused_)
-    tiling_.reorder(focused_->id, 1);
+    windowLayout_->reorder(focused_->id, 1);
   else if ((action == "groupLeft" || action == "groupRight") && focused_) {
-    tiling_.focus(focused_->id);
-    const bool found = action == "groupLeft" ? tiling_.focusLeft(workspace_)
-                                            : tiling_.focusRight(workspace_);
+    windowLayout_->focus(focused_->id);
+    const bool found = action == "groupLeft" ? windowLayout_->focusLeft(workspace_)
+                                            : windowLayout_->focusRight(workspace_);
     if (found) {
-      const auto target = tiling_.snapshot(workspace_).focusedWindow;
-      tiling_.groupWith(focused_->id, target);
-      tiling_.focus(focused_->id);
+      const auto target = windowLayout_->snapshot(workspace_).focusedWindow;
+      windowLayout_->groupWith(focused_->id, target);
+      windowLayout_->focus(focused_->id);
     }
   } else if (action == "expelWindow" && focused_)
-    tiling_.expel(focused_->id);
+    windowLayout_->expel(focused_->id);
   else if (action == "centerColumn" && focused_)
-    tiling_.center(focused_->id, workArea());
+    windowLayout_->center(focused_->id, workArea());
   else if (action == "widenColumn" && focused_)
-    tiling_.resize(focused_->id,
+    windowLayout_->resize(focused_->id,
                    std::min(workArea().width(),
                             std::max(120, focused_->geometry.width() + 80)));
   else if (action == "narrowColumn" && focused_)
-    tiling_.resize(focused_->id,
+    windowLayout_->resize(focused_->id,
                    std::max(120, focused_->geometry.width() - 80));
   else if (action == "maximizeWindow" && focused_) {
     setMaximized(focused_, !focused_->maximized);
@@ -794,7 +794,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     wlr_xdg_toplevel_send_close(focused_->toplevel);
   else if (action == "minimizeWindow" && focused_) {
     focused_->minimized = true;
-    tiling_.setMinimized(focused_->id, true);
+    windowLayout_->setMinimized(focused_->id, true);
   } else if (action == "launchTerminal" || action == "launchTerminalAlternate")
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
@@ -851,7 +851,7 @@ QJsonObject WaylandCompositor::state() const {
         {"mapped", client->mapped}});
   }
 
-  const auto tilingSnapshot = tiling_.snapshot(workspace_);
+  const auto tilingSnapshot = windowLayout_->snapshot(workspace_);
   QJsonArray tilingColumns;
   QJsonArray tilingGroups;
   QSet<int> emittedGroups;
@@ -1240,12 +1240,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     int target = 0;
     if (!groupWindowIds(value, &window, &target))
       return {{"error", "Expected bounded JSON window and target IDs."}};
-    if (!tiling_.groupWith(window, target))
+    if (!windowLayout_->groupWith(window, target))
       return {{"error", "Windows cannot be grouped."}};
     arrange();
   } else if (method == "expel-window") {
     const auto window = textWindowId(value);
-    if (!window || !tiling_.expel(*window))
+    if (!window || !windowLayout_->expel(*window))
       return {{"error", "Window must be a member of a tiled group."}};
     arrange();
     synchronizeTilingFocus();
@@ -1276,14 +1276,14 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
           wlr_xdg_toplevel_send_close(client->toplevel);
       } else if (method == "minimize") {
         client->minimized = true;
-        tiling_.setMinimized(client->id, true);
+        windowLayout_->setMinimized(client->id, true);
         arrange();
         synchronizeTilingFocus();
       } else {
         workspace_ = client->workspace;
         client->minimized = false;
-        tiling_.setMinimized(client->id, false);
-        tiling_.focus(client->id);
+        windowLayout_->setMinimized(client->id, false);
+        windowLayout_->focus(client->id);
         arrange();
         focus(client.get());
       }

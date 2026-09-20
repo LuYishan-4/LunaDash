@@ -1,6 +1,6 @@
 #pragma once
 
-#include "compositor/tiling/TilingLayout.hpp"
+#include "compositor/layout/WindowLayout.hpp"
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
@@ -78,7 +78,7 @@ private:
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
-  TilingLayout tiling_;
+  std::unique_ptr<WindowLayout> windowLayout_;
   QHash<int, int> resizeOriginalWidths_;
   bool shuttingDown_ = false;
   bool logoutPending_ = false;

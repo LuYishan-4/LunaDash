@@ -43,22 +43,10 @@ void WaylandCompositor::selectWorkspace(int workspace) {
     if (!updateDesktopPreferences({{"workspaceCount", workspace + 1}}, &error))
       return;
   }
-  const bool changed = workspace != workspace_;
-  if (changed && windowAnimations_) {
-    for (const auto &client : clients_)
-      if (client->mapped && !client->minimized && !client->hiddenByMaximize && !client->utility &&
-          client->workspace == workspace_ && client->sceneTree)
-        windowAnimations_->hideSnapshot(client->sceneTree, d->animationLayer);
-  }
   workspace_ = workspace;
   arrange();
   synchronizeTilingFocus();
-  if (changed && windowAnimations_) {
-    for (const auto &client : clients_)
-      if (client->mapped && !client->minimized && !client->hiddenByMaximize && !client->utility &&
-          client->workspace == workspace_ && client->sceneTree)
-        windowAnimations_->show(client->sceneTree, client->geometry);
-  }
+
 }
 void WaylandCompositor::activateTask(int window) {
   for (const auto &client : clients_) {
@@ -68,10 +56,10 @@ void WaylandCompositor::activateTask(int window) {
                          client->workspace == workspace_ && client->maximized;
     selectWorkspace(client->workspace);
     client->minimized = false;
-    tiling_.setMinimized(window, false);
+    windowLayout_->setMinimized(window, false);
     if (!client->floating)
       setMaximized(client.get(), !restore);
-    tiling_.focus(window);
+    windowLayout_->focus(window);
     arrange();
     focus(client.get());
     return;
@@ -90,14 +78,14 @@ void WaylandCompositor::beginWindowSwitch(int direction) {
   for (int workspace = 0; workspace < 10; ++workspace) {
     QJsonArray windows;
     QRect bounds = area;
-    const auto placements = tiling_.presentation(workspace, area);
+    const auto placements = windowLayout_->presentation(workspace, area);
     for (const auto &client : clients_) {
       if (!client->mapped || client->utility || client->desktop ||
           client->workspace != workspace)
         continue;
       QRect geometry = client->geometry;
       for (const auto &placement : placements)
-        if (placement.window == static_cast<TilingWindowId>(client->id) &&
+        if (placement.window == static_cast<LayoutWindowId>(client->id) &&
             !placement.minimized)
           geometry = placement.geometry;
       if (!client->minimized && !client->hiddenByMaximize)

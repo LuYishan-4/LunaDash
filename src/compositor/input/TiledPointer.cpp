@@ -45,7 +45,7 @@ bool WaylandCompositor::Impl::updateTiledPointer() {
   const QPointF current(cursor->x, cursor->y);
   const QPoint delta = (current - pointerLast).toPoint();
   pointerLast = current;
-  const auto snapshot = q->tiling_.snapshot(q->workspace_);
+  const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
   if (pointerResize) {
     for (const auto &slot : snapshot.columns) {
       if (!slot.columnMembers.contains(client->id))
@@ -54,10 +54,10 @@ bool WaylandCompositor::Impl::updateTiledPointer() {
         if (member->id == static_cast<int>(slot.window))
           q->setMaximized(member.get(), false);
     }
-    q->tiling_.resize(client->id,
+    q->windowLayout_->resize(client->id,
                       std::clamp(client->geometry.width() + delta.x(), 120,
                                  std::max(120, q->workArea().width())));
-    q->tiling_.resizeHeight(client->id, client->geometry.height() + delta.y());
+    q->windowLayout_->resizeHeight(client->id, client->geometry.height() + delta.y());
     q->arrange();
     return true;
   }
@@ -65,14 +65,14 @@ bool WaylandCompositor::Impl::updateTiledPointer() {
       std::count_if(snapshot.columns.begin(), snapshot.columns.end(),
                     [](const auto &c) { return !c.minimized; });
   if (active == 1) {
-    q->tiling_.moveSingle(client->id, delta, q->workArea());
+    q->windowLayout_->moveSingle(client->id, delta, q->workArea());
     q->arrange();
     return true;
   }
   pointerTarget = 0;
   QJsonObject hint;
   for (const auto &slot : snapshot.columns) {
-    if (slot.window == static_cast<TilingWindowId>(pointerWindow) ||
+    if (slot.window == static_cast<LayoutWindowId>(pointerWindow) ||
         slot.minimized || !slot.geometry.contains(current.toPoint()))
       continue;
     pointerTarget = static_cast<int>(slot.window);
@@ -98,14 +98,16 @@ void WaylandCompositor::Impl::finishTiledPointer(bool apply) {
       client->manualResize = false;
   if (apply && !pointerResize && target) {
     if (edge)
-      q->tiling_.insertBeside(moving, target, edge > 0);
+      q->windowLayout_->insertBeside(moving, target, edge > 0);
     else
-      q->tiling_.swapWindows(moving, target);
+      q->windowLayout_->swapWindows(moving, target);
   }
   pointerResize = false;
   q->windowSwitcher_->setDrag({});
-  q->arrange();
+  // Release the interactive geometry override before arranging. Dropped,
+  // swapped and regrouped windows then use the normal layout transition.
   pointerWindow = 0;
+  q->arrange();
   q->publishWindowLayout();
   wlr_cursor_set_xcursor(cursor, cursorManager, "default");
 }

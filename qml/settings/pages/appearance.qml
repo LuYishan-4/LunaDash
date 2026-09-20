@@ -5,6 +5,7 @@ import "../components"
 import "../../components"
 import "../../configuration"
 import "../../effects"
+import "../../wallpaper"
 import "../../style"
 
 ColumnLayout {
@@ -106,14 +107,9 @@ ColumnLayout {
                 border.color: Theme.starlight
                 clip: true
 
-                Image {
+                WallpaperTransition {
                     anchors.fill: parent
                     source: page.fileUrl(page.selectedWallpaper)
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    sourceSize.width: 900
-                    sourceSize.height: 600
-                    cache: false
                 }
 
                 Rectangle {

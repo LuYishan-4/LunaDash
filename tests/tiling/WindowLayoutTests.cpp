@@ -15,15 +15,15 @@ namespace LunaDash {
 class WindowLayoutTests final : public QObject {
   Q_OBJECT
   const QRect area{10, 40, 1440, 900};
-  static QMap<TilingWindowId, QRect>
-  geometries(const QList<TilingColumnSnapshot> &placements) {
-    QMap<TilingWindowId, QRect> result;
+  static QMap<LayoutWindowId, QRect>
+  geometries(const QList<WindowPlacement> &placements) {
+    QMap<LayoutWindowId, QRect> result;
     for (const auto &slot : placements)
       if (!slot.minimized)
         result[slot.window] = slot.geometry;
     return result;
   }
-  static void verifyNoOverlap(const QList<TilingColumnSnapshot> &placements) {
+  static void verifyNoOverlap(const QList<WindowPlacement> &placements) {
     for (const auto &a : placements) {
       if (a.minimized)
         continue;
@@ -38,6 +38,23 @@ private Q_SLOTS:
     QCoreApplication::setOrganizationName("LunaDashTests");
     QCoreApplication::setApplicationName("WindowLayout");
     QStandardPaths::setTestModeEnabled(true);
+  }
+  void layoutTemplateContract() {
+    const auto templates = windowLayoutTemplates();
+    QCOMPARE(templates.size(), 2);
+    QVERIFY(templates[0].implemented);
+    QVERIFY(!templates[1].implemented);
+    QVERIFY(!createWindowLayout(WindowLayoutMode::Stacking));
+    auto layout = createWindowLayout(WindowLayoutMode::Tiling);
+    QVERIFY(layout);
+    QCOMPARE(layout->mode(), WindowLayoutMode::Tiling);
+    QVERIFY(layout->insert(0, 1));
+    QVERIFY(layout->insert(0, 2));
+    verifyNoOverlap(layout->layout(0, area));
+    QVERIFY(layout->setMaximized(2, true));
+    QCOMPARE(geometries(layout->presentation(0, area))[2], area);
+    QVERIFY(layout->setMaximized(2, false));
+    verifyNoOverlap(layout->presentation(0, area));
   }
   void fixedSplitsStayOnScreen() {
     TilingLayout layout(960, 6);
@@ -59,7 +76,7 @@ private Q_SLOTS:
     QCOMPARE(unchanged, three); // Focusing never scrolls or rearranges slots.
     QVERIFY(layout.focusRight(0));
     QVERIFY(layout.focusDown(0));
-    QCOMPARE(layout.snapshot(0).focusedWindow, TilingWindowId(3));
+    QCOMPARE(layout.snapshot(0).focusedWindow, LayoutWindowId(3));
     QVERIFY(layout.resize(3, 900));
     QVERIFY(layout.resizeHeight(3, 600));
     auto resized = layout.layout(0, area);
@@ -202,8 +219,8 @@ private Q_SLOTS:
     QVERIFY(layout.expel(3));
     QVERIFY(layout.insertBeside(3, 1, false));
     auto placements = layout.layout(0, area);
-    QCOMPARE(placements[1].window, TilingWindowId(3));
-    QCOMPARE(placements[2].window, TilingWindowId(1));
+    QCOMPARE(placements[1].window, LayoutWindowId(3));
+    QCOMPARE(placements[2].window, LayoutWindowId(1));
     verifyNoOverlap(placements);
   }
   void resizingAndSingleMovement() {
@@ -230,7 +247,7 @@ private Q_SLOTS:
       QVERIFY(layout.resizeHeight(2, height));
       auto placements = layout.layout(0, area);
       verifyNoOverlap(placements);
-      QCOMPARE(placements[1].window, TilingWindowId(2));
+      QCOMPARE(placements[1].window, LayoutWindowId(2));
       QCOMPARE(placements.last().geometry.bottom(), area.bottom());
       if (height == 600 || height == 300)
         QCOMPARE(placements[1].geometry.height(), height);
@@ -269,20 +286,20 @@ private Q_SLOTS:
     verifyNoOverlap(restored);
     QVERIFY(layout.setMaximized(3, true));
     QVERIFY(layout.setMaximized(1, true));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(1));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(1));
     for (const auto &slot : layout.presentation(0, area))
       QCOMPARE(slot.hiddenByMaximize, slot.window != 1);
     QVERIFY(layout.setMinimized(4, true));
     QVERIFY(layout.setMinimized(1, true));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(0));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
     QVERIFY(!layout.setMaximized(1, true));
     QVERIFY(layout.setMinimized(1, false));
     QVERIFY(layout.setMaximized(2, true));
     QVERIFY(layout.remove(2));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(0));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
     QVERIFY(layout.setMaximized(3, true));
     QVERIFY(layout.moveToWorkspace(3, 1));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(0));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
     for (const auto &slot : layout.presentation(0, area)) {
       QVERIFY(!slot.hiddenByMaximize);
       if (slot.window == 4)

@@ -163,7 +163,7 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
   state->impl->q->windowSwitcher_->remove(state->client->id);
   if (state->impl->pointerWindow == state->client->id)
     state->impl->finishTiledPointer(false);
-  state->impl->q->tiling_.remove(state->client->id);
+  state->impl->q->windowLayout_->remove(state->client->id);
   if (state->impl->q->focused_ == state->client)
     state->impl->q->focused_ = nullptr;
   state->impl->q->arrange();
@@ -200,7 +200,7 @@ void WaylandCompositor::Impl::handleToplevelParent(wl_listener *listener,
     return;
   state->impl->q->updateClientMetadata(state->client);
   if (state->client->floating)
-    state->impl->q->tiling_.remove(state->client->id);
+    state->impl->q->windowLayout_->remove(state->client->id);
   state->impl->q->arrange();
 }
 
@@ -210,7 +210,7 @@ void WaylandCompositor::Impl::handleToplevelMinimize(wl_listener *listener,
   if (!state || !state->client)
     return;
   state->client->minimized = true;
-  state->impl->q->tiling_.setMinimized(state->client->id, true);
+  state->impl->q->windowLayout_->setMinimized(state->client->id, true);
   state->impl->q->arrange();
   state->impl->q->synchronizeTilingFocus();
 }

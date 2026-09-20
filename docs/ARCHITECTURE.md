@@ -20,6 +20,7 @@ src/
       blur/          Qt Quick item and geometry adapter
       wallpaper/     Qt Quick wallpaper item
     session/         compositor startup, child environment and launch policy
+    layout/          layout contract and template factory (stacking reserved)
     tiling/          bounded split tree, grouped rows and C geometry
     wayland/         runtime, output and surface lifetimes
       wlroots/       version compatibility and external C header boundaries
@@ -69,3 +70,5 @@ Run `python3 scripts/check-source-layout.py`. It rejects incorrect source naming
 The renderer regression tests load embedded assets from an unrelated directory, report missing-context errors, inject GL failures to check cleanup, and optionally compile/draw through a software OpenGL context after a staged install. These checks do not establish physical GPU correctness.
 
 Wayland CI exercises protocol globals, xdg-toplevel commit/map/unmap/destroy, client startup, on-demand XWayland and clean shutdown. Chrome, Zed, Fcitx candidate placement, physical input, multiple physical outputs and display-manager login still need application/hardware testing. The current file chooser portal is not a complete screen-sharing/PipeWire portal. There is no complete screen-locking or polkit-agent implementation. See [testing](TESTING_AND_FILES.md), [graphics](GRAPHICS.md), [input methods](INPUT_METHODS.md) and [release process](RELEASE_PROCESS.md).
+
+Media discovery and control are owned by `src/shell/media/`, with QML presentation under `qml/overview/`. See [Media](MEDIA.md) and [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
