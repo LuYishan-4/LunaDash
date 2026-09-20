@@ -153,7 +153,7 @@ Rectangle {
             MediaMascot {
                 visible: view.width >= 720
                 Layout.preferredWidth: Math.min(210, view.width * 0.22)
-                Layout.preferredHeight: width * 0.85
+                Layout.preferredHeight: width
                 Layout.alignment: Qt.AlignVCenter
                 playing: Boolean(view.media.playing)
             }

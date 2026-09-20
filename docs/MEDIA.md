@@ -1,6 +1,8 @@
 # Media panel
 
-The overview's Media tab has a circular album cover and playback animation, a central lyrics area, a small animated cat, and shared LunaDash controls. The ring is a decorative playback indicator, not an audio spectrum measurement. Animation stops while paused, hidden, or disabled in Appearance.
+The overview's Media tab has a circular album cover and playback animation, a central lyrics area, an animated Togawa Sakiko mascot, and shared LunaDash controls. The ring is a decorative playback indicator, not an audio spectrum measurement. Animation stops while paused, hidden, or disabled in Appearance.
+
+The mascot uses the supplied `togawa-sakiko-ave-mujica.gif`, bundled under `qml/overview/assets/`. It preserves its aspect ratio and plays locally without fetching the Discord attachment when the panel opens. Frames are decoded without retaining the entire animation in memory.
 
 The player selector can follow the currently playing source or pin a particular player. Previous/next, play/pause, seeking, player volume, shuffle, repeat and showing the player window use the capabilities reported by that player. Unsupported controls are disabled. Repeat cycles through off, playlist and track. Player volume is separate from the desktop's system volume.
 
