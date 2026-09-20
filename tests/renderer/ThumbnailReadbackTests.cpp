@@ -56,10 +56,13 @@ private Q_SLOTS:
     auto *allocator = new wlr_allocator;
     wlr_allocator_init(allocator, &allocatorImplementation,
                        WLR_BUFFER_CAP_DATA_PTR);
-    const uint8_t pixels[] = {255, 0, 0,   255, 0,   255, 0,   255,
-                              0,   0, 255, 255, 255, 255, 255, 255};
+    const uint8_t pixels[] = {
+        255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
+        255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
+        0, 0, 255, 255, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+        0, 0, 255, 255, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
     auto *texture =
-        wlr_texture_from_pixels(renderer, DRM_FORMAT_ABGR8888, 8, 2, 2, pixels);
+        wlr_texture_from_pixels(renderer, DRM_FORMAT_ABGR8888, 16, 4, 4, pixels);
     QVERIFY(texture);
     QByteArray result(8 * 8 * 4, '\0');
     QVERIFY(ludash_thumbnail_read(renderer, allocator, texture, nullptr, 0, 8,
@@ -68,12 +71,16 @@ private Q_SLOTS:
     const auto byte = [&result](int offset) {
       return static_cast<uint8_t>(result[offset]);
     };
-    QCOMPARE(byte(0), 255);
-    QCOMPARE(byte(1), 0);
-    QCOMPARE(byte(2), 0);
-    const int bottom = 7 * 8 * 4;
+    // Check solid quadrants away from renderer-specific edge padding.
+    const int top = (1 * 8 + 1) * 4;
+    QCOMPARE(byte(top), 255);
+    QCOMPARE(byte(top + 1), 0);
+    QCOMPARE(byte(top + 2), 0);
+    QCOMPARE(byte(top + 3), 255);
+    const int bottom = (6 * 8 + 1) * 4;
     QCOMPARE(byte(bottom), 0);
     QCOMPARE(byte(bottom + 2), 255);
+    QCOMPARE(byte(bottom + 3), 255);
     QVERIFY(!ludash_thumbnail_read(renderer, allocator, texture, nullptr, 0,
                                    10000, 8,
                                    reinterpret_cast<uint8_t *>(result.data())));

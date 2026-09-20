@@ -32,6 +32,7 @@ Rectangle {
                 Accessible.focused: selected
                 Text {
                     anchors.centerIn: parent
+                    visible: !(cell.workspace.windows || []).some(window => !window.minimized)
                     text: cell.index + 1
                     color: Theme.text
                     opacity: 0.25
@@ -41,25 +42,27 @@ Rectangle {
                 }
                 Item {
                     id: preview
-                    anchors { fill: parent; margins: 3 }
+                    anchors { fill: parent; margins: 7 }
                     clip: true
                     readonly property real ratio: Math.min(width / Math.max(1, Number(cell.workspace.width || 1440)), height / Math.max(1, Number(cell.workspace.height || 900)))
                     readonly property real offsetX: (width - Number(cell.workspace.width || 1440) * ratio) / 2
                     readonly property real offsetY: (height - Number(cell.workspace.height || 900) * ratio) / 2
                     Repeater {
                         model: (cell.workspace.windows || []).length
-                        delegate: Rectangle {
+                        delegate: Item {
+                            id: windowPreview
                             required property int index
                             readonly property var member: (cell.workspace.windows || [])[index] || ({})
-                            x: preview.offsetX + Number(member.x || 0) * preview.ratio
-                            y: preview.offsetY + Number(member.y || 0) * preview.ratio
-                            width: Math.max(1, Number(member.width || 720) * preview.ratio)
-                            height: Math.max(1, Number(member.height || 500) * preview.ratio)
+                            x: Math.round(preview.offsetX + Number(member.x || 0) * preview.ratio) + 1
+                            y: Math.round(preview.offsetY + Number(member.y || 0) * preview.ratio) + 1
+                            width: Math.max(1, Math.round(preview.offsetX + (Number(member.x || 0) + Number(member.width || 720)) * preview.ratio) - x - 1)
+                            height: Math.max(1, Math.round(preview.offsetY + (Number(member.y || 0) + Number(member.height || 500)) * preview.ratio) - y - 1)
                             visible: !member.minimized
-                            color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.65)
-                            border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.20)
-                            border.width: 1
                             clip: true
+                            Rectangle {
+                                anchors.fill: parent
+                                color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.65)
+                            }
                             Image {
                                 anchors { fill: parent; margins: 1 }
                                 source: parent.member.thumbnail || ""
@@ -74,6 +77,12 @@ Rectangle {
                                 iconName: String(parent.member.icon || "")
                                 appId: String(parent.member.appId || "")
                                 title: String(parent.member.title || "")
+                            }
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "transparent"
+                                border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, windowPreview.member.focused ? 0.85 : 0.55)
+                                border.width: 1
                             }
                         }
                     }
