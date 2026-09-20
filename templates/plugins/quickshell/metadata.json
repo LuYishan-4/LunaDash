@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 2,
+  "sdk": {
+    "name": "LunaDash",
+    "apiVersion": 2
+  },
+  "id": "org.example.panel",
+  "name": "Taskbar greeting",
+  "version": "1.0.0",
+  "description": "LunaDash plugin template.",
+  "author": "Your name",
+  "type": "quickshell",
+  "target": "panel",
+  "mode": "augment",
+  "enabledByDefault": false,
+  "settings": {
+    "text": {
+      "type": "string",
+      "default": "Hello, LunaDash"
+    }
+  },
+  "entry": "Main.qml"
+}

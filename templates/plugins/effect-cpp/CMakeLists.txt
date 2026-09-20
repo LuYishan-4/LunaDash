@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.21)
+project(rules LANGUAGES C CXX)
+find_package(LunaDashPlugin 2 CONFIG REQUIRED)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core)
+lunadash_add_plugin(rules METADATA "${CMAKE_CURRENT_SOURCE_DIR}/metadata.json" SOURCES Effect.cpp)
+target_link_libraries(rules PRIVATE Qt6::Core)

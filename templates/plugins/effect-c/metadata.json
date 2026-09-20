@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "sdk": {
+    "name": "LunaDash",
+    "apiVersion": 2
+  },
+  "id": "org.example.motion",
+  "name": "C motion profile",
+  "version": "1.0.0",
+  "description": "LunaDash plugin template.",
+  "author": "Your name",
+  "type": "effect",
+  "target": "window-animation",
+  "mode": "augment",
+  "enabledByDefault": false,
+  "settings": {},
+  "entry": "libmotion.so"
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "sdk": {
+    "name": "LunaDash",
+    "apiVersion": 2
+  },
+  "id": "org.example.tint",
+  "name": "Shader tint",
+  "version": "1.0.0",
+  "description": "LunaDash plugin template.",
+  "author": "Your name",
+  "type": "opengl",
+  "target": "wallpaper",
+  "mode": "augment",
+  "enabledByDefault": false,
+  "settings": {
+    "strength": {
+      "type": "number",
+      "default": 0.6,
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "shaders": {
+    "vertex": "Effect.vert",
+    "fragment": "Effect.frag"
+  }
+}
