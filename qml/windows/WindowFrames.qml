@@ -15,7 +15,7 @@ PanelWindow {
     WlrLayershell.namespace: "lunadash-window-frames"
     mask: Region {}
     color: "transparent"
-    readonly property var windows: (interaction.clients || []).filter(client => !client.desktop && !client.floating && !client.minimized && Number(client.workspace) === Number(interaction.workspace))
+    readonly property var windows: (interaction.clients || []).filter(client => !client.desktop && !client.floating && !client.minimized && !client.hiddenByMaximize && Number(client.workspace) === Number(interaction.workspace))
     Repeater {
         model: panel.windows.length
         delegate: Rectangle {

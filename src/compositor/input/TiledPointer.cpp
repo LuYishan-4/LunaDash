@@ -17,8 +17,10 @@ bool WaylandCompositor::Impl::beginTiledPointer(uint32_t button) {
   q->focus(client);
   pointerWindow = client->id;
   pointerResize = wlr_keyboard_get_modifiers(keyboard) & WLR_MODIFIER_SHIFT;
-  if (pointerResize)
+  if (client->maximized) {
     q->setMaximized(client, false);
+    q->arrange();
+  }
   pointerLast = QPointF(cursor->x, cursor->y);
   pointerTarget = 0;
   pointerEdge = 0;

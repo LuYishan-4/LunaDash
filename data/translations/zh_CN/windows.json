@@ -8,8 +8,8 @@
     "Alt+Tab is reserved for the window switcher.": "Alt＋Tab 保留给窗口切换器使用。",
     "Workspace %1": "工作区 %1",
     "New windows open in separate columns. Each column can hold up to eight vertically tiled windows. Dialogs stay above their parent window.": "新窗口各自打开一列，每列最多可合并 8 个上下平铺窗口。对话框保持显示在所属窗口上方。",
-    "The taskbar lists windows from every workspace. Selecting one switches to its workspace with an animation and enlarges it while keeping the other rows visible.": "任务栏列出所有工作区的窗口。点击后会以动画切到该工作区并放大窗口，同列其他窗口仍会保留。",
     "Alt + Tab shows workspaces 1–10 in a two-row overview with window thumbnails. Use Tab, arrow keys or scrolling; release Alt to switch workspace, or press Esc to cancel.": "Alt＋Tab 以两排十格显示工作区 1–10，包含窗口缩略图。使用 Tab、方向键或滚动选取，松开 Alt 切换工作区，Esc 取消。",
-    "Super + 1–9 switches workspaces; Super + 0 selects workspace 10. Add Shift to move a window. Super + H / L focuses columns; Super + J / K focuses rows. Super + F maximizes or restores the column width.": "Super＋1–9 切换工作区，Super＋0 选取工作区 10。加上 Shift 可移动窗口。Super＋H／L 切换列，Super＋J／K 切换列内窗口，Super＋F 放大或还原列宽。",
-    "Release Alt to switch workspace · Esc to cancel": "松开 Alt 切换工作区 · Esc 取消"
+    "Release Alt to switch workspace · Esc to cancel": "松开 Alt 切换工作区 · Esc 取消",
+    "Super + 1–9 switches workspaces; Super + 0 selects workspace 10. Add Shift to move a window. Super + H / L focuses columns; Super + J / K focuses rows. Super + F maximizes or restores the focused window.": "Super＋1–9 切换工作区，Super＋0 选择工作区 10。加上 Shift 可移动窗口。Super＋H／L 切换列，Super＋J／K 切换列内窗口，Super＋F 最大化或还原当前窗口。",
+    "The taskbar groups windows by workspace in capsules. The current workspace is brighter; other workspaces are darker. Select a tiled task to maximize it and hide its workspace peers. Click it again or press Super + F to restore the saved tiling layout.": "任务栏用胶囊区分各工作区，当前工作区较亮，其他工作区较暗。点击平铺窗口会最大化并暂时隐藏同工作区的其他窗口；再次点击或按 Super＋F，即可恢复原有的平铺排列。"
 }

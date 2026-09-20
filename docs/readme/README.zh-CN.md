@@ -75,6 +75,7 @@ cd LunaDash
 | `Super` + `T` | 打开 Kitty（默认终端） |
 | `Super` + `H` / `L` | 聚焦左／右窗口列 |
 | `Super` + `K` / `J` | 聚焦列内其他窗口 |
+| `Super` + `F` | 最大化单个窗口／还原工作区内全部平铺窗口 |
 | `Alt` + `Tab` | 十格工作区缩略图；松开 Alt 切换 |
 | `Alt` + drag | 移动或交换位置；加 Shift 调整大小 |
 | `Super` + `Shift` + `S` | 选取截图区域 |

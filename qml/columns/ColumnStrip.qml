@@ -1,6 +1,7 @@
 
 import "../modules"
 import QtQuick
+import "WorkspaceTasks.js" as WorkspaceTasks
 import Quickshell
 import Quickshell.Wayland
 import "../style"
@@ -8,13 +9,12 @@ import "../style"
 ModuleSurface {
     id: strip
     moduleId: "columns"
-    readonly property var groups: ((shell.interaction || {}).clients || shell.state.clients || [])
-        .filter(client => !client.desktop && client.mapped)
-        .map(client => ({focused: client.focused, members: [{window: client.id, title: client.title,
-            appId: client.appId, icon: client.icon, workspace: client.workspace, minimized: client.minimized, focused: client.focused}]}))
+    readonly property var groups: WorkspaceTasks.groupByWorkspace(
+        (shell.interaction || {}).clients || shell.state.clients || [],
+        (shell.interaction || {}).workspace ?? shell.state.workspace)
     readonly property int stripMargin: Math.max(8, Math.min(strip.moduleMargin, 24))
-    function cellWidth(group) { return 40 }
-    function desiredWidth() { return 12 + groups.length * 45 }
+    function cellWidth(group) { return 12 + group.members.length * Math.max(16, columns.height - 8) + Math.max(0, group.members.length - 1) * 4 }
+    function desiredWidth() { return 12 + groups.reduce((width, group) => width + cellWidth(group) + 8, 0) }
 
     anchors { top: true; left: true }
     margins { top: Theme.barHeight + Math.max(6, Math.min(strip.moduleMargin, 12)); left: strip.stripMargin }
@@ -40,16 +40,15 @@ ModuleSurface {
         anchors.fill: parent
         anchors.margins: 6
         orientation: ListView.Horizontal
-        spacing: 5
+        spacing: 8
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        model: strip.groups
+        model: strip.groups.length
         delegate: ColumnCell {
-            required property var modelData
             required property int index
             shell: strip.shell
-            group: modelData
-            width: strip.cellWidth(modelData)
+            group: strip.groups[index] || ({members: []})
+            width: implicitWidth
             height: columns.height
         }
     }

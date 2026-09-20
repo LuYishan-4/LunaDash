@@ -218,6 +218,8 @@ void WaylandCompositor::Impl::handleToplevelMaximize(wl_listener *listener,
   state->impl->q->setMaximized(state->client,
                                state->client->toplevel->requested.maximized);
   state->impl->q->arrange();
+  if (state->client->maximized)
+    state->impl->q->focus(state->client);
 }
 
 void WaylandCompositor::Impl::handleToplevelFullscreen(wl_listener *listener,
@@ -230,6 +232,8 @@ void WaylandCompositor::Impl::handleToplevelFullscreen(wl_listener *listener,
   state->impl->q->setMaximized(state->client, fullscreen);
   wlr_xdg_toplevel_set_fullscreen(state->client->toplevel, fullscreen);
   state->impl->q->arrange();
+  if (fullscreen)
+    state->impl->q->focus(state->client);
 }
 
 void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,

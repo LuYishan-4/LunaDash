@@ -1,4 +1,3 @@
-
 import QtQuick
 import "../style"
 
@@ -6,44 +5,45 @@ Rectangle {
     id: cell
     required property var shell
     required property var group
-    readonly property var visibleMembers: (group.members || []).slice(0, 8)
-
-    radius: Math.min(13, height / 2)
-    color: group.focused
-        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.26)
-        : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
-    border.width: group.focused ? 2 : 1
-    border.color: group.focused
-        ? Theme.accent
-        : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.30)
+    readonly property var visibleMembers: group.members || []
+    readonly property int memberSize: Math.max(16, height - 8)
+    implicitWidth: 12 + visibleMembers.length * memberSize + Math.max(0, visibleMembers.length - 1) * 4
+    implicitHeight: 32
+    radius: height / 2
+    color: Qt.tint(Theme.surfaceOpaque,
+        Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, group.active ? 0.36 : 0.06))
+    border.width: 1
+    border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, group.active ? 0.90 : 0.24)
+    Accessible.role: Accessible.Grouping
+    Accessible.name: shell.tr("Workspace") + " " + (Number(group.workspace || 0) + 1)
 
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton
-        property var pressedWindow: 0
-        onPressed: {
-            const members = cell.group.members || []
-            const target = members.find(member => member.focused)
-                || members.find(member => !member.minimized) || members[0]
-            pressedWindow = target ? target.window : 0
-        }
+        cursorShape: Qt.PointingHandCursor
+        property int pressedWorkspace: -1
+        onPressed: pressedWorkspace = Number(cell.group.workspace)
         onClicked: {
-            if (pressedWindow && (cell.group.members || []).some(member => member.window === pressedWindow))
-                cell.shell.command("activate-window", pressedWindow)
+            if (pressedWorkspace >= 0 && pressedWorkspace === Number(cell.group.workspace))
+                cell.shell.command("workspace", pressedWorkspace)
         }
+        onCanceled: pressedWorkspace = -1
     }
 
     Row {
         anchors.centerIn: parent
         spacing: 4
+        opacity: cell.group.active ? 1 : 0.68
+        Behavior on opacity { NumberAnimation { duration: Theme.motionFast } }
         Repeater {
-            // Polling replaces the JSON array, but must not replace a delegate
-            // while it holds a mouse grab. MemberIcon captures the pressed ID.
+            // Keep delegates stable while a task holds a pointer press.
             model: cell.visibleMembers.length
             delegate: MemberIcon {
                 required property int index
                 shell: cell.shell
                 member: cell.visibleMembers[index] || ({})
+                width: cell.memberSize
+                height: cell.memberSize
             }
         }
     }

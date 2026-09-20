@@ -104,6 +104,7 @@ private:
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);
+  void raiseWithDialogs(ClientWindow *client);
   void activateTask(int window);
   void beginWindowSwitch(int direction);
   void selectWorkspace(int workspace);

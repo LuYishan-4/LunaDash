@@ -19,6 +19,7 @@ struct TilingColumnSnapshot {
   int columnIndex = -1;
   int rowIndex = -1;
   QList<TilingWindowId> columnMembers;
+  bool hiddenByMaximize = false;
 };
 
 struct TilingWorkspaceSnapshot {
@@ -26,6 +27,7 @@ struct TilingWorkspaceSnapshot {
   int scrollOffset = 0;
   TilingWindowId focusedWindow = 0;
   QList<TilingColumnSnapshot> columns;
+  TilingWindowId maximizedWindow = 0;
 };
 
 class ScrollableTilingLayout {
@@ -42,6 +44,7 @@ public:
               int width = 0);
   bool remove(TilingWindowId window);
   bool setMinimized(TilingWindowId window, bool minimized);
+  bool setMaximized(TilingWindowId window, bool maximized);
   bool moveToWorkspace(TilingWindowId window, TilingWorkspaceId workspace);
   bool focus(TilingWindowId window);
   bool focusLeft(TilingWorkspaceId workspace);
@@ -59,6 +62,9 @@ public:
   bool center(TilingWindowId window, QRect area);
 
   QList<TilingColumnSnapshot> layout(TilingWorkspaceId workspace, QRect area);
+  // Overlay maximization without changing the saved tile sizes or membership.
+  QList<TilingColumnSnapshot> presentation(TilingWorkspaceId workspace,
+                                           QRect area);
   TilingWorkspaceSnapshot snapshot(TilingWorkspaceId workspace) const;
 
 private:

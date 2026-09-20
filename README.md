@@ -75,6 +75,7 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 | `Super` + `T` | Open Kitty (default terminal) |
 | `Super` + `H` / `L` | Focus the left / right column |
 | `Super` + `K` / `J` | Focus another window in the column |
+| `Super` + `F` | Maximize one window / restore all workspace tiles |
 | `Alt` + `Tab` | Ten workspace previews; release Alt to switch |
 | `Alt` + drag | Move or swap slots; add Shift to resize |
 | `Super` + `Shift` + `S` | Select a screenshot region |

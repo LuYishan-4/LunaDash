@@ -28,6 +28,7 @@ struct Column {
 struct Workspace {
   std::vector<Column> columns;
   TilingWindowId focused = 0;
+  TilingWindowId maximized = 0;
   int scrollOffset = 0;
   QPoint singleOffset;
   int singleHeight = 0;
@@ -138,6 +139,8 @@ bool ScrollableTilingLayout::remove(TilingWindowId window) {
   auto [workspaceId, workspace] = d->locate(window);
   if (!workspace)
     return false;
+  if (workspace->maximized == window)
+    workspace->maximized = 0;
   const auto location = findWindow(*workspace, window);
   auto &members = workspace->columns[location.column].members;
   members.erase(members.begin() + static_cast<std::ptrdiff_t>(location.member));
@@ -164,9 +167,31 @@ bool ScrollableTilingLayout::setMinimized(TilingWindowId window,
   if (!minimized && activeCount(column) >= kMaximumActiveMembers)
     return false;
   member.minimized = minimized;
+  if (minimized && workspace->maximized == window)
+    workspace->maximized = 0;
   if (!minimized)
     workspace->focused = window;
   selectAvailableFocus(*workspace);
+  return true;
+}
+
+bool ScrollableTilingLayout::setMaximized(TilingWindowId window,
+                                          bool maximized) {
+  const auto [workspaceId, workspace] = d->locate(window);
+  Q_UNUSED(workspaceId);
+  if (!workspace)
+    return false;
+  const auto location = findWindow(*workspace, window);
+  if (maximized) {
+    if (workspace->columns[location.column].members[location.member].minimized)
+      return false;
+    if (workspace->maximized != window) {
+      workspace->maximized = window;
+      workspace->focused = window;
+    }
+  } else if (workspace->maximized == window) {
+    workspace->maximized = 0;
+  }
   return true;
 }
 
@@ -180,6 +205,8 @@ bool ScrollableTilingLayout::moveToWorkspace(TilingWindowId window,
   auto &destination = d->workspaces[destinationId];
   if (destination.columns.size() >= kMaximumColumns)
     return false;
+  if (source->maximized == window)
+    source->maximized = 0;
   const auto location = findWindow(*source, window);
   auto &sourceColumn = source->columns[location.column];
   Member member = sourceColumn.members[location.member];
@@ -601,6 +628,7 @@ ScrollableTilingLayout::snapshot(TilingWorkspaceId workspaceId) const {
   const auto &workspace = found->second;
   result.scrollOffset = workspace.scrollOffset;
   result.focusedWindow = workspace.focused;
+  result.maximizedWindow = workspace.maximized;
   for (std::size_t columnIndex = 0; columnIndex < workspace.columns.size();
        ++columnIndex) {
     const auto &column = workspace.columns[columnIndex];
@@ -618,6 +646,21 @@ ScrollableTilingLayout::snapshot(TilingWorkspaceId workspaceId) const {
     }
   }
   return result;
+}
+
+QList<TilingColumnSnapshot>
+ScrollableTilingLayout::presentation(TilingWorkspaceId workspaceId,
+                                     QRect area) {
+  auto placements = layout(workspaceId, area);
+  const auto maximized = snapshot(workspaceId).maximizedWindow;
+  if (maximized) {
+    for (auto &placement : placements) {
+      placement.hiddenByMaximize = placement.window != maximized;
+      if (placement.window == maximized)
+        placement.geometry = area;
+    }
+  }
+  return placements;
 }
 
 QList<QRect> tileRectangles(QRect area, int count, double columnRatio,

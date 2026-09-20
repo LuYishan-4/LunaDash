@@ -124,6 +124,56 @@ private Q_SLOTS:
     QCOMPARE(layout.layout(0, area).size(), 2);
     QCOMPARE(layout.layout(1, area).size(), 1);
   }
+  void workspaceMaximizePreservesTiling() {
+    ScrollableTilingLayout layout(450, 6);
+    for (int id = 1; id <= 4; ++id)
+      QVERIFY(layout.insert(0, id));
+    QVERIFY(layout.groupWith(2, 1));
+    QVERIFY(layout.insert(1, 10, 500));
+    layout.layout(0, area);
+    QVERIFY(layout.resizeHeight(2, 300));
+    QVERIFY(layout.focus(2));
+    const auto tiled = geometries(layout.layout(0, area));
+    const auto otherWorkspace = geometries(layout.layout(1, area));
+    QVERIFY(layout.setMaximized(2, true));
+    const auto expanded = layout.presentation(0, area);
+    QCOMPARE(expanded.size(), 4);
+    for (const auto &slot : expanded) {
+      QCOMPARE(slot.hiddenByMaximize, slot.window != 2);
+      QVERIFY(!slot.minimized);
+      if (slot.window == 2)
+        QCOMPARE(slot.geometry, area);
+    }
+    QCOMPARE(geometries(layout.layout(0, area)), tiled);
+    QCOMPARE(geometries(layout.presentation(1, area)), otherWorkspace);
+    QVERIFY(layout.setMaximized(2, false));
+    const auto restored = layout.presentation(0, area);
+    QCOMPARE(geometries(restored), tiled);
+    for (const auto &slot : restored)
+      QVERIFY(!slot.hiddenByMaximize);
+    verifyNoOverlap(restored);
+    QVERIFY(layout.setMaximized(3, true));
+    QVERIFY(layout.setMaximized(1, true));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(1));
+    for (const auto &slot : layout.presentation(0, area))
+      QCOMPARE(slot.hiddenByMaximize, slot.window != 1);
+    QVERIFY(layout.setMinimized(4, true));
+    QVERIFY(layout.setMinimized(1, true));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(0));
+    QVERIFY(!layout.setMaximized(1, true));
+    QVERIFY(layout.setMinimized(1, false));
+    QVERIFY(layout.setMaximized(2, true));
+    QVERIFY(layout.remove(2));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(0));
+    QVERIFY(layout.setMaximized(3, true));
+    QVERIFY(layout.moveToWorkspace(3, 1));
+    QCOMPARE(layout.snapshot(0).maximizedWindow, TilingWindowId(0));
+    for (const auto &slot : layout.presentation(0, area)) {
+      QVERIFY(!slot.hiddenByMaximize);
+      if (slot.window == 4)
+        QVERIFY(slot.minimized);
+    }
+  }
   void geometryBounds() {
     LuDashRectangle output[9];
     for (int count = 1; count <= 8; ++count) {

@@ -488,18 +488,45 @@ void WaylandCompositor::arrange() {
       tiling_.insert(client->workspace, client->id, defaultColumnWidth);
       tiling_.moveToWorkspace(client->id, client->workspace);
       tiling_.setMinimized(client->id, client->minimized);
-      if (client->maximized) {
-        if (client->restoreColumnWidth <= 0)
-          client->restoreColumnWidth = defaultColumnWidth;
-        tiling_.resize(client->id, area.width());
-      }
+      if (client->maximized)
+        tiling_.setMaximized(client->id, true);
     } else {
       tiling_.remove(client->id);
     }
+  }
 
+  QList<ClientWindow *> revealed;
+  QHash<int, TilingWindowId> maximizedWindows;
+  for (const auto &client : clients_) {
+    if (!maximizedWindows.contains(client->workspace))
+      maximizedWindows.insert(client->workspace,
+                              tiling_.snapshot(client->workspace).maximizedWindow);
+    const auto maximized = maximizedWindows.value(client->workspace);
+    if (!client->floating)
+      client->maximized = maximized == static_cast<TilingWindowId>(client->id);
+    bool inMaximizedFamily = client->id == static_cast<int>(maximized);
+    auto *parent = client->toplevel ? client->toplevel->parent : nullptr;
+    for (std::size_t depth = 0; parent && depth < clients_.size(); ++depth) {
+      const auto owner = std::find_if(clients_.begin(), clients_.end(),
+                                     [parent](const auto &entry) {
+                                       return entry->toplevel == parent;
+                                     });
+      if (owner != clients_.end() && (*owner)->id == static_cast<int>(maximized))
+        inMaximizedFamily = true;
+      parent = parent->parent;
+    }
+    const bool wasHidden = client->hiddenByMaximize;
+    client->hiddenByMaximize =
+        maximized && !inMaximizedFamily && !client->desktop;
     const bool visible = client->mapped && !client->minimized &&
-                         client->workspace == workspace_ && !client->utility;
+                         client->workspace == workspace_ && !client->utility &&
+                         !client->hiddenByMaximize;
     if (client->sceneTree) {
+      if (client->hiddenByMaximize && !wasHidden &&
+          client->sceneTree->node.enabled && windowAnimations_)
+        windowAnimations_->hideSnapshot(client->sceneTree, d->animationLayer);
+      if (visible && wasHidden)
+        revealed.append(client.get());
       if (!visible && windowAnimations_)
         windowAnimations_->cancel(client->sceneTree);
       wlr_scene_node_set_enabled(&client->sceneTree->node, visible);
@@ -524,24 +551,48 @@ void WaylandCompositor::arrange() {
     }
   }
 
-  const auto placements = tiling_.layout(workspace_, area);
+  const auto placements = tiling_.presentation(workspace_, area);
   for (const auto &placement : placements) {
     auto found = std::find_if(
         clients_.begin(), clients_.end(), [&placement](const auto &client) {
           return client->id == static_cast<int>(placement.window);
         });
     if (found == clients_.end() || (*found)->minimized ||
+        placement.hiddenByMaximize ||
         (*found)->workspace != workspace_)
       continue;
     configure(found->get(), placement.geometry);
   }
 
+  if (windowAnimations_)
+    for (auto *client : revealed)
+      windowAnimations_->show(client->sceneTree, client->geometry);
+
   if (focused_ && focused_->sceneTree && focused_->mapped &&
       !focused_->minimized && focused_->workspace == workspace_)
-    wlr_scene_node_raise_to_top(&focused_->sceneTree->node);
+    raiseWithDialogs(focused_);
 
   d->updateBackground();
   publishWindowLayout();
+}
+
+void WaylandCompositor::raiseWithDialogs(ClientWindow *client) {
+  if (!client || !client->sceneTree)
+    return;
+  wlr_scene_node_raise_to_top(&client->sceneTree->node);
+  for (const auto &dialog : clients_) {
+    if (!dialog->floating || !dialog->sceneTree ||
+        !dialog->sceneTree->node.enabled || !dialog->toplevel)
+      continue;
+    auto *parent = dialog->toplevel->parent;
+    for (std::size_t depth = 0; parent && depth < clients_.size(); ++depth) {
+      if (parent == client->toplevel) {
+        wlr_scene_node_raise_to_top(&dialog->sceneTree->node);
+        break;
+      }
+      parent = parent->parent;
+    }
+  }
 }
 
 void WaylandCompositor::focus(ClientWindow *client) {
@@ -557,6 +608,16 @@ void WaylandCompositor::focus(ClientWindow *client) {
   const bool changed = focused_ != client;
   focused_ = client;
 
+  if (client->floating && client->hiddenByMaximize) {
+    for (const auto &other : clients_)
+      if (!other->floating && other->workspace == client->workspace &&
+          other->maximized)
+        setMaximized(other.get(), false);
+    arrange();
+  }
+  if (!client->floating && !client->maximized &&
+      tiling_.snapshot(client->workspace).maximizedWindow)
+    setMaximized(client, true);
   if (!client->floating)
     tiling_.focus(client->id);
   // Selecting a tiled window must also scroll its column into view. Avoid
@@ -564,7 +625,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
   if (changed && !client->floating)
     arrange();
   if (client->sceneTree)
-    wlr_scene_node_raise_to_top(&client->sceneTree->node);
+    raiseWithDialogs(client);
   if (changed && windowAnimations_ && client->sceneTree)
     windowAnimations_->activate(client->sceneTree, client->geometry);
   if (changed)
@@ -594,15 +655,16 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
     return;
   if (!client->floating) {
     if (maximized) {
-      for (const auto &column : tiling_.snapshot(client->workspace).columns)
-        if (column.window == static_cast<TilingWindowId>(client->id)) {
-          client->restoreColumnWidth = column.width;
-          break;
-        }
-    } else if (client->restoreColumnWidth > 0) {
-      tiling_.resize(client->id, client->restoreColumnWidth);
-      client->restoreColumnWidth = 0;
+      for (const auto &other : clients_) {
+        if (other.get() == client || other->workspace != client->workspace ||
+            other->floating || !other->maximized)
+          continue;
+        other->maximized = false;
+        if (other->toplevel && other->surface && other->surface->initialized)
+          wlr_xdg_toplevel_set_maximized(other->toplevel, false);
+      }
     }
+    tiling_.setMaximized(client->id, maximized);
   }
   client->maximized = maximized;
   if (client->toplevel)
@@ -678,6 +740,15 @@ void WaylandCompositor::handleShortcut(const QString &action) {
       synchronizeTilingFocus();
     }
     return;
+  }
+
+  if (focused_ && focused_->maximized &&
+      (action == "reorderLeft" || action == "reorderRight" ||
+       action == "groupLeft" || action == "groupRight" ||
+       action == "expelWindow" || action == "centerColumn" ||
+       action == "widenColumn" || action == "narrowColumn")) {
+    setMaximized(focused_, false);
+    arrange();
   }
 
   if (action == "focusLeft")
@@ -790,6 +861,7 @@ QJsonObject WaylandCompositor::state() const {
         {"height", client->geometry.height()},
         {"minimized", client->minimized},
         {"maximized", client->maximized},
+        {"hiddenByMaximize", client->hiddenByMaximize},
         {"manualResize", client->manualResize},
         {"mapped", client->mapped}});
   }

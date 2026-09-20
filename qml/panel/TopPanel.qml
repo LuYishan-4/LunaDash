@@ -1,5 +1,6 @@
 import "../modules"
 import QtQuick
+import "../columns/WorkspaceTasks.js" as WorkspaceTasks
 import QtQuick.Controls
 import QtQuick.Window
 import Quickshell
@@ -46,10 +47,9 @@ ModuleSurface {
     readonly property int capsuleGap: 8
     readonly property var networkState: shell.state.network || ({})
 
-    readonly property var groups: ((shell.interaction || {}).clients || shell.state.clients || [])
-        .filter(client => !client.desktop && client.mapped)
-        .map(client => ({focused: client.focused, members: [{window: client.id, title: client.title,
-            appId: client.appId, icon: client.icon, workspace: client.workspace, minimized: client.minimized, focused: client.focused}]}))
+    readonly property var groups: WorkspaceTasks.groupByWorkspace(
+        (shell.interaction || {}).clients || shell.state.clients || [],
+        (shell.interaction || {}).workspace ?? shell.state.workspace)
 
     readonly property var launcherModule: (((shell.state.shellModules || {}).modules || {}).launcher || ({}))
     readonly property var launcherConfig: launcherModule.config || ({})
@@ -61,7 +61,7 @@ ModuleSurface {
 
     readonly property int focusedGroupIndex: {
         for (let index = 0; index < groups.length; ++index)
-            if (groups[index].focused)
+            if (groups[index].active)
                 return index
         return -1
     }
@@ -193,22 +193,14 @@ ModuleSurface {
         id: taskShell
         anchors { left: workspaceShell.right; leftMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
-        width: Math.min(Math.max(48, columnTasks.contentWidth + 10), Math.max(160, panel.width * 0.28))
+        width: Math.min(columnTasks.contentWidth + 8, Math.max(0, centerShell.x - x - panel.capsuleGap))
         visible: columnTasks.count > 0
-        Rectangle {
-            anchors.fill: parent
-            visible: panel.contrastShells
-            radius: height / 2
-            color: panel.capsuleColor(0.60, 0.91)
-            border.width: 1
-            border.color: panel.capsuleBorder(0.32)
-        }
         ListView {
             id: columnTasks
             anchors.fill: parent
             anchors.margins: 4
             orientation: ListView.Horizontal
-            spacing: 4
+            spacing: 8
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             model: panel.groups.length
@@ -222,7 +214,7 @@ ModuleSurface {
                 shell: panel.shell
                 group: panel.groups[index] || ({})
                 height: columnTasks.height
-                width: 40
+                width: implicitWidth
             }
         }
     }

@@ -23,9 +23,9 @@ struct ClientWindow {
   bool mapped = false;
   bool minimized = false;
   bool maximized = false;
+  bool hiddenByMaximize = false;
   bool manualResize = false;
   bool initialRuleApplied = false;
-  int restoreColumnWidth = 0;
   QSize preferredFloatingSize;
   bool utility = false;
   QString appId;

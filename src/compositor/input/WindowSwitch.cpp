@@ -25,6 +25,8 @@ void WaylandCompositor::publishWindowLayout() {
                                {"desktop", client->desktop},
                                {"floating", client->floating},
                                {"minimized", client->minimized},
+                               {"maximized", client->maximized},
+                               {"hiddenByMaximize", client->hiddenByMaximize},
                                {"focused", focused_ == client.get()},
                                {"x", client->geometry.x()},
                                {"y", client->geometry.y()},
@@ -44,7 +46,7 @@ void WaylandCompositor::selectWorkspace(int workspace) {
   const bool changed = workspace != workspace_;
   if (changed && windowAnimations_) {
     for (const auto &client : clients_)
-      if (client->mapped && !client->minimized && !client->utility &&
+      if (client->mapped && !client->minimized && !client->hiddenByMaximize && !client->utility &&
           client->workspace == workspace_ && client->sceneTree)
         windowAnimations_->hideSnapshot(client->sceneTree, d->animationLayer);
   }
@@ -53,7 +55,7 @@ void WaylandCompositor::selectWorkspace(int workspace) {
   synchronizeTilingFocus();
   if (changed && windowAnimations_) {
     for (const auto &client : clients_)
-      if (client->mapped && !client->minimized && !client->utility &&
+      if (client->mapped && !client->minimized && !client->hiddenByMaximize && !client->utility &&
           client->workspace == workspace_ && client->sceneTree)
         windowAnimations_->show(client->sceneTree, client->geometry);
   }
@@ -62,22 +64,15 @@ void WaylandCompositor::activateTask(int window) {
   for (const auto &client : clients_) {
     if (client->id != window || !client->mapped || client->utility)
       continue;
+    const bool restore = client.get() == focused_ &&
+                         client->workspace == workspace_ && client->maximized;
     selectWorkspace(client->workspace);
     client->minimized = false;
     tiling_.setMinimized(window, false);
+    if (!client->floating)
+      setMaximized(client.get(), !restore);
     tiling_.focus(window);
     arrange();
-    if (!client->floating) {
-      tiling_.resize(window, workArea().width());
-      int active = 0;
-      for (const auto &member : tiling_.snapshot(workspace_).columns)
-        if (!member.minimized)
-          ++active;
-      tiling_.resizeHeight(window, active == 1
-                                       ? workArea().height()
-                                       : qRound(workArea().height() * 0.70));
-      arrange();
-    }
     focus(client.get());
     return;
   }
@@ -95,7 +90,7 @@ void WaylandCompositor::beginWindowSwitch(int direction) {
   for (int workspace = 0; workspace < 10; ++workspace) {
     QJsonArray windows;
     QRect bounds = area;
-    const auto placements = tiling_.layout(workspace, area);
+    const auto placements = tiling_.presentation(workspace, area);
     for (const auto &client : clients_) {
       if (!client->mapped || client->utility || client->desktop ||
           client->workspace != workspace)
@@ -105,7 +100,7 @@ void WaylandCompositor::beginWindowSwitch(int direction) {
         if (placement.window == static_cast<TilingWindowId>(client->id) &&
             !placement.minimized)
           geometry = placement.geometry;
-      if (!client->minimized)
+      if (!client->minimized && !client->hiddenByMaximize)
         bounds = bounds.united(geometry);
       windows.append(QJsonObject{{"id", client->id},
                                  {"title", client->title},
@@ -116,8 +111,10 @@ void WaylandCompositor::beginWindowSwitch(int direction) {
                                  {"width", geometry.width()},
                                  {"height", geometry.height()},
                                  {"minimized", client->minimized},
+                                 {"hiddenByMaximize", client->hiddenByMaximize},
                                  {"focused", focused_ == client.get()}});
-      capture.append(client->id);
+      if (!client->minimized && !client->hiddenByMaximize)
+        capture.append(client->id);
     }
     for (int i = 0; i < windows.size(); ++i) {
       auto window = windows[i].toObject();

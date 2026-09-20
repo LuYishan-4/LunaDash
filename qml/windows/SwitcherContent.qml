@@ -32,7 +32,7 @@ Rectangle {
                 Accessible.focused: selected
                 Text {
                     anchors.centerIn: parent
-                    visible: !(cell.workspace.windows || []).some(window => !window.minimized)
+                    visible: !(cell.workspace.windows || []).some(window => !window.minimized && !window.hiddenByMaximize)
                     text: cell.index + 1
                     color: Theme.text
                     opacity: 0.25
@@ -57,7 +57,7 @@ Rectangle {
                             y: Math.round(preview.offsetY + Number(member.y || 0) * preview.ratio) + 1
                             width: Math.max(1, Math.round(preview.offsetX + (Number(member.x || 0) + Number(member.width || 720)) * preview.ratio) - x - 1)
                             height: Math.max(1, Math.round(preview.offsetY + (Number(member.y || 0) + Number(member.height || 500)) * preview.ratio) - y - 1)
-                            visible: !member.minimized
+                            visible: !member.minimized && !member.hiddenByMaximize
                             clip: true
                             Rectangle {
                                 anchors.fill: parent

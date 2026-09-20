@@ -15,7 +15,7 @@ Item {
         radius: 8
         color: memberIcon.member.focused
             ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.38)
-            : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, memberMouse.containsMouse ? 0.24 : 0.10)
+            : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, memberMouse.containsMouse ? 0.24 : 0)
         opacity: memberIcon.member.minimized ? 0.58 : 1
         scale: memberMouse.pressed ? 0.92 : 1
         ApplicationIcon {
@@ -29,16 +29,6 @@ Item {
         }
         Behavior on color { ColorAnimation { duration: Theme.motionFast } }
         Behavior on scale { NumberAnimation { duration: Theme.motionFast } }
-    }
-    Text {
-        anchors { right: parent.right; bottom: parent.bottom }
-        text: Number(memberIcon.member.workspace || 0) + 1
-        color: Theme.text
-        style: Text.Outline
-        styleColor: Theme.background
-        font.family: Theme.font
-        font.pixelSize: 10
-        font.bold: true
     }
     MouseArea {
         id: memberMouse
