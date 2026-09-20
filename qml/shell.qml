@@ -418,8 +418,9 @@ ShellRoot {
             try { root.interaction = JSON.parse(text()) } catch (error) { root.interaction = ({}) }
         }
     }
+    WindowFrames { shell: root; interaction: root.interaction }
     WindowSwitcher { shell: root; interaction: root.interaction }
-    TilingDropHint { drag: root.interaction.drag || ({}) }
+    TilingDropHint { shell: root; drag: root.interaction.drag || ({}) }
     RemovableDeviceMonitor { shell: root }
     StartupSplash { shell: root; ready: root.stateReady && desktopWallpaper.ready }
     Wallpaper { id: desktopWallpaper; shell: root; opened: !root.stopping }

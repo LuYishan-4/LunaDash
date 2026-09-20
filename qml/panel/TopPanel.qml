@@ -46,10 +46,10 @@ ModuleSurface {
     readonly property int capsuleGap: 8
     readonly property var networkState: shell.state.network || ({})
 
-    readonly property var groups: (shell.state.clients || [])
-        .filter(client => !client.desktop && client.mapped && Number(client.workspace) === Number(shell.state.workspace))
+    readonly property var groups: ((shell.interaction || {}).clients || shell.state.clients || [])
+        .filter(client => !client.desktop && client.mapped)
         .map(client => ({focused: client.focused, members: [{window: client.id, title: client.title,
-            appId: client.appId, icon: client.icon, minimized: client.minimized, focused: client.focused}]}))
+            appId: client.appId, icon: client.icon, workspace: client.workspace, minimized: client.minimized, focused: client.focused}]}))
 
     readonly property var launcherModule: (((shell.state.shellModules || {}).modules || {}).launcher || ({}))
     readonly property var launcherConfig: launcherModule.config || ({})
@@ -141,11 +141,11 @@ ModuleSurface {
             anchors.centerIn: parent
             spacing: 6
             Repeater {
-                model: (shell.state.appearance || {}).workspaceCount || 4
+                model: Math.max((shell.state.appearance || {}).workspaceCount || 10, Number((shell.interaction || {}).workspace || 0) + 1)
                 Item {
                     id: workspacePill
                     required property int index
-                    readonly property bool active: shell.state.workspace === index
+                    readonly property bool active: Number((shell.interaction || {}).workspace ?? shell.state.workspace) === index
                     width: panel.workspacePills ? (active ? panel.workspaceActiveWidth : panel.workspaceInactiveWidth) : 22
                     height: workspaceShell.height
                     Accessible.role: Accessible.Button

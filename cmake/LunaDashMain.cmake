@@ -160,6 +160,10 @@ add_custom_command(
     DEPENDS ${LUDASH_XDG_SHELL_PROTOCOL_XML}
     VERBATIM)
 
+add_library(ludash-thumbnail-readback src/compositor/renderer/capture/ThumbnailReadback.c)
+target_include_directories(ludash-thumbnail-readback PUBLIC src)
+target_compile_definitions(ludash-thumbnail-readback PRIVATE WLR_USE_UNSTABLE=1)
+target_link_libraries(ludash-thumbnail-readback PUBLIC PkgConfig::WLROOTS)
 add_library(ludash-wayland
     src/compositor/wayland/WaylandCompositor.cpp
     src/compositor/wayland/Runtime.cpp
@@ -207,6 +211,8 @@ target_link_libraries(ludash-wayland
         ludash-wallpaper
         ludash-tiling
         ludash-window-rules
+        ludash-thumbnail-readback
+        Qt6::Concurrent
         ludash-localization
         ludash-plugins
         Qt6::Core

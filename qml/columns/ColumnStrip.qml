@@ -8,10 +8,10 @@ import "../style"
 ModuleSurface {
     id: strip
     moduleId: "columns"
-    readonly property var groups: (shell.state.clients || [])
-        .filter(client => !client.desktop && client.mapped && Number(client.workspace) === Number(shell.state.workspace))
+    readonly property var groups: ((shell.interaction || {}).clients || shell.state.clients || [])
+        .filter(client => !client.desktop && client.mapped)
         .map(client => ({focused: client.focused, members: [{window: client.id, title: client.title,
-            appId: client.appId, icon: client.icon, minimized: client.minimized, focused: client.focused}]}))
+            appId: client.appId, icon: client.icon, workspace: client.workspace, minimized: client.minimized, focused: client.focused}]}))
     readonly property int stripMargin: Math.max(8, Math.min(strip.moduleMargin, 24))
     function cellWidth(group) { return 40 }
     function desiredWidth() { return 12 + groups.length * 45 }

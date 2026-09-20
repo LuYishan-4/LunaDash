@@ -9,7 +9,12 @@
 #include <algorithm>
 
 namespace LunaDash {
-WindowSwitcher::WindowSwitcher(QObject *parent) : QObject(parent) {}
+WindowSwitcher::WindowSwitcher(QObject *parent) : QObject(parent) {
+  feedbackTimer_.setSingleShot(true);
+  feedbackTimer_.setInterval(16);
+  connect(&feedbackTimer_, &QTimer::timeout, this,
+          &WindowSwitcher::writeSnapshot);
+}
 WindowSwitcher::~WindowSwitcher() {
   if (capture_) {
     capture_->kill();
@@ -20,11 +25,7 @@ WindowSwitcher::~WindowSwitcher() {
 }
 void WindowSwitcher::setChannelPath(const QString &path) {
   channelPath_ = path;
-  publish();
-}
-void WindowSwitcher::recordFocus(int window) {
-  history_.removeAll(window);
-  history_.prepend(window);
+  writeSnapshot();
 }
 bool WindowSwitcher::active() const { return active_; }
 bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
@@ -36,17 +37,10 @@ bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
   }
   if (windows.isEmpty())
     return false;
-  windows_ = {};
-  for (const auto id : history_)
-    for (const auto &entry : windows)
-      if (entry.toObject().value("id").toInt() == id)
-        windows_.append(entry);
-  for (const auto &entry : windows)
-    if (!history_.contains(entry.toObject().value("id").toInt()))
-      windows_.append(entry);
+  workspaces_ = windows;
   index_ = 0;
-  for (int i = 0; i < windows_.size(); ++i)
-    if (windows_[i].toObject().value("id").toInt() == focused)
+  for (int i = 0; i < workspaces_.size(); ++i)
+    if (workspaces_[i].toObject().value("id").toInt() == focused)
       index_ = i;
   active_ = true;
   ready_ = false;
@@ -57,17 +51,17 @@ bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
   return true;
 }
 void WindowSwitcher::step(int direction) {
-  if (!active_ || windows_.isEmpty())
+  if (!active_ || workspaces_.isEmpty())
     return;
-  const int count = static_cast<int>(windows_.size());
-  index_ = (index_ + (direction < 0 ? count - 1 : 1)) % count;
+  const int count = static_cast<int>(workspaces_.size());
+  index_ = ((index_ + direction) % count + count) % count;
   publish();
 }
 bool WindowSwitcher::select(int window) {
   if (!active_)
     return false;
-  for (int i = 0; i < windows_.size(); ++i) {
-    if (windows_[i].toObject().value("id").toInt() != window)
+  for (int i = 0; i < workspaces_.size(); ++i) {
+    if (workspaces_[i].toObject().value("id").toInt() != window)
       continue;
     index_ = i;
     publish();
@@ -78,8 +72,8 @@ bool WindowSwitcher::select(int window) {
 int WindowSwitcher::finish(bool accept) {
   if (!active_)
     return 0;
-  const int selected = accept && !windows_.isEmpty()
-                           ? windows_[index_].toObject().value("id").toInt()
+  const int selected = accept && !workspaces_.isEmpty()
+                           ? workspaces_[index_].toObject().value("id").toInt()
                            : 0;
   active_ = ready_ = false;
   if (capture_) {
@@ -90,33 +84,70 @@ int WindowSwitcher::finish(bool accept) {
   return selected;
 }
 void WindowSwitcher::remove(int window) {
-  history_.removeAll(window);
-  for (int i = 0; i < windows_.size(); ++i) {
-    if (windows_[i].toObject().value("id").toInt() != window)
-      continue;
-    windows_.removeAt(i);
-    if (i < index_)
-      --index_;
-    index_ = std::clamp(index_, 0,
-                        std::max(0, static_cast<int>(windows_.size()) - 1));
-    if (windows_.isEmpty())
-      finish(false);
-    else
-      publish();
-    break;
+  for (int w = 0; w < workspaces_.size(); ++w) {
+    auto workspace = workspaces_[w].toObject();
+    auto members = workspace.value("windows").toArray();
+    for (int i = static_cast<int>(members.size()); i-- > 0;)
+      if (members[i].toObject().value("id").toInt() == window)
+        members.removeAt(i);
+    workspace["windows"] = members;
+    workspaces_[w] = workspace;
   }
+  publish();
+}
+int WindowSwitcher::serial() const { return serial_; }
+QString WindowSwitcher::thumbnailPath(int window) const {
+  return captureDirectory_.filePath(
+      QString("%1-window-%2.png").arg(serial_).arg(window));
+}
+void WindowSwitcher::setThumbnail(int serial, int window, const QString &path) {
+  if (!active_ || serial != serial_) {
+    QFile::remove(path);
+    return;
+  }
+  for (int w = 0; w < workspaces_.size(); ++w) {
+    auto workspace = workspaces_[w].toObject();
+    auto members = workspace.value("windows").toArray();
+    for (int i = 0; i < members.size(); ++i) {
+      auto member = members[i].toObject();
+      if (member.value("id").toInt() != window)
+        continue;
+      member["thumbnail"] = QUrl::fromLocalFile(path).toString();
+      members[i] = member;
+    }
+    workspace["windows"] = members;
+    workspaces_[w] = workspace;
+  }
+  publish();
+}
+void WindowSwitcher::setLayout(const QJsonArray &clients, int workspace,
+                               bool dragging) {
+  clients_ = clients;
+  workspace_ = workspace;
+  dragging_ = dragging;
+  publish();
 }
 void WindowSwitcher::setDrag(const QJsonObject &drag) {
   drag_ = drag;
   publish();
 }
 QJsonObject WindowSwitcher::snapshot() const {
-  return {{"active", active_},   {"ready", ready_},
-          {"index", index_},     {"serial", serial_},
-          {"windows", windows_}, {"background", background_},
-          {"drag", drag_}};
+  return {{"active", active_},
+          {"ready", ready_},
+          {"index", index_},
+          {"serial", serial_},
+          {"workspaces", workspaces_},
+          {"background", background_},
+          {"drag", drag_},
+          {"clients", clients_},
+          {"workspace", workspace_},
+          {"dragging", dragging_}};
 }
 void WindowSwitcher::publish() {
+  if (!feedbackTimer_.isActive())
+    feedbackTimer_.start();
+}
+void WindowSwitcher::writeSnapshot() {
   if (channelPath_.isEmpty())
     return;
   const auto data = QJsonDocument(snapshot()).toJson(QJsonDocument::Compact);

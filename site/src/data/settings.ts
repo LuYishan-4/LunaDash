@@ -30,12 +30,12 @@ export const groups: SettingGroup[] = [
     id: "windows",
     name: "Tiling & workspaces",
     description:
-      "Choose 1–9 workspaces, a default column width from 30% to 70%, and window gaps. Each column holds up to eight vertically tiled windows.",
+      "Choose 1–10 workspaces, a default column width from 30% to 70%, and window gaps. New windows open in separate columns; each can hold up to eight vertically tiled windows.",
     details: [
-      "Super+1…9 switches workspaces; Super+Shift+1…9 moves the focused window to an existing workspace.",
+      "Super+1…9 and Super+0 switch workspaces (0 selects workspace 10); Super+Shift+1…9 moves the focused window to an existing workspace.",
       "Super+H/L focuses the left/right column; Super+K/J focuses windows within a column. Super+F maximizes or restores the column width, and Super+Q closes the focused window.",
       "Alt + left-drag swaps window slots; drop at a top/bottom edge to insert into a column. A single window moves without resizing. Add Shift to resize and redistribute space within the column.",
-      "The taskbar lists individual windows. Selecting one enlarges it while retaining its neighbors. Alt+Tab opens one horizontal selector over a blurred background; release Alt to switch or press Esc to cancel.",
+      "The taskbar lists windows across all workspaces, labelled with their workspace number. Selecting one animates the workspace change and enlarges it while retaining its neighbors. Alt+Tab opens a 2×5 overview of workspaces 1–10 with actual window thumbnails over a blurred background. Release Alt to switch workspace or press Esc to cancel.",
       "Reducing workspace count moves windows from removed workspaces to the last remaining workspace.",
     ],
   },

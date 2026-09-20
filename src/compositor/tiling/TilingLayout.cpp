@@ -122,19 +122,13 @@ bool ScrollableTilingLayout::insert(TilingWorkspaceId workspaceId,
   if (window == 0 || d->locate(window).second)
     return false;
   auto &workspace = d->workspaces[workspaceId];
-  const auto current = findWindow(workspace, workspace.focused);
-  if (current.found && workspace.columns[current.column].members.size() <
-                           kMaximumActiveMembers) {
-    auto &members = workspace.columns[current.column].members;
-    members.insert(members.begin() +
-                       static_cast<std::ptrdiff_t>(current.member + 1),
-                   {window, false, {}});
-    workspace.focused = window;
-    return true;
-  }
   if (workspace.columns.size() >= kMaximumColumns)
     return false;
-  workspace.columns.push_back(
+  const auto focused = findWindow(workspace, workspace.focused);
+  const auto position =
+      focused.found ? focused.column + 1 : workspace.columns.size();
+  workspace.columns.insert(
+      workspace.columns.begin() + static_cast<std::ptrdiff_t>(position),
       {width > 0 ? width : d->defaultWidth, {{window, false, {}}}});
   workspace.focused = window;
   return true;

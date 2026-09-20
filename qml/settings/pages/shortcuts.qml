@@ -34,7 +34,7 @@ ColumnLayout {
             {id:"launchLauncher", name:"Open launcher"},
             {id:"screenshot", name:"Take a screenshot"}
         ]
-        for (let workspace = 1; workspace <= 9; ++workspace) {
+        for (let workspace = 1; workspace <= 10; ++workspace) {
             result.push({id:"workspace" + workspace, name:"Switch to workspace %1", workspace:workspace})
             result.push({id:"moveToWorkspace" + workspace, name:"Move window to workspace %1", workspace:workspace})
         }

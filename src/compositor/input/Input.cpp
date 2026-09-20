@@ -258,6 +258,8 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
           self->q->finishWindowSwitch(true);
         else if (symbol == XKB_KEY_Left || symbol == XKB_KEY_Right)
           self->q->windowSwitcher_->step(symbol == XKB_KEY_Left ? -1 : 1);
+        else if (symbol == XKB_KEY_Up || symbol == XKB_KEY_Down)
+          self->q->windowSwitcher_->step(symbol == XKB_KEY_Up ? -5 : 5);
         handled = symbol != XKB_KEY_Alt_L && symbol != XKB_KEY_Alt_R &&
                   symbol != XKB_KEY_Shift_L && symbol != XKB_KEY_Shift_R;
       }

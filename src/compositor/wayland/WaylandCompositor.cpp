@@ -442,8 +442,7 @@ void WaylandCompositor::configure(ClientWindow *client,
 #else
   wlr_xdg_surface_get_geometry(client->surface, &geometry);
 #endif
-  const wlr_box clip{geometry.x, geometry.y, rectangle.width(),
-                     rectangle.height()};
+  wlr_box clip{geometry.x, geometry.y, rectangle.width(), rectangle.height()};
   wlr_scene_node *child;
   wl_list_for_each(child, &client->sceneTree->children, link) {
     const bool popup = std::any_of(
@@ -542,6 +541,7 @@ void WaylandCompositor::arrange() {
     wlr_scene_node_raise_to_top(&focused_->sceneTree->node);
 
   d->updateBackground();
+  publishWindowLayout();
 }
 
 void WaylandCompositor::focus(ClientWindow *client) {
@@ -556,7 +556,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
 
   const bool changed = focused_ != client;
   focused_ = client;
-  windowSwitcher_->recordFocus(client->id);
+
   if (!client->floating)
     tiling_.focus(client->id);
   // Selecting a tiled window must also scroll its column into view. Avoid
@@ -570,6 +570,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
   if (changed)
     wlr_xdg_toplevel_set_activated(client->toplevel, true);
   d->focusSurface(client->surface->surface);
+  publishWindowLayout();
 }
 
 void WaylandCompositor::focusNext(int direction) {
@@ -660,9 +661,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
         action.mid(QStringLiteral("workspace").size()).toInt(&ok);
     if (ok && target > 0 &&
         target <= desktopPreferences().value("workspaceCount").toInt()) {
-      workspace_ = target - 1;
-      arrange();
-      synchronizeTilingFocus();
+      selectWorkspace(target - 1);
     }
     return;
   }
@@ -926,9 +925,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
 
   if (method == "workspace" && numberValid && number >= 0 &&
       number < desktopPreferences().value("workspaceCount").toInt()) {
-    workspace_ = number;
-    arrange();
-    synchronizeTilingFocus();
+    selectWorkspace(number);
   } else if (method == "language" && isSupportedLanguage(value)) {
     QSettings().setValue("appearance/language", value);
   } else if (method == "shortcut-capture" &&

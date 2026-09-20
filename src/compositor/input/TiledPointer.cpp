@@ -104,6 +104,7 @@ void WaylandCompositor::Impl::finishTiledPointer(bool apply) {
   q->windowSwitcher_->setDrag({});
   q->arrange();
   pointerWindow = 0;
+  q->publishWindowLayout();
   wlr_cursor_set_xcursor(cursor, cursorManager, "default");
 }
 } // namespace LunaDash

@@ -44,6 +44,11 @@ private Q_SLOTS:
     for (int i = 1; i <= 9; ++i)
       QVERIFY(layout.insert(0, i));
     auto placements = layout.layout(0, area);
+    for (int i = 0; i < 9; ++i)
+      QCOMPARE(placements[i].columnIndex, i);
+    for (int i = 2; i <= 8; ++i)
+      QVERIFY(layout.groupWith(i, i - 1));
+    placements = layout.layout(0, area);
     QCOMPARE(placements.size(), 9);
     verifyNoOverlap(placements);
     for (int i = 0; i < 8; ++i) {
@@ -69,6 +74,8 @@ private Q_SLOTS:
     ScrollableTilingLayout layout;
     for (int i = 1; i <= 3; ++i)
       layout.insert(0, i);
+    layout.groupWith(2, 1);
+    layout.groupWith(3, 2);
     layout.layout(0, area);
     QVERIFY(layout.resizeHeight(2, 500));
     auto before = geometries(layout.layout(0, area));
@@ -100,6 +107,8 @@ private Q_SLOTS:
     QCOMPARE(layout.layout(0, area).first().geometry.height(), 700);
     layout.insert(0, 2);
     layout.insert(0, 3);
+    layout.groupWith(2, 1);
+    layout.groupWith(3, 2);
     verifyNoOverlap(layout.layout(0, area));
     QVERIFY(!layout.moveSingle(1, QPoint(10, 10), area));
     for (const int height : {600, 50, 10000, 300}) {
@@ -141,28 +150,34 @@ private Q_SLOTS:
     QProcessEnvironment environment;
     environment.insert("XDG_RUNTIME_DIR", runtime.path());
     environment.insert("WAYLAND_DISPLAY", runtime.filePath("no-display"));
-    const QJsonArray windows{QJsonObject{{"id", 1}}, QJsonObject{{"id", 2}},
-                             QJsonObject{{"id", 3}}};
-    switcher.recordFocus(2);
-    switcher.recordFocus(1);
-    QVERIFY(switcher.begin(windows, 1, 1, environment));
-    const int serial = switcher.snapshot().value("serial").toInt();
-    QVERIFY(switcher.begin(windows, 1, 1, environment));
-    QCOMPARE(switcher.snapshot().value("serial").toInt(),
-             serial); // One overlay per Alt hold.
+    QJsonArray workspaces;
+    for (int i = 1; i <= 10; ++i)
+      workspaces.append(QJsonObject{
+          {"id", i}, {"windows", QJsonArray{QJsonObject{{"id", i * 10}}}}});
+    QVERIFY(switcher.begin(workspaces, 1, 1, environment));
+    const int serial = switcher.serial();
+    QVERIFY(switcher.begin(workspaces, 1, 1, environment));
+    QCOMPARE(switcher.serial(), serial);
     switcher.step(-1);
     QCOMPARE(switcher.finish(true), 2);
-    QVERIFY(!switcher.active());
-    QVERIFY(switcher.begin(windows, 1, -1, environment));
-    switcher.remove(3);
-    QVERIFY(switcher.select(2));
-    QVERIFY(!switcher.select(3));
+    QVERIFY(switcher.begin(workspaces, 1, -1, environment));
+    QCOMPARE(switcher.finish(true), 10);
+    switcher.begin(workspaces, 1, 5, environment);
+    QCOMPARE(switcher.finish(true), 6);
+    switcher.begin(workspaces, 1, 1, environment);
+    switcher.remove(20);
+    QCOMPARE(switcher.snapshot().value("workspaces").toArray().size(), 10);
+    QVERIFY(switcher.snapshot()
+                .value("workspaces")
+                .toArray()[1]
+                .toObject()
+                .value("windows")
+                .toArray()
+                .isEmpty());
+    QVERIFY(switcher.select(10));
+    QVERIFY(!switcher.select(11));
     QCOMPARE(switcher.finish(false), 0);
-    switcher.begin(windows, 1, 1, environment);
-    switcher.remove(1);
-    switcher.remove(2);
-    switcher.remove(3);
-    QVERIFY(!switcher.active());
+    QTest::qWait(30);
     QFile file(channel);
     QVERIFY(file.open(QIODevice::ReadOnly));
     QVERIFY(!QJsonDocument::fromJson(file.readAll())
@@ -184,6 +199,8 @@ private Q_SLOTS:
     ShortcutSettings settings;
     QCOMPARE(settings.actionFor(XKB_KEY_t, ShortcutMeta),
              QString("launchTerminal"));
+    QCOMPARE(settings.actionFor(XKB_KEY_0, ShortcutMeta),
+             QString("workspace10"));
     QCOMPARE(settings.actionFor(XKB_KEY_Return, ShortcutMeta),
              QString("launchTerminalAlternate"));
     QString error;

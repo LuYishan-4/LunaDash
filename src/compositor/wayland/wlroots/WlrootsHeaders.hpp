@@ -39,6 +39,9 @@ extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/log.h>
 #include <wlr/version.h>
+#if WLR_VERSION_MINOR >= 20
+#include <wlr/util/transform.h>
+#endif
 #include <xkbcommon/xkbcommon.h>
 
 #ifdef __cplusplus

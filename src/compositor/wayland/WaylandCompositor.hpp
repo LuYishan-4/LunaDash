@@ -106,6 +106,9 @@ private:
   void focus(ClientWindow *client);
   void activateTask(int window);
   void beginWindowSwitch(int direction);
+  void selectWorkspace(int workspace);
+  void publishWindowLayout();
+  void captureWorkspaceThumbnail(int serial, QList<int> windows);
   void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
   void focusNext(int direction);

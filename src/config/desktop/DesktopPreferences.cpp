@@ -21,15 +21,15 @@ QJsonObject defaults() {
           {"secondaryAccent", "#41576b"},
           {"colorPins",
            QJsonArray{"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
-          {"gap", 12},
+          {"gap", 6},
           {"panelHeight", 40},
           {"blur", true},
           {"blurRadius", 18},
           {"windowOpacity", 96},
           {"animations", true},
           {"animationDuration", 220},
-          {"workspaceCount", 4},
-          {"masterRatio", 50},
+          {"workspaceCount", 10},
+          {"masterRatio", 33},
           {"keyboardLayout", "us"},
           {"cursorSize", 24},
           {"fontFamily", "sans-serif"},
@@ -219,7 +219,7 @@ bool valid(const QString &key, const QJsonValue &value) {
     }
     return true;
   }
-  const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 9}},
+  const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 10}},
                                               {"masterRatio", {30, 70}},
                                               {"cursorSize", {16, 64}}};
   if (ranges.contains(key)) {

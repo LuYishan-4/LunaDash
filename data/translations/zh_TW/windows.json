@@ -3,12 +3,13 @@
     "Open terminal alternative": "開啟終端機（替代快捷鍵）",
     "Switch windows": "切換視窗",
     "Release Alt to switch · Esc to cancel": "放開 Alt 切換 · Esc 取消",
-    "Columns hold up to eight tiled windows. New windows join the focused column when it has room. Dialogs stay above their parent window.": "每欄最多容納 8 個平鋪視窗。新視窗會加入尚有空間的目前欄位。對話框維持顯示於所屬視窗上方。",
     "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing.": "Alt＋滑鼠左鍵拖曳可交換視窗格子；拖到頂端或底端邊緣可插入同欄。只有一個視窗時，Alt 拖曳只移動位置。",
     "Shift + Alt + left-drag resizes a window and redistributes space in its column without changing the window order.": "Shift＋Alt＋滑鼠左鍵拖曳可調整視窗大小，同欄視窗會重新分配空間並保持順序。",
-    "The taskbar lists individual windows. Selecting one enlarges its column and gives it more height while keeping the other windows visible.": "工作列逐一列出視窗。選取視窗會放大其欄寬與高度，同欄其他視窗仍會保留顯示。",
-    "Alt + Tab opens the horizontal window selector. Use Tab, Shift + Tab, arrow keys or scrolling; release Alt to switch, or press Esc to cancel.": "Alt＋Tab 開啟橫向視窗選擇器。使用 Tab、Shift＋Tab、方向鍵或捲動選取；放開 Alt 切換，Esc 取消。",
-    "Super + 1–9 switches workspaces. Add Shift to move a window. Super + H / L focuses columns; Super + J / K focuses rows. Super + F maximizes or restores the column width.": "Super＋1–9 切換工作區，加上 Shift 可移動視窗。Super＋H／L 切换欄位；Super＋J／K 切換欄內視窗。Super＋F 放大或還原欄寬。",
     "Alt+Tab is reserved for the window switcher.": "Alt＋Tab 保留供視窗切換器使用。",
-    "Workspace %1": "工作區 %1"
+    "Workspace %1": "工作區 %1",
+    "New windows open in separate columns. Each column can hold up to eight vertically tiled windows. Dialogs stay above their parent window.": "新視窗各自開啟一欄，每欄最多可合併 8 個上下平鋪視窗。對話框維持顯示於所屬視窗上方。",
+    "The taskbar lists windows from every workspace. Selecting one switches to its workspace with an animation and enlarges it while keeping the other rows visible.": "工作列列出所有工作區的視窗。點選後會以動畫切到該工作區並放大視窗，同欄其他視窗仍會保留。",
+    "Alt + Tab shows workspaces 1–10 in a two-row overview with window thumbnails. Use Tab, arrow keys or scrolling; release Alt to switch workspace, or press Esc to cancel.": "Alt＋Tab 以兩排十格顯示工作區 1–10，包含視窗縮圖。使用 Tab、方向鍵或捲動選取，放開 Alt 切換工作區，Esc 取消。",
+    "Super + 1–9 switches workspaces; Super + 0 selects workspace 10. Add Shift to move a window. Super + H / L focuses columns; Super + J / K focuses rows. Super + F maximizes or restores the column width.": "Super＋1–9 切換工作區，Super＋0 選取工作區 10。加上 Shift 可移動視窗。Super＋H／L 切換欄位，Super＋J／K 切換欄內視窗，Super＋F 放大或還原欄寬。",
+    "Release Alt to switch workspace · Esc to cancel": "放開 Alt 切換工作區 · Esc 取消"
 }

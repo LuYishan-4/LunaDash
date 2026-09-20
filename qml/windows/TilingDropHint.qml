@@ -5,8 +5,9 @@ import "../style"
 
 PanelWindow {
     id: panel
+    required property var shell
     required property var drag
-    visible: Boolean(drag.target)
+    visible: Boolean(drag.target) && !shell.stopping
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay

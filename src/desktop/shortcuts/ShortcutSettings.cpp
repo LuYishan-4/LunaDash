@@ -30,11 +30,11 @@ QJsonObject defaults() {
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
   result.insert("screenshot", "Meta+Shift+S");
-  for (int workspace = 1; workspace <= 9; ++workspace) {
+  for (int workspace = 1; workspace <= 10; ++workspace) {
     result.insert(QString("workspace%1").arg(workspace),
-                  QString("Meta+%1").arg(workspace));
+                  QString("Meta+%1").arg(workspace % 10));
     result.insert(QString("moveToWorkspace%1").arg(workspace),
-                  QString("Meta+Shift+%1").arg(workspace));
+                  QString("Meta+Shift+%1").arg(workspace % 10));
   }
   return result;
 }
@@ -136,6 +136,11 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   if (!configured.contains("launchTerminalAlternate") &&
       uses("Meta+Return", "launchTerminalAlternate"))
     bindings_["launchTerminalAlternate"] = "Disabled";
+  if (!configured.contains("workspace10") && uses("Meta+0", "workspace10"))
+    bindings_["workspace10"] = "Disabled";
+  if (!configured.contains("moveToWorkspace10") &&
+      uses("Meta+Shift+0", "moveToWorkspace10"))
+    bindings_["moveToWorkspace10"] = "Disabled";
   for (auto it = configured.begin(); it != configured.end(); ++it) {
     const auto binding = parseShortcut(it.value().toString());
     if ((binding.symbol == XKB_KEY_Tab ||

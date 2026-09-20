@@ -30,6 +30,16 @@ Item {
         Behavior on color { ColorAnimation { duration: Theme.motionFast } }
         Behavior on scale { NumberAnimation { duration: Theme.motionFast } }
     }
+    Text {
+        anchors { right: parent.right; bottom: parent.bottom }
+        text: Number(memberIcon.member.workspace || 0) + 1
+        color: Theme.text
+        style: Text.Outline
+        styleColor: Theme.background
+        font.family: Theme.font
+        font.pixelSize: 10
+        font.bold: true
+    }
     MouseArea {
         id: memberMouse
         objectName: "windowTaskButton"

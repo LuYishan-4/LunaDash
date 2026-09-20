@@ -41,8 +41,8 @@ PanelWindow {
         MouseArea { anchors.fill: parent; onClicked: panel.shell.command("switch-cancel", "") }
         SwitcherContent {
             anchors.centerIn: parent
-            width: Math.min(parent.width - 40, 1000)
-            height: Math.min(parent.height - 40, 310)
+            width: Math.min(parent.width - 40, 1240)
+            height: Math.min(parent.height - 40, 480)
             shell: panel.shell
             selection: panel.interaction
             scale: 0.94 + 0.06 * panel.reveal

@@ -8,8 +8,8 @@ Right-click the wallpaper, use the settings side of the panel's centered three-p
 | --- | --- | --- |
 | General | Extensible language drop-down, shell font, 12/24-hour clock, welcome screen, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
 | Appearance | Wallpaper image/palettes, in-shell PNG/JPEG/WebP picker, custom `#RRGGBB` accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Accent colors can be entered directly; the visible swatches are only quick presets. The picker is drawn inside the settings surface with a bounded preview; blur applies to application frames, with no KDE blur protocol |
-| Windows and workspaces | 1–9 workspaces, eight-member vertical columns, 50% default column width, per-column widths and window gaps | New windows open tiled and non-maximized; `Meta+F` maximizes/restores the focused column |
-| Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all nine workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
+| Windows and workspaces | 1–10 workspaces, eight-member vertical columns, 33% default column width, per-column widths and window gaps | New windows open tiled and non-maximized; `Meta+F` maximizes/restores the focused column |
+| Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all ten workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Shell modules | JSON layout, dimensions, positions, colors and built-in recovery | [Module schema and contract](MODULES.md); custom QML modules are not loaded |
 | Display | Backlight and per-monitor DDC/CI brightness, primary-output resolution/refresh rate and 100–300% scale | Mode changes require confirmation within 15 seconds; nested physical modes belong to the host. Multi-monitor arrangement, rotation, HDR and night light remain unavailable |
 | Keyboard and pointer | Seven keyboard layouts, repeat rate/delay, cursor size for the next session, input test field | Input-method editor and host mouse/touchpad settings; standalone libinput device configuration remains unavailable |
@@ -33,8 +33,8 @@ Additional keys in the existing `[desktop]` group:
 
 | Key | Default | Accepted values |
 | --- | --- | --- |
-| `workspaceCount` | 4 | Integer 1–9 |
-| `masterRatio` | 50 | Default tiled column width percentage used when creating new columns |
+| `workspaceCount` | 10 | Integer 1–10 |
+| `masterRatio` | 33 | Default tiled column width percentage used when creating new columns |
 | `keyboardLayout` | us | us, gb, de, fr, es, jp, tw |
 | `keyRepeatRate` | 25 | Integer 0–60; zero disables repeat |
 | `keyRepeatDelay` | 600 | Integer 200–1500 ms |
@@ -74,11 +74,13 @@ Default terminal, file-manager and browser argument arrays are edited under Appl
 
 ## Window and column controls
 
-The top panel lists one task per mapped application window on the current workspace, including minimized windows. Tasks are independent of tiling columns. Clicking a task restores it and enlarges its column to the work area; the selected row receives about 70% of the height, bounded by the space required by the other rows. Other members remain visible. The separate `ColumnStrip` is not instantiated by default.
+The top panel lists one task per mapped application window across all workspaces, including minimized windows. Tasks are independent of tiling columns. Clicking a task restores it and enlarges its column to the work area; the selected row receives about 70% of the height, bounded by the space required by the other rows. Other members remain visible. The separate `ColumnStrip` is not instantiated by default.
 
-Columns tile vertically with at most eight total members, including minimized windows. New windows join the focused column when capacity remains, otherwise a new column is created. Ordinary windows cannot float or overlap; transient dialogs remain above their parent. Alt + left-drag swaps slots at a target's center, or inserts beside its top/bottom edge. Slot swapping preserves slot sizes. With one active window, Alt dragging translates it without resizing. Shift + Alt + left-drag changes column width and row height while redistributing remaining height without reordering. `Meta+Shift+H/L` merges into a neighboring column; `Meta+Shift+E` separates a member into its own column.
+Columns tile vertically with at most eight total members, including minimized windows. New windows open in a separate column immediately after the focused column. Ordinary windows cannot float or overlap; transient dialogs remain above their parent. Alt + left-drag swaps slots at a target's center, or inserts beside its top/bottom edge. Slot swapping preserves slot sizes. With one active window, Alt dragging translates it without resizing. Shift + Alt + left-drag changes column width and row height while redistributing remaining height without reordering. `Meta+Shift+H/L` merges into a neighboring column; `Meta+Shift+E` separates a member into its own column.
 
-Alt+Tab opens one horizontal selector with a blurred desktop snapshot. Tab/Shift+Tab, Left/Right, mouse wheel or horizontal dragging change the selection. Release Alt or click a card to activate; Esc cancels. The selector includes mapped windows across workspaces, including minimized windows, in recent-focus order. Closing a candidate removes it safely. Snapshot capture runs asynchronously; a failed capture falls back to the wallpaper. Alt+Tab is reserved; other keyboard actions remain configurable.
+Alt+Tab opens a fixed 2×5 overview for workspaces 1–10, with thumbnails arranged like the windows in each workspace. Empty workspaces remain selectable. Tab/Shift+Tab, Left/Right and scrolling move one cell; Up/Down moves one row. Release Alt or click a cell to switch workspace; Esc cancels. Selecting an unused workspace expands a smaller configured workspace count as needed. `Meta+0` and `Meta+Shift+0` address workspace 10. The taskbar labels each window with its workspace number and switches there with an animation before focusing and enlarging it.
+
+Thumbnails are rendered to bounded 320×200 buffers before readback, then encoded outside the input thread. They refresh when the overview opens; unavailable content uses an application icon. Theme-colored rounded outlines indicate tiled-window focus. These outlines do not mask client content into rounded corners.
 
 `defaultFloating`, `altMouseResize` and the floating-toggle shortcut are retired. See [window interaction validation](WINDOWS.md) for behavior and validation limits.
 
