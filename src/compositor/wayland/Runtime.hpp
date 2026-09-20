@@ -39,6 +39,8 @@ public:
     Slot<ToplevelState> requestMinimize;
     Slot<ToplevelState> requestMaximize;
     Slot<ToplevelState> requestFullscreen;
+    Slot<ToplevelState> requestMove;
+    Slot<ToplevelState> requestResize;
   };
 
   struct LayerState {
@@ -151,8 +153,12 @@ public:
   int pointerTarget = 0;
   int pointerEdge = 0;
   bool pointerResize = false;
+  bool pointerClientGrab = false;
+  uint32_t pointerResizeEdges = 0;
+  uint32_t pointerButton = 0;
   QPointF pointerLast;
   bool beginTiledPointer(uint32_t button);
+  bool beginStackingPointer(ClientWindow *client, uint32_t serial, uint32_t edges);
   bool updateTiledPointer();
   void finishTiledPointer(bool apply);
 
@@ -298,6 +304,9 @@ public:
   static void handleToplevelMaximize(wl_listener *listener, void *);
 
   static void handleToplevelFullscreen(wl_listener *listener, void *);
+
+  static void handleToplevelMove(wl_listener *listener, void *data);
+  static void handleToplevelResize(wl_listener *listener, void *data);
 
   static void handleToplevelDestroy(wl_listener *listener, void *);
 

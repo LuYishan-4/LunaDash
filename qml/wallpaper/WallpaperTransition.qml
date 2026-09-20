@@ -1,9 +1,12 @@
 import QtQuick
 import QtQuick.Window
 import "../style"
+import "../plugins"
 
-Item {
+ExtensionSlot {
     id: transition
+    target: "wallpaper-transition"
+    context: ({imageSource: source, previous: currentImage, incoming: incomingImage, progress: progress, transitioning: transitioning})
     property url source: ""
     property real pixelRatio: 1
     property bool animationsEnabled: Theme.animations && Theme.animationDuration > 0

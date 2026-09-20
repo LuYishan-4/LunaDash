@@ -17,7 +17,7 @@ ModuleSurface {
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
 
-    readonly property bool ready: background.ready
+    readonly property bool ready: replacementReady || background.ready
     readonly property string stateSource: String(wallpaper.shell.state.wallpaperImage || "")
     readonly property string desiredSource: wallpaper.shell.wallpaperOverride.length
         ? wallpaper.shell.wallpaperOverride : stateSource
@@ -30,6 +30,7 @@ ModuleSurface {
 
     WallpaperTransition {
         id: background
+        shell: wallpaper.shell
         anchors.fill: parent
         source: wallpaper.desiredSource
         pixelRatio: wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1
@@ -46,5 +47,4 @@ ModuleSurface {
         acceptedButtons: Qt.RightButton
         onClicked: mouse => wallpaper.shell.openMenu(mouse.x, mouse.y)
     }
-    PluginHost { shell: wallpaper.shell }
 }

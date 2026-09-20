@@ -108,6 +108,7 @@ ColumnLayout {
                 clip: true
 
                 WallpaperTransition {
+                    shell: page.shell
                     anchors.fill: parent
                     source: page.fileUrl(page.selectedWallpaper)
                 }

@@ -1,11 +1,13 @@
 import QtQuick
+import "../plugins"
 import Quickshell
 import Quickshell.Wayland
 import "../style"
 
-PanelWindow {
+PluginPanel {
     id: panel
-    required property var shell
+    extensionTarget: "window-decoration"
+    extensionContext: ({interaction: interaction})
     required property var interaction
     visible: !shell.stopping
     anchors { top: true; bottom: true; left: true; right: true }
@@ -15,7 +17,7 @@ PanelWindow {
     WlrLayershell.namespace: "lunadash-window-frames"
     mask: Region {}
     color: "transparent"
-    readonly property var windows: (interaction.clients || []).filter(client => !client.desktop && !client.floating && !client.minimized && !client.hiddenByMaximize && Number(client.workspace) === Number(interaction.workspace))
+    readonly property var windows: (interaction.clients || []).filter(client => (shell.state.layoutMode !== "stacking" || client.focused) && !client.desktop && !client.floating && !client.minimized && !client.hiddenByMaximize && Number(client.workspace) === Number(interaction.workspace))
     Repeater {
         model: panel.windows.length
         delegate: Rectangle {

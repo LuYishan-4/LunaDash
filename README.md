@@ -108,3 +108,7 @@ Send pull requests to **`dev`**. Use a clear title describing the change, and ex
 ---
 
 <p align="center"><img src="docs/brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · This project is still immature. Issue reports and PRs are welcome.<br><a href="LICENSE">GPL-3.0-only</a></p>
+
+### Build your own desktop features
+
+[Plugin SDK 2](docs/PLUGINS.md) provides C/C++ hooks, Quickshell components and OpenGL shader templates, with categorized settings and live replacement or augmentation. Start with the [target reference](docs/PLUGIN_TARGETS.md) or the disabled-by-default [stacking windows example](examples/plugins/stacking-windows/README.md).

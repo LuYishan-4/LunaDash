@@ -9,6 +9,7 @@ import "../style"
 ModuleSurface {
     id: popup
     moduleId: "overview"
+    extensionTarget: "network"
     anchors.top: true
     anchors.right: true
     margins.top: Theme.barHeight + 8

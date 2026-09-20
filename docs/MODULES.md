@@ -85,3 +85,7 @@ lunadashctl module-reset
 ```
 
 `module-save` accepts the same JSON string as validate. `module-reset` restores built-in module layout and appearance. Module JSON and native plugin settings are independent.
+
+## Feature plugins and categorized settings
+
+SDK 2 adds a separate `extensions.json` document for built-in feature options, per-plugin options and replacement/augmentation mode. Settings → Shell modules now lists these by category above the existing shell layout controls. The original `shell-modules.json` editor remains available. See [desktop plugins](PLUGINS.md), [target contracts](PLUGIN_TARGETS.md), and the [stacking windows example](../examples/plugins/stacking-windows/README.md). Both documents are validated and saved atomically. Legacy trusted custom QML still loads as a fallback replacement; new plugins use mandatory SDK metadata/CMake packaging.

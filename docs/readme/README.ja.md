@@ -108,3 +108,7 @@ PR の対象ブランチは **`dev`** です。変更内容が伝わるタイト
 ---
 
 <p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · まだ未成熟なプロジェクトです。不具合報告や PR を歓迎します。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
+
+### 自分のデスクトップ機能を作る
+
+[Plugin SDK 2](../PLUGINS.md) は C/C++ フック、Quickshell コンポーネント、OpenGL シェーダーのテンプレートを提供します。カテゴリごとに設定し、再起動せずに標準機能を置き換えたり併用したりできます。[対象機能の仕様](../PLUGIN_TARGETS.md)や、初期状態では無効の[重ね合わせウィンドウのサンプル](../../examples/plugins/stacking-windows/README.md)から始められます。

@@ -57,7 +57,7 @@ void WaylandCompositor::activateTask(int window) {
     selectWorkspace(client->workspace);
     client->minimized = false;
     windowLayout_->setMinimized(window, false);
-    if (!client->floating)
+    if (!client->floating && windowLayout_->mode() == WindowLayoutMode::Tiling)
       setMaximized(client.get(), !restore);
     windowLayout_->focus(window);
     arrange();

@@ -4,6 +4,7 @@
 #include <QString>
 #include <QtGlobal>
 #include <memory>
+#include <functional>
 
 namespace LunaDash {
 enum class WindowLayoutMode { Tiling, Stacking };
@@ -21,6 +22,7 @@ struct WindowPlacement {
   int rowIndex = -1;
   QList<LayoutWindowId> columnMembers;
   bool hiddenByMaximize = false;
+  bool newWindow = false;
 };
 
 struct WorkspaceLayoutSnapshot {
@@ -35,6 +37,9 @@ struct WorkspaceLayoutSnapshot {
 class WindowLayout {
 public:
   virtual ~WindowLayout();
+  using PlacementFilter = std::function<QList<WindowPlacement>(
+      LayoutWorkspaceId, QRect, const QList<WindowPlacement> &)>;
+  void setPlacementFilter(PlacementFilter filter);
   virtual WindowLayoutMode mode() const noexcept = 0;
   virtual void setGap(int gap) = 0;
   virtual bool insert(LayoutWorkspaceId workspace, LayoutWindowId window,
@@ -68,6 +73,13 @@ public:
                                               QRect area) = 0;
   virtual WorkspaceLayoutSnapshot
   snapshot(LayoutWorkspaceId workspace) const = 0;
+
+protected:
+  QList<WindowPlacement> filterPlacements(LayoutWorkspaceId workspace,
+      QRect area, const QList<WindowPlacement> &placements) const;
+
+private:
+  PlacementFilter placementFilter_;
 };
 
 struct WindowLayoutTemplate {

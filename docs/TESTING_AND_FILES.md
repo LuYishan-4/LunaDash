@@ -4,7 +4,7 @@ Finish code, packaging and documentation changes before building. Arch Linux is 
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GIO. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
+The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GIO. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -22,6 +22,17 @@ ctest --test-dir build --output-on-failure
 ```
 
 The architecture checker enforces lowercase domains, PascalCase C++ filenames, small domain-local entrypoints, source-root includes, dependency direction, raw GL placement and explicit CMake inventories. Its fixture tests intentionally introduce invalid layouts and ensure rejection. `.clang-format` defines source formatting; use `clang-format -i` on modified C/C++ files. Static analysis remains configured separately in the PR clang-tidy/CodeQL workflows.
+
+## Plugin SDK checks
+
+Native CTest coverage includes plugin validation, enable/disable, settings updates, native revision reload and the stacking layout example. QML tests exercise replacement readiness, augmentation, failure fallback and recovery. The template integration test builds and stages all four SDK templates; it additionally needs Qt Shader Tools. Run it against either the build-tree SDK or a relocated installation:
+
+```sh
+python3 tests/plugins/test_sdk.py --sdk build/sdk-build
+QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software qmltestrunner -input tests/qml
+```
+
+These tests use temporary configuration/data directories and do not install plugins into the active user's desktop.
 
 ## Runtime and installation
 

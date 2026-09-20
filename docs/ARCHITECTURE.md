@@ -20,7 +20,8 @@ src/
       blur/          Qt Quick item and geometry adapter
       wallpaper/     Qt Quick wallpaper item
     session/         compositor startup, child environment and launch policy
-    layout/          layout contract and template factory (stacking reserved)
+    layout/          layout contract and strategy factory
+    stacking/        persistent overlapping-window strategy for plugins
     tiling/          bounded split tree, grouped rows and C geometry
     wayland/         runtime, output and surface lifetimes
       wlroots/       version compatibility and external C header boundaries
@@ -55,7 +56,7 @@ The render-element library has one `Renderer`, one compile-time `ActiveGraphics`
 
 All project-owned raw OpenGL implementation lives in `renderer/opengl`, including blur, wallpaper and decoration passes. `GLDispatch.c` is the C11 function-loading core. `Shader`, `Program`, `Texture` and `Framebuffer` own their GL resources. Failed shader compilation, later-stage creation failure and linking failure release previously allocated objects. Qt owns the active context; render resources must be destroyed on its render thread while that context is current.
 
-Built-in shaders are listed explicitly in `cmake/modules/Renderer.cmake` and embedded at `:/LunaDash/renderer/shaders/`. They load from the same IDs after installation or relocation. `data/` contains application assets, module templates, translations and plugin/portal metadata, not internal GLSL. Future plugin-provided shaders are a separate, explicitly trusted resource class.
+Built-in shaders are listed explicitly in `cmake/modules/Renderer.cmake` and embedded at `:/LunaDash/renderer/shaders/`. They load from the same IDs after installation or relocation. `data/` contains application assets, module templates, translations and plugin/portal metadata, not internal GLSL. SDK 2 plugin-provided shaders are a separate, explicitly trusted resource class, baked by the plugin CMake SDK for Quickshell visual slots.
 
 ## Extending a feature
 

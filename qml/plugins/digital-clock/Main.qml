@@ -5,7 +5,9 @@ import Quickshell.Wayland
 
 Item {
     id: plugin
-    property var shell: null
+    required property var shell
+    required property var settings
+    required property var context
     width: 0
     height: 0
 

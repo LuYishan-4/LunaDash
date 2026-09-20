@@ -43,8 +43,8 @@ private Q_SLOTS:
     const auto templates = windowLayoutTemplates();
     QCOMPARE(templates.size(), 2);
     QVERIFY(templates[0].implemented);
-    QVERIFY(!templates[1].implemented);
-    QVERIFY(!createWindowLayout(WindowLayoutMode::Stacking));
+    QVERIFY(templates[1].implemented);
+    QVERIFY(createWindowLayout(WindowLayoutMode::Stacking));
     auto layout = createWindowLayout(WindowLayoutMode::Tiling);
     QVERIFY(layout);
     QCOMPARE(layout->mode(), WindowLayoutMode::Tiling);
@@ -55,6 +55,40 @@ private Q_SLOTS:
     QCOMPARE(geometries(layout->presentation(0, area))[2], area);
     QVERIFY(layout->setMaximized(2, false));
     verifyNoOverlap(layout->presentation(0, area));
+  }
+  void stackingRetainsIndependentGeometry() {
+    auto layout = createWindowLayout(WindowLayoutMode::Stacking);
+    QVERIFY(layout->insert(0, 1, QSize(800, 500)));
+    QVERIFY(layout->insert(0, 2, QSize(800, 500)));
+    auto initial = geometries(layout->layout(0, area));
+    QVERIFY(initial[1].intersects(initial[2]));
+    QVERIFY(layout->moveSingle(1, QPoint(-100, 80), area));
+    QVERIFY(layout->resize(1, 650));
+    QVERIFY(layout->resizeHeight(1, 450));
+    const auto resized = geometries(layout->layout(0, area));
+    QCOMPARE(resized[1].size(), QSize(650, 450));
+    QCOMPARE(resized[2], initial[2]);
+    QVERIFY(layout->setMaximized(1, true));
+    const auto maximized = layout->presentation(0, area);
+    QCOMPARE(geometries(maximized)[1], area);
+    for (const auto &window : maximized)
+      QVERIFY(!window.hiddenByMaximize);
+    QVERIFY(layout->setMaximized(1, false));
+    QCOMPARE(geometries(layout->presentation(0, area)), resized);
+    QVERIFY(layout->focus(1));
+    QCOMPARE(layout->snapshot(0).columns.last().window, LayoutWindowId(1));
+    QVERIFY(layout->setMinimized(1, true));
+    QCOMPARE(layout->snapshot(0).focusedWindow, LayoutWindowId(2));
+    QVERIFY(layout->setMinimized(1, false));
+    QCOMPARE(geometries(layout->layout(0, area)), resized);
+    QVERIFY(layout->moveToWorkspace(1, 1));
+    QCOMPARE(layout->snapshot(0).columns.size(), 1);
+    QCOMPARE(layout->snapshot(1).columns.size(), 1);
+    QVERIFY(layout->moveSingle(1, QPoint(100000, -100000), area));
+    for (const auto &window : layout->layout(1, QRect(0, 0, 300, 200)))
+      QVERIFY(QRect(0, 0, 300, 200).contains(window.geometry));
+    QVERIFY(layout->remove(1));
+    QCOMPARE(layout->snapshot(1).focusedWindow, LayoutWindowId(0));
   }
   void fixedSplitsStayOnScreen() {
     TilingLayout layout(960, 6);

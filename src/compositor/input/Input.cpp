@@ -378,8 +378,11 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
     return;
   if (self->pointerWindow) {
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
-        event->button == BTN_LEFT)
+        event->button == self->pointerButton) {
+      if (self->pointerClientGrab)
+        wlr_seat_pointer_notify_button(self->seat, event->time_msec, event->button, event->state);
       self->finishTiledPointer(true);
+    }
     return;
   }
   if (self->q->windowSwitcher_->active()) {

@@ -4,6 +4,8 @@
 #include <QList>
 #include <QObject>
 #include <QRect>
+#include <QJsonObject>
+#include <QEasingCurve>
 
 struct wlr_scene_tree;
 
@@ -15,6 +17,7 @@ public:
   ~SceneWindowAnimations() override;
 
   void setDuration(int milliseconds);
+  void setProfile(const QJsonObject &profile);
   void show(wlr_scene_tree *tree, const QRect &geometry);
   void activate(wlr_scene_tree *tree, const QRect &geometry);
   void setGeometry(wlr_scene_tree *tree, const QRect &previous,
@@ -43,6 +46,10 @@ private:
   QHash<wlr_scene_tree *, LiveState *> live_;
   QList<SnapshotState *> snapshots_;
   int duration_ = 220;
+  int enterOffset_ = 12;
+  qreal focusOpacity_ = 0.82;
+  qreal exitScale_ = 0.90;
+  QEasingCurve easing_{QEasingCurve::OutCubic};
 };
 
 } // namespace LunaDash

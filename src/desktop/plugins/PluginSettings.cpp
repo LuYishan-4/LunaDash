@@ -1,6 +1,7 @@
 #include "desktop/plugins/PluginSettings.hpp"
 #include "config/localization/Localization.hpp"
 #include "config/plugins/PluginCatalog.hpp"
+#include "config/plugins/ExtensionConfiguration.hpp"
 #include <QtWidgets>
 
 namespace LunaDash {
@@ -29,12 +30,18 @@ QWidget *createPluginSettings() {
   installedLayout->setSpacing(12);
 
   auto *hint = new QLabel(LunaDash::translate(
-      "QML plugins are reloaded by the shell automatically. C++ effects run "
-      "inside the compositor and require a session restart after changing "
-      "their state."));
+      "Plugins reload live between hook calls. Native effects run inside the "
+      "compositor; enable only trusted code. Configure built-in and plugin "
+      "settings in Desktop extensions."));
   hint->setWordWrap(true);
   hint->setObjectName("description");
   installedLayout->addWidget(hint);
+  auto *configure = new QPushButton(LunaDash::translate("Desktop extensions"));
+  QObject::connect(configure, &QPushButton::clicked, page, [] {
+    QProcess::startDetached(QCoreApplication::applicationDirPath() + "/lunadashctl",
+                            {"open-settings", "modules"});
+  });
+  installedLayout->addWidget(configure);
 
   const auto plugins = discoverPlugins();
   if (plugins.isEmpty()) {
@@ -58,7 +65,7 @@ QWidget *createPluginSettings() {
     if (!themed.isNull())
       icon->setPixmap(themed.pixmap(42, 42));
     else
-      icon->setText(plugin.type == "qml" ? QStringLiteral("QML")
+      icon->setText(plugin.type == "quickshell" ? QStringLiteral("QML")
                                          : QStringLiteral("C++"));
     icon->setFixedSize(48, 48);
     icon->setAlignment(Qt::AlignCenter);
@@ -74,18 +81,15 @@ QWidget *createPluginSettings() {
     name->setWordWrap(true);
     textLayout->addWidget(name);
 
-    const QString typeLabel = plugin.type == "qml"
+    const QString typeLabel = plugin.type == "quickshell"
                                   ? LunaDash::translate("QML")
-                                  : LunaDash::translate("C++ effect");
+                                  : plugin.type == "opengl" ? QStringLiteral("OpenGL") : LunaDash::translate("C++ effect");
     auto *meta = new QLabel(
         QStringLiteral("%1 · %2 · %3%4")
             .arg(typeLabel, plugin.version,
                  plugin.author.isEmpty() ? LunaDash::translate("Unknown author")
                                          : plugin.author,
-                 plugin.type == "effect"
-                     ? QStringLiteral(" · ") +
-                           LunaDash::translate("Restart required")
-                     : QString()));
+                 QStringLiteral(" · ") + plugin.target));
     meta->setObjectName("muted");
     meta->setWordWrap(true);
     meta->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -114,9 +118,16 @@ QWidget *createPluginSettings() {
         toggle->setChecked(false);
         return;
       }
-      QSettings settings;
-      settings.setValue("plugins/" + plugin.id + "/enabled", enabled);
-      settings.sync();
+      auto document = readExtensionConfiguration();
+      auto plugins = document.value("plugins").toObject();
+      plugins[plugin.id] = QJsonObject{{"enabled", enabled}, {"mode", plugin.mode}, {"settings", plugin.settings}};
+      document["plugins"] = plugins;
+      QString error;
+      if (!saveExtensionConfiguration(QJsonDocument(document).toJson(), &error)) {
+        QSignalBlocker blocker(toggle);
+        toggle->setChecked(!enabled);
+        QMessageBox::warning(page, LunaDash::translate("Plugins"), error);
+      }
     });
     installedLayout->addWidget(card);
   }
@@ -145,7 +156,7 @@ QWidget *createPluginSettings() {
   auto *storeDescription = new QLabel(LunaDash::translate(
       "The store page is reserved for a future plugin catalogue. Local QML "
       "plugins and C++ effects can already be discovered from their "
-      "manifest.json files."));
+      "metadata.json files."));
   storeDescription->setWordWrap(true);
   storeDescription->setObjectName("description");
   storeDescription->setAlignment(Qt::AlignCenter);

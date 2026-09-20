@@ -26,13 +26,13 @@ ColumnLayout {
     }
     SettingsComponents.SettingsCard {
         title: shell.tr("Plugins")
-        description: shell.tr("Manage installed QML plugins and C++ effects. The plugin store is reserved for a future release.")
+        description: shell.tr("Manage Quickshell, native and OpenGL plugins. The plugin store is reserved for a future release.")
         RowLayout {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true
                 Text { text: shell.tr("Installed plugins") + ": " + (((shell.state.appearance || {}).plugins || []).length); color: Theme.text; font.family: Theme.font }
-                HelpText { shell: page.shell; message: "QML plugins can update with the shell; C++ effects require a session restart after changing their state." }
+                HelpText { shell: page.shell; message: "Plugins reload live between hook calls. Configure their categories and settings in Shell modules." }
             }
             ShellButton { text: shell.tr("Open plugin manager"); active: true; onClicked: shell.launch("plugins") }
         }

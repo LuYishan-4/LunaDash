@@ -1,71 +1,111 @@
-# Plugins
+# Desktop plugins
 
-LunaDash supports two plugin types:
+LunaDash Plugin SDK 2 provides feature hooks, visual slots and shared metadata for local plugins. The built-in tiling desktop stays the default. Plugins can replace a feature or run alongside it. All native effects ship disabled.
 
-- `qml` for shell/UI extensions loaded by Quickshell.
-- `effect` for native C++ compositor effects loaded through `QPluginLoader`.
+## Types and targets
 
-The plugin manager has **Installed** and **Store** tabs. The Store tab is currently a placeholder and does not download plugins yet.
+| `type` | Implementation | Runtime |
+| --- | --- | --- |
+| `effect` | C11 or C++20, compiled with the SDK | Versioned C ABI with JSON hook requests and validated results |
+| `quickshell` | QML/JavaScript | An `Item` inside the selected shell feature; desktop widgets may own windows |
+| `opengl` | GLSL `.vert` and `.frag` | SDK-baked shader packages in a Qt Quick visual slot |
 
-## LunaDash manifest schema
+`target` names the feature being replaced, independently of the implementation language. [The target reference](PLUGIN_TARGETS.md) lists every registered hook, visual slot and settings-page slot. The registry is `data/plugins/targets.json`; the SDK and runtime use the same registry. A plugin has one target; a larger collection can ship several independently selectable plugins.
 
-New plugins use `metadata.json` (also referred to as the plugin manifest):
+## Create and build
 
-```json
-{
-  "schemaVersion": 1,
-  "id": "org.example.clock",
-  "name": "Example Clock",
-  "name[zh_TW]": "\u7bc4\u4f8b\u6642\u9418",
-  "description": "A desktop clock plugin.",
-  "description[zh_TW]": "\u684c\u9762\u6642\u9418\u63d2\u4ef6。",
-  "version": "1.0.0",
-  "author": {
-    "name": "Example Author"
-  },
-  "icon": "clock",
-  "type": "qml",
-  "entry": "Main.qml",
-  "enabledByDefault": false
-}
+The SDK is installed with LunaDash. Python 3 and CMake are required. Native C++ examples also use Qt Core; shader plugins additionally require Qt Shader Tools (`qt6-shadertools` on Arch). QML plugins also go through CMake so they receive validated metadata and a build receipt.
+
+```sh
+lunadash-create-plugin --list
+lunadash-create-plugin --type quickshell --target panel \
+  --id org.example.panel --output my-panel
+cmake -S my-panel -B my-panel/build -G Ninja \
+  -DCMAKE_INSTALL_PREFIX="$HOME/.local"
+cmake --build my-panel/build
+cmake --install my-panel/build
 ```
 
-Supported metadata fields are `id`, localized `name`, localized `description`, `version`, `author`, `icon`, `type`, `entry`, and `enabledByDefault`. `type` must be `qml` or `effect`. The entry must stay inside the plugin directory; canonical-path validation rejects path escapes.
+From a checkout, use `scripts/create-plugin.py`. To build against an uninstalled LunaDash build, pass `-DLunaDashPlugin_DIR=/absolute/path/to/build/sdk-build`. To test a relocated installation, set `CMAKE_PREFIX_PATH` to its installation prefix.
 
-QML plugins are discovered from the LunaDash shell `plugins/<id>/` directory, including the installed `$prefix/share/lunadash/shell/plugins/<id>/` path. Their root entry should be an `Item` with a `required property var shell`; it may create Quickshell windows or other shell objects. Enabled QML plugins are picked up by the shell without loading native code.
+Every plugin project calls:
 
-The built-in example is `qml/plugins/digital-clock/`. It displays a theme-coloured desktop clock with large hour/minute text plus month, date, and weekday. Its visual structure is inspired by the Caelestia desktop clock while using only LunaDash/Qt/Quickshell APIs.
+```cmake
+find_package(LunaDashPlugin 2 CONFIG REQUIRED)
+lunadash_add_plugin(my_plugin METADATA "${CMAKE_CURRENT_SOURCE_DIR}/metadata.json"
+    SOURCES Effect.cpp) # SOURCES is required only for native effects
+```
 
-## Native C++ effects
+Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs these in the plugin directory. Filenames in metadata are local leaf filenames. Do not hand-copy only the source directory into the plugin search path: the SDK must build/install the complete package.
 
-The new schema may also use `"type": "effect"` with a shared library filename in `entry`. Native effects execute inside the compositor, are not sandboxed, and require a session restart when their enabled state changes.
-
-For backward compatibility, LunaDash also accepts the older KDE-inspired metadata format below. **It does not implement KWin's ABI and cannot load KWin plugins.**
+## Metadata
 
 ```json
 {
-  "KPlugin": {
-    "Id": "org.example.effect",
-    "Name": "Example effect",
-    "Description": "An example window effect",
-    "Version": "1.0.0",
-    "License": "GPL-3.0-only",
-    "EnabledByDefault": false
-  },
-  "LuDash": {
-    "ApiVersion": 1,
-    "Type": "WindowEffect",
-    "Library": "libexample-effect.so"
+  "schemaVersion": 2,
+  "sdk": {"name": "LunaDash", "apiVersion": 2},
+  "id": "org.example.panel",
+  "name": "My panel",
+  "description": "A custom taskbar.",
+  "version": "1.0.0",
+  "author": "Your name",
+  "type": "quickshell",
+  "target": "panel",
+  "mode": "replace",
+  "entry": "Main.qml",
+  "enabledByDefault": false,
+  "settings": {
+    "text": {"type": "string", "default": "Hello"}
   }
 }
 ```
 
-Native plugins are discovered from `~/.local/share/ludash/plugins/<id>/`, `$prefix/share/ludash/plugins/<id>/`, and `plugins/` next to the executable. Derive the C++ class from `QObject` and `LunaDash::CompositorPlugin`. Implement `windowOpened(QQuickItem*)` and `windowFocused(QQuickItem*)`, embed matching metadata using `Q_PLUGIN_METADATA`, and declare the interface with `Q_INTERFACES`. Use `QPointer<QQuickItem>` if retaining a window reference.
+`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Shell modules → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `layoutMode: stacking` must be replacements: two layout owners cannot simultaneously place the same windows.
 
-The native example is in `src/compositor/plugins/fade/FadePlugin.hpp`, `src/compositor/plugins/fade/FadePlugin.cpp`, and `data/plugins/fade/metadata.json`. It builds into `build/plugins/org.ludash.fade/`.
+The settings schema supports `boolean`, `string`, `number`, `integer`, `default`, numeric `minimum`/`maximum`, and `enum`. Unknown settings and invalid values are rejected before saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
 
-The loader validates JSON size, ID, API/type, canonical entry paths, and the Qt plugin IID for native effects. There is currently no signing or sandbox for C++ effects, so enabling one explicitly trusts its native code.
+## Hooks and hot reload
 
-Metadata discovery lives in `src/config/plugins/PluginCatalog`, independently of the compositor loader. The C++ namespace is now `LunaDash`; rebuild native plugins against the current header. The retained effect interface uses Qt Quick items and is not yet connected to wlroots scene-window callbacks. Loading a native module does not establish that its visual effects are active in the wlroots session.
+Enabling, disabling, changing settings and rebuilding a plugin do not require rebooting or logging out. The host checks local packages approximately once per second and reloads between hook calls. Each revision is staged into a private directory: a rebuild cannot overwrite executing native code, and QML/helper/shader URLs change together. Recent QML revisions remain available while asynchronous loads settle. A failed or incomplete revision falls back to the built-in feature; the settings page shows its error and offers Retry plugin.
 
-Built-in plugin and portal file chooser windows use the shell palette, rounded controls, and the configured font and accent. Open windows follow appearance changes. These Qt Widgets windows use opaque surfaces; compositor blur and QML motion effects are not reproduced. External applications that bypass the LunaDash portal use their own file chooser theme.
+Native SDK 2 deliberately uses synchronous, stateless hooks. Authors implement `ludash_plugin_process(request, response, capacity)`; the SDK generates `ludash_plugin_entry_v2` and embeds metadata. Requests contain `target`, `mode`, `context`, `builtin`, `current`, and `settings`. Return a complete JSON object and its byte length, or a negative value on failure. Replacement hooks get an empty `current`; `builtin` remains available as a starting point. Additions receive the previous valid result. Invalid responses are quarantined until settings/code change or the user retries.
+
+Do not retain host pointers, start background threads, register process-wide callbacks, run nested event loops or block inside a hook. Libraries are unloaded after the current callback returns. Native code is unrestricted and a crash or hang can still take down the compositor; metadata validation does not isolate it. SDK 2 does not expose scene pointers or a general asynchronous service ABI.
+
+Quickshell entry points declare `required property var shell`, `settings` and `context`. These are supplied **before** component construction. The context includes the feature's state and `source`, the built-in visual item. Use `shell.command`, `shell.launch` and `shell.openUrl` for the existing desktop actions. See the target reference for additional context fields. Plugins can expose `pluginReady: false` until ready; the replacement stays hidden until then. The Modules settings page itself always remains built-in as the recovery route.
+
+## OpenGL shader packages
+
+Use `type: opengl`, a supported visual `target`, and:
+
+```json
+"shaders": {"vertex": "Effect.vert", "fragment": "Effect.frag"}
+```
+
+The SDK compiles both files with `qsb`; the installed package retains the GLSL and includes `.qsb` files. The shared uniform block contains `qt_Matrix`, `qt_Opacity`, `strength`, `resolution`, and `parameters` (a vec4 mapped from numeric settings `parameter0`–`parameter3`). Binding 1 is the `source` sampler. Keep the uniform block layout identical in both stages and output premultiplied colors. The `templates/plugins/opengl` example is a complete reference.
+
+Replacement shaders suppress the built-in draw only after successful shader creation, while keeping its texture as input. Additions composite on top in ID order; each gets the built-in texture, not the previous shader's framebuffer. Software rendering does not run shaders and retains the built-in visual. The shader slot is in the Quickshell scene: it can affect wallpaper, shell surfaces and the switcher background, **not arbitrary application buffers or the wlroots output framebuffer**. Raw compositor OpenGL passes remain under `src/compositor/renderer/opengl/` and are a separate renderer integration boundary.
+
+Qt references: [ShaderEffect](https://doc.qt.io/qt-6/qml-qtquick-shadereffect.html), [qsb](https://doc.qt.io/qt-6/qtshadertools-qsb.html).
+
+## Settings and recovery
+
+Settings → Shell modules groups features into Desktop, Windows, Animation, Effects, System, Feedback and Settings pages. Each target shows its built-in options and installed plugins, with separate plugin options, enabled state and composition mode. Existing shell layout controls and `shell-modules.json` remain available below. Advanced JSON edits `~/.config/LuDash/extensions.json`; saving validates the complete document (maximum 24 KiB) and writes it atomically. Native defaults such as duration/gap use `-1` to inherit the existing desktop preference.
+
+```json
+{
+  "schemaVersion": 1,
+  "builtins": {"window-animation": {"duration": 260}},
+  "plugins": {
+    "org.lunadash.stacking-windows": {
+      "enabled": true, "mode": "replace", "settings": {"cascadeStep": 32}
+    }
+  }
+}
+```
+
+The corresponding control commands are `lunadashctl extension-save '<JSON>'` and `lunadashctl open-settings modules`. To restore all extension defaults, save `{"schemaVersion":1,"builtins":{},"plugins":{}}` and disable legacy plugin preferences if any were previously enabled. To explicitly turn off an individual installed plugin, keep its entry with `enabled: false`.
+
+Discovery prefers the user's data directory, then system data directories: `lunadash/plugins`, legacy `lunadash/shell/plugins`, legacy `ludash/plugins`; an executable-adjacent `plugins` directory supports development builds. Legacy schema-1 QML widgets continue as desktop widgets. The old Qt Quick native effect ABI is rejected with a rebuild message; it never drove the active wlroots scene. Existing trusted custom module QML remains a migration path, but new plugin packages use SDK 2.
+
+The plugin store remains unimplemented. Metadata and QML run with user permissions. Protocol/session ownership, authentication, system services and update installation are host responsibilities, not replaceable native services in SDK 2.

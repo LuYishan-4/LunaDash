@@ -1,4 +1,5 @@
 import "../modules"
+import "../plugins"
 import QtQuick
 import "../columns/WorkspaceTasks.js" as WorkspaceTasks
 import QtQuick.Controls
@@ -195,6 +196,11 @@ ModuleSurface {
         height: panel.capsuleHeight
         width: Math.min(columnTasks.contentWidth + 8, Math.max(0, centerShell.x - x - panel.capsuleGap))
         visible: columnTasks.count > 0
+        ExtensionSlot {
+            anchors.fill: parent
+            shell: panel.shell
+            target: "taskbar-windows"
+            context: ({groups: panel.groups})
         ListView {
             id: columnTasks
             anchors.fill: parent
@@ -217,6 +223,8 @@ ModuleSurface {
                 width: implicitWidth
             }
         }
+    }
+
     }
 
     Item {

@@ -1,5 +1,7 @@
 #include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/client/ClientWindow.hpp"
+#include "compositor/plugins/ExtensionHooks.hpp"
+#include "config/desktop/DesktopPreferences.hpp"
 #include "compositor/wayland/Runtime.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
@@ -88,6 +90,8 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
                  state, handleToplevelMaximize);
   attachListener(&toplevel->events.request_fullscreen, state->requestFullscreen,
                  state, handleToplevelFullscreen);
+  attachListener(&toplevel->events.request_move, state->requestMove, state, handleToplevelMove);
+  attachListener(&toplevel->events.request_resize, state->requestResize, state, handleToplevelResize);
   wlr_scene_node_set_enabled(&current->sceneTree->node, false);
 #if WLR_VERSION_MINOR < 18
   // wlroots 0.17 emits xdg_shell.new_surface from the role's first commit.
@@ -129,10 +133,17 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
     return;
   auto *client = state->client;
   client->mapped = true;
-  client->initialRuleApplied = true;
   state->impl->q->updateClientMetadata(client);
+  if (!client->initialRuleApplied && !client->utility && !client->floating) {
+    const auto rule = initialWindowRule(*state->impl->q->pluginManager_,
+        {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
+        client->workspace, client->maximized, desktopPreferences().value("workspaceCount").toInt());
+    client->workspace = rule.value("workspace").toInt();
+    client->maximized = rule.value("maximized").toBool();
+  }
+  client->initialRuleApplied = true;
   // A new ordinary window joins the visible layout instead of inheriting zoom.
-  if (!client->floating && !client->utility)
+  if (state->impl->q->windowLayout_->mode() == WindowLayoutMode::Tiling && !client->floating && !client->utility)
     for (const auto &peer : state->impl->q->clients_)
       if (peer.get() != client && peer->workspace == client->workspace &&
           !peer->floating && peer->maximized)
@@ -242,6 +253,19 @@ void WaylandCompositor::Impl::handleToplevelFullscreen(wl_listener *listener,
     state->impl->q->focus(state->client);
 }
 
+void WaylandCompositor::Impl::handleToplevelMove(wl_listener *listener, void *data) {
+  auto *state = listenerOwner<ToplevelState>(listener);
+  auto *event = static_cast<wlr_xdg_toplevel_move_event *>(data);
+  if (state && event && event->seat && event->seat->seat == state->impl->seat)
+    state->impl->beginStackingPointer(state->client, event->serial, 0);
+}
+void WaylandCompositor::Impl::handleToplevelResize(wl_listener *listener, void *data) {
+  auto *state = listenerOwner<ToplevelState>(listener);
+  auto *event = static_cast<wlr_xdg_toplevel_resize_event *>(data);
+  if (state && event && event->seat && event->seat->seat == state->impl->seat && event->edges)
+    state->impl->beginStackingPointer(state->client, event->serial, event->edges);
+}
+
 void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
                                                     void *) {
   auto *state = listenerOwner<ToplevelState>(listener);
@@ -259,6 +283,8 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   detachListener(state->requestMinimize);
   detachListener(state->requestMaximize);
   detachListener(state->requestFullscreen);
+  detachListener(state->requestMove);
+  detachListener(state->requestResize);
   client->nativeState = nullptr;
   self->q->removeClient(client);
   delete state;

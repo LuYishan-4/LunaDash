@@ -11,6 +11,7 @@ import "../style"
 ModuleSurface {
     id: menu
     moduleId: "menu"
+    extensionTarget: "desktop-menu"
     property real anchorX: 0
     property real anchorY: 0
     readonly property bool hasFocusedClient: (shell.state.clients || []).some(client => client.focused && !client.desktop)

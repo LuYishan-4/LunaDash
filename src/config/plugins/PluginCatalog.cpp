@@ -1,5 +1,8 @@
 #include "config/plugins/PluginCatalog.hpp"
+#include "config/plugins/ExtensionConfiguration.hpp"
+#include "config/plugins/ExtensionRegistry.hpp"
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -11,6 +14,8 @@
 #include <QSet>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QUrl>
+#include <algorithm>
 
 namespace LunaDash {
 namespace {
@@ -37,7 +42,8 @@ QString canonicalChild(const QDir &directory, const QString &leaf) {
 }
 } // namespace
 
-PluginDescriptor readPluginMetadata(const QString &path) {
+PluginDescriptor readPluginMetadata(const QString &path,
+                                    bool applyConfiguration) {
   PluginDescriptor result;
   result.metadataPath = path;
   QFile file(path);
@@ -46,13 +52,16 @@ PluginDescriptor readPluginMetadata(const QString &path) {
     return result;
   }
   QJsonParseError parseError;
-  const auto document = QJsonDocument::fromJson(file.readAll(), &parseError);
+  const auto metadataBytes = file.readAll();
+  const auto document = QJsonDocument::fromJson(metadataBytes, &parseError);
   if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
     result.error = "Invalid JSON metadata";
     return result;
   }
 
   const auto metadata = document.object();
+  result.manifest = metadata;
+  result.schemaVersion = metadata.value("schemaVersion").toInt(1);
   const auto locale =
       QSettings()
           .value("appearance/language", QLocale::system().name())
@@ -89,7 +98,7 @@ PluginDescriptor readPluginMetadata(const QString &path) {
       return result;
     }
   } else {
-    if (metadata.value("schemaVersion").toInt() != 1) {
+    if (result.schemaVersion != 1 && result.schemaVersion != 2) {
       result.error = "Unsupported plugin manifest schema";
       return result;
     }
@@ -103,8 +112,55 @@ PluginDescriptor readPluginMetadata(const QString &path) {
                         : author.toString();
     result.icon = metadata.value("icon").toString("applications-system");
     result.type = metadata.value("type").toString().toLower();
+    if (result.type == "qml")
+      result.type = "quickshell";
+    result.target = metadata.value("target").toString("desktop-widgets");
+    result.mode = metadata.value("mode").toString("augment");
+    if (result.schemaVersion == 2) {
+      QFile receipt(canonicalChild(directory, ".lunadash-sdk.json"));
+      if (!receipt.open(QIODevice::ReadOnly) || receipt.size() > 4096 ||
+          QJsonDocument::fromJson(receipt.readAll())
+                  .object()
+                  .value("metadataSha256")
+                  .toString() !=
+              QString::fromLatin1(QCryptographicHash::hash(
+                                      metadataBytes, QCryptographicHash::Sha256)
+                                      .toHex())) {
+        result.error = "Missing or stale LunaDash CMake SDK build receipt; "
+                       "rebuild the plugin";
+        return result;
+      }
+      const auto target = extensionTarget(result.target);
+      const auto sdk = metadata.value("sdk").toObject();
+      if (sdk.value("name").toString() != "LunaDash" ||
+          sdk.value("apiVersion").toInt() != 2 || target.isEmpty() ||
+          !target.value("types").toArray().contains(result.type) ||
+          !metadata.contains("target") || !metadata.contains("mode") ||
+          !QStringList{"replace", "augment"}.contains(result.mode)) {
+        result.error = "Invalid SDK, target, type or composition mode";
+        return result;
+      }
+      if (!metadata.value("settings").isObject()) {
+        result.error = "Schema 2 requires a settings schema object";
+        return result;
+      }
+      result.settingsSchema = metadata.value("settings").toObject();
+      const auto layoutMode = metadata.value("layoutMode").toString("tiling");
+      if ((metadata.contains("layoutMode") &&
+           (result.type != "effect" || result.target != "window-layout")) ||
+          !QStringList{"tiling", "stacking"}.contains(layoutMode) ||
+          (layoutMode == "stacking" && result.mode != "replace")) {
+        result.error =
+            "layoutMode stacking requires a window-layout replacement";
+        return result;
+      }
+      result.settings = extensionDefaults(result.settingsSchema);
+      if (!validateExtensionSettings(result.settingsSchema, result.settings,
+                                     &result.error))
+        return result;
+    }
     enabledByDefault = metadata.value("enabledByDefault").toBool(false);
-    if (result.type == "qml") {
+    if (result.type == "quickshell") {
       result.entryPath =
           canonicalChild(directory, metadata.value("entry").toString());
       if (result.entryPath.isEmpty() || !result.entryPath.endsWith(".qml")) {
@@ -120,10 +176,31 @@ PluginDescriptor readPluginMetadata(const QString &path) {
             "Effect plugin entry must be a library inside its directory";
         return result;
       }
+    } else if (result.type == "opengl" && result.schemaVersion == 2) {
+      const auto shaders = metadata.value("shaders").toObject();
+      for (const auto &stage : {QString("vertex"), QString("fragment")}) {
+        const auto source = shaders.value(stage).toString();
+        const auto path = canonicalChild(directory, source);
+        const auto baked = canonicalChild(directory, source + ".qsb");
+        const auto extension = stage == "vertex" ? ".vert" : ".frag";
+        if (path.isEmpty() || baked.isEmpty() || !source.endsWith(extension)) {
+          result.error = "OpenGL plugins require local .vert/.frag sources and "
+                         "SDK-built .qsb files";
+          return result;
+        }
+        result.shaders[stage] = QUrl::fromLocalFile(baked).toString();
+      }
     } else {
-      result.error = "Plugin type must be qml or effect";
+      result.error = "Plugin type must be quickshell, effect or opengl";
       return result;
     }
+  }
+
+  // The old Qt Quick effect ABI never drove the active wlroots scene. Do not
+  // load it and advertise a successful effect: require rebuilding with SDK 2.
+  if (result.type == "effect" && result.schemaVersion != 2) {
+    result.error = "Legacy native effect: rebuild with LunaDash Plugin SDK 2";
+    return result;
   }
 
   static const QRegularExpression validId("^[a-zA-Z0-9][a-zA-Z0-9._-]+$");
@@ -134,17 +211,69 @@ PluginDescriptor readPluginMetadata(const QString &path) {
   }
   result.enabled =
       QSettings()
-          .value("plugins/" + result.id + "/enabled", enabledByDefault)
+          .value("plugins/" + result.id + "/enabled",
+                 result.type == "effect" ? false : enabledByDefault)
           .toBool();
+  if (!applyConfiguration)
+    return result;
+  const auto config = readExtensionConfiguration()
+                          .value("plugins")
+                          .toObject()
+                          .value(result.id)
+                          .toObject();
+  if (config.contains("enabled"))
+    result.enabled = config.value("enabled").toBool(false);
+  if (config.contains("mode"))
+    result.mode = config.value("mode").toString();
+  if (result.manifest.value("layoutMode").toString() == "stacking" &&
+      result.mode != "replace") {
+    result.error = "Stacking layout must run as Plugin only";
+    result.enabled = false;
+    return result;
+  }
+  const auto settings = config.value("settings").toObject();
+  if (!QStringList{"replace", "augment"}.contains(result.mode) ||
+      !validateExtensionSettings(result.settingsSchema, settings,
+                                 &result.error)) {
+    if (result.error.isEmpty())
+      result.error = "Invalid plugin composition mode";
+    result.enabled = false;
+    return result;
+  }
+  for (auto it = settings.begin(); it != settings.end(); ++it)
+    result.settings[it.key()] = it.value();
   return result;
+}
+
+QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
+  return {
+      {"id", plugin.id},
+      {"name", plugin.name},
+      {"description", plugin.description},
+      {"version", plugin.version},
+      {"author", plugin.author},
+      {"icon", plugin.icon},
+      {"type", plugin.type},
+      {"target", plugin.target},
+      {"mode", plugin.mode},
+      {"schemaVersion", plugin.schemaVersion},
+      {"layoutMode", plugin.manifest.value("layoutMode").toString("tiling")},
+      {"enabled", plugin.enabled},
+      {"error", plugin.error},
+      {"settingsSchema", plugin.settingsSchema},
+      {"settings", plugin.settings},
+      {"shaders", plugin.shaders},
+      {"entry", plugin.entryPath.isEmpty()
+                    ? QString()
+                    : QUrl::fromLocalFile(plugin.entryPath).toString()},
+      {"restartRequired", false}};
 }
 
 QList<PluginDescriptor> discoverPlugins() {
   QStringList roots;
-  roots << QDir(QCoreApplication::applicationDirPath())
-               .absoluteFilePath("../qml/plugins");
   for (const auto &path :
        QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
+    roots << path + "/lunadash/plugins";
     roots << path + "/lunadash/shell/plugins";
     roots << path + "/ludash/plugins";
   }
@@ -165,6 +294,8 @@ QList<PluginDescriptor> discoverPlugins() {
       result << plugin;
     }
   }
+  std::sort(result.begin(), result.end(),
+            [](const auto &a, const auto &b) { return a.id < b.id; });
   return result;
 }
 

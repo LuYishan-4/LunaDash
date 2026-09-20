@@ -14,6 +14,7 @@ import "setup"
 import "style"
 import "compatibility"
 import "windows"
+import "plugins"
 
 ShellRoot {
     id: root
@@ -263,7 +264,7 @@ ShellRoot {
         Theme.secondaryAccent = (state.appearance || {}).secondaryAccent || Theme.defaultSecondaryAccent
         Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true)
-        Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
+        Theme.animationDuration = state.shellAnimationDuration ?? (state.appearance || {}).animationDuration ?? 220
         const captureError = String((state.screenCapture || {}).error || "")
         if (captureError.length && captureError !== lastCaptureError)
             notify(tr("Screenshot failed"), tr(captureError), "error", captureError)
@@ -418,6 +419,7 @@ ShellRoot {
             try { root.interaction = JSON.parse(text()) } catch (error) { root.interaction = ({}) }
         }
     }
+    PluginHost { shell: root }
     WindowFrames { shell: root; interaction: root.interaction }
     WindowSwitcher { shell: root; interaction: root.interaction }
     TilingDropHint { shell: root; drag: root.interaction.drag || ({}) }

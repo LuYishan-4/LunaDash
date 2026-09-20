@@ -9,6 +9,8 @@
 #include "compositor/input/Keyboard.hpp"
 #include "compositor/ipc/ControlServer.hpp"
 #include "compositor/plugins/PluginManager.hpp"
+#include "compositor/plugins/ExtensionHooks.hpp"
+#include "config/plugins/ExtensionConfiguration.hpp"
 #include "compositor/session/ClientLaunch.hpp"
 #include "compositor/session/SessionActions.hpp"
 #include "compositor/session/SessionEnvironment.hpp"
@@ -126,16 +128,17 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   networkStatus_ = new NetworkStatus(this);
   pluginManager_ = new PluginManager(this);
   pluginManager_->loadEnabled();
+  windowLayout_->setPlacementFilter([this](auto workspace, auto area, const auto &placements) {
+    return pluginWindowPlacements(*pluginManager_, workspace, area, placements);
+  });
 
   if (!d->initialize())
     return;
 
+  connect(pluginManager_, &PluginManager::changed, this, [this] { arrange(); }, Qt::QueuedConnection);
   windowAnimations_ = new SceneWindowAnimations(this);
   const auto initialAppearance = desktopPreferences();
-  windowAnimations_->setDuration(
-      initialAppearance.value("animations").toBool()
-          ? initialAppearance.value("animationDuration").toInt()
-          : 0);
+  windowAnimations_->setProfile(windowAnimationProfile(*pluginManager_, initialAppearance));
 
   controlPath_ =
       QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
@@ -468,16 +471,23 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   const auto preferences = desktopPreferences();
+  const auto layoutMode = pluginManager_->stackingLayout() ? WindowLayoutMode::Stacking : WindowLayoutMode::Tiling;
+  const bool layoutChanged = windowLayout_->mode() != layoutMode;
+  if (layoutChanged) {
+    if (d->pointerWindow)
+      d->finishTiledPointer(false);
+    windowLayout_ = createWindowLayout(layoutMode);
+    windowLayout_->setPlacementFilter([this](auto workspace, auto area, const auto &placements) {
+      return pluginWindowPlacements(*pluginManager_, workspace, area, placements);
+    });
+  }
   if (windowAnimations_)
-    windowAnimations_->setDuration(
-        preferences.value("animations").toBool()
-            ? preferences.value("animationDuration").toInt()
-            : 0);
+    windowAnimations_->setProfile(windowAnimationProfile(*pluginManager_, preferences));
   const int count = preferences.value("workspaceCount").toInt();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const QRect area = workArea();
-  const int gap = preferences.value("gap").toInt();
-  windowLayout_->setGap(gap);
+  const int configuredGap = configuredBuiltinSettings("window-layout").value("gap").toInt(-1);
+  windowLayout_->setGap(configuredGap < 0 ? preferences.value("gap").toInt() : configuredGap);
 
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
@@ -489,8 +499,9 @@ void WaylandCompositor::arrange() {
 #else
       wlr_xdg_surface_get_geometry(client->surface, &initialGeometry);
 #endif
-      windowLayout_->insert(client->workspace, client->id,
-                     QSize(initialGeometry.width, initialGeometry.height));
+      if (!client->preferredFloatingSize.isValid() && initialGeometry.width > 0 && initialGeometry.height > 0)
+        client->preferredFloatingSize = QSize(initialGeometry.width, initialGeometry.height);
+      windowLayout_->insert(client->workspace, client->id, client->preferredFloatingSize);
       windowLayout_->moveToWorkspace(client->id, client->workspace);
       windowLayout_->setMinimized(client->id, client->minimized);
       if (client->maximized)
@@ -500,6 +511,8 @@ void WaylandCompositor::arrange() {
     }
   }
 
+  if (layoutChanged && focused_ && focused_->mapped && !focused_->minimized)
+    windowLayout_->focus(focused_->id);
   QList<ClientWindow *> revealed;
   QHash<int, LayoutWindowId> maximizedWindows;
   for (const auto &client : clients_) {
@@ -520,7 +533,7 @@ void WaylandCompositor::arrange() {
         inMaximizedFamily = true;
       parent = parent->parent;
     }
-    client->hiddenByMaximize =
+    client->hiddenByMaximize = windowLayout_->mode() == WindowLayoutMode::Tiling &&
         maximized && !inMaximizedFamily && !client->desktop;
     const bool visible = client->mapped && !client->minimized &&
                          client->workspace == workspace_ && !client->utility &&
@@ -556,6 +569,10 @@ void WaylandCompositor::arrange() {
   }
 
   const auto placements = windowLayout_->presentation(workspace_, area);
+  if (windowLayout_->mode() == WindowLayoutMode::Stacking && !pluginManager_->stackingLayout()) {
+    arrange();
+    return;
+  }
   for (const auto &placement : placements) {
     auto found = std::find_if(
         clients_.begin(), clients_.end(), [&placement](const auto &client) {
@@ -619,7 +636,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
         setMaximized(other.get(), false);
     arrange();
   }
-  if (!client->floating && !client->maximized &&
+  if (windowLayout_->mode() == WindowLayoutMode::Tiling && !client->floating && !client->maximized &&
       windowLayout_->snapshot(client->workspace).maximizedWindow)
     setMaximized(client, true);
   if (!client->floating)
@@ -894,10 +911,15 @@ QJsonObject WaylandCompositor::state() const {
                                     {"members", members}});
   }
 
-  const auto preferences = desktopPreferences();
+  auto preferences = desktopPreferences();
+  const auto extensions = pluginManager_->snapshot();
+  preferences["plugins"] = extensions.value("installed");
   return {
+      {"layoutMode", windowLayout_->mode() == WindowLayoutMode::Stacking ? "stacking" : "tiling"},
       {"defaultApps", defaultApplications()},
       {"shellModules", shellModules_->snapshot()},
+      {"extensions", extensions},
+      {"shellAnimationDuration", shellAnimationDuration(*pluginManager_, preferences.value("animationDuration").toInt())},
       {"panelExtent",
        shellModules_->panelExtent(preferences.value("panelHeight").toInt())},
       {"panelAtBottom", shellModules_->panelAtBottom()},
@@ -1050,6 +1072,15 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", "Unknown settings page."}};
     settingsPage_ = value.isEmpty() ? "general" : value;
     settingsSerial_ = (settingsSerial_ + 1) % 1000000;
+  } else if (method == "extension-save") {
+    QString error;
+    if (!saveExtensionConfiguration(value.toUtf8(), &error))
+      return {{"error", error}};
+    pluginManager_->refresh();
+    arrange();
+  } else if (method == "extension-error") {
+    const auto object = QJsonDocument::fromJson(value.toUtf8()).object();
+    pluginManager_->reportError(object.value("id").toString(), object.value("error").toString());
   } else if (method == "module-validate" || method == "module-save" ||
              method == "module-reset" || method == "module-code-trust" ||
              method == "module-template") {

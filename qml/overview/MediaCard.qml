@@ -1,4 +1,5 @@
 import QtQuick
+import "../plugins"
 
 Item {
     id: card
@@ -8,14 +9,23 @@ Item {
         shell: card.shell
         polling: card.visible
     }
-    MediaView {
+    ExtensionSlot {
         anchors.fill: parent
         shell: card.shell
-        media: controller.media
-        preferredService: controller.preferredService
-        preferredBus: controller.preferredBus
-        errorMessage: controller.errorMessage
-        onAction: (name, value) => controller.run(name, value)
-        onPlayerSelected: (service, bus) => controller.selectPlayer(service, bus)
+        target: "media"
+        context: ({
+                controller: controller,
+                media: controller.media
+            })
+        MediaView {
+            anchors.fill: parent
+            shell: card.shell
+            media: controller.media
+            preferredService: controller.preferredService
+            preferredBus: controller.preferredBus
+            errorMessage: controller.errorMessage
+            onAction: (name, value) => controller.run(name, value)
+            onPlayerSelected: (service, bus) => controller.selectPlayer(service, bus)
+        }
     }
 }

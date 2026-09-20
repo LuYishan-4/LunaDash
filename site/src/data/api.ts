@@ -68,6 +68,16 @@ export const methods: Method[] = [
       "Validate without writing, or atomically save and apply a module document (maximum 16 KiB).",
   },
   {
+    name: "extension-save",
+    value: "Schema 1 extensions JSON string",
+    behavior: "Validate and atomically save built-in/plugin settings (maximum 24 KiB); reload enabled plugins without restarting.",
+  },
+  {
+    name: "extension-error",
+    value: 'JSON string: {"id":"plugin.id","error":"message"}',
+    behavior: "Report a plugin error and restore built-in content. An empty error requests a retry.",
+  },
+  {
     name: "module-template",
     value: "panel or overview",
     behavior: "Create a starter QML file without overwriting existing code.",

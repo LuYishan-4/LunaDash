@@ -108,3 +108,7 @@ PR 请以 **`dev`** 为目标分支。标题应清楚描述改动，说明用户
 ---
 
 <p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · 项目目前尚不成熟，欢迎报告问题或提交 PR。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
+
+### 打造自己的桌面功能
+
+[Plugin SDK 2](../PLUGINS.md) 提供 C／C++ hook、Quickshell 组件及 OpenGL 着色器模板，可按类别设置并实时替换或并用。从[功能接口参考](../PLUGIN_TARGETS.md)或默认禁用的[堆叠窗口示例](../../examples/plugins/stacking-windows/README.md)开始。

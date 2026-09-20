@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import "../components"
 import "../../components"
 import "../../style"
+import "../../plugins"
 
 ColumnLayout {
     id: page
@@ -79,6 +80,8 @@ ColumnLayout {
     }
 
     onStateChanged: if (!dirty && loadedRevision !== (state.revision ?? 0)) reloadEditor()
+
+    ExtensionSettings { Layout.fillWidth: true; shell: page.shell }
 
     PageTitle {
         shell: page.shell

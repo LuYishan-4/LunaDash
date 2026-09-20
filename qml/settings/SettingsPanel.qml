@@ -1,4 +1,5 @@
 import "../modules"
+import "../plugins"
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -107,6 +108,14 @@ ModuleSurface {
             Rectangle {
                 Layout.fillWidth:true;Layout.fillHeight:true;Layout.minimumWidth:0;radius:moduleRadius;color:Qt.rgba(moduleBackground.r,moduleBackground.g,moduleBackground.b,0.94)
                 ScrollView{id:scroll;anchors.fill:parent;anchors.margins:24;clip:true;contentWidth:availableWidth
+                    ExtensionSlot {
+                        id: pageExtension
+                        shell: settings.shell
+                        target: "settings." + settings.category
+                        forceBuiltin: settings.category === "modules"
+                        context: ({page: settings.category})
+                        width: scroll.availableWidth - 12
+                        height: replacementReady ? Math.max(120, pluginImplicitHeight) : pageLoader.height
                     Loader{
                         id:pageLoader
                         width:scroll.availableWidth-12
@@ -118,6 +127,7 @@ ModuleSurface {
                             Qt.callLater(function(){if(scroll.contentItem)scroll.contentItem.contentY=0})
                             pageEnter.restart()
                         }
+                    }
                     }
                     ParallelAnimation{
                         id:pageEnter

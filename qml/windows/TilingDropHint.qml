@@ -1,11 +1,12 @@
 import QtQuick
+import "../plugins"
 import Quickshell
 import Quickshell.Wayland
 import "../style"
 
-PanelWindow {
+PluginPanel {
     id: panel
-    required property var shell
+    extensionTarget: "tiling-hint"
     required property var drag
     visible: Boolean(drag.target) && !shell.stopping
     anchors { top: true; bottom: true; left: true; right: true }

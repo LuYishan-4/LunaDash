@@ -1,4 +1,5 @@
 #pragma once
+#include <QJsonObject>
 #include <QList>
 #include <QString>
 
@@ -11,12 +12,21 @@ struct PluginDescriptor {
   QString author;
   QString icon;
   QString type;
+  QString target;
+  QString mode = "augment";
+  int schemaVersion = 1;
+  QJsonObject manifest;
+  QJsonObject settingsSchema;
+  QJsonObject settings;
+  QJsonObject shaders;
   QString entryPath;
   QString libraryPath;
   QString metadataPath;
   QString error;
   bool enabled = false;
 };
-PluginDescriptor readPluginMetadata(const QString &metadataPath);
+PluginDescriptor readPluginMetadata(const QString &metadataPath,
+                                    bool applyConfiguration = true);
 QList<PluginDescriptor> discoverPlugins();
+QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin);
 } // namespace LunaDash

@@ -714,6 +714,20 @@ QList<WindowPlacement> TilingLayout::layout(LayoutWorkspaceId workspaceId,
       active[i]->geometry =
           QRect(rows[i].x, rows[i].y, rows[i].width, rows[i].height);
   }
+  const auto placements = filterPlacements(workspaceId, area, snapshot(workspaceId).columns);
+  // Store the effective geometry so focus, drag hit testing and previews agree
+  // with the plugin's placement. Tree membership and saved weights stay intact.
+  for (auto &column : workspace.columns) {
+    column.geometry = {};
+    for (auto &member : column.members) {
+      for (const auto &placement : placements)
+        if (placement.window == member.window)
+          member.geometry = placement.geometry;
+      if (!member.minimized)
+        column.geometry = column.geometry.united(member.geometry);
+    }
+    column.width = column.geometry.width();
+  }
   return snapshot(workspaceId).columns;
 }
 

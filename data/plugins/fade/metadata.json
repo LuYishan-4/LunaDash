@@ -1,18 +1,25 @@
 {
-  "KPlugin": {
-    "Id": "org.ludash.fade",
-    "Name": "Window fade",
-    "Name[zh_TW]": "視窗淡入",
-    "Description": "Fade in newly opened windows.",
-    "Description[zh_TW]": "新視窗出現時播放淡入效果。",
-    "Version": "1.0.0",
-    "License": "GPL-3.0-only",
-    "Authors": [{ "Name": "LuDash contributors" }],
-    "EnabledByDefault": false
+  "schemaVersion": 2,
+  "sdk": {
+    "name": "LunaDash",
+    "apiVersion": 2
   },
-  "LuDash": {
-    "ApiVersion": 1,
-    "Type": "WindowEffect",
-    "Library": "libludash-fade.so"
+  "id": "org.ludash.fade",
+  "name": "Window fade",
+  "description": "A configurable native window animation profile.",
+  "version": "2.0.0",
+  "author": "LunaDash contributors",
+  "type": "effect",
+  "target": "window-animation",
+  "mode": "replace",
+  "entry": "libludash-fade.so",
+  "enabledByDefault": false,
+  "settings": {
+    "duration": {
+      "type": "integer",
+      "default": 260,
+      "minimum": 0,
+      "maximum": 600
+    }
   }
 }

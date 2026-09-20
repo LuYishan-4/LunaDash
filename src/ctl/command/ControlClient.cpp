@@ -56,7 +56,8 @@ int ControlClient::run(int argc, char **argv) {
            "appearance|setup|finish-setup|configure-network|launch-x11|"
            "open-settings|system-tool|audio|network|power-profile|desktop-size|"
            "reset-preferences|default-apps|launch-default|module-validate|"
-           "module-save|module-template|module-code-trust|module-reset|quit "
+           "module-save|module-template|module-code-trust|module-reset|"
+           "extension-save|extension-error|quit "
            "[value]\n"
            "  group-window value: {\"window\":ID,\"target\":ID}\n";
     return 2;

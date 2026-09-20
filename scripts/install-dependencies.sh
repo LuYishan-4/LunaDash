@@ -75,7 +75,7 @@ case "$manager" in
             pacman_install+=(--noconfirm)
         fi
         run "${elevate[@]}" "${pacman_install[@]}" \
-            base-devel cmake ninja git pkgconf \
+            base-devel cmake ninja git python pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon \
             systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations \
             shared-mime-info kitty fish grim slurp brightnessctl ddcutil polkit-kde-agent \
@@ -104,7 +104,7 @@ case "$manager" in
             exit 1
         fi
         run "${elevate[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            build-essential cmake ninja-build git pkg-config \
+            build-essential cmake ninja-build git python3 pkg-config \
             libgl-dev libwayland-dev wayland-protocols libinput-dev \
             libxkbcommon-dev libudev-dev libglib2.0-dev \
             "$wlroots_package" qt6-base-dev qt6-declarative-dev qt6-wayland \
@@ -114,7 +114,7 @@ case "$manager" in
         ;;
     dnf)
         run "${elevate[@]}" dnf install -y \
-            gcc gcc-c++ cmake ninja-build git pkgconf-pkg-config \
+            gcc gcc-c++ cmake ninja-build git python3 pkgconf-pkg-config \
             mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel \
             wlroots-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland \
@@ -124,7 +124,7 @@ case "$manager" in
         ;;
     zypper)
         run "${elevate[@]}" zypper --non-interactive install \
-            gcc gcc-c++ cmake ninja git pkg-config \
+            gcc gcc-c++ cmake ninja git python3 pkg-config \
             Mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel \
             wlroots-devel qt6-base-devel qt6-declarative-devel qt6-wayland \
@@ -134,7 +134,7 @@ case "$manager" in
         ;;
     apk)
         run "${elevate[@]}" apk add \
-            build-base cmake ninja git pkgconf mesa-dev \
+            build-base cmake ninja git python3 pkgconf mesa-dev \
             wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev \
             glib-dev wlroots-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland \
             shared-mime-info kitty fish grim slurp brightnessctl ddcutil \
@@ -143,7 +143,7 @@ case "$manager" in
         ;;
     xbps)
         run "${elevate[@]}" xbps-install -Sy \
-            base-devel cmake ninja git pkg-config MesaLib-devel \
+            base-devel cmake ninja git python3 pkg-config MesaLib-devel \
             wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
             eudev-libudev-devel glib-devel wlroots-devel qt6-base-devel qt6-declarative-devel \
             qt6-wayland shared-mime-info kitty fish grim slurp brightnessctl ddcutil \
@@ -152,7 +152,7 @@ case "$manager" in
         ;;
     emerge)
         run "${elevate[@]}" emerge --noreplace \
-            dev-build/cmake app-alternatives/ninja virtual/pkgconfig dev-vcs/git \
+            dev-build/cmake app-alternatives/ninja virtual/pkgconfig dev-vcs/git dev-lang/python \
             media-libs/mesa dev-libs/wayland dev-libs/wayland-protocols \
             dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib \
             gui-libs/wlroots dev-qt/qtbase:6 dev-qt/qtdeclarative:6 dev-qt/qtwayland:6 \
@@ -161,13 +161,13 @@ case "$manager" in
         ;;
     generic)
         missing=()
-        for tool in cmake ninja pkg-config git c++; do
+        for tool in cmake ninja pkg-config git python3 c++; do
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
         done
         if ((${#missing[@]})); then
             printf 'Generic Linux mode: missing required build tools: %s\n' "${missing[*]}" >&2
             cat >&2 <<'EOF'
-Install a C++20 compiler, CMake >= 3.21, Ninja, pkg-config, wlroots >= 0.17,
+Install a C++20 compiler, CMake >= 3.21, Ninja, Python 3, pkg-config, wlroots >= 0.17,
 Qt 6.4+ Base/Declarative/OpenGL packages, the Qt Wayland client plugin,
 Wayland development headers, libinput, libxkbcommon, udev development headers,
 GL development headers, GLib,

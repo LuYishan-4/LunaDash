@@ -126,6 +126,17 @@ void SceneWindowAnimations::setDuration(int milliseconds) {
     clear();
 }
 
+void SceneWindowAnimations::setProfile(const QJsonObject &profile) {
+  setDuration(profile.value("duration").toInt(220));
+  enterOffset_ = std::clamp(profile.value("enterOffset").toInt(12), -100, 100);
+  focusOpacity_ = std::clamp(profile.value("focusOpacity").toDouble(0.82), 0.0, 1.0);
+  exitScale_ = std::clamp(profile.value("exitScale").toDouble(0.90), 0.5, 1.0);
+  const auto curve = profile.value("easing").toString();
+  easing_ = QEasingCurve(curve == "linear" ? QEasingCurve::Linear
+      : curve == "outQuint" ? QEasingCurve::OutQuint
+      : curve == "inOutCubic" ? QEasingCurve::InOutCubic : QEasingCurve::OutCubic);
+}
+
 int SceneWindowAnimations::activeCount() const {
   int count = live_.size();
   for (const auto *snapshot : snapshots_)
@@ -203,7 +214,7 @@ void SceneWindowAnimations::show(wlr_scene_tree *tree, const QRect &geometry) {
     return;
   auto *state = new LiveState;
   state->tree = tree;
-  state->from = geometry.translated(0, 12);
+  state->from = geometry.translated(0, enterOffset_);
   state->target = geometry;
   state->initialOpacity = 0.0;
   startLive(state);
@@ -217,7 +228,7 @@ void SceneWindowAnimations::activate(wlr_scene_tree *tree,
   state->tree = tree;
   state->from = geometry;
   state->target = geometry;
-  state->initialOpacity = 0.82;
+  state->initialOpacity = focusOpacity_;
   startLive(state);
 }
 
@@ -359,7 +370,7 @@ void SceneWindowAnimations::advance() {
       finishLive(state->tree, state);
     else
       applyLive(state,
-                QEasingCurve(QEasingCurve::OutCubic).valueForProgress(t));
+                easing_.valueForProgress(t));
   }
   const auto snapshots = snapshots_;
   for (auto *state : snapshots) {
@@ -372,8 +383,8 @@ void SceneWindowAnimations::advance() {
     }
     const qreal eased = QEasingCurve(QEasingCurve::InCubic).valueForProgress(t);
     const QRect &from = state->original;
-    const QSize size(std::max(1, qRound(from.width() * 0.90)),
-                     std::max(1, qRound(from.height() * 0.90)));
+    const QSize size(std::max(1, qRound(from.width() * exitScale_)),
+                     std::max(1, qRound(from.height() * exitScale_)));
     const QRect target(from.x() + (from.width() - size.width()) / 2,
                        from.y() + (from.height() - size.height()) / 2 + 14,
                        size.width(), size.height());

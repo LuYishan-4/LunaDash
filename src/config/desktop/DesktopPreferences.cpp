@@ -44,115 +44,6 @@ QJsonObject defaults() {
           {"updateChannel", "stable"}};
 }
 
-QString localized(const QJsonObject &object, const QString &key,
-                  const QString &locale) {
-  return object.value(key + "[" + locale + "]")
-      .toString(object.value(key).toString());
-}
-
-QJsonArray pluginSnapshot() {
-  QStringList roots;
-  roots << QDir(QCoreApplication::applicationDirPath())
-               .absoluteFilePath("../qml/plugins");
-  for (const auto &path :
-       QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
-    roots << path + "/lunadash/shell/plugins";
-    roots << path + "/ludash/plugins";
-  }
-  roots << QCoreApplication::applicationDirPath() + "/plugins";
-
-  const QString locale =
-      QSettings().value("appearance/language", "en_US").toString();
-  QSet<QString> seen;
-  QJsonArray result;
-  for (const auto &root : roots) {
-    const QDir directory(root);
-    for (const auto &folder :
-         directory.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-      QFile file(directory.filePath(folder + "/metadata.json"));
-      if (!file.open(QIODevice::ReadOnly) || file.size() > 65536)
-        continue;
-      QJsonParseError error;
-      const auto document = QJsonDocument::fromJson(file.readAll(), &error);
-      if (error.error != QJsonParseError::NoError || !document.isObject())
-        continue;
-      const auto metadata = document.object();
-      QString id;
-      QString name;
-      QString description;
-      QString version;
-      QString author;
-      QString icon = "applications-system";
-      QString type;
-      QString entry;
-      bool enabledByDefault = false;
-      if (metadata.contains("KPlugin")) {
-        const auto info = metadata.value("KPlugin").toObject();
-        const auto api = metadata.value("LuDash").toObject();
-        id = info.value("Id").toString();
-        name = localized(info, "Name", locale);
-        description = localized(info, "Description", locale);
-        version = info.value("Version").toString();
-        icon = info.value("Icon").toString(icon);
-        if (!info.value("Authors").toArray().isEmpty())
-          author = info.value("Authors")
-                       .toArray()
-                       .first()
-                       .toObject()
-                       .value("Name")
-                       .toString();
-        type = api.value("Type").toString() == "WindowEffect" ? "effect"
-                                                              : "unknown";
-      } else if (metadata.value("schemaVersion").toInt() == 1) {
-        id = metadata.value("id").toString();
-        name = localized(metadata, "name", locale);
-        description = localized(metadata, "description", locale);
-        version = metadata.value("version").toString();
-        icon = metadata.value("icon").toString(icon);
-        type = metadata.value("type").toString().toLower();
-        enabledByDefault = metadata.value("enabledByDefault").toBool(false);
-        const auto authorValue = metadata.value("author");
-        author = authorValue.isObject()
-                     ? authorValue.toObject().value("name").toString()
-                     : authorValue.toString();
-        if (type == "qml") {
-          const QString candidate = QFileInfo(file).absoluteDir().filePath(
-              metadata.value("entry").toString());
-          const QString canonicalRoot =
-              QFileInfo(QFileInfo(file).absolutePath()).canonicalFilePath();
-          const QString canonicalEntry =
-              QFileInfo(candidate).canonicalFilePath();
-          if (!canonicalEntry.isEmpty() &&
-              QFileInfo(canonicalEntry).absolutePath() == canonicalRoot &&
-              canonicalEntry.endsWith(".qml"))
-            entry = QUrl::fromLocalFile(canonicalEntry).toString();
-        }
-      }
-      if (id.isEmpty() || seen.contains(id) || name.isEmpty() ||
-          version.isEmpty() || (type != "qml" && type != "effect"))
-        continue;
-      if (type == "qml" && entry.isEmpty())
-        continue;
-      seen.insert(id);
-      const bool enabled =
-          QSettings()
-              .value("plugins/" + id + "/enabled", enabledByDefault)
-              .toBool();
-      result.append(QJsonObject{{"id", id},
-                                {"name", name},
-                                {"description", description},
-                                {"version", version},
-                                {"author", author},
-                                {"icon", icon},
-                                {"type", type},
-                                {"entry", entry},
-                                {"enabled", enabled},
-                                {"restartRequired", type == "effect"}});
-    }
-  }
-  return result;
-}
-
 bool validProxyText(const QJsonValue &value, bool url) {
   if (!value.isString())
     return false;
@@ -281,7 +172,6 @@ QJsonObject desktopPreferences() {
       "wallpaperRevision",
       static_cast<qint64>(
           settings.value("appearance/wallpaperRevision", 0).toULongLong()));
-  result.insert("plugins", pluginSnapshot());
   return result;
 }
 

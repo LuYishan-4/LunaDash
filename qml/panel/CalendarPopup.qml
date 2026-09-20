@@ -9,6 +9,7 @@ import "../style"
 ModuleSurface {
     id: calendar
     moduleId: "overview"
+    extensionTarget: "calendar"
     anchors.top: true
     anchors.right: true
     margins.top: Theme.barHeight + 8
