@@ -1,5 +1,4 @@
 #include "compositor/wayland/Register.hpp"
-#include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include <QAbstractEventDispatcher>

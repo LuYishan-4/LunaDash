@@ -1,4 +1,3 @@
-#include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/renderer/capture/ThumbnailReadback.h"
 #include "compositor/wayland/Register.hpp"
