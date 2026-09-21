@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "id": "org.lunadash.digitalclock",
+      "name": "Digital Clock",
+      "description": "A desktop clock showing the current time, month, date, and weekday.",
+      "version": "1.0.0",
+      "author": "LuYishan",
+      "icon": "clock",
+      "type": "quickshell",
+      "target": "desktop-widgets",
+      "tags": ["Widget", "Clock"],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/qml/plugins/digital-clock"
+    },
+    {
+      "id": "org.ludash.fade",
+      "name": "Window fade",
+      "description": "A configurable native window animation profile.",
+      "version": "2.0.0",
+      "author": "LunaDash contributors",
+      "icon": "preferences-desktop-effects",
+      "type": "effect",
+      "target": "window-animation",
+      "tags": ["Animation", "Native"],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/data/plugins/fade"
+    },
+    {
+      "id": "org.lunadash.stacking-windows",
+      "name": "Stacking windows",
+      "description": "Overlapping windows with independent movement, resizing and focus-to-front behavior.",
+      "version": "1.0.0",
+      "author": "LunaDash contributors",
+      "icon": "preferences-system-windows",
+      "type": "effect",
+      "target": "window-layout",
+      "tags": ["Layout", "Native"],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/examples/plugins/stacking-windows"
+    }
+  ]
+}
