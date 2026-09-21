@@ -35,12 +35,15 @@ def main():
         parser.error("--id must be a reverse-domain plugin identifier")
     if not args.output or args.output.exists():
         parser.error("--output must name a new directory")
-    template = "effect-cpp" if args.type == "effect" else args.type
+    if args.type == "effect" and args.target == "window-layout":
+        template = "stacking-layout"
+    else:
+        template = "effect-cpp" if args.type == "effect" else args.type
     shutil.copytree(templates / template, args.output)
     path = args.output / "metadata.json"
     manifest = json.loads(path.read_text())
     manifest.update(id=args.id, target=args.target, name=args.target + " plugin")
-    if args.type == "effect":
+    if args.type == "effect" and template == "effect-cpp":
         manifest["settings"] = {}
         (args.output / "Effect.cpp").write_text('''#include "core/plugins/PluginApi.h"
 #include <QJsonDocument>
