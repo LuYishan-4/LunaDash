@@ -35,7 +35,7 @@
       "type": "effect",
       "target": "window-layout",
       "tags": ["Layout", "Native"],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/examples/plugins/stacking-windows"
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/templates/plugins/stacking-layout"
     }
   ]
 }
