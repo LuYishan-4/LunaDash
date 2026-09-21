@@ -28,7 +28,6 @@ if(LUDASH_BUILD_EXAMPLE_PLUGIN)
     lunadash_add_plugin(ludash-fade METADATA "${CMAKE_SOURCE_DIR}/data/plugins/fade/metadata.json"
         SOURCES src/compositor/plugins/fade/FadePlugin.cpp)
     target_link_libraries(ludash-fade PRIVATE Qt6::Core)
-    add_subdirectory(examples/plugins/stacking-windows)
+    add_subdirectory(templates/plugins/stacking-layout)
 endif()
 
-install(DIRECTORY examples/plugins/stacking-windows DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk/examples")
