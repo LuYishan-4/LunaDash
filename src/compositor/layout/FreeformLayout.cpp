@@ -125,6 +125,49 @@ bool FreeformLayout::focusUp(LayoutWorkspaceId workspace) {
 bool FreeformLayout::focusDown(LayoutWorkspaceId workspace) {
   return focusRight(workspace);
 }
+bool FreeformLayout::performAction(const QString &action,
+                                  const QJsonObject &payload) {
+  const auto window =
+      static_cast<LayoutWindowId>(payload.value("window").toInteger());
+  const auto target =
+      static_cast<LayoutWindowId>(payload.value("target").toInteger());
+  const auto workspace =
+      static_cast<LayoutWorkspaceId>(payload.value("workspace").toInteger());
+  const auto areaObject = payload.value("area").toObject();
+  const QRect area(areaObject.value("x").toInt(), areaObject.value("y").toInt(),
+                   areaObject.value("width").toInt(),
+                   areaObject.value("height").toInt());
+
+  if (action == "focus-direction") {
+    const int dx = payload.value("dx").toInt();
+    const int dy = payload.value("dy").toInt();
+    if (dx < 0)
+      return focusLeft(workspace);
+    if (dx > 0)
+      return focusRight(workspace);
+    if (dy < 0)
+      return focusUp(workspace);
+    if (dy > 0)
+      return focusDown(workspace);
+    return false;
+  }
+  if (action == "swap")
+    return swapWindows(window, target);
+  if (action == "reorder")
+    return reorder(window, payload.value("direction").toInt());
+  if (action == "resize-width")
+    return resize(window, payload.value("width").toInt());
+  if (action == "resize-height")
+    return resizeHeight(window, payload.value("height").toInt());
+  if (action == "move-by")
+    return moveSingle(window,
+                      QPoint(payload.value("dx").toInt(),
+                             payload.value("dy").toInt()),
+                      area);
+  if (action == "center")
+    return center(window, area);
+  return false;
+}
 bool FreeformLayout::groupWith(LayoutWindowId, LayoutWindowId) { return false; }
 bool FreeformLayout::expel(LayoutWindowId) { return false; }
 bool FreeformLayout::insertBeside(LayoutWindowId, LayoutWindowId, bool) {

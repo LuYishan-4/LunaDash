@@ -840,39 +840,64 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     arrange();
   }
 
+  const auto performLayoutAction =
+      [this](const QString &id, const QJsonObject &payload = QJsonObject{}) {
+        return windowTemplate_ &&
+               performWindowLayoutAction(*windowLayout_, *windowTemplate_, id,
+                                         payload);
+      };
+
   if (action == "focusLeft")
-    windowLayout_->focusLeft(workspace_);
+    performLayoutAction(
+        "focus-direction",
+        {{"workspace", workspace_}, {"dx", -1}, {"dy", 0}});
   else if (action == "focusRight")
-    windowLayout_->focusRight(workspace_);
+    performLayoutAction(
+        "focus-direction",
+        {{"workspace", workspace_}, {"dx", 1}, {"dy", 0}});
   else if (action == "focusUp")
-    windowLayout_->focusUp(workspace_);
+    performLayoutAction(
+        "focus-direction",
+        {{"workspace", workspace_}, {"dx", 0}, {"dy", -1}});
   else if (action == "focusDown")
-    windowLayout_->focusDown(workspace_);
+    performLayoutAction(
+        "focus-direction",
+        {{"workspace", workspace_}, {"dx", 0}, {"dy", 1}});
   else if (action == "reorderLeft" && focused_)
-    windowLayout_->reorder(focused_->id, -1);
+    performLayoutAction("reorder",
+                        {{"window", focused_->id}, {"direction", -1}});
   else if (action == "reorderRight" && focused_)
-    windowLayout_->reorder(focused_->id, 1);
-  else if ((action == "groupLeft" || action == "groupRight") && focused_) {
-    windowLayout_->focus(focused_->id);
-    const bool found = action == "groupLeft"
-                           ? windowLayout_->focusLeft(workspace_)
-                           : windowLayout_->focusRight(workspace_);
-    if (found) {
-      const auto target = windowLayout_->snapshot(workspace_).focusedWindow;
-      windowLayout_->groupWith(focused_->id, target);
-      windowLayout_->focus(focused_->id);
-    }
-  } else if (action == "expelWindow" && focused_)
-    windowLayout_->expel(focused_->id);
-  else if (action == "centerColumn" && focused_)
-    windowLayout_->center(focused_->id, workArea());
-  else if (action == "widenColumn" && focused_)
-    windowLayout_->resize(
-        focused_->id, std::min(workArea().width(),
-                               std::max(120, focused_->geometry.width() + 80)));
+    performLayoutAction("reorder",
+                        {{"window", focused_->id}, {"direction", 1}});
+  else if ((action == "groupLeft" || action == "groupRight") && focused_)
+    performLayoutAction(
+        "group-direction",
+        {{"window", focused_->id},
+         {"workspace", workspace_},
+         {"dx", action == "groupLeft" ? -1 : 1},
+         {"dy", 0}});
+  else if (action == "expelWindow" && focused_)
+    performLayoutAction("expel", {{"window", focused_->id}});
+  else if (action == "centerColumn" && focused_) {
+    const auto area = workArea();
+    performLayoutAction(
+        "center",
+        {{"window", focused_->id},
+         {"area", QJsonObject{{"x", area.x()},
+                              {"y", area.y()},
+                              {"width", area.width()},
+                              {"height", area.height()}}}});
+  } else if (action == "widenColumn" && focused_)
+    performLayoutAction(
+        "resize-width",
+        {{"window", focused_->id},
+         {"width", std::min(workArea().width(),
+                            std::max(120, focused_->geometry.width() + 80))}});
   else if (action == "narrowColumn" && focused_)
-    windowLayout_->resize(focused_->id,
-                          std::max(120, focused_->geometry.width() - 80));
+    performLayoutAction(
+        "resize-width",
+        {{"window", focused_->id},
+         {"width", std::max(120, focused_->geometry.width() - 80)}});
   else if (action == "maximizeWindow" && focused_) {
     setMaximized(focused_, !focused_->maximized);
   } else if ((action == "closeWindow" || action == "closeWindowAlternate") &&
@@ -1004,7 +1029,9 @@ QJsonObject WaylandCompositor::state() const {
                    {"schema", windowTemplate_
                                   ? windowTemplate_->layoutSettingsSchema
                                   : QJsonObject{}},
-                   {"values", layoutSettings}}},
+                   {"values", layoutSettings},
+                   {"actions", windowTemplate_ ? windowTemplate_->layoutActions
+                                               : QJsonObject{}}}},
       {"defaultApps", defaultApplications()},
       {"shellModules", shellModules_->snapshot()},
       {"extensions", extensions},
@@ -1288,6 +1315,20 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     settings.sync();
     applyKeyboardConfiguration();
     arrange();
+  } else if (method == "window-layout-action") {
+    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    if (!document.isObject() || !windowTemplate_)
+      return {{"error", "Expected a window layout action object."}};
+    const auto object = document.object();
+    const auto actionId = object.value("action").toString();
+    const auto payload = object.value("payload").toObject();
+    if (actionId.isEmpty() ||
+        !performWindowLayoutAction(*windowLayout_, *windowTemplate_, actionId,
+                                   payload))
+      return {{"error", "Window layout action is unsupported or invalid."}};
+    arrange();
+    synchronizeWindowFocus();
+    return state();
   } else if (method == "window-layout-settings") {
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
@@ -1373,13 +1414,18 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     int target = 0;
     if (!groupWindowIds(value, &window, &target))
       return {{"error", "Expected bounded JSON window and target IDs."}};
-    if (!windowLayout_->groupWith(window, target))
+    if (!windowTemplate_ ||
+        !performWindowLayoutAction(*windowLayout_, *windowTemplate_,
+                                   "group-with",
+                                   {{"window", window}, {"target", target}}))
       return {{"error", "Windows cannot be grouped."}};
     arrange();
   } else if (method == "expel-window") {
     const auto window = textWindowId(value);
-    if (!window || !windowLayout_->expel(*window))
-      return {{"error", "Window must be a member of a tiled group."}};
+    if (!window || !windowTemplate_ ||
+        !performWindowLayoutAction(*windowLayout_, *windowTemplate_, "expel",
+                                   {{"window", *window}}))
+      return {{"error", "Window layout does not support expelling this window."}};
     arrange();
     synchronizeWindowFocus();
   } else if (method == "quit") {

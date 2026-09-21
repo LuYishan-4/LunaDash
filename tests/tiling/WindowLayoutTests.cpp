@@ -34,6 +34,64 @@ class WindowLayoutTests final : public QObject {
           QVERIFY(!a.geometry.intersects(b.geometry));
     }
   }
+  static QJsonObject areaJson(QRect area) {
+    return {{"x", area.x()},
+            {"y", area.y()},
+            {"width", area.width()},
+            {"height", area.height()}};
+  }
+  static bool focusDirection(WindowLayout &layout, LayoutWorkspaceId workspace,
+                             int dx, int dy) {
+    return layout.performAction(
+        "focus-direction",
+        {{"workspace", static_cast<qint64>(workspace)}, {"dx", dx}, {"dy", dy}});
+  }
+  static bool groupWith(WindowLayout &layout, LayoutWindowId window,
+                        LayoutWindowId target) {
+    return layout.performAction(
+        "group-with",
+        {{"window", static_cast<qint64>(window)},
+         {"target", static_cast<qint64>(target)}});
+  }
+  static bool expel(WindowLayout &layout, LayoutWindowId window) {
+    return layout.performAction(
+        "expel", {{"window", static_cast<qint64>(window)}});
+  }
+  static bool swapWindows(WindowLayout &layout, LayoutWindowId window,
+                          LayoutWindowId target) {
+    return layout.performAction(
+        "swap", {{"window", static_cast<qint64>(window)},
+                 {"target", static_cast<qint64>(target)}});
+  }
+  static bool insertBeside(WindowLayout &layout, LayoutWindowId window,
+                           LayoutWindowId target, bool after) {
+    return layout.performAction(
+        "insert-beside",
+        {{"window", static_cast<qint64>(window)},
+         {"target", static_cast<qint64>(target)},
+         {"after", after}});
+  }
+  static bool resizeWidth(WindowLayout &layout, LayoutWindowId window,
+                          int width) {
+    return layout.performAction(
+        "resize-width",
+        {{"window", static_cast<qint64>(window)}, {"width", width}});
+  }
+  static bool resizeHeight(WindowLayout &layout, LayoutWindowId window,
+                           int height) {
+    return layout.performAction(
+        "resize-height",
+        {{"window", static_cast<qint64>(window)}, {"height", height}});
+  }
+  static bool moveBy(WindowLayout &layout, LayoutWindowId window, QPoint delta,
+                     QRect area) {
+    return layout.performAction(
+        "move-by",
+        {{"window", static_cast<qint64>(window)},
+         {"dx", delta.x()},
+         {"dy", delta.y()},
+         {"area", areaJson(area)}});
+  }
 private Q_SLOTS:
   void initTestCase() {
     QCoreApplication::setOrganizationName("LunaDashTests");
@@ -57,12 +115,16 @@ private Q_SLOTS:
     QVERIFY(templates[1].allowOverlap);
     QVERIFY(templates[0].layoutSettingsSchema.contains("gap"));
     QVERIFY(templates[0].layoutSettingsSchema.contains("defaultWidth"));
+    QVERIFY(templates[0].layoutActions.contains("group-direction"));
+    QVERIFY(templates[0].layoutActions.contains("insert-beside"));
+    QVERIFY(!templates[1].layoutActions.contains("group-direction"));
     QString settingError;
     QVERIFY(validateWindowLayoutSettings(
         templates[0], {{"gap", 8}, {"defaultWidth", 1000}}, &settingError));
     QVERIFY(!validateWindowLayoutSettings(templates[0], {{"gap", 999}},
                                           &settingError));
     layout->configure(templates[0].layoutSettingsDefaults);
+    QVERIFY(!performWindowLayoutAction(*layout, templates[0], "missing"));
     QVERIFY(layout->insert(0, 1));
     QVERIFY(layout->insert(0, 2));
     verifyNoOverlap(layout->layout(0, area));
@@ -77,9 +139,9 @@ private Q_SLOTS:
     QVERIFY(layout->insert(0, 2, QSize(800, 500)));
     auto initial = geometries(layout->layout(0, area));
     QVERIFY(initial[1].intersects(initial[2]));
-    QVERIFY(layout->moveSingle(1, QPoint(-100, 80), area));
-    QVERIFY(layout->resize(1, 650));
-    QVERIFY(layout->resizeHeight(1, 450));
+    QVERIFY(moveBy(*layout, 1, QPoint(-100, 80), area));
+    QVERIFY(resizeWidth(*layout, 1, 650));
+    QVERIFY(resizeHeight(*layout, 1, 450));
     const auto resized = geometries(layout->layout(0, area));
     QCOMPARE(resized[1].size(), QSize(650, 450));
     QCOMPARE(resized[2], initial[2]);
@@ -99,7 +161,7 @@ private Q_SLOTS:
     QVERIFY(layout->moveToWorkspace(1, 1));
     QCOMPARE(layout->snapshot(0).columns.size(), 1);
     QCOMPARE(layout->snapshot(1).columns.size(), 1);
-    QVERIFY(layout->moveSingle(1, QPoint(100000, -100000), area));
+    QVERIFY(moveBy(*layout, 1, QPoint(100000, -100000), area));
     for (const auto &window : layout->layout(1, QRect(0, 0, 300, 200)))
       QVERIFY(QRect(0, 0, 300, 200).contains(window.geometry));
     QVERIFY(layout->remove(1));
@@ -124,11 +186,11 @@ private Q_SLOTS:
     QVERIFY(layout.focus(1));
     const auto unchanged = geometries(layout.layout(0, area));
     QCOMPARE(unchanged, three); // Focusing never scrolls or rearranges slots.
-    QVERIFY(layout.focusRight(0));
-    QVERIFY(layout.focusDown(0));
+    QVERIFY(focusDirection(layout, 0, 1, 0));
+    QVERIFY(focusDirection(layout, 0, 0, 1));
     QCOMPARE(layout.snapshot(0).focusedWindow, LayoutWindowId(3));
-    QVERIFY(layout.resize(3, 900));
-    QVERIFY(layout.resizeHeight(3, 600));
+    QVERIFY(resizeWidth(layout, 3, 900));
+    QVERIFY(resizeHeight(layout, 3, 600));
     auto resized = layout.layout(0, area);
     verifyNoOverlap(resized);
     for (const auto &slot : resized)
@@ -175,13 +237,13 @@ private Q_SLOTS:
       const int target = 1 + (random >> 16) % 16;
       switch (step % 8) {
       case 0:
-        layout.groupWith(id, target);
+        groupWith(layout, id, target);
         break;
       case 1:
-        layout.expel(id);
+        expel(layout, id);
         break;
       case 2:
-        layout.swapWindows(id, target);
+        swapWindows(layout, id, target);
         break;
       case 3:
         layout.setMinimized(id, true);
@@ -193,10 +255,10 @@ private Q_SLOTS:
         layout.moveToWorkspace(id, (random >> 24) % 2);
         break;
       case 6:
-        layout.resize(id, 120 + target * 60);
+        resizeWidth(layout, id, 120 + target * 60);
         break;
       case 7:
-        layout.resizeHeight(id, 80 + target * 40);
+        resizeHeight(layout, id, 80 + target * 40);
         break;
       }
       int total = 0;
@@ -217,10 +279,10 @@ private Q_SLOTS:
     const auto fitted = layout.layout(0, area).first().geometry;
     QVERIFY(area.contains(fitted));
     QCOMPARE(fitted.width() * 2, fitted.height() * 3);
-    QVERIFY(layout.moveSingle(1, QPoint(10000, -10000), area));
+    QVERIFY(moveBy(layout, 1, QPoint(10000, -10000), area));
     QVERIFY(area.contains(layout.layout(0, area).first().geometry));
-    QVERIFY(layout.resize(1, 10000));
-    QVERIFY(layout.resizeHeight(1, 10000));
+    QVERIFY(resizeWidth(layout, 1, 10000));
+    QVERIFY(resizeHeight(layout, 1, 10000));
     QCOMPARE(layout.layout(0, area).first().geometry, area);
   }
   void eightRowsAndOverflow() {
@@ -231,7 +293,7 @@ private Q_SLOTS:
     for (int i = 0; i < 9; ++i)
       QCOMPARE(placements[i].metadata.value("group").toInt(), i);
     for (int i = 2; i <= 8; ++i)
-      QVERIFY(layout.groupWith(i, i - 1));
+      QVERIFY(groupWith(layout, i, i - 1));
     placements = layout.layout(0, area);
     QCOMPARE(placements.size(), 9);
     verifyNoOverlap(placements);
@@ -241,13 +303,13 @@ private Q_SLOTS:
     }
     QCOMPARE(placements[8].metadata.value("group").toInt(), 1);
     QCOMPARE(placements[7].geometry.bottom(), area.bottom());
-    QVERIFY(!layout.groupWith(9, 1));
+    QVERIFY(!groupWith(layout, 9, 1));
     QVERIFY(layout.setMinimized(4, true));
-    QVERIFY(!layout.groupWith(9, 1)); // Minimized clients retain their slot.
+    QVERIFY(!groupWith(layout, 9, 1)); // Minimized clients retain their slot.
     verifyNoOverlap(layout.layout(0, area));
     QVERIFY(layout.setMinimized(4, false));
     QVERIFY(layout.remove(4));
-    QVERIFY(layout.groupWith(9, 1));
+    QVERIFY(groupWith(layout, 9, 1));
     placements = layout.layout(0, area);
     QCOMPARE(placements.size(), 8);
     for (const auto &slot : placements)
@@ -258,18 +320,18 @@ private Q_SLOTS:
     TilingLayout layout;
     for (int i = 1; i <= 3; ++i)
       layout.insert(0, i);
-    layout.groupWith(2, 1);
-    layout.groupWith(3, 2);
+    groupWith(layout, 2, 1);
+    groupWith(layout, 3, 2);
     layout.layout(0, area);
-    QVERIFY(layout.resizeHeight(2, 500));
+    QVERIFY(resizeHeight(layout, 2, 500));
     auto before = geometries(layout.layout(0, area));
-    QVERIFY(layout.swapWindows(1, 2));
+    QVERIFY(swapWindows(layout, 1, 2));
     auto after = geometries(layout.layout(0, area));
     QCOMPARE(after[1], before[2]);
     QCOMPARE(after[2], before[1]);
     QCOMPARE(after[3], before[3]);
-    QVERIFY(layout.expel(3));
-    QVERIFY(layout.insertBeside(3, 1, false));
+    QVERIFY(expel(layout, 3));
+    QVERIFY(insertBeside(layout, 3, 1, false));
     auto placements = layout.layout(0, area);
     QCOMPARE(placements[1].window, LayoutWindowId(3));
     QCOMPARE(placements[2].window, LayoutWindowId(1));
@@ -279,24 +341,24 @@ private Q_SLOTS:
     TilingLayout layout;
     layout.insert(0, 1);
     const auto before = layout.layout(0, area).first().geometry;
-    QVERIFY(layout.moveSingle(1, QPoint(60, 30), area));
+    QVERIFY(moveBy(layout, 1, QPoint(60, 30), area));
     const auto moved = layout.layout(0, area).first().geometry;
     QCOMPARE(moved.size(), before.size());
     QCOMPARE(moved.topLeft(), before.topLeft() + QPoint(60, 30));
-    QVERIFY(layout.resizeHeight(1, 400));
+    QVERIFY(resizeHeight(layout, 1, 400));
     QCOMPARE(layout.layout(0, area).first().geometry.height(), 400);
     QCOMPARE(layout.layout(0, area).first().geometry.topLeft(),
              moved.topLeft());
-    QVERIFY(layout.resizeHeight(1, 700));
+    QVERIFY(resizeHeight(layout, 1, 700));
     QCOMPARE(layout.layout(0, area).first().geometry.height(), 700);
     layout.insert(0, 2);
     layout.insert(0, 3);
-    layout.groupWith(2, 1);
-    layout.groupWith(3, 2);
+    groupWith(layout, 2, 1);
+    groupWith(layout, 3, 2);
     verifyNoOverlap(layout.layout(0, area));
-    QVERIFY(!layout.moveSingle(1, QPoint(10, 10), area));
+    QVERIFY(!moveBy(layout, 1, QPoint(10, 10), area));
     for (const int height : {600, 50, 10000, 300}) {
-      QVERIFY(layout.resizeHeight(2, height));
+      QVERIFY(resizeHeight(layout, 2, height));
       auto placements = layout.layout(0, area);
       verifyNoOverlap(placements);
       QCOMPARE(placements[1].window, LayoutWindowId(2));
@@ -313,10 +375,10 @@ private Q_SLOTS:
     layout.configure({{"defaultWidth", 450}, {"gap", 6}});
     for (int id = 1; id <= 4; ++id)
       QVERIFY(layout.insert(0, id));
-    QVERIFY(layout.groupWith(2, 1));
+    QVERIFY(groupWith(layout, 2, 1));
     QVERIFY(layout.insert(1, 10, QSize(500, 400)));
     layout.layout(0, area);
-    QVERIFY(layout.resizeHeight(2, 300));
+    QVERIFY(resizeHeight(layout, 2, 300));
     QVERIFY(layout.focus(2));
     const auto tiled = geometries(layout.layout(0, area));
     const auto otherWorkspace = geometries(layout.layout(1, area));

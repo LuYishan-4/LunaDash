@@ -110,14 +110,28 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     // Move first when growing a top/left edge, resize first when shrinking.
     const QPoint shift(left ? geometry.width() - width : 0,
                        top ? geometry.height() - height : 0);
-    q->windowLayout_->moveSingle(
-        client->id, QPoint(std::min(0, shift.x()), std::min(0, shift.y())),
-        area);
-    q->windowLayout_->resize(client->id, width);
-    q->windowLayout_->resizeHeight(client->id, height);
-    q->windowLayout_->moveSingle(
-        client->id, QPoint(std::max(0, shift.x()), std::max(0, shift.y())),
-        area);
+    const QJsonObject areaJson{{"x", area.x()},
+                               {"y", area.y()},
+                               {"width", area.width()},
+                               {"height", area.height()}};
+    performWindowLayoutAction(
+        *q->windowLayout_, *q->windowTemplate_, "move-by",
+        {{"window", client->id},
+         {"dx", std::min(0, shift.x())},
+         {"dy", std::min(0, shift.y())},
+         {"area", areaJson}});
+    performWindowLayoutAction(*q->windowLayout_, *q->windowTemplate_,
+                              "resize-width",
+                              {{"window", client->id}, {"width", width}});
+    performWindowLayoutAction(*q->windowLayout_, *q->windowTemplate_,
+                              "resize-height",
+                              {{"window", client->id}, {"height", height}});
+    performWindowLayoutAction(
+        *q->windowLayout_, *q->windowTemplate_, "move-by",
+        {{"window", client->id},
+         {"dx", std::max(0, shift.x())},
+         {"dy", std::max(0, shift.y())},
+         {"area", areaJson}});
     q->arrange();
     return true;
   }
@@ -135,11 +149,15 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
         if (member->id == static_cast<int>(slot.window))
           q->setMaximized(member.get(), false);
     }
-    q->windowLayout_->resize(
-        client->id, std::clamp(client->geometry.width() + delta.x(), 120,
-                               std::max(120, q->workArea().width())));
-    q->windowLayout_->resizeHeight(client->id,
-                                   client->geometry.height() + delta.y());
+    performWindowLayoutAction(
+        *q->windowLayout_, *q->windowTemplate_, "resize-width",
+        {{"window", client->id},
+         {"width", std::clamp(client->geometry.width() + delta.x(), 120,
+                              std::max(120, q->workArea().width()))}});
+    performWindowLayoutAction(
+        *q->windowLayout_, *q->windowTemplate_, "resize-height",
+        {{"window", client->id},
+         {"height", client->geometry.height() + delta.y()}});
     q->arrange();
     return true;
   }
@@ -147,7 +165,16 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
       std::count_if(snapshot.columns.begin(), snapshot.columns.end(),
                     [](const auto &c) { return !c.minimized; });
   if (active == 1 || freeform) {
-    q->windowLayout_->moveSingle(client->id, delta, q->workArea());
+    const auto area = q->workArea();
+    performWindowLayoutAction(
+        *q->windowLayout_, *q->windowTemplate_, "move-by",
+        {{"window", client->id},
+         {"dx", delta.x()},
+         {"dy", delta.y()},
+         {"area", QJsonObject{{"x", area.x()},
+                              {"y", area.y()},
+                              {"width", area.width()},
+                              {"height", area.height()}}}});
     q->arrange();
     return true;
   }
@@ -181,11 +208,14 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
       if (client->toplevel)
         wlr_xdg_toplevel_set_resizing(client->toplevel, false);
     }
-  if (apply && !pointerResize && target) {
+  if (apply && !pointerResize && target && q->windowTemplate_) {
     if (edge)
-      q->windowLayout_->insertBeside(moving, target, edge > 0);
+      performWindowLayoutAction(
+          *q->windowLayout_, *q->windowTemplate_, "insert-beside",
+          {{"window", moving}, {"target", target}, {"after", edge > 0}});
     else
-      q->windowLayout_->swapWindows(moving, target);
+      performWindowLayoutAction(*q->windowLayout_, *q->windowTemplate_, "swap",
+                                {{"window", moving}, {"target", target}});
   }
   pointerResize = pointerClientGrab = false;
   pointerButton = pointerResizeEdges = 0;

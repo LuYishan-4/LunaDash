@@ -27,20 +27,8 @@ public:
   bool moveToWorkspace(LayoutWindowId window,
                        LayoutWorkspaceId workspace) override;
   bool focus(LayoutWindowId window) override;
-  bool focusLeft(LayoutWorkspaceId workspace) override;
-  bool focusRight(LayoutWorkspaceId workspace) override;
-  bool focusUp(LayoutWorkspaceId workspace) override;
-  bool focusDown(LayoutWorkspaceId workspace) override;
-  bool groupWith(LayoutWindowId window, LayoutWindowId targetWindow) override;
-  bool expel(LayoutWindowId window) override;
-  bool swapWindows(LayoutWindowId window, LayoutWindowId target) override;
-  bool insertBeside(LayoutWindowId window, LayoutWindowId target,
-                    bool after) override;
-  bool resizeHeight(LayoutWindowId window, int height) override;
-  bool moveSingle(LayoutWindowId window, QPoint delta, QRect area) override;
-  bool reorder(LayoutWindowId window, int direction) override;
-  bool resize(LayoutWindowId window, int width) override;
-  bool center(LayoutWindowId window, QRect area) override;
+  bool performAction(const QString &action,
+                     const QJsonObject &payload) override;
 
   QList<WindowPlacement> layout(LayoutWorkspaceId workspace,
                                 QRect area) override;
@@ -50,6 +38,20 @@ public:
   WorkspaceLayoutSnapshot snapshot(LayoutWorkspaceId workspace) const override;
 
 private:
+  bool focusLeft(LayoutWorkspaceId workspace);
+  bool focusRight(LayoutWorkspaceId workspace);
+  bool focusUp(LayoutWorkspaceId workspace);
+  bool focusDown(LayoutWorkspaceId workspace);
+  bool groupWith(LayoutWindowId window, LayoutWindowId targetWindow);
+  bool expel(LayoutWindowId window);
+  bool swapWindows(LayoutWindowId window, LayoutWindowId target);
+  bool insertBeside(LayoutWindowId window, LayoutWindowId target, bool after);
+  bool resizeHeight(LayoutWindowId window, int height);
+  bool moveSingle(LayoutWindowId window, QPoint delta, QRect area);
+  bool reorder(LayoutWindowId window, int direction);
+  bool resize(LayoutWindowId window, int width);
+  bool center(LayoutWindowId window, QRect area);
+
   class Impl;
   std::unique_ptr<Impl> d;
 };

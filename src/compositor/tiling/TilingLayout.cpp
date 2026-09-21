@@ -469,6 +469,72 @@ bool TilingLayout::focusDown(LayoutWorkspaceId workspaceId) {
   return found != d->workspaces.end() && focusDirection(found->second, 0, 1);
 }
 
+bool TilingLayout::performAction(const QString &action,
+                                 const QJsonObject &payload) {
+  const auto window =
+      static_cast<LayoutWindowId>(payload.value("window").toInteger());
+  const auto target =
+      static_cast<LayoutWindowId>(payload.value("target").toInteger());
+  const auto workspace =
+      static_cast<LayoutWorkspaceId>(payload.value("workspace").toInteger());
+  const auto areaObject = payload.value("area").toObject();
+  const QRect area(areaObject.value("x").toInt(), areaObject.value("y").toInt(),
+                   areaObject.value("width").toInt(),
+                   areaObject.value("height").toInt());
+
+  if (action == "focus-direction") {
+    const int dx = payload.value("dx").toInt();
+    const int dy = payload.value("dy").toInt();
+    if (dx < 0)
+      return focusLeft(workspace);
+    if (dx > 0)
+      return focusRight(workspace);
+    if (dy < 0)
+      return focusUp(workspace);
+    if (dy > 0)
+      return focusDown(workspace);
+    return false;
+  }
+  if (action == "group-direction") {
+    if (!focus(window))
+      return false;
+    const int dx = payload.value("dx").toInt();
+    const int dy = payload.value("dy").toInt();
+    const bool found = dx < 0   ? focusLeft(workspace)
+                       : dx > 0 ? focusRight(workspace)
+                       : dy < 0 ? focusUp(workspace)
+                                : dy > 0 && focusDown(workspace);
+    if (!found)
+      return false;
+    const auto destination = snapshot(workspace).focusedWindow;
+    const bool grouped = groupWith(window, destination);
+    focus(window);
+    return grouped;
+  }
+  if (action == "group-with")
+    return groupWith(window, target);
+  if (action == "expel")
+    return expel(window);
+  if (action == "swap")
+    return swapWindows(window, target);
+  if (action == "insert-beside")
+    return insertBeside(window, target, payload.value("after").toBool());
+  if (action == "reorder")
+    return reorder(window, payload.value("direction").toInt());
+  if (action == "resize-width")
+    return resize(window, payload.value("width").toInt());
+  if (action == "resize-height")
+    return resizeHeight(window, payload.value("height").toInt());
+  if (action == "move-by")
+    return moveSingle(window,
+                      QPoint(payload.value("dx").toInt(),
+                             payload.value("dy").toInt()),
+                      area);
+  if (action == "center")
+    return center(window, area);
+  return false;
+}
+
 bool TilingLayout::groupWith(LayoutWindowId window, LayoutWindowId target) {
   return insertBeside(window, target, true);
 }

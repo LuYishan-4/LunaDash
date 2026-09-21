@@ -29,6 +29,10 @@ QJsonObject defaultWindowAnimation() {
           {"easing", "outCubic"}};
 }
 
+QJsonObject action(const QString &label) {
+  return {{"label", label}};
+}
+
 const WindowTemplate &tilingTemplate() {
   static const QJsonObject schema{
       {"gap", QJsonObject{{"type", "integer"},
@@ -41,10 +45,22 @@ const WindowTemplate &tilingTemplate() {
                                     {"minimum", 240},
                                     {"maximum", 2400},
                                     {"label", "Default window width"}}}};
+  static const QJsonObject actions{
+      {"focus-direction", action("Directional focus")},
+      {"group-direction", action("Group in direction")},
+      {"group-with", action("Group with window")},
+      {"expel", action("Expel from group")},
+      {"swap", action("Swap windows")},
+      {"insert-beside", action("Insert beside window")},
+      {"reorder", action("Reorder window")},
+      {"resize-width", action("Resize width")},
+      {"resize-height", action("Resize height")},
+      {"move-by", action("Move window")},
+      {"center", action("Center window")}};
   static const WindowTemplate value{
       "tiling", &createTilingLayout, WindowPointerTemplate::Tiling,
       WindowActivationTemplate::ToggleMaximize, false, false, schema,
-      defaults(schema), defaultWindowAnimation()};
+      defaults(schema), actions, defaultWindowAnimation()};
   return value;
 }
 
@@ -60,10 +76,18 @@ const WindowTemplate &stackingTemplate() {
                                      {"minimum", 160},
                                      {"maximum", 1600},
                                      {"label", "Default window height"}}}};
+  static const QJsonObject actions{
+      {"focus-direction", action("Directional focus")},
+      {"swap", action("Swap windows")},
+      {"reorder", action("Reorder window")},
+      {"resize-width", action("Resize width")},
+      {"resize-height", action("Resize height")},
+      {"move-by", action("Move window")},
+      {"center", action("Center window")}};
   static const WindowTemplate value{
       "stacking", &createFreeformLayout, WindowPointerTemplate::Freeform,
       WindowActivationTemplate::FocusOnly, true, true, schema,
-      defaults(schema), defaultWindowAnimation()};
+      defaults(schema), actions, defaultWindowAnimation()};
   return value;
 }
 } // namespace
@@ -118,6 +142,19 @@ bool validateWindowLayoutSettings(const WindowTemplate &windowTemplate,
     }
   }
   return true;
+}
+
+bool windowTemplateSupportsAction(const WindowTemplate &windowTemplate,
+                                  const QString &actionId) {
+  return windowTemplate.layoutActions.contains(actionId);
+}
+
+bool performWindowLayoutAction(WindowLayout &layout,
+                               const WindowTemplate &windowTemplate,
+                               const QString &actionId,
+                               const QJsonObject &payload) {
+  return windowTemplateSupportsAction(windowTemplate, actionId) &&
+         layout.performAction(actionId, payload);
 }
 
 } // namespace LunaDash

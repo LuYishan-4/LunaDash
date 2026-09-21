@@ -22,6 +22,7 @@ struct WindowTemplate {
   bool allowOverlap = false;
   QJsonObject layoutSettingsSchema;
   QJsonObject layoutSettingsDefaults;
+  QJsonObject layoutActions;
   QJsonObject animation;
 };
 
@@ -32,5 +33,11 @@ createWindowLayout(const WindowTemplate &windowTemplate);
 bool validateWindowLayoutSettings(const WindowTemplate &windowTemplate,
                                   const QJsonObject &settings,
                                   QString *error = nullptr);
+bool windowTemplateSupportsAction(const WindowTemplate &windowTemplate,
+                                  const QString &action);
+bool performWindowLayoutAction(WindowLayout &layout,
+                               const WindowTemplate &windowTemplate,
+                               const QString &action,
+                               const QJsonObject &payload = {});
 
 } // namespace LunaDash

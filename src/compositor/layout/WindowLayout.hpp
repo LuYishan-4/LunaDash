@@ -49,21 +49,12 @@ public:
   virtual bool moveToWorkspace(LayoutWindowId window,
                                LayoutWorkspaceId workspace) = 0;
   virtual bool focus(LayoutWindowId window) = 0;
-  virtual bool focusLeft(LayoutWorkspaceId workspace) = 0;
-  virtual bool focusRight(LayoutWorkspaceId workspace) = 0;
-  virtual bool focusUp(LayoutWorkspaceId workspace) = 0;
-  virtual bool focusDown(LayoutWorkspaceId workspace) = 0;
-  virtual bool groupWith(LayoutWindowId window,
-                         LayoutWindowId targetWindow) = 0;
-  virtual bool expel(LayoutWindowId window) = 0;
-  virtual bool swapWindows(LayoutWindowId window, LayoutWindowId target) = 0;
-  virtual bool insertBeside(LayoutWindowId window, LayoutWindowId target,
-                            bool after) = 0;
-  virtual bool resizeHeight(LayoutWindowId window, int height) = 0;
-  virtual bool moveSingle(LayoutWindowId window, QPoint delta, QRect area) = 0;
-  virtual bool reorder(LayoutWindowId window, int direction) = 0;
-  virtual bool resize(LayoutWindowId window, int width) = 0;
-  virtual bool center(LayoutWindowId window, QRect area) = 0;
+
+  // Strategy-specific interaction is dispatched by action ID. The generic
+  // layout contract intentionally does not encode tiling concepts such as
+  // directional focus, groups, columns or resize directions.
+  virtual bool performAction(const QString &action,
+                             const QJsonObject &payload) = 0;
 
   virtual QList<WindowPlacement> layout(LayoutWorkspaceId workspace,
                                         QRect area) = 0;

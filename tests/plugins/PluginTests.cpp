@@ -205,7 +205,15 @@ private Q_SLOTS:
     QCOMPARE(placed[0].geometry.topLeft(), area.topLeft());
     QCOMPARE(placed[1].geometry.topLeft(), area.topLeft() + QPoint(32, 32));
     QVERIFY(placed[0].geometry.intersects(placed[1].geometry));
-    layout->moveSingle(1, QPoint(70, 50), area);
+    layout->performAction(
+        "move-by",
+        {{"window", 1},
+         {"dx", 70},
+         {"dy", 50},
+         {"area", QJsonObject{{"x", area.x()},
+                              {"y", area.y()},
+                              {"width", area.width()},
+                              {"height", area.height()}}}});
     const auto moved = layout->layout(0, area);
     QCOMPARE(moved[0].geometry.topLeft(), area.topLeft() + QPoint(70, 50));
     QCOMPARE(moved[1].geometry, placed[1].geometry);
