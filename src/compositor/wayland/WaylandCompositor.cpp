@@ -841,7 +841,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
   }
 
   const auto performLayoutAction =
-      [this](const QString &id, const QJsonObject &payload = QJsonObject{}) {
+      [this](const QString &id, const QJsonObject &payload) {
         return windowTemplate_ &&
                performWindowLayoutAction(*windowLayout_, *windowTemplate_, id,
                                          payload);
