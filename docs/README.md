@@ -3,7 +3,7 @@
 Technical documentation is organized by language.
 
 - [English](en/README.md)
-- [繁體中文](zh/README.md)
+- [Traditional Chinese](zh/README.md)
 
 Shared screenshots and branding remain in `docs/image/` and `docs/brand/`. README translations remain in `docs/readme/`.
 

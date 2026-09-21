@@ -87,7 +87,7 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 
 ## Documentation
 
-[English docs](docs/en/README.md) · [繁體中文文件](docs/zh/README.md)
+[English docs](docs/en/README.md) · [Traditional Chinese docs](docs/zh/README.md)
 
 
 | Start here | Make it yours |

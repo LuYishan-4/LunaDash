@@ -3,7 +3,7 @@
 This compatibility path is kept so existing links do not return 404.
 
 - [English](en/SCREEN_CAPTURE.md)
-- [繁體中文](zh/SCREEN_CAPTURE.md)
+- [Traditional Chinese](zh/SCREEN_CAPTURE.md)
 - [Documentation index](README.md)
 
 New links should point directly to the language directory.
