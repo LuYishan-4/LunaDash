@@ -1,14 +1,77 @@
 #include "compositor/session/ClientLaunch.hpp"
 #include <QFileInfo>
+#include <QSet>
 #include <algorithm>
 
 namespace LunaDash {
+namespace {
+bool chromiumLikeName(const QString &name) {
+  static const QSet<QString> names = {
+      "chrome",          "google-chrome",  "google-chrome-stable",
+      "chromium",        "chromium-browser", "brave",
+      "brave-browser",   "vivaldi",        "opera",
+      "discord",         "discordcanary",  "discord-ptb",
+      "codex",           "codex-desktop",  "openai-codex",
+      "chatgpt",         "cursor",         "code",
+      "code-insiders",   "codium",         "vscodium",
+      "slack",           "obsidian",       "teams-for-linux"};
+  return names.contains(name) || name.startsWith("electron");
+}
+
+bool chromiumLikeId(const QString &argument) {
+  const QString lower = argument.toLower();
+  static const QStringList fragments = {
+      "com.google.chrome",       "org.chromium.chromium",
+      "com.brave.browser",       "com.vivaldi.vivaldi",
+      "com.discordapp.discord",  "com.openai.codex",
+      "com.openai.chatgpt",      "com.visualstudio.code",
+      "com.vscodium.codium",     "com.getcursor.cursor",
+      "com.slack.slack",         "md.obsidian.obsidian"};
+  return std::any_of(fragments.cbegin(), fragments.cend(),
+                     [&lower](const QString &fragment) {
+                       return lower.contains(fragment);
+                     });
+}
+
+void mergeCommaFlag(QStringList &command, const QString &prefix,
+                    const QStringList &required) {
+  QStringList values;
+  int insertion = -1;
+  for (auto it = command.begin(); it != command.end();) {
+    if (it->startsWith(prefix)) {
+      if (insertion < 0)
+        insertion = static_cast<int>(it - command.begin());
+      values.append(it->mid(prefix.size()).split(',', Qt::SkipEmptyParts));
+      it = command.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  values.append(required);
+  values.removeDuplicates();
+  command.insert(insertion < 0 ? command.size() : insertion,
+                 prefix + values.join(','));
+}
+
+void preferOpenGlAngle(QStringList &command) {
+  for (auto &argument : command)
+    if (argument == "--use-angle=vulkan")
+      argument = "--use-angle=gl";
+  if (std::none_of(command.cbegin(), command.cend(), [](const auto &argument) {
+        return argument.startsWith("--use-angle=");
+      }))
+    command.append("--use-angle=gl");
+}
+
+void disableVulkanAngle(QStringList &command) {
+  preferOpenGlAngle(command);
+  mergeCommaFlag(command, "--disable-features=",
+                 {"Vulkan", "DefaultANGLEVulkan", "VulkanFromANGLE"});
+}
+} // namespace
+
 bool isChromiumApplication(const QString &program) {
-  const QString name = QFileInfo(program).fileName().toLower();
-  return name == "chrome" || name == "google-chrome" ||
-         name == "google-chrome-stable" || name == "chromium" ||
-         name == "chromium-browser" || name == "brave" ||
-         name == "brave-browser" || name == "vivaldi" || name == "opera";
+  return chromiumLikeName(QFileInfo(program).fileName().toLower());
 }
 
 bool isDiscordApplicationCommand(const QStringList &command) {
@@ -27,7 +90,8 @@ bool isDiscordApplicationCommand(const QStringList &command) {
 bool isChromiumApplicationCommand(const QStringList &command) {
   return std::any_of(command.cbegin(), command.cend(),
                      [](const QString &argument) {
-                       return isChromiumApplication(argument);
+                       return isChromiumApplication(argument) ||
+                              chromiumLikeId(argument);
                      }) ||
          isDiscordApplicationCommand(command);
 }
@@ -35,43 +99,26 @@ bool isChromiumApplicationCommand(const QStringList &command) {
 void ensureWaylandChromiumFlags(QStringList &command) {
   if (!command.contains("--ozone-platform=wayland"))
     command.append("--ozone-platform=wayland");
-  if (!command.contains("--enable-features=UseOzonePlatform"))
-    command.append("--enable-features=UseOzonePlatform");
+  mergeCommaFlag(command, "--enable-features=", {"UseOzonePlatform"});
+  if (!command.contains("--enable-wayland-ime"))
+    command.append("--enable-wayland-ime");
+  if (std::none_of(command.cbegin(), command.cend(), [](const auto &argument) {
+        return argument.startsWith("--wayland-text-input-version=");
+      }))
+    command.append("--wayland-text-input-version=3");
+
+  // Prefer the mature EGL/OpenGL ANGLE path while the native Vulkan path is
+  // being validated across wlroots and vendor drivers. The escape hatch keeps
+  // driver/compositor testing possible without changing desktop launchers.
+  if (qEnvironmentVariable("LUNADASH_CHROMIUM_VULKAN") != "1")
+    disableVulkanAngle(command);
 }
 
 void ensureDiscordWaylandFlags(QStringList &command) {
-  QStringList disabled;
-  int featureIndex = -1;
-  for (auto it = command.begin(); it != command.end();) {
-    if (it->startsWith("--disable-features=")) {
-      if (featureIndex < 0)
-        featureIndex = static_cast<int>(it - command.begin());
-      disabled.append(it->mid(QStringLiteral("--disable-features=").size())
-                          .split(',', Qt::SkipEmptyParts));
-      it = command.erase(it);
-    } else {
-      if (*it == "--use-angle=vulkan")
-        *it = "--use-angle=gl";
-      ++it;
-    }
-  }
-  disabled.append({"Vulkan", "DefaultANGLEVulkan", "VulkanFromANGLE"});
-  disabled.removeDuplicates();
-  command.insert(featureIndex < 0 ? command.size() : featureIndex,
-                 "--disable-features=" + disabled.join(','));
-  if (std::none_of(command.cbegin(), command.cend(), [](const auto &arg) {
-        return arg.startsWith("--use-angle=");
-      }))
-    command.append("--use-angle=gl");
-  if (!command.contains("--enable-wayland-ime"))
-    command.append("--enable-wayland-ime");
-  if (std::none_of(command.cbegin(), command.cend(), [](const auto &arg) {
-        return arg.startsWith("--wayland-text-input-version=");
-      }))
-    command.append("--wayland-text-input-version=3");
-  // Retain the scoped rendering fallback while hardware compatibility is
-  // being verified. Native input initialization also needs an X display;
-  // software rendering alone cannot prevent that separate helper crash.
+  ensureWaylandChromiumFlags(command);
+  // Discord's helper/GPU-process combination needs the conservative path even
+  // when generic Chromium Vulkan testing is enabled.
+  disableVulkanAngle(command);
   if (qEnvironmentVariable("LUNADASH_DISCORD_GPU") != "1" &&
       !command.contains("--disable-gpu"))
     command.append("--disable-gpu");
