@@ -23,7 +23,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="lunadash-sdk-test-") as directory:
         root = Path(directory)
         prefix = root / "install"
-        for name in ("effect-c", "effect-cpp", "quickshell", "opengl"):
+        for name in ("effect-c", "effect-cpp", "stacking-layout", "quickshell", "opengl"):
             project = root / name
             shutil.copytree(source / "templates/plugins" / name, project)
             build = root / (name + "-build")
