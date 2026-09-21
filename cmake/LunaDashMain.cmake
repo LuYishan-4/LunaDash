@@ -111,7 +111,7 @@ target_include_directories(ludash-system-metrics PUBLIC src)
 add_library(ludash-tiling
     src/compositor/layout/WindowLayout.cpp
     src/compositor/layout/LayoutTemplates.cpp
-    src/compositor/stacking/StackingLayout.cpp
+    src/compositor/layout/FreeformLayout.cpp
     src/compositor/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
 target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core Qt6::Core)
