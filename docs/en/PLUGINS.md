@@ -60,7 +60,7 @@ Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs
 }
 ```
 
-`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `layoutMode: stacking` must be replacements: two layout owners cannot simultaneously place the same windows.
+`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `layoutMode: stacking` must be replacements: two layout owners cannot simultaneously place the same windows. `lunadash-create-plugin --type effect --target window-layout ...` now starts from `templates/plugins/stacking-layout`: the stacking/cascade policy lives in that plugin template, while the compositor core retains only generic freeform geometry state for stacking-mode interaction.
 
 The settings schema supports `boolean`, `string`, `number`, `integer`, `default`, numeric `minimum`/`maximum`, and `enum`. Unknown settings and invalid values are rejected before saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
 
