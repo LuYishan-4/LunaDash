@@ -57,7 +57,7 @@ QML/JS/assets 用 `FILES` 明確列出。不要只手動 copy source folder；SD
 }
 ```
 
-`replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `layoutMode: stacking` 的 window-layout plugin 必須是 replacement。
+`replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `layoutMode: stacking` 的 window-layout plugin 必須是 replacement。 現在執行 `lunadash-create-plugin --type effect --target window-layout ...` 會直接使用 `templates/plugins/stacking-layout`；stacking / cascade 的排列策略放在 plugin template，compositor core 只保留 stacking-mode 互動所需的通用 freeform geometry state。
 
 ## Native hook 與 hot reload
 
