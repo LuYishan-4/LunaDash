@@ -518,7 +518,7 @@ void WaylandCompositor::arrange() {
     }
   }
 
-  if (layoutChanged && focused_ && focused_->mapped && !focused_->minimized)
+  if (templateChanged && focused_ && focused_->mapped && !focused_->minimized)
     windowLayout_->focus(focused_->id);
   QList<ClientWindow *> revealed;
   QHash<int, LayoutWindowId> maximizedWindows;
