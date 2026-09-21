@@ -30,6 +30,20 @@ def validate(manifest, root, targets):
             re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]+", manifest["id"]), "Invalid plugin ID")
     for key in ("name", "version"):
         require(isinstance(manifest.get(key), str) and manifest[key], f"Missing {key}")
+    icon = manifest.get("icon", "applications-system")
+    require(isinstance(icon, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", icon),
+            "icon must be a theme name or local image filename")
+    if re.search(r"\.(png|jpe?g|webp|svg)$", icon, re.IGNORECASE):
+        path = root / icon
+        require(path.is_file() and path.resolve().parent == root.resolve()
+                and path.stat().st_size <= 1024 * 1024,
+                f"Missing, oversized or escaping plugin icon: {icon}")
+    tags = manifest.get("tags", [])
+    require(isinstance(tags, list) and len(tags) <= 12 and
+            all(isinstance(tag, str) and tag.strip() == tag and
+                0 < len(tag) <= 32 and not any(ord(ch) < 32 for ch in tag)
+                for tag in tags) and len(set(tags)) == len(tags),
+            "tags must be up to 12 unique non-empty strings of at most 32 characters")
     kind = manifest.get("type")
     require(kind in ("effect", "quickshell", "opengl"), "Unknown plugin type")
     target = next((t for t in targets if t["id"] == manifest.get("target")), None)
