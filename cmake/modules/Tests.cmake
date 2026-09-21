@@ -32,6 +32,18 @@ if(BUILD_TESTING)
     add_test(NAME lunadash-window-animation-template
         COMMAND lunadash-window-animation-template-test)
     set_tests_properties(lunadash-window-animation-template PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-settings-test tests/settings/SettingsTests.cpp
+        src/compositor/settings/SettingsApi.cpp)
+    target_link_libraries(lunadash-settings-test PRIVATE ludash-plugins ludash-shell-modules Qt6::Test)
+    target_compile_definitions(lunadash-settings-test PRIVATE
+        SETTINGS_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/settings/contract.json")
+    if(TARGET ludash-fade)
+        add_dependencies(lunadash-settings-test ludash-fade)
+    endif()
+    add_test(NAME lunadash-settings COMMAND lunadash-settings-test)
+    set_tests_properties(lunadash-settings PROPERTIES TIMEOUT 30)
+    add_test(NAME lunadash-settings-schema COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/settings/test_schema.py)
     add_executable(lunadash-plugin-test tests/plugins/PluginTests.cpp)
     target_link_libraries(lunadash-plugin-test PRIVATE ludash-plugins Qt6::Test)
     if(TARGET ludash-fade)

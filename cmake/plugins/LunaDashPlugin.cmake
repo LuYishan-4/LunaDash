@@ -17,7 +17,8 @@ function(lunadash_add_plugin target)
     endif()
     set(output "${CMAKE_BINARY_DIR}/plugins/${id}")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-        "${metadata}" "${LUNADASH_PLUGIN_CMAKE_DIR}/ValidatePlugin.py" "${LUNADASH_PLUGIN_TARGETS}")
+        "${metadata}" "${LUNADASH_PLUGIN_CMAKE_DIR}/ValidatePlugin.py"
+        "${LUNADASH_PLUGIN_CMAKE_DIR}/SettingsSchema.py" "${LUNADASH_PLUGIN_TARGETS}")
     execute_process(COMMAND "${Python3_EXECUTABLE}" "${LUNADASH_PLUGIN_CMAKE_DIR}/ValidatePlugin.py"
         --metadata "${metadata}" --targets "${LUNADASH_PLUGIN_TARGETS}" --output "${output}"
         RESULT_VARIABLE validation COMMAND_ERROR_IS_FATAL ANY)

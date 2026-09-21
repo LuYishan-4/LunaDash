@@ -1,0 +1,531 @@
+{
+  "schemaVersion": 1,
+  "modules": [
+    {
+      "id": "panel",
+      "name": "Panel",
+      "type": "panel",
+      "category": "Shell",
+      "recovery": false,
+      "template": true,
+      "sections": {
+        "module": {},
+        "style": {
+          "height": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 24,
+            "maximum": 96,
+            "label": "Height",
+            "control": "number",
+            "specialValues": [
+              0
+            ],
+            "description": "0 follows the module default."
+          },
+          "margin": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 64,
+            "label": "Margin",
+            "control": "slider"
+          },
+          "radius": {
+            "type": "integer",
+            "default": 18,
+            "minimum": 0,
+            "maximum": 64,
+            "label": "Corner radius",
+            "control": "slider"
+          },
+          "edge": {
+            "type": "string",
+            "default": "top",
+            "enum": [
+              "top",
+              "bottom"
+            ],
+            "label": "Panel edge",
+            "control": "select"
+          }
+        },
+        "config": {
+          "backgroundVisible": {
+            "type": "boolean",
+            "default": false,
+            "label": "Show background",
+            "control": "toggle"
+          },
+          "contrastShells": {
+            "type": "boolean",
+            "default": true,
+            "label": "Contrast shells",
+            "control": "toggle"
+          },
+          "workspacePills": {
+            "type": "boolean",
+            "default": true,
+            "label": "Workspace pills",
+            "control": "toggle"
+          },
+          "workspaceTransition": {
+            "type": "boolean",
+            "default": true,
+            "label": "Workspace transition",
+            "control": "toggle"
+          },
+          "workspaceInactiveWidth": {
+            "type": "integer",
+            "default": 18,
+            "minimum": 8,
+            "maximum": 48,
+            "label": "Inactive workspace width",
+            "control": "slider"
+          },
+          "workspaceActiveWidth": {
+            "type": "integer",
+            "default": 38,
+            "minimum": 18,
+            "maximum": 72,
+            "label": "Active workspace width",
+            "control": "slider"
+          },
+          "workspacePillHeight": {
+            "type": "integer",
+            "default": 10,
+            "minimum": 4,
+            "maximum": 20,
+            "label": "Workspace pill height",
+            "control": "slider"
+          },
+          "shellOpacity": {
+            "type": "integer",
+            "default": 20,
+            "minimum": 0,
+            "maximum": 60,
+            "label": "Shell opacity",
+            "control": "slider"
+          },
+          "transitionDuration": {
+            "type": "integer",
+            "default": 420,
+            "minimum": 180,
+            "maximum": 900,
+            "label": "Transition duration",
+            "control": "slider"
+          }
+        },
+        "custom": {}
+      }
+    },
+    {
+      "id": "wallpaper",
+      "name": "Wallpaper",
+      "type": "background",
+      "category": "Shell",
+      "recovery": false,
+      "template": false,
+      "sections": {
+        "module": {},
+        "style": {
+          "margin": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 64,
+            "label": "Margin",
+            "control": "slider"
+          },
+          "radius": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 64,
+            "label": "Corner radius",
+            "control": "slider"
+          }
+        },
+        "config": {},
+        "custom": {}
+      }
+    },
+    {
+      "id": "launcher",
+      "name": "Launcher",
+      "type": "launcher",
+      "category": "Shell",
+      "recovery": false,
+      "template": false,
+      "sections": {
+        "module": {},
+        "style": {},
+        "config": {
+          "buttonSize": {
+            "type": "integer",
+            "default": 38,
+            "minimum": 28,
+            "maximum": 64,
+            "label": "Button size",
+            "control": "slider"
+          },
+          "logoScale": {
+            "type": "integer",
+            "default": 88,
+            "minimum": 50,
+            "maximum": 120,
+            "label": "Logo scale",
+            "control": "slider"
+          },
+          "backgroundOpacity": {
+            "type": "integer",
+            "default": 18,
+            "minimum": 0,
+            "maximum": 100,
+            "label": "Background opacity",
+            "control": "slider"
+          },
+          "glow": {
+            "type": "boolean",
+            "default": true,
+            "label": "Glow",
+            "control": "toggle"
+          },
+          "orbit": {
+            "type": "boolean",
+            "default": true,
+            "label": "Orbit",
+            "control": "toggle"
+          }
+        },
+        "custom": {}
+      }
+    },
+    {
+      "id": "overview",
+      "name": "Overview",
+      "type": "dashboard",
+      "category": "Shell",
+      "recovery": false,
+      "template": true,
+      "sections": {
+        "module": {},
+        "style": {},
+        "config": {
+          "showMedia": {
+            "type": "boolean",
+            "default": true,
+            "label": "Show media",
+            "control": "toggle"
+          },
+          "quickControls": {
+            "type": "boolean",
+            "default": true,
+            "label": "Quick controls",
+            "control": "toggle"
+          },
+          "calendarImage": {
+            "type": "string",
+            "default": "",
+            "label": "Calendar image",
+            "control": "text",
+            "pattern": "^(|file://.*\\.(?i:png|jpe?g|webp|gif))$",
+            "description": "Local image URL; leave empty for no image."
+          },
+          "shortcuts": {
+            "type": "array",
+            "default": [
+              "files",
+              "terminal",
+              "settings"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "files",
+                "terminal",
+                "settings",
+                "monitor",
+                "network",
+                "plugins"
+              ]
+            },
+            "maxItems": 6,
+            "control": "select",
+            "label": "Shortcuts"
+          }
+        },
+        "custom": {}
+      }
+    },
+    {
+      "id": "settings",
+      "name": "Settings",
+      "type": "settings",
+      "category": "Shell",
+      "recovery": true,
+      "template": false,
+      "sections": {
+        "module": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "label": "Enabled",
+            "control": "toggle",
+            "enum": [
+              true
+            ],
+            "readOnly": true,
+            "description": "Recovery modules cannot be disabled."
+          }
+        },
+        "style": {
+          "width": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 800,
+            "maximum": 3840,
+            "label": "Width",
+            "control": "number",
+            "specialValues": [
+              0
+            ],
+            "description": "0 follows the module default."
+          },
+          "height": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 480,
+            "maximum": 2160,
+            "label": "Height",
+            "control": "number",
+            "specialValues": [
+              0
+            ],
+            "description": "0 follows the module default."
+          }
+        },
+        "config": {},
+        "custom": {}
+      }
+    },
+    {
+      "id": "setup",
+      "name": "Welcome",
+      "type": "setup",
+      "category": "Shell",
+      "recovery": true,
+      "template": false,
+      "sections": {
+        "module": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "label": "Enabled",
+            "control": "toggle",
+            "enum": [
+              true
+            ],
+            "readOnly": true,
+            "description": "Recovery modules cannot be disabled."
+          }
+        },
+        "style": {
+          "height": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 480,
+            "maximum": 2160,
+            "label": "Height",
+            "control": "number",
+            "specialValues": [
+              0
+            ],
+            "description": "0 follows the module default."
+          }
+        },
+        "config": {},
+        "custom": {}
+      }
+    },
+    {
+      "id": "session",
+      "name": "Session",
+      "type": "session",
+      "category": "Shell",
+      "recovery": false,
+      "template": false,
+      "sections": {
+        "module": {},
+        "style": {},
+        "config": {},
+        "custom": {}
+      }
+    },
+    {
+      "id": "feedback",
+      "name": "Feedback",
+      "type": "feedback",
+      "category": "Shell",
+      "recovery": true,
+      "template": false,
+      "sections": {
+        "module": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "label": "Enabled",
+            "control": "toggle",
+            "enum": [
+              true
+            ],
+            "readOnly": true,
+            "description": "Recovery modules cannot be disabled."
+          }
+        },
+        "style": {},
+        "config": {},
+        "custom": {}
+      }
+    },
+    {
+      "id": "compatibility",
+      "name": "Compatibility launcher",
+      "type": "launcher",
+      "category": "Shell",
+      "recovery": false,
+      "template": false,
+      "sections": {
+        "module": {},
+        "style": {},
+        "config": {},
+        "custom": {}
+      }
+    }
+  ],
+  "common": {
+    "module": {
+      "enabled": {
+        "control": "toggle",
+        "default": true,
+        "label": "Enabled",
+        "type": "boolean"
+      }
+    },
+    "style": {
+      "accent": {
+        "control": "text",
+        "default": "inherit",
+        "description": "Use inherit or a hexadecimal color.",
+        "label": "Accent",
+        "pattern": "^(inherit|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})$",
+        "type": "string"
+      },
+      "background": {
+        "control": "text",
+        "default": "inherit",
+        "description": "Use inherit or a hexadecimal color.",
+        "label": "Background",
+        "pattern": "^(inherit|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})$",
+        "type": "string"
+      },
+      "edge": {
+        "control": "select",
+        "default": "top",
+        "enum": [
+          "top"
+        ],
+        "label": "Panel edge",
+        "type": "string"
+      },
+      "fontSize": {
+        "control": "number",
+        "default": 13,
+        "label": "Font size",
+        "maximum": 28,
+        "minimum": 10,
+        "type": "integer"
+      },
+      "foreground": {
+        "control": "text",
+        "default": "inherit",
+        "description": "Use inherit or a hexadecimal color.",
+        "label": "Foreground",
+        "pattern": "^(inherit|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})$",
+        "type": "string"
+      },
+      "height": {
+        "control": "number",
+        "default": 0,
+        "description": "0 follows the module default.",
+        "label": "Height",
+        "maximum": 2160,
+        "minimum": 80,
+        "specialValues": [
+          0
+        ],
+        "type": "integer"
+      },
+      "margin": {
+        "control": "slider",
+        "default": 12,
+        "label": "Margin",
+        "maximum": 64,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "radius": {
+        "control": "slider",
+        "default": 24,
+        "label": "Corner radius",
+        "maximum": 64,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "width": {
+        "control": "number",
+        "default": 0,
+        "description": "0 follows the module default.",
+        "label": "Width",
+        "maximum": 3840,
+        "minimum": 320,
+        "specialValues": [
+          0
+        ],
+        "type": "integer"
+      },
+      "x": {
+        "control": "number",
+        "default": 0,
+        "label": "Horizontal position",
+        "maximum": 3840,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "y": {
+        "control": "number",
+        "default": 0,
+        "label": "Vertical position",
+        "maximum": 3840,
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "custom": {
+      "enabled": {
+        "control": "toggle",
+        "default": false,
+        "label": "Use custom QML",
+        "type": "boolean"
+      },
+      "entry": {
+        "control": "text",
+        "default": "",
+        "description": "Relative module/Main.qml path; trusted code runs with your user permissions.",
+        "label": "Custom entry",
+        "pattern": "^(|[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.qml)$",
+        "type": "string"
+      }
+    }
+  }
+}

@@ -59,7 +59,8 @@ int ControlClient::run(int argc, char **argv) {
            "open-settings|system-tool|audio|network|power-profile|desktop-size|"
            "reset-preferences|default-apps|launch-default|module-validate|"
            "module-save|module-template|module-code-trust|module-reset|"
-           "extension-save|extension-error|quit "
+           "extension-save|extension-error|settings-describe|settings-update|"
+           "window-layout-settings|window-layout-action|quit "
            "[value]\n"
            "  group-window value: {\"window\":ID,\"target\":ID}\n"
            "  launch-with-x11 -- program [argument ...]\n";

@@ -60,12 +60,11 @@ target_link_libraries(ludash-blur
     PUBLIC ludash-renderer Qt6::Quick Qt6::OpenGL)
 
 add_library(ludash-animation
-    src/compositor/animation/WindowAnimations.cpp
     src/compositor/window/animation/SceneAnimationBackend.cpp)
 target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_definitions(ludash-animation PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-animation
-    PUBLIC Qt6::Quick
+    PUBLIC Qt6::Core
     PRIVATE PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
 
 add_library(ludash-shell-renderer

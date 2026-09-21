@@ -12,11 +12,12 @@ extern "C" int ludash_plugin_process(const char *request, char *response,
                      ? input.value("current").toObject()
                      : input.value("builtin").toObject();
 
-  profile["duration"] =
-      input.value("settings").toObject().value("duration").toInt(260);
+  const auto settings = input.value("settings").toObject();
+  profile["duration"] = settings.value("duration").toInt(260);
   profile["enterOffset"] = 0;
-  profile["exitScale"] = 1.0;
-  profile["easing"] = "outQuint";
+  profile["exitScale"] = settings.value("exitScale").toDouble(1.0);
+  profile["focusOpacity"] = settings.value("softFocus").toBool(true) ? 0.82 : 1.0;
+  profile["easing"] = settings.value("easing").toString("outQuint");
 
   const auto json = QJsonDocument(profile).toJson(QJsonDocument::Compact);
   return ludash_plugin_write_json(json.constData(), response, capacity);

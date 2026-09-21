@@ -46,3 +46,5 @@
 ## 目前 dev 已涵蓋的重點
 
 目前文件會跟進 wlroots 合成器與生命週期拆分、受邊界限制的平鋪與可選 stacking 策略、2×5 的十工作區切換器、Plugin SDK 2（原生 C/C++、Quickshell、OpenGL）、MPRIS 媒體控制、GPU/軟體桌布轉場、亮度與 DDC/CI、slurp/grim 區域截圖，以及可在保留原生 Wayland 的同時準備 X11 helper 的 XWayland 流程。
+
+- [共用設定 API 與自動控制項](SETTINGS_API.md)

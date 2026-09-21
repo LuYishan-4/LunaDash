@@ -16,6 +16,8 @@
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowTemplate.hpp"
+#include "compositor/settings/SettingsApi.hpp"
+#include "core/settings/SettingsTarget.hpp"
 #include "compositor/xwayland/XWaylandSupport.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/localization/Localization.hpp"
@@ -416,7 +418,7 @@ QJsonObject WaylandCompositor::currentWindowLayoutSettings() const {
        it != windowTemplate_->layoutSettingsSchema.end(); ++it)
     if (settings.contains(prefix + it.key()))
       values[it.key()] =
-          QJsonValue::fromVariant(settings.value(prefix + it.key()));
+          Settings::fromStoredValue(it.value().toObject(), settings.value(prefix + it.key()));
 
   if (!validateWindowLayoutSettings(*windowTemplate_, values, nullptr))
     return windowTemplate_->layoutSettingsDefaults;
@@ -529,8 +531,8 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   const auto preferences = desktopPreferences();
-  const auto &selectedTemplate =
-      windowTemplateForKey(pluginManager_->windowTemplateKey());
+  const auto templateKey = pluginManager_->windowTemplateKey();
+  const auto &selectedTemplate = windowTemplateForKey(templateKey);
   const bool templateChanged =
       !windowTemplate_ || windowTemplate_->key != selectedTemplate.key;
   if (templateChanged) {
@@ -1017,7 +1019,13 @@ QJsonObject WaylandCompositor::state() const {
   const auto extensions = pluginManager_->snapshot();
   preferences["plugins"] = extensions.value("installed");
   const auto layoutSettings = currentWindowLayoutSettings();
+  const auto layoutTarget = Settings::target(
+      "layout:" + windowTemplate_->key, "Window layout", "layout", "Windows",
+      windowTemplate_->layoutSettingsSchema, layoutSettings);
+  const auto moduleState = shellModules_->snapshot();
   return {
+      {"settingsApi", QJsonObject{{"version", 1},
+          {"targets", settingsApiTargets(extensions, moduleState, layoutTarget)}}},
       {"layoutMode",
        windowTemplate_ && windowTemplate_->allowOverlap ? "stacking"
                                                         : "tiling"},
@@ -1033,7 +1041,7 @@ QJsonObject WaylandCompositor::state() const {
                    {"actions", windowTemplate_ ? windowTemplate_->layoutActions
                                                : QJsonObject{}}}},
       {"defaultApps", defaultApplications()},
-      {"shellModules", shellModules_->snapshot()},
+      {"shellModules", moduleState},
       {"extensions", extensions},
       {"shellAnimationDuration",
        shellAnimationDuration(*pluginManager_,
@@ -1190,6 +1198,29 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", "Unknown settings page."}};
     settingsPage_ = value.isEmpty() ? "general" : value;
     settingsSerial_ = (settingsSerial_ + 1) % 1000000;
+  } else if (method == "settings-describe") {
+    return state().value("settingsApi").toObject();
+  } else if (method == "settings-update") {
+    pluginManager_->refresh();
+    arrange();
+    if (value.toUtf8().size() > 24576)
+      return {{"error", "Settings request exceeds 24 KiB."}};
+    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    if (!document.isObject() || !windowTemplate_)
+      return {{"error", "Expected a settings update object."}};
+    const auto layout = Settings::target("layout:" + windowTemplate_->key,
+        "Window layout", "layout", "Windows", windowTemplate_->layoutSettingsSchema,
+        currentWindowLayoutSettings());
+    QString error;
+    if (!updateSettingsApi(*pluginManager_, *shellModules_, layout, document.object(),
+        [this](const auto &changes, QString *message) {
+          return updateWindowLayoutSettings(changes, message);
+        }, &error))
+      return {{"error", error}, {"settingsTarget", document.object().value("target")}};
+    arrange();
+    auto result = state();
+    result["settingsTarget"] = document.object().value("target");
+    return result;
   } else if (method == "extension-save") {
     QString error;
     if (!saveExtensionConfiguration(value.toUtf8(), &error))
@@ -1321,7 +1352,17 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", "Expected a window layout action object."}};
     const auto object = document.object();
     const auto actionId = object.value("action").toString();
-    const auto payload = object.value("payload").toObject();
+    if (!object.value("payload").isObject() || object.size() != 2)
+      return {{"error", "Expected only action and payload fields."}};
+    auto payload = object.value("payload").toObject();
+    const auto action = windowTemplate_->layoutActions.value(actionId).toObject();
+    if (action.value("requiresArea").toBool()) {
+      if (payload.contains("area"))
+        return {{"error", "Work area is supplied by the compositor, not the caller."}};
+      const auto area = workArea();
+      payload["area"] = QJsonObject{{"x", area.x()}, {"y", area.y()},
+                                    {"width", area.width()}, {"height", area.height()}};
+    }
     if (actionId.isEmpty() ||
         !performWindowLayoutAction(*windowLayout_, *windowTemplate_, actionId,
                                    payload))

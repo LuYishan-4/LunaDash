@@ -86,7 +86,7 @@ target_link_libraries(ludash-input-settings PUBLIC Qt6::Core)
 add_library(ludash-shell-modules src/shell/modules/ShellModules.hpp src/shell/modules/ShellModuleSchema.cpp src/shell/modules/ShellModules.cpp)
 target_include_directories(ludash-shell-modules PUBLIC src)
 target_link_libraries(ludash-shell-modules PUBLIC Qt6::Core)
-qt_add_resources(ludash-shell-modules module_templates PREFIX /LuDash FILES data/modules/templates/panel/Main.qml data/modules/templates/overview/Main.qml)
+qt_add_resources(ludash-shell-modules module_templates PREFIX /LuDash FILES data/modules/registry.json data/modules/templates/panel/Main.qml data/modules/templates/overview/Main.qml)
 add_library(ludash-network src/desktop/network/NetworkStatus.cpp)
 target_include_directories(ludash-network PUBLIC src)
 target_link_libraries(ludash-network PUBLIC Qt6::Network Qt6::DBus)
@@ -185,6 +185,7 @@ add_library(ludash-wayland
     src/compositor/wayland/Surface.cpp
     src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
+    src/compositor/settings/SettingsApi.cpp
     src/compositor/window/WindowPointer.cpp
     src/compositor/window/WindowSwitch.cpp
     src/compositor/input/Keyboard.cpp
@@ -263,11 +264,3 @@ install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icon
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)
 install(DIRECTORY data/modules/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/modules)
 install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)
-
-# Retained Qt Quick window adapters are compiled even though wlroots owns the
-# active scene. This prevents dormant integration sources from silently rotting.
-add_library(ludash-window-items
-    src/compositor/window/WindowFrame.cpp
-    src/compositor/window/ResizeGuide.cpp)
-target_include_directories(ludash-window-items PUBLIC src)
-target_link_libraries(ludash-window-items PUBLIC Qt6::Quick)

@@ -35,6 +35,8 @@ ColumnLayout {
         builtins: {},
         plugins: {}
     })
+    property string loadedDocument: ""
+    readonly property bool documentStale: dirty && loadedDocument !== JSON.stringify(state.document || {})
     property bool dirty: false
     property bool saving: false
     property bool advanced: false
@@ -48,6 +50,7 @@ ColumnLayout {
             plugins: {}
         }))
         editor.text = JSON.stringify(document, null, 2)
+        loadedDocument = JSON.stringify(state.document || {})
         dirty = false
     }
 
@@ -55,17 +58,6 @@ ColumnLayout {
         document = next
         editor.text = JSON.stringify(next, null, 2)
         dirty = true
-    }
-
-    function builtinValue() {
-        return Object.assign({}, target.builtinSettings || {}, document.builtins[selectedTarget] || {})
-    }
-
-    function setBuiltin(key, value) {
-        const next = JSON.parse(JSON.stringify(document))
-        next.builtins[selectedTarget] = Object.assign({}, next.builtins[selectedTarget] || {})
-        next.builtins[selectedTarget][key] = value
-        adopt(next)
     }
 
     function pluginValue(plugin) {
@@ -81,12 +73,6 @@ ColumnLayout {
         next.plugins[plugin.id] = JSON.parse(JSON.stringify(pluginValue(plugin)))
         next.plugins[plugin.id][key] = value
         adopt(next)
-    }
-
-    function setPluginSetting(plugin, key, value) {
-        const settings = Object.assign({}, pluginValue(plugin).settings)
-        settings[key] = value
-        setPlugin(plugin, "settings", settings)
     }
 
     function matchesSearch(plugin) {
@@ -386,12 +372,11 @@ ColumnLayout {
                                     pluginCard.modelData, "mode", index === 1 ? "replace" : "augment")
                             }
 
-                            ExtensionOptions {
+                            SettingsTargetEditor {
                                 Layout.fillWidth: true
                                 shell: page.shell
-                                schema: pluginCard.modelData.settingsSchema || {}
-                                values: pluginCard.config.settings || {}
-                                onEdited: (key, value) => page.setPluginSetting(pluginCard.modelData, key, value)
+                                targetId: "plugin:" + pluginCard.modelData.id
+                                enabled: !page.dirty && !page.saving
                             }
 
                             HelpText {
@@ -480,13 +465,12 @@ ColumnLayout {
             message: "Built-in settings"
         }
 
-        ExtensionOptions {
+        SettingsTargetEditor {
             visible: page.selectedTarget !== "window-layout"
             Layout.fillWidth: true
             shell: page.shell
-            schema: page.target.settings || {}
-            values: page.builtinValue()
-            onEdited: (key, value) => page.setBuiltin(key, value)
+            targetId: "builtin:" + page.selectedTarget
+            enabled: !page.dirty && !page.saving
         }
 
         HelpText {
@@ -502,13 +486,19 @@ ColumnLayout {
         }
     }
 
+    HelpText {
+        visible: page.documentStale
+        shell: page.shell
+        message: "Settings changed. Reload before applying this edit."
+    }
+
     RowLayout {
         Layout.fillWidth: true
 
         ShellButton {
             text: page.shell.tr("Save extensions")
             active: true
-            enabled: page.dirty && !page.saving
+            enabled: page.dirty && !page.saving && !page.documentStale
             onClicked: {
                 page.saving = true
                 page.shell.command("extension-save", editor.text)

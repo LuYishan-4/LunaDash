@@ -79,10 +79,11 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
     ids.insert(id);
 
     const auto tags = item.value("tags");
+    const auto tagArray = tags.toArray();
     if (tags.isUndefined())
       item["tags"] = QJsonArray{};
     else if (!tags.isArray() || tags.toArray().size() > 12 ||
-             std::any_of(tags.toArray().cbegin(), tags.toArray().cend(),
+             std::any_of(tagArray.cbegin(), tagArray.cend(),
                          [](const QJsonValue &tag) {
                            const auto text = tag.toString();
                            return !tag.isString() || text.trimmed() != text ||

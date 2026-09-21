@@ -22,9 +22,40 @@
   "settings": {
     "duration": {
       "type": "integer",
+      "control": "number",
+      "label": "Animation duration",
+      "description": "Milliseconds; zero disables animation.",
       "default": 260,
       "minimum": 0,
-      "maximum": 600
+      "maximum": 600,
+      "step": 10
+    },
+    "softFocus": {
+      "type": "boolean",
+      "control": "toggle",
+      "label": "Fade on focus",
+      "default": true
+    },
+    "easing": {
+      "type": "string",
+      "control": "select",
+      "label": "Easing curve",
+      "default": "outQuint",
+      "enum": [
+        "linear",
+        "outCubic",
+        "outQuint",
+        "inOutCubic"
+      ]
+    },
+    "exitScale": {
+      "type": "number",
+      "control": "slider",
+      "label": "Closing scale",
+      "default": 1,
+      "minimum": 0.5,
+      "maximum": 1,
+      "step": 0.01
     }
   }
 }

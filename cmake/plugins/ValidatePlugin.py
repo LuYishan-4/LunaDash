@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from SettingsSchema import validate_schema
 
 
 def validate(manifest, root, targets):
@@ -61,15 +62,7 @@ def validate(manifest, root, targets):
             "Stacking windowTemplate requires replacement mode")
     schema = manifest.get("settings")
     require(isinstance(schema, dict), "settings must be an object (empty is allowed)")
-    for key, rule in schema.items():
-        require(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", key) and isinstance(rule, dict), "Invalid setting name/schema")
-        value, value_type = rule.get("default"), rule.get("type")
-        valid = ((value_type == "boolean" and isinstance(value, bool)) or
-                 (value_type == "string" and isinstance(value, str) and len(value) <= 4096) or
-                 (value_type in ("number", "integer") and type(value) in (int, float) and
-                  (value_type != "integer" or int(value) == value) and
-                  rule.get("minimum", value) <= value <= rule.get("maximum", value)))
-        require(valid and ("enum" not in rule or value in rule["enum"]), f"Invalid default for {key}")
+    validate_schema(schema)
     if kind == "opengl":
         shaders = manifest.get("shaders", {})
         require(isinstance(shaders, dict), "shaders must be an object")
@@ -103,7 +96,7 @@ def main():
                 'LUDASH_PLUGIN_EXPORT const ludash_plugin_api *ludash_plugin_entry_v2(void) {\n'
                 f'  static const ludash_plugin_api api = {{sizeof(ludash_plugin_api), 2u, {literal}, ludash_plugin_process}};\n'
                 '  return &api;\n}\n')
-    except (OSError, ValueError, TypeError, KeyError) as error:
+    except (OSError, ValueError, TypeError, KeyError, re.error) as error:
         parser.exit(1, f"LunaDash plugin metadata: {error}\n")
 
 

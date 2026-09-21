@@ -16,7 +16,7 @@ configure_file("${CMAKE_BINARY_DIR}/sdk/LunaDashPluginConfigVersion.cmake"
     "${CMAKE_BINARY_DIR}/sdk-build/LunaDashPluginConfigVersion.cmake" COPYONLY)
 install(FILES "${CMAKE_BINARY_DIR}/sdk/LunaDashPluginConfig.cmake"
     "${CMAKE_BINARY_DIR}/sdk/LunaDashPluginConfigVersion.cmake"
-    cmake/plugins/LunaDashPlugin.cmake cmake/plugins/ValidatePlugin.py data/plugins/targets.json
+    cmake/plugins/LunaDashPlugin.cmake cmake/plugins/ValidatePlugin.py cmake/plugins/SettingsSchema.py data/plugins/targets.json
     DESTINATION "${sdk_install_dir}")
 install(FILES src/core/plugins/PluginApi.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LunaDash/core/plugins")
 install(FILES src/core/plugins/PluginApi.c DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")
