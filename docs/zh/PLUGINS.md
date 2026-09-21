@@ -59,7 +59,7 @@ QML/JS/assets 用 `FILES` 明確列出。不要只手動 copy source folder；SD
 
 `replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `windowTemplate: stacking` 的 window-layout plugin 必須是 replacement。現在執行 `lunadash-create-plugin --type effect --target window-layout ...` 會從通用 native effect template 建立；實際的 stacking / cascade 實作改成 `data/plugins/stacking-windows` 下的正式 SDK 2 plugin package，compositor core 只保留 stacking-mode 互動所需的通用 freeform geometry state。
 
-## Native hook 與 hot reload
+## Native hook 與 runtime loading
 
 作者實作同步、stateless 的：
 
@@ -71,7 +71,7 @@ Request 帶 `target/mode/context/builtin/current/settings`。SDK 產生 `ludash_
 
 不要保存 host pointer、開 background thread、註冊跨 callback、跑 nested event loop 或長時間 block。Native code 沒 sandbox，仍能讓 compositor crash/hang。
 
-Enable/disable、設定變更或 rebuild 不需 logout/reboot。Host 約每秒檢查 package，私下 staging revision 並在 call 之間 reload；失敗就 fallback built-in。
+Enable/disable 與設定變更不需 logout/reboot。Plugin package 直接從安裝目錄使用，不再建立 private revision copy、每秒 fingerprint 或背景監看 package。Native library 啟用期間會保持載入，因此替換 binary 前先 disable，再完成替換後重新 enable。直接載入失敗時會 fallback built-in；「重試插件」會清除載入錯誤並重新嘗試目前安裝的 package。
 
 ## Quickshell
 

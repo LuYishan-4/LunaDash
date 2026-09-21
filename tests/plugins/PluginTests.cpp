@@ -82,7 +82,7 @@ private Q_SLOTS:
     QVERIFY(!saveExtensionConfiguration(QByteArray(24577, ' '), &error));
     QCOMPARE(readExtensionConfiguration(), previous);
   }
-  void nativeLifecycleAndHotReload() {
+  void nativeLifecycle() {
     const auto source =
         QCoreApplication::applicationDirPath() + "/plugins/org.ludash.fade";
     if (!QFile::exists(source + "/libludash-fade.so"))
@@ -92,6 +92,7 @@ private Q_SLOTS:
     auto descriptor = readPluginMetadata(directory + "/metadata.json");
     QVERIFY2(descriptor.error.isEmpty(), qPrintable(descriptor.error));
     QVERIFY(!descriptor.enabled);
+
     PluginManager manager;
     const QJsonObject prefs{{"animations", true}, {"animationDuration", 200}};
     const auto &tilingTemplate = windowTemplateForKey("tiling");
@@ -99,38 +100,63 @@ private Q_SLOTS:
                  .value("duration")
                  .toInt(),
              200);
+
     save(config(descriptor.id, true, "replace", {{"duration", 310}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              310);
+
     save(config(descriptor.id, true, "augment", {{"duration", 150}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              150);
+
     auto noMotion = prefs;
     noMotion["animations"] = false;
-    QCOMPARE(
-        windowAnimationProfile(manager, noMotion, tilingTemplate).value("duration").toInt(), 0);
-    // A rebuild can overwrite the installed file while the old private copy
-    // remains callable. The next refresh rejects the incomplete replacement.
+    QCOMPARE(windowAnimationProfile(manager, noMotion, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
+             0);
+
+    // Native packages are loaded directly. Disable first so the shared library
+    // is unloaded before replacing the installed binary.
+    save(config(descriptor.id, false, "augment"));
+    manager.refresh();
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
+             200);
+
     const auto library = directory + "/libludash-fade.so";
     QFile file(library);
     QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
     file.write("incomplete build");
     file.close();
-    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
-             150);
+
+    save(config(descriptor.id, true, "augment", {{"duration", 150}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              200);
+
     QVERIFY(QFile::remove(library));
     QVERIFY(QFile::copy(source + "/libludash-fade.so", library));
-    manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
+    manager.reportError(descriptor.id, "");
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              150);
+
     save(config(descriptor.id, false, "augment"));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              200);
   }
   void receiptAndPathValidation() {

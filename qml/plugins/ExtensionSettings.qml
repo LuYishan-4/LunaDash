@@ -397,7 +397,7 @@ ColumnLayout {
                             HelpText {
                                 shell: page.shell
                                 message: pluginCard.modelData.type === "effect"
-                                    ? "Native plugins run in the compositor. Enable only trusted code. Changes reload after the current hook finishes."
+                                    ? "Native plugins run in the compositor. Enable only trusted code. Configuration changes apply directly; disable a native plugin before replacing its binary."
                                     : pluginCard.modelData.type === "opengl"
                                         ? "OpenGL shader plugins require GPU rendering. Software rendering keeps the built-in feature."
                                         : ""
