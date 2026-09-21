@@ -7,7 +7,7 @@ Technical documentation is organized by language.
 
 Shared screenshots and branding remain in `docs/image/` and `docs/brand/`. README translations remain in `docs/readme/`.
 
-The language directories are the canonical locations for new documentation links. The older Markdown files directly under `docs/` are retained temporarily as compatibility copies so existing external links do not break during the migration.
+The language directories are the canonical locations for new documentation links. The older Markdown paths directly under `docs/` are retained as small compatibility forwarding pages so existing external links do not break. The canonical document text lives only in the language directories.
 
 ## Current development documentation
 
