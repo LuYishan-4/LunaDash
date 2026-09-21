@@ -56,6 +56,19 @@ function(lunadash_add_plugin target)
         list(APPEND PLUGIN_FILES "${source_dir}/${entry}")
         add_custom_target(${target} ALL)
     endif()
+
+    # Package-local image icons are declared in metadata just like QML/JS
+    # assets. The SDK copies them automatically so plugin authors do not need
+    # a second install rule merely to upload an icon with the plugin.
+    string(JSON icon ERROR_VARIABLE icon_error GET "${manifest}" icon)
+    if(NOT icon_error)
+        string(TOLOWER "${icon}" icon_lower)
+        if(icon_lower MATCHES "\\.(png|jpg|jpeg|webp|svg)$")
+            list(APPEND PLUGIN_FILES "${source_dir}/${icon}")
+        endif()
+    endif()
+    list(REMOVE_DUPLICATES PLUGIN_FILES)
+
     foreach(file IN LISTS PLUGIN_FILES)
         get_filename_component(name "${file}" NAME)
         if(name MATCHES "^(metadata\\.json|\\.lunadash-sdk\\.json|Registration\\.c)$")
