@@ -125,12 +125,12 @@ add_library(ludash-plugin-catalog
 target_include_directories(ludash-plugin-catalog PUBLIC src)
 target_link_libraries(ludash-plugin-catalog PUBLIC Qt6::Core)
 qt_add_resources(ludash-plugin-catalog extension_targets PREFIX /LunaDash/plugins
-    BASE data/plugins FILES data/plugins/targets.json)
+    BASE data/plugins FILES data/plugins/targets.json data/plugins/catalog.json)
 add_library(ludash-plugins src/compositor/plugins/PluginManager.hpp
     src/compositor/plugins/PluginManager.cpp src/compositor/plugins/PluginBundle.cpp
     src/compositor/plugins/ExtensionHooks.cpp)
 target_include_directories(ludash-plugins PUBLIC src)
-target_link_libraries(ludash-plugins PUBLIC ludash-plugin-catalog ludash-tiling Qt6::Core)
+target_link_libraries(ludash-plugins PUBLIC ludash-plugin-catalog ludash-tiling Qt6::Core Qt6::Network)
 add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp src/desktop/browser/Browser.cpp)
 target_include_directories(ludash-default-applications PUBLIC src)
 target_link_libraries(ludash-default-applications PUBLIC ludash-configuration Qt6::Core)
