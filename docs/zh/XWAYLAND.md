@@ -30,7 +30,7 @@ lunadashctl launch-with-x11 -- application --argument
 
 它會先準備 authenticated XWayland、保留 Wayland 環境、讓新 server 的 root window 保持隱藏、重用既有 display/authority，並逐一保留 `--` 後的 arguments。缺少 XWayland 時直接回錯誤。
 
-Discord 1.0.157 的 input helper 是目前已知案例。Launcher 會在 Discord 啟動前準備 server；直接從舊 terminal 執行 `flatpak run` 可能繞過流程。
+Discord 的 Wayland renderer 目前仍會使用 X11 input helper，是已知案例之一。Launcher 現在不再在 compositor 裡寫死 Discord 名稱；它會把 desktop ID 與 command 交給通用 LaunchPolicy，依 capability registry 決定是否先準備 XWayland。直接從 terminal 執行 `flatpak run` 會繞過這個 launcher policy。
 
 ## 隔離與生命週期
 
@@ -62,3 +62,24 @@ lunadashctl launch-with-x11 -- flatpak run --socket=x11 --command=env \
 `XDG_CURRENT_DESKTOP=river` 只對該 process 生效，用來選其已支援的 layer-shell backend，不會改 LunaDash 身分。`--command=env` 在 Flatpak 完成 socket mapping 後恢復真實 Wayland socket 名稱。
 
 Flatpak GPU Screen Recorder 6.1.2 的記錄中，GPU/capture discovery 能找到 HDMI output，native UI 也能建立 1920×1080 layer-shell OVERLAY 並顯示在 taskbar/native windows 上方；**錄影本身仍未在該記錄中驗證**。
+
+## Launch capability registry
+
+內建規則位於 `data/session/launch-capabilities.json`，使用者可在
+`~/.config/lunadash/launch-capabilities.json` 追加規則。它只描述能力，不會依應用名稱改寫 Chromium / Electron renderer flags。
+
+```json
+{
+  "schemaVersion": 1,
+  "applications": [
+    {
+      "desktopIds": ["org.example.App"],
+      "flatpakIds": ["org.example.App"],
+      "executables": ["example-app"],
+      "capabilities": ["x11-helper"]
+    }
+  ]
+}
+```
+
+Launcher 會保留 `WAYLAND_DISPLAY`；只有命中的 app 才額外取得 authenticated `DISPLAY` / `XAUTHORITY`。未知 app 維持純 Wayland。解析 Flatpak 時只辨識真正的 reverse-DNS app ID，不會因 URL、檔名或其他 argument 內含相同文字而誤判。

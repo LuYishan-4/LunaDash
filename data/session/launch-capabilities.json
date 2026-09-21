@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "applications": [
+    {
+      "desktopIds": ["com.discordapp.Discord"],
+      "flatpakIds": ["com.discordapp.Discord"],
+      "capabilities": ["x11-helper"]
+    }
+  ]
+}

@@ -12,6 +12,7 @@
 #include "compositor/plugins/PluginManager.hpp"
 #include "compositor/session/SessionActions.hpp"
 #include "compositor/session/SessionEnvironment.hpp"
+#include "compositor/session/LaunchPolicy.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "compositor/window/WindowRules.hpp"
@@ -1399,6 +1400,31 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     for (const auto &client : clients_)
       updateClientMetadata(client.get());
     arrange();
+  } else if (method == "launch-application") {
+    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    if (!document.isObject())
+      return {{"error", "Expected an application launch object."}};
+    const auto object = document.object();
+    if (object.size() != 2 || !object.value("desktopId").isString() ||
+        !object.value("command").isArray())
+      return {{"error", "Application launch requires desktopId and command."}};
+    const auto desktopId = object.value("desktopId").toString();
+    if (desktopId.size() > 256)
+      return {{"error", "Desktop application ID is too long."}};
+    QStringList command;
+    const auto values = object.value("command").toArray();
+    if (values.isEmpty() || values.size() > 64)
+      return {{"error", "Expected a bounded non-empty command array."}};
+    for (const auto &entry : values) {
+      if (!entry.isString() || entry.toString().isEmpty() ||
+          entry.toString().size() > 1024)
+        return {{"error", "Command arguments must be short strings."}};
+      command << entry.toString();
+    }
+    const auto capabilities = resolveLaunchCapabilities(desktopId, command);
+    QString error;
+    if (!launchExternalCommand(command, &error, capabilities.x11Helper))
+      return {{"error", error}};
   } else if (method == "launch-command" || method == "launch-with-x11") {
     const auto document = QJsonDocument::fromJson(value.toUtf8());
     if (!document.isArray() || document.array().isEmpty())

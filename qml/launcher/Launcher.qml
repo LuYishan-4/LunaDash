@@ -39,7 +39,17 @@ ModuleSurface {
     function rank(entry, tokens) { const fields=[entry.name,entry.description,entry.genericName,entry.id,entry.keywords].map(field=>String(field||"").toLocaleLowerCase()); let score=0; for(const token of tokens){let tokenScore=0;for(const field of fields){const words=field.split(/[^\p{L}\p{N}]+/u).filter(Boolean);if(words.some(word=>word.startsWith(token)))tokenScore=Math.max(tokenScore,3);else if(field.includes(token))tokenScore=Math.max(tokenScore,1)}if(!tokenScore)return -1;score+=tokenScore}return score }
     function rankedEntries(query) { const tokens=query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);return builtins.concat(installedEntries()).map((entry,order)=>({entry:entry,score:rank(entry,tokens),order:order})).filter(candidate=>candidate.score>=0).sort((left,right)=>right.score-left.score||left.order-right.order||left.entry.name.localeCompare(right.entry.name)).map(candidate=>candidate.entry) }
     readonly property var results: rankedEntries(search.text)
-    function activate(entry) { if(entry.builtin)shell.launch(entry.id);else shell.command("launch-command",JSON.stringify(entry.desktopEntry.command));shell.launcherOpen=false }
+    function activate(entry) {
+        if (entry.builtin) {
+            shell.launch(entry.id)
+        } else {
+            shell.command("launch-application", JSON.stringify({
+                desktopId: entry.id,
+                command: entry.desktopEntry.command
+            }))
+        }
+        shell.launcherOpen = false
+    }
     function focusSearch() {
         if (!opened)
             return

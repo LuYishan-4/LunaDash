@@ -94,6 +94,11 @@ add_library(ludash-session-environment src/compositor/session/SessionEnvironment
 target_include_directories(ludash-session-environment PUBLIC src)
 target_link_libraries(ludash-session-environment PUBLIC Qt6::Core Qt6::DBus)
 target_compile_definitions(ludash-session-environment PRIVATE LUDASH_ASSET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/assets")
+add_library(ludash-launch-policy src/compositor/session/LaunchPolicy.cpp)
+target_include_directories(ludash-launch-policy PUBLIC src)
+target_link_libraries(ludash-launch-policy PUBLIC Qt6::Core)
+qt_add_resources(ludash-launch-policy launch_capabilities PREFIX /LunaDash/session
+    BASE data/session FILES data/session/launch-capabilities.json)
 add_library(ludash-session-actions src/compositor/session/SessionActions.cpp)
 target_include_directories(ludash-session-actions PUBLIC src)
 target_link_libraries(ludash-session-actions PUBLIC Qt6::Core Qt6::DBus)
@@ -204,6 +209,7 @@ target_compile_definitions(ludash-wayland
 target_link_libraries(ludash-wayland
     PUBLIC
         ludash-session-environment
+        ludash-launch-policy
         ludash-session-actions
         ludash-shortcut-settings
         ludash-update-check

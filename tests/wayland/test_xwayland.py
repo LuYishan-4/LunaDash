@@ -83,12 +83,14 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
             assert not state["xwayland"]["display"], state["xwayland"]
             assert not state["xwayland"]["authority"], state["xwayland"]
 
-            # A native client can request X11 helpers without exposing the
-            # compatibility desktop or losing its Wayland environment.
+            # Application identities declare helper requirements through the
+            # launch-capability registry. Unknown Wayland applications must
+            # stay Wayland-only; a matching hybrid application starts the
+            # authenticated helper without exposing an X11 desktop.
             for invalid in ("[]", '[""]', "[42]", "{}"):
                 assert "error" in request("launch-with-x11", invalid)
             assert not request()["xwayland"]["running"]
-            probe = Path(runtime) / "helper-environment.json"
+
             probe_code = (
                 "import json,os,pathlib,sys; "
                 'p=pathlib.Path(sys.argv[1]); tmp=p.with_suffix(".tmp"); '
@@ -97,21 +99,43 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                 '["DISPLAY","XAUTHORITY","WAYLAND_DISPLAY","QT_QPA_PLATFORM"]})); '
                 "tmp.replace(p)"
             )
-            command = ["python3", "-c", probe_code, str(probe)]
-            cli = build / "lunadashctl"
-            if not cli.exists():
-                cli = build / "ludashctl"
-            launched = subprocess.run(
-                [str(cli), "launch-with-x11", "--", *command],
-                env=env | {"LUNADASH_CONTROL": control, "LUDASH_CONTROL": control},
-                capture_output=True,
-                text=True,
-                timeout=5,
+
+            plain_probe = Path(runtime) / "plain-environment.json"
+            plain_command = ["python3", "-c", probe_code, str(plain_probe)]
+            result = request(
+                "launch-application",
+                json.dumps(
+                    {
+                        "desktopId": "org.example.Native.desktop",
+                        "command": plain_command,
+                    }
+                ),
             )
-            assert launched.returncode == 0, launched.stderr or launched.stdout
+            assert "error" not in result, result
+            deadline = time.monotonic() + 4
+            while not plain_probe.exists():
+                assert time.monotonic() < deadline, "Plain Wayland launch did not run"
+                time.sleep(0.05)
+            plain = json.loads(plain_probe.read_text())
+            assert plain["DISPLAY"] is None, plain
+            assert plain["WAYLAND_DISPLAY"] == "ludash-x11-test", plain
+            assert not request()["xwayland"]["running"]
+
+            probe = Path(runtime) / "helper-environment.json"
+            command = ["python3", "-c", probe_code, str(probe)]
+            result = request(
+                "launch-application",
+                json.dumps(
+                    {
+                        "desktopId": "com.discordapp.Discord.desktop",
+                        "command": command,
+                    }
+                ),
+            )
+            assert "error" not in result, result
             deadline = time.monotonic() + 4
             while not probe.exists():
-                assert time.monotonic() < deadline, "Native helper launch did not run"
+                assert time.monotonic() < deadline, "Capability helper launch did not run"
                 time.sleep(0.05)
             helper = json.loads(probe.read_text())
             assert helper["WAYLAND_DISPLAY"] == "ludash-x11-test", helper

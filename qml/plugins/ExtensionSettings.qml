@@ -14,13 +14,6 @@ ColumnLayout {
     onIncomingStateChanged: if (JSON.stringify(incomingState) !== JSON.stringify(state))
         state = incomingState
 
-    readonly property var targets: state.targets || []
-    readonly property var categories: [...new Set(targets.map(target => target.category))]
-    property string category: categories[0] || "Desktop"
-    readonly property var categoryTargets: targets.filter(target => target.category === category)
-    property string selectedTarget: "panel"
-    readonly property var target: targets.find(target => target.id === selectedTarget) || ({})
-
     readonly property var installedPlugins: state.installed || []
     readonly property var remotePlugins: state.remote || []
     property int pluginTab: 0
@@ -372,13 +365,6 @@ ColumnLayout {
                                     pluginCard.modelData, "mode", index === 1 ? "replace" : "augment")
                             }
 
-                            SettingsTargetEditor {
-                                Layout.fillWidth: true
-                                shell: page.shell
-                                targetId: "plugin:" + pluginCard.modelData.id
-                                enabled: !page.dirty && !page.saving
-                            }
-
                             HelpText {
                                 shell: page.shell
                                 message: pluginCard.modelData.type === "effect"
@@ -425,65 +411,9 @@ ColumnLayout {
         }
     }
 
-    SettingsCard {
-        title: shell.tr("Desktop extensions")
-        description: shell.tr("Choose a category to configure built-in features and their plugins. Replacement failures restore the built-in feature.")
-
-        RowLayout {
-            Layout.fillWidth: true
-
-            StyledComboBox {
-                Layout.fillWidth: true
-                model: page.categories.map(name => page.shell.tr(name))
-                currentIndex: page.categories.indexOf(page.category)
-                onActivated: index => {
-                    page.category = page.categories[index]
-                    page.selectedTarget = page.categoryTargets[0]?.id || ""
-                }
-            }
-
-            StyledComboBox {
-                Layout.fillWidth: true
-                model: page.categoryTargets.map(target => page.shell.tr(target.name))
-                currentIndex: page.categoryTargets.findIndex(target => target.id === page.selectedTarget)
-                onActivated: index => page.selectedTarget = page.categoryTargets[index].id
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            Layout.minimumWidth: 0
-            wrapMode: Text.Wrap
-            font.family: Theme.font
-            color: Theme.muted
-            text: page.selectedTarget + " · " + (page.target.types || []).join(" / ")
-        }
-
-        HelpText {
-            visible: page.selectedTarget !== "window-layout"
-            shell: page.shell
-            message: "Built-in settings"
-        }
-
-        SettingsTargetEditor {
-            visible: page.selectedTarget !== "window-layout"
-            Layout.fillWidth: true
-            shell: page.shell
-            targetId: "builtin:" + page.selectedTarget
-            enabled: !page.dirty && !page.saving
-        }
-
-        HelpText {
-            visible: page.selectedTarget === "window-layout"
-            shell: page.shell
-            message: "Host layout-template settings are exposed by the compositor API in Settings → Windows."
-        }
-
-        HelpText {
-            visible: page.selectedTarget !== "window-layout"
-            shell: page.shell
-            message: "A duration of -1 follows the desktop preference."
-        }
+    TargetSettings {
+        Layout.fillWidth: true
+        shell: page.shell
     }
 
     HelpText {
