@@ -40,8 +40,16 @@ bool WaylandCompositor::Impl::initialize() {
   renderer = wlr_renderer_autocreate(backend);
   if (!renderer)
     return fail("wlroots could not create a renderer.");
+#if WLR_VERSION_MINOR >= 20
+  // Keep ownership of linux-dmabuf so the scene graph can publish
+  // per-surface feedback. Modern Chromium/Electron clients use that feedback
+  // to choose importable modifiers instead of guessing from a global list.
+  if (!wlr_renderer_init_wl_shm(renderer, display))
+    return fail("wlroots could not initialize shared-memory formats.");
+#else
   if (!wlr_renderer_init_wl_display(renderer, display))
     return fail("wlroots could not initialize renderer formats.");
+#endif
   allocator = wlr_allocator_autocreate(backend, renderer);
   if (!allocator)
     return fail("wlroots could not create a buffer allocator.");
@@ -50,6 +58,10 @@ bool WaylandCompositor::Impl::initialize() {
   wlr_subcompositor_create(display);
   wlr_data_device_manager_create(display);
   wlr_viewporter_create(display);
+#if WLR_VERSION_MINOR >= 20
+  if (!wlr_single_pixel_buffer_manager_v1_create(display))
+    return fail("wlroots could not create the single-pixel buffer global.");
+#endif
 
   outputLayout = WlrootsCompat::createOutputLayout(display);
   if (!outputLayout)
@@ -58,6 +70,18 @@ bool WaylandCompositor::Impl::initialize() {
   scene = wlr_scene_create();
   if (!scene)
     return fail("wlroots could not create the scene graph.");
+#if WLR_VERSION_MINOR >= 20
+  if (wlr_renderer_get_drm_fd(renderer) >= 0 &&
+      wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF)) {
+    if (!wlr_drm_create(display, renderer))
+      return fail("wlroots could not create the DRM buffer global.");
+    auto *linuxDmabuf =
+        wlr_linux_dmabuf_v1_create_with_renderer(display, 4, renderer);
+    if (!linuxDmabuf)
+      return fail("wlroots could not create linux-dmabuf feedback.");
+    wlr_scene_set_linux_dmabuf_v1(scene, linuxDmabuf);
+  }
+#endif
   sceneLayout = wlr_scene_attach_output_layout(scene, outputLayout);
   backgroundLayer = wlr_scene_tree_create(&scene->tree);
   bottomLayer = wlr_scene_tree_create(&scene->tree);
