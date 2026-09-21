@@ -38,3 +38,5 @@ jobs:
         run: python3 scripts/ci/check_qml_actions.py
       - name: Validate settings schema contracts
         run: python3 tests/settings/test_schema.py
+      - name: Validate Arch source packaging
+        run: python3 tests/packaging/test_make_source.py
