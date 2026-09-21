@@ -26,5 +26,5 @@ install(DIRECTORY templates/plugins/ DESTINATION "${CMAKE_INSTALL_DATADIR}/lunad
 lunadash_add_plugin(lunadash-clock METADATA "${CMAKE_SOURCE_DIR}/qml/plugins/digital-clock/metadata.json")
 if(LUDASH_BUILD_EXAMPLE_PLUGIN)
     add_subdirectory("${CMAKE_SOURCE_DIR}/data/plugins/fade" "${CMAKE_BINARY_DIR}/example-plugins/fade")
-    add_subdirectory(templates/plugins/window-template)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/data/plugins/stacking-windows" "${CMAKE_BINARY_DIR}/example-plugins/stacking-windows")
 endif()

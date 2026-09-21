@@ -35,9 +35,7 @@ def main():
         parser.error("--id must be a reverse-domain plugin identifier")
     if not args.output or args.output.exists():
         parser.error("--output must name a new directory")
-    if args.type == "effect" and args.target == "window-layout":
-        template = "window-template"
-    elif args.type == "effect" and args.target == "window-animation":
+    if args.type == "effect" and args.target == "window-animation":
         template = "window-animation"
     else:
         template = "effect-cpp" if args.type == "effect" else args.type

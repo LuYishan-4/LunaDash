@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and relocate SDK templates and a real plugin package."""
+"""Build and relocate SDK templates and real plugin packages."""
 import argparse
 import json
 from pathlib import Path
@@ -34,7 +34,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="lunadash-sdk-test-") as directory:
         root = Path(directory)
         prefix = root / "install"
-        for name in ("effect-c", "effect-cpp", "stacking-layout", "quickshell", "opengl"):
+        for name in ("effect-c", "effect-cpp", "window-animation", "quickshell", "opengl"):
             project = root / name
             shutil.copytree(source / "templates/plugins" / name, project)
             manifest, installed = build_and_install(
@@ -46,12 +46,13 @@ def main():
                 assert (installed / manifest["entry"]).is_file()
             print(f"SDK template built and staged: {name}")
 
-        fade = root / "fade"
-        shutil.copytree(source / "data/plugins/fade", fade)
-        manifest, installed = build_and_install(
-            fade, root / "fade-build", args.sdk, prefix)
-        assert (installed / manifest["entry"]).is_file()
-        print("SDK 2 plugin package built and staged: fade")
+        for name in ("fade", "stacking-windows"):
+            project = root / name
+            shutil.copytree(source / "data/plugins" / name, project)
+            manifest, installed = build_and_install(
+                project, root / (name + "-build"), args.sdk, prefix)
+            assert (installed / manifest["entry"]).is_file()
+            print(f"SDK 2 plugin package built and staged: {name}")
 
         broken = root / "quickshell/metadata.json"
         manifest = json.loads(broken.read_text())

@@ -5,7 +5,7 @@
 | Template | Available | Implementation |
 | --- | --- | --- |
 | `tiling` | Yes | `src/compositor/tiling/TilingLayout.cpp`; bounded split tiles and grouped rows |
-| `stacking` | Via plugin | `src/compositor/stacking/StackingLayout.cpp`; retained overlapping rectangles |
+| `stacking` | Via plugin | `src/compositor/layout/FreeformLayout.cpp`; retained overlapping rectangles |
 
 Bounded tiling is the default. Enabling a native stacking replacement in Desktop extensions migrates the window inventory and focus live. Disabling it restores tiling.
 
@@ -21,4 +21,4 @@ The compositor's scene animation code handles opening, closing, layout changes, 
 
 ## SDK 2 strategy plugins
 
-Stacking is now implemented behind the same interface and selected by a validated, enabled `window-layout` replacement declaring `layoutMode: stacking`. It is no longer a null factory placeholder. The default remains bounded tiling. Both strategies support a validated placement filter; the host retains membership and interaction state. See [the target contract](PLUGIN_TARGETS.md) and [the stacking plugin](../../examples/plugins/stacking-windows/README.md). Enabling/disabling or rebuilding hooks applies live between callbacks.
+Stacking is now implemented behind the same interface and selected by a validated, enabled `window-layout` replacement declaring `windowTemplate: stacking`. It is no longer a null factory placeholder. The default remains bounded tiling. Both strategies support a validated placement filter; the host retains membership and interaction state. The actual stacking/cascade policy ships as the SDK 2 package in [`data/plugins/stacking-windows`](../../data/plugins/stacking-windows/), rather than as an SDK template. See [the target contract](PLUGIN_TARGETS.md). Enabling/disabling or rebuilding hooks applies live between callbacks.
