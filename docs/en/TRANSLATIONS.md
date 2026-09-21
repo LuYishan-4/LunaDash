@@ -1,5 +1,12 @@
 # Interface translations
 
+## Documentation languages
+
+Technical documentation is separate from runtime UI catalogs. Canonical English guides live in `docs/en/`; their Traditional Chinese counterparts live in `docs/zh/` with matching filenames. `docs/README.md` is the language index, while the older root-level `docs/*.md` paths are compatibility forwarding pages. When documented behavior changes, update both language files.
+
+The README translations under `docs/readme/` remain separate because they are complete translations of the repository landing page rather than technical-guide pages.
+
+
 Keep C++, QML, identifiers, command arguments, paths, and protocol values in English.
 Traditional Chinese interface text lives in `data/translations/zh_TW.json` and the
 feature catalogs in `data/translations/zh_TW/`. New catalog files must be listed in

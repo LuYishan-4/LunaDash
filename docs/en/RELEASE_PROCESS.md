@@ -4,10 +4,13 @@
 
 Normal pull requests must target `dev`. The PR policy gate rejects pull requests opened against another base branch.
 
-Every pull request must update both:
+Every pull request must update documentation and matching public website content. The canonical technical documentation now uses paired language directories:
 
-- `docs/` — the technical or user-facing documentation for the changed behavior.
+- `docs/en/` — English technical and user-facing documentation.
+- `docs/zh/` — the matching Traditional Chinese documentation, using the same filenames.
 - `site/` — the public website copy, guide, API page, or other matching public content.
+
+The automated policy gate still checks for at least one path under `docs/` and one non-generated path under `site/`; it does not compare translations for semantic parity. Keep the English/Traditional Chinese pair synchronized during review. Root-level `docs/*.md` files are compatibility forwarding pages, not the canonical text.
 
 PRs must not add, modify, delete or rename GitHub workflow files under `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or `site/src/data/releases.json`. Workflow maintenance is handled separately by the maintainer. Generated release notes do not satisfy the website-update requirement: update relevant guides or product copy instead, and describe release impact in the PR body.
 

@@ -28,11 +28,11 @@ Open `http://localhost:4321/LunaDash/` while the preview server is running. Chec
 
 ## Contributions and publishing
 
-Normal pull requests target `dev` and include relevant `docs/` and website content changes. They must not change `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or the generated `site/src/data/releases.json` index. Release impact belongs in the PR body; maintainers publish it through GitHub Releases. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../../CONTRIBUTING.md) and the [PR template](../../.github/pull_request_template.md).
+Normal pull requests target `dev` and include relevant `docs/en/`, matching `docs/zh/`, and website content changes. They must not change `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or the generated `site/src/data/releases.json` index. Release impact belongs in the PR body; maintainers publish it through GitHub Releases. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../../CONTRIBUTING.md) and the [PR template](../../.github/pull_request_template.md).
 
 - `main-site.yml` checks types, builds and validates local links/assets on pushes, pull requests, merge groups and manual runs.
 - `site-pages.yml` deploys from `main` when website, brand or screenshot assets change, when a GitHub Release changes, or when manually dispatched. It synchronizes published Release Markdown, repeats validation and deploys `site/dist` to GitHub Pages.
 
 A successful build on `dev` does not publish the website. After the intended revision reaches `main`, inspect the Pages workflow and the URL reported by its deployment. The configured address is `https://luyishan-4.github.io/LunaDash/`; Pages must use GitHub Actions as its publishing source. Update both `site` and `base` in `site/astro.config.mjs` if the repository URL changes. Roll back with a revert and redeployment rather than rewriting shared history.
 
-Source guides live under `/docs/`, with release notes under `/releases/`. Keep technical detail in those guides so the home page can stay focused on the desktop and how to install it.
+Repository source guides live under `docs/en/` and `docs/zh/`; those paths are different from the website's public `/docs/` routes. Release notes live under the public `/releases/` route. Keep technical detail in the source guides so the home page can stay focused on the desktop and how to install it.
