@@ -31,7 +31,7 @@ for name in (
     "opengl/decoration/DecorationElement.cpp",
 ):
     assert (renderer / name).is_file(), name
-for name in ("Feature.hpp", "Module.hpp", "Renderer.hpp", "WaylandSlot.hpp"):
+for name in ("Feature.hpp", "Module.hpp", "Renderer.hpp", "WaylandSlot.hpp", "WindowAnimation.hpp"):
     assert (root / "src/core/templates" / name).is_file(), name
 runtime = (root / "src/compositor/wayland/Register.hpp").read_text()
 assert '"core/templates/WaylandSlot.hpp"' in runtime
@@ -46,7 +46,9 @@ for target in (
     "ludash-animation",
 ):
     assert target in cmake, target
-assert "src/compositor/animation/SceneWindowAnimations.cpp" in cmake
+assert "src/compositor/window/animation/SceneAnimationBackend.cpp" in cmake
+assert (root / "src/compositor/window/animation/WindowAnimation.hpp").is_file()
+assert (root / "src/compositor/window/animation/SceneAnimationBackend.hpp").is_file()
 assert "PREFIX /LunaDash/renderer/shaders" in cmake
 assert "LUDASH_RENDERER_OPENGL=1" in cmake
 assert "file(GLOB" not in cmake, "Renderer sources/resources must be explicit"
