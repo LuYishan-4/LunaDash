@@ -1,6 +1,6 @@
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/tiling/TilingLayout.hpp"
-#include "compositor/stacking/StackingLayout.hpp"
+#include "compositor/layout/FreeformLayout.hpp"
 
 namespace LunaDash {
 QList<WindowLayoutTemplate> windowLayoutTemplates() {
@@ -12,7 +12,7 @@ std::unique_ptr<WindowLayout> createWindowLayout(WindowLayoutMode mode) {
   case WindowLayoutMode::Tiling:
     return std::make_unique<TilingLayout>();
   case WindowLayoutMode::Stacking:
-    return std::make_unique<StackingLayout>();
+    return std::make_unique<FreeformLayout>();
   }
   return nullptr;
 }
