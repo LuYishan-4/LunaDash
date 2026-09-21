@@ -3,10 +3,15 @@
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "core/plugins/PluginApi.h"
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLibrary>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QScopedValueRollback>
 #include <QSet>
 #include <QUrl>
@@ -26,8 +31,136 @@ PluginManager::PluginManager(QObject *parent) : QObject(parent) {
   poll_.setInterval(1000);
   connect(&poll_, &QTimer::timeout, this, &PluginManager::refresh);
   poll_.start();
+
+  QFile bundled(":/LunaDash/plugins/catalog.json");
+  if (bundled.open(QIODevice::ReadOnly)) {
+    QString error;
+    if (!applyStoreCatalog(bundled.readAll(), &error))
+      storeError_ = error;
+  }
+  storeNetwork_ = new QNetworkAccessManager(this);
+  QTimer::singleShot(0, this, &PluginManager::refreshStore);
 }
 PluginManager::~PluginManager() = default;
+
+bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(bytes, &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    if (error)
+      *error = "Invalid plugin catalogue JSON";
+    return false;
+  }
+  const auto root = document.object();
+  const auto values = root.value("plugins");
+  if (root.value("schemaVersion").toInt() != 1 || !values.isArray() ||
+      values.toArray().size() > 256) {
+    if (error)
+      *error = "Unsupported or oversized plugin catalogue";
+    return false;
+  }
+
+  static const QRegularExpression validId("^[A-Za-z0-9][A-Za-z0-9._-]+$");
+  QJsonArray normalized;
+  QSet<QString> ids;
+  for (const auto &value : values.toArray()) {
+    if (!value.isObject()) {
+      if (error)
+        *error = "Plugin catalogue entries must be objects";
+      return false;
+    }
+    auto item = value.toObject();
+    const auto id = item.value("id").toString();
+    const auto name = item.value("name").toString();
+    const auto version = item.value("version").toString();
+    const auto type = item.value("type").toString();
+    const auto targetId = item.value("target").toString();
+    const auto target = extensionTarget(targetId);
+    if (!validId.match(id).hasMatch() || ids.contains(id) || name.isEmpty() ||
+        version.isEmpty() || target.isEmpty() ||
+        !target.value("types").toArray().contains(type)) {
+      if (error)
+        *error = "Plugin catalogue contains an invalid identity or target";
+      return false;
+    }
+    ids.insert(id);
+
+    const auto tags = item.value("tags");
+    if (tags.isUndefined())
+      item["tags"] = QJsonArray{};
+    else if (!tags.isArray() || tags.toArray().size() > 12 ||
+             std::any_of(tags.toArray().cbegin(), tags.toArray().cend(),
+                         [](const QJsonValue &tag) {
+                           const auto text = tag.toString();
+                           return !tag.isString() || text.trimmed() != text ||
+                                  text.isEmpty() || text.size() > 32;
+                         })) {
+      if (error)
+        *error = "Plugin catalogue contains invalid tags";
+      return false;
+    }
+
+    const auto icon = item.value("icon").toString("applications-system");
+    const QUrl iconUrl(icon);
+    if (icon.contains('/') &&
+        (!iconUrl.isValid() || iconUrl.scheme() != "https")) {
+      if (error)
+        *error = "Remote plugin icons must use HTTPS";
+      return false;
+    }
+    item["icon"] = icon;
+
+    if (item.contains("sourceUrl")) {
+      const QUrl source(item.value("sourceUrl").toString());
+      if (!source.isValid() || source.scheme() != "https") {
+        if (error)
+          *error = "Plugin source URLs must use HTTPS";
+        return false;
+      }
+    }
+    normalized.append(item);
+  }
+  storeCatalog_ = normalized;
+  if (error)
+    error->clear();
+  return true;
+}
+
+void PluginManager::refreshStore() {
+  const QString configured = qEnvironmentVariable(
+      "LUNADASH_PLUGIN_CATALOG_URL",
+      "https://raw.githubusercontent.com/LuYishan-4/LunaDash/main/data/plugins/catalog.json");
+  if (configured.isEmpty() || configured.compare("off", Qt::CaseInsensitive) == 0)
+    return;
+
+  const QUrl url(configured);
+  if (!url.isValid() || url.scheme() != "https") {
+    storeError_ = "Plugin catalogue URL must use HTTPS";
+    emit changed();
+    return;
+  }
+
+  storeLoading_ = true;
+  storeError_.clear();
+  QNetworkRequest request(url);
+  request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                       QNetworkRequest::NoLessSafeRedirectPolicy);
+  auto *reply = storeNetwork_->get(request);
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    storeLoading_ = false;
+    QString error;
+    if (reply->error() != QNetworkReply::NoError) {
+      storeError_ = "Remote catalogue unavailable; showing bundled catalogue";
+    } else if (!applyStoreCatalog(reply->readAll(), &error)) {
+      storeError_ = error;
+    } else {
+      storeError_.clear();
+    }
+    reply->deleteLater();
+    emit changed();
+  });
+}
+
 void PluginManager::loadEnabled() { refresh(); }
 void PluginManager::refresh() {
   if (inHook_)
@@ -196,9 +329,24 @@ QJsonObject PluginManager::snapshot() {
         configuredBuiltinSettings(target.value("id").toString(), document);
     targets[i] = target;
   }
-  return {{"installed", installed}, {"targets", targets},
-          {"document", document},   {"path", extensionConfigurationPath()},
-          {"error", configError},   {"storeSupported", false}};
+  QSet<QString> installedIds;
+  for (const auto &descriptor : catalog_)
+    installedIds.insert(descriptor.id);
+  QJsonArray remote;
+  for (const auto &value : storeCatalog_) {
+    auto item = value.toObject();
+    item["installed"] = installedIds.contains(item.value("id").toString());
+    remote.append(item);
+  }
+  return {{"installed", installed},
+          {"remote", remote},
+          {"targets", targets},
+          {"document", document},
+          {"path", extensionConfigurationPath()},
+          {"error", configError},
+          {"storeSupported", true},
+          {"storeLoading", storeLoading_},
+          {"storeError", storeError_}};
 }
 bool PluginManager::setEnabled(const QString &id, bool enabled,
                                QString *error) {
