@@ -314,19 +314,24 @@ bool NetworkStatus::execute(const QJsonObject &request, QString *error) {
   QString device;
   if (action == "network-reset") {
     return command_->run(
-        nmcli_, {"networking", "off"}, [this](bool, const QByteArray &) {
-          command_->run(nmcli_, {"networking", "on"},
-                        [this](bool, const QByteArray &) { refresh(); });
-        });
+        nmcli_, {"networking", "off"},
+        [this](bool, const QByteArray &) {
+          command_->run(
+              nmcli_, {"networking", "on"},
+              [this](bool, const QByteArray &) { refresh(); }, 15000);
+        },
+        15000);
   }
   if (action == "connection-reconnect" &&
       boundedText(request, "name", &name, 256)) {
-    return command_->run(nmcli_, {"connection", "down", name},
-                         [this, name](bool, const QByteArray &) {
-                           command_->run(
-                               nmcli_, {"connection", "up", name},
-                               [this](bool, const QByteArray &) { refresh(); });
-                         });
+    return command_->run(
+        nmcli_, {"connection", "down", name},
+        [this, name](bool, const QByteArray &) {
+          command_->run(
+              nmcli_, {"connection", "up", name},
+              [this](bool, const QByteArray &) { refresh(); }, 15000);
+        },
+        15000);
   }
   if (action == "wifi-scan") {
     if (!status_.value("hasWifi").toBool()) {
@@ -422,7 +427,11 @@ bool NetworkStatus::execute(const QJsonObject &request, QString *error) {
     return false;
   }
 
+  // Wi-Fi scans, connects and connection up/down routinely take longer than the
+  // default 2.5s CommandRunner timeout; give NetworkManager actions more room
+  // before they are treated as failures.
   return command_->run(nmcli_, args,
-                       [this](bool, const QByteArray &) { refresh(); });
+                       [this](bool, const QByteArray &) { refresh(); },
+                       15000);
 }
 } // namespace LunaDash
