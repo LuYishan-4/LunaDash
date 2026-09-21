@@ -3,6 +3,7 @@
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
+#include <QJsonArray>
 #include <algorithm>
 #include <linux/input-event-codes.h>
 
@@ -122,7 +123,13 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   }
   if (pointerResize) {
     for (const auto &slot : snapshot.columns) {
-      if (!slot.columnMembers.contains(client->id))
+      bool sameGroup = false;
+      for (const auto &id : slot.metadata.value("members").toArray())
+        if (id.toInteger() == client->id) {
+          sameGroup = true;
+          break;
+        }
+      if (!sameGroup)
         continue;
       for (const auto &member : q->clients_)
         if (member->id == static_cast<int>(slot.window))

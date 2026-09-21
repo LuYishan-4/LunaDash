@@ -15,11 +15,10 @@ class FreeformLayout final : public WindowLayout {
 public:
   FreeformLayout();
   ~FreeformLayout() override;
-  WindowLayoutMode mode() const noexcept override;
   FreeformLayout(const FreeformLayout &) = delete;
   FreeformLayout &operator=(const FreeformLayout &) = delete;
 
-  void setGap(int gap) override;
+  void configure(const QJsonObject &settings) override;
   bool insert(LayoutWorkspaceId workspace, LayoutWindowId window,
               QSize preferredSize = {}) override;
   bool remove(LayoutWindowId window) override;

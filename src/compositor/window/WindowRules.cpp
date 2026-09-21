@@ -44,8 +44,8 @@ bool windowActivationTogglesMaximize(const WindowTemplate &windowTemplate,
 bool windowHiddenByMaximize(const WindowTemplate &windowTemplate,
                             LayoutWindowId maximized, bool inMaximizedFamily,
                             const ClientWindow &client) {
-  return windowTemplate.layoutMode == WindowLayoutMode::Tiling && maximized &&
-         !inMaximizedFamily && !client.desktop;
+  return !windowTemplate.allowOverlap && maximized && !inMaximizedFamily &&
+         !client.desktop;
 }
 
 } // namespace LunaDash

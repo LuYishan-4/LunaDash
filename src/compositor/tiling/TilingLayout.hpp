@@ -10,15 +10,14 @@ namespace LunaDash {
 
 class TilingLayout final : public WindowLayout {
 public:
-  explicit TilingLayout(int defaultWidth = 960, int gap = 12);
+  TilingLayout();
   ~TilingLayout() override;
-  WindowLayoutMode mode() const noexcept override;
   TilingLayout(TilingLayout &&) noexcept;
   TilingLayout &operator=(TilingLayout &&) noexcept;
   TilingLayout(const TilingLayout &) = delete;
   TilingLayout &operator=(const TilingLayout &) = delete;
 
-  void setGap(int gap) override;
+  void configure(const QJsonObject &settings) override;
   bool insert(LayoutWorkspaceId workspace, LayoutWindowId window,
               QSize preferredSize = {}) override;
   bool remove(LayoutWindowId window) override;

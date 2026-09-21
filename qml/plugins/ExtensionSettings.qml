@@ -475,11 +475,13 @@ ColumnLayout {
         }
 
         HelpText {
+            visible: page.selectedTarget !== "window-layout"
             shell: page.shell
             message: "Built-in settings"
         }
 
         ExtensionOptions {
+            visible: page.selectedTarget !== "window-layout"
             Layout.fillWidth: true
             shell: page.shell
             schema: page.target.settings || {}
@@ -488,8 +490,15 @@ ColumnLayout {
         }
 
         HelpText {
+            visible: page.selectedTarget === "window-layout"
             shell: page.shell
-            message: "A duration or gap of -1 follows the desktop preference."
+            message: "Host layout-template settings are exposed by the compositor API in Settings → Windows."
+        }
+
+        HelpText {
+            visible: page.selectedTarget !== "window-layout"
+            shell: page.shell
+            message: "A duration of -1 follows the desktop preference."
         }
     }
 

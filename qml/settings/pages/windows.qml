@@ -2,13 +2,30 @@ import QtQuick
 import QtQuick.Layouts
 import "../components"
 import "../../components"
+import "../../plugins"
 ColumnLayout {
     id: page
     required property var shell
     spacing: 16
     PageTitle { shell: page.shell; title: "Windows and workspaces" }
     PreferenceSlider { shell: page.shell; preference: "workspaceCount"; label: "Number of workspaces"; minimum: 1; maximum: 10 }
-    PreferenceSlider { shell: page.shell; preference: "gap"; label: "Window gaps"; minimum: 4; maximum: 32; suffix: " px" }
+    readonly property var layoutApi: page.shell.state.windowLayout || ({})
+    SettingsCard {
+        Layout.fillWidth: true
+        title: page.shell.tr("Window layout")
+        description: page.shell.tr("Active template:") + " " + String(page.layoutApi.template || "tiling")
+        ExtensionOptions {
+            Layout.fillWidth: true
+            shell: page.shell
+            schema: page.layoutApi.schema || ({})
+            values: page.layoutApi.values || ({})
+            onEdited: (key, value) => {
+                const changes = ({})
+                changes[key] = value
+                page.shell.command("window-layout-settings", JSON.stringify(changes))
+            }
+        }
+    }
     HelpText { shell: page.shell; message: "Windows stay inside one screen. Two windows split left and right; later windows split the largest tile. Groups can hold up to eight vertical rows. Dialogs stay above their parent window." }
     HelpText { shell: page.shell; message: "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing." }
     HelpText { shell: page.shell; message: "Shift + Alt + left-drag moves shared tile boundaries or resizes grouped rows. Neighbors share the available space without overlapping or changing order." }

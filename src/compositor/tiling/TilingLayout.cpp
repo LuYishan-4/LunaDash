@@ -2,6 +2,7 @@
 #include "compositor/tiling/TilingGeometry.h"
 
 #include <algorithm>
+#include <QJsonArray>
 #include <limits>
 #include <unordered_map>
 #include <utility>
@@ -321,16 +322,17 @@ public:
   std::unordered_map<LayoutWorkspaceId, Workspace> workspaces;
 };
 
-TilingLayout::TilingLayout(int defaultWidth, int gap)
-    : d(std::make_unique<Impl>(defaultWidth, gap)) {}
+TilingLayout::TilingLayout() : d(std::make_unique<Impl>(960, 12)) {}
 TilingLayout::~TilingLayout() = default;
-WindowLayoutMode TilingLayout::mode() const noexcept {
-  return WindowLayoutMode::Tiling;
-}
 TilingLayout::TilingLayout(TilingLayout &&) noexcept = default;
 TilingLayout &TilingLayout::operator=(TilingLayout &&) noexcept = default;
 
-void TilingLayout::setGap(int gap) { d->gap = std::max(0, gap); }
+void TilingLayout::configure(const QJsonObject &settings) {
+  d->defaultWidth =
+      std::clamp(settings.value("defaultWidth").toInt(d->defaultWidth), 240,
+                 2400);
+  d->gap = std::clamp(settings.value("gap").toInt(d->gap), 0, 64);
+}
 
 bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
                           QSize preferredSize) {
@@ -744,17 +746,23 @@ TilingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
   for (std::size_t columnIndex = 0; columnIndex < workspace.columns.size();
        ++columnIndex) {
     const auto &column = workspace.columns[columnIndex];
-    QList<LayoutWindowId> members;
-    members.reserve(static_cast<qsizetype>(column.members.size()));
+    QJsonArray members;
     for (const auto &member : column.members)
-      members.append(member.window);
+      members.append(static_cast<qint64>(member.window));
     int rowIndex = 0;
     for (const auto &member : column.members) {
       const int row = member.minimized ? -1 : rowIndex++;
-      result.columns.append({member.window, column.width, member.minimized,
-                             member.window == workspace.focused,
-                             member.geometry, static_cast<int>(columnIndex),
-                             row, members});
+      WindowPlacement placement;
+      placement.window = member.window;
+      placement.width = column.width;
+      placement.minimized = member.minimized;
+      placement.focused = member.window == workspace.focused;
+      placement.geometry = member.geometry;
+      placement.metadata = {
+          {"group", static_cast<int>(columnIndex)},
+          {"row", row},
+          {"members", members}};
+      result.columns.append(placement);
     }
   }
   return result;

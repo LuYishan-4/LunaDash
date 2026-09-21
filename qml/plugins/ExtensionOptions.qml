@@ -26,7 +26,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     wrapMode: Text.Wrap
-                    text: field.modelData
+                    text: field.rule.label || field.modelData
                     color: Theme.text
                     font.family: Theme.font
                 }
@@ -37,7 +37,7 @@ ColumnLayout {
             }
             SettingsSlider {
                 visible: field.rule.type === "number" || field.rule.type === "integer"
-                label: field.modelData
+                label: field.rule.label || field.modelData
                 value: Number(field.value)
                 minimum: field.rule.minimum ?? 0
                 maximum: field.rule.maximum ?? 100
@@ -48,7 +48,7 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: field.rule.type === "string"
                 Text {
-                    text: field.modelData
+                    text: field.rule.label || field.modelData
                     color: Theme.text
                     font.family: Theme.font
                 }

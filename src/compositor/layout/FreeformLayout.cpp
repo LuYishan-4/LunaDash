@@ -18,6 +18,7 @@ public:
   QList<LayoutWindowId> order;
   QHash<LayoutWorkspaceId, LayoutWindowId> focused;
   QHash<LayoutWorkspaceId, QRect> areas;
+  QSize defaultSize{900, 600};
   static QRect bounded(QRect geometry, QRect area) {
     if (!area.isValid())
       return geometry;
@@ -32,10 +33,13 @@ public:
 };
 FreeformLayout::FreeformLayout() : d(std::make_unique<Impl>()) {}
 FreeformLayout::~FreeformLayout() = default;
-WindowLayoutMode FreeformLayout::mode() const noexcept {
-  return WindowLayoutMode::Stacking;
+void FreeformLayout::configure(const QJsonObject &settings) {
+  d->defaultSize = QSize(
+      std::clamp(settings.value("defaultWidth").toInt(d->defaultSize.width()),
+                 240, 2400),
+      std::clamp(settings.value("defaultHeight").toInt(d->defaultSize.height()),
+                 160, 1600));
 }
-void FreeformLayout::setGap(int) {}
 bool FreeformLayout::insert(LayoutWorkspaceId workspace, LayoutWindowId window,
                             QSize preferred) {
   if (!window || d->entries.contains(window))
@@ -185,7 +189,7 @@ QList<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
       continue;
     if (!entry.geometry.isValid()) {
       QSize size =
-          entry.preferred.isValid() ? entry.preferred : QSize(900, 600);
+          entry.preferred.isValid() ? entry.preferred : d->defaultSize;
       if (size.width() > area.width() || size.height() > area.height())
         size.scale(area.size(), Qt::KeepAspectRatio);
       entry.geometry = QRect(QPoint(), size);
@@ -222,16 +226,14 @@ FreeformLayout::snapshot(LayoutWorkspaceId workspace) const {
       continue;
     if (entry.maximized)
       result.maximizedWindow = id;
-    result.columns.append({id,
-                           entry.geometry.width(),
-                           entry.minimized,
-                           result.focusedWindow == id,
-                           entry.geometry,
-                           static_cast<int>(result.columns.size()),
-                           0,
-                           {id},
-                           false,
-                           entry.fresh});
+    WindowPlacement placement;
+    placement.window = id;
+    placement.width = entry.geometry.width();
+    placement.minimized = entry.minimized;
+    placement.focused = result.focusedWindow == id;
+    placement.geometry = entry.geometry;
+    placement.newWindow = entry.fresh;
+    result.columns.append(placement);
   }
   return result;
 }

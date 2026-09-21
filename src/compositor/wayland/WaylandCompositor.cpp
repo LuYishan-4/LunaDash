@@ -393,9 +393,71 @@ void WaylandCompositor::saveState(const QString &path) {
 
 bool WaylandCompositor::hasProcessFailure() const { return processFailure_; }
 
+QJsonObject WaylandCompositor::currentWindowLayoutSettings() const {
+  if (!windowTemplate_)
+    return {};
+
+  auto values = windowTemplate_->layoutSettingsDefaults;
+
+  // Preserve legacy gap preferences until the user edits the new template API.
+  if (windowTemplate_->key == "tiling") {
+    const auto preferences = desktopPreferences();
+    if (preferences.contains("gap"))
+      values["gap"] = preferences.value("gap");
+    const int legacyGap =
+        configuredBuiltinSettings("window-layout").value("gap").toInt(-1);
+    if (legacyGap >= 0)
+      values["gap"] = legacyGap;
+  }
+
+  QSettings settings;
+  const QString prefix = "windowLayout/" + windowTemplate_->key + "/";
+  for (auto it = windowTemplate_->layoutSettingsSchema.begin();
+       it != windowTemplate_->layoutSettingsSchema.end(); ++it)
+    if (settings.contains(prefix + it.key()))
+      values[it.key()] =
+          QJsonValue::fromVariant(settings.value(prefix + it.key()));
+
+  if (!validateWindowLayoutSettings(*windowTemplate_, values, nullptr))
+    return windowTemplate_->layoutSettingsDefaults;
+  return values;
+}
+
+bool WaylandCompositor::updateWindowLayoutSettings(const QJsonObject &changes,
+                                                   QString *error) {
+  if (!windowTemplate_) {
+    if (error)
+      *error = "No window layout template is active.";
+    return false;
+  }
+  if (!validateWindowLayoutSettings(*windowTemplate_, changes, error))
+    return false;
+
+  auto values = currentWindowLayoutSettings();
+  for (auto it = changes.begin(); it != changes.end(); ++it)
+    values[it.key()] = it.value();
+  if (!validateWindowLayoutSettings(*windowTemplate_, values, error))
+    return false;
+
+  QSettings settings;
+  const QString prefix = "windowLayout/" + windowTemplate_->key + "/";
+  for (auto it = changes.begin(); it != changes.end(); ++it)
+    settings.setValue(prefix + it.key(), it.value().toVariant());
+  settings.sync();
+  if (settings.status() != QSettings::NoError) {
+    if (error)
+      *error = "Could not save window layout settings.";
+    return false;
+  }
+  return true;
+}
+
 QRect WaylandCompositor::workArea() const {
   QRect area = d ? d->usableArea : QRect(0, 0, 1440, 900);
-  const int gap = desktopPreferences().value("gap").toInt();
+  const auto settings = currentWindowLayoutSettings();
+  const int gap = settings.contains("gap")
+                      ? settings.value("gap").toInt()
+                      : desktopPreferences().value("gap").toInt();
   area.adjust(gap, gap, -gap, -gap);
   if (area.width() < 1)
     area.setWidth(1);
@@ -488,10 +550,7 @@ void WaylandCompositor::arrange() {
   const int count = preferences.value("workspaceCount").toInt();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const QRect area = workArea();
-  const int configuredGap =
-      configuredBuiltinSettings("window-layout").value("gap").toInt(-1);
-  windowLayout_->setGap(configuredGap < 0 ? preferences.value("gap").toInt()
-                                          : configuredGap);
+  windowLayout_->configure(currentWindowLayoutSettings());
 
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
@@ -644,7 +703,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
         setMaximized(other.get(), false);
     arrange();
   }
-  if (windowLayout_->mode() == WindowLayoutMode::Tiling && !client->floating &&
+  if (windowTemplate_ && !windowTemplate_->allowOverlap && !client->floating &&
       !client->maximized &&
       windowLayout_->snapshot(client->workspace).maximizedWindow)
     setMaximized(client, true);
@@ -882,23 +941,31 @@ QJsonObject WaylandCompositor::state() const {
   QJsonArray tilingColumns;
   QJsonArray tilingGroups;
   QSet<int> emittedGroups;
+  int fallbackGroup = 0;
   for (const auto &column : tilingSnapshot.columns) {
+    const int group =
+        column.metadata.value("group").toInt(fallbackGroup++);
+    const int row = column.metadata.value("row").toInt(0);
     tilingColumns.append(
         QJsonObject{{"window", static_cast<qint64>(column.window)},
                     {"width", column.width},
                     {"minimized", column.minimized},
                     {"focused", column.focused},
-                    {"columnIndex", column.columnIndex},
-                    {"rowIndex", column.rowIndex},
+                    {"columnIndex", group},
+                    {"rowIndex", row},
                     {"x", column.geometry.x()},
                     {"y", column.geometry.y()},
                     {"height", column.geometry.height()}});
-    if (emittedGroups.contains(column.columnIndex))
+    if (emittedGroups.contains(group))
       continue;
-    emittedGroups.insert(column.columnIndex);
+    emittedGroups.insert(group);
+    auto memberIds = column.metadata.value("members").toArray();
+    if (memberIds.isEmpty())
+      memberIds.append(static_cast<qint64>(column.window));
     QJsonArray members;
     bool groupFocused = false;
-    for (auto id : column.columnMembers) {
+    for (const auto &idValue : memberIds) {
+      const auto id = static_cast<LayoutWindowId>(idValue.toInteger());
       const auto found = std::find_if(
           clients_.cbegin(), clients_.cend(), [id](const auto &client) {
             return client->id == static_cast<int>(id);
@@ -915,7 +982,7 @@ QJsonObject WaylandCompositor::state() const {
                                  {"focused", memberFocused},
                                  {"minimized", member->minimized}});
     }
-    tilingGroups.append(QJsonObject{{"index", column.columnIndex},
+    tilingGroups.append(QJsonObject{{"index", group},
                                     {"focused", groupFocused},
                                     {"width", column.width},
                                     {"members", members}});
@@ -924,10 +991,20 @@ QJsonObject WaylandCompositor::state() const {
   auto preferences = desktopPreferences();
   const auto extensions = pluginManager_->snapshot();
   preferences["plugins"] = extensions.value("installed");
+  const auto layoutSettings = currentWindowLayoutSettings();
   return {
-      {"layoutMode", windowLayout_->mode() == WindowLayoutMode::Stacking
-                         ? "stacking"
-                         : "tiling"},
+      {"layoutMode",
+       windowTemplate_ && windowTemplate_->allowOverlap ? "stacking"
+                                                        : "tiling"},
+      {"windowLayout",
+       QJsonObject{{"template", windowTemplate_ ? windowTemplate_->key
+                                                : QString()},
+                   {"allowOverlap",
+                    windowTemplate_ ? windowTemplate_->allowOverlap : false},
+                   {"schema", windowTemplate_
+                                  ? windowTemplate_->layoutSettingsSchema
+                                  : QJsonObject{}},
+                   {"values", layoutSettings}}},
       {"defaultApps", defaultApplications()},
       {"shellModules", shellModules_->snapshot()},
       {"extensions", extensions},
@@ -1211,6 +1288,16 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     settings.sync();
     applyKeyboardConfiguration();
     arrange();
+  } else if (method == "window-layout-settings") {
+    QJsonParseError parseError;
+    const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
+    QString error;
+    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+      return {{"error", "Expected a JSON object of window layout settings."}};
+    if (!updateWindowLayoutSettings(document.object(), &error))
+      return {{"error", error}};
+    arrange();
+    return state();
   } else if (method == "appearance") {
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);

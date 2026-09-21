@@ -85,8 +85,7 @@ pluginWindowPlacements(PluginManager &plugins,
       fresh.append(static_cast<qint64>(placement.window));
     expected.insert(static_cast<qint64>(placement.window));
   }
-  const bool stacking =
-      windowTemplate.layoutMode == WindowLayoutMode::Stacking;
+  const bool stacking = windowTemplate.allowOverlap;
   const auto output = plugins.filter(
       "window-layout", {{"windows", windows}},
       {{"workspace", static_cast<qint64>(workspace)},

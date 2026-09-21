@@ -149,8 +149,9 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   }
   client->initialRuleApplied = true;
   // A new ordinary window joins the visible layout instead of inheriting zoom.
-  if (state->impl->q->windowLayout_->mode() == WindowLayoutMode::Tiling &&
-      !client->floating && !client->utility)
+  if (state->impl->q->windowTemplate_ &&
+      !state->impl->q->windowTemplate_->allowOverlap && !client->floating &&
+      !client->utility)
     for (const auto &peer : state->impl->q->clients_)
       if (peer.get() != client && peer->workspace == client->workspace &&
           !peer->floating && peer->maximized)

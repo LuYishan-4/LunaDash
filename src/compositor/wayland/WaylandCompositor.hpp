@@ -104,6 +104,8 @@ private:
   void configure(ClientWindow *client, const QRect &rectangle);
   void arrange();
   QRect workArea() const;
+  QJsonObject currentWindowLayoutSettings() const;
+  bool updateWindowLayoutSettings(const QJsonObject &changes, QString *error);
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);

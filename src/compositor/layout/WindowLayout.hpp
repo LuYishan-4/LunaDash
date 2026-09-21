@@ -1,13 +1,14 @@
 #pragma once
+#include <QJsonObject>
 #include <QList>
 #include <QRect>
+#include <QPoint>
+#include <QSize>
 #include <QString>
 #include <QtGlobal>
-#include <memory>
 #include <functional>
 
 namespace LunaDash {
-enum class WindowLayoutMode { Tiling, Stacking };
 
 using LayoutWindowId = quint64;
 using LayoutWorkspaceId = quint64;
@@ -18,9 +19,7 @@ struct WindowPlacement {
   bool minimized = false;
   bool focused = false;
   QRect geometry;
-  int columnIndex = -1;
-  int rowIndex = -1;
-  QList<LayoutWindowId> columnMembers;
+  QJsonObject metadata;
   bool hiddenByMaximize = false;
   bool newWindow = false;
 };
@@ -32,16 +31,16 @@ struct WorkspaceLayoutSnapshot {
   LayoutWindowId maximizedWindow = 0;
 };
 
-// Layout implementations own placement and focus state. The compositor owns
-// surfaces, input routing and animation. Unsupported operations return false.
+// Generic window-layout state contract. Layout type, editable settings and
+// interaction policy belong to WindowTemplate, not this interface.
 class WindowLayout {
 public:
   virtual ~WindowLayout();
   using PlacementFilter = std::function<QList<WindowPlacement>(
       LayoutWorkspaceId, QRect, const QList<WindowPlacement> &)>;
   void setPlacementFilter(PlacementFilter filter);
-  virtual WindowLayoutMode mode() const noexcept = 0;
-  virtual void setGap(int gap) = 0;
+
+  virtual void configure(const QJsonObject &settings) = 0;
   virtual bool insert(LayoutWorkspaceId workspace, LayoutWindowId window,
                       QSize preferredSize = {}) = 0;
   virtual bool remove(LayoutWindowId window) = 0;
@@ -68,15 +67,15 @@ public:
 
   virtual QList<WindowPlacement> layout(LayoutWorkspaceId workspace,
                                         QRect area) = 0;
-  // Overlay maximization without changing the saved tile sizes or membership.
   virtual QList<WindowPlacement> presentation(LayoutWorkspaceId workspace,
                                               QRect area) = 0;
   virtual WorkspaceLayoutSnapshot
   snapshot(LayoutWorkspaceId workspace) const = 0;
 
 protected:
-  QList<WindowPlacement> filterPlacements(LayoutWorkspaceId workspace,
-      QRect area, const QList<WindowPlacement> &placements) const;
+  QList<WindowPlacement> filterPlacements(
+      LayoutWorkspaceId workspace, QRect area,
+      const QList<WindowPlacement> &placements) const;
 
 private:
   PlacementFilter placementFilter_;
