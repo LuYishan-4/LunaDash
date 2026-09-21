@@ -1,11 +1,14 @@
 #pragma once
 #include "config/plugins/PluginCatalog.hpp"
 #include <QHash>
+#include <QJsonArray>
 #include <QObject>
 #include <QTimer>
 #include <functional>
 #include <memory>
 #include <vector>
+class QNetworkAccessManager;
+
 namespace LunaDash {
 class PluginBundle;
 class PluginManager final : public QObject {
@@ -34,7 +37,14 @@ private:
   QHash<QString, std::shared_ptr<PluginBundle>> bundles_;
   QList<std::shared_ptr<PluginBundle>> retired_;
   QList<PluginDescriptor> catalog_;
+  QJsonArray storeCatalog_;
+  QString storeError_;
+  QNetworkAccessManager *storeNetwork_ = nullptr;
   QTimer poll_;
+  bool storeLoading_ = false;
   bool inHook_ = false;
+
+  void refreshStore();
+  bool applyStoreCatalog(const QByteArray &bytes, QString *error);
 };
 } // namespace LunaDash
