@@ -1,4 +1,4 @@
-#include "compositor/animation/SceneWindowAnimations.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
@@ -206,7 +206,7 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *state = listenerOwner<OutputState>(listener);
   if (!state || !state->sceneOutput)
     return;
-  auto *animations = state->impl->q->windowAnimations_;
+  auto *animations = state->impl->q->windowAnimations_.get();
   if (animations)
     animations->advance();
   if (!wlr_scene_output_commit(state->sceneOutput, nullptr))

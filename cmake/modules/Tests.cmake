@@ -25,6 +25,13 @@ if(BUILD_TESTING)
     add_dependencies(lunadash-media-test ludash-shell-tool)
     add_test(NAME lunadash-media COMMAND lunadash-media-test)
     set_tests_properties(lunadash-media PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-window-animation-template-test
+        tests/animation/WindowAnimationTemplateTests.cpp)
+    target_include_directories(lunadash-window-animation-template-test PRIVATE src)
+    target_link_libraries(lunadash-window-animation-template-test PRIVATE Qt6::Test)
+    add_test(NAME lunadash-window-animation-template
+        COMMAND lunadash-window-animation-template-test)
+    set_tests_properties(lunadash-window-animation-template PROPERTIES TIMEOUT 30)
     add_executable(lunadash-plugin-test tests/plugins/PluginTests.cpp)
     target_link_libraries(lunadash-plugin-test PRIVATE ludash-plugins Qt6::Test)
     if(TARGET ludash-fade)

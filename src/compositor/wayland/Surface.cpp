@@ -1,4 +1,4 @@
-#include "compositor/animation/SceneWindowAnimations.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/wayland/Register.hpp"
@@ -160,7 +160,7 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
     state->impl->q->focus(client);
   if (state->impl->q->windowAnimations_ && client->sceneTree &&
       !client->utility)
-    state->impl->q->windowAnimations_->show(client->sceneTree,
+    state->impl->q->windowAnimations_->open(client->sceneTree,
                                             client->geometry);
 }
 
@@ -170,7 +170,7 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
   if (!state || !state->client)
     return;
   if (state->impl->q->windowAnimations_ && state->client->sceneTree)
-    state->impl->q->windowAnimations_->hideSnapshot(
+    state->impl->q->windowAnimations_->close(
         state->client->sceneTree, state->impl->animationLayer);
   if (state->impl->q->windowAnimations_ && state->client->sceneTree)
     state->impl->q->windowAnimations_->cancel(state->client->sceneTree);

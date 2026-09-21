@@ -61,7 +61,7 @@ target_link_libraries(ludash-blur
 
 add_library(ludash-animation
     src/compositor/animation/WindowAnimations.cpp
-    src/compositor/animation/SceneWindowAnimations.cpp)
+    src/compositor/window/animation/SceneAnimationBackend.cpp)
 target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_definitions(ludash-animation PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-animation

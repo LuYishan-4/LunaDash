@@ -3,7 +3,7 @@
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 
-#include "compositor/animation/SceneWindowAnimations.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/input/Keyboard.hpp"
@@ -141,9 +141,9 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   connect(
       pluginManager_, &PluginManager::changed, this, [this] { arrange(); },
       Qt::QueuedConnection);
-  windowAnimations_ = new SceneWindowAnimations(this);
+  windowAnimations_ = std::make_unique<SceneWindowAnimationTemplate>();
   const auto initialAppearance = desktopPreferences();
-  windowAnimations_->setProfile(windowAnimationProfile(
+  windowAnimations_->configure(windowAnimationProfile(
       *pluginManager_, initialAppearance, *windowTemplate_));
 
   controlPath_ =
@@ -428,7 +428,7 @@ void WaylandCompositor::configure(ClientWindow *client,
       !client->surface->initialized || !client->sceneTree)
     return;
   if (windowAnimations_)
-    windowAnimations_->setGeometry(
+    windowAnimations_->relayout(
         client->sceneTree, client->geometry, rectangle, d->animationLayer,
         client->mapped && client->sceneTree->node.enabled &&
             !client->manualResize && !d->pointerWindow);
@@ -483,7 +483,7 @@ void WaylandCompositor::arrange() {
         });
   }
   if (windowAnimations_)
-    windowAnimations_->setProfile(windowAnimationProfile(
+    windowAnimations_->configure(windowAnimationProfile(
         *pluginManager_, preferences, *windowTemplate_));
   const int count = preferences.value("workspaceCount").toInt();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
@@ -550,7 +550,7 @@ void WaylandCompositor::arrange() {
     if (client->sceneTree) {
       const bool wasVisible = client->sceneTree->node.enabled;
       if (!visible && wasVisible && client->mapped && windowAnimations_)
-        windowAnimations_->hideSnapshot(client->sceneTree, d->animationLayer);
+        windowAnimations_->close(client->sceneTree, d->animationLayer);
       if (visible && !wasVisible && client->geometry.isValid())
         revealed.append(client.get());
       if (!visible && windowAnimations_)
@@ -595,7 +595,7 @@ void WaylandCompositor::arrange() {
 
   if (windowAnimations_)
     for (auto *client : revealed)
-      windowAnimations_->show(client->sceneTree, client->geometry);
+      windowAnimations_->open(client->sceneTree, client->geometry);
 
   if (focused_ && focused_->sceneTree && focused_->mapped &&
       !focused_->minimized && focused_->workspace == workspace_)
@@ -657,7 +657,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
   if (client->sceneTree)
     raiseWithDialogs(client);
   if (changed && windowAnimations_ && client->sceneTree)
-    windowAnimations_->activate(client->sceneTree, client->geometry);
+    windowAnimations_->focus(client->sceneTree, client->geometry);
   if (changed)
     wlr_xdg_toplevel_set_activated(client->toplevel, true);
   d->focusSurface(client->surface->surface);
