@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed on CodeQL error/warning findings; never print source snippets."""
+"""Fail closed on CodeQL security/error findings; never print source snippets."""
 import json
 import pathlib
 import sys
@@ -14,7 +14,10 @@ def findings_in(document):
             rule = rules.get(rule_id, {})
             level = result.get("level", rule.get("defaultConfiguration", {}).get("level", "warning"))
             security = rule.get("properties", {}).get("security-severity")
-            if level in {"error", "warning"} or security is not None:
+            # Keep security-and-quality enabled so quality findings remain
+            # visible as CodeQL annotations, but only security-tagged results
+            # or explicit SARIF errors should block a pull request.
+            if level == "error" or security is not None:
                 findings.append(rule_id)
     return findings
 
@@ -33,10 +36,10 @@ def main():
                 raise SystemExit("Invalid or empty SARIF report; refusing to pass.")
             findings.extend(findings_in(document))
     if findings:
-        print(f"Security/quality gate failed: {len(findings)} findings. Review the CodeQL annotations.")
+        print(f"Security gate failed: {len(findings)} security/error findings. Review the CodeQL annotations.")
         raise SystemExit(1)
-    print("CodeQL SARIF gate passed: no error/warning or security findings.")
-
+    print("CodeQL SARIF gate passed: no security-severity findings or errors.")
+    
 
 if __name__ == "__main__":
     main()

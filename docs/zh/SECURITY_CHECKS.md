@@ -11,11 +11,13 @@
 | Workflow policy/style | workflow permission、credential persistence、unsafe trigger | policy error |
 | Secret/path scan | token、private key、個人絕對路徑 | 高信心命中 |
 | Source language/shell | 英文 source policy、shell syntax/shellcheck | violation |
-| clang-tidy | null/dangling、memory/lifetime、安全 API | enabled warning |
-| CodeQL | C/C++ security/quality/dataflow | SARIF finding/report failure |
+| clang-tidy | null/dangling、memory/lifetime、安全 API | project/test source 的 enabled warning |
+| CodeQL | C/C++ security/quality/dataflow | SARIF error 或帶 security-severity 的 finding；一般 quality warning 保留 annotation；缺少 report 也失敗 |
 | Graphics diagnostics | shader variant、graphics pipeline log | pipeline/shader failure |
 
-CodeQL 會用真的 CMake/Qt/moc 建 database。Analysis job 顯示完成不代表「沒有 finding」；`scripts/security/check_sarif.py` 會把 SARIF warning/error 或 security-severity finding 轉成 job failure。
+CodeQL 會用真的 CMake/Qt/moc 建 database。Analysis job 顯示完成不代表「沒有 finding」；`scripts/security/check_sarif.py` 會把帶有 security-severity 的 finding 或明確 SARIF error 轉成 job failure。非安全性的 quality warning 仍會顯示在 CodeQL annotation，但不再單獨讓 PR 失敗。
+
+Ubuntu 24.04 的 Qt lifetime 測試仍保留 `clang-analyzer-cplusplus.NewDelete`。測試只接受 synthetic project source 本身的診斷，因此 Clang 18 若把 valid `QPointer` 的主要診斷位置落在 Qt system header，不會再誤判成 LunaDash 的 use-after-free；刻意建立的 invalid lifetime 仍必須被 analyzer 擋下。
 
 Static analysis 與 dynamic test 都不是安全證明；前者可能誤報/漏報，後者只涵蓋實際執行路徑。
 
