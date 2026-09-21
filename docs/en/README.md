@@ -1,6 +1,6 @@
 # LunaDash documentation — English
 
-[繁體中文](../zh/README.md) · [Documentation index](../README.md)
+[Traditional Chinese](../zh/README.md) · [Documentation index](../README.md)
 
 These guides describe the current `dev` branch. LunaDash remains a development preview; nested and CI results do not establish compatibility with every physical GPU, display manager, input device, application, or multi-monitor setup.
 
