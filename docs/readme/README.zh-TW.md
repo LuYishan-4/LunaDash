@@ -65,7 +65,7 @@ cd LunaDash
 
 安裝程式會處理發行版依賴、編譯 LunaDash 並安裝登入工作階段。完成後登出，在登入管理員中選擇 **LunaDash**。首次啟動會顯示歡迎訊息與網站求助連結。語言及桌面外觀可在設定中調整。
 
-可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面 shell 需要 **Quickshell 0.3+**；若發行版未提供，安裝程式會指出缺少的依賴。選項與復原方式請見[安裝指南](../LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../TESTING_AND_FILES.md)。
+可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面 shell 需要 **Quickshell 0.3+**；若發行版未提供，安裝程式會指出缺少的依賴。選項與復原方式請見[安裝指南](../zh/LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../zh/TESTING_AND_FILES.md)。
 
 ## 常用快捷鍵
 
@@ -81,7 +81,7 @@ cd LunaDash
 | `Super` + `Shift` + `S` | 選取截圖範圍 |
 | `Super` + `1`–`9` / `0` | 切換工作區 |
 
-`Super` 即 Meta 鍵。可在 **設定 → 鍵盤快捷鍵** 中更改綁定。分組、調整大小與控制指令請見[設定文件](../SETTINGS.md)。
+`Super` 即 Meta 鍵。可在 **設定 → 鍵盤快捷鍵** 中更改綁定。分組、調整大小與控制指令請見[設定文件](../zh/SETTINGS.md)。
 
 <a id="documentation"></a>
 
@@ -89,11 +89,11 @@ cd LunaDash
 
 | 開始使用 | 個人化 |
 | --- | --- |
-| [安裝與執行](../LOGIN_SESSION.md) | [外觀與組態](../CONFIGURATION.md) |
-| [建置與測試](../TESTING_AND_FILES.md) | [設定與快捷鍵](../SETTINGS.md) |
-| [顯示器、DDC/CI 與啟動](../DISPLAY_AND_STARTUP.md) | [Shell 模組](../MODULES.md) |
-| [範圍截圖](../SCREEN_CAPTURE.md) | [預設應用程式與檔案](../DEFAULT_APPS_AND_FILES.md) |
-| [原始碼架構](../ARCHITECTURE.md) | [外掛介面](../PLUGINS.md) |
+| [安裝與執行](../zh/LOGIN_SESSION.md) | [外觀與組態](../zh/CONFIGURATION.md) |
+| [建置與測試](../zh/TESTING_AND_FILES.md) | [設定與快捷鍵](../zh/SETTINGS.md) |
+| [顯示器、DDC/CI 與啟動](../zh/DISPLAY_AND_STARTUP.md) | [Shell 模組](../zh/MODULES.md) |
+| [範圍截圖](../zh/SCREEN_CAPTURE.md) | [預設應用程式與檔案](../zh/DEFAULT_APPS_AND_FILES.md) |
+| [原始碼架構](../zh/ARCHITECTURE.md) | [外掛介面](../zh/PLUGINS.md) |
 
 <a id="contribute"></a>
 
@@ -111,4 +111,4 @@ PR 請以 **`dev`** 為目標分支。主旨要清楚描述改動，說明使用
 
 ### 打造自己的桌面功能
 
-[Plugin SDK 2](../PLUGINS.md) 提供 C／C++ hook、Quickshell 元件及 OpenGL 著色器模板，可依類別設定並即時替換或並用。從[功能介面參考](../PLUGIN_TARGETS.md)或預設停用的[堆疊視窗範例](../../examples/plugins/stacking-windows/README.md)開始。
+[Plugin SDK 2](../zh/PLUGINS.md) 提供 C／C++ hook、Quickshell 元件及 OpenGL 著色器模板，可依類別設定並即時替換或並用。從[功能介面參考](../zh/PLUGIN_TARGETS.md)或預設停用的[堆疊視窗範例](../../examples/plugins/stacking-windows/README.md)開始。

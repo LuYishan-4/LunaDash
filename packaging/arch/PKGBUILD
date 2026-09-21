@@ -32,10 +32,14 @@ build() {
 package() {
   DESTDIR="$pkgdir" cmake --install build
   install -Dm644 "ludash-${pkgver}/README.md" "$pkgdir/usr/share/doc/ludash/README.md"
-  install -Dm644 "ludash-${pkgver}/docs/LOGIN_SESSION.md" "$pkgdir/usr/share/doc/ludash/LOGIN_SESSION.md"
-  install -Dm644 "ludash-${pkgver}/docs/ARCHITECTURE.md" "$pkgdir/usr/share/doc/ludash/ARCHITECTURE.md"
-  install -Dm644 "ludash-${pkgver}/docs/GRAPHICS.md" "$pkgdir/usr/share/doc/ludash/GRAPHICS.md"
-  install -Dm644 "ludash-${pkgver}/docs/FILES.md" "$pkgdir/usr/share/doc/ludash/FILES.md"
-  install -Dm644 "ludash-${pkgver}/docs/DISPLAY_AND_STARTUP.md" "$pkgdir/usr/share/doc/ludash/DISPLAY_AND_STARTUP.md"
-  install -Dm644 "ludash-${pkgver}/docs/SCREEN_CAPTURE.md" "$pkgdir/usr/share/doc/ludash/SCREEN_CAPTURE.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/LOGIN_SESSION.md" "$pkgdir/usr/share/doc/ludash/LOGIN_SESSION.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/ARCHITECTURE.md" "$pkgdir/usr/share/doc/ludash/ARCHITECTURE.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/GRAPHICS.md" "$pkgdir/usr/share/doc/ludash/GRAPHICS.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/FILES.md" "$pkgdir/usr/share/doc/ludash/FILES.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/DISPLAY_AND_STARTUP.md" "$pkgdir/usr/share/doc/ludash/DISPLAY_AND_STARTUP.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/SCREEN_CAPTURE.md" "$pkgdir/usr/share/doc/ludash/SCREEN_CAPTURE.md"
+  install -dm755 "$pkgdir/usr/share/doc/ludash/zh"
+  for doc in LOGIN_SESSION ARCHITECTURE GRAPHICS FILES DISPLAY_AND_STARTUP SCREEN_CAPTURE; do
+    install -Dm644 "ludash-${pkgver}/docs/zh/${doc}.md" "$pkgdir/usr/share/doc/ludash/zh/${doc}.md"
+  done
 }

@@ -65,7 +65,7 @@ cd LunaDash
 
 The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch shows a welcome message and a help link. Use Settings to choose your language and personalize the desktop.
 
-Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/TESTING_AND_FILES.md) for manual builds and nested sessions.
+Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
 
 ## A few shortcuts
 
@@ -81,19 +81,22 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 | `Super` + `Shift` + `S` | Select a screenshot region |
 | `Super` + `1`–`9` / `0` | Switch workspace |
 
-`Super` is the Meta key. Change bindings in **Settings → Keyboard shortcuts**. See [settings](docs/SETTINGS.md) for grouping, resizing and control commands.
+`Super` is the Meta key. Change bindings in **Settings → Keyboard shortcuts**. See [settings](docs/en/SETTINGS.md) for grouping, resizing and control commands.
 
 <a id="documentation"></a>
 
 ## Documentation
 
+[English docs](docs/en/README.md) · [繁體中文文件](docs/zh/README.md)
+
+
 | Start here | Make it yours |
 | --- | --- |
-| [Install and run](docs/LOGIN_SESSION.md) | [Appearance and configuration](docs/CONFIGURATION.md) |
-| [Build and test](docs/TESTING_AND_FILES.md) | [Settings and shortcuts](docs/SETTINGS.md) |
-| [Display, DDC/CI and startup](docs/DISPLAY_AND_STARTUP.md) | [Shell modules](docs/MODULES.md) |
-| [Region screenshots](docs/SCREEN_CAPTURE.md) | [Default apps and Files](docs/DEFAULT_APPS_AND_FILES.md) |
-| [Source architecture](docs/ARCHITECTURE.md) | [Plugin interfaces](docs/PLUGINS.md) |
+| [Install and run](docs/en/LOGIN_SESSION.md) | [Appearance and configuration](docs/en/CONFIGURATION.md) |
+| [Build and test](docs/en/TESTING_AND_FILES.md) | [Settings and shortcuts](docs/en/SETTINGS.md) |
+| [Display, DDC/CI and startup](docs/en/DISPLAY_AND_STARTUP.md) | [Shell modules](docs/en/MODULES.md) |
+| [Region screenshots](docs/en/SCREEN_CAPTURE.md) | [Default apps and Files](docs/en/DEFAULT_APPS_AND_FILES.md) |
+| [Source architecture](docs/en/ARCHITECTURE.md) | [Plugin interfaces](docs/en/PLUGINS.md) |
 
 <a id="contribute"></a>
 
@@ -111,4 +114,4 @@ Send pull requests to **`dev`**. Use a clear title describing the change, and ex
 
 ### Build your own desktop features
 
-[Plugin SDK 2](docs/PLUGINS.md) provides C/C++ hooks, Quickshell components and OpenGL shader templates, with categorized settings and live replacement or augmentation. Start with the [target reference](docs/PLUGIN_TARGETS.md) or the disabled-by-default [stacking windows example](examples/plugins/stacking-windows/README.md).
+[Plugin SDK 2](docs/en/PLUGINS.md) provides C/C++ hooks, Quickshell components and OpenGL shader templates, with categorized settings and live replacement or augmentation. Start with the [target reference](docs/en/PLUGIN_TARGETS.md) or the disabled-by-default [stacking windows example](examples/plugins/stacking-windows/README.md).

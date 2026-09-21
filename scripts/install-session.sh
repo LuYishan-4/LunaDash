@@ -286,5 +286,5 @@ Finished using installation path: $package_manager
 Save your work, then log out or reboot when ready.
 Choose LunaDash (Wayland) in the login screen. The first-run guide opens on login.
 Recovery: select your previous desktop; remove only the optional LunaDash
-auto-login file from a TTY if needed. See docs/LOGIN_SESSION.md.
+auto-login file from a TTY if needed. See docs/en/LOGIN_SESSION.md (English) or docs/zh/LOGIN_SESSION.md (繁體中文).
 EOF
