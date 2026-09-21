@@ -39,7 +39,7 @@ def main():
         print(f"Security gate failed: {len(findings)} security/error findings. Review the CodeQL annotations.")
         raise SystemExit(1)
     print("CodeQL SARIF gate passed: no security-severity findings or errors.")
-    
+
 
 if __name__ == "__main__":
     main()
