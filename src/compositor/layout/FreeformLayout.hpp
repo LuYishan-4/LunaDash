@@ -8,6 +8,9 @@
 
 namespace LunaDash {
 
+// Generic persistent geometry state for replacement window-layout plugins that
+// request layoutMode=stacking. Placement policy (cascade, grid, etc.) belongs
+// to the plugin; this class only keeps focus, size, position and workspace state.
 class FreeformLayout final : public WindowLayout {
 public:
   FreeformLayout();
