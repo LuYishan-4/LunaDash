@@ -187,7 +187,6 @@ add_library(ludash-wayland
     src/compositor/input/Input.cpp
     src/compositor/input/TiledPointer.cpp
     src/compositor/input/WindowSwitch.cpp
-    src/compositor/session/ClientLaunch.cpp
     src/compositor/input/Keyboard.cpp
     src/compositor/ipc/ControlServer.cpp
     src/desktop/system/SystemStatus.cpp

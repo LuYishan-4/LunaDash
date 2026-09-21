@@ -25,13 +25,6 @@ if(BUILD_TESTING)
     add_dependencies(lunadash-media-test ludash-shell-tool)
     add_test(NAME lunadash-media COMMAND lunadash-media-test)
     set_tests_properties(lunadash-media PROPERTIES TIMEOUT 30)
-    add_executable(lunadash-client-launch-test
-        tests/session/ClientLaunchTests.cpp
-        src/compositor/session/ClientLaunch.cpp)
-    target_include_directories(lunadash-client-launch-test PRIVATE src)
-    target_link_libraries(lunadash-client-launch-test PRIVATE Qt6::Core Qt6::Test)
-    add_test(NAME lunadash-client-launch COMMAND lunadash-client-launch-test)
-    set_tests_properties(lunadash-client-launch PROPERTIES TIMEOUT 30)
     add_executable(lunadash-plugin-test tests/plugins/PluginTests.cpp)
     target_link_libraries(lunadash-plugin-test PRIVATE ludash-plugins Qt6::Test)
     if(TARGET ludash-fade)

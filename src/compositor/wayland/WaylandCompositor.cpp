@@ -10,7 +10,6 @@
 #include "compositor/ipc/ControlServer.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/plugins/PluginManager.hpp"
-#include "compositor/session/ClientLaunch.hpp"
 #include "compositor/session/SessionActions.hpp"
 #include "compositor/session/SessionEnvironment.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
@@ -335,33 +334,21 @@ bool WaylandCompositor::launchExternalCommand(QStringList command,
     return false;
   }
 
-  const bool discord = isDiscordApplicationCommand(command);
-  // Some native Wayland applications still use X11 helpers for input or
-  // clipboard access. Prepare authentication without exposing the X11 root
-  // window or replacing the native Wayland client environment.
-  if ((x11Helper || discord) &&
-      (!xwayland_ || !xwayland_->startServer(error))) {
+  // Application/toolkit renderer selection belongs to the client. Do not
+  // identify Chromium/Electron applications by executable names or rewrite
+  // their ANGLE, Vulkan, GPU, Ozone or IME flags here. Besides being brittle,
+  // scanning every command argument can misclassify URLs and document paths.
+  //
+  // XWayland is likewise opt-in for the launch request. Native Wayland clients
+  // may still use DISPLAY from the prepared session environment when they
+  // intentionally create an X11 helper, without LunaDash special-casing an
+  // application such as Discord.
+  if (x11Helper && (!xwayland_ || !xwayland_->startServer(error))) {
     if (error->isEmpty())
       *error =
           "This application's helper requires XWayland. Install and enable "
           "it, then restart LunaDash.";
     return false;
-  }
-  const bool chromium = isChromiumApplicationCommand(command);
-  if (chromium) {
-    command.erase(std::remove_if(command.begin(), command.end(),
-                                 [](const QString &argument) {
-                                   return argument.startsWith("--gtk-version=");
-                                 }),
-                  command.end());
-    ensureWaylandChromiumFlags(command);
-
-    if (discord) {
-      ensureDiscordWaylandFlags(command);
-      qInfo() << "LunaDash Discord rendering:"
-              << (command.contains("--disable-gpu") ? "software" : "OpenGL")
-              << "(native Wayland, authenticated XWayland input helper)";
-    }
   }
 
   const QString executable = command.takeFirst();
