@@ -77,8 +77,10 @@ files such as FIFOs and device nodes are not copied.
 File operations are asynchronous; navigation does not change a running
 operation's captured destination. There is no global undo/transaction spanning
 multiple entries: an error explicitly reports that earlier entries may have
-completed. Cross-filesystem moves currently fail without removing the source;
-copy, verify, then use Trash. Copying preserves basic permissions and modification
+completed. A move uses an atomic rename on the same filesystem and falls back
+to an atomic staged copy followed by removing the source when the destination is
+on another filesystem; if the source cannot be removed, the failure is reported
+instead of leaving a silent duplicate. Copying preserves basic permissions and modification
 times, not ownership, ACLs or extended attributes. Permanent deletion, archive
 editing, recursive directory-size calculation and remote filesystem mounting are
 not added by this change.

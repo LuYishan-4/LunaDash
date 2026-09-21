@@ -4,8 +4,13 @@ check_only=0
 if [ "${1:-}" = --check ]; then check_only=1; shift; fi
 session_bin=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
 if [ "$(id -u)" = 0 ]; then echo 'LunaDash must run as a normal login user, not root.' >&2; exit 1; fi
-for program in dbus-run-session quickshell kitty; do
+# Only these are required to bring up the desktop. A terminal (kitty) and a
+# shell are optional defaults: missing them must not block login.
+for program in dbus-run-session quickshell; do
     command -v "$program" >/dev/null || { echo "Missing session dependency: $program" >&2; exit 1; }
+done
+for program in kitty; do
+    command -v "$program" >/dev/null || echo "Note: optional default terminal '$program' is not installed." >&2
 done
 compositor="$session_bin/lunadash-compositor"
 if [ ! -x "$compositor" ]; then compositor="$session_bin/ludash-compositor"; fi
