@@ -172,6 +172,29 @@ QString performFileOperation(const QString &operation, const QStringList &paths,
       const auto target =
           QDir(destinationInfo.absoluteFilePath()).filePath(source.fileName());
       success = renameNoReplace(path, target, error);
+      // renameat2 cannot move an entry across filesystems (EXDEV). Fall back
+      // to an atomic staged copy followed by removing the source, matching the
+      // copy path so a cross-device move still succeeds.
+      if (!success && error.value() == EXDEV) {
+        error.clear();
+        QTemporaryDir staging(QDir(destinationInfo.absoluteFilePath())
+                                  .filePath(".lunadash-move-XXXXXX"));
+        if (!staging.isValid())
+          return translate(
+              "Could not create a temporary copy in the destination folder.");
+        const auto staged = staging.filePath("payload");
+        if (copyEntry(nativePath(path), nativePath(staged), error) &&
+            renameNoReplace(staged, target, error)) {
+          std::error_code removeError;
+          fs::remove_all(nativePath(path), removeError);
+          // Report a partially completed move instead of silently leaving the
+          // source behind (which would look like a duplicate).
+          if (removeError)
+            error = removeError;
+          else
+            success = true;
+        }
+      }
     } else if (operation == "trash") {
       success = QFile::moveToTrash(path);
     } else if (operation == "duplicate") {
