@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "sdk": {"name": "LunaDash", "apiVersion": 2},
+  "id": "org.lunadash.stacking-windows",
+  "name": "Stacking windows",
+  "description": "Overlapping windows with independent movement, resizing and focus-to-front behavior.",
+  "version": "1.0.0",
+  "author": "LunaDash contributors",
+  "icon": "preferences-system-windows",
+  "tags": ["Layout", "Stacking", "Native"],
+  "type": "effect",
+  "target": "window-layout",
+  "mode": "replace",
+  "layoutMode": "stacking",
+  "entry": "liblunadash-stacking-windows.so",
+  "enabledByDefault": false,
+  "settings": {
+    "cascadeStep": {"type": "integer", "default": 32, "minimum": 0, "maximum": 96}
+  }
+}
