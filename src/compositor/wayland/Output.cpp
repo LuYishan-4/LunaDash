@@ -1,6 +1,6 @@
 #include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/client/ClientWindow.hpp"
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "config/desktop/DesktopPreferences.hpp"

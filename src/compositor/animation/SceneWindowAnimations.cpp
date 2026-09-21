@@ -1,6 +1,6 @@
 #include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/wayland/wlroots/WlrootsSceneHeaders.hpp"
-#include "core/templates/WaylandListener.hpp"
+#include "core/templates/WaylandSlot.hpp"
 
 #include <QEasingCurve>
 #include <QElapsedTimer>
@@ -87,7 +87,7 @@ qreal elapsedProgress(const QElapsedTimer &elapsed, int duration) {
 struct SceneWindowAnimations::LiveState {
   SceneWindowAnimations *owner = nullptr;
   wlr_scene_tree *tree = nullptr;
-  Templates::ListenerSlot<LiveState> destroy;
+  Templates::WaylandSlot<LiveState> destroy;
   QElapsedTimer elapsed;
   int duration = 0;
   QRect from;
@@ -103,7 +103,7 @@ struct SceneWindowAnimations::SnapshotState {
   SceneWindowAnimations *owner = nullptr;
   LiveState *live = nullptr;
   wlr_scene_tree *tree = nullptr;
-  Templates::ListenerSlot<SnapshotState> destroy;
+  Templates::WaylandSlot<SnapshotState> destroy;
   QElapsedTimer elapsed;
   int duration = 0;
   QRect original;
@@ -129,12 +129,14 @@ void SceneWindowAnimations::setDuration(int milliseconds) {
 void SceneWindowAnimations::setProfile(const QJsonObject &profile) {
   setDuration(profile.value("duration").toInt(220));
   enterOffset_ = std::clamp(profile.value("enterOffset").toInt(12), -100, 100);
-  focusOpacity_ = std::clamp(profile.value("focusOpacity").toDouble(0.82), 0.0, 1.0);
+  focusOpacity_ =
+      std::clamp(profile.value("focusOpacity").toDouble(0.82), 0.0, 1.0);
   exitScale_ = std::clamp(profile.value("exitScale").toDouble(0.90), 0.5, 1.0);
   const auto curve = profile.value("easing").toString();
-  easing_ = QEasingCurve(curve == "linear" ? QEasingCurve::Linear
-      : curve == "outQuint" ? QEasingCurve::OutQuint
-      : curve == "inOutCubic" ? QEasingCurve::InOutCubic : QEasingCurve::OutCubic);
+  easing_ = QEasingCurve(curve == "linear"       ? QEasingCurve::Linear
+                         : curve == "outQuint"   ? QEasingCurve::OutQuint
+                         : curve == "inOutCubic" ? QEasingCurve::InOutCubic
+                                                 : QEasingCurve::OutCubic);
 }
 
 int SceneWindowAnimations::activeCount() const {
@@ -321,13 +323,15 @@ SceneWindowAnimations::SnapshotState *SceneWindowAnimations::createSnapshot(
 void SceneWindowAnimations::applySnapshot(SnapshotState *state,
                                           const QRect &geometry,
                                           qreal opacity) {
-  const qreal scale = std::min(qreal(geometry.width()) / state->original.width(),
-                               qreal(geometry.height()) / state->original.height());
+  const qreal scale =
+      std::min(qreal(geometry.width()) / state->original.width(),
+               qreal(geometry.height()) / state->original.height());
   const QSize fitted(std::max(1, qRound(state->original.width() * scale)),
                      std::max(1, qRound(state->original.height() * scale)));
   state->current = QRect(geometry.topLeft() +
-                         QPoint((geometry.width() - fitted.width()) / 2,
-                                (geometry.height() - fitted.height()) / 2), fitted);
+                             QPoint((geometry.width() - fitted.width()) / 2,
+                                    (geometry.height() - fitted.height()) / 2),
+                         fitted);
   const QPoint origin = state->current.topLeft() - state->parentOrigin;
   wlr_scene_node_set_position(&state->tree->node, origin.x(), origin.y());
   for (const auto &part : state->buffers) {
@@ -357,7 +361,8 @@ void SceneWindowAnimations::hideSnapshot(wlr_scene_tree *source,
   auto *live = live_.value(source);
   if (live && live->preview)
     source = live->preview->tree;
-  createSnapshot(source, parent, live ? visualGeometry(live->tree, live->current) : QRect());
+  createSnapshot(source, parent,
+                 live ? visualGeometry(live->tree, live->current) : QRect());
 }
 
 void SceneWindowAnimations::advance() {
@@ -369,8 +374,7 @@ void SceneWindowAnimations::advance() {
     if (t >= 1.0)
       finishLive(state->tree, state);
     else
-      applyLive(state,
-                easing_.valueForProgress(t));
+      applyLive(state, easing_.valueForProgress(t));
   }
   const auto snapshots = snapshots_;
   for (auto *state : snapshots) {

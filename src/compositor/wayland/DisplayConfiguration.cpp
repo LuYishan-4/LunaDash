@@ -1,4 +1,4 @@
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include <QJsonArray>
 #include <QSettings>

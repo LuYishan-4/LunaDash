@@ -1,6 +1,6 @@
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/input/Keyboard.hpp"
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
@@ -380,7 +380,8 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
         event->button == self->pointerButton) {
       if (self->pointerClientGrab)
-        wlr_seat_pointer_notify_button(self->seat, event->time_msec, event->button, event->state);
+        wlr_seat_pointer_notify_button(self->seat, event->time_msec,
+                                       event->button, event->state);
       self->finishTiledPointer(true);
     }
     return;

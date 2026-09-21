@@ -177,7 +177,7 @@ target_compile_definitions(ludash-thumbnail-readback PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-thumbnail-readback PUBLIC PkgConfig::WLROOTS)
 add_library(ludash-wayland
     src/compositor/wayland/WaylandCompositor.cpp
-    src/compositor/wayland/Runtime.cpp
+    src/compositor/wayland/Register.cpp
     src/compositor/wayland/Output.cpp
     src/compositor/wayland/DisplayConfiguration.cpp
     src/compositor/capture/ScreenCapture.hpp

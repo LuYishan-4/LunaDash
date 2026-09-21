@@ -1,141 +1,216 @@
 """Verify an authenticated X11 app becomes a tiled Wayland client."""
+
 import json
 import os
-from pathlib import Path
 import socket
 import struct
 import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 build = Path(sys.argv[1]).resolve()
-with tempfile.TemporaryDirectory(prefix='ludash-x11-test-') as runtime:
-    env = os.environ | {'XDG_RUNTIME_DIR': runtime, 'XDG_CONFIG_HOME': runtime,
-                        'WLR_BACKENDS': 'x11', 'WLR_X11_OUTPUTS': '1', 'WLR_RENDERER': 'pixman',
-                        'LUDASH_SKIP_SETUP': '1', 'LUNADASH_DISABLE_FCITX': '1',
-                        'QT_QPA_PLATFORMTHEME': 'generic', 'GTK_USE_PORTAL': '0',
-                        'QT_QPA_PLATFORM': 'xcb', 'QT_XCB_GL_INTEGRATION': 'xcb_egl',
-                        'LIBGL_ALWAYS_SOFTWARE': '1', 'QT_FORCE_STDERR_LOGGING': '1', 'LC_ALL': 'C.UTF-8'}
-    for key in ('MESA_GL_VERSION_OVERRIDE', 'MESA_GLSL_VERSION_OVERRIDE', 'LUDASH_DISABLE_XWAYLAND'):
+with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
+    env = os.environ | {
+        "XDG_RUNTIME_DIR": runtime,
+        "XDG_CONFIG_HOME": runtime,
+        "WLR_BACKENDS": "x11",
+        "WLR_X11_OUTPUTS": "1",
+        "WLR_RENDERER": "pixman",
+        "LUDASH_SKIP_SETUP": "1",
+        "LUNADASH_DISABLE_FCITX": "1",
+        "QT_QPA_PLATFORMTHEME": "generic",
+        "GTK_USE_PORTAL": "0",
+        "QT_QPA_PLATFORM": "xcb",
+        "QT_XCB_GL_INTEGRATION": "xcb_egl",
+        "LIBGL_ALWAYS_SOFTWARE": "1",
+        "QT_FORCE_STDERR_LOGGING": "1",
+        "LC_ALL": "C.UTF-8",
+    }
+    for key in (
+        "MESA_GL_VERSION_OVERRIDE",
+        "MESA_GLSL_VERSION_OVERRIDE",
+        "LUDASH_DISABLE_XWAYLAND",
+    ):
         env.pop(key, None)
     env.pop("WAYLAND_DISPLAY", None)
-    control = runtime + '/ludash-x11-test-control'
+    control = runtime + "/ludash-x11-test-control"
 
-    def request(method='status', value=''):
+    def request(method="status", value=""):
         with socket.socket(socket.AF_UNIX) as connection:
             connection.settimeout(3)
             connection.connect(control)
-            connection.sendall(json.dumps({'method': method, 'value': value}).encode() + b'\n')
-            output = b''
-            while b'\n' not in output:
+            connection.sendall(
+                json.dumps({"method": method, "value": value}).encode() + b"\n"
+            )
+            output = b""
+            while b"\n" not in output:
                 chunk = connection.recv(65536)
                 if not chunk or len(output) > 1024 * 1024:
-                    raise RuntimeError('Invalid IPC response')
+                    raise RuntimeError("Invalid IPC response")
                 output += chunk
             return json.loads(output)
 
-    with open(build / 'xwayland.log', 'w+') as log:
-        process = subprocess.Popen([str(build / 'ludash-compositor'), '--no-shell', '--socket', 'ludash-x11-test',
-                                    '--exit-after', '30000'],
-                                   env=env, stdout=log, stderr=log)
+    with open(build / "xwayland.log", "w+") as log:
+        process = subprocess.Popen(
+            [
+                str(build / "ludash-compositor"),
+                "--no-shell",
+                "--socket",
+                "ludash-x11-test",
+                "--exit-after",
+                "30000",
+            ],
+            env=env,
+            stdout=log,
+            stderr=log,
+        )
         try:
             deadline = time.monotonic() + 8
             while True:
                 try:
                     state = request()
-                    if state['xwayland']['available']:
+                    if state["xwayland"]["available"]:
                         break
                 except (OSError, ValueError):
                     pass
-                assert time.monotonic() < deadline, 'XWayland did not start'
-                time.sleep(.1)
-            assert not state['xwayland']['running'], 'XWayland must not open a rootful desktop window at session startup'
-            assert not state['xwayland']['display'], state['xwayland']
-            assert not state['xwayland']['authority'], state['xwayland']
+                assert time.monotonic() < deadline, "XWayland did not start"
+                time.sleep(0.1)
+            assert not state["xwayland"]["running"], (
+                "XWayland must not open a rootful desktop window at session startup"
+            )
+            assert not state["xwayland"]["display"], state["xwayland"]
+            assert not state["xwayland"]["authority"], state["xwayland"]
 
             # A native client can request X11 helpers without exposing the
             # compatibility desktop or losing its Wayland environment.
-            for invalid in ('[]', '[""]', '[42]', '{}'):
-                assert 'error' in request('launch-with-x11', invalid)
-            assert not request()['xwayland']['running']
-            probe = Path(runtime) / 'helper-environment.json'
+            for invalid in ("[]", '[""]', "[42]", "{}"):
+                assert "error" in request("launch-with-x11", invalid)
+            assert not request()["xwayland"]["running"]
+            probe = Path(runtime) / "helper-environment.json"
             probe_code = (
-                'import json,os,pathlib,sys; '
+                "import json,os,pathlib,sys; "
                 'p=pathlib.Path(sys.argv[1]); tmp=p.with_suffix(".tmp"); '
-                'tmp.write_text(json.dumps('
-                '{key:os.environ.get(key) for key in '
+                "tmp.write_text(json.dumps("
+                "{key:os.environ.get(key) for key in "
                 '["DISPLAY","XAUTHORITY","WAYLAND_DISPLAY","QT_QPA_PLATFORM"]})); '
-                'tmp.replace(p)'
+                "tmp.replace(p)"
             )
-            command = ['python3', '-c', probe_code, str(probe)]
-            cli = build / 'lunadashctl'
+            command = ["python3", "-c", probe_code, str(probe)]
+            cli = build / "lunadashctl"
             if not cli.exists():
-                cli = build / 'ludashctl'
+                cli = build / "ludashctl"
             launched = subprocess.run(
-                [str(cli), 'launch-with-x11', '--', *command],
-                env=env | {'LUNADASH_CONTROL': control, 'LUDASH_CONTROL': control},
-                capture_output=True, text=True, timeout=5)
+                [str(cli), "launch-with-x11", "--", *command],
+                env=env | {"LUNADASH_CONTROL": control, "LUDASH_CONTROL": control},
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
             assert launched.returncode == 0, launched.stderr or launched.stdout
             deadline = time.monotonic() + 4
             while not probe.exists():
-                assert time.monotonic() < deadline, 'Native helper launch did not run'
-                time.sleep(.05)
+                assert time.monotonic() < deadline, "Native helper launch did not run"
+                time.sleep(0.05)
             helper = json.loads(probe.read_text())
-            assert helper['WAYLAND_DISPLAY'] == 'ludash-x11-test', helper
-            assert helper['QT_QPA_PLATFORM'].startswith('wayland'), helper
-            helper_state = request()['xwayland']
-            assert helper_state['running'] and not helper_state['rootWindowVisible'], helper_state
-            assert helper['DISPLAY'] == helper_state['display'], helper
-            assert helper['XAUTHORITY'] == helper_state['authority'], helper
+            assert helper["WAYLAND_DISPLAY"] == "ludash-x11-test", helper
+            assert helper["QT_QPA_PLATFORM"].startswith("wayland"), helper
+            helper_state = request()["xwayland"]
+            assert helper_state["running"] and not helper_state["rootWindowVisible"], (
+                helper_state
+            )
+            assert helper["DISPLAY"] == helper_state["display"], helper
+            assert helper["XAUTHORITY"] == helper_state["authority"], helper
             authenticated = subprocess.run(
-                ['xdotool', 'getdisplaygeometry'],
-                env=env | {'DISPLAY': helper['DISPLAY'], 'XAUTHORITY': helper['XAUTHORITY']},
-                capture_output=True, timeout=5)
+                ["xdotool", "getdisplaygeometry"],
+                env=env
+                | {"DISPLAY": helper["DISPLAY"], "XAUTHORITY": helper["XAUTHORITY"]},
+                capture_output=True,
+                timeout=5,
+            )
             assert authenticated.returncode == 0, authenticated.stderr
-            assert not request()['clients'], 'Helper root must stay out of the taskbar and tiling'
+            assert not request()["clients"], (
+                "Helper root must stay out of the taskbar and tiling"
+            )
 
-            result = request('launch-x11', '"' + str(build / 'ludash-desktop') + '" --app console')
-            assert 'error' not in result, result
-            assert result['xwayland']['display'] == helper['DISPLAY'], 'Explicit X11 launch must reuse the helper server'
+            result = request(
+                "launch-x11", '"' + str(build / "ludash-desktop") + '" --app console'
+            )
+            assert "error" not in result, result
+            assert result["xwayland"]["display"] == helper["DISPLAY"], (
+                "Explicit X11 launch must reuse the helper server"
+            )
             deadline = time.monotonic() + 4
             while True:
                 state = request()
-                if state['xwayland']['running']:
+                if state["xwayland"]["running"]:
                     break
-                assert time.monotonic() < deadline, 'XWayland did not start on demand'
-                time.sleep(.05)
-            display = state['xwayland']['display']
-            authority = Path(state['xwayland']['authority'])
-            assert state['xwayland']['rootWindowVisible'], state['xwayland']
-            assert display.startswith(':'), state['xwayland']
-            assert authority.stat().st_mode & 0o077 == 0, 'Xauthority is not owner-only'
+                assert time.monotonic() < deadline, "XWayland did not start on demand"
+                time.sleep(0.05)
+            display = state["xwayland"]["display"]
+            authority = Path(state["xwayland"]["authority"])
+            assert state["xwayland"]["rootWindowVisible"], state["xwayland"]
+            assert display.startswith(":"), state["xwayland"]
+            assert authority.stat().st_mode & 0o077 == 0, "Xauthority is not owner-only"
             with socket.socket(socket.AF_UNIX) as connection:
                 connection.settimeout(6)
-                connection.connect('/tmp/.X11-unix/X' + display[1:])
-                connection.sendall(b'l\0' + struct.pack('<HHHHH', 11, 0, 0, 0, 0))
-                assert connection.recv(8)[0] == 0, 'Unauthenticated X11 connection was accepted'
+                connection.connect("/tmp/.X11-unix/X" + display[1:])
+                connection.sendall(b"l\0" + struct.pack("<HHHHH", 11, 0, 0, 0, 0))
+                assert connection.recv(8)[0] == 0, (
+                    "Unauthenticated X11 connection was accepted"
+                )
             deadline = time.monotonic() + 6
             while True:
                 state = request()
-                if any(client['mapped'] and client['bufferWidth'] > 0 for client in state['clients']) and subprocess.run(['xdotool', 'search', '--name', 'console'], env=env | {'DISPLAY': display, 'XAUTHORITY': str(authority)}, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0:
+                if (
+                    any(
+                        client["mapped"] and client["bufferWidth"] > 0
+                        for client in state["clients"]
+                    )
+                    and subprocess.run(
+                        ["xdotool", "search", "--name", "console"],
+                        env=env | {"DISPLAY": display, "XAUTHORITY": str(authority)},
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        timeout=3,
+                    ).returncode
+                    == 0
+                ):
                     break
-                assert time.monotonic() < deadline, 'X11 client did not become a Wayland window'
-                time.sleep(.1)
-            result = request('launch-x11', '"' + str(build / 'ludash-desktop') + '" --app console')
-            assert 'error' not in result, result
-            assert result['xwayland']['display'] == display and result['xwayland']['authority'] == str(authority), 'Repeated launches must reuse the authenticated display'
-            request('quit')
+                assert time.monotonic() < deadline, (
+                    "X11 client did not become a Wayland window"
+                )
+                time.sleep(0.1)
+            result = request(
+                "launch-x11", '"' + str(build / "ludash-desktop") + '" --app console'
+            )
+            assert "error" not in result, result
+            assert result["xwayland"]["display"] == display and result["xwayland"][
+                "authority"
+            ] == str(authority), (
+                "Repeated launches must reuse the authenticated display"
+            )
+            request("quit")
             exit_code = process.wait(timeout=10)
-            assert exit_code == 0, f'X11 session did not shut down cleanly: {exit_code}'
-            assert not authority.exists(), 'Xauthority was not cleaned up'
-            assert not Path('/tmp/.X11-unix/X' + display[1:]).exists(), 'Owned X11 socket was not cleaned up'
-            print('X11 compatibility passed: hidden native helpers, authenticated display reuse, mapped X11 client and cleanup.')
+            assert exit_code == 0, f"X11 session did not shut down cleanly: {exit_code}"
+            assert not authority.exists(), "Xauthority was not cleaned up"
+            assert not Path("/tmp/.X11-unix/X" + display[1:]).exists(), (
+                "Owned X11 socket was not cleaned up"
+            )
+            print(
+                "X11 compatibility passed: hidden native helpers, authenticated display reuse, mapped X11 client and cleanup."
+            )
         except BaseException:
-            log.flush(); log.seek(0); print(log.read(), file=sys.stderr)
+            log.flush()
+            log.seek(0)
+            print(log.read(), file=sys.stderr)
             raise
         finally:
             if process.poll() is None:
                 process.terminate()
-                try: process.wait(timeout=5)
-                except subprocess.TimeoutExpired: process.kill(); process.wait(timeout=5)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)

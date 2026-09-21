@@ -1,7 +1,7 @@
 #include "compositor/animation/SceneWindowAnimations.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/renderer/capture/ThumbnailReadback.h"
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include <QFutureWatcher>
@@ -46,7 +46,6 @@ void WaylandCompositor::selectWorkspace(int workspace) {
   workspace_ = workspace;
   arrange();
   synchronizeTilingFocus();
-
 }
 void WaylandCompositor::activateTask(int window) {
   for (const auto &client : clients_) {

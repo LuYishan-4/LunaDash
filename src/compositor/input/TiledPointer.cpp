@@ -1,5 +1,5 @@
 #include "compositor/client/ClientWindow.hpp"
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include <algorithm>
 #include <linux/input-event-codes.h>
