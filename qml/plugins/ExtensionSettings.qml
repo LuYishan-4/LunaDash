@@ -232,24 +232,29 @@ ColumnLayout {
                                 clip: true
                                 color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
 
+                                readonly property string iconValue: String(pluginCard.modelData.icon || "")
+                                readonly property bool directIcon: iconValue.startsWith("https://")
+                                    || iconValue.startsWith("file:")
+                                    || iconValue.startsWith("qrc:")
+                                    || iconValue.startsWith("data:")
+
                                 Image {
+                                    id: pluginIconImage
                                     anchors.fill: parent
                                     anchors.margins: 4
-                                    source: pluginCard.remoteIcon ? pluginCard.modelData.icon : ""
-                                    visible: pluginCard.remoteIcon && status === Image.Ready
+                                    source: parent.directIcon ? parent.iconValue : ""
+                                    visible: parent.directIcon && status === Image.Ready
                                     fillMode: Image.PreserveAspectFit
                                     asynchronous: true
                                     smooth: true
                                 }
 
-                                ApplicationIcon {
+                                LineIcon {
                                     anchors.fill: parent
-                                    anchors.margins: 5
-                                    visible: !pluginCard.remoteIcon
-                                    shell: page.shell
-                                    iconName: pluginCard.modelData.icon || "applications-system"
-                                    appId: ""
-                                    title: pluginCard.modelData.name || pluginCard.modelData.id
+                                    anchors.margins: 10
+                                    visible: !pluginIconImage.visible
+                                    name: "apps"
+                                    ink: Theme.text
                                 }
                             }
 
