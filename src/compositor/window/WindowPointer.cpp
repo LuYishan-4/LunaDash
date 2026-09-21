@@ -1,18 +1,21 @@
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/Register.hpp"
+#include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include <algorithm>
 #include <linux/input-event-codes.h>
 
 namespace LunaDash {
-bool WaylandCompositor::Impl::beginTiledPointer(uint32_t button) {
+bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
   auto *keyboard = preferredKeyboard();
   if (!keyboard || button != BTN_LEFT ||
       !(wlr_keyboard_get_modifiers(keyboard) & WLR_MODIFIER_ALT))
     return false;
   double sx = 0, sy = 0;
   auto *client = clientForSurface(surfaceAt(cursor->x, cursor->y, &sx, &sy));
-  if (!client || client->floating || client->utility || !client->mapped)
+  if (!client || !q->windowTemplate_ ||
+      !windowAllowsPointerInteraction(*q->windowTemplate_, *client))
     return false;
   q->focus(client);
   pointerWindow = client->id;
@@ -34,11 +37,12 @@ bool WaylandCompositor::Impl::beginTiledPointer(uint32_t button) {
   return true;
 }
 
-bool WaylandCompositor::Impl::beginStackingPointer(ClientWindow *client,
+bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
                                                    uint32_t serial,
                                                    uint32_t edges) {
-  if (!client || !client->mapped || client->floating || client->utility ||
-      pointerWindow || q->windowLayout_->mode() != WindowLayoutMode::Stacking ||
+  if (!client || !q->windowTemplate_ ||
+      !windowAllowsClientMoveResize(*q->windowTemplate_, *client) ||
+      pointerWindow ||
       !wlr_seat_validate_pointer_grab_serial(seat, client->surface->surface,
                                              serial))
     return false;
@@ -64,14 +68,14 @@ bool WaylandCompositor::Impl::beginStackingPointer(ClientWindow *client,
   return true;
 }
 
-bool WaylandCompositor::Impl::updateTiledPointer() {
+bool WaylandCompositor::Impl::updateWindowPointer() {
   if (!pointerWindow)
     return false;
   const auto found = std::find_if(
       q->clients_.begin(), q->clients_.end(),
       [this](const auto &c) { return c->id == pointerWindow && c->mapped; });
   if (found == q->clients_.end()) {
-    finishTiledPointer(false);
+    finishWindowPointer(false);
     return true;
   }
   auto *client = found->get();
@@ -79,7 +83,10 @@ bool WaylandCompositor::Impl::updateTiledPointer() {
   const QPoint delta = (current - pointerLast).toPoint();
   pointerLast = current;
   const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
-  if (pointerResize && q->windowLayout_->mode() == WindowLayoutMode::Stacking) {
+  const bool freeform = q->windowTemplate_ &&
+                        q->windowTemplate_->pointer ==
+                            WindowPointerTemplate::Freeform;
+  if (pointerResize && freeform) {
     const auto geometry = client->geometry;
     const auto area = q->workArea();
     const bool left = pointerResizeEdges & 4u, right = pointerResizeEdges & 8u;
@@ -132,7 +139,7 @@ bool WaylandCompositor::Impl::updateTiledPointer() {
   const int active =
       std::count_if(snapshot.columns.begin(), snapshot.columns.end(),
                     [](const auto &c) { return !c.minimized; });
-  if (active == 1 || q->windowLayout_->mode() == WindowLayoutMode::Stacking) {
+  if (active == 1 || freeform) {
     q->windowLayout_->moveSingle(client->id, delta, q->workArea());
     q->arrange();
     return true;
@@ -158,7 +165,7 @@ bool WaylandCompositor::Impl::updateTiledPointer() {
   return true;
 }
 
-void WaylandCompositor::Impl::finishTiledPointer(bool apply) {
+void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
   const int moving = pointerWindow, target = pointerTarget, edge = pointerEdge;
   pointerTarget = pointerEdge = 0;
   for (const auto &client : q->clients_)

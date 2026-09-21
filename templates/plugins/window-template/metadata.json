@@ -11,7 +11,7 @@
   "type": "effect",
   "target": "window-layout",
   "mode": "replace",
-  "layoutMode": "stacking",
+  "windowTemplate": "stacking",
   "entry": "liblunadash-stacking-windows.so",
   "enabledByDefault": false,
   "settings": {

@@ -3,6 +3,7 @@
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "config/plugins/PluginCatalog.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -93,20 +94,23 @@ private Q_SLOTS:
     QVERIFY(!descriptor.enabled);
     PluginManager manager;
     const QJsonObject prefs{{"animations", true}, {"animationDuration", 200}};
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    const auto &tilingTemplate = windowTemplateForKey("tiling");
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              200);
     save(config(descriptor.id, true, "replace", {{"duration", 310}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
              310);
     save(config(descriptor.id, true, "augment", {{"duration", 150}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
              150);
     auto noMotion = prefs;
     noMotion["animations"] = false;
     QCOMPARE(
-        windowAnimationProfile(manager, noMotion).value("duration").toInt(), 0);
+        windowAnimationProfile(manager, noMotion, tilingTemplate).value("duration").toInt(), 0);
     // A rebuild can overwrite the installed file while the old private copy
     // remains callable. The next refresh rejects the incomplete replacement.
     const auto library = directory + "/libludash-fade.so";
@@ -114,19 +118,19 @@ private Q_SLOTS:
     QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
     file.write("incomplete build");
     file.close();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
              150);
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
              200);
     QVERIFY(QFile::remove(library));
     QVERIFY(QFile::copy(source + "/libludash-fade.so", library));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
              150);
     save(config(descriptor.id, false, "augment"));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate).value("duration").toInt(),
              200);
   }
   void receiptAndPathValidation() {
@@ -159,11 +163,14 @@ private Q_SLOTS:
                 {{"cascadeStep", 32}}));
     PluginManager manager;
     manager.refresh();
-    QVERIFY(manager.stackingLayout());
-    auto layout = createWindowLayout(WindowLayoutMode::Stacking);
+    QCOMPARE(manager.windowTemplateKey(), QString("stacking"));
+    const auto &stackingTemplate =
+        windowTemplateForKey(manager.windowTemplateKey());
+    auto layout = createWindowLayout(stackingTemplate);
     layout->setPlacementFilter(
         [&](auto workspace, auto area, const auto &windows) {
-          return pluginWindowPlacements(manager, workspace, area, windows);
+          return pluginWindowPlacements(manager, stackingTemplate, workspace,
+                                        area, windows);
         });
     const QRect area(10, 40, 1200, 800);
     layout->insert(0, 1, QSize(800, 600));
@@ -178,7 +185,7 @@ private Q_SLOTS:
     QCOMPARE(moved[1].geometry, placed[1].geometry);
     save(config("org.lunadash.stacking-windows", false, "replace"));
     manager.refresh();
-    QVERIFY(!manager.stackingLayout());
+    QCOMPARE(manager.windowTemplateKey(), QString("tiling"));
   }
 };
 } // namespace LunaDash

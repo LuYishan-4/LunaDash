@@ -24,7 +24,7 @@ public:
   QJsonObject filter(const QString &target, const QJsonObject &builtin,
                      const QJsonObject &context, const Validator &validate);
   void reportError(const QString &id, const QString &error);
-  bool stackingLayout() const;
+  QString windowTemplateKey() const;
 signals:
   void changed();
 

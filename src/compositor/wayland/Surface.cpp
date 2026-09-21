@@ -180,12 +180,12 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
   state->client->mapped = false;
   state->impl->q->windowSwitcher_->remove(state->client->id);
   if (state->impl->pointerWindow == state->client->id)
-    state->impl->finishTiledPointer(false);
+    state->impl->finishWindowPointer(false);
   state->impl->q->windowLayout_->remove(state->client->id);
   if (state->impl->q->focused_ == state->client)
     state->impl->q->focused_ = nullptr;
   state->impl->q->arrange();
-  state->impl->q->synchronizeTilingFocus();
+  state->impl->q->synchronizeWindowFocus();
 }
 
 void WaylandCompositor::Impl::handleToplevelCommit(wl_listener *listener,
@@ -230,7 +230,7 @@ void WaylandCompositor::Impl::handleToplevelMinimize(wl_listener *listener,
   state->client->minimized = true;
   state->impl->q->windowLayout_->setMinimized(state->client->id, true);
   state->impl->q->arrange();
-  state->impl->q->synchronizeTilingFocus();
+  state->impl->q->synchronizeWindowFocus();
 }
 
 void WaylandCompositor::Impl::handleToplevelMaximize(wl_listener *listener,
@@ -265,7 +265,7 @@ void WaylandCompositor::Impl::handleToplevelMove(wl_listener *listener,
   auto *state = listenerOwner<ToplevelState>(listener);
   auto *event = static_cast<wlr_xdg_toplevel_move_event *>(data);
   if (state && event && event->seat && event->seat->seat == state->impl->seat)
-    state->impl->beginStackingPointer(state->client, event->serial, 0);
+    state->impl->beginClientWindowPointer(state->client, event->serial, 0);
 }
 void WaylandCompositor::Impl::handleToplevelResize(wl_listener *listener,
                                                    void *data) {
@@ -273,7 +273,7 @@ void WaylandCompositor::Impl::handleToplevelResize(wl_listener *listener,
   auto *event = static_cast<wlr_xdg_toplevel_resize_event *>(data);
   if (state && event && event->seat && event->seat->seat == state->impl->seat &&
       event->edges)
-    state->impl->beginStackingPointer(state->client, event->serial,
+    state->impl->beginClientWindowPointer(state->client, event->serial,
                                       event->edges);
 }
 

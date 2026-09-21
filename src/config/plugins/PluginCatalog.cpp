@@ -182,13 +182,17 @@ PluginDescriptor readPluginMetadata(const QString &path,
         result.icon = QUrl::fromLocalFile(iconPath).toString();
       }
       result.settingsSchema = metadata.value("settings").toObject();
-      const auto layoutMode = metadata.value("layoutMode").toString("tiling");
-      if ((metadata.contains("layoutMode") &&
+      const auto legacyLayout =
+          metadata.value("layoutMode").toString("tiling");
+      const auto windowTemplate =
+          metadata.value("windowTemplate").toString(legacyLayout);
+      if (((metadata.contains("layoutMode") ||
+            metadata.contains("windowTemplate")) &&
            (result.type != "effect" || result.target != "window-layout")) ||
-          !QStringList{"tiling", "stacking"}.contains(layoutMode) ||
-          (layoutMode == "stacking" && result.mode != "replace")) {
+          !QStringList{"tiling", "stacking"}.contains(windowTemplate) ||
+          (windowTemplate == "stacking" && result.mode != "replace")) {
         result.error =
-            "layoutMode stacking requires a window-layout replacement";
+            "windowTemplate stacking requires a window-layout replacement";
         return result;
       }
       result.settings = extensionDefaults(result.settingsSchema);
@@ -262,9 +266,11 @@ PluginDescriptor readPluginMetadata(const QString &path,
     result.enabled = config.value("enabled").toBool(false);
   if (config.contains("mode"))
     result.mode = config.value("mode").toString();
-  if (result.manifest.value("layoutMode").toString() == "stacking" &&
-      result.mode != "replace") {
-    result.error = "Stacking layout must run as Plugin only";
+  const auto configuredWindowTemplate =
+      result.manifest.value("windowTemplate").toString(
+          result.manifest.value("layoutMode").toString("tiling"));
+  if (configuredWindowTemplate == "stacking" && result.mode != "replace") {
+    result.error = "Stacking window template must run as Plugin only";
     result.enabled = false;
     return result;
   }
@@ -308,7 +314,12 @@ QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
       {"target", plugin.target},
       {"mode", plugin.mode},
       {"schemaVersion", plugin.schemaVersion},
-      {"layoutMode", plugin.manifest.value("layoutMode").toString("tiling")},
+      {"windowTemplate",
+       plugin.manifest.value("windowTemplate").toString(
+           plugin.manifest.value("layoutMode").toString("tiling"))},
+      {"layoutMode",
+       plugin.manifest.value("windowTemplate").toString(
+           plugin.manifest.value("layoutMode").toString("tiling"))},
       {"enabled", plugin.enabled},
       {"error", plugin.error},
       {"settingsSchema", plugin.settingsSchema},

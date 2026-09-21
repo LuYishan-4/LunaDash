@@ -1,6 +1,7 @@
 #include "compositor/tiling/TilingGeometry.h"
 #include "compositor/tiling/TilingLayout.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 #include <QFile>
@@ -40,12 +41,17 @@ private Q_SLOTS:
     QStandardPaths::setTestModeEnabled(true);
   }
   void layoutTemplateContract() {
-    const auto templates = windowLayoutTemplates();
+    const auto templates = windowTemplates();
     QCOMPARE(templates.size(), 2);
-    QVERIFY(templates[0].implemented);
-    QVERIFY(templates[1].implemented);
-    QVERIFY(createWindowLayout(WindowLayoutMode::Stacking));
-    auto layout = createWindowLayout(WindowLayoutMode::Tiling);
+    QCOMPARE(templates[0].key, QString("tiling"));
+    QVERIFY(templates[0].pointer == WindowPointerTemplate::Tiling);
+    QVERIFY(templates[0].activation ==
+            WindowActivationTemplate::ToggleMaximize);
+    QCOMPARE(templates[1].key, QString("stacking"));
+    QVERIFY(templates[1].pointer == WindowPointerTemplate::Freeform);
+    QVERIFY(templates[1].activation == WindowActivationTemplate::FocusOnly);
+    QVERIFY(createWindowLayout(windowTemplateForKey("stacking")));
+    auto layout = createWindowLayout(windowTemplateForKey("tiling"));
     QVERIFY(layout);
     QCOMPARE(layout->mode(), WindowLayoutMode::Tiling);
     QVERIFY(layout->insert(0, 1));
@@ -57,7 +63,7 @@ private Q_SLOTS:
     verifyNoOverlap(layout->presentation(0, area));
   }
   void stackingRetainsIndependentGeometry() {
-    auto layout = createWindowLayout(WindowLayoutMode::Stacking);
+    auto layout = createWindowLayout(windowTemplateForKey("stacking"));
     QVERIFY(layout->insert(0, 1, QSize(800, 500)));
     QVERIFY(layout->insert(0, 2, QSize(800, 500)));
     auto initial = geometries(layout->layout(0, area));

@@ -157,11 +157,11 @@ public:
   uint32_t pointerResizeEdges = 0;
   uint32_t pointerButton = 0;
   QPointF pointerLast;
-  bool beginTiledPointer(uint32_t button);
-  bool beginStackingPointer(ClientWindow *client, uint32_t serial,
-                            uint32_t edges);
-  bool updateTiledPointer();
-  void finishTiledPointer(bool apply);
+  bool beginWindowPointer(uint32_t button);
+  bool beginClientWindowPointer(ClientWindow *client, uint32_t serial,
+                                uint32_t edges);
+  bool updateWindowPointer();
+  void finishWindowPointer(bool apply);
 
   Slot<Impl> newOutput;
   Slot<Impl> newInput;

@@ -15,6 +15,7 @@
 namespace LunaDash {
 
 class WindowSwitcher;
+struct WindowTemplate;
 class ScreenCapture;
 class BrightnessSettings;
 class DdcBrightnessSettings;
@@ -78,6 +79,7 @@ private:
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
+  const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
   QHash<int, int> resizeOriginalWidths_;
   bool shuttingDown_ = false;
@@ -114,7 +116,7 @@ private:
   void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
   void focusNext(int direction);
-  void synchronizeTilingFocus();
+  void synchronizeWindowFocus();
   void updateClientMetadata(ClientWindow *client);
   void removeClient(ClientWindow *client);
   void handleShortcut(const QString &action);

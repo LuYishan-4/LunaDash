@@ -82,12 +82,4 @@ private:
   PlacementFilter placementFilter_;
 };
 
-struct WindowLayoutTemplate {
-  WindowLayoutMode mode;
-  QString key;
-  bool implemented;
-};
-QList<WindowLayoutTemplate> windowLayoutTemplates();
-// Returns null for a reserved template. Never silently changes layout mode.
-std::unique_ptr<WindowLayout> createWindowLayout(WindowLayoutMode mode);
 } // namespace LunaDash

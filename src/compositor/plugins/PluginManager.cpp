@@ -373,17 +373,19 @@ void PluginManager::reportError(const QString &id, const QString &error) {
     attempts_.remove(id);
   }
 }
-bool PluginManager::stackingLayout() const {
+QString PluginManager::windowTemplateKey() const {
   for (const auto &native : native_) {
     const auto &plugin = native->current;
     if (plugin.enabled && plugin.error.isEmpty() &&
         !errors_.contains(plugin.id) &&
         plugin.manifest == native->descriptor.manifest &&
-        plugin.target == "window-layout" && plugin.mode == "replace")
-      return plugin.manifest.value("layoutMode").toString("tiling") ==
-             "stacking";
+        plugin.target == "window-layout" && plugin.mode == "replace") {
+      const auto legacy =
+          plugin.manifest.value("layoutMode").toString("tiling");
+      return plugin.manifest.value("windowTemplate").toString(legacy);
+    }
   }
-  return false;
+  return "tiling";
 }
 QJsonObject PluginManager::filter(const QString &target,
                                   const QJsonObject &builtin,

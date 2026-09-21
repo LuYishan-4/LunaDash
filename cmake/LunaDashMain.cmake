@@ -110,14 +110,14 @@ add_library(ludash-system-metrics src/desktop/system/SystemMetrics.c)
 target_include_directories(ludash-system-metrics PUBLIC src)
 add_library(ludash-tiling
     src/compositor/layout/WindowLayout.cpp
-    src/compositor/layout/LayoutTemplates.cpp
+    src/compositor/window/WindowTemplate.cpp
     src/compositor/layout/FreeformLayout.cpp
     src/compositor/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
 target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core Qt6::Core)
 add_library(ludash-window-rules src/compositor/window/WindowRules.cpp src/compositor/window/WindowSwitcher.cpp)
 target_include_directories(ludash-window-rules PUBLIC src)
-target_link_libraries(ludash-window-rules PUBLIC Qt6::Core)
+target_link_libraries(ludash-window-rules PUBLIC ludash-tiling Qt6::Core)
 add_library(ludash-plugin-catalog
     src/config/plugins/PluginCatalog.cpp
     src/config/plugins/ExtensionRegistry.cpp
@@ -185,8 +185,8 @@ add_library(ludash-wayland
     src/compositor/wayland/Surface.cpp
     src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
-    src/compositor/input/TiledPointer.cpp
-    src/compositor/input/WindowSwitch.cpp
+    src/compositor/window/WindowPointer.cpp
+    src/compositor/window/WindowSwitch.cpp
     src/compositor/input/Keyboard.cpp
     src/compositor/ipc/ControlServer.cpp
     src/desktop/system/SystemStatus.cpp

@@ -15,6 +15,7 @@
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "compositor/window/WindowRules.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include "compositor/xwayland/XWaylandSupport.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/localization/Localization.hpp"
@@ -106,7 +107,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                      bool startShell,
                                      const QString &rendererPreference)
     : d(std::make_unique<Impl>(this, socket, fullscreen, rendererPreference)) {
-  windowLayout_ = createWindowLayout(WindowLayoutMode::Tiling);
+  windowTemplate_ = &windowTemplateForKey("tiling");
+  windowLayout_ = createWindowLayout(*windowTemplate_);
   windowSwitcher_ = new WindowSwitcher(this);
   screenCapture_ = new ScreenCapture(this);
   connect(screenCapture_, &ScreenCapture::completed, this,
@@ -129,7 +131,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   pluginManager_->loadEnabled();
   windowLayout_->setPlacementFilter([this](auto workspace, auto area,
                                            const auto &placements) {
-    return pluginWindowPlacements(*pluginManager_, workspace, area, placements);
+    return pluginWindowPlacements(*pluginManager_, *windowTemplate_, workspace,
+                                  area, placements);
   });
 
   if (!d->initialize())
@@ -140,8 +143,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
       Qt::QueuedConnection);
   windowAnimations_ = new SceneWindowAnimations(this);
   const auto initialAppearance = desktopPreferences();
-  windowAnimations_->setProfile(
-      windowAnimationProfile(*pluginManager_, initialAppearance));
+  windowAnimations_->setProfile(windowAnimationProfile(
+      *pluginManager_, initialAppearance, *windowTemplate_));
 
   controlPath_ =
       QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
@@ -464,23 +467,24 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   const auto preferences = desktopPreferences();
-  const auto layoutMode = pluginManager_->stackingLayout()
-                              ? WindowLayoutMode::Stacking
-                              : WindowLayoutMode::Tiling;
-  const bool layoutChanged = windowLayout_->mode() != layoutMode;
-  if (layoutChanged) {
+  const auto &selectedTemplate =
+      windowTemplateForKey(pluginManager_->windowTemplateKey());
+  const bool templateChanged =
+      !windowTemplate_ || windowTemplate_->key != selectedTemplate.key;
+  if (templateChanged) {
     if (d->pointerWindow)
-      d->finishTiledPointer(false);
-    windowLayout_ = createWindowLayout(layoutMode);
+      d->finishWindowPointer(false);
+    windowTemplate_ = &selectedTemplate;
+    windowLayout_ = createWindowLayout(*windowTemplate_);
     windowLayout_->setPlacementFilter(
         [this](auto workspace, auto area, const auto &placements) {
-          return pluginWindowPlacements(*pluginManager_, workspace, area,
-                                        placements);
+          return pluginWindowPlacements(*pluginManager_, *windowTemplate_,
+                                        workspace, area, placements);
         });
   }
   if (windowAnimations_)
-    windowAnimations_->setProfile(
-        windowAnimationProfile(*pluginManager_, preferences));
+    windowAnimations_->setProfile(windowAnimationProfile(
+        *pluginManager_, preferences, *windowTemplate_));
   const int count = preferences.value("workspaceCount").toInt();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const QRect area = workArea();
@@ -491,8 +495,8 @@ void WaylandCompositor::arrange() {
 
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
-    const bool tiled = client->mapped && !client->floating && !client->utility;
-    if (tiled) {
+    const bool managed = windowUsesManagedLayout(*client);
+    if (managed) {
       wlr_box initialGeometry{};
 #if WLR_VERSION_MINOR >= 19
       initialGeometry = client->surface->geometry;
@@ -538,8 +542,8 @@ void WaylandCompositor::arrange() {
       parent = parent->parent;
     }
     client->hiddenByMaximize =
-        windowLayout_->mode() == WindowLayoutMode::Tiling && maximized &&
-        !inMaximizedFamily && !client->desktop;
+        windowHiddenByMaximize(*windowTemplate_, maximized, inMaximizedFamily,
+                               *client);
     const bool visible = client->mapped && !client->minimized &&
                          client->workspace == workspace_ && !client->utility &&
                          !client->hiddenByMaximize;
@@ -574,8 +578,7 @@ void WaylandCompositor::arrange() {
   }
 
   const auto placements = windowLayout_->presentation(workspace_, area);
-  if (windowLayout_->mode() == WindowLayoutMode::Stacking &&
-      !pluginManager_->stackingLayout()) {
+  if (windowTemplate_->key != pluginManager_->windowTemplateKey()) {
     arrange();
     return;
   }
@@ -698,7 +701,7 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
     wlr_xdg_toplevel_set_maximized(client->toplevel, maximized);
 }
 
-void WaylandCompositor::synchronizeTilingFocus() {
+void WaylandCompositor::synchronizeWindowFocus() {
   const auto target = windowLayout_->snapshot(workspace_).focusedWindow;
   if (target) {
     auto found = std::find_if(clients_.begin(), clients_.end(),
@@ -724,7 +727,7 @@ void WaylandCompositor::removeClient(ClientWindow *client) {
   std::erase_if(clients_,
                 [client](const auto &entry) { return entry.get() == client; });
   arrange();
-  synchronizeTilingFocus();
+  synchronizeWindowFocus();
   if (logoutPending_ && clients_.empty())
     QCoreApplication::exit(hasProcessFailure() ? 2 : 0);
 }
@@ -764,7 +767,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
       focused_->workspace = target - 1;
       windowLayout_->moveToWorkspace(focused_->id, focused_->workspace);
       arrange();
-      synchronizeTilingFocus();
+      synchronizeWindowFocus();
     }
     return;
   }
@@ -833,7 +836,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
   }
 
   arrange();
-  synchronizeTilingFocus();
+  synchronizeWindowFocus();
 }
 
 QJsonObject WaylandCompositor::state() const {
@@ -1291,7 +1294,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!window || !windowLayout_->expel(*window))
       return {{"error", "Window must be a member of a tiled group."}};
     arrange();
-    synchronizeTilingFocus();
+    synchronizeWindowFocus();
   } else if (method == "quit") {
     QTimer::singleShot(0, this, &WaylandCompositor::requestShutdown);
   } else if (method == "switch-window") {
@@ -1321,7 +1324,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         client->minimized = true;
         windowLayout_->setMinimized(client->id, true);
         arrange();
-        synchronizeTilingFocus();
+        synchronizeWindowFocus();
       } else {
         workspace_ = client->workspace;
         client->minimized = false;

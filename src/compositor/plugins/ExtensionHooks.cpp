@@ -1,5 +1,6 @@
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/plugins/PluginManager.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include <QJsonArray>
@@ -22,8 +23,12 @@ QJsonObject rectJson(QRect rect) {
 }
 } // namespace
 QJsonObject windowAnimationProfile(PluginManager &plugins,
-                                   const QJsonObject &preferences) {
-  auto profile = configuredBuiltinSettings("window-animation");
+                                   const QJsonObject &preferences,
+                                   const WindowTemplate &windowTemplate) {
+  auto profile = windowTemplate.animation;
+  const auto configured = configuredBuiltinSettings("window-animation");
+  for (auto it = configured.begin(); it != configured.end(); ++it)
+    profile[it.key()] = it.value();
   if (profile.value("duration").toInt() < 0)
     profile["duration"] = preferences.value("animationDuration");
   const auto schema =
@@ -63,8 +68,10 @@ QJsonObject initialWindowRule(PluginManager &plugins,
       });
 }
 QList<WindowPlacement>
-pluginWindowPlacements(PluginManager &plugins, LayoutWorkspaceId workspace,
-                       QRect area, const QList<WindowPlacement> &placements) {
+pluginWindowPlacements(PluginManager &plugins,
+                       const WindowTemplate &windowTemplate,
+                       LayoutWorkspaceId workspace, QRect area,
+                       const QList<WindowPlacement> &placements) {
   QJsonArray windows;
   QJsonArray fresh;
   QSet<qint64> expected;
@@ -78,12 +85,14 @@ pluginWindowPlacements(PluginManager &plugins, LayoutWorkspaceId workspace,
       fresh.append(static_cast<qint64>(placement.window));
     expected.insert(static_cast<qint64>(placement.window));
   }
-  const bool stacking = plugins.stackingLayout();
+  const bool stacking =
+      windowTemplate.layoutMode == WindowLayoutMode::Stacking;
   const auto output = plugins.filter(
       "window-layout", {{"windows", windows}},
       {{"workspace", static_cast<qint64>(workspace)},
        {"area", rectJson(area)},
        {"newWindows", fresh},
+       {"windowTemplate", windowTemplate.key},
        {"layoutMode", stacking ? "stacking" : "tiling"}},
       [&](const auto &result) {
         if (result.size() != 1 || !result.value("windows").isArray() ||

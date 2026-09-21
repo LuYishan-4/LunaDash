@@ -2,7 +2,9 @@
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/renderer/capture/ThumbnailReadback.h"
 #include "compositor/wayland/Register.hpp"
+#include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include <QFutureWatcher>
 #include <QImage>
@@ -45,7 +47,7 @@ void WaylandCompositor::selectWorkspace(int workspace) {
   }
   workspace_ = workspace;
   arrange();
-  synchronizeTilingFocus();
+  synchronizeWindowFocus();
 }
 void WaylandCompositor::activateTask(int window) {
   for (const auto &client : clients_) {
@@ -56,7 +58,8 @@ void WaylandCompositor::activateTask(int window) {
     selectWorkspace(client->workspace);
     client->minimized = false;
     windowLayout_->setMinimized(window, false);
-    if (!client->floating && windowLayout_->mode() == WindowLayoutMode::Tiling)
+    if (windowTemplate_ &&
+        windowActivationTogglesMaximize(*windowTemplate_, *client))
       setMaximized(client.get(), !restore);
     windowLayout_->focus(window);
     arrange();
@@ -70,7 +73,7 @@ void WaylandCompositor::beginWindowSwitch(int direction) {
     return;
   }
   if (d->pointerWindow)
-    d->finishTiledPointer(false);
+    d->finishWindowPointer(false);
   QJsonArray workspaces;
   QList<int> capture;
   const auto area = workArea();

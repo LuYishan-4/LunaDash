@@ -10,7 +10,10 @@
       "icon": "clock",
       "type": "quickshell",
       "target": "desktop-widgets",
-      "tags": ["Widget", "Clock"],
+      "tags": [
+        "Widget",
+        "Clock"
+      ],
       "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/qml/plugins/digital-clock"
     },
     {
@@ -22,7 +25,10 @@
       "icon": "preferences-desktop-effects",
       "type": "effect",
       "target": "window-animation",
-      "tags": ["Animation", "Native"],
+      "tags": [
+        "Animation",
+        "Native"
+      ],
       "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/data/plugins/fade"
     },
     {
@@ -34,8 +40,11 @@
       "icon": "preferences-system-windows",
       "type": "effect",
       "target": "window-layout",
-      "tags": ["Layout", "Native"],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/templates/plugins/stacking-layout"
+      "tags": [
+        "Layout",
+        "Native"
+      ],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/templates/plugins/window-template"
     }
   ]
 }

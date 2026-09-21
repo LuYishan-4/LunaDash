@@ -51,11 +51,14 @@ def validate(manifest, root, targets):
     require(manifest.get("mode") in ("replace", "augment"), "mode must be replace or augment")
     require(isinstance(manifest.get("enabledByDefault", False), bool), "enabledByDefault must be boolean")
     require(kind != "effect" or not manifest.get("enabledByDefault"), "Native effects must default to disabled")
-    layout_mode = manifest.get("layoutMode", "tiling")
-    require(layout_mode in ("tiling", "stacking"), "Unknown layoutMode")
-    require("layoutMode" not in manifest or (kind == "effect" and target["id"] == "window-layout"),
-            "layoutMode requires a native window-layout plugin")
-    require(layout_mode != "stacking" or manifest["mode"] == "replace", "Stacking requires replacement mode")
+    legacy_layout = manifest.get("layoutMode", "tiling")
+    window_template = manifest.get("windowTemplate", legacy_layout)
+    require(window_template in ("tiling", "stacking"), "Unknown windowTemplate")
+    require(not ("layoutMode" in manifest or "windowTemplate" in manifest) or
+            (kind == "effect" and target["id"] == "window-layout"),
+            "windowTemplate requires a native window-layout plugin")
+    require(window_template != "stacking" or manifest["mode"] == "replace",
+            "Stacking windowTemplate requires replacement mode")
     schema = manifest.get("settings")
     require(isinstance(schema, dict), "settings must be an object (empty is allowed)")
     for key, rule in schema.items():

@@ -35,7 +35,7 @@ bool keypadSymbol(xkb_keysym_t symbol) {
 
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
-  if (updateTiledPointer())
+  if (updateWindowPointer())
     return;
   double sx = 0;
   double sy = 0;
@@ -382,7 +382,7 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
       if (self->pointerClientGrab)
         wlr_seat_pointer_notify_button(self->seat, event->time_msec,
                                        event->button, event->state);
-      self->finishTiledPointer(true);
+      self->finishWindowPointer(true);
     }
     return;
   }
@@ -394,7 +394,7 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
   }
   const bool grabbed = wlr_seat_pointer_has_grab(self->seat);
   if (!grabbed && event->state == WL_POINTER_BUTTON_STATE_PRESSED &&
-      self->beginTiledPointer(event->button))
+      self->beginWindowPointer(event->button))
     return;
   if (event->state == WL_POINTER_BUTTON_STATE_PRESSED && !grabbed) {
     double sx = 0;
