@@ -40,6 +40,13 @@ QString canonicalChild(const QDir &directory, const QString &leaf) {
     return {};
   return child;
 }
+
+bool packagedImageIcon(const QString &value) {
+  static const QRegularExpression suffix(
+      R"(\.(png|jpe?g|webp|svg)$)",
+      QRegularExpression::CaseInsensitiveOption);
+  return suffix.match(value).hasMatch();
+}
 } // namespace
 
 PluginDescriptor readPluginMetadata(const QString &path,
@@ -111,6 +118,17 @@ PluginDescriptor readPluginMetadata(const QString &path,
                         ? author.toObject().value("name").toString()
                         : author.toString();
     result.icon = metadata.value("icon").toString("applications-system");
+    const auto tagsValue = metadata.value("tags");
+    if (tagsValue.isArray()) {
+      QSet<QString> seenTags;
+      for (const auto &value : tagsValue.toArray()) {
+        const auto tag = value.toString().trimmed();
+        if (tag.isEmpty() || tag.size() > 32 || seenTags.contains(tag))
+          continue;
+        seenTags.insert(tag);
+        result.tags << tag;
+      }
+    }
     result.type = metadata.value("type").toString().toLower();
     if (result.type == "qml")
       result.type = "quickshell";
@@ -143,6 +161,25 @@ PluginDescriptor readPluginMetadata(const QString &path,
       if (!metadata.value("settings").isObject()) {
         result.error = "Schema 2 requires a settings schema object";
         return result;
+      }
+      if (metadata.contains("tags") &&
+          (!metadata.value("tags").isArray() ||
+           metadata.value("tags").toArray().size() > 12 ||
+           result.tags.size() != metadata.value("tags").toArray().size())) {
+        result.error = "Plugin tags must be unique non-empty strings up to 32 characters";
+        return result;
+      }
+      if (!safeLeaf(result.icon)) {
+        result.error = "Plugin icon must be a theme name or local image filename";
+        return result;
+      }
+      if (packagedImageIcon(result.icon)) {
+        const auto iconPath = canonicalChild(directory, result.icon);
+        if (iconPath.isEmpty()) {
+          result.error = "Plugin icon is missing or escapes the plugin directory";
+          return result;
+        }
+        result.icon = QUrl::fromLocalFile(iconPath).toString();
       }
       result.settingsSchema = metadata.value("settings").toObject();
       const auto layoutMode = metadata.value("layoutMode").toString("tiling");
@@ -246,6 +283,19 @@ PluginDescriptor readPluginMetadata(const QString &path,
 }
 
 QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
+  QJsonArray tags;
+  QSet<QString> seen;
+  const auto appendTag = [&](const QString &tag) {
+    if (!tag.isEmpty() && !seen.contains(tag)) {
+      seen.insert(tag);
+      tags.append(tag);
+    }
+  };
+  for (const auto &tag : plugin.tags)
+    appendTag(tag);
+  appendTag(plugin.type);
+  appendTag(plugin.target);
+
   return {
       {"id", plugin.id},
       {"name", plugin.name},
@@ -253,6 +303,7 @@ QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
       {"version", plugin.version},
       {"author", plugin.author},
       {"icon", plugin.icon},
+      {"tags", tags},
       {"type", plugin.type},
       {"target", plugin.target},
       {"mode", plugin.mode},
