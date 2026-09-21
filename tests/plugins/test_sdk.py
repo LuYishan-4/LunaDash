@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and relocate real SDK templates without installing into the user's data."""
+"""Build and relocate SDK templates and a real plugin package."""
 import argparse
 import json
 from pathlib import Path
@@ -15,6 +15,17 @@ def run(*command, ok=True):
     return result
 
 
+def build_and_install(project, build, sdk, prefix):
+    run("cmake", "-S", str(project), "-B", str(build), "-G", "Ninja",
+        f"-DLunaDashPlugin_DIR={sdk.resolve()}", f"-DCMAKE_INSTALL_PREFIX={prefix}")
+    run("cmake", "--build", str(build), "--parallel", "2")
+    run("cmake", "--install", str(build))
+    manifest = json.loads((project / "metadata.json").read_text())
+    installed = prefix / "share/lunadash/plugins" / manifest["id"]
+    assert (installed / ".lunadash-sdk.json").is_file()
+    return manifest, installed
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sdk", type=Path, required=True)
@@ -26,20 +37,22 @@ def main():
         for name in ("effect-c", "effect-cpp", "stacking-layout", "quickshell", "opengl"):
             project = root / name
             shutil.copytree(source / "templates/plugins" / name, project)
-            build = root / (name + "-build")
-            run("cmake", "-S", str(project), "-B", str(build), "-G", "Ninja",
-                f"-DLunaDashPlugin_DIR={args.sdk.resolve()}", f"-DCMAKE_INSTALL_PREFIX={prefix}")
-            run("cmake", "--build", str(build), "--parallel", "2")
-            run("cmake", "--install", str(build))
-            manifest = json.loads((project / "metadata.json").read_text())
-            installed = prefix / "share/lunadash/plugins" / manifest["id"]
-            assert (installed / ".lunadash-sdk.json").is_file()
+            manifest, installed = build_and_install(
+                project, root / (name + "-build"), args.sdk, prefix)
             if name == "opengl":
                 assert (installed / "Effect.vert.qsb").stat().st_size > 0
                 assert (installed / "Effect.frag.qsb").stat().st_size > 0
             else:
                 assert (installed / manifest["entry"]).is_file()
             print(f"SDK template built and staged: {name}")
+
+        fade = root / "fade"
+        shutil.copytree(source / "data/plugins/fade", fade)
+        manifest, installed = build_and_install(
+            fade, root / "fade-build", args.sdk, prefix)
+        assert (installed / manifest["entry"]).is_file()
+        print("SDK 2 plugin package built and staged: fade")
+
         broken = root / "quickshell/metadata.json"
         manifest = json.loads(broken.read_text())
         manifest["target"] = "window-layout" # Quickshell cannot own native geometry.

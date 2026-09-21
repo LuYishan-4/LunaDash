@@ -9,6 +9,11 @@
   "description": "A configurable native window animation profile.",
   "version": "2.0.0",
   "author": "LunaDash contributors",
+  "icon": "preferences-desktop-effects",
+  "tags": [
+    "Animation",
+    "Native"
+  ],
   "type": "effect",
   "target": "window-animation",
   "mode": "replace",

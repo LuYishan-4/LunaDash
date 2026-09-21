@@ -25,9 +25,6 @@ install(FILES data/plugins/targets.json docs/PLUGIN_TARGETS.md docs/PLUGINS.md D
 install(DIRECTORY templates/plugins/ DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk/templates")
 lunadash_add_plugin(lunadash-clock METADATA "${CMAKE_SOURCE_DIR}/qml/plugins/digital-clock/metadata.json")
 if(LUDASH_BUILD_EXAMPLE_PLUGIN)
-    lunadash_add_plugin(ludash-fade METADATA "${CMAKE_SOURCE_DIR}/data/plugins/fade/metadata.json"
-        SOURCES src/compositor/plugins/fade/FadePlugin.cpp)
-    target_link_libraries(ludash-fade PRIVATE Qt6::Core)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/data/plugins/fade" "${CMAKE_BINARY_DIR}/example-plugins/fade")
     add_subdirectory(templates/plugins/window-template)
 endif()
-
