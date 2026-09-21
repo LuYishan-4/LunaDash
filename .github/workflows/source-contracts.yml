@@ -1,0 +1,38 @@
+name: Source contract audit
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: source-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record reproducible audit input
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/lunadash-source-audit"
+          git rev-parse HEAD > "$RUNNER_TEMP/lunadash-source-audit/revision.txt"
+          git ls-files > "$RUNNER_TEMP/lunadash-source-audit/inventory.txt"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/lunadash-source-audit/source.tar.gz"
+          cd "$RUNNER_TEMP/lunadash-source-audit"
+          sha256sum source.tar.gz > SHA256SUMS
+      - name: Preserve audit input
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-audit-${{ github.sha }}
+          path: ${{ runner.temp }}/lunadash-source-audit/
+          retention-days: 3
+          if-no-files-found: error
+      - name: Validate source inventory and domains
+        run: |
+          python3 scripts/check-source-layout.py
+          python3 tests/architecture/test_source_layout.py
+          python3 tests/renderer/test_render_architecture.py
+      - name: Validate QML command bindings
+        run: python3 scripts/ci/check_qml_actions.py
