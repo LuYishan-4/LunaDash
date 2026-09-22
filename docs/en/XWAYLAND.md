@@ -104,3 +104,5 @@ The optional user file is `~/.config/lunadash/launch-capabilities.json`. Matchin
 ## Recording notification teardown
 
 XWayland scene trees have an independent destroy listener. wlroots can destroy the subsurface tree before XWM emits `dissociate`; the listener clears the client pointer immediately so dissociate and layout never reuse freed scene memory. Repeated accelerated override-redirect notifications are exercised by `tests/wayland/test_xwayland_notifications.py BUILD_DIR`. Set `LUNADASH_TEST_GSR_NOTIFY` to a local `gsr-notify` executable to repeat the test with the real recorder helper. These tests isolate notification lifecycle; they do not certify the full NVIDIA KMS recording path.
+
+The status response exposes these helpers separately as `xwayland.utilitySurfaces`, with each surface's `id` and `mapped` state. They remain excluded from the application-facing `clients` list. The notification test uses this diagnostic list to observe mapping and complete removal after teardown; CI preserves `xwayland-notifications.log` with its Wayland diagnostics.

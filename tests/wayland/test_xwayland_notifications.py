@@ -39,6 +39,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-notification-") as runtime:
             str(build / "lunadash-compositor"), "--no-shell", "--socket",
             "notification-test", "--exit-after", "60000"], env=env, stdout=log, stderr=log)
         child = None
+        state = {}
         try:
             deadline = time.monotonic() + 8
             while True:
@@ -58,12 +59,21 @@ with tempfile.TemporaryDirectory(prefix="lunadash-notification-") as runtime:
                 while child.poll() is None:
                     assert process.poll() is None, "Notification crashed compositor"
                     assert time.monotonic() < deadline, "Notification hung"
-                    saw_map |= any(c.get("x11") and c["mapped"] for c in request()["clients"])
+                    state = request()
+                    # Override-redirect helpers are deliberately excluded from
+                    # the application task list. Observe their own lifecycle.
+                    utilities = state["xwayland"]["utilitySurfaces"]
+                    saw_map |= any(c["mapped"] for c in utilities)
+                    assert not any(c.get("x11") for c in state["clients"]), \
+                        "Notification appeared in the application task list"
                     time.sleep(0.025)
                 assert child.returncode == 0, "Notification helper failed"
                 mapped += saw_map
                 deadline = time.monotonic() + 3
-                while any(c.get("x11") for c in request()["clients"]):
+                while True:
+                    state = request()
+                    if not state["xwayland"]["utilitySurfaces"]:
+                        break
                     assert time.monotonic() < deadline, "Notification client leaked"
                     time.sleep(0.025)
                 assert process.poll() is None, "Notification teardown crashed compositor"
@@ -75,6 +85,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-notification-") as runtime:
             log.flush()
             log.seek(0)
             print(log.read()[-18000:], file=sys.stderr)
+            print("Last XWayland state:", json.dumps(state.get("xwayland")), file=sys.stderr)
             raise
         finally:
             for owned in (child, process):

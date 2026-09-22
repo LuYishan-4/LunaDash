@@ -112,6 +112,7 @@ jobs:
                       build-wayland/core-protocol.log
                       build-wayland/xdg-lifecycle.log
                       build-wayland/xwayland.log
+                      build-wayland/xwayland-notifications.log
                       build-wayland/core-protocol-globals.txt
                       build-wayland/clipboard-history.log
                       build-wayland/screencopy-*.png

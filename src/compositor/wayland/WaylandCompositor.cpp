@@ -1234,9 +1234,16 @@ void WaylandCompositor::handleShortcut(const QString &action) {
 
 QJsonObject WaylandCompositor::state() const {
   QJsonArray entries;
+  QJsonArray xwaylandUtilities;
   for (const auto &client : clients_) {
-    if (client->utility)
+    if (client->utility) {
+      // Keep notifications out of the task list while exposing their lifetime
+      // separately for diagnostics, including the interval before destruction.
+      if (client->x11)
+        xwaylandUtilities.append(QJsonObject{{"id", client->id},
+                                            {"mapped", client->mapped}});
       continue;
+    }
     int bufferWidth = 0;
     int bufferHeight = 0;
     if (client->wlSurface) {
@@ -1332,6 +1339,8 @@ QJsonObject WaylandCompositor::state() const {
       "layout:" + windowTemplate_->key, "Window layout", "layout", "Windows",
       windowTemplate_->layoutSettingsSchema, layoutSettings);
   const auto moduleState = shellModules_->snapshot();
+  auto xwaylandState = xwayland_ ? xwayland_->snapshot() : QJsonObject{};
+  xwaylandState["utilitySurfaces"] = xwaylandUtilities;
   return {
       {"settingsApi", QJsonObject{{"version", 1},
           {"targets", settingsApiTargets(extensions, moduleState, layoutTarget)}}},
@@ -1388,7 +1397,7 @@ QJsonObject WaylandCompositor::state() const {
       {"blurFrames", 0},
       {"activeAnimations",
        windowAnimations_ ? windowAnimations_->activeCount() : 0},
-      {"xwayland", xwayland_ ? xwayland_->snapshot() : QJsonObject{}},
+      {"xwayland", xwaylandState},
       {"screenCapture", QJsonObject{{"protocol", "zwlr_screencopy_manager_v1"},
                                     {"version", 3},
                                     {"frames", 0},

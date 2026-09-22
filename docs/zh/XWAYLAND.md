@@ -87,3 +87,5 @@ Launcher 會保留 `WAYLAND_DISPLAY`；只有命中的 app 才額外取得 authe
 ## 錄影通知視窗的釋放
 
 XWayland scene tree 現在有獨立的 destroy listener。wlroots 可能先釋放 subsurface tree，XWM 才送出 `dissociate`；listener 會立即清除 client 指標，避免 dissociate 或 layout 存取已釋放的記憶體。`tests/wayland/test_xwayland_notifications.py BUILD_DIR` 反覆建立及關閉加速的 override-redirect 通知視窗；設定 `LUNADASH_TEST_GSR_NOTIFY` 為本機 `gsr-notify` 路徑可用實際錄影通知程式測試。此測試隔離通知生命週期，不等於完整驗證 NVIDIA KMS 錄影路徑。
+
+Status 回應透過獨立的 `xwayland.utilitySurfaces` 提供這些輔助視窗的 `id` 與 `mapped` 狀態；它們仍不列入供應用程式工作列使用的 `clients` 清單。通知測試使用此診斷清單確認視窗映射及關閉後完整移除，CI 也會將 `xwayland-notifications.log` 保存在 Wayland 診斷附件中。
