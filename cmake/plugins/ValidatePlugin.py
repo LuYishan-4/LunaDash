@@ -8,6 +8,15 @@ import re
 from SettingsSchema import control, validate_schema
 
 
+def implementations(manifest):
+    values = manifest.get("targets")
+    if values is None:
+        return [manifest]
+    if not isinstance(values, list) or not 1 <= len(values) <= 16:
+        raise ValueError("targets must contain between 1 and 16 target objects")
+    return values
+
+
 def validate(manifest, root, targets):
     def require(test, message):
         if not test:
@@ -45,38 +54,55 @@ def validate(manifest, root, targets):
                 0 < len(tag) <= 32 and not any(ord(ch) < 32 for ch in tag)
                 for tag in tags) and len(set(tags)) == len(tags),
             "tags must be up to 12 unique non-empty strings of at most 32 characters")
-    kind = manifest.get("type")
-    require(kind in ("effect", "quickshell", "opengl"), "Unknown plugin type")
-    target = next((t for t in targets if t["id"] == manifest.get("target")), None)
-    require(target and kind in target["types"], "Target does not support this plugin type")
-    require(manifest.get("mode") in ("replace", "augment"), "mode must be replace or augment")
-    require(isinstance(manifest.get("enabledByDefault", False), bool), "enabledByDefault must be boolean")
-    require(kind != "effect" or not manifest.get("enabledByDefault"), "Native effects must default to disabled")
-    require("layoutMode" not in manifest,
-            "layoutMode was removed; use windowTemplate")
-    window_template = manifest.get("windowTemplate", "tiling")
-    require(window_template in ("tiling", "stacking"), "Unknown windowTemplate")
-    require("windowTemplate" not in manifest or
-            (kind == "effect" and target["id"] == "window-layout"),
-            "windowTemplate requires a native window-layout plugin")
-    require(window_template != "stacking" or manifest["mode"] == "replace",
-            "Stacking windowTemplate requires replacement mode")
-    schema = manifest.get("settings")
-    require(isinstance(schema, dict), "settings must be an object (empty is allowed)")
-    validate_schema(schema)
-    # Plugin settings are rendered automatically by the shared QML settings
-    # surface. Keep the plugin SDK to the four stable controls so native
-    # effects and visual plugins never require custom settings QML.
-    allowed_controls = {"toggle", "select", "number", "slider"}
-    require(all(control(rule) in allowed_controls for rule in schema.values()),
-            "Plugin settings support only toggle, select, number and slider controls")
-    if kind == "opengl":
-        shaders = manifest.get("shaders", {})
-        require(isinstance(shaders, dict), "shaders must be an object")
-        local(shaders.get("vertex"), ".vert")
-        local(shaders.get("fragment"), ".frag")
-    else:
-        local(manifest.get("entry"), ".qml" if kind == "quickshell" else ".so", kind == "quickshell")
+    require(isinstance(manifest.get("enabledByDefault", False), bool),
+            "enabledByDefault must be boolean")
+
+    impls = implementations(manifest)
+    seen = set()
+    effect_entries = set()
+    for implementation in impls:
+        require(isinstance(implementation, dict), "Each target must be an object")
+        kind = implementation.get("type")
+        require(kind in ("effect", "quickshell", "opengl"), "Unknown plugin type")
+        target_id = implementation.get("target", implementation.get("id"))
+        require(isinstance(target_id, str) and target_id and target_id not in seen,
+                "Target ids must be unique non-empty strings")
+        seen.add(target_id)
+        target = next((t for t in targets if t["id"] == target_id), None)
+        require(target and kind in target["types"],
+                f"Target does not support plugin type: {target_id}/{kind}")
+        require(implementation.get("mode") in ("replace", "augment"),
+                "mode must be replace or augment")
+        require("layoutMode" not in implementation,
+                "layoutMode was removed; use windowTemplate")
+        window_template = implementation.get("windowTemplate", "tiling")
+        require(window_template in ("tiling", "stacking"), "Unknown windowTemplate")
+        require("windowTemplate" not in implementation or
+                (kind == "effect" and target_id == "window-layout"),
+                "windowTemplate requires a native window-layout plugin")
+        require(window_template != "stacking" or implementation["mode"] == "replace",
+                "Stacking windowTemplate requires replacement mode")
+        schema = implementation.get("settings")
+        require(isinstance(schema, dict), "settings must be an object (empty is allowed)")
+        validate_schema(schema)
+        allowed_controls = {"toggle", "select", "number", "slider"}
+        require(all(control(rule) in allowed_controls for rule in schema.values()),
+                "Plugin settings support only toggle, select, number and slider controls")
+        if kind == "opengl":
+            shaders = implementation.get("shaders", {})
+            require(isinstance(shaders, dict), "shaders must be an object")
+            local(shaders.get("vertex"), ".vert")
+            local(shaders.get("fragment"), ".frag")
+        elif kind == "quickshell":
+            local(implementation.get("entry"), ".qml")
+        else:
+            effect_entries.add(local(implementation.get("entry"), ".so", existing=False))
+
+    require(len(effect_entries) <= 1,
+            "All native targets in one package must share one effect entry library")
+    if effect_entries:
+        require(not manifest.get("enabledByDefault", False),
+                "Packages containing native effects must default to disabled")
 
 
 def main():
@@ -95,8 +121,7 @@ def main():
         (args.output / "metadata.json").write_bytes(data)
         receipt = {"apiVersion": 2, "metadataSha256": hashlib.sha256(data).hexdigest()}
         (args.output / ".lunadash-sdk.json").write_text(json.dumps(receipt) + "\n")
-        if manifest["type"] == "effect":
-            # Escape a UTF-8 JSON byte stream as portable C string bytes.
+        if any(target.get("type") == "effect" for target in implementations(manifest)):
             literal = '"' + ''.join(f'\\{byte:03o}' for byte in data) + '"'
             (args.output / "Registration.c").write_text(
                 '#include "core/plugins/PluginApi.h"\n'
