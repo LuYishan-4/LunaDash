@@ -69,6 +69,19 @@ with tempfile.TemporaryDirectory(prefix="lunadash-clipboard-test-") as runtime:
     assert copied.read_bytes() == video
     assert copied_type.read_text() == "video/mp4"
 
+    # Screenshot integration publishes the saved PNG as image/png and writes
+    # the same payload into history, so applications can paste it with Ctrl+V.
+    screenshot = pathlib.Path(runtime) / "capture.png"
+    screenshot_bytes = b"\x89PNG\r\n\x1a\n" + bytes(range(96))
+    screenshot.write_bytes(screenshot_bytes)
+    assert run("publish-file", "image/png", str(screenshot)).returncode == 0
+    assert copied.read_bytes() == screenshot_bytes
+    assert copied_type.read_text() == "image/png"
+    entries = json.loads(run("list").stdout)
+    assert entries[0]["kind"] == "image"
+    assert entries[0]["mime"] == "image/png"
+    assert pathlib.Path(entries[0]["payload"]).read_bytes() == screenshot_bytes
+
     # watch-record uses wl-paste's CLIPBOARD_TYPE environment and must preserve
     # arbitrary binary data instead of treating it as text.
     binary = b"\x00\x01\x02\xffbinary"

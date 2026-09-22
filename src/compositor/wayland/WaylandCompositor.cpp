@@ -149,8 +149,40 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   screenCapture_ = new ScreenCapture(this);
   connect(screenCapture_, &ScreenCapture::completed, this,
           [this](const QString &path, const QString &error) {
-            if (!path.isEmpty())
+            if (!path.isEmpty()) {
               lastCapture_ = path;
+
+              QString helper =
+                  QStandardPaths::findExecutable("lunadash-clipboard-history");
+              if (helper.isEmpty()) {
+                const QString source =
+                    QStringLiteral(LUDASH_SCRIPT_SOURCE_DIR) +
+                    "/lunadash-clipboard-history";
+                if (QFileInfo(source).isExecutable())
+                  helper = source;
+              }
+
+              if (helper.isEmpty()) {
+                qWarning("Screenshot saved, but clipboard helper is unavailable.");
+              } else {
+                auto *publisher = new QProcess(this);
+                publisher->setProcessEnvironment(clientEnvironment_);
+                publisher->setProcessChannelMode(QProcess::ForwardedChannels);
+                connect(publisher, &QProcess::finished, this,
+                        [publisher](int code, QProcess::ExitStatus status) {
+                          if (status != QProcess::NormalExit || code != 0)
+                            qWarning("Screenshot saved, but publishing it to the clipboard failed.");
+                          publisher->deleteLater();
+                        });
+                connect(publisher, &QProcess::errorOccurred, this,
+                        [publisher](QProcess::ProcessError) {
+                          qWarning("Screenshot saved, but clipboard publisher could not start.");
+                          publisher->deleteLater();
+                        });
+                publisher->start(
+                    helper, {"publish-file", "image/png", path});
+              }
+            }
             captureError_ = error;
           });
   brightnessSettings_ = new BrightnessSettings(this);

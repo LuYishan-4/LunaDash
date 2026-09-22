@@ -418,6 +418,35 @@ def publish_selection(raw: bytes, mime: str) -> bool:
     return code == 0
 
 
+def publish_file(mime: str, filename: str) -> int:
+    path = pathlib.Path(filename)
+    if not path.is_absolute() or not path.is_file():
+        print("Clipboard publish path must be an existing absolute file.",
+              file=sys.stderr)
+        return 2
+    try:
+        if path.stat().st_size <= 0 or path.stat().st_size > MAX_PAYLOAD_BYTES:
+            print("Clipboard publish file is empty or too large.", file=sys.stderr)
+            return 2
+        raw = path.read_bytes()
+    except OSError:
+        print("Clipboard publish file could not be read.", file=sys.stderr)
+        return 2
+
+    mime = (mime or "application/octet-stream").strip()[:256]
+    if not publish_selection(raw, mime):
+        print("wl-copy is unavailable or could not publish the selection.",
+              file=sys.stderr)
+        return 2
+    # Record directly as well as publishing the selection. The watcher may see
+    # the same selection later; record_payload deduplicates by MIME + content.
+    if not record_payload(raw, mime):
+        print("Clipboard selection was published but history could not store it.",
+              file=sys.stderr)
+        return 1
+    return 0
+
+
 def copy_entry(index: int) -> int:
     entries = load()
     if index < 0 or index >= len(entries):
@@ -460,6 +489,8 @@ def main() -> int:
         mime = sys.argv[2] if len(sys.argv) >= 3 else "text/plain;charset=utf-8"
         raw = sys.stdin.buffer.read(MAX_PAYLOAD_BYTES + 1)
         return 0 if record_payload(raw, mime) else 1
+    if command == "publish-file" and len(sys.argv) == 4:
+        return publish_file(sys.argv[2], sys.argv[3])
     if command == "copy" and len(sys.argv) == 3:
         try:
             index = int(sys.argv[2])
@@ -468,7 +499,7 @@ def main() -> int:
         return copy_entry(index)
     print(
         "Usage: lunadash-clipboard-history "
-        "[watch|list|clear|record [MIME]|copy INDEX]",
+        "[watch|list|clear|record [MIME]|publish-file MIME PATH|copy INDEX]",
         file=sys.stderr,
     )
     return 2
