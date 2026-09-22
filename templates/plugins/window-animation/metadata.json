@@ -7,7 +7,7 @@
   "id": "org.example.window-animation",
   "name": "window-animation plugin",
   "description": "Customizes the host window animation template.",
-  "version": "1.0.0",
+  "version": "1.0.1a",
   "author": "Plugin author",
   "icon": "preferences-desktop-effects",
   "tags": [

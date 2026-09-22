@@ -6,7 +6,7 @@
   },
   "id": "org.example.rules",
   "name": "Application workspace rule",
-  "version": "1.0.0",
+  "version": "1.0.1a",
   "description": "LunaDash plugin template.",
   "author": "Your name",
   "type": "effect",
