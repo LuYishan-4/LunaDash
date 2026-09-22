@@ -526,8 +526,8 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
 #if LUDASH_WLR_HAS_XWAYLAND
   if (client->x11 && client->xwayland) {
     client->title = safeUtf8(client->xwayland->title);
-    client->appId = safeUtf8(client->xwayland->class
-                                 ? client->xwayland->class
+    client->appId = safeUtf8(client->xwayland->class_
+                                 ? client->xwayland->class_
                                  : client->xwayland->instance);
     client->processId = client->xwayland->pid;
     client->utility = client->xwayland->override_redirect;

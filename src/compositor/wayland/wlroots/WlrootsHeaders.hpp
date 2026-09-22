@@ -6,6 +6,7 @@
 // the macros are undefined immediately after the C headers are parsed.
 #ifdef __cplusplus
 #define static
+#define class class_
 #define delete delete_
 #define namespace namespace_
 extern "C" {
@@ -97,5 +98,6 @@ extern "C" {
 }
 #undef namespace
 #undef delete
+#undef class
 #undef static
 #endif
