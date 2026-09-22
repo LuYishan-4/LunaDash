@@ -23,12 +23,36 @@ bool allowed(const QJsonObject &object, const QStringList &keys) {
       return false;
   return true;
 }
+QJsonObject effectiveTargetConfig(const PluginDescriptor &descriptor,
+                                  const QJsonObject &package) {
+  const auto targets = package.value("targets").toObject();
+  if (targets.contains(descriptor.target))
+    return targets.value(descriptor.target).toObject();
+  if (!descriptor.manifest.value("targets").isArray())
+    return package;
+  return {};
+}
+bool effectiveEnabled(const PluginDescriptor &descriptor,
+                      const QJsonObject &package) {
+  const bool packageEnabled = package.value("enabled").toBool(
+      descriptor.manifest.value("enabledByDefault").toBool(false));
+  const auto target = effectiveTargetConfig(descriptor, package);
+  return packageEnabled && target.value("enabled").toBool(true);
+}
+QString effectiveMode(const PluginDescriptor &descriptor,
+                      const QJsonObject &package) {
+  return effectiveTargetConfig(descriptor, package)
+      .value("mode")
+      .toString(descriptor.mode);
+}
 } // namespace
+
 QString extensionConfigurationPath() {
   return QStandardPaths::writableLocation(
              QStandardPaths::GenericConfigLocation) +
          "/LuDash/extensions.json";
 }
+
 QJsonObject readExtensionConfiguration(QString *error) {
   const QJsonObject empty{{"schemaVersion", 1},
                           {"builtins", QJsonObject{}},
@@ -50,9 +74,11 @@ QJsonObject readExtensionConfiguration(QString *error) {
   }
   return object;
 }
+
 QJsonObject configuredBuiltinSettings(const QString &target) {
   return configuredBuiltinSettings(target, readExtensionConfiguration());
 }
+
 QJsonObject configuredBuiltinSettings(const QString &target,
                                       const QJsonObject &document) {
   const auto schema = extensionTarget(target).value("settings").toObject();
@@ -64,6 +90,7 @@ QJsonObject configuredBuiltinSettings(const QString &target,
       result[it.key()] = it.value();
   return result;
 }
+
 bool saveExtensionConfiguration(const QByteArray &json, QString *error) {
   const auto document = QJsonDocument::fromJson(json);
   const auto root = document.object();
@@ -74,6 +101,7 @@ bool saveExtensionConfiguration(const QByteArray &json, QString *error) {
     return fail(
         error,
         "Expected schemaVersion 1, builtins and plugins (24 KiB limit).");
+
   const auto builtins = root.value("builtins").toObject();
   for (auto it = builtins.begin(); it != builtins.end(); ++it) {
     const auto target = extensionTarget(it.key());
@@ -83,60 +111,132 @@ bool saveExtensionConfiguration(const QByteArray &json, QString *error) {
                                    it.value().toObject(), error))
       return false;
   }
+
   const auto catalog = discoverPlugins();
   const auto plugins = root.value("plugins").toObject();
+
   for (auto it = plugins.begin(); it != plugins.end(); ++it) {
     if (!it.value().isObject())
       return fail(error, "Plugin configuration must be an object.");
-    const auto config = it.value().toObject();
-    if (!allowed(config, {"enabled", "mode", "settings"}) ||
-        !config.value("enabled").isBool() ||
-        !config.value("settings").isObject() ||
+    const auto package = it.value().toObject();
+    const bool multi = package.value("targets").isObject();
+    if (multi) {
+      if (!allowed(package, {"enabled", "targets"}) ||
+          !package.value("enabled").isBool())
+        return fail(error, "Multi-target plugin configuration expects enabled and targets: " + it.key());
+      const auto targets = package.value("targets").toObject();
+      for (auto targetIt = targets.begin(); targetIt != targets.end(); ++targetIt) {
+        if (!targetIt.value().isObject())
+          return fail(error, "Plugin target configuration must be an object.");
+        const auto config = targetIt.value().toObject();
+        if (!allowed(config, {"enabled", "mode", "settings"}) ||
+            !config.value("enabled").isBool() ||
+            !config.value("settings").isObject() ||
+            !QStringList{"replace", "augment"}.contains(config.value("mode").toString()))
+          return fail(error, "Expected enabled, mode and settings for " +
+                                 it.key() + "/" + targetIt.key());
+        const auto found = std::find_if(
+            catalog.cbegin(), catalog.cend(), [&](const auto &plugin) {
+              return plugin.id == it.key() && plugin.target == targetIt.key();
+            });
+        if (found == catalog.cend()) {
+          if (package.value("enabled").toBool() &&
+              config.value("enabled").toBool())
+            return fail(error, "Plugin target is not installed: " +
+                                   it.key() + "/" + targetIt.key());
+          continue;
+        }
+        const auto descriptor =
+            readPluginMetadataTargets(found->metadataPath, false);
+        const auto targetDescriptor = std::find_if(
+            descriptor.cbegin(), descriptor.cend(), [&](const auto &plugin) {
+              return plugin.target == targetIt.key();
+            });
+        if (targetDescriptor == descriptor.cend() ||
+            !targetDescriptor->error.isEmpty())
+          return fail(error, targetDescriptor == descriptor.cend()
+                                 ? "Plugin target disappeared during validation."
+                                 : targetDescriptor->error);
+        if (!validateExtensionSettings(targetDescriptor->settingsSchema,
+                                       config.value("settings").toObject(),
+                                       error))
+          return false;
+      }
+      continue;
+    }
+
+    if (!allowed(package, {"enabled", "mode", "settings"}) ||
+        !package.value("enabled").isBool() ||
+        !package.value("settings").isObject() ||
         !QStringList{"replace", "augment"}.contains(
-            config.value("mode").toString()))
+            package.value("mode").toString()))
       return fail(error,
                   "Expected enabled, mode (replace/augment) and settings: " +
                       it.key());
-    const auto found =
-        std::find_if(catalog.begin(), catalog.end(),
-                     [&](const auto &plugin) { return plugin.id == it.key(); });
-    // Keep disabled settings for uninstalled plugins, for portable profiles.
-    if (found == catalog.end()) {
-      if (config.value("enabled").toBool())
+
+    const auto matching = std::count_if(
+        catalog.cbegin(), catalog.cend(),
+        [&](const auto &plugin) { return plugin.id == it.key(); });
+    if (matching == 0) {
+      if (package.value("enabled").toBool())
         return fail(error, "Plugin is not installed: " + it.key());
       continue;
     }
+    if (matching != 1)
+      return fail(error, "Multi-target plugin requires a targets object: " +
+                             it.key());
+    const auto found = std::find_if(catalog.cbegin(), catalog.cend(),
+                                    [&](const auto &plugin) {
+                                      return plugin.id == it.key();
+                                    });
     const auto descriptor = readPluginMetadata(found->metadataPath, false);
-    if (config.value("enabled").toBool()) {
-      if (!descriptor.error.isEmpty())
-        return fail(error, descriptor.error);
-      if (descriptor.manifest.value("windowTemplate").toString("tiling") ==
-              "stacking" &&
-          config.value("mode").toString() != "replace")
-        return fail(error, "Stacking layout requires Plugin only; two "
-                           "placement engines cannot own the same windows.");
-    }
-    if (!descriptor.error.isEmpty() && !config.value("enabled").toBool())
-      continue;
-    if (!validateExtensionSettings(descriptor.settingsSchema,
-                                   config.value("settings").toObject(), error))
+    if (!descriptor.error.isEmpty() && package.value("enabled").toBool())
+      return fail(error, descriptor.error);
+    if (descriptor.error.isEmpty() &&
+        !validateExtensionSettings(descriptor.settingsSchema,
+                                   package.value("settings").toObject(), error))
       return false;
   }
-  // Omitted entries retain metadata/legacy defaults, so include them when
-  // checking whether more than one replacement would own a target.
-  QSet<QString> replacements;
+
+  QHash<QString, QString> selected;
+  QHash<QString, QString> replacements;
+  QSet<QString> visitedPackages;
   for (const auto &installed : catalog) {
-    const auto descriptor = readPluginMetadata(installed.metadataPath, false);
-    const auto config = plugins.value(descriptor.id).toObject();
-    if (!descriptor.error.isEmpty() ||
-        !config.value("enabled").toBool(descriptor.enabled) ||
-        config.value("mode").toString(descriptor.mode) != "replace")
+    if (visitedPackages.contains(installed.id + "@" + installed.target))
       continue;
-    if (replacements.contains(descriptor.target))
-      return fail(error, "Only one replacement can be enabled for: " +
-                             descriptor.target);
-    replacements.insert(descriptor.target);
+    visitedPackages.insert(installed.id + "@" + installed.target);
+    const auto descriptors =
+        readPluginMetadataTargets(installed.metadataPath, false);
+    const auto descriptor = std::find_if(
+        descriptors.cbegin(), descriptors.cend(), [&](const auto &candidate) {
+          return candidate.target == installed.target;
+        });
+    if (descriptor == descriptors.cend() || !descriptor->error.isEmpty())
+      continue;
+
+    const auto package = plugins.value(descriptor->id).toObject();
+    if (!effectiveEnabled(*descriptor, package))
+      continue;
+
+    const auto targetSpec = extensionTarget(descriptor->target);
+    const auto owner = descriptor->id + "@" + descriptor->target;
+    if (targetSpec.value("selection").toString("single") == "single") {
+      if (selected.contains(descriptor->target) &&
+          selected.value(descriptor->target) != owner)
+        return fail(error, "Only one plugin can be enabled for: " +
+                               descriptor->target);
+      selected[descriptor->target] = owner;
+    }
+
+    if (effectiveMode(*descriptor, package) == "replace") {
+      if (replacements.contains(descriptor->target) &&
+          replacements.value(descriptor->target) != owner)
+        return fail(error, "Only one replacement can be enabled for: " +
+                               descriptor->target);
+      replacements[descriptor->target] = owner;
+    }
   }
+
   const auto path = extensionConfigurationPath();
   if (QFileInfo(path).isSymLink())
     return fail(error, "Refusing to replace a symlinked extensions.json.");

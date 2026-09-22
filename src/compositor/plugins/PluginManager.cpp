@@ -74,12 +74,34 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
     const auto id = item.value("id").toString();
     const auto name = item.value("name").toString();
     const auto version = item.value("version").toString();
-    const auto type = item.value("type").toString();
-    const auto targetId = item.value("target").toString();
-    const auto target = extensionTarget(targetId);
+    bool validTargets = false;
+    if (item.value("targets").isArray()) {
+      const auto targetItems = item.value("targets").toArray();
+      QSet<QString> targetIds;
+      validTargets = !targetItems.isEmpty() && targetItems.size() <= 16;
+      for (const auto &targetValue : targetItems) {
+        const auto implementation = targetValue.toObject();
+        const auto targetId = implementation.value("target").toString(
+            implementation.value("id").toString());
+        const auto type = implementation.value("type").toString();
+        const auto target = extensionTarget(targetId);
+        if (!targetValue.isObject() || targetId.isEmpty() ||
+            targetIds.contains(targetId) || target.isEmpty() ||
+            !target.value("types").toArray().contains(type)) {
+          validTargets = false;
+          break;
+        }
+        targetIds.insert(targetId);
+      }
+    } else {
+      const auto type = item.value("type").toString();
+      const auto targetId = item.value("target").toString();
+      const auto target = extensionTarget(targetId);
+      validTargets =
+          !target.isEmpty() && target.value("types").toArray().contains(type);
+    }
     if (!validId.match(id).hasMatch() || ids.contains(id) || name.isEmpty() ||
-        version.isEmpty() || target.isEmpty() ||
-        !target.value("types").toArray().contains(type)) {
+        version.isEmpty() || !validTargets) {
       if (error)
         *error = "Plugin catalogue contains an invalid identity or target";
       return false;
@@ -174,16 +196,17 @@ void PluginManager::refresh() {
 
   for (auto descriptor : discovered) {
     const auto id = descriptor.id;
+    const auto key = pluginInstanceId(descriptor);
     const auto previous =
         std::find_if(catalog_.cbegin(), catalog_.cend(), [&](const auto &plugin) {
-          return plugin.id == id;
+          return pluginInstanceId(plugin) == key;
         });
     if (previous == catalog_.cend() ||
         previous->manifest != descriptor.manifest ||
         previous->mode != descriptor.mode ||
         previous->settings != descriptor.settings ||
         previous->enabled != descriptor.enabled)
-      errors_.remove(id);
+      errors_.remove(key);
 
     if (!descriptor.enabled || !descriptor.error.isEmpty()) {
       catalog.append(descriptor);
@@ -191,10 +214,10 @@ void PluginManager::refresh() {
     }
 
     if (descriptor.type == "effect") {
-      active.insert(id);
+      active.insert(key);
       auto found =
           std::find_if(native_.begin(), native_.end(), [&](const auto &entry) {
-            return entry->descriptor.id == id;
+            return pluginInstanceId(entry->descriptor) == key;
           });
       if (found != native_.end() &&
           ((*found)->descriptor.manifest != descriptor.manifest ||
@@ -205,16 +228,16 @@ void PluginManager::refresh() {
 
       if (found != native_.end()) {
         (*found)->current = descriptor;
-      } else if (!errors_.contains(id)) {
+      } else if (!errors_.contains(key)) {
         auto native = std::make_unique<Native>();
         native->descriptor = native->current = descriptor;
 
         const QString stagedLibrary = native->stage.filePath("plugin.so");
         QFile sourceLibrary(descriptor.libraryPath);
         if (!native->stage.isValid()) {
-          errors_[id] = "Could not create native plugin staging directory";
+          errors_[key] = "Could not create native plugin staging directory";
         } else if (!sourceLibrary.copy(stagedLibrary)) {
-          errors_[id] = sourceLibrary.errorString();
+          errors_[key] = sourceLibrary.errorString();
         } else {
           native->library.setFileName(stagedLibrary);
 
@@ -222,7 +245,7 @@ void PluginManager::refresh() {
           const auto entry = reinterpret_cast<Entry>(
               native->library.resolve("ludash_plugin_entry_v2"));
           if (!entry) {
-            errors_[id] = native->library.errorString();
+            errors_[key] = native->library.errorString();
           } else {
             native->api = entry();
             const auto *api = native->api;
@@ -231,7 +254,7 @@ void PluginManager::refresh() {
                 !api->metadata_json ||
                 QJsonDocument::fromJson(api->metadata_json).object() !=
                     descriptor.manifest) {
-              errors_[id] = "SDK ABI or embedded metadata mismatch";
+              errors_[key] = "SDK ABI or embedded metadata mismatch";
             } else {
               native_.push_back(std::move(native));
             }
@@ -244,13 +267,13 @@ void PluginManager::refresh() {
   }
 
   std::erase_if(native_, [&](const auto &entry) {
-    return !active.contains(entry->descriptor.id);
+    return !active.contains(pluginInstanceId(entry->descriptor));
   });
 
   for (auto it = errors_.begin(); it != errors_.end();) {
     const bool enabled =
         std::any_of(catalog.cbegin(), catalog.cend(), [&](const auto &plugin) {
-          return plugin.id == it.key() && plugin.enabled;
+          return pluginInstanceId(plugin) == it.key() && plugin.enabled;
         });
     if (!enabled)
       it = errors_.erase(it);
@@ -271,7 +294,7 @@ QJsonObject PluginManager::snapshot() {
     auto item = pluginDescriptorJson(descriptor);
     QString error = descriptor.error;
     if (error.isEmpty())
-      error = errors_.value(descriptor.id);
+      error = errors_.value(pluginInstanceId(descriptor));
     if (descriptor.enabled && error.isEmpty() && descriptor.mode == "replace") {
       if (replacements.contains(descriptor.target))
         error = "Another replacement is already selected for this target";
@@ -281,7 +304,8 @@ QJsonObject PluginManager::snapshot() {
     if (!loaded)
       loaded =
           std::any_of(native_.begin(), native_.end(), [&](const auto &entry) {
-            return entry->descriptor.id == descriptor.id &&
+            return pluginInstanceId(entry->descriptor) ==
+                       pluginInstanceId(descriptor) &&
                    entry->descriptor.manifest == descriptor.manifest;
           });
     item["error"] = error;
@@ -327,9 +351,21 @@ bool PluginManager::setEnabled(const QString &id, bool enabled,
   for (const auto &plugin : discoverPlugins()) {
     if (plugin.id != id)
       continue;
-    configs[id] = QJsonObject{{"enabled", enabled},
-                              {"mode", plugin.mode},
-                              {"settings", plugin.settings}};
+    QJsonObject package = configs.value(id).toObject();
+    package["enabled"] = enabled;
+    QJsonObject targets = package.value("targets").toObject();
+    for (const auto &candidate : discoverPlugins()) {
+      if (candidate.id != id)
+        continue;
+      targets[candidate.target] =
+          QJsonObject{{"enabled", enabled},
+                      {"mode", candidate.mode},
+                      {"settings", candidate.settings}};
+    }
+    package.remove("mode");
+    package.remove("settings");
+    package["targets"] = targets;
+    configs[id] = package;
     document["plugins"] = configs;
     return saveExtensionConfiguration(QJsonDocument(document).toJson(), error);
   }
@@ -339,12 +375,12 @@ bool PluginManager::setEnabled(const QString &id, bool enabled,
 }
 void PluginManager::reportError(const QString &id, const QString &error) {
   if (!error.isEmpty()) {
-    errors_[id] = error.left(1024);
+    errors_[key] = error.left(1024);
     emit changed();
     return;
   }
 
-  errors_.remove(id);
+  errors_.remove(key);
   if (!inHook_)
     refresh();
 }
@@ -352,10 +388,10 @@ QString PluginManager::windowTemplateKey() const {
   for (const auto &native : native_) {
     const auto &plugin = native->current;
     if (plugin.enabled && plugin.error.isEmpty() &&
-        !errors_.contains(plugin.id) &&
+        !errors_.contains(pluginInstanceId(plugin)) &&
         plugin.manifest == native->descriptor.manifest &&
         plugin.target == "window-layout" && plugin.mode == "replace")
-      return plugin.manifest.value("windowTemplate").toString("tiling");
+      return plugin.implementation.value("windowTemplate").toString("tiling");
   }
   return "tiling";
 }
@@ -372,7 +408,8 @@ QJsonObject PluginManager::filter(const QString &target,
       if (descriptor.target != target || descriptor.mode != mode ||
           !descriptor.enabled || !descriptor.error.isEmpty() ||
           descriptor.manifest != native->descriptor.manifest ||
-          errors_.contains(descriptor.id) || (mode == "replace" && replaced))
+          errors_.contains(pluginInstanceId(descriptor)) ||
+          (mode == "replace" && replaced))
         continue;
       const QJsonObject request{
           {"target", target},
@@ -388,17 +425,17 @@ QJsonObject PluginManager::filter(const QString &target,
             QJsonDocument(request).toJson(QJsonDocument::Compact).constData(),
             response.data(), static_cast<size_t>(response.size()));
       } catch (...) {
-        reportError(descriptor.id, "Plugin threw across its C ABI");
+        reportError(pluginInstanceId(descriptor), "Plugin threw across its C ABI");
         continue;
       }
       if (length < 0 || length >= response.size()) {
-        reportError(descriptor.id,
+        reportError(pluginInstanceId(descriptor),
                     "Plugin returned an invalid response length");
         continue;
       }
       const auto result = QJsonDocument::fromJson(response.left(length));
       if (!result.isObject() || !validate(result.object())) {
-        reportError(descriptor.id,
+        reportError(pluginInstanceId(descriptor),
                     "Invalid plugin output; built-in/previous result retained");
         continue;
       }
