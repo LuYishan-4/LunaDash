@@ -339,11 +339,8 @@ QString PluginManager::windowTemplateKey() const {
     if (plugin.enabled && plugin.error.isEmpty() &&
         !errors_.contains(plugin.id) &&
         plugin.manifest == native->descriptor.manifest &&
-        plugin.target == "window-layout" && plugin.mode == "replace") {
-      const auto legacy =
-          plugin.manifest.value("layoutMode").toString("tiling");
-      return plugin.manifest.value("windowTemplate").toString(legacy);
-    }
+        plugin.target == "window-layout" && plugin.mode == "replace")
+      return plugin.manifest.value("windowTemplate").toString("tiling");
   }
   return "tiling";
 }

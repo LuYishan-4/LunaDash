@@ -110,8 +110,7 @@ bool saveExtensionConfiguration(const QByteArray &json, QString *error) {
     if (config.value("enabled").toBool()) {
       if (!descriptor.error.isEmpty())
         return fail(error, descriptor.error);
-      if (descriptor.manifest.value("windowTemplate").toString(
-              descriptor.manifest.value("layoutMode").toString("tiling")) ==
+      if (descriptor.manifest.value("windowTemplate").toString("tiling") ==
               "stacking" &&
           config.value("mode").toString() != "replace")
         return fail(error, "Stacking layout requires Plugin only; two "

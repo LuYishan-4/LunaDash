@@ -85,8 +85,7 @@ const WindowTemplate &tilingTemplate() {
                                     {"label", "Default window width"}}}};
   static const auto actions = tilingActions();
   static const WindowTemplate value{
-      "tiling", &createTilingLayout, WindowPointerTemplate::Tiling,
-      WindowActivationTemplate::ToggleMaximize, false, false, schema,
+      "tiling", &createTilingLayout, false, false, true, schema,
       defaults(schema), actions, defaultWindowAnimation()};
   return value;
 }
@@ -105,8 +104,7 @@ const WindowTemplate &stackingTemplate() {
                                      {"label", "Default window height"}}}};
   static const auto actions = commonActions();
   static const WindowTemplate value{
-      "stacking", &createFreeformLayout, WindowPointerTemplate::Freeform,
-      WindowActivationTemplate::FocusOnly, true, true, schema,
+      "stacking", &createFreeformLayout, true, true, false, schema,
       defaults(schema), actions, defaultWindowAnimation()};
   return value;
 }

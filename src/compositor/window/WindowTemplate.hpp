@@ -9,17 +9,14 @@
 
 namespace LunaDash {
 
-enum class WindowPointerTemplate { Tiling, Freeform };
-enum class WindowActivationTemplate { ToggleMaximize, FocusOnly };
 using WindowLayoutFactory = std::unique_ptr<WindowLayout> (*)();
 
 struct WindowTemplate {
   QString key;
   WindowLayoutFactory createLayout = nullptr;
-  WindowPointerTemplate pointer = WindowPointerTemplate::Tiling;
-  WindowActivationTemplate activation = WindowActivationTemplate::ToggleMaximize;
   bool clientMoveResize = false;
   bool allowOverlap = false;
+  bool activationTogglesMaximize = false;
   QJsonObject layoutSettingsSchema;
   QJsonObject layoutSettingsDefaults;
   QJsonObject layoutActions;

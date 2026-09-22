@@ -12,8 +12,6 @@ QString windowIconName(const QString &appId, const QString &title) {
       return "system-file-manager";
     if (name.contains("setting"))
       return "preferences-system";
-    if (name.contains("monitor"))
-      return "utilities-system-monitor";
     return "lunadash";
   }
   if (appId == "org.freedesktop.Xwayland")
@@ -37,8 +35,7 @@ bool windowAllowsClientMoveResize(const WindowTemplate &windowTemplate,
 
 bool windowActivationTogglesMaximize(const WindowTemplate &windowTemplate,
                                      const ClientWindow &client) {
-  return windowTemplate.activation == WindowActivationTemplate::ToggleMaximize &&
-         !client.floating;
+  return windowTemplate.activationTogglesMaximize && !client.floating;
 }
 
 bool windowHiddenByMaximize(const WindowTemplate &windowTemplate,

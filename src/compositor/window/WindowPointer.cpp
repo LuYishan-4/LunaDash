@@ -84,9 +84,9 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   const QPoint delta = (current - pointerLast).toPoint();
   pointerLast = current;
   const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
-  const bool freeform = q->windowTemplate_ &&
-                        q->windowTemplate_->pointer ==
-                            WindowPointerTemplate::Freeform;
+  const bool freeform =
+      q->windowTemplate_ && q->windowTemplate_->allowOverlap &&
+      q->windowTemplate_->clientMoveResize;
   if (pointerResize && freeform) {
     const auto geometry = client->geometry;
     const auto area = q->workArea();

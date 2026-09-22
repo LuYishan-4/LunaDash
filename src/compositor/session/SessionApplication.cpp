@@ -21,7 +21,7 @@ int SessionApplication::run(int argc, char **argv) {
 
   QCommandLineParser parser;
   parser.setApplicationDescription(
-      "LunaDash wlroots Wayland tiling compositor");
+      "LunaDash wlroots Wayland compositor");
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addOption({"graphics",
@@ -77,7 +77,6 @@ int SessionApplication::run(int argc, char **argv) {
       if (!parser.isSet("no-shell"))
         compositor.spawn({"--app", "welcome"});
       compositor.spawn({"--app", "files"});
-      compositor.spawn({"--app", "monitor"});
     });
   }
 

@@ -92,7 +92,7 @@ pluginWindowPlacements(PluginManager &plugins,
        {"area", rectJson(area)},
        {"newWindows", fresh},
        {"windowTemplate", windowTemplate.key},
-       {"layoutMode", stacking ? "stacking" : "tiling"}},
+       {"allowOverlap", stacking}},
       [&](const auto &result) {
         if (result.size() != 1 || !result.value("windows").isArray() ||
             result.value("windows").toArray().size() != windows.size())

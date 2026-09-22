@@ -182,13 +182,11 @@ PluginDescriptor readPluginMetadata(const QString &path,
         result.icon = QUrl::fromLocalFile(iconPath).toString();
       }
       result.settingsSchema = metadata.value("settings").toObject();
-      const auto legacyLayout =
-          metadata.value("layoutMode").toString("tiling");
       const auto windowTemplate =
-          metadata.value("windowTemplate").toString(legacyLayout);
-      if (((metadata.contains("layoutMode") ||
-            metadata.contains("windowTemplate")) &&
+          metadata.value("windowTemplate").toString("tiling");
+      if ((metadata.contains("windowTemplate") &&
            (result.type != "effect" || result.target != "window-layout")) ||
+          metadata.contains("layoutMode") ||
           !QStringList{"tiling", "stacking"}.contains(windowTemplate) ||
           (windowTemplate == "stacking" && result.mode != "replace")) {
         result.error =
@@ -267,8 +265,7 @@ PluginDescriptor readPluginMetadata(const QString &path,
   if (config.contains("mode"))
     result.mode = config.value("mode").toString();
   const auto configuredWindowTemplate =
-      result.manifest.value("windowTemplate").toString(
-          result.manifest.value("layoutMode").toString("tiling"));
+      result.manifest.value("windowTemplate").toString("tiling");
   if (configuredWindowTemplate == "stacking" && result.mode != "replace") {
     result.error = "Stacking window template must run as Plugin only";
     result.enabled = false;
@@ -315,11 +312,7 @@ QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
       {"mode", plugin.mode},
       {"schemaVersion", plugin.schemaVersion},
       {"windowTemplate",
-       plugin.manifest.value("windowTemplate").toString(
-           plugin.manifest.value("layoutMode").toString("tiling"))},
-      {"layoutMode",
-       plugin.manifest.value("windowTemplate").toString(
-           plugin.manifest.value("layoutMode").toString("tiling"))},
+       plugin.manifest.value("windowTemplate").toString("tiling")},
       {"enabled", plugin.enabled},
       {"error", plugin.error},
       {"settingsSchema", plugin.settingsSchema},

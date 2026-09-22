@@ -102,12 +102,11 @@ private Q_SLOTS:
     const auto templates = windowTemplates();
     QCOMPARE(templates.size(), 2);
     QCOMPARE(templates[0].key, QString("tiling"));
-    QVERIFY(templates[0].pointer == WindowPointerTemplate::Tiling);
-    QVERIFY(templates[0].activation ==
-            WindowActivationTemplate::ToggleMaximize);
+    QVERIFY(!templates[0].clientMoveResize);
+    QVERIFY(templates[0].activationTogglesMaximize);
     QCOMPARE(templates[1].key, QString("stacking"));
-    QVERIFY(templates[1].pointer == WindowPointerTemplate::Freeform);
-    QVERIFY(templates[1].activation == WindowActivationTemplate::FocusOnly);
+    QVERIFY(templates[1].clientMoveResize);
+    QVERIFY(!templates[1].activationTogglesMaximize);
     QVERIFY(createWindowLayout(windowTemplateForKey("stacking")));
     auto layout = createWindowLayout(windowTemplateForKey("tiling"));
     QVERIFY(layout);
