@@ -1483,6 +1483,11 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!pluginManager_->installFromStore(value, &error))
       return {{"error", error}};
     return {{"pending", true}, {"pluginId", value}};
+  } else if (method == "extension-remove") {
+    QString error;
+    if (!pluginManager_->removeInstalledPlugin(value, &error))
+      return {{"error", error}};
+    return {{"removed", true}, {"pluginId", value}};
   } else if (method == "extension-error") {
     const auto object = QJsonDocument::fromJson(value.toUtf8()).object();
     pluginManager_->reportError(object.value("id").toString(),

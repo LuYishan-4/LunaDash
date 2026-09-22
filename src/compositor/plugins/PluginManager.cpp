@@ -464,6 +464,63 @@ void PluginManager::finishStoreInstall(StoreInstall *job,
   refresh();
 }
 
+
+bool PluginManager::removeInstalledPlugin(const QString &id, QString *error) {
+  static const QRegularExpression validId("^[A-Za-z0-9][A-Za-z0-9._-]+$");
+  if (!validId.match(id).hasMatch()) {
+    if (error)
+      *error = "Invalid plugin id";
+    return false;
+  }
+
+  const auto root = userPluginRoot();
+  const auto rootCanonical = QFileInfo(root).canonicalFilePath();
+  const auto destination = QDir(root).filePath(id);
+  const auto destinationCanonical = QFileInfo(destination).canonicalFilePath();
+  if (rootCanonical.isEmpty() || destinationCanonical.isEmpty() ||
+      QFileInfo(destinationCanonical).absolutePath() != rootCanonical) {
+    if (error)
+      *error = "Only user-installed plugins can be removed";
+    return false;
+  }
+
+  const auto metadataPath = QDir(destinationCanonical).filePath("metadata.json");
+  const auto descriptors = readPluginMetadataTargets(metadataPath, false);
+  if (descriptors.isEmpty() ||
+      std::none_of(descriptors.cbegin(), descriptors.cend(),
+                   [&](const auto &descriptor) { return descriptor.id == id; })) {
+    if (error)
+      *error = "Installed plugin metadata does not match the requested id";
+    return false;
+  }
+
+  auto document = readExtensionConfiguration();
+  auto plugins = document.value("plugins").toObject();
+  plugins.remove(id);
+  document["plugins"] = plugins;
+  QString configError;
+  if (!saveExtensionConfiguration(QJsonDocument(document).toJson(), &configError)) {
+    if (error)
+      *error = configError.isEmpty() ? "Could not disable the plugin before removal"
+                                     : configError;
+    return false;
+  }
+
+  // Refresh first so native modules from this package are unloaded/staged
+  // independently before any user files are removed.
+  refresh();
+  if (!QDir(destinationCanonical).removeRecursively()) {
+    if (error)
+      *error = "Could not remove the user plugin directory";
+    return false;
+  }
+  storeInstallErrors_.remove(id);
+  refresh();
+  if (error)
+    error->clear();
+  return true;
+}
+
 void PluginManager::loadEnabled() { refresh(); }
 void PluginManager::refresh() {
   if (inHook_)
@@ -581,8 +638,18 @@ void PluginManager::refresh() {
 QJsonObject PluginManager::snapshot() {
   QJsonArray installed;
   QSet<QString> replacements;
+  const auto removableRoot = QFileInfo(userPluginRoot()).canonicalFilePath();
   for (const auto &descriptor : catalog_) {
+    // The modern settings surface is SDK 2 only. Legacy schema-1/native
+    // descriptors remain readable for migration but are intentionally hidden.
+    if (descriptor.schemaVersion != 2)
+      continue;
     auto item = pluginDescriptorJson(descriptor);
+    const auto packageDir =
+        QFileInfo(descriptor.metadataPath).absoluteDir().canonicalPath();
+    item["removable"] =
+        !removableRoot.isEmpty() && !packageDir.isEmpty() &&
+        QFileInfo(packageDir).absolutePath() == removableRoot;
     QString error = descriptor.error;
     if (error.isEmpty())
       error = errors_.value(pluginInstanceId(descriptor));

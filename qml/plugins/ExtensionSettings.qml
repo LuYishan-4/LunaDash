@@ -14,7 +14,8 @@ ColumnLayout {
     onIncomingStateChanged: if (JSON.stringify(incomingState) !== JSON.stringify(state))
         state = incomingState
 
-    readonly property var installedPlugins: state.installed || []
+    readonly property var installedPlugins: (state.installed || [])
+        .filter(plugin => Number(plugin.schemaVersion || 0) >= 2)
     readonly property var remotePlugins: state.remote || []
     property int pluginTab: 0
     property int filterIndex: 0
@@ -278,6 +279,7 @@ ColumnLayout {
                     readonly property bool remoteIcon: String(modelData.icon || "").startsWith("https://")
                     readonly property var config: remote ? ({}) : page.pluginValue(modelData)
                     property bool expanded: false
+                    property bool confirmDelete: false
 
                     Layout.fillWidth: true
                     implicitHeight: pluginBody.implicitHeight + 28
@@ -412,6 +414,22 @@ ColumnLayout {
                             }
 
                             ShellButton {
+                                visible: !pluginCard.remote && Boolean(pluginCard.modelData.removable)
+                                text: pluginCard.confirmDelete
+                                    ? page.shell.tr("Confirm delete")
+                                    : page.shell.tr("Delete")
+                                destructive: pluginCard.confirmDelete
+                                onClicked: {
+                                    if (!pluginCard.confirmDelete) {
+                                        pluginCard.confirmDelete = true
+                                        return
+                                    }
+                                    page.shell.command("extension-remove", pluginCard.modelData.id)
+                                    pluginCard.confirmDelete = false
+                                }
+                            }
+
+                            ShellButton {
                                 visible: !pluginCard.remote
                                 text: pluginCard.expanded ? "−" : "+"
                                 onClicked: pluginCard.expanded = !pluginCard.expanded
@@ -468,6 +486,13 @@ ColumnLayout {
                                         : ""
                             }
 
+                            SettingsTargetEditor {
+                                Layout.fillWidth: true
+                                visible: Object.keys(pluginCard.modelData.settingsSchema || {}).length > 0
+                                shell: page.shell
+                                targetId: "plugin:" + pluginCard.modelData.id + ":" + pluginCard.modelData.target
+                            }
+
                             Text {
                                 visible: Boolean(pluginCard.modelData.error)
                                 Layout.fillWidth: true
@@ -494,9 +519,20 @@ ColumnLayout {
                             spacing: 8
 
                             ShellButton {
+                                visible: !pluginCard.modelData.installed &&
+                                         Boolean(pluginCard.modelData.installable)
+                                text: pluginCard.modelData.installing
+                                    ? page.shell.tr("Downloading…")
+                                    : page.shell.tr("Download plugin")
+                                active: true
+                                enabled: !pluginCard.modelData.installing
+                                onClicked: page.shell.command(
+                                    "extension-install", pluginCard.modelData.id)
+                            }
+
+                            ShellButton {
                                 visible: Boolean(pluginCard.modelData.siteUrl)
                                 text: page.shell.tr("Plugin page")
-                                active: true
                                 onClicked: page.shell.openUrl(pluginCard.modelData.siteUrl)
                             }
 
@@ -505,6 +541,18 @@ ColumnLayout {
                                 text: page.shell.tr("View source")
                                 onClicked: page.shell.openUrl(pluginCard.modelData.sourceUrl)
                             }
+                        }
+
+                        Text {
+                            visible: pluginCard.remote &&
+                                     Boolean(pluginCard.modelData.installError)
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: pluginCard.modelData.installError || ""
+                            wrapMode: Text.Wrap
+                            color: Theme.danger
+                            font.family: Theme.font
+                            font.pixelSize: 11
                         }
                     }
                 }
@@ -608,6 +656,14 @@ ColumnLayout {
         target: page.shell
 
         function onCommandCompleted(method, result) {
+            if (method === "extension-install") {
+                page.message = result.error || page.shell.tr("Downloading plugin…")
+                return
+            }
+            if (method === "extension-remove") {
+                page.message = result.error || page.shell.tr("Plugin removed.")
+                return
+            }
             if (method !== "extension-save" || !page.saving)
                 return
             page.saving = false

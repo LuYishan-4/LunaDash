@@ -19,6 +19,7 @@ public:
   void refresh();
   bool setEnabled(const QString &id, bool enabled, QString *error = nullptr);
   bool installFromStore(const QString &id, QString *error = nullptr);
+  bool removeInstalledPlugin(const QString &id, QString *error = nullptr);
   using Validator = std::function<bool(const QJsonObject &)>;
   QJsonObject filter(const QString &target, const QJsonObject &builtin,
                      const QJsonObject &context, const Validator &validate);
