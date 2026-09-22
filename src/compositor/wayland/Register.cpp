@@ -215,6 +215,22 @@ bool WaylandCompositor::Impl::initialize() {
   if (wl_display_add_socket(display, socketName.constData()) != 0)
     return fail("Could not create the requested Wayland socket.");
 
+  // A few host-side Wayland helpers (notably GPU Screen Recorder's Flatpak
+  // bridge) still probe the conventional $XDG_RUNTIME_DIR/wayland-0 path
+  // instead of honoring a desktop-specific WAYLAND_DISPLAY. Keep LunaDash's
+  // stable lunadash-* socket for its own clients/control paths, but expose the
+  // same wl_display through the conventional socket in a real login session.
+  // Never add this alias while nested: wayland-0 may belong to the host
+  // compositor and must not be shadowed or treated as a startup failure.
+  if (!nested && socketName != "wayland-0") {
+    if (wl_display_add_socket(display, "wayland-0") == 0) {
+      qInfo("LunaDash Wayland compatibility socket: wayland-0");
+    } else {
+      qWarning("LunaDash could not expose wayland-0 compatibility socket; "
+               "helpers that hard-code wayland-0 may not work.");
+    }
+  }
+
   const int fd = wl_event_loop_get_fd(eventLoop);
   waylandNotifier = new QSocketNotifier(fd, QSocketNotifier::Read, q);
   QObject::connect(waylandNotifier, &QSocketNotifier::activated, q,
