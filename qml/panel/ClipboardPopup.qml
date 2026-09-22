@@ -175,7 +175,7 @@ ModuleSurface {
                         Image {
                             id: previewImage
                             anchors.fill: parent
-                            source: row.imagePayload ? String(row.modelData.payload || "") : ""
+                            source: row.imagePayload ? "file://" + String(row.modelData.payload || "") : ""
                             fillMode: Image.PreserveAspectCrop
                             visible: row.imagePayload && status === Image.Ready
                             asynchronous: true

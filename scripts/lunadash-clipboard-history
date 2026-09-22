@@ -23,7 +23,7 @@ TEXT_MIMES = (
 URI_MIMES = (
     "text/uri-list",
     "x-special/gnome-copied-files",
-    "application/x-kde-cutselection",
+    "application/x-kde4-urilist",
 )
 
 

@@ -1839,8 +1839,7 @@ void WaylandCompositor::closeTestSession(
     const std::function<void(bool)> &finished) {
   testStopping_ = true;
   for (const auto &client : clients_)
-    if (client->toplevel)
-      wlr_xdg_toplevel_send_close(client->toplevel);
+    closeClient(client.get());
 
   auto *timer = new QTimer(this);
   auto elapsed = std::make_shared<int>(0);
@@ -1868,10 +1867,10 @@ void WaylandCompositor::requestShutdown() {
   logoutPending_ = true;
   bool applications = false;
   for (const auto &client : clients_) {
-    if (!client->toplevel)
+    if (client->utility)
       continue;
     applications = true;
-    wlr_xdg_toplevel_send_close(client->toplevel);
+    closeClient(client.get());
   }
   if (!applications)
     QCoreApplication::exit(hasProcessFailure() ? 2 : 0);
