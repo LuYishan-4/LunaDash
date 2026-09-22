@@ -12,7 +12,7 @@ Start the description with the problem and the observable result. Include:
 
 - **Behavior:** what triggers the problem, what happened before, and what happens after the change.
 - **Defaults and customization:** how the change improves the first-login experience or an optional setting, shortcut, module, or plugin. Omit this when unrelated.
-- **Scope:** the affected features, documentation and website pages. Only include changes present in the PR; identify later commits separately if they matter.
+- **Scope:** the affected features and source areas. Mention documentation or website changes only when they are actually part of the PR.
 - **Validation:** commands or checks actually run, their results, and the platforms or hardware covered. For visual changes, include before/after screenshots when useful and check long translations and smaller windows.
 - **Limitations and release impact:** behavior still unverified, required dependencies, configuration changes, and whether users must log in again or restart.
 
@@ -23,14 +23,13 @@ Keep simple PRs short. For larger changes, use the [PR template](.github/pull_re
 Every pull request must:
 
 1. Target the `dev` branch.
-2. Update at least one file under `docs/` to document the behavior, contract, configuration, testing, or limitation that changed.
-3. Update matching public content under `site/`, such as a guide or feature description. Generated release notes do not count.
-4. Do not add, edit, delete or rename files under `.github/workflows/`, release Markdown under `site/src/pages/releases/` (`.md` or `.mdx`), or `site/src/data/releases.json`.
-5. Describe the observable behavior before and after the change.
-6. List the validation actually run and any unverified platform or hardware scope.
-7. Review security-sensitive input, process execution, file paths, permissions, QObject lifetimes, and Wayland client lifetime when applicable.
+2. Keep the PR focused on the implementation being changed. Documentation and website updates are optional and should only be included when they are genuinely needed for that change.
+3. Do not add, edit, delete or rename files under `.github/workflows/`, release Markdown under `site/src/pages/releases/` (`.md` or `.mdx`), or `site/src/data/releases.json`.
+4. Describe the observable behavior before and after the change.
+5. List the validation actually run and any unverified platform or hardware scope.
+6. Review security-sensitive input, process execution, file paths, permissions, QObject lifetimes, and Wayland client lifetime when applicable.
 
-The `PR policy gate` workflow enforces the target branch, the `docs/` + `site/` update rule, and the protected paths above. It runs the policy script from the base commit and inspects the proposed diff without checking out or running PR code. Source, security, and lifetime checks are path-scoped so documentation-only changes do not run C/C++ analysis unnecessarily.
+The `PR policy gate` workflow enforces the target branch and the protected paths above. It does **not** require every PR to modify `docs/` or `site/`. It runs the policy script from the base commit and inspects the proposed diff without checking out or running PR code. Source, security, and lifetime checks are path-scoped so documentation-only changes do not run C/C++ analysis unnecessarily.
 
 ## Branch flow
 
@@ -42,11 +41,13 @@ The `PR policy gate` workflow enforces the target branch, the `docs/` + `site/` 
 
 ## Documentation and website
 
-Technical documentation belongs in `docs/en/` and its Traditional Chinese translation in `docs/zh/`. Keep matching filenames in both language directories and update both when behavior changes. Shared screenshots/branding stay under `docs/image/` and `docs/brand/`. Public-facing summaries, guides, API changes, screenshots, navigation, or release-facing copy belong in `site/`.
+Documentation and website updates are **not mandatory for every pull request**. Add them when the change alters public behavior, user-facing configuration, installation steps, compatibility requirements, APIs, plugin contracts, or other information users need to understand.
 
-README translations live in `docs/readme/`: Traditional Chinese (`README.zh-TW.md`), Simplified Chinese (`README.zh-CN.md`) and Japanese (`README.ja.md`). Use the Traditional Chinese README as the content reference, and synchronize the root English README, Simplified Chinese and Japanese editions with it. Keep the same sections, feature descriptions, installation instructions, compatibility statements and contribution rules in each language. Reuse the shared images and distribution badges; maintain the language-switch links in every version.
+Technical documentation belongs in `docs/en/` and its Traditional Chinese translation in `docs/zh/`. Keep matching filenames in both language directories when those documents are updated. Shared screenshots/branding stay under `docs/image/` and `docs/brand/`. Public-facing summaries, guides, API changes, screenshots, navigation, or release-facing copy belong in `site/`.
 
-If a change does not need a large documentation rewrite, add a concise note to the closest existing document and update the matching website copy or guide. Do not make empty or unrelated edits only to satisfy CI.
+README translations live in `docs/readme/`: Traditional Chinese (`README.zh-TW.md`), Simplified Chinese (`README.zh-CN.md`) and Japanese (`README.ja.md`). When README content is changed, use the Traditional Chinese README as the content reference and synchronize the root English README, Simplified Chinese and Japanese editions with it.
+
+Do not make empty, unrelated, or mechanical documentation/website edits just to satisfy CI.
 
 ## Release notes
 
@@ -58,4 +59,4 @@ See `docs/en/RELEASE_PROCESS.md` for the release-note format and automation deta
 
 ## Native architecture
 
-Follow [the source architecture](docs/en/ARCHITECTURE.md): lowercase domains, PascalCase C++ files, `LunaDash` namespace, small domain-local `Main.cpp`, and explicit CMake sources. Keep OpenGL implementation/resources under `compositor/renderer/opengl`. Run `python3 scripts/check-source-layout.py` and its fixture regressions before submitting. Finish related docs, site and packaging changes before building; preserve remote `dev` behavior when resolving a structural move.
+Follow [the source architecture](docs/en/ARCHITECTURE.md): lowercase domains, PascalCase C++ files, `LunaDash` namespace, small domain-local `Main.cpp`, and explicit CMake sources. Keep OpenGL implementation/resources under `compositor/renderer/opengl`. Run `python3 scripts/check-source-layout.py` and its fixture regressions before submitting. Preserve remote `dev` behavior when resolving a structural move.
