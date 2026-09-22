@@ -61,6 +61,8 @@ public:
     Impl *impl = nullptr;
     ClientWindow *client = nullptr;
     wlr_xwayland_surface *surface = nullptr;
+    Slot<XWaylandState> associate;
+    Slot<XWaylandState> dissociate;
     Slot<XWaylandState> map;
     Slot<XWaylandState> unmap;
     Slot<XWaylandState> destroy;
@@ -376,6 +378,8 @@ public:
 
   static void handleToplevelDestroy(wl_listener *listener, void *);
 
+  static void handleXWaylandAssociate(wl_listener *listener, void *data);
+  static void handleXWaylandDissociate(wl_listener *listener, void *data);
   static void handleXWaylandMap(wl_listener *listener, void *data);
   static void handleXWaylandUnmap(wl_listener *listener, void *data);
   static void handleXWaylandDestroy(wl_listener *listener, void *data);

@@ -581,7 +581,7 @@ void WaylandCompositor::configure(ClientWindow *client,
     const auto height = static_cast<uint16_t>(
         std::clamp(size.height(), 1, 65535));
     wlr_xwayland_surface_configure(client->xwayland, x, y, width, height);
-    wlr_xwayland_surface_set_maximized(client->xwayland, client->maximized);
+    WlrootsCompat::setXWaylandMaximized(client->xwayland, client->maximized);
     wlr_xwayland_surface_set_fullscreen(client->xwayland, client->fullscreen);
     client->lastSize = size;
     return;
@@ -914,7 +914,7 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
         other->maximized = false;
 #if LUDASH_WLR_HAS_XWAYLAND
         if (other->x11 && other->xwayland)
-          wlr_xwayland_surface_set_maximized(other->xwayland, false);
+          WlrootsCompat::setXWaylandMaximized(other->xwayland, false);
         else
 #endif
         if (other->toplevel && other->surface && other->surface->initialized)
@@ -926,7 +926,7 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
   client->maximized = maximized;
 #if LUDASH_WLR_HAS_XWAYLAND
   if (client->x11 && client->xwayland)
-    wlr_xwayland_surface_set_maximized(client->xwayland, maximized);
+    WlrootsCompat::setXWaylandMaximized(client->xwayland, maximized);
   else
 #endif
   if (client->toplevel)

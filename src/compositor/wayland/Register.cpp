@@ -306,6 +306,8 @@ void WaylandCompositor::Impl::shutdown() {
   for (auto *state : xwaylandStates) {
     if (!state)
       continue;
+    detachListener(state->associate);
+    detachListener(state->dissociate);
     detachListener(state->map);
     detachListener(state->unmap);
     detachListener(state->destroy);

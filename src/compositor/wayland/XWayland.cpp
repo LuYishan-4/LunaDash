@@ -43,16 +43,10 @@ void WaylandCompositor::Impl::addXWaylandSurface(
   q->clients_.push_back(std::move(client));
   q->updateClientMetadata(current);
 
-  if (!surface->surface) {
-    surface->data = nullptr;
-    q->clients_.pop_back();
-    delete state;
-    return;
-  }
-  attachListener(&surface->surface->events.map, state->map, state,
-                 handleXWaylandMap);
-  attachListener(&surface->surface->events.unmap, state->unmap, state,
-                 handleXWaylandUnmap);
+  attachListener(&surface->events.associate, state->associate, state,
+                 handleXWaylandAssociate);
+  attachListener(&surface->events.dissociate, state->dissociate, state,
+                 handleXWaylandDissociate);
   attachListener(&surface->events.destroy, state->destroy, state,
                  handleXWaylandDestroy);
   attachListener(&surface->events.request_configure, state->requestConfigure,
@@ -83,6 +77,42 @@ void WaylandCompositor::Impl::addXWaylandSurface(
 #endif
 }
 
+void WaylandCompositor::Impl::handleXWaylandAssociate(wl_listener *listener,
+                                                       void *) {
+#if LUDASH_WLR_HAS_XWAYLAND
+  auto *state = listenerOwner<XWaylandState>(listener);
+  if (!state || !state->client || !state->surface || !state->surface->surface)
+    return;
+  auto *client = state->client;
+  client->wlSurface = state->surface->surface;
+  attachListener(&client->wlSurface->events.map, state->map, state,
+                 handleXWaylandMap);
+  attachListener(&client->wlSurface->events.unmap, state->unmap, state,
+                 handleXWaylandUnmap);
+  if (client->wlSurface->mapped)
+    handleXWaylandMap(&state->map.listener, nullptr);
+#endif
+}
+
+void WaylandCompositor::Impl::handleXWaylandDissociate(
+    wl_listener *listener, void *) {
+#if LUDASH_WLR_HAS_XWAYLAND
+  auto *state = listenerOwner<XWaylandState>(listener);
+  if (!state || !state->client)
+    return;
+  auto *client = state->client;
+  detachListener(state->map);
+  detachListener(state->unmap);
+  if (client->mapped)
+    handleXWaylandUnmap(&state->unmap.listener, nullptr);
+  if (client->sceneTree) {
+    wlr_scene_node_destroy(&client->sceneTree->node);
+    client->sceneTree = nullptr;
+  }
+  client->wlSurface = nullptr;
+#endif
+}
+
 void WaylandCompositor::Impl::handleXWaylandMap(wl_listener *listener,
                                                  void *) {
 #if LUDASH_WLR_HAS_XWAYLAND
@@ -90,7 +120,10 @@ void WaylandCompositor::Impl::handleXWaylandMap(wl_listener *listener,
   if (!state || !state->client || !state->surface || !state->surface->surface)
     return;
   auto *client = state->client;
-  client->wlSurface = state->surface->surface;
+  if (!client->wlSurface)
+    client->wlSurface = state->surface->surface;
+  if (!client->wlSurface)
+    return;
   if (!client->sceneTree) {
     client->sceneTree =
         wlr_scene_subsurface_tree_create(state->impl->normalLayer,
@@ -145,6 +178,8 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
     return;
   auto *self = state->impl;
   auto *client = state->client;
+  detachListener(state->associate);
+  detachListener(state->dissociate);
   detachListener(state->map);
   detachListener(state->unmap);
   detachListener(state->destroy);
