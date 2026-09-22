@@ -32,6 +32,10 @@ public:
   struct ToplevelState {
     Impl *impl = nullptr;
     ClientWindow *client = nullptr;
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+    wlr_ext_foreign_toplevel_handle_v1 *foreignHandle = nullptr;
+    wlr_ext_image_capture_source_v1 *imageCaptureSource = nullptr;
+#endif
     Slot<ToplevelState> map;
     Slot<ToplevelState> unmap;
     Slot<ToplevelState> commit;
@@ -138,6 +142,12 @@ public:
   wlr_cursor *cursor = nullptr;
   wlr_xcursor_manager *cursorManager = nullptr;
   wlr_screencopy_manager_v1 *screencopy = nullptr;
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  wlr_ext_foreign_toplevel_list_v1 *foreignToplevelList = nullptr;
+  wlr_ext_image_copy_capture_manager_v1 *imageCopyCapture = nullptr;
+  wlr_ext_foreign_toplevel_image_capture_source_manager_v1
+      *foreignToplevelCaptureSource = nullptr;
+#endif
 #if LUDASH_WLR_HAS_DATA_CONTROL
   wlr_data_control_manager_v1 *dataControl = nullptr;
 #endif
@@ -190,6 +200,9 @@ public:
   Slot<Impl> newInputMethod;
   Slot<Impl> newTextInput;
   Slot<Impl> newVirtualKeyboard;
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  Slot<Impl> foreignToplevelCaptureRequest;
+#endif
 
   explicit Impl(WaylandCompositor *owner, const QByteArray &socket,
                 bool wantsFullscreen, const QString &renderer);
@@ -355,6 +368,10 @@ public:
   static void handleTextInputDestroy(wl_listener *listener, void *);
 
   static void handleNewVirtualKeyboard(wl_listener *listener, void *data);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  static void handleForeignToplevelCaptureRequest(wl_listener *listener,
+                                                  void *data);
+#endif
 };
 
 } // namespace LunaDash
