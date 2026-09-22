@@ -165,6 +165,26 @@ inline QJsonValue fromStoredValue(const QJsonObject &rule, const QVariant &store
   return value;
 }
 
+inline bool validatePluginSchema(const QJsonObject &schema,
+                                QString *error = nullptr) {
+  if (!validateSchema(schema, error))
+    return false;
+  static const QStringList allowedControls{
+      "toggle", "select", "number", "slider"};
+  for (auto it = schema.begin(); it != schema.end(); ++it) {
+    const auto rule = it.value().toObject();
+    if (rule.value("type").toString() == "array" ||
+        !allowedControls.contains(control(rule))) {
+      if (error)
+        *error =
+            "Plugin settings support only toggle, select, number and slider: " +
+            it.key();
+      return false;
+    }
+  }
+  return true;
+}
+
 inline QJsonObject defaults(const QJsonObject &schema) {
   QJsonObject values;
   for (auto it = schema.begin(); it != schema.end(); ++it)

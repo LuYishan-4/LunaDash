@@ -1,6 +1,7 @@
 #include "config/plugins/PluginCatalog.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
+#include "core/settings/SettingsSchema.hpp"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -194,8 +195,9 @@ PluginDescriptor readPluginMetadata(const QString &path,
         return result;
       }
       result.settings = extensionDefaults(result.settingsSchema);
-      if (!validateExtensionSettings(result.settingsSchema, result.settings,
-                                     &result.error))
+      if (!Settings::validatePluginSchema(result.settingsSchema, &result.error) ||
+          !Settings::validateValues(result.settingsSchema, result.settings,
+                                    &result.error))
         return result;
     }
     enabledByDefault = metadata.value("enabledByDefault").toBool(false);
@@ -273,8 +275,9 @@ PluginDescriptor readPluginMetadata(const QString &path,
   }
   const auto settings = config.value("settings").toObject();
   if (!QStringList{"replace", "augment"}.contains(result.mode) ||
-      !validateExtensionSettings(result.settingsSchema, settings,
-                                 &result.error)) {
+      !Settings::validatePluginSchema(result.settingsSchema, &result.error) ||
+      !Settings::validateValues(result.settingsSchema, settings,
+                                &result.error)) {
     if (result.error.isEmpty())
       result.error = "Invalid plugin composition mode";
     result.enabled = false;

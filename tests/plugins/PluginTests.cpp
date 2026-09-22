@@ -3,6 +3,7 @@
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "config/plugins/PluginCatalog.hpp"
+#include "core/settings/SettingsSchema.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include <QDir>
 #include <QFile>
@@ -49,6 +50,39 @@ private Q_SLOTS:
     QCoreApplication::setApplicationName("Plugins");
     root = temporary.path() + "/data/lunadash/plugins";
   }
+  void pluginSettingsUseStableControls() {
+    QString error;
+    QVERIFY(Settings::validatePluginSchema(
+        {{"enabled", QJsonObject{{"type", "boolean"},
+                                  {"default", false},
+                                  {"control", "toggle"}}},
+         {"mode", QJsonObject{{"type", "string"},
+                               {"default", "a"},
+                               {"enum", QJsonArray{"a", "b"}},
+                               {"control", "select"}}},
+         {"amount", QJsonObject{{"type", "integer"},
+                                 {"default", 2},
+                                 {"control", "number"}}},
+         {"strength", QJsonObject{{"type", "number"},
+                                   {"default", 0.5},
+                                   {"minimum", 0.0},
+                                   {"maximum", 1.0},
+                                   {"control", "slider"}}}},
+        &error));
+    QVERIFY(!Settings::validatePluginSchema(
+        {{"text", QJsonObject{{"type", "string"},
+                               {"default", "custom"},
+                               {"control", "text"}}}},
+        &error));
+    QVERIFY(!Settings::validatePluginSchema(
+        {{"many", QJsonObject{{"type", "array"},
+                               {"default", QJsonArray{}},
+                               {"items", QJsonObject{{"type", "string"},
+                                                     {"enum", QJsonArray{"a"}}}},
+                               {"control", "select"}}}},
+        &error));
+  }
+
   void registryAndValidation() {
     QVERIFY(extensionTargets().size() > 35);
     QSet<QString> ids;

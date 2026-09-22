@@ -55,14 +55,19 @@ Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs
   "entry": "Main.qml",
   "enabledByDefault": false,
   "settings": {
-    "text": {"type": "string", "default": "Hello"}
+    "enabled": {"type": "boolean", "control": "toggle", "default": true},
+    "mode": {"type": "string", "control": "select", "default": "soft",
+             "enum": ["soft", "strong"]},
+    "amount": {"type": "integer", "control": "number", "default": 2},
+    "strength": {"type": "number", "control": "slider", "default": 0.5,
+                 "minimum": 0, "maximum": 1}
   }
 }
 ```
 
 `mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `windowTemplate: stacking` must be replacements: two layout owners cannot simultaneously place the same windows. `lunadash-create-plugin --type effect --target window-layout ...` now starts from the generic native effect template. The shipped stacking/cascade implementation is a real SDK 2 package under `data/plugins/stacking-windows`, while the compositor core retains only generic freeform geometry state for stacking-mode interaction.
 
-The settings schema supports `boolean`, `string`, `number`, `integer`, `default`, numeric `minimum`/`maximum`, and `enum`. Unknown settings and invalid values are rejected before saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
+Plugin settings are rendered automatically through the shared Settings API. SDK 2 plugins may expose only four stable controls: **Yes/No** (`toggle`), **drop-down** (`select`), **numeric input** (`number`) and **numeric slider** (`slider`). Free-form text and array controls remain host/module-only and are rejected for plugins. Unknown settings and invalid values are rejected both by the SDK and again by the runtime before loading or saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
 
 ## Hooks and runtime loading
 
