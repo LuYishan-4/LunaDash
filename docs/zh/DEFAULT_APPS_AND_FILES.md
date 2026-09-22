@@ -35,6 +35,12 @@ lunadashctl default-apps '{"terminal":[],"files":[]}'
 
 ## Portal File Picker — 1.0.1a
 
-xdg-desktop-portal FileChooser 使用 LunaDash 自己的 frameless 外框包住 non-native Qt file view；標題列、Location、邊框與按鈕都由 LunaDash theme 控制，因此不應再出現 host 的白色系統標題框。Location 可貼本機絕對路徑或 `file://` URL，路徑以 Qt 驗證，不經 shell。
+xdg-desktop-portal FileChooser 改用單一 LunaDash `FilePickerDialog`，包含無系統邊框的深色標題列、拖曳縮放與最大化／還原。檔案模型、選取狀態由同一視窗持有；不再將 stack 上的 `QFileDialog` 掛到較早銷毀的外框，回傳結果會在視窗銷毀前複製，連續開啟選檔也遵守相同生命週期。
+
+瀏覽器提供常用資料夾與已掛載媒體捷徑、上一頁／下一頁／上一層、資料夾內搜尋、隱藏檔、可排序清單、圖示檢視及圖片預覽。預覽限制 64 MiB／3200 萬像素；無法預覽的檔案仍可正常選取。Location 支援絕對路徑、相對路徑、`~/` 與本機 `file://` URL；按 Enter 只導覽或準備選取，不直接送出。Ctrl+L 聚焦 Location，Ctrl+F 聚焦搜尋；路徑一律透過 Qt 驗證，不經 shell。
+
+Open 支援單選、多選檔案與資料夾；Save 驗證目標並於覆寫前確認。檔案類型選單支援 portal glob／MIME 篩選，應用程式傳入的額外選項也會顯示並回傳。SaveFiles 僅接受檔名，遇到重名會產生不衝突名稱；無效路徑會留在視窗中顯示原因。
+
+Main Qt workflow 檢查連續選檔、多選、篩選、手動路徑、儲存與無效路徑，並保留選擇器截圖。這是自動化涵蓋範圍；實際桌面工作階段的外觀仍需人工確認。
 
 已刪除的 Command Console 不再是內建應用程式；互動式命令請使用設定的 terminal。

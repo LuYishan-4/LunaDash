@@ -47,20 +47,14 @@ QDialog#screenShareChooser { background: #0b1020; }
 QDialog#portalFileShell { background: transparent; }
 QFrame#portalFileFrame { background: #0b1020; border: 1px solid #52698d; border-radius: 24px; }
 QFrame#portalFileHeader { background: #10192c; border: 1px solid #2f4263; border-radius: 16px; }
-QLabel#portalFileHeading { color: #edf3ff; font-size: 16px; font-weight: 600; }
-QLabel#portalFileCaption { color: #aab7d1; font-size: 9px; }
+QLabel#portalFileHeading { color: #edf3ff; font-size: 21px; font-weight: 600; }
+QLabel#portalFileCaption { color: #aab7d1; font-size: 11px; }
 QToolButton#portalFileClose { background: transparent; border: 1px solid transparent; border-radius: 10px; color: #dbe6fa; font-size: 18px; }
 QToolButton#portalFileClose:hover { background: #3b2532; border-color: #8e5364; }
-QWidget#portalLocationBar { background: transparent; }
-QFileDialog#portalEmbeddedFileDialog { background: transparent; border: none; }
-QFileDialog#portalEmbeddedFileDialog QWidget { background-color: transparent; }
-QFileDialog#portalEmbeddedFileDialog QListView,
-QFileDialog#portalEmbeddedFileDialog QTreeView { background: #10192c; border: 1px solid #2f4263; border-radius: 16px; padding: 10px; }
-QFileDialog#portalEmbeddedFileDialog QLineEdit,
-QFileDialog#portalEmbeddedFileDialog QComboBox { background: #121d32; border: 1px solid #3f567a; border-radius: 11px; padding: 8px 10px; }
-QFileDialog#portalEmbeddedFileDialog QToolButton { background: #182541; border: 1px solid #334766; border-radius: 10px; padding: 6px; }
-QFileDialog#portalEmbeddedFileDialog QToolButton:hover { background: #223454; border-color: #607aa2; }
-QFileDialog#portalEmbeddedFileDialog QPushButton { min-height: 22px; }
+QDialog#portalFileShell QListWidget#filePlaces { background: #10192c; border: 1px solid #2f4263; border-radius: 16px; padding: 8px; }
+QDialog#portalFileShell QPushButton#accent:disabled { background: #263650; color: #8a9bb8; }
+QDialog#portalFileShell QLineEdit { min-height: 22px; }
+QDialog#portalFileShell QSplitter::handle { background: transparent; width: 14px; }
 
 QListWidget#screenShareSources { background: #10192c; border: 1px solid #465777; border-radius: 18px; padding: 12px; outline: none; }
 QListWidget#screenShareSources::item { background: #162036; border: 1px solid #334766; border-radius: 16px; padding: 10px; margin: 3px; }

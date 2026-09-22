@@ -128,6 +128,8 @@ Metadata/QML/native 都以使用者權限執行，protocol/session/system-servic
 
 Audio Wave 1.0.1a 現在透過 `lunadash-shell-tool audio-spectrum` 持續讀取 `parec` 的播放輸出 monitor（也支援 PipeWire-Pulse）。24 kHz stereo PCM 使用 1024 samples Hann FFT、512 samples hop，產生 32 個對數頻帶，左右聲道分別分析以避免反相抵消。每秒約 47 次更新；限制緩衝，不儲存或上傳音訊，也不讀取預設麥克風。需要 `parec`（Arch 的 `libpulse`、Debian/Ubuntu 的 `pulseaudio-utils`）與運作中的 PulseAudio 相容服務。
 
-插件依畫面幀時間平滑升降（attack 35 ms / release 180 ms），使用對數強度與可調 spectrum gain，預設高度 320 px。不再輪詢 MPRIS 或產生正弦假動畫，因此瀏覽器聲音也能驅動。靜音、無聲或樣本中斷會回到底線；缺少 helper/server 時顯示原因並每三秒重試。預設輸出改變後，shell 裝置清單更新會重新連接 monitor。插件始終留在桌布 Background layer。
+插件依畫面幀時間平滑升降（attack 22 ms / release 140 ms），使用對數強度與可調 spectrum gain，預設高度 320 px。不再輪詢 MPRIS 或產生正弦假動畫，因此瀏覽器聲音也能驅動。靜音、無聲或樣本中斷會回到底線；缺少 helper/server 時顯示原因並每三秒重試。預設輸出改變後，shell 裝置清單更新會重新連接 monitor。插件始終留在桌布 Background layer。
 
 Store 除版本號外，也比較整包來源檔案雜湊的安裝紀錄。因此同樣標示 `1.0.1a` 的修訂仍能更新；舊安裝沒有紀錄時會提供一次更新。紀錄僅用於版本辨識，不代表沙箱或信任保證。下載仍先暫存、逐檔校驗，更新完成後仍須明確啟用。
+
+Audio Wave 新增「Wave amplitude」振幅倍率，預設 1.8、可調 0.5–3 倍；這個新設定也套用到保留舊高度設定的安裝。自動峰值正規化提高較小聲播放的可見度，同時保留頻帶高低差；可關閉，靜音與低於 PCM 門檻的訊號不放大。柱間距與增益也可調整，基準高度 320 px，峰值動畫使用 22/140 ms 上升／下降時間。

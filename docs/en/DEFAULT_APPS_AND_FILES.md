@@ -18,7 +18,13 @@ lunadashctl default-apps '{"terminal":[],"files":[]}'                           
 
 ## Portal and wallpaper pickers
 
-The xdg-desktop-portal FileChooser backend uses a frameless LunaDash-owned shell around the non-native Qt file view. LunaDash owns the dark title/header surface, location field and outer frame, so host decorations cannot reintroduce a white title bar. The location field accepts local absolute paths and `file://` URLs; values are validated by Qt and never evaluated by a shell.
+The xdg-desktop-portal FileChooser backend uses one LunaDash-owned `FilePickerDialog`, with a frameless dark header, resize grip and maximize/restore control. Its file model and selection belong to this dialog; no stack-allocated `QFileDialog` is reparented into a shorter-lived wrapper. Results are copied before the dialog is destroyed, including on repeated requests.
+
+The browser provides standard home folders and mounted-media shortcuts, back/forward/up navigation, folder search, hidden files, sortable details and icon views, and an image preview (64 MiB / 32 megapixel decode limits). The location field accepts absolute paths, relative paths, `~/` and local `file://` URLs. Enter in that field navigates or selects a candidate without confirming the request. Ctrl+L focuses Location; Ctrl+F focuses search. Paths are validated with Qt and never evaluated by a shell.
+
+Open supports single/multiple files and folders; Save validates the destination and asks before replacing an existing file. The file-type selector honors portal glob/MIME filters, and application-provided choices are displayed and returned. SaveFiles restricts names to basenames and generates unique names for collisions. Invalid paths leave the picker open with an error. Previews are optional: unsupported or oversized images remain selectable as regular files.
+
+The Main Qt workflow exercises repeated acceptance, multiple selection, filters, manual paths, saving and invalid paths, and retains a picker screenshot. This is automated coverage; visual acceptance in the actual desktop session remains a separate manual check.
 
 The wallpaper/calendar picker remains a separate in-shell QML picker.
 

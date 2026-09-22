@@ -15,6 +15,17 @@ endif()
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
+    add_executable(lunadash-portal-picker-test tests/files/PortalPickerTests.cpp
+        src/service/portal/FileChooserPortal.cpp
+        src/service/portal/FileChooserPortal.hpp
+        src/service/portal/FileChooserOptions.cpp
+        src/service/portal/FileChooserOptions.hpp
+        src/service/portal/FilePickerDialog.cpp
+        src/service/portal/FilePickerDialog.hpp)
+    target_link_libraries(lunadash-portal-picker-test PRIVATE ludash-apps Qt6::Test Qt6::DBus)
+    add_test(NAME lunadash-portal-picker COMMAND lunadash-portal-picker-test)
+    set_tests_properties(lunadash-portal-picker PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
     add_executable(lunadash-audio-spectrum-test tests/media/AudioSpectrumTests.cpp)
     target_link_libraries(lunadash-audio-spectrum-test PRIVATE ludash-audio-spectrum Qt6::Test)
     add_test(NAME lunadash-audio-spectrum COMMAND lunadash-audio-spectrum-test)

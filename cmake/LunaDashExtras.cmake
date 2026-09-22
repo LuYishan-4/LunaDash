@@ -14,6 +14,10 @@ add_executable(lunadash-portal src/service/portal/Main.cpp
     src/service/portal/Portal.cpp
     src/service/portal/FileChooserPortal.cpp
     src/service/portal/FileChooserPortal.hpp
+    src/service/portal/FileChooserOptions.cpp
+    src/service/portal/FileChooserOptions.hpp
+    src/service/portal/FilePickerDialog.cpp
+    src/service/portal/FilePickerDialog.hpp
     src/service/portal/ScreenCastChooser.cpp
     src/service/portal/ScreenCastChooser.hpp)
 target_link_libraries(lunadash-portal PRIVATE ludash-apps Qt6::Widgets Qt6::DBus)
