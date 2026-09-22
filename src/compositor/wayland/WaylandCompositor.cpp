@@ -1576,6 +1576,9 @@ void WaylandCompositor::publishSessionActivationEnvironment() {
                                [this](bool ok, const QString &error) {
                                  activationEnvironmentPublished_ = ok;
                                  activationEnvironmentError_ = error;
+                                 if (ok)
+                                   refreshScreencastPortalServices(
+                                       clientEnvironment_, this);
                                });
 }
 

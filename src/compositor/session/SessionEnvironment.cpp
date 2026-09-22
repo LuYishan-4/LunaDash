@@ -147,6 +147,41 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
   return true;
 }
 
+void refreshScreencastPortalServices(
+    const QProcessEnvironment &environment, QObject *owner) {
+  const QString systemctl =
+      QStandardPaths::findExecutable(QStringLiteral("systemctl"));
+  if (systemctl.isEmpty())
+    return;
+
+  auto *process = new QProcess(owner);
+  process->setProcessEnvironment(environment);
+  process->setProcessChannelMode(QProcess::MergedChannels);
+  QObject::connect(
+      process, &QProcess::finished, owner,
+      [process](int code, QProcess::ExitStatus status) {
+        if (code != 0 || status != QProcess::NormalExit) {
+          const QString diagnostic =
+              QString::fromLocal8Bit(process->readAll()).trimmed().left(1024);
+          if (!diagnostic.isEmpty())
+            qWarning().noquote()
+                << "LunaDash portal refresh:" << diagnostic;
+        }
+        process->deleteLater();
+      });
+  QObject::connect(
+      process, &QProcess::errorOccurred, owner,
+      [process](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart)
+          process->deleteLater();
+      });
+  process->start(
+      systemctl,
+      {QStringLiteral("--user"), QStringLiteral("try-restart"),
+       QStringLiteral("xdg-desktop-portal-wlr.service"),
+       QStringLiteral("xdg-desktop-portal.service")});
+}
+
 void publishActivationEnvironment(
     const QProcessEnvironment &environment, QObject *owner,
     std::function<void(bool, const QString &)> completion) {
