@@ -9,7 +9,6 @@ import time
 
 MAX_ENTRIES = 20
 MAX_TEXT_BYTES = 65536
-POLL_SECONDS = 0.35
 
 
 def runtime_path() -> pathlib.Path:
@@ -116,17 +115,31 @@ def read_wayland_clipboard() -> bytes | None:
 
 
 def watch() -> int:
-    # Create a valid owner-only file immediately so UI readers never need to
-    # distinguish "no history yet" from a partially-created file.
+    # Use wl-paste's compositor event stream instead of polling. Each clipboard
+    # change starts this same helper in record mode with the selection on stdin.
     if not runtime_path().exists():
         save([])
-    last: bytes | None = None
+    helper = str(pathlib.Path(__file__).resolve())
+    command = [
+        "wl-paste",
+        "--watch",
+        "--type",
+        "text",
+        sys.executable,
+        helper,
+        "record",
+    ]
     while True:
-        current = read_wayland_clipboard()
-        if current is not None and current != last:
-            record(current)
-            last = current
-        time.sleep(POLL_SECONDS)
+        try:
+            result = subprocess.run(command, check=False)
+        except FileNotFoundError:
+            print("wl-paste is unavailable; install wl-clipboard.", file=sys.stderr)
+            return 2
+        # A compositor restart can terminate the watch process. Reconnect
+        # instead of silently leaving the panel with stale history.
+        if result.returncode == 0:
+            return 0
+        time.sleep(0.5)
 
 
 def copy_entry(index: int) -> int:

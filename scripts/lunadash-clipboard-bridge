@@ -20,7 +20,7 @@ while :; do
         fi
         last="$wl"
     elif [ -n "$x" ] && [ "$x" != "$last" ]; then
-        printf '%s' "$x" | wl-copy --no-newline 2>/dev/null || true
+        printf '%s' "$x" | wl-copy --type 'text/plain;charset=utf-8' 2>/dev/null || true
         last="$x"
     fi
     sleep 0.4
