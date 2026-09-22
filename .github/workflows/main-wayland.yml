@@ -22,7 +22,7 @@ jobs:
                     libwayland-dev wayland-protocols libwlroots-dev \
                     libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
-                    xvfb xauth xdotool xwayland python3 wayland-utils
+                    xvfb xauth xdotool xwayland python3 wayland-utils                     wl-clipboard grim
             - name: Reject QtWayland compositor dependencies
               run: python3 tests/wayland/test_no_qtwayland.py
             - name: Build wlroots compositor
@@ -68,6 +68,34 @@ jobs:
                   grep -q "interface: 'zwp_text_input_manager_v3'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_input_method_manager_v2'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_virtual_keyboard_manager_v1'" build-wayland/core-protocol-globals.txt
+
+                  # Exercise the data-control path used by clipboard history.
+                  clipboard_value="lunadash-clipboard-$RANDOM-$RANDOM"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     wl-copy --type 'text/plain;charset=utf-8' "$clipboard_value"
+                  pasted="$(XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     timeout 5 wl-paste --no-newline --type 'text/plain;charset=utf-8')"
+                  test "$pasted" = "$clipboard_value"
+
+                  history_log="$PWD/build-wayland/clipboard-history.log"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     "$PWD/scripts/lunadash-clipboard-history" watch >"$history_log" 2>&1 &
+                  history_pid=$!
+                  second_value="lunadash-history-$RANDOM-$RANDOM"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     wl-copy --type 'text/plain;charset=utf-8' "$second_value"
+                  for _ in $(seq 1 50); do
+                    history_json="$(XDG_RUNTIME_DIR="$runtime"                       "$PWD/scripts/lunadash-clipboard-history" list)"
+                    echo "$history_json" | grep -Fq "$second_value" && break
+                    sleep 0.1
+                  done
+                  echo "$history_json" | grep -Fq "$second_value"
+                  kill "$history_pid" 2>/dev/null || true
+                  wait "$history_pid" 2>/dev/null || true
+
+                  # Repeated screencopy requests must keep completing. This
+                  # protects the same output-frame path used by xdpw/Discord.
+                  for i in $(seq 1 8); do
+                    XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                       timeout 5 grim "build-wayland/screencopy-$i.png"
+                    test -s "build-wayland/screencopy-$i.png"
+                  done
+
                   kill "$pid"
                   wait "$pid" || true
             - name: Run wlroots session
@@ -82,6 +110,8 @@ jobs:
                       build-wayland/xdg-lifecycle.log
                       build-wayland/xwayland.log
                       build-wayland/core-protocol-globals.txt
+                      build-wayland/clipboard-history.log
+                      build-wayland/screencopy-*.png
                       build-wayland/wayland.log
                       build-wayland/wayland-state.json
                   if-no-files-found: ignore
