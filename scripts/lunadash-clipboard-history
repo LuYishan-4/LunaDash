@@ -285,31 +285,60 @@ def advertised_types() -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def infer_watch_mime(raw: bytes) -> str:
-    mime = os.environ.get("CLIPBOARD_TYPE", "").strip()
-    if mime:
-        return mime
-    offered = advertised_types()
+def preferred_mime(offered: list[str]) -> str | None:
     for candidate in URI_MIMES:
         if candidate in offered:
             return candidate
     for prefix in ("image/", "audio/", "video/"):
-        found = next((item for item in offered if item.lower().startswith(prefix)), None)
+        found = next(
+            (item for item in offered if item.lower().startswith(prefix)), None
+        )
         if found:
             return found
     for candidate in TEXT_MIMES:
         if candidate in offered:
             return candidate
-    return offered[0] if offered else "application/octet-stream"
+    return offered[0] if offered else None
+
+
+def read_current_selection(mime: str) -> bytes | None:
+    try:
+        result = subprocess.run(
+            ["wl-paste", "--no-newline", "--type", mime],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0 or len(result.stdout) > MAX_PAYLOAD_BYTES:
+        return None
+    return result.stdout
 
 
 def watch_record() -> int:
     if os.environ.get("CLIPBOARD_STATE") == "nil":
         return 0
-    raw = sys.stdin.buffer.read(MAX_PAYLOAD_BYTES + 1)
-    if len(raw) > MAX_PAYLOAD_BYTES:
+
+    watched_raw = sys.stdin.buffer.read(MAX_PAYLOAD_BYTES + 1)
+    if len(watched_raw) > MAX_PAYLOAD_BYTES:
         return 1
-    return 0 if record_payload(raw, infer_watch_mime(raw)) else 1
+
+    # Watch mode chooses one offered type. File managers and browsers often
+    # advertise both text/plain and richer URI/image/media types, so ask the
+    # current selection for the richest supported MIME before recording it.
+    offered = advertised_types()
+    mime = preferred_mime(offered)
+    if mime:
+        raw = read_current_selection(mime)
+        if raw is not None:
+            return 0 if record_payload(raw, mime) else 1
+
+    mime = os.environ.get("CLIPBOARD_TYPE", "").strip()
+    if not mime:
+        mime = "application/octet-stream"
+    return 0 if record_payload(watched_raw, mime) else 1
 
 
 def watch() -> int:
