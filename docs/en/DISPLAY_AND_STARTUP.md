@@ -8,7 +8,7 @@ Settings → Display reads the machine-readable `brightnessctl` percentage field
 
 ### External monitors (DDC/CI)
 
-Install `ddcutil` (included by the dependency installer and Arch package), then enable DDC/CI in each monitor's on-screen menu. Settings → Display → External monitor brightness detects I2C displays, labels them individually and reads VCP brightness code `0x10`. Each slider targets its own bus; percentages are converted using that monitor's reported maximum, which need not be 100. Unsupported brightness features remain disabled with an explanation. Laptop backlight control continues to use brightnessctl independently.
+Install `ddcutil` (included by the dependency installer and Arch package), then enable DDC/CI in each monitor's on-screen menu. Settings → Display → External monitor brightness detects I2C displays, labels them individually and reads VCP brightness code `0x10`. Each slider targets its own bus; percentages are converted using that monitor's reported maximum, which need not be 100. Unsupported brightness features remain disabled with an explanation. Brightness reads and writes are matched to their monitor by the detection ID, so a background refresh cannot apply a result to the wrong display. Laptop backlight control continues to use brightnessctl independently.
 
 Detection, reads and verified writes run asynchronously with bounded timeouts. Requests are serialized and repeated slider changes are coalesced per monitor. Detection refreshes every minute; **Refresh monitors** discovers connections or permission changes immediately. Failed writes retain the last confirmed value and report the error. USB HID monitor control is not included.
 

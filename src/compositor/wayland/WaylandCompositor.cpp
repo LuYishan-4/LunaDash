@@ -294,6 +294,15 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
     if (config.isEmpty())
       config = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
                                       "ludash/shell/shell.qml");
+    if (config.isEmpty()) {
+      // Starting Quickshell with an empty --path only produces a silent,
+      // windowless shell. Report the missing shell asset instead.
+      if (required)
+        processFailure_ = true;
+      qWarning("LunaDash shell.qml was not found in any search location.");
+      process->deleteLater();
+      return nullptr;
+    }
     const QString quickshell = QStandardPaths::findExecutable("quickshell");
     if (quickshell.isEmpty()) {
       if (required)

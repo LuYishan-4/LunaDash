@@ -17,7 +17,7 @@ Page content scrolls vertically with the mouse wheel, touch gestures or the scro
 | Display | Backlight and per-monitor DDC/CI brightness, primary-output resolution/refresh rate and 100–300% scale | Mode changes require confirmation within 15 seconds; nested physical modes belong to the host. Multi-monitor arrangement, rotation, HDR and night light remain unavailable |
 | Keyboard and pointer | Seven keyboard layouts, repeat rate/delay, cursor size for the next session, input test field | Input-method editor and host mouse/touchpad settings; standalone libinput device configuration remains unavailable |
 | Sound | Default output and microphone volume/mute through WirePlumber | Pavucontrol/pwvucontrol handles routing and devices; missing services disable direct controls |
-| Network | Current connection state | NetworkManager editor handles Wi-Fi, Ethernet, VPN and saved profiles; LunaDash does not store network passwords |
+| Network | Current connection state | NetworkManager editor handles Wi-Fi, Ethernet, VPN and saved profiles; LunaDash does not store network passwords. Saved profiles and Wi-Fi names that contain a colon are still listed and matched correctly |
 | Bluetooth | Tool availability and package guidance | Blueman handles pairing and adapters |
 | Power and battery | Reported battery charge and supported power profiles | Host power tool handles lid/idle policy. No standalone suspend policy or backlight controls yet |
 | Applications and startup | Built-in startup selection, package/plugin/X11 launchers | Default terminal and file manager chosen from installed applications or a custom argument array; arbitrary desktop-entry autostart/session restore is not implemented |
