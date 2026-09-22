@@ -394,10 +394,23 @@ ColumnLayout {
                             }
                         }
 
-                        ShellButton {
-                            visible: pluginCard.remote && Boolean(pluginCard.modelData.sourceUrl)
-                            text: page.shell.tr("View source")
-                            onClicked: page.shell.openUrl(pluginCard.modelData.sourceUrl)
+                        RowLayout {
+                            visible: pluginCard.remote
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            ShellButton {
+                                visible: Boolean(pluginCard.modelData.siteUrl)
+                                text: page.shell.tr("Plugin page")
+                                active: true
+                                onClicked: page.shell.openUrl(pluginCard.modelData.siteUrl)
+                            }
+
+                            ShellButton {
+                                visible: Boolean(pluginCard.modelData.sourceUrl)
+                                text: page.shell.tr("View source")
+                                onClicked: page.shell.openUrl(pluginCard.modelData.sourceUrl)
+                            }
                         }
                     }
                 }

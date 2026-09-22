@@ -108,4 +108,10 @@ The corresponding control commands are `lunadashctl extension-save '<JSON>'` and
 
 Discovery prefers the user's data directory, then system data directories: `lunadash/plugins`, legacy `lunadash/shell/plugins`, legacy `ludash/plugins`; an executable-adjacent `plugins` directory supports development builds. Legacy schema-1 QML widgets continue as desktop widgets. The old Qt Quick native effect ABI is rejected with a rebuild message; it never drove the active wlroots scene. Existing trusted custom module QML remains a migration path, but new plugin packages use SDK 2.
 
-The plugin store remains unimplemented. Metadata and QML run with user permissions. Protocol/session ownership, authentication, system services and update installation are host responsibilities, not replaceable native services in SDK 2.
+## Community registry and Store
+
+Community plugins are published through [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins). A submission lives in `plugins/<id>/`, is validated against the SDK 2 target/manifest/settings contracts, passes repository CI, and is reviewed before it can appear in the generated catalogue. The accompanying Astro site provides a browser for the same registry.
+
+Settings → Plugins → Store downloads `https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json` by default. `LUNADASH_PLUGIN_CATALOG_URL` can still override the URL, and the bundled catalogue remains an offline fallback. Store entries may link to their registry page and source; package build/install still uses the LunaDash Plugin SDK 2 rather than bypassing its validation.
+
+Metadata, QML and native plugins run with user/session permissions; the registry and catalogue validation are not a sandbox or signature. Protocol/session ownership, authentication and system services remain host responsibilities.

@@ -102,4 +102,12 @@ lunadashctl extension-save '<JSON>'
 lunadashctl open-settings plugins
 ```
 
-搜尋順序先 user data，再 system data，並保留舊 path 相容。Plugin store 尚未實作；metadata/QML/native 都以使用者權限執行，protocol/session/system-service ownership 仍屬 host。
+搜尋順序先 user data，再 system data，並保留舊 path 相容。
+
+## 社群 Registry 與 Store
+
+社群 plugin 統一透過 [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins) 投稿。每個 plugin 放在 `plugins/<id>/`，PR 會依 LunaDash SDK 2 的 target、manifest 與 settings schema 驗證，通過 CI 與 maintainer review 後才會進入產生的 catalogue；同一份 registry 也由 Astro 網站提供瀏覽。
+
+Settings → Plugins → Store 預設讀取 `https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json`；仍可用 `LUNADASH_PLUGIN_CATALOG_URL` 覆寫，內建 catalogue 則作為離線 fallback。Store 會提供 registry/source 連結；實際 package build/install 仍走 LunaDash Plugin SDK 2，不繞過 SDK 驗證。
+
+Registry/metadata 驗證不是 sandbox 或 signature。metadata/QML/native 仍以使用者/session 權限執行，protocol/session/system-service ownership 仍屬 host。

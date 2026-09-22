@@ -123,7 +123,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
 void PluginManager::refreshStore() {
   const QString configured = qEnvironmentVariable(
       "LUNADASH_PLUGIN_CATALOG_URL",
-      "https://raw.githubusercontent.com/LuYishan-4/LunaDash/main/data/plugins/catalog.json");
+      "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json");
   if (configured.isEmpty() || configured.compare("off", Qt::CaseInsensitive) == 0)
     return;
 

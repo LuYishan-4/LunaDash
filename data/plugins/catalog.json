@@ -14,7 +14,8 @@
         "Widget",
         "Clock"
       ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/qml/plugins/digital-clock"
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.digitalclock",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/"
     },
     {
       "id": "org.ludash.fade",
@@ -29,7 +30,8 @@
         "Animation",
         "Native"
       ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/data/plugins/fade"
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.ludash.fade",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.ludash.fade/"
     },
     {
       "id": "org.lunadash.stacking-windows",
@@ -44,7 +46,8 @@
         "Layout",
         "Native"
       ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/data/plugins/stacking-windows"
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.stacking-windows",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.stacking-windows/"
     }
   ]
 }
