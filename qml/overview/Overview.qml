@@ -72,7 +72,6 @@ ModuleSurface {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "lunadash-overview"
     color: "transparent"
-    clip: true
 
     HoverHandler {
         id: dashboardHover

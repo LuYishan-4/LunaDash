@@ -81,7 +81,6 @@ ModuleSurface {
     WlrLayershell.keyboardFocus: opened && !updateAuthorizing
         ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
-    clip: true
 
     Rectangle {
         anchors.fill: parent

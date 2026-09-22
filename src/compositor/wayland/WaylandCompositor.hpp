@@ -72,7 +72,6 @@ private:
   QProcessEnvironment clientEnvironment_;
   std::vector<std::unique_ptr<ClientWindow>> clients_;
   QList<QProcess *> processes_;
-  QSet<qint64> shellProcessIds_;
   ClientWindow *focused_ = nullptr;
 
   int nextWindowId_ = 1;
@@ -89,6 +88,8 @@ private:
   bool logoutPending_ = false;
   bool testStopping_ = false;
   bool processFailure_ = false;
+  bool shellRestartScheduled_ = false;
+  int shellRestartFailures_ = 0;
   bool shortcutCapture_ = false;
   bool activationEnvironmentPublished_ = false;
   QString activationEnvironmentError_;
@@ -98,6 +99,7 @@ private:
   int keypadKeyForwards_ = 0;
 
   void requestShutdown();
+  void scheduleShellRestart();
   void publishSessionActivationEnvironment();
   void captureScreen();
   bool launchExternalCommand(QStringList command, QString *error,

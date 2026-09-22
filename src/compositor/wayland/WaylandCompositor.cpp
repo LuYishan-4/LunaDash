@@ -49,6 +49,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
+#include <QPointer>
 #include <QSettings>
 #include <QSocketNotifier>
 #include <QStandardPaths>
@@ -263,28 +264,8 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   QObject::connect(shellModules_, &ShellModules::changed, this,
                    [this] { arrange(); });
 
-  if (startShell) {
-    if (auto *process = spawn({"--session"}, {}, false)) {
-      connect(process, &QProcess::finished, this,
-              [this](int code, QProcess::ExitStatus status) {
-                if (shuttingDown_ || testStopping_ || logoutPending_)
-                  return;
-
-                // The shell is a recoverable client, not the session owner.
-                // A clean Quickshell exit must not silently log the user out:
-                // transient display/XWayland failures can make a shell quit
-                // normally even though the compositor and other clients are
-                // healthy. Explicit logout is carried by logoutPending_.
-                qWarning().noquote()
-                    << "LunaDash shell exited; restarting:"
-                    << "code" << code << "status" << status;
-                QTimer::singleShot(250, this, [this] {
-                  if (!shuttingDown_ && !testStopping_ && !logoutPending_)
-                    spawn({"--session", "--no-welcome"}, {}, false);
-                });
-              });
-    }
-  }
+  if (startShell)
+    spawn({"--session"}, {}, false);
 
   if (startShell && setupComplete()) {
     QTimer::singleShot(1200, this, [this] {
@@ -312,8 +293,13 @@ WaylandCompositor::~WaylandCompositor() {
     delete xwayland_;
     xwayland_ = nullptr;
   }
-  for (auto *process : processes_) {
-    if (!process || process->state() == QProcess::NotRunning)
+  const auto childProcesses = processes_;
+  processes_.clear();
+  for (auto *process : childProcesses) {
+    if (!process)
+      continue;
+    disconnect(process, nullptr, this, nullptr);
+    if (process->state() == QProcess::NotRunning)
       continue;
     process->terminate();
     if (!process->waitForFinished(500)) {
@@ -324,6 +310,26 @@ WaylandCompositor::~WaylandCompositor() {
   delete shortcutSettings_;
   shortcutSettings_ = nullptr;
   d.reset();
+}
+
+void WaylandCompositor::scheduleShellRestart() {
+  if (shuttingDown_ || testStopping_ || logoutPending_ ||
+      shellRestartScheduled_)
+    return;
+
+  const int exponent = std::min(shellRestartFailures_, 4);
+  const int delayMs = std::min(4000, 250 * (1 << exponent));
+  ++shellRestartFailures_;
+  shellRestartScheduled_ = true;
+  qWarning().noquote()
+      << "LunaDash shell restart scheduled in" << delayMs << "ms";
+
+  QTimer::singleShot(delayMs, this, [this] {
+    shellRestartScheduled_ = false;
+    if (shuttingDown_ || testStopping_ || logoutPending_)
+      return;
+    spawn({"--session", "--no-welcome"}, {}, false);
+  });
 }
 
 QProcess *WaylandCompositor::spawn(const QStringList &arguments,
@@ -361,8 +367,21 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
           });
 
   if (program.isEmpty() && arguments.contains("--session")) {
-    connect(process, &QProcess::started, this,
-            [this, process] { shellProcessIds_.insert(process->processId()); });
+    connect(process, &QProcess::finished, this,
+            [this](int code, QProcess::ExitStatus status) {
+              if (shuttingDown_ || testStopping_ || logoutPending_)
+                return;
+              qWarning().noquote()
+                  << "LunaDash shell exited; scheduling restart:"
+                  << "code" << code << "status" << status;
+              scheduleShellRestart();
+            });
+    connect(process, &QProcess::errorOccurred, this,
+            [this](QProcess::ProcessError) {
+              if (!shuttingDown_ && !testStopping_ && !logoutPending_)
+                scheduleShellRestart();
+            });
+
     const QString sourceConfig =
         QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
     // Use assets next to the installed executable before any build checkout.
@@ -402,6 +421,12 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
     qInfo().noquote() << "LunaDash shell config:" << config;
     process->setProcessEnvironment(environment);
     process->start(quickshell, {"--path", config, "--no-color"});
+
+    const QPointer<QProcess> shellGuard(process);
+    QTimer::singleShot(10000, this, [this, shellGuard] {
+      if (shellGuard && shellGuard->state() != QProcess::NotRunning)
+        shellRestartFailures_ = 0;
+    });
   } else {
     auto executable = program;
     if (executable.isEmpty()) {
