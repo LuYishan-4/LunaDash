@@ -294,7 +294,9 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
       !self->q->shortcutCapture_) {
     const uint32_t rawModifiers = wlr_keyboard_get_modifiers(keyboard);
     for (int i = 0; i < count; ++i) {
-      if (symbols[i] == XKB_KEY_F12 && rawModifiers == 0) {
+      if (symbols[i] == XKB_KEY_F12 &&
+          !(rawModifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT |
+                            WLR_MODIFIER_SHIFT | WLR_MODIFIER_LOGO))) {
         self->q->handleShortcut("toggleFullscreen");
         state->consumedKeys.insert(event->keycode);
         return;
