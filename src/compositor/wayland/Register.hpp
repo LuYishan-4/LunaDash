@@ -33,6 +33,8 @@ public:
     Impl *impl = nullptr;
     ClientWindow *client = nullptr;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+    wlr_scene *imageCaptureScene = nullptr;
+    wlr_scene_tree *imageCaptureTree = nullptr;
     wlr_ext_foreign_toplevel_handle_v1 *foreignHandle = nullptr;
     wlr_ext_image_capture_source_v1 *imageCaptureSource = nullptr;
 #endif
@@ -66,6 +68,9 @@ public:
     Impl *impl = nullptr;
     wlr_xdg_popup *popup = nullptr;
     wlr_scene_tree *sceneTree = nullptr;
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+    wlr_scene_tree *captureTree = nullptr;
+#endif
     Slot<XdgPopupState> commit;
     Slot<XdgPopupState> reposition;
     Slot<XdgPopupState> destroy;
@@ -237,6 +242,9 @@ public:
   void addXdgPopup(wlr_xdg_popup *popup);
   void configureXdgPopup(XdgPopupState *state);
   wlr_scene_tree *sceneForSurface(wlr_surface *surface) const;
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  wlr_scene_tree *captureSceneForSurface(wlr_surface *surface) const;
+#endif
   static void handleNewXdgPopup(wl_listener *listener, void *data);
   static void handleXdgPopupCommit(wl_listener *listener, void *data);
   static void handleXdgPopupReposition(wl_listener *listener, void *data);

@@ -32,6 +32,30 @@ void updateForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
   wlr_ext_foreign_toplevel_handle_v1_update_state(state->foreignHandle,
                                                    &foreignState);
 }
+
+void createForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
+  if (!state || state->foreignHandle || !state->client ||
+      !state->client->mapped || !state->impl->foreignToplevelList)
+    return;
+  const QByteArray title = state->client->title.toUtf8();
+  const QByteArray appId = state->client->appId.toUtf8();
+  const wlr_ext_foreign_toplevel_handle_v1_state foreignState{
+      .title = title.constData(),
+      .app_id = appId.constData(),
+  };
+  state->foreignHandle = wlr_ext_foreign_toplevel_handle_v1_create(
+      state->impl->foreignToplevelList, &foreignState);
+  if (state->foreignHandle)
+    state->foreignHandle->data = state;
+}
+
+void destroyForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
+  if (!state || !state->foreignHandle)
+    return;
+  state->foreignHandle->data = nullptr;
+  wlr_ext_foreign_toplevel_handle_v1_destroy(state->foreignHandle);
+  state->foreignHandle = nullptr;
+}
 #endif
 void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
   if (!client || !client->surface || !client->toplevel ||
@@ -78,24 +102,21 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
   state->impl = this;
   state->client = current;
   current->nativeState = state;
-  q->clients_.push_back(std::move(client));
-  q->updateClientMetadata(current);
-
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-  if (foreignToplevelList) {
-    const QByteArray title = current->title.toUtf8();
-    const QByteArray appId = current->appId.toUtf8();
-    const wlr_ext_foreign_toplevel_handle_v1_state foreignState{
-        .title = title.constData(),
-        .app_id = appId.constData(),
-    };
-    state->foreignHandle =
-        wlr_ext_foreign_toplevel_handle_v1_create(foreignToplevelList,
-                                                  &foreignState);
-    if (state->foreignHandle)
-      state->foreignHandle->data = state;
+  // Window capture gets a private scene so the stream does not inherit
+  // workspace transforms, tiling clips or visibility of the desktop scene.
+  state->imageCaptureScene = wlr_scene_create();
+  if (state->imageCaptureScene) {
+    state->imageCaptureTree = wlr_scene_xdg_surface_create(
+        &state->imageCaptureScene->tree, surface);
+    if (!state->imageCaptureTree) {
+      wlr_scene_node_destroy(&state->imageCaptureScene->tree.node);
+      state->imageCaptureScene = nullptr;
+    }
   }
 #endif
+  q->clients_.push_back(std::move(client));
+  q->updateClientMetadata(current);
 
   attachListener(&surface->surface->events.map, state->map, state,
                  handleToplevelMap);
@@ -169,7 +190,8 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   client->mapped = true;
   state->impl->q->updateClientMetadata(client);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-  updateForeignToplevel(state);
+  // Only mapped windows belong in the portal's selectable toplevel list.
+  createForeignToplevel(state);
 #endif
   if (!client->initialRuleApplied && !client->utility && !client->floating) {
     const auto rule =
@@ -213,6 +235,9 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
   if (state->impl->seat->keyboard_state.focused_surface ==
       state->client->surface->surface)
     wlr_seat_keyboard_notify_clear_focus(state->impl->seat);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  destroyForeignToplevel(state);
+#endif
   state->client->mapped = false;
   state->impl->q->windowSwitcher_->remove(state->client->id);
   if (state->impl->pointerWindow == state->client->id)
@@ -336,14 +361,14 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   detachListener(state->requestMove);
   detachListener(state->requestResize);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-  if (state->imageCaptureSource) {
-    wlr_ext_image_capture_source_v1_finish(state->imageCaptureSource);
+  destroyForeignToplevel(state);
+  if (state->imageCaptureScene) {
+    // Destroying the scene node tears down the scene-backed source and any
+    // resources bound to it; wlroots 0.20 has no public source *_finish API.
+    wlr_scene_node_destroy(&state->imageCaptureScene->tree.node);
+    state->imageCaptureScene = nullptr;
+    state->imageCaptureTree = nullptr;
     state->imageCaptureSource = nullptr;
-  }
-  if (state->foreignHandle) {
-    state->foreignHandle->data = nullptr;
-    wlr_ext_foreign_toplevel_handle_v1_destroy(state->foreignHandle);
-    state->foreignHandle = nullptr;
   }
 #endif
   client->nativeState = nullptr;
@@ -356,20 +381,19 @@ void WaylandCompositor::Impl::handleForeignToplevelCaptureRequest(
     wl_listener *listener, void *data) {
   auto *self = listenerOwner<Impl>(listener);
   auto *request = static_cast<
-      wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_event *>(
-      data);
+      wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *>(data);
   if (!self || !request || !request->toplevel_handle)
     return;
   auto *state =
       static_cast<ToplevelState *>(request->toplevel_handle->data);
   if (!state || state->impl != self || !state->client ||
-      !state->client->sceneTree || !state->client->mapped)
+      !state->client->mapped || !state->imageCaptureScene)
     return;
   if (!state->imageCaptureSource) {
     state->imageCaptureSource =
         wlr_ext_image_capture_source_v1_create_with_scene_node(
-            &state->client->sceneTree->node, self->eventLoop, self->allocator,
-            self->renderer);
+            &state->imageCaptureScene->tree.node, self->eventLoop,
+            self->allocator, self->renderer);
   }
   if (state->imageCaptureSource)
     wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(

@@ -181,7 +181,7 @@ bool WaylandCompositor::Impl::initialize() {
   attachListener(&virtualKeyboardManager->events.new_virtual_keyboard,
                  newVirtualKeyboard, this, handleNewVirtualKeyboard);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-  attachListener(&foreignToplevelCaptureSource->events.capture_request,
+  attachListener(&foreignToplevelCaptureSource->events.new_request,
                  foreignToplevelCaptureRequest, this,
                  handleForeignToplevelCaptureRequest);
 #endif
