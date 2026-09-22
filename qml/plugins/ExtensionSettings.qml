@@ -55,6 +55,14 @@ ColumnLayout {
         dirty = true
     }
 
+    function saveImmediately(next) {
+        document = next
+        editor.text = JSON.stringify(next, null, 2)
+        loadedDocument = JSON.stringify(next)
+        dirty = false
+        page.shell.command("extension-save", JSON.stringify(next))
+    }
+
     function pluginValue(plugin) {
         const packageConfig = document.plugins[plugin.id] || ({})
         if (packageConfig.targets && packageConfig.targets[plugin.target])
@@ -77,7 +85,7 @@ ColumnLayout {
         return (packageConfig.enabled ?? true) && Boolean(pluginValue(plugin).enabled)
     }
 
-    function setPlugin(plugin, key, value) {
+    function setPlugin(plugin, key, value, immediate) {
         const next = JSON.parse(JSON.stringify(document))
         const previous = next.plugins[plugin.id] || ({})
         let packageConfig
@@ -97,7 +105,10 @@ ColumnLayout {
         targetConfig[key] = value
         packageConfig.targets[plugin.target] = targetConfig
         next.plugins[plugin.id] = packageConfig
-        adopt(next)
+        if (immediate)
+            saveImmediately(next)
+        else
+            adopt(next)
     }
 
     function targetPolicy(plugin) {
@@ -116,7 +127,7 @@ ColumnLayout {
 
     function requestEnabled(plugin, enabled) {
         if (!enabled) {
-            setPlugin(plugin, "enabled", false)
+            setPlugin(plugin, "enabled", false, true)
             return
         }
         const conflicts = conflictsFor(plugin)
@@ -124,7 +135,7 @@ ColumnLayout {
             pendingConflict = { plugin: plugin, conflicts: conflicts }
             return
         }
-        setPlugin(plugin, "enabled", true)
+        setPlugin(plugin, "enabled", true, true)
     }
 
     function confirmConflict() {
@@ -158,7 +169,7 @@ ColumnLayout {
         conflicts.forEach(plugin => setTarget(plugin, false))
         setTarget(selected, true)
         pendingConflict = null
-        adopt(next)
+        saveImmediately(next)
     }
 
     function matchesSearch(plugin) {
