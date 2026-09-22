@@ -105,28 +105,28 @@ ModuleSurface {
                 }
             }
 
-            Row {
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: 8
-                spacing: 6
-                ShellButton {
-                    text: shell.tr("Change image")
-                    active: true
-                    onClicked: calendar.chooseCalendarImage()
-                }
-                ShellButton {
-                    visible: calendar.calendarImage.length > 0
-                    text: shell.tr("Clear image")
-                    onClicked: calendar.setCalendarImage("")
-                }
-            }
-
             MouseArea {
                 anchors.fill: parent
-                anchors.topMargin: 44
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: calendar.chooseCalendarImage()
+            }
+            Rectangle {
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                anchors.margins: 10
+                width: imageHint.implicitWidth + 16
+                height: imageHint.implicitHeight + 8
+                radius: height / 2
+                color: Qt.rgba(0.02, 0.04, 0.10, 0.66)
+                Text {
+                    id: imageHint
+                    anchors.centerIn: parent
+                    text: shell.tr("Click artwork to change")
+                    color: Theme.text
+                    font.family: Theme.font
+                    font.pixelSize: 10
+                }
             }
         }
 

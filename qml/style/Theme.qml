@@ -2,12 +2,15 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property color background: "#ee0b1020"
-    readonly property color surface: "#de141c31"
-    readonly property color surfaceOpaque: "#f2162036"
-    readonly property color surfaceElevated: "#f51a2440"
-    readonly property color surfaceHover: "#f0222e4c"
-    readonly property color border: "#465777"
+    readonly property color background: "#f00a0f1d"
+    readonly property color surface: "#e6121a2d"
+    readonly property color surfaceOpaque: "#f5162036"
+    readonly property color surfaceElevated: "#f71b2742"
+    readonly property color surfaceHover: "#f3263556"
+    readonly property color surfaceGlass: "#cc10192c"
+    readonly property color surfaceStrong: "#fa0f1728"
+    readonly property color border: "#52698d"
+    readonly property color hairline: "#2f4263"
 
     property color accent: "#9ccbfb"
     property color secondaryAccent: "#6e5f9f"
@@ -55,5 +58,6 @@ QtObject {
     readonly property int radiusSmall: 10
     readonly property int radiusMedium: 16
     readonly property int radius: 24
-    readonly property int radiusLarge: 28
+    readonly property int radiusLarge: 30
+    readonly property int radiusHero: 36
 }

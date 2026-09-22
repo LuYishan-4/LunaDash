@@ -17,12 +17,12 @@ Rectangle {
 
     Layout.fillWidth: true
     implicitHeight: body.implicitHeight + 32
-    radius: 18
+    radius: Theme.radiusMedium + 4
     color: card.emphasized
         ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
         : cardHover.hovered && card.interactive
             ? Theme.surfaceElevated
-            : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.82)
+            : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.90)
     border.width: card.emphasized || (cardHover.hovered && card.interactive) ? 1.5 : 1
     border.color: card.emphasized
         ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.52)

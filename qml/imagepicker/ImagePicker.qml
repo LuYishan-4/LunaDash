@@ -29,9 +29,38 @@ ExtensionSlot {
         const index = trimmed.lastIndexOf("/");
         return index <= 0 ? "/" : trimmed.slice(0, index);
     }
+    function normalizedLocalPath(value) {
+        let path = String(value || "").trim()
+        if (path.startsWith("file://"))
+            path = decodeURIComponent(path.slice(7))
+        if (!path.startsWith("/"))
+            return ""
+        return path.replace(/\/{2,}/g, "/")
+    }
     function openDirectory(path) {
-        folder = path;
-        selectedPath = "";
+        const normalized = normalizedLocalPath(path)
+        if (!normalized.length)
+            return
+        folder = normalized
+        selectedPath = ""
+        pathField.text = normalized
+    }
+    function applyTypedPath() {
+        const normalized = normalizedLocalPath(pathField.text)
+        if (!normalized.length) {
+            pathField.invalid = true
+            return
+        }
+        pathField.invalid = false
+        const lower = normalized.toLowerCase()
+        const imageFile = [".png", ".jpg", ".jpeg", ".webp", ".gif"].some(suffix => lower.endsWith(suffix))
+        if (imageFile) {
+            const slash = normalized.lastIndexOf("/")
+            folder = slash <= 0 ? "/" : normalized.slice(0, slash)
+            selectedPath = normalized
+        } else {
+            openDirectory(normalized)
+        }
     }
     function saveCalendarImage(path) {
         const document = JSON.parse(JSON.stringify((shell.state.shellModules || {}).document || {
@@ -66,6 +95,7 @@ ExtensionSlot {
     onOpenedChanged: if (opened) {
         folder = homePath;
         selectedPath = "";
+        pathField.text = homePath;
     }
 
     visible: opened
@@ -181,14 +211,20 @@ ExtensionSlot {
                     text: picker.shell.tr("Pictures")
                     onClicked: picker.openDirectory(picker.homePath + "/Pictures")
                 }
-                Text {
+                SoftField {
+                    id: pathField
                     Layout.fillWidth: true
+                    placeholderText: picker.shell.tr("Paste an absolute path or file:// URL")
                     text: picker.folder
-                    color: Theme.muted
-                    font.family: Theme.font
-                    font.pixelSize: 11
-                    elide: Text.ElideLeft
-                    horizontalAlignment: Text.AlignRight
+                    clearButtonEnabled: false
+                    onAccepted: picker.applyTypedPath()
+                    ToolTip.visible: hovered
+                    ToolTip.text: picker.shell.tr("Paste a folder path or the full path of an image")
+                }
+                ShellButton {
+                    text: picker.shell.tr("Go")
+                    active: true
+                    onClicked: picker.applyTypedPath()
                 }
             }
 

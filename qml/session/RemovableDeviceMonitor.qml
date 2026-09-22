@@ -106,13 +106,13 @@ Item {
 
     Process {
         id: usbProbe
-        command: ["sh", "-c", "command -v lsusb >/dev/null 2>&1 && lsusb || true"]
+        command: ["lsusb"]
         stdout: StdioCollector { onStreamFinished: monitor.adoptUsb(text) }
     }
 
     Process {
         id: soundProcess
-        command: ["sh", "-c", "if command -v canberra-gtk-play >/dev/null 2>&1; then canberra-gtk-play -i device-added >/dev/null 2>&1; elif command -v pw-play >/dev/null 2>&1 && [ -f /usr/share/sounds/freedesktop/stereo/device-added.oga ]; then pw-play /usr/share/sounds/freedesktop/stereo/device-added.oga >/dev/null 2>&1; elif command -v paplay >/dev/null 2>&1 && [ -f /usr/share/sounds/freedesktop/stereo/device-added.oga ]; then paplay /usr/share/sounds/freedesktop/stereo/device-added.oga >/dev/null 2>&1; fi"]
+        command: ["pw-play", "/usr/share/sounds/freedesktop/stereo/device-added.oga"]
     }
 
     Timer {
