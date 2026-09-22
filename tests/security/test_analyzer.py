@@ -12,7 +12,7 @@ analyzer = sys.argv[1] if len(sys.argv) > 1 else "clang-tidy"
 cflags = shlex.split(subprocess.check_output(
     ["pkg-config", "--cflags", "Qt6Core"], text=True))
 # CMake's imported Qt targets use system includes. Keep Qt headers as system
-# headers and restrict diagnostics to each synthetic source: Clang 18 can trace
+# headers and restrict diagnostics to each synthetic source. Clang 18 can trace
 # a valid QPointer destructor into Qt internals and report NewDelete there even
 # though there is no lifetime bug in LunaDash code.
 flags = ["-std=c++20", "-fPIC", "-DQT_NO_DEBUG"]
@@ -39,16 +39,30 @@ with tempfile.TemporaryDirectory(prefix="ludash-analyzer-") as directory:
             "name": str(path),
             "lines": [[1, max(1, len(source.splitlines()))]],
         }])
+
+        # Keep every clang-tidy warning fatal by default. The one exception is
+        # the valid QPointer regression case: Clang 18 can emit NewDelete while
+        # walking Qt's QWeakPointer destructor even though no user-code UAF is
+        # present. Do not promote that known Qt-header false positive to an
+        # error; the invalid_lifetime case below still requires NewDelete to be
+        # diagnosed and fail.
+        warnings_as_errors = "*"
+        if name == "valid_guard":
+            warnings_as_errors = "*,-clang-analyzer-cplusplus.NewDelete"
+
         result = subprocess.run(
-            [analyzer, str(path), "--warnings-as-errors=*",
+            [analyzer, str(path),
+             "--warnings-as-errors=" + warnings_as_errors,
              "--config-file=" + str(root / ".clang-tidy"),
              "--line-filter=" + line_filter,
              "--extra-arg-before=--driver-mode=g++", "--", *flags],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             timeout=60, check=False)
+
         if name == "valid_guard":
             assert result.returncode == 0, result.stdout
         else:
             assert result.returncode != 0, "The analyzer missed use-after-free."
             assert "[clang-analyzer-cplusplus.NewDelete" in result.stdout, result.stdout
+
 print("Analyzer checks passed: valid Qt guard accepted; use-after-free rejected.")
