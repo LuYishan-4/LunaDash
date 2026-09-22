@@ -12,8 +12,6 @@ lunadash-create-plugin --list
 
 ## Visual targets
 
-每個 registry target 也有 `selection`：`single` 表示同時間最多只能啟用一個 plugin implementation，`multiple` 才能多個共存。目前 `desktop-widgets` 是 multiple；工作列、taskbar windows、window rules、window animation、window layout 與其他單一 feature surface 都是 single-owner。啟用衝突插件時會先要求確認，確認後停用舊 target；即使手動修改設定，runtime 也不會同時啟用第二個 owner。
-
 共同 context 有 `target`、`source`、`builtinSettings`、`mode`、`reportError(message)`。
 
 | Target | 功能 |
@@ -54,7 +52,7 @@ lunadash-create-plugin --list
 
 一般 layout 禁止 overlap。Native replacement 宣告 `windowTemplate: stacking` 可選 host 的 persistent stacking strategy；hook context 會提供 `windowTemplate` 與 `allowOverlap`。Host 仍持有 membership、focus、minimize/maximize 與 workspace state。
 
-Stacking 時 Alt+left-drag 移動，Shift+Alt+left-drag resize；focus-to-front。LunaDash 已不再預裝 runtime example plugin；實際發佈 package 由外部 LunaDash-Plugins registry 驗證，主 repo 只保留通用 SDK templates。
+Stacking 時 Alt+left-drag 移動，Shift+Alt+left-drag resize；focus-to-front。範例：[stacking-windows](../../examples/plugins/stacking-windows/README.md)。
 
 ## 新增 target
 
