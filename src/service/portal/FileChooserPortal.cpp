@@ -10,10 +10,12 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLayout>
 #include <QLineEdit>
 #include <QStandardPaths>
+#include <QStyle>
 #include <QUrl>
 #include <QVariantMap>
 #include <QWidget>

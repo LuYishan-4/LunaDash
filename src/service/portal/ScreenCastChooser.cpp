@@ -7,6 +7,7 @@
 #include <QFont>
 #include <QFrame>
 #include <QGridLayout>
+#include <QIcon>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
