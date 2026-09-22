@@ -46,8 +46,10 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
   }
   const auto root = document.object();
   const auto values = root.value("plugins");
-  if (root.value("schemaVersion").toInt() != 1 || !values.isArray() ||
-      values.toArray().size() > 256) {
+  if (root.value("schemaVersion").toInt() != 1 ||
+      (root.contains("format") &&
+       root.value("format").toString() != "lunadash-plugin-index") ||
+      !values.isArray() || values.toArray().size() > 256) {
     if (error)
       *error = "Unsupported or oversized plugin catalogue";
     return false;
