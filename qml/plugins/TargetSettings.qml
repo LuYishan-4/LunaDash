@@ -48,7 +48,7 @@ ColumnLayout {
     }
 
     function pluginSettingsId(plugin) {
-        const id = "plugin:" + plugin.id
+        const id = "plugin:" + plugin.id + ":" + plugin.target
         return settingsTarget(id).id ? id : ""
     }
 
@@ -64,7 +64,7 @@ ColumnLayout {
         }]
         pluginsForTarget(target.id).forEach(plugin => entries.push({
             kind: "plugin",
-            id: plugin.id,
+            id: plugin.instanceId || (plugin.id + "@" + plugin.target),
             name: plugin.name || plugin.id,
             type: plugin.type || "plugin",
             status: plugin.status || (plugin.enabled ? "available" : "disabled"),

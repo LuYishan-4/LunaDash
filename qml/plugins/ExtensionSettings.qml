@@ -34,6 +34,7 @@ ColumnLayout {
     property bool saving: false
     property bool advanced: false
     property string message: ""
+    property var pendingConflict: null
     spacing: 16
 
     function reload() {
@@ -54,17 +55,108 @@ ColumnLayout {
     }
 
     function pluginValue(plugin) {
-        return document.plugins[plugin.id] || {
+        const packageConfig = document.plugins[plugin.id] || ({})
+        if (packageConfig.targets && packageConfig.targets[plugin.target])
+            return packageConfig.targets[plugin.target]
+        if (!packageConfig.targets && (packageConfig.mode !== undefined || packageConfig.settings !== undefined))
+            return {
+                enabled: packageConfig.enabled ?? plugin.enabled,
+                mode: packageConfig.mode || plugin.mode,
+                settings: packageConfig.settings || plugin.settings || {}
+            }
+        return {
             enabled: plugin.enabled,
             mode: plugin.mode,
             settings: plugin.settings || {}
         }
     }
 
+    function effectiveEnabled(plugin) {
+        const packageConfig = document.plugins[plugin.id] || ({})
+        return (packageConfig.enabled ?? true) && Boolean(pluginValue(plugin).enabled)
+    }
+
     function setPlugin(plugin, key, value) {
         const next = JSON.parse(JSON.stringify(document))
-        next.plugins[plugin.id] = JSON.parse(JSON.stringify(pluginValue(plugin)))
-        next.plugins[plugin.id][key] = value
+        const previous = next.plugins[plugin.id] || ({})
+        let packageConfig
+        if (previous.targets) {
+            packageConfig = previous
+        } else {
+            packageConfig = { enabled: previous.enabled ?? true, targets: {} }
+            if (previous.mode !== undefined || previous.settings !== undefined)
+                packageConfig.targets[plugin.target] = {
+                    enabled: previous.enabled ?? plugin.enabled,
+                    mode: previous.mode || plugin.mode,
+                    settings: previous.settings || plugin.settings || {}
+                }
+        }
+        packageConfig.enabled = true
+        const targetConfig = packageConfig.targets[plugin.target] || JSON.parse(JSON.stringify(pluginValue(plugin)))
+        targetConfig[key] = value
+        packageConfig.targets[plugin.target] = targetConfig
+        next.plugins[plugin.id] = packageConfig
+        adopt(next)
+    }
+
+    function targetPolicy(plugin) {
+        return (state.targets || []).find(target => target.id === plugin.target) || ({})
+    }
+
+    function conflictsFor(plugin) {
+        if ((targetPolicy(plugin).selection || "single") !== "single")
+            return []
+        return installedPlugins.filter(other =>
+            other.target === plugin.target &&
+            (other.instanceId || (other.id + "@" + other.target)) !==
+                (plugin.instanceId || (plugin.id + "@" + plugin.target)) &&
+            effectiveEnabled(other))
+    }
+
+    function requestEnabled(plugin, enabled) {
+        if (!enabled) {
+            setPlugin(plugin, "enabled", false)
+            return
+        }
+        const conflicts = conflictsFor(plugin)
+        if (conflicts.length) {
+            pendingConflict = { plugin: plugin, conflicts: conflicts }
+            return
+        }
+        setPlugin(plugin, "enabled", true)
+    }
+
+    function confirmConflict() {
+        if (!pendingConflict)
+            return
+        const selected = pendingConflict.plugin
+        const conflicts = pendingConflict.conflicts || []
+        const next = JSON.parse(JSON.stringify(document))
+
+        function setTarget(plugin, enabled) {
+            const previous = next.plugins[plugin.id] || ({})
+            let packageConfig
+            if (previous.targets) {
+                packageConfig = previous
+            } else {
+                packageConfig = { enabled: previous.enabled ?? true, targets: {} }
+                if (previous.mode !== undefined || previous.settings !== undefined)
+                    packageConfig.targets[plugin.target] = {
+                        enabled: previous.enabled ?? plugin.enabled,
+                        mode: previous.mode || plugin.mode,
+                        settings: previous.settings || plugin.settings || {}
+                    }
+            }
+            packageConfig.enabled = true
+            const targetConfig = packageConfig.targets[plugin.target] || JSON.parse(JSON.stringify(pluginValue(plugin)))
+            targetConfig.enabled = enabled
+            packageConfig.targets[plugin.target] = targetConfig
+            next.plugins[plugin.id] = packageConfig
+        }
+
+        conflicts.forEach(plugin => setTarget(plugin, false))
+        setTarget(selected, true)
+        pendingConflict = null
         adopt(next)
     }
 
@@ -73,8 +165,10 @@ ColumnLayout {
         if (!query.length)
             return true
         const tags = (plugin.tags || []).join(" ")
+        const targets = (plugin.targets || []).map(target =>
+            [target.id || target.target, target.type, target.mode].join(" ")).join(" ")
         return [plugin.name, plugin.id, plugin.description, plugin.author, plugin.type,
-                plugin.target, tags].join(" ").toLowerCase().includes(query)
+                plugin.target, targets, tags].join(" ").toLowerCase().includes(query)
     }
 
     function matchesFilter(plugin) {
@@ -82,19 +176,19 @@ ColumnLayout {
         if (value === "All plugins")
             return true
         if (value === "Enabled")
-            return Boolean(pluginValue(plugin).enabled)
+            return effectiveEnabled(plugin)
         if (value === "Disabled")
-            return !Boolean(pluginValue(plugin).enabled)
+            return !effectiveEnabled(plugin)
         if (value === "Installed locally")
             return Boolean(plugin.installed)
         if (value === "Available remotely")
             return !Boolean(plugin.installed)
         if (value === "Quickshell")
-            return plugin.type === "quickshell"
+            return plugin.type === "quickshell" || (plugin.targets || []).some(target => target.type === "quickshell")
         if (value === "Native")
-            return plugin.type === "effect"
+            return plugin.type === "effect" || (plugin.targets || []).some(target => target.type === "effect")
         if (value === "OpenGL")
-            return plugin.type === "opengl"
+            return plugin.type === "opengl" || (plugin.targets || []).some(target => target.type === "opengl")
         return true
     }
 
@@ -313,8 +407,8 @@ ColumnLayout {
 
                             SoftSwitch {
                                 visible: !pluginCard.remote
-                                checked: Boolean(pluginCard.config.enabled)
-                                onToggled: page.setPlugin(pluginCard.modelData, "enabled", checked)
+                                checked: page.effectiveEnabled(pluginCard.modelData)
+                                onToggled: page.requestEnabled(pluginCard.modelData, checked)
                             }
 
                             ShellButton {
@@ -388,7 +482,7 @@ ColumnLayout {
                                 visible: Boolean(pluginCard.modelData.error)
                                 text: page.shell.tr("Retry plugin")
                                 onClicked: page.shell.command("extension-error", JSON.stringify({
-                                    id: pluginCard.modelData.id,
+                                    id: pluginCard.modelData.instanceId || (pluginCard.modelData.id + "@" + pluginCard.modelData.target),
                                     error: ""
                                 }))
                             }
@@ -421,6 +515,29 @@ ColumnLayout {
                 shell: page.shell
                 message: "No plugins match your search or filter."
             }
+        }
+    }
+
+    SettingsCard {
+        visible: Boolean(page.pendingConflict)
+        title: page.shell.tr("Replace active plugin?")
+        description: page.pendingConflict
+            ? page.shell.tr("This target allows only one active plugin. Confirming will disable: ") +
+              page.pendingConflict.conflicts.map(plugin => plugin.name || plugin.id).join(", ")
+            : ""
+
+        RowLayout {
+            Layout.fillWidth: true
+            ShellButton {
+                text: page.shell.tr("Confirm")
+                active: true
+                onClicked: page.confirmConflict()
+            }
+            ShellButton {
+                text: page.shell.tr("Cancel")
+                onClicked: page.pendingConflict = null
+            }
+            Item { Layout.fillWidth: true }
         }
     }
 
