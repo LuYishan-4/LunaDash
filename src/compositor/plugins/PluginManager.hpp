@@ -45,6 +45,9 @@ private:
   void refreshStore();
   bool applyStoreCatalog(const QByteArray &bytes, QString *error);
   void continueStoreInstall(StoreInstall *job);
+  void startStoreBuild(StoreInstall *job);
+  void runStoreBuildStep(StoreInstall *job);
+  void installBuiltStorePackage(StoreInstall *job);
   void finishStoreInstall(StoreInstall *job, const QString &error);
 };
 } // namespace LunaDash

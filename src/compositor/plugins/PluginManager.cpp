@@ -13,6 +13,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QScopedValueRollback>
@@ -42,7 +43,14 @@ struct PluginManager::StoreInstall {
   QJsonObject item;
   QJsonArray files;
   std::unique_ptr<QTemporaryDir> stage;
+  QString buildDirectory;
+  QString installPrefix;
+  QString cmakeExecutable;
+  QProcess *process = nullptr;
+  QByteArray processTail;
   int index = 0;
+  int buildStep = 0; // 0 configure, 1 build, 2 install
+  QString phase = "downloading";
 };
 
 namespace {
@@ -110,7 +118,6 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
     const auto name = item.value("name").toString();
     const auto version = item.value("version").toString();
     bool validTargets = false;
-    bool qmlOnly = true;
     if (item.value("targets").isArray()) {
       const auto targetItems = item.value("targets").toArray();
       QSet<QString> targetIds;
@@ -120,7 +127,6 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
         const auto targetId = implementation.value("target").toString(
             implementation.value("id").toString());
         const auto type = implementation.value("type").toString();
-        qmlOnly = qmlOnly && type == "quickshell";
         const auto target = extensionTarget(targetId);
         if (!targetValue.isObject() || targetId.isEmpty() ||
             targetIds.contains(targetId) || target.isEmpty() ||
@@ -132,7 +138,6 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
       }
     } else {
       const auto type = item.value("type").toString();
-      qmlOnly = type == "quickshell";
       const auto targetId = item.value("target").toString();
       const auto target = extensionTarget(targetId);
       validTargets =
@@ -183,9 +188,9 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
 
     if (item.contains("install")) {
       const auto install = item.value("install");
-      if (!install.isObject() || !qmlOnly) {
+      if (!install.isObject()) {
         if (error)
-          *error = "Only QML packages may expose store installation files";
+          *error = "Plugin install payload must be an object";
         return false;
       }
       const auto files = install.toObject().value("files");
@@ -197,6 +202,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
       }
       QSet<QString> paths;
       bool metadata = false;
+      bool cmakeProject = false;
       static const QRegularExpression shaPattern("^[0-9a-fA-F]{64}$");
       for (const auto &fileValue : files.toArray()) {
         if (!fileValue.isObject()) {
@@ -216,11 +222,12 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
           return false;
         }
         metadata = metadata || path == "metadata.json";
+        cmakeProject = cmakeProject || path == "CMakeLists.txt";
         paths.insert(path);
       }
-      if (!metadata) {
+      if (!metadata || !cmakeProject) {
         if (error)
-          *error = "Plugin install package must include metadata.json";
+          *error = "Plugin install package must include metadata.json and CMakeLists.txt";
         return false;
       }
     }
@@ -357,89 +364,7 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
     return;
 
   if (job->index >= job->files.size()) {
-    const auto metadataPath = job->stage->filePath("metadata.json");
-    QFile metadata(metadataPath);
-    if (!metadata.open(QIODevice::ReadOnly) || metadata.size() > 65536) {
-      finishStoreInstall(job, "Downloaded plugin metadata is unreadable");
-      return;
-    }
-    const auto metadataBytes = metadata.readAll();
-    const auto metadataHash = QString::fromLatin1(
-        QCryptographicHash::hash(metadataBytes, QCryptographicHash::Sha256)
-            .toHex());
-    const QJsonObject receipt{
-        {"sdk", "LunaDash"},
-        {"apiVersion", 2},
-        {"metadataSha256", metadataHash},
-    };
-    QSaveFile receiptFile(job->stage->filePath(".lunadash-sdk.json"));
-    receiptFile.setDirectWriteFallback(false);
-    if (!receiptFile.open(QIODevice::WriteOnly) ||
-        receiptFile.write(QJsonDocument(receipt).toJson(QJsonDocument::Compact)) < 0 ||
-        !receiptFile.commit()) {
-      finishStoreInstall(job, "Could not create the plugin SDK receipt");
-      return;
-    }
-    QFile::setPermissions(job->stage->filePath(".lunadash-sdk.json"),
-                          QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-
-    const auto descriptors = readPluginMetadataTargets(metadataPath, false);
-    if (descriptors.isEmpty() ||
-        std::any_of(descriptors.cbegin(), descriptors.cend(),
-                    [&](const auto &descriptor) {
-                      return descriptor.id != job->id ||
-                             descriptor.type != "quickshell" ||
-                             !descriptor.error.isEmpty();
-                    })) {
-      finishStoreInstall(job, "Downloaded plugin failed LunaDash validation");
-      return;
-    }
-
-    const auto root = userPluginRoot();
-    const auto stagePath = job->stage->path();
-    const auto sourceName = QFileInfo(stagePath).fileName();
-    const auto destination = QDir(root).filePath(job->id);
-    const auto backupName = ".old-" + job->id + "-" +
-                            QString::number(QDateTime::currentMSecsSinceEpoch());
-    const auto backup = QDir(root).filePath(backupName);
-
-    // A Store install/update always starts disabled. Remove stale settings so a
-    // previously enabled older package cannot auto-enable newly downloaded QML.
-    auto configDocument = readExtensionConfiguration();
-    auto configs = configDocument.value("plugins").toObject();
-    configs.remove(job->id);
-    configDocument["plugins"] = configs;
-    QString configError;
-    if (!saveExtensionConfiguration(QJsonDocument(configDocument).toJson(),
-                                    &configError)) {
-      finishStoreInstall(job, configError.isEmpty()
-                                  ? "Could not reset the plugin configuration"
-                                  : configError);
-      return;
-    }
-    refresh();
-
-    bool backedUp = false;
-    if (QFileInfo::exists(destination)) {
-      if (!QDir(root).rename(job->id, backupName)) {
-        finishStoreInstall(job, "Could not stage the existing plugin for update");
-        return;
-      }
-      backedUp = true;
-    }
-
-    job->stage->setAutoRemove(false);
-    if (!QDir(root).rename(sourceName, job->id)) {
-      job->stage->setAutoRemove(true);
-      if (backedUp)
-        QDir(root).rename(backupName, job->id);
-      finishStoreInstall(job, "Could not move the plugin into the user plugin directory");
-      return;
-    }
-    if (backedUp)
-      QDir(backup).removeRecursively();
-
-    finishStoreInstall(job, {});
+    startStoreBuild(job);
     return;
   }
 
@@ -489,6 +414,179 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
             ++job->index;
             continueStoreInstall(job);
           });
+}
+
+
+void PluginManager::startStoreBuild(StoreInstall *job) {
+  if (!job)
+    return;
+  const auto cmakeFile = job->stage->filePath("CMakeLists.txt");
+  const auto metadataFile = job->stage->filePath("metadata.json");
+  if (!QFileInfo::isFile(cmakeFile) || !QFileInfo::isFile(metadataFile)) {
+    finishStoreInstall(job, "Downloaded plugin is missing its SDK CMake project");
+    return;
+  }
+
+  job->cmakeExecutable = QStandardPaths::findExecutable("cmake");
+  const auto ninja = QStandardPaths::findExecutable("ninja");
+  if (job->cmakeExecutable.isEmpty() || ninja.isEmpty()) {
+    finishStoreInstall(
+        job, "One-click plugin installation requires cmake and ninja");
+    return;
+  }
+
+  job->buildDirectory = job->stage->filePath(".build");
+  job->installPrefix = job->stage->filePath(".prefix");
+  if (!QDir().mkpath(job->buildDirectory) ||
+      !QDir().mkpath(job->installPrefix)) {
+    finishStoreInstall(job, "Could not create plugin build directories");
+    return;
+  }
+
+  job->phase = "configuring";
+  job->buildStep = 0;
+  runStoreBuildStep(job);
+}
+
+void PluginManager::runStoreBuildStep(StoreInstall *job) {
+  if (!job)
+    return;
+
+  QStringList arguments;
+  if (job->buildStep == 0) {
+    arguments = {
+        "-S", job->stage->path(),
+        "-B", job->buildDirectory,
+        "-G", "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_INSTALL_PREFIX=" + job->installPrefix,
+    };
+    job->phase = "configuring";
+  } else if (job->buildStep == 1) {
+    arguments = {"--build", job->buildDirectory, "--parallel", "2"};
+    job->phase = "building";
+  } else {
+    arguments = {"--install", job->buildDirectory};
+    job->phase = "installing";
+  }
+
+  job->processTail.clear();
+  auto *process = new QProcess(this);
+  job->process = process;
+  process->setWorkingDirectory(job->stage->path());
+  process->setProcessChannelMode(QProcess::MergedChannels);
+  connect(process, &QProcess::readyRead, this, [job, process] {
+    job->processTail.append(process->readAll());
+    if (job->processTail.size() > 8192)
+      job->processTail = job->processTail.right(8192);
+  });
+  connect(process, &QProcess::finished, this,
+          [this, job, process](int code, QProcess::ExitStatus status) {
+            job->processTail.append(process->readAll());
+            if (job->processTail.size() > 8192)
+              job->processTail = job->processTail.right(8192);
+            job->process = nullptr;
+            process->deleteLater();
+            if (status != QProcess::NormalExit || code != 0) {
+              auto detail = QString::fromLocal8Bit(job->processTail).trimmed();
+              detail = detail.right(2048);
+              finishStoreInstall(
+                  job, QString("Plugin SDK %1 failed.%2")
+                           .arg(job->phase,
+                                detail.isEmpty() ? QString()
+                                                 : " " + detail));
+              return;
+            }
+            if (job->buildStep < 2) {
+              ++job->buildStep;
+              runStoreBuildStep(job);
+              return;
+            }
+            installBuiltStorePackage(job);
+          });
+  connect(process, &QProcess::errorOccurred, this,
+          [this, job, process](QProcess::ProcessError error) {
+            if (error != QProcess::FailedToStart)
+              return;
+            job->process = nullptr;
+            process->deleteLater();
+            finishStoreInstall(job, "Could not start the plugin SDK build tool");
+          });
+  emit changed();
+  process->start(job->cmakeExecutable, arguments);
+}
+
+void PluginManager::installBuiltStorePackage(StoreInstall *job) {
+  if (!job)
+    return;
+
+  const auto builtDirectory =
+      QDir(job->installPrefix)
+          .filePath("share/lunadash/plugins/" + job->id);
+  const auto metadataPath = QDir(builtDirectory).filePath("metadata.json");
+  const auto descriptors = readPluginMetadataTargets(metadataPath, false);
+  if (descriptors.isEmpty() ||
+      std::any_of(descriptors.cbegin(), descriptors.cend(),
+                  [&](const auto &descriptor) {
+                    return descriptor.id != job->id ||
+                           !descriptor.error.isEmpty();
+                  })) {
+    finishStoreInstall(
+        job, "Built plugin failed LunaDash SDK/runtime validation");
+    return;
+  }
+
+  const auto root = userPluginRoot();
+  const auto destination = QDir(root).filePath(job->id);
+  const auto backupName =
+      ".old-" + job->id + "-" +
+      QString::number(QDateTime::currentMSecsSinceEpoch());
+  const auto backup = QDir(root).filePath(backupName);
+
+  auto configDocument = readExtensionConfiguration();
+  auto configs = configDocument.value("plugins").toObject();
+  configs.remove(job->id);
+  configDocument["plugins"] = configs;
+  QString configError;
+  if (!saveExtensionConfiguration(QJsonDocument(configDocument).toJson(),
+                                  &configError)) {
+    finishStoreInstall(
+        job, configError.isEmpty() ? "Could not reset the plugin configuration"
+                                    : configError);
+    return;
+  }
+  refresh();
+
+  bool backedUp = false;
+  if (QFileInfo::exists(destination)) {
+    if (!QDir(root).rename(job->id, backupName)) {
+      finishStoreInstall(job, "Could not stage the existing plugin for update");
+      return;
+    }
+    backedUp = true;
+  }
+
+  if (!QDir(root).rename(
+          QDir(job->installPrefix).relativeFilePath(builtDirectory),
+          job->id)) {
+    // QDir::rename above is relative to root, so fall back to moving the
+    // built package via an intermediate directory in the same filesystem.
+    const auto stagedName =
+        ".built-" + job->id + "-" +
+        QString::number(QDateTime::currentMSecsSinceEpoch());
+    const auto stagedPath = QDir(root).filePath(stagedName);
+    if (!QDir().rename(builtDirectory, stagedPath) ||
+        !QDir(root).rename(stagedName, job->id)) {
+      if (backedUp)
+        QDir(root).rename(backupName, job->id);
+      finishStoreInstall(job, "Could not install the built plugin package");
+      return;
+    }
+  }
+
+  if (backedUp)
+    QDir(backup).removeRecursively();
+  finishStoreInstall(job, {});
 }
 
 void PluginManager::finishStoreInstall(StoreInstall *job,
@@ -763,6 +861,12 @@ QJsonObject PluginManager::snapshot() {
     item["installing"] =
         std::any_of(storeInstalls_.cbegin(), storeInstalls_.cend(),
                     [&](const auto &job) { return job->id == id; });
+    for (const auto &job : storeInstalls_) {
+      if (job->id == id) {
+        item["installPhase"] = job->phase;
+        break;
+      }
+    }
     item["installError"] = storeInstallErrors_.value(id);
     remote.append(item);
   }

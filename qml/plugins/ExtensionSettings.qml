@@ -537,7 +537,12 @@ ColumnLayout {
                                 visible: Boolean(pluginCard.modelData.installable) &&
                                          !Boolean(pluginCard.modelData.installed)
                                 text: pluginCard.modelData.installing
-                                    ? page.shell.tr("Downloading…")
+                                    ? page.shell.tr(
+                                        pluginCard.modelData.installPhase === "building"
+                                            ? "Building plugin…"
+                                            : pluginCard.modelData.installPhase === "installing"
+                                                ? "Installing plugin…"
+                                                : "Downloading…")
                                     : Boolean(pluginCard.modelData.updateAvailable)
                                         ? page.shell.tr("Update plugin")
                                         : page.shell.tr("Download plugin")
