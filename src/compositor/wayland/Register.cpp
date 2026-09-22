@@ -116,6 +116,12 @@ bool WaylandCompositor::Impl::initialize() {
   xdgShell = wlr_xdg_shell_create(display, 3);
   layerShell = wlr_layer_shell_v1_create(display, 4);
   screencopy = wlr_screencopy_manager_v1_create(display);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  foreignToplevelList = wlr_ext_foreign_toplevel_list_v1_create(display, 1);
+  imageCopyCapture = wlr_ext_image_copy_capture_manager_v1_create(display, 1);
+  foreignToplevelCaptureSource =
+      wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(display, 1);
+#endif
   xdgOutput = wlr_xdg_output_manager_v1_create(display, outputLayout);
   idleInhibit = wlr_idle_inhibit_v1_create(display);
   inputMethodManager = wlr_input_method_manager_v2_create(display);
@@ -124,6 +130,10 @@ bool WaylandCompositor::Impl::initialize() {
   if (!xdgShell || !layerShell || !screencopy || !xdgOutput || !idleInhibit ||
       !inputMethodManager || !textInputManager || !virtualKeyboardManager)
     return fail("wlroots could not create required Wayland protocol globals.");
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  if (!foreignToplevelList || !imageCopyCapture || !foreignToplevelCaptureSource)
+    return fail("wlroots could not create window capture protocol globals.");
+#endif
 
   seat = wlr_seat_create(display, "seat0");
   cursor = wlr_cursor_create();
@@ -170,6 +180,11 @@ bool WaylandCompositor::Impl::initialize() {
                  newTextInput, this, handleNewTextInput);
   attachListener(&virtualKeyboardManager->events.new_virtual_keyboard,
                  newVirtualKeyboard, this, handleNewVirtualKeyboard);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  attachListener(&foreignToplevelCaptureSource->events.capture_request,
+                 foreignToplevelCaptureRequest, this,
+                 handleForeignToplevelCaptureRequest);
+#endif
 
   wlr_seat_set_capabilities(seat, WL_SEAT_CAPABILITY_POINTER |
                                       WL_SEAT_CAPABILITY_KEYBOARD);
@@ -244,6 +259,9 @@ void WaylandCompositor::Impl::shutdown() {
   detachListener(newInputMethod);
   detachListener(newTextInput);
   detachListener(newVirtualKeyboard);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  detachListener(foreignToplevelCaptureRequest);
+#endif
 
   // Runtime wrappers keep listeners on wlroots-owned objects. Disconnect
   // every wrapper before destroying the scene/backend so late output/input
