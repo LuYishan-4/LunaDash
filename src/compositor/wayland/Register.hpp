@@ -137,6 +137,7 @@ public:
   wlr_scene_tree *normalLayer = nullptr;
   wlr_scene_tree *animationLayer = nullptr;
   wlr_scene_tree *topLayer = nullptr;
+  wlr_scene_tree *fullscreenLayer = nullptr;
   wlr_scene_tree *overlayLayer = nullptr;
   wlr_scene_rect *background = nullptr;
   wlr_output *primaryOutput = nullptr;
