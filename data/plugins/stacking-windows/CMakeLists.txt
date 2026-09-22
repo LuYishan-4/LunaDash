@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.21)
+project(LunaDashStackingWindows VERSION 1.0.0 LANGUAGES C CXX)
+
+if(NOT COMMAND lunadash_add_plugin)
+    find_package(LunaDashPlugin 2 CONFIG REQUIRED)
+endif()
+
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core)
+lunadash_add_plugin(lunadash-stacking-windows
+    METADATA "${CMAKE_CURRENT_SOURCE_DIR}/metadata.json"
+    SOURCES StackingWindows.cpp)
+target_link_libraries(lunadash-stacking-windows PRIVATE Qt6::Core)

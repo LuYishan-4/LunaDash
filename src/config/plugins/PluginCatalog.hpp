@@ -2,6 +2,7 @@
 #include <QJsonObject>
 #include <QList>
 #include <QString>
+#include <QStringList>
 
 namespace LunaDash {
 struct PluginDescriptor {
@@ -11,6 +12,7 @@ struct PluginDescriptor {
   QString version;
   QString author;
   QString icon;
+  QStringList tags;
   QString type;
   QString target;
   QString mode = "augment";

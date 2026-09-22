@@ -17,7 +17,8 @@ function(lunadash_add_plugin target)
     endif()
     set(output "${CMAKE_BINARY_DIR}/plugins/${id}")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-        "${metadata}" "${LUNADASH_PLUGIN_CMAKE_DIR}/ValidatePlugin.py" "${LUNADASH_PLUGIN_TARGETS}")
+        "${metadata}" "${LUNADASH_PLUGIN_CMAKE_DIR}/ValidatePlugin.py"
+        "${LUNADASH_PLUGIN_CMAKE_DIR}/SettingsSchema.py" "${LUNADASH_PLUGIN_TARGETS}")
     execute_process(COMMAND "${Python3_EXECUTABLE}" "${LUNADASH_PLUGIN_CMAKE_DIR}/ValidatePlugin.py"
         --metadata "${metadata}" --targets "${LUNADASH_PLUGIN_TARGETS}" --output "${output}"
         RESULT_VARIABLE validation COMMAND_ERROR_IS_FATAL ANY)
@@ -56,6 +57,19 @@ function(lunadash_add_plugin target)
         list(APPEND PLUGIN_FILES "${source_dir}/${entry}")
         add_custom_target(${target} ALL)
     endif()
+
+    # Package-local image icons are declared in metadata just like QML/JS
+    # assets. The SDK copies them automatically so plugin authors do not need
+    # a second install rule merely to upload an icon with the plugin.
+    string(JSON icon ERROR_VARIABLE icon_error GET "${manifest}" icon)
+    if(NOT icon_error)
+        string(TOLOWER "${icon}" icon_lower)
+        if(icon_lower MATCHES "\\.(png|jpg|jpeg|webp|svg)$")
+            list(APPEND PLUGIN_FILES "${source_dir}/${icon}")
+        endif()
+    endif()
+    list(REMOVE_DUPLICATES PLUGIN_FILES)
+
     foreach(file IN LISTS PLUGIN_FILES)
         get_filename_component(name "${file}" NAME)
         if(name MATCHES "^(metadata\\.json|\\.lunadash-sdk\\.json|Registration\\.c)$")

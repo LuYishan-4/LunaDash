@@ -7,7 +7,7 @@
 | Template | 狀態 | Implementation |
 | --- | --- | --- |
 | `tiling` | 預設可用 | `src/compositor/tiling/TilingLayout.cpp`；bounded split tiles/grouped rows |
-| `stacking` | 透過 plugin | `src/compositor/stacking/StackingLayout.cpp`；persistent overlapping rectangles |
+| `stacking` | 透過 plugin | `src/compositor/layout/FreeformLayout.cpp`；persistent overlapping rectangles |
 
 啟用有效的 native stacking replacement 時，host 會把目前 window inventory 與 focus 狀態 live migration 到 stacking；停用時回到 tiling。
 
@@ -24,6 +24,6 @@ Compositor 的 shared scene animation 負責 opening/closing/layout/maximize/res
 
 ## SDK 2 strategy plugin
 
-Stacking 已不是 placeholder；它由有效、enabled 的 `window-layout` replacement 且宣告 `layoutMode: stacking` 時選用。兩種 strategy 都可以再通過 validated placement filter，host 仍掌握 membership 與 interaction state。
+Stacking 已不是 placeholder；它由有效、enabled 的 `window-layout` replacement 且宣告 `windowTemplate: stacking` 時選用。兩種 strategy 都可以再通過 validated placement filter，host 仍掌握 membership 與 interaction state。實際 stacking / cascade policy 現在是 [`data/plugins/stacking-windows`](../../data/plugins/stacking-windows/) 下的正式 SDK 2 plugin package，而不是 SDK template。
 
-詳見 [Plugin target contract](PLUGIN_TARGETS.md) 與 [stacking-windows example](../../examples/plugins/stacking-windows/README.md)。Enable/disable/rebuild hook 可在 callback 之間 live 套用，不需要重登。
+詳見 [Plugin target contract](PLUGIN_TARGETS.md)。Enable/disable/rebuild hook 可在 callback 之間 live 套用，不需要重登。

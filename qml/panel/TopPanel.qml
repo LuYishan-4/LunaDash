@@ -319,9 +319,9 @@ ModuleSurface {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: shell.launcherOpen = !shell.launcherOpen
+                    onClicked: shell.openLauncherFromMouse()
                 }
-                ToolTip.visible: launcherMouse.containsMouse
+                ToolTip.visible: launcherMouse.containsMouse && !shell.launcherOpen
                 ToolTip.delay: 450
                 ToolTip.text: shell.tr("Applications")
             }
@@ -401,6 +401,42 @@ ModuleSurface {
                     ToolTip.delay: 450
                     ToolTip.text: item.tooltipTitle || item.title || item.id
                 }
+            }
+
+            Item {
+                id: clipboardIndicator
+                width: 30
+                height: 28
+                scale: clipboardMouse.pressed ? 0.92
+                    : clipboardMouse.containsMouse || shell.clipboardPopupOpen ? 1.07 : 1
+                Accessible.role: Accessible.Button
+                Accessible.name: shell.tr("Clipboard")
+                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: height / 2
+                    color: clipboardMouse.containsMouse || shell.clipboardPopupOpen
+                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
+                        : "transparent"
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
+                }
+                LineIcon {
+                    anchors.centerIn: parent
+                    width: 17
+                    height: 17
+                    name: "copy"
+                    ink: shell.clipboardPopupOpen ? Theme.accent : Theme.text
+                }
+                MouseArea {
+                    id: clipboardMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: shell.clipboardPopupOpen = !shell.clipboardPopupOpen
+                }
+                ToolTip.visible: clipboardMouse.containsMouse
+                ToolTip.delay: 450
+                ToolTip.text: shell.tr("Clipboard")
             }
 
             Item {
@@ -520,7 +556,7 @@ ModuleSurface {
                 fill: "transparent"
                 border.width: 0
                 Accessible.name: shell.tr("Battery")
-                onClicked: shell.launch("monitor")
+                onClicked: shell.openSettingsPage("power")
             }
         }
     }

@@ -1,6 +1,7 @@
 #include "config/plugins/PluginCatalog.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
+#include "core/settings/SettingsSchema.hpp"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -39,6 +40,13 @@ QString canonicalChild(const QDir &directory, const QString &leaf) {
       QFileInfo(child).absolutePath() != root)
     return {};
   return child;
+}
+
+bool packagedImageIcon(const QString &value) {
+  static const QRegularExpression suffix(
+      R"(\.(png|jpe?g|webp|svg)$)",
+      QRegularExpression::CaseInsensitiveOption);
+  return suffix.match(value).hasMatch();
 }
 } // namespace
 
@@ -111,6 +119,17 @@ PluginDescriptor readPluginMetadata(const QString &path,
                         ? author.toObject().value("name").toString()
                         : author.toString();
     result.icon = metadata.value("icon").toString("applications-system");
+    const auto tagsValue = metadata.value("tags");
+    if (tagsValue.isArray()) {
+      QSet<QString> seenTags;
+      for (const auto &value : tagsValue.toArray()) {
+        const auto tag = value.toString().trimmed();
+        if (tag.isEmpty() || tag.size() > 32 || seenTags.contains(tag))
+          continue;
+        seenTags.insert(tag);
+        result.tags << tag;
+      }
+    }
     result.type = metadata.value("type").toString().toLower();
     if (result.type == "qml")
       result.type = "quickshell";
@@ -144,19 +163,41 @@ PluginDescriptor readPluginMetadata(const QString &path,
         result.error = "Schema 2 requires a settings schema object";
         return result;
       }
+      if (metadata.contains("tags") &&
+          (!metadata.value("tags").isArray() ||
+           metadata.value("tags").toArray().size() > 12 ||
+           result.tags.size() != metadata.value("tags").toArray().size())) {
+        result.error = "Plugin tags must be unique non-empty strings up to 32 characters";
+        return result;
+      }
+      if (!safeLeaf(result.icon)) {
+        result.error = "Plugin icon must be a theme name or local image filename";
+        return result;
+      }
+      if (packagedImageIcon(result.icon)) {
+        const auto iconPath = canonicalChild(directory, result.icon);
+        if (iconPath.isEmpty()) {
+          result.error = "Plugin icon is missing or escapes the plugin directory";
+          return result;
+        }
+        result.icon = QUrl::fromLocalFile(iconPath).toString();
+      }
       result.settingsSchema = metadata.value("settings").toObject();
-      const auto layoutMode = metadata.value("layoutMode").toString("tiling");
-      if ((metadata.contains("layoutMode") &&
+      const auto windowTemplate =
+          metadata.value("windowTemplate").toString("tiling");
+      if ((metadata.contains("windowTemplate") &&
            (result.type != "effect" || result.target != "window-layout")) ||
-          !QStringList{"tiling", "stacking"}.contains(layoutMode) ||
-          (layoutMode == "stacking" && result.mode != "replace")) {
+          metadata.contains("layoutMode") ||
+          !QStringList{"tiling", "stacking"}.contains(windowTemplate) ||
+          (windowTemplate == "stacking" && result.mode != "replace")) {
         result.error =
-            "layoutMode stacking requires a window-layout replacement";
+            "windowTemplate stacking requires a window-layout replacement";
         return result;
       }
       result.settings = extensionDefaults(result.settingsSchema);
-      if (!validateExtensionSettings(result.settingsSchema, result.settings,
-                                     &result.error))
+      if (!Settings::validatePluginSchema(result.settingsSchema, &result.error) ||
+          !Settings::validateValues(result.settingsSchema, result.settings,
+                                    &result.error))
         return result;
     }
     enabledByDefault = metadata.value("enabledByDefault").toBool(false);
@@ -225,16 +266,18 @@ PluginDescriptor readPluginMetadata(const QString &path,
     result.enabled = config.value("enabled").toBool(false);
   if (config.contains("mode"))
     result.mode = config.value("mode").toString();
-  if (result.manifest.value("layoutMode").toString() == "stacking" &&
-      result.mode != "replace") {
-    result.error = "Stacking layout must run as Plugin only";
+  const auto configuredWindowTemplate =
+      result.manifest.value("windowTemplate").toString("tiling");
+  if (configuredWindowTemplate == "stacking" && result.mode != "replace") {
+    result.error = "Stacking window template must run as Plugin only";
     result.enabled = false;
     return result;
   }
   const auto settings = config.value("settings").toObject();
   if (!QStringList{"replace", "augment"}.contains(result.mode) ||
-      !validateExtensionSettings(result.settingsSchema, settings,
-                                 &result.error)) {
+      !Settings::validatePluginSchema(result.settingsSchema, &result.error) ||
+      !Settings::validateValues(result.settingsSchema, settings,
+                                &result.error)) {
     if (result.error.isEmpty())
       result.error = "Invalid plugin composition mode";
     result.enabled = false;
@@ -246,6 +289,19 @@ PluginDescriptor readPluginMetadata(const QString &path,
 }
 
 QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
+  QJsonArray tags;
+  QSet<QString> seen;
+  const auto appendTag = [&](const QString &tag) {
+    if (!tag.isEmpty() && !seen.contains(tag)) {
+      seen.insert(tag);
+      tags.append(tag);
+    }
+  };
+  for (const auto &tag : plugin.tags)
+    appendTag(tag);
+  appendTag(plugin.type);
+  appendTag(plugin.target);
+
   return {
       {"id", plugin.id},
       {"name", plugin.name},
@@ -253,11 +309,13 @@ QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
       {"version", plugin.version},
       {"author", plugin.author},
       {"icon", plugin.icon},
+      {"tags", tags},
       {"type", plugin.type},
       {"target", plugin.target},
       {"mode", plugin.mode},
       {"schemaVersion", plugin.schemaVersion},
-      {"layoutMode", plugin.manifest.value("layoutMode").toString("tiling")},
+      {"windowTemplate",
+       plugin.manifest.value("windowTemplate").toString("tiling")},
       {"enabled", plugin.enabled},
       {"error", plugin.error},
       {"settingsSchema", plugin.settingsSchema},

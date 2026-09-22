@@ -34,4 +34,4 @@ lunadash-compositor --screenshot /absolute/path.png
 
 Compositor 會 advertise wlroots screencopy、xdg-output、idle-inhibit global。Release 前仍要在真實 session 測 region geometry、Escape、重複 shortcut、HiDPI、多輸出與 PNG 權限。
 
-FileChooser portal 與 screen capture 是不同功能；完整 PipeWire screen-sharing portal、per-toplevel capture policy、screen-lock integration 目前尚未完成。
+FileChooser portal 與 screen capture 是不同功能。LunaDash 現在把標準 `ScreenCast` / `Screenshot` portal 介面交給 `xdg-desktop-portal-wlr`，由 PipeWire 搭配 compositor 的 `zwlr_screencopy_manager_v1` 提供 Discord 與 Chromium/Electron 的畫面分享。Installer 會安裝 wlroots portal backend 與 PipeWire；既有系統升級後請重新登入（或重啟 user portal services）再測試。Per-toplevel capture policy 與 screen-lock integration 仍未完成。

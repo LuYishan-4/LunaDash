@@ -2,6 +2,7 @@
 #include "compositor/tiling/TilingGeometry.h"
 
 #include <algorithm>
+#include <QJsonArray>
 #include <limits>
 #include <unordered_map>
 #include <utility>
@@ -321,16 +322,17 @@ public:
   std::unordered_map<LayoutWorkspaceId, Workspace> workspaces;
 };
 
-TilingLayout::TilingLayout(int defaultWidth, int gap)
-    : d(std::make_unique<Impl>(defaultWidth, gap)) {}
+TilingLayout::TilingLayout() : d(std::make_unique<Impl>(1120, 12)) {}
 TilingLayout::~TilingLayout() = default;
-WindowLayoutMode TilingLayout::mode() const noexcept {
-  return WindowLayoutMode::Tiling;
-}
 TilingLayout::TilingLayout(TilingLayout &&) noexcept = default;
 TilingLayout &TilingLayout::operator=(TilingLayout &&) noexcept = default;
 
-void TilingLayout::setGap(int gap) { d->gap = std::max(0, gap); }
+void TilingLayout::configure(const QJsonObject &settings) {
+  d->defaultWidth =
+      std::clamp(settings.value("defaultWidth").toInt(d->defaultWidth), 240,
+                 2400);
+  d->gap = std::clamp(settings.value("gap").toInt(d->gap), 0, 64);
+}
 
 bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
                           QSize preferredSize) {
@@ -465,6 +467,72 @@ bool TilingLayout::focusUp(LayoutWorkspaceId workspaceId) {
 bool TilingLayout::focusDown(LayoutWorkspaceId workspaceId) {
   const auto found = d->workspaces.find(workspaceId);
   return found != d->workspaces.end() && focusDirection(found->second, 0, 1);
+}
+
+bool TilingLayout::performAction(const QString &action,
+                                 const QJsonObject &payload) {
+  const auto window =
+      static_cast<LayoutWindowId>(payload.value("window").toInteger());
+  const auto target =
+      static_cast<LayoutWindowId>(payload.value("target").toInteger());
+  const auto workspace =
+      static_cast<LayoutWorkspaceId>(payload.value("workspace").toInteger());
+  const auto areaObject = payload.value("area").toObject();
+  const QRect area(areaObject.value("x").toInt(), areaObject.value("y").toInt(),
+                   areaObject.value("width").toInt(),
+                   areaObject.value("height").toInt());
+
+  if (action == "focus-direction") {
+    const int dx = payload.value("dx").toInt();
+    const int dy = payload.value("dy").toInt();
+    if (dx < 0)
+      return focusLeft(workspace);
+    if (dx > 0)
+      return focusRight(workspace);
+    if (dy < 0)
+      return focusUp(workspace);
+    if (dy > 0)
+      return focusDown(workspace);
+    return false;
+  }
+  if (action == "group-direction") {
+    if (!focus(window))
+      return false;
+    const int dx = payload.value("dx").toInt();
+    const int dy = payload.value("dy").toInt();
+    const bool found = dx < 0   ? focusLeft(workspace)
+                       : dx > 0 ? focusRight(workspace)
+                       : dy < 0 ? focusUp(workspace)
+                                : dy > 0 && focusDown(workspace);
+    if (!found)
+      return false;
+    const auto destination = snapshot(workspace).focusedWindow;
+    const bool grouped = groupWith(window, destination);
+    focus(window);
+    return grouped;
+  }
+  if (action == "group-with")
+    return groupWith(window, target);
+  if (action == "expel")
+    return expel(window);
+  if (action == "swap")
+    return swapWindows(window, target);
+  if (action == "insert-beside")
+    return insertBeside(window, target, payload.value("after").toBool());
+  if (action == "reorder")
+    return reorder(window, payload.value("direction").toInt());
+  if (action == "resize-width")
+    return resize(window, payload.value("width").toInt());
+  if (action == "resize-height")
+    return resizeHeight(window, payload.value("height").toInt());
+  if (action == "move-by")
+    return moveSingle(window,
+                      QPoint(payload.value("dx").toInt(),
+                             payload.value("dy").toInt()),
+                      area);
+  if (action == "center")
+    return center(window, area);
+  return false;
 }
 
 bool TilingLayout::groupWith(LayoutWindowId window, LayoutWindowId target) {
@@ -744,17 +812,23 @@ TilingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
   for (std::size_t columnIndex = 0; columnIndex < workspace.columns.size();
        ++columnIndex) {
     const auto &column = workspace.columns[columnIndex];
-    QList<LayoutWindowId> members;
-    members.reserve(static_cast<qsizetype>(column.members.size()));
+    QJsonArray members;
     for (const auto &member : column.members)
-      members.append(member.window);
+      members.append(static_cast<qint64>(member.window));
     int rowIndex = 0;
     for (const auto &member : column.members) {
       const int row = member.minimized ? -1 : rowIndex++;
-      result.columns.append({member.window, column.width, member.minimized,
-                             member.window == workspace.focused,
-                             member.geometry, static_cast<int>(columnIndex),
-                             row, members});
+      WindowPlacement placement;
+      placement.window = member.window;
+      placement.width = column.width;
+      placement.minimized = member.minimized;
+      placement.focused = member.window == workspace.focused;
+      placement.geometry = member.geometry;
+      placement.metadata = {
+          {"group", static_cast<int>(columnIndex)},
+          {"row", row},
+          {"members", members}};
+      result.columns.append(placement);
     }
   }
   return result;

@@ -1,0 +1,6 @@
+[screencast]
+# ScreenCast is a source picker, not a screenshot operation. dmenu mode makes
+# xdg-desktop-portal-wlr send monitor/window labels on stdin and accept the
+# selected label on stdout, so no region-selection overlay is started.
+chooser_type=dmenu
+chooser_cmd=@CMAKE_INSTALL_FULL_LIBEXECDIR@/xdg-desktop-portal-lunadash --screencast-chooser

@@ -52,14 +52,21 @@ QML/JS/assets 用 `FILES` 明確列出。不要只手動 copy source folder；SD
   "entry": "Main.qml",
   "enabledByDefault": false,
   "settings": {
-    "text": {"type": "string", "default": "Hello"}
+    "enabled": {"type": "boolean", "control": "toggle", "default": true},
+    "mode": {"type": "string", "control": "select", "default": "soft",
+             "enum": ["soft", "strong"]},
+    "amount": {"type": "integer", "control": "number", "default": 2},
+    "strength": {"type": "number", "control": "slider", "default": 0.5,
+                 "minimum": 0, "maximum": 1}
   }
 }
 ```
 
-`replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `layoutMode: stacking` 的 window-layout plugin 必須是 replacement。
+`replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `windowTemplate: stacking` 的 window-layout plugin 必須是 replacement。現在執行 `lunadash-create-plugin --type effect --target window-layout ...` 會從通用 native effect template 建立；實際的 stacking / cascade 實作改成 `data/plugins/stacking-windows` 下的正式 SDK 2 plugin package，compositor core 只保留 stacking-mode 互動所需的通用 freeform geometry state。
 
-## Native hook 與 hot reload
+Plugin 的 settings 不需要另外寫設定 QML。Host 會透過共用 Settings API 自動產生與 LunaDash 原生介面一致的控制項；Plugin SDK 只允許四種：**是/否 toggle**、**下拉 select**、**數值輸入 number**、**數值拉條 slider**。自由文字與 array 類控制保留給 host/module 內部設定，第三方 plugin metadata 會被 SDK 與 runtime 雙重拒絕。
+
+## Native hook 與 runtime loading
 
 作者實作同步、stateless 的：
 
@@ -71,7 +78,7 @@ Request 帶 `target/mode/context/builtin/current/settings`。SDK 產生 `ludash_
 
 不要保存 host pointer、開 background thread、註冊跨 callback、跑 nested event loop 或長時間 block。Native code 沒 sandbox，仍能讓 compositor crash/hang。
 
-Enable/disable、設定變更或 rebuild 不需 logout/reboot。Host 約每秒檢查 package，私下 staging revision 並在 call 之間 reload；失敗就 fallback built-in。
+Enable/disable 與設定變更不需 logout/reboot。Plugin package 直接從安裝目錄使用，不再建立 private revision copy、每秒 fingerprint 或背景監看 package。Native library 啟用期間會保持載入，因此替換 binary 前先 disable，再完成替換後重新 enable。直接載入失敗時會 fallback built-in；「重試插件」會清除載入錯誤並重新嘗試目前安裝的 package。
 
 ## Quickshell
 
@@ -102,4 +109,14 @@ lunadashctl extension-save '<JSON>'
 lunadashctl open-settings plugins
 ```
 
-搜尋順序先 user data，再 system data，並保留舊 path 相容。Plugin store 尚未實作；metadata/QML/native 都以使用者權限執行，protocol/session/system-service ownership 仍屬 host。
+搜尋順序先 user data，再 system data，並保留舊 path 相容。
+
+## 社群 Registry 與 Plugin Store
+
+社群 plugin 統一透過 [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins) 投稿。每個 plugin 放在 `plugins/<id>/`，PR 會依 LunaDash SDK 2 的 target、manifest 與 settings schema 驗證，必須通過 registry CI 與 maintainer review 後才會進入產生的 catalogue；同一份 reviewed registry 也由 Astro 網站提供瀏覽。
+
+Settings → Plugins → Store 現在直接讀取 [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins) 的 reviewed registry。Runtime 預設透過 HTTPS 取得 `https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json`，在交給 QML 前驗證 catalogue 格式、plugin ID、target/type、tags 與 remote URL；網路不可用時使用內建的同版 registry fallback。開發者可用 `LUNADASH_PLUGIN_CATALOG_URL` 指向其他 HTTPS index，或設為 `off` 停用遠端 refresh。
+
+Store 只改 discovery 來源，既有 SDK/CMake 安裝流程不變；真正執行的本機 package 仍必須通過 `metadata.json`、SDK receipt 與 native ABI 驗證。出現在 Store 不會自動啟用 native plugin。
+
+Metadata/QML/native 都以使用者權限執行，protocol/session/system-service ownership 仍屬 host。

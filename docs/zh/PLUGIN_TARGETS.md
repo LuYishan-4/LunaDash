@@ -50,7 +50,7 @@ lunadash-create-plugin --list
 | `window-rules` | workspace/maximized | initial map，workspace 必須有效 |
 | `window-layout` | windows[] rectangles | ID 必須一一對應、正尺寸、在 work area |
 
-一般 layout 禁止 overlap。Native replacement 宣告 `layoutMode: stacking` 可選 host 的 persistent stacking strategy。Host 仍持有 membership、focus、minimize/maximize 與 workspace state。
+一般 layout 禁止 overlap。Native replacement 宣告 `windowTemplate: stacking` 可選 host 的 persistent stacking strategy；hook context 會提供 `windowTemplate` 與 `allowOverlap`。Host 仍持有 membership、focus、minimize/maximize 與 workspace state。
 
 Stacking 時 Alt+left-drag 移動，Shift+Alt+left-drag resize；focus-to-front。範例：[stacking-windows](../../examples/plugins/stacking-windows/README.md)。
 

@@ -1,123 +1,209 @@
 #include "compositor/plugins/PluginManager.hpp"
-#include "compositor/plugins/PluginBundle.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "core/plugins/PluginApi.h"
-#include <QFileInfo>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLibrary>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QScopedValueRollback>
 #include <QSet>
+#include <QTimer>
 #include <QUrl>
 #include <algorithm>
 
 namespace LunaDash {
 struct PluginManager::Native {
-  std::shared_ptr<PluginBundle> bundle;
   QLibrary library;
-  QString revision;
   ~Native() { library.unload(); }
   PluginDescriptor descriptor;
   PluginDescriptor current;
   const ludash_plugin_api *api = nullptr;
 };
 PluginManager::PluginManager(QObject *parent) : QObject(parent) {
-  poll_.setInterval(1000);
-  connect(&poll_, &QTimer::timeout, this, &PluginManager::refresh);
-  poll_.start();
+  QFile bundled(":/LunaDash/plugins/catalog.json");
+  if (bundled.open(QIODevice::ReadOnly)) {
+    QString error;
+    if (!applyStoreCatalog(bundled.readAll(), &error))
+      storeError_ = error;
+  }
+  storeNetwork_ = new QNetworkAccessManager(this);
+  QTimer::singleShot(0, this, &PluginManager::refreshStore);
 }
 PluginManager::~PluginManager() = default;
+
+bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
+  QJsonParseError parseError;
+  const auto document = QJsonDocument::fromJson(bytes, &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+    if (error)
+      *error = "Invalid plugin catalogue JSON";
+    return false;
+  }
+  const auto root = document.object();
+  const auto values = root.value("plugins");
+  if (root.value("schemaVersion").toInt() != 1 ||
+      (root.contains("format") &&
+       root.value("format").toString() != "lunadash-plugin-index") ||
+      !values.isArray() || values.toArray().size() > 256) {
+    if (error)
+      *error = "Unsupported or oversized plugin catalogue";
+    return false;
+  }
+
+  static const QRegularExpression validId("^[A-Za-z0-9][A-Za-z0-9._-]+$");
+  QJsonArray normalized;
+  QSet<QString> ids;
+  for (const auto &value : values.toArray()) {
+    if (!value.isObject()) {
+      if (error)
+        *error = "Plugin catalogue entries must be objects";
+      return false;
+    }
+    auto item = value.toObject();
+    const auto id = item.value("id").toString();
+    const auto name = item.value("name").toString();
+    const auto version = item.value("version").toString();
+    const auto type = item.value("type").toString();
+    const auto targetId = item.value("target").toString();
+    const auto target = extensionTarget(targetId);
+    if (!validId.match(id).hasMatch() || ids.contains(id) || name.isEmpty() ||
+        version.isEmpty() || target.isEmpty() ||
+        !target.value("types").toArray().contains(type)) {
+      if (error)
+        *error = "Plugin catalogue contains an invalid identity or target";
+      return false;
+    }
+    ids.insert(id);
+
+    const auto tags = item.value("tags");
+    const auto tagArray = tags.toArray();
+    if (tags.isUndefined())
+      item["tags"] = QJsonArray{};
+    else if (!tags.isArray() || tags.toArray().size() > 12 ||
+             std::any_of(tagArray.cbegin(), tagArray.cend(),
+                         [](const QJsonValue &tag) {
+                           const auto text = tag.toString();
+                           return !tag.isString() || text.trimmed() != text ||
+                                  text.isEmpty() || text.size() > 32;
+                         })) {
+      if (error)
+        *error = "Plugin catalogue contains invalid tags";
+      return false;
+    }
+
+    const auto icon = item.value("icon").toString("applications-system");
+    const QUrl iconUrl(icon);
+    if (icon.contains('/') &&
+        (!iconUrl.isValid() || iconUrl.scheme() != "https")) {
+      if (error)
+        *error = "Remote plugin icons must use HTTPS";
+      return false;
+    }
+    item["icon"] = icon;
+
+    if (item.contains("sourceUrl")) {
+      const QUrl source(item.value("sourceUrl").toString());
+      if (!source.isValid() || source.scheme() != "https") {
+        if (error)
+          *error = "Plugin source URLs must use HTTPS";
+        return false;
+      }
+    }
+    normalized.append(item);
+  }
+  storeCatalog_ = normalized;
+  if (error)
+    error->clear();
+  return true;
+}
+
+void PluginManager::refreshStore() {
+  const QString configured = qEnvironmentVariable(
+      "LUNADASH_PLUGIN_CATALOG_URL",
+      "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json");
+  if (configured.isEmpty() || configured.compare("off", Qt::CaseInsensitive) == 0)
+    return;
+
+  const QUrl url(configured);
+  if (!url.isValid() || url.scheme() != "https") {
+    storeError_ = "Plugin catalogue URL must use HTTPS";
+    emit changed();
+    return;
+  }
+
+  storeLoading_ = true;
+  storeError_.clear();
+  QNetworkRequest request(url);
+  request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                       QNetworkRequest::NoLessSafeRedirectPolicy);
+  auto *reply = storeNetwork_->get(request);
+  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    storeLoading_ = false;
+    QString error;
+    if (reply->error() != QNetworkReply::NoError) {
+      storeError_ = "Remote catalogue unavailable; showing bundled catalogue";
+    } else if (!applyStoreCatalog(reply->readAll(), &error)) {
+      storeError_ = error;
+    } else {
+      storeError_.clear();
+    }
+    reply->deleteLater();
+    emit changed();
+  });
+}
+
 void PluginManager::loadEnabled() { refresh(); }
 void PluginManager::refresh() {
   if (inHook_)
     return;
+
   const auto discovered = discoverPlugins();
   QList<PluginDescriptor> catalog;
   QSet<QString> active;
-  bool changedCode = false;
+
   for (auto descriptor : discovered) {
     const auto id = descriptor.id;
+    const auto previous =
+        std::find_if(catalog_.cbegin(), catalog_.cend(), [&](const auto &plugin) {
+          return plugin.id == id;
+        });
+    if (previous == catalog_.cend() ||
+        previous->manifest != descriptor.manifest ||
+        previous->mode != descriptor.mode ||
+        previous->settings != descriptor.settings ||
+        previous->enabled != descriptor.enabled)
+      errors_.remove(id);
+
     if (!descriptor.enabled || !descriptor.error.isEmpty()) {
       catalog.append(descriptor);
       continue;
     }
-    QString error;
-    const auto directory = QFileInfo(descriptor.metadataPath).absolutePath();
-    const auto revision = PluginBundle::fingerprint(directory, &error);
-    if (revision.isEmpty()) {
-      descriptor.error = error;
-      catalog.append(descriptor);
-      continue;
-    }
-    const auto attempt =
-        revision + descriptor.mode +
-        QString::fromUtf8(
-            QJsonDocument(descriptor.settings).toJson(QJsonDocument::Compact));
-    if (attempts_.value(id) != attempt) {
-      errors_.remove(id);
-      attempts_[id] = attempt;
-      changedCode = true;
-    }
-    if (revisions_.value(id) != revision || !bundles_.contains(id)) {
-      const auto bundle = PluginBundle::copy(directory, &error);
-      if (!bundle || revision != PluginBundle::fingerprint(directory, &error)) {
-        descriptor.error = error.isEmpty() ? "Plugin changed during reload; "
-                                             "waiting for a complete revision"
-                                           : error;
-        catalog.append(descriptor);
-        continue;
-      }
-      // Verify the private copy against the manifest and SDK receipt too.
-      const auto copied = readPluginMetadata(bundle->file("metadata.json"));
-      if (!copied.error.isEmpty() || copied.manifest != descriptor.manifest) {
-        descriptor.error =
-            "Plugin changed during reload; waiting for a valid SDK build";
-        catalog.append(descriptor);
-        continue;
-      }
-      if (bundles_.contains(id))
-        retired_.append(bundles_[id]);
-      bundles_[id] = bundle;
-      revisions_[id] = revision;
-      // Keep recent QML revisions alive while the shell replaces asynchronous
-      // image/component loads. Native revisions have their own shared owner.
-      while (retired_.size() > 16)
-        retired_.removeFirst();
-    }
-    const auto bundle = bundles_.value(id);
-    if (descriptor.type == "quickshell")
-      descriptor.entryPath =
-          bundle->file(QFileInfo(descriptor.entryPath).fileName());
-    else if (descriptor.type == "opengl") {
-      for (const auto &stage : {QString("vertex"), QString("fragment")})
-        descriptor.shaders[stage] =
-            QUrl::fromLocalFile(
-                bundle->file(descriptor.manifest.value("shaders")
-                                 .toObject()
-                                 .value(stage)
-                                 .toString() +
-                             ".qsb"))
-                .toString();
-    } else if (descriptor.type == "effect") {
+
+    if (descriptor.type == "effect") {
       active.insert(id);
       auto found =
           std::find_if(native_.begin(), native_.end(), [&](const auto &entry) {
             return entry->descriptor.id == id;
           });
-      if (found != native_.end() && (*found)->revision != revision) {
+      if (found != native_.end() &&
+          ((*found)->descriptor.manifest != descriptor.manifest ||
+           (*found)->descriptor.libraryPath != descriptor.libraryPath)) {
         native_.erase(found);
         found = native_.end();
       }
+
       if (found != native_.end()) {
         (*found)->current = descriptor;
       } else if (!errors_.contains(id)) {
         auto native = std::make_unique<Native>();
         native->descriptor = native->current = descriptor;
-        native->bundle = bundle;
-        native->revision = revision;
-        native->library.setFileName(
-            bundle->file(QFileInfo(descriptor.libraryPath).fileName()));
+        native->library.setFileName(descriptor.libraryPath);
+
         using Entry = const ludash_plugin_api *(*)();
         const auto entry = reinterpret_cast<Entry>(
             native->library.resolve("ludash_plugin_entry_v2"));
@@ -130,34 +216,38 @@ void PluginManager::refresh() {
               api->api_version != LUDASH_PLUGIN_API_VERSION || !api->process ||
               !api->metadata_json ||
               QJsonDocument::fromJson(api->metadata_json).object() !=
-                  descriptor.manifest)
+                  descriptor.manifest) {
             errors_[id] = "SDK ABI or embedded metadata mismatch";
-          else
+          } else {
             native_.push_back(std::move(native));
+          }
         }
       }
     }
+
     catalog.append(descriptor);
   }
-  const auto removed = std::erase_if(native_, [&](const auto &entry) {
+
+  std::erase_if(native_, [&](const auto &entry) {
     return !active.contains(entry->descriptor.id);
   });
-  for (const auto &id : bundles_.keys())
-    if (!std::any_of(catalog.begin(), catalog.end(), [&](const auto &plugin) {
-          return plugin.id == id && plugin.enabled;
-        })) {
-      retired_.append(bundles_.take(id));
-      revisions_.remove(id);
-      attempts_.remove(id);
-    }
-  while (retired_.size() > 16)
-    retired_.removeFirst();
+
+  for (auto it = errors_.begin(); it != errors_.end();) {
+    const bool enabled =
+        std::any_of(catalog.cbegin(), catalog.cend(), [&](const auto &plugin) {
+          return plugin.id == it.key() && plugin.enabled;
+        });
+    if (!enabled)
+      it = errors_.erase(it);
+    else
+      ++it;
+  }
+
   std::sort(native_.begin(), native_.end(), [](const auto &a, const auto &b) {
     return a->descriptor.id < b->descriptor.id;
   });
   catalog_ = catalog;
-  if (changedCode || removed)
-    emit changed();
+  emit changed();
 }
 QJsonObject PluginManager::snapshot() {
   QJsonArray installed;
@@ -196,9 +286,24 @@ QJsonObject PluginManager::snapshot() {
         configuredBuiltinSettings(target.value("id").toString(), document);
     targets[i] = target;
   }
-  return {{"installed", installed}, {"targets", targets},
-          {"document", document},   {"path", extensionConfigurationPath()},
-          {"error", configError},   {"storeSupported", false}};
+  QSet<QString> installedIds;
+  for (const auto &descriptor : catalog_)
+    installedIds.insert(descriptor.id);
+  QJsonArray remote;
+  for (const auto &value : storeCatalog_) {
+    auto item = value.toObject();
+    item["installed"] = installedIds.contains(item.value("id").toString());
+    remote.append(item);
+  }
+  return {{"installed", installed},
+          {"remote", remote},
+          {"targets", targets},
+          {"document", document},
+          {"path", extensionConfigurationPath()},
+          {"error", configError},
+          {"storeSupported", true},
+          {"storeLoading", storeLoading_},
+          {"storeError", storeError_}};
 }
 bool PluginManager::setEnabled(const QString &id, bool enabled,
                                QString *error) {
@@ -218,24 +323,26 @@ bool PluginManager::setEnabled(const QString &id, bool enabled,
   return false;
 }
 void PluginManager::reportError(const QString &id, const QString &error) {
-  if (!error.isEmpty())
+  if (!error.isEmpty()) {
     errors_[id] = error.left(1024);
-  else {
-    errors_.remove(id);
-    attempts_.remove(id);
+    emit changed();
+    return;
   }
+
+  errors_.remove(id);
+  if (!inHook_)
+    refresh();
 }
-bool PluginManager::stackingLayout() const {
+QString PluginManager::windowTemplateKey() const {
   for (const auto &native : native_) {
     const auto &plugin = native->current;
     if (plugin.enabled && plugin.error.isEmpty() &&
         !errors_.contains(plugin.id) &&
         plugin.manifest == native->descriptor.manifest &&
         plugin.target == "window-layout" && plugin.mode == "replace")
-      return plugin.manifest.value("layoutMode").toString("tiling") ==
-             "stacking";
+      return plugin.manifest.value("windowTemplate").toString("tiling");
   }
-  return false;
+  return "tiling";
 }
 QJsonObject PluginManager::filter(const QString &target,
                                   const QJsonObject &builtin,

@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from SettingsSchema import control, validate_schema
 
 
 def validate(manifest, root, targets):
@@ -30,6 +31,20 @@ def validate(manifest, root, targets):
             re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]+", manifest["id"]), "Invalid plugin ID")
     for key in ("name", "version"):
         require(isinstance(manifest.get(key), str) and manifest[key], f"Missing {key}")
+    icon = manifest.get("icon", "applications-system")
+    require(isinstance(icon, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", icon),
+            "icon must be a theme name or local image filename")
+    if re.search(r"\.(png|jpe?g|webp|svg)$", icon, re.IGNORECASE):
+        path = root / icon
+        require(path.is_file() and path.resolve().parent == root.resolve()
+                and path.stat().st_size <= 1024 * 1024,
+                f"Missing, oversized or escaping plugin icon: {icon}")
+    tags = manifest.get("tags", [])
+    require(isinstance(tags, list) and len(tags) <= 12 and
+            all(isinstance(tag, str) and tag.strip() == tag and
+                0 < len(tag) <= 32 and not any(ord(ch) < 32 for ch in tag)
+                for tag in tags) and len(set(tags)) == len(tags),
+            "tags must be up to 12 unique non-empty strings of at most 32 characters")
     kind = manifest.get("type")
     require(kind in ("effect", "quickshell", "opengl"), "Unknown plugin type")
     target = next((t for t in targets if t["id"] == manifest.get("target")), None)
@@ -37,22 +52,24 @@ def validate(manifest, root, targets):
     require(manifest.get("mode") in ("replace", "augment"), "mode must be replace or augment")
     require(isinstance(manifest.get("enabledByDefault", False), bool), "enabledByDefault must be boolean")
     require(kind != "effect" or not manifest.get("enabledByDefault"), "Native effects must default to disabled")
-    layout_mode = manifest.get("layoutMode", "tiling")
-    require(layout_mode in ("tiling", "stacking"), "Unknown layoutMode")
-    require("layoutMode" not in manifest or (kind == "effect" and target["id"] == "window-layout"),
-            "layoutMode requires a native window-layout plugin")
-    require(layout_mode != "stacking" or manifest["mode"] == "replace", "Stacking requires replacement mode")
+    require("layoutMode" not in manifest,
+            "layoutMode was removed; use windowTemplate")
+    window_template = manifest.get("windowTemplate", "tiling")
+    require(window_template in ("tiling", "stacking"), "Unknown windowTemplate")
+    require("windowTemplate" not in manifest or
+            (kind == "effect" and target["id"] == "window-layout"),
+            "windowTemplate requires a native window-layout plugin")
+    require(window_template != "stacking" or manifest["mode"] == "replace",
+            "Stacking windowTemplate requires replacement mode")
     schema = manifest.get("settings")
     require(isinstance(schema, dict), "settings must be an object (empty is allowed)")
-    for key, rule in schema.items():
-        require(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", key) and isinstance(rule, dict), "Invalid setting name/schema")
-        value, value_type = rule.get("default"), rule.get("type")
-        valid = ((value_type == "boolean" and isinstance(value, bool)) or
-                 (value_type == "string" and isinstance(value, str) and len(value) <= 4096) or
-                 (value_type in ("number", "integer") and type(value) in (int, float) and
-                  (value_type != "integer" or int(value) == value) and
-                  rule.get("minimum", value) <= value <= rule.get("maximum", value)))
-        require(valid and ("enum" not in rule or value in rule["enum"]), f"Invalid default for {key}")
+    validate_schema(schema)
+    # Plugin settings are rendered automatically by the shared QML settings
+    # surface. Keep the plugin SDK to the four stable controls so native
+    # effects and visual plugins never require custom settings QML.
+    allowed_controls = {"toggle", "select", "number", "slider"}
+    require(all(control(rule) in allowed_controls for rule in schema.values()),
+            "Plugin settings support only toggle, select, number and slider controls")
     if kind == "opengl":
         shaders = manifest.get("shaders", {})
         require(isinstance(shaders, dict), "shaders must be an object")
@@ -86,7 +103,7 @@ def main():
                 'LUDASH_PLUGIN_EXPORT const ludash_plugin_api *ludash_plugin_entry_v2(void) {\n'
                 f'  static const ludash_plugin_api api = {{sizeof(ludash_plugin_api), 2u, {literal}, ludash_plugin_process}};\n'
                 '  return &api;\n}\n')
-    except (OSError, ValueError, TypeError, KeyError) as error:
+    except (OSError, ValueError, TypeError, KeyError, re.error) as error:
         parser.exit(1, f"LunaDash plugin metadata: {error}\n")
 
 

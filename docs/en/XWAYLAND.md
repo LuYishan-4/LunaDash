@@ -8,11 +8,13 @@ On Arch:
 sudo pacman -S --needed xorg-xwayland
 ```
 
-Restart LunaDash after installing the optional packages. The compositor registers `wp_viewporter` and prepares a private display. It starts XWayland for the first explicit X11 launch or for Discord's native input helper. Native Wayland applications continue to use Wayland. The client environment asks for `QT_QPA_PLATFORM=wayland;xcb`, `GDK_BACKEND=wayland,x11` and `SDL_VIDEODRIVER=wayland,x11`; `DISPLAY` is omitted until the authenticated compatibility server is running.
+Restart LunaDash after installing the optional packages. The compositor registers `wp_viewporter` and prepares a private display. XWayland starts only for an explicit X11 launch or when an application declares the generic `x11-helper` launch capability. Native Wayland applications continue to use Wayland. The client environment asks for `QT_QPA_PLATFORM=wayland;xcb`, `GDK_BACKEND=wayland,x11` and `SDL_VIDEODRIVER=wayland,x11`; `DISPLAY` is omitted until the authenticated compatibility server is running.
 
-Discord's helper requires a usable X display even when Electron uses Wayland. LunaDash starts the service before launching Discord, supplies its authentication, and keeps the owned root surface out of tiling, focus and the taskbar until an explicit X11 application is requested. The compositor identifies that surface by the owned server process, not a client-supplied title. Later launches reuse the same server, display and authority file. A direct terminal launch bypasses this preparation; use the application launcher or the command in [Discord troubleshooting](LOGIN_SESSION.md#discord-and-external-application-menus).
+The application launcher sends the desktop identity and command to the compositor. `LaunchPolicy` resolves capabilities from `data/session/launch-capabilities.json` plus an optional user override at `~/.config/lunadash/launch-capabilities.json`. Rules match a desktop ID, Flatpak ID or executable and only describe capabilities; renderer flags are not rewritten by application name.
 
-Recognized Chromium browsers and Discord receive explicit native Wayland flags. Abnormal process exits are logged with the program name and exit status. Missing compatibility tools do not prevent the native desktop from starting; an application that requires the helper receives a launch error.
+Discord is a bundled compatibility rule because its Wayland renderer still uses an X11 input helper on current Linux builds. LunaDash therefore keeps `WAYLAND_DISPLAY` while adding the authenticated `DISPLAY` and `XAUTHORITY` before the Flatpak is started. The owned XWayland root stays out of tiling, focus and the taskbar. A direct terminal `flatpak run` bypasses the launcher policy and may still start without the helper.
+
+Abnormal process exits are logged with the program name and exit status. Missing compatibility tools do not prevent the native desktop from starting; an application that declares `x11-helper` receives a launch error instead of being started with an incomplete environment.
 
 The launcher and settings offer **Run an X11 application**. Enter a program and arguments, for example `xterm` if installed. Quotes group arguments; shell operators are not evaluated. The same action is available through IPC:
 
@@ -78,3 +80,23 @@ flatpak run --command=env com.dec05eba.gpu_screen_recorder \
 ```
 
 With Flatpak GPU Screen Recorder 6.1.2, the corrected discovery command returned successfully and listed the connected HDMI output. Native UI rendering was also verified: the application created a layer-shell OVERLAY surface at the full 1920×1080 output size and appeared above the taskbar and native application windows. The earlier `launch-x11` workaround contained its UI inside the shared XWayland window. Recording has not been verified. LunaDash's portal backend implements FileChooser, not PipeWire ScreenCast; the recorder's separate KMS monitor capture path is not the same as portal capture or capture of the XWayland compatibility window. See the [upstream UI notes](https://git.dec05eba.com/gpu-screen-recorder-ui/about/), [native backend selector](https://git.dec05eba.com/gpu-screen-recorder-ui/tree/src/Utils.cpp), and [host bridge implementation](https://git.dec05eba.com/gpu-screen-recorder-ui/tree/src/WaylandHostBridge.cpp) for platform limitations and connection handling.
+
+## Launch capability registry
+
+The built-in registry is data, not compositor branching. A user or downstream package can add another hybrid application without changing C++:
+
+```json
+{
+  "schemaVersion": 1,
+  "applications": [
+    {
+      "desktopIds": ["org.example.App"],
+      "flatpakIds": ["org.example.App"],
+      "executables": ["example-app"],
+      "capabilities": ["x11-helper"]
+    }
+  ]
+}
+```
+
+The optional user file is `~/.config/lunadash/launch-capabilities.json`. Matching rules are additive. Unknown applications remain Wayland-only and arbitrary URLs or document arguments are not treated as application identities.

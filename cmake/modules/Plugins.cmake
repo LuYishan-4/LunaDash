@@ -16,7 +16,7 @@ configure_file("${CMAKE_BINARY_DIR}/sdk/LunaDashPluginConfigVersion.cmake"
     "${CMAKE_BINARY_DIR}/sdk-build/LunaDashPluginConfigVersion.cmake" COPYONLY)
 install(FILES "${CMAKE_BINARY_DIR}/sdk/LunaDashPluginConfig.cmake"
     "${CMAKE_BINARY_DIR}/sdk/LunaDashPluginConfigVersion.cmake"
-    cmake/plugins/LunaDashPlugin.cmake cmake/plugins/ValidatePlugin.py data/plugins/targets.json
+    cmake/plugins/LunaDashPlugin.cmake cmake/plugins/ValidatePlugin.py cmake/plugins/SettingsSchema.py data/plugins/targets.json
     DESTINATION "${sdk_install_dir}")
 install(FILES src/core/plugins/PluginApi.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LunaDash/core/plugins")
 install(FILES src/core/plugins/PluginApi.c DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")
@@ -25,10 +25,6 @@ install(FILES data/plugins/targets.json docs/PLUGIN_TARGETS.md docs/PLUGINS.md D
 install(DIRECTORY templates/plugins/ DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk/templates")
 lunadash_add_plugin(lunadash-clock METADATA "${CMAKE_SOURCE_DIR}/qml/plugins/digital-clock/metadata.json")
 if(LUDASH_BUILD_EXAMPLE_PLUGIN)
-    lunadash_add_plugin(ludash-fade METADATA "${CMAKE_SOURCE_DIR}/data/plugins/fade/metadata.json"
-        SOURCES src/compositor/plugins/fade/FadePlugin.cpp)
-    target_link_libraries(ludash-fade PRIVATE Qt6::Core)
-    add_subdirectory(examples/plugins/stacking-windows)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/data/plugins/fade" "${CMAKE_BINARY_DIR}/example-plugins/fade")
+    add_subdirectory("${CMAKE_SOURCE_DIR}/data/plugins/stacking-windows" "${CMAKE_BINARY_DIR}/example-plugins/stacking-windows")
 endif()
-
-install(DIRECTORY examples/plugins/stacking-windows DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk/examples")

@@ -16,10 +16,47 @@ extern "C" {
 #include <wlr/backend.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
+#if __has_include(<wlr/types/wlr_buffer.h>)
+#include <wlr/types/wlr_buffer.h>
+#endif
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_data_device.h>
+#if __has_include(<wlr/types/wlr_foreign_toplevel_management_v1.h>)
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
+#define LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT 1
+#else
+#define LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT 0
+#endif
+#if __has_include(<wlr/types/wlr_ext_foreign_toplevel_list_v1.h>) && \
+    __has_include(<wlr/types/wlr_ext_image_capture_source_v1.h>) && \
+    __has_include(<wlr/types/wlr_ext_image_copy_capture_v1.h>)
+#include <wlr/types/wlr_ext_foreign_toplevel_list_v1.h>
+#include <wlr/types/wlr_ext_image_capture_source_v1.h>
+#include <wlr/types/wlr_ext_image_copy_capture_v1.h>
+#define LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE 1
+#else
+#define LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE 0
+#endif
+#if __has_include(<wlr/types/wlr_data_control_v1.h>)
+#include <wlr/types/wlr_data_control_v1.h>
+#define LUDASH_WLR_HAS_DATA_CONTROL 1
+#else
+#define LUDASH_WLR_HAS_DATA_CONTROL 0
+#endif
+#if __has_include(<wlr/types/wlr_drm.h>)
+#include <wlr/types/wlr_drm.h>
+#endif
 #include <wlr/types/wlr_idle_inhibit_v1.h>
+#if __has_include(<wlr/types/wlr_linux_dmabuf_v1.h>)
+#include <wlr/types/wlr_linux_dmabuf_v1.h>
+#endif
+#if __has_include(<wlr/types/wlr_linux_drm_syncobj_v1.h>)
+#include <wlr/types/wlr_linux_drm_syncobj_v1.h>
+#define LUDASH_WLR_HAS_DRM_SYNCOBJ 1
+#else
+#define LUDASH_WLR_HAS_DRM_SYNCOBJ 0
+#endif
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_input_method_v2.h>
 #include <wlr/types/wlr_keyboard.h>
@@ -30,6 +67,9 @@ extern "C" {
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_seat.h>
+#if __has_include(<wlr/types/wlr_single_pixel_buffer_v1.h>)
+#include <wlr/types/wlr_single_pixel_buffer_v1.h>
+#endif
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_text_input_v3.h>
 #include <wlr/types/wlr_viewporter.h>

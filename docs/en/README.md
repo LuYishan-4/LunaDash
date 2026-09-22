@@ -46,3 +46,6 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 ## Current dev snapshot
 
 The current documentation covers the wlroots compositor and lifecycle split, bounded tiling plus the opt-in stacking strategy, a 2×5 ten-workspace switcher, Plugin SDK 2 (native C/C++, Quickshell and OpenGL packages), MPRIS media controls, GPU/software wallpaper transitions, brightness and DDC/CI controls, region screenshots through slurp/grim, and XWayland helpers that can be prepared without forcing a native Wayland application onto X11.
+
+- [Shared settings API and generated controls](SETTINGS_API.md)
+- [Extension architecture audit](EXTENSION_ARCHITECTURE_AUDIT.md)

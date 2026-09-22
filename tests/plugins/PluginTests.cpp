@@ -3,6 +3,8 @@
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "config/plugins/PluginCatalog.hpp"
+#include "core/settings/SettingsSchema.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
@@ -43,10 +45,44 @@ private Q_SLOTS:
     qputenv("XDG_CONFIG_HOME", (temporary.path() + "/config").toUtf8());
     qputenv("XDG_DATA_HOME", (temporary.path() + "/data").toUtf8());
     qputenv("XDG_DATA_DIRS", (temporary.path() + "/empty").toUtf8());
+    qputenv("LUNADASH_PLUGIN_CATALOG_URL", "off");
     QCoreApplication::setOrganizationName("LunaDashPluginTests");
     QCoreApplication::setApplicationName("Plugins");
     root = temporary.path() + "/data/lunadash/plugins";
   }
+  void pluginSettingsUseStableControls() {
+    QString error;
+    QVERIFY(Settings::validatePluginSchema(
+        {{"enabled", QJsonObject{{"type", "boolean"},
+                                  {"default", false},
+                                  {"control", "toggle"}}},
+         {"mode", QJsonObject{{"type", "string"},
+                               {"default", "a"},
+                               {"enum", QJsonArray{"a", "b"}},
+                               {"control", "select"}}},
+         {"amount", QJsonObject{{"type", "integer"},
+                                 {"default", 2},
+                                 {"control", "number"}}},
+         {"strength", QJsonObject{{"type", "number"},
+                                   {"default", 0.5},
+                                   {"minimum", 0.0},
+                                   {"maximum", 1.0},
+                                   {"control", "slider"}}}},
+        &error));
+    QVERIFY(!Settings::validatePluginSchema(
+        {{"text", QJsonObject{{"type", "string"},
+                               {"default", "custom"},
+                               {"control", "text"}}}},
+        &error));
+    QVERIFY(!Settings::validatePluginSchema(
+        {{"many", QJsonObject{{"type", "array"},
+                               {"default", QJsonArray{}},
+                               {"items", QJsonObject{{"type", "string"},
+                                                     {"enum", QJsonArray{"a"}}}},
+                               {"control", "select"}}}},
+        &error));
+  }
+
   void registryAndValidation() {
     QVERIFY(extensionTargets().size() > 35);
     QSet<QString> ids;
@@ -69,6 +105,27 @@ private Q_SLOTS:
         R"({"schemaVersion":1,"builtins":{},"plugins":{"unknown":{"enabled":true}}})",
         &error));
   }
+  void bundledStoreRegistry() {
+    PluginManager manager;
+    const auto snapshot = manager.snapshot();
+    const auto remote = snapshot.value("remote").toArray();
+    QVERIFY(remote.size() >= 3);
+    QSet<QString> ids;
+    for (const auto &value : remote) {
+      const auto item = value.toObject();
+      ids.insert(item.value("id").toString());
+      const auto source = item.value("sourceUrl").toString();
+      QVERIFY2(source.startsWith(
+                   "https://github.com/LuYishan-4/LunaDash-Plugins/"),
+               qPrintable(source));
+    }
+    QVERIFY(ids.contains("org.ludash.fade"));
+    QVERIFY(ids.contains("org.lunadash.digitalclock"));
+    QVERIFY(ids.contains("org.lunadash.stacking-windows"));
+    QVERIFY(snapshot.value("storeSupported").toBool());
+    QVERIFY(!snapshot.value("storeLoading").toBool());
+  }
+
   void configurationRecovery() {
     QString error;
     QVERIFY(!saveExtensionConfiguration(
@@ -81,7 +138,7 @@ private Q_SLOTS:
     QVERIFY(!saveExtensionConfiguration(QByteArray(24577, ' '), &error));
     QCOMPARE(readExtensionConfiguration(), previous);
   }
-  void nativeLifecycleAndHotReload() {
+  void nativeLifecycle() {
     const auto source =
         QCoreApplication::applicationDirPath() + "/plugins/org.ludash.fade";
     if (!QFile::exists(source + "/libludash-fade.so"))
@@ -91,42 +148,71 @@ private Q_SLOTS:
     auto descriptor = readPluginMetadata(directory + "/metadata.json");
     QVERIFY2(descriptor.error.isEmpty(), qPrintable(descriptor.error));
     QVERIFY(!descriptor.enabled);
+
     PluginManager manager;
     const QJsonObject prefs{{"animations", true}, {"animationDuration", 200}};
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    const auto &tilingTemplate = windowTemplateForKey("tiling");
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              200);
+
     save(config(descriptor.id, true, "replace", {{"duration", 310}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              310);
+
     save(config(descriptor.id, true, "augment", {{"duration", 150}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              150);
+
     auto noMotion = prefs;
     noMotion["animations"] = false;
-    QCOMPARE(
-        windowAnimationProfile(manager, noMotion).value("duration").toInt(), 0);
-    // A rebuild can overwrite the installed file while the old private copy
-    // remains callable. The next refresh rejects the incomplete replacement.
+    QCOMPARE(windowAnimationProfile(manager, noMotion, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
+             0);
+
+    // Native packages are loaded directly. Disable first so the shared library
+    // is unloaded before replacing the installed binary.
+    save(config(descriptor.id, false, "augment"));
+    manager.refresh();
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
+             200);
+
     const auto library = directory + "/libludash-fade.so";
     QFile file(library);
     QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
     file.write("incomplete build");
     file.close();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
-             150);
+
+    save(config(descriptor.id, true, "augment", {{"duration", 150}}));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              200);
+
     QVERIFY(QFile::remove(library));
     QVERIFY(QFile::copy(source + "/libludash-fade.so", library));
-    manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    manager.reportError(descriptor.id, "");
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              150);
+
     save(config(descriptor.id, false, "augment"));
     manager.refresh();
-    QCOMPARE(windowAnimationProfile(manager, prefs).value("duration").toInt(),
+    QCOMPARE(windowAnimationProfile(manager, prefs, tilingTemplate)
+                 .value("duration")
+                 .toInt(),
              200);
   }
   void receiptAndPathValidation() {
@@ -159,11 +245,14 @@ private Q_SLOTS:
                 {{"cascadeStep", 32}}));
     PluginManager manager;
     manager.refresh();
-    QVERIFY(manager.stackingLayout());
-    auto layout = createWindowLayout(WindowLayoutMode::Stacking);
+    QCOMPARE(manager.windowTemplateKey(), QString("stacking"));
+    const auto &stackingTemplate =
+        windowTemplateForKey(manager.windowTemplateKey());
+    auto layout = createWindowLayout(stackingTemplate);
     layout->setPlacementFilter(
         [&](auto workspace, auto area, const auto &windows) {
-          return pluginWindowPlacements(manager, workspace, area, windows);
+          return pluginWindowPlacements(manager, stackingTemplate, workspace,
+                                        area, windows);
         });
     const QRect area(10, 40, 1200, 800);
     layout->insert(0, 1, QSize(800, 600));
@@ -172,13 +261,21 @@ private Q_SLOTS:
     QCOMPARE(placed[0].geometry.topLeft(), area.topLeft());
     QCOMPARE(placed[1].geometry.topLeft(), area.topLeft() + QPoint(32, 32));
     QVERIFY(placed[0].geometry.intersects(placed[1].geometry));
-    layout->moveSingle(1, QPoint(70, 50), area);
+    layout->performAction(
+        "move-by",
+        {{"window", 1},
+         {"dx", 70},
+         {"dy", 50},
+         {"area", QJsonObject{{"x", area.x()},
+                              {"y", area.y()},
+                              {"width", area.width()},
+                              {"height", area.height()}}}});
     const auto moved = layout->layout(0, area);
     QCOMPARE(moved[0].geometry.topLeft(), area.topLeft() + QPoint(70, 50));
     QCOMPARE(moved[1].geometry, placed[1].geometry);
     save(config("org.lunadash.stacking-windows", false, "replace"));
     manager.refresh();
-    QVERIFY(!manager.stackingLayout());
+    QCOMPARE(manager.windowTemplateKey(), QString("tiling"));
   }
 };
 } // namespace LunaDash

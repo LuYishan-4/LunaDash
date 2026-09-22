@@ -186,6 +186,7 @@ QJsonObject ShellModules::snapshot() const {
     it.value() = module;
   }
   return {{"document", document_}, {"modules", effective},
+          {"descriptors", shellModuleDescriptors()},
           {"path", path_},         {"codeRoot", codeRoot_},
           {"trusted", trusted},    {"revision", revision_},
           {"status", status_},     {"errors", errors_}};
@@ -214,9 +215,9 @@ bool ShellModules::panelAtBottom() const {
              .toString() == "bottom";
 }
 bool ShellModules::installTemplate(const QString &id, QString *error) {
-  if (id != "panel" && id != "overview") {
+  if (!shellModuleDescriptor(id).value("template").toBool()) {
     if (error)
-      *error = "Choose the panel or overview template.";
+      *error = "Selected module has no installable template.";
     return false;
   }
   const auto directory = codeRoot_ + "/" + id;

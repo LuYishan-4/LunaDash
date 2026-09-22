@@ -30,7 +30,7 @@ ColumnLayout {
             elide: Text.ElideRight
         }
         Text {
-            text: Math.round(row.value) + row.suffix
+            text: Number(row.value.toPrecision(12)) + row.suffix
             color: Theme.accent
             font.family: Theme.font
             font.pixelSize: 13

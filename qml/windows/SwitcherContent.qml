@@ -92,10 +92,8 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        selector.shell.command("switch-window", cell.index + 1)
-                        selector.shell.command("switch-accept", "")
-                    }
+                    onEntered: selector.shell.command("switch-window", cell.index + 1)
+                    onClicked: selector.shell.command("switch-accept", "")
                 }
             }
         }

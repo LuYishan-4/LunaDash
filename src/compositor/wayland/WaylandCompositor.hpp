@@ -1,6 +1,7 @@
 #pragma once
 
 #include "compositor/layout/WindowLayout.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
@@ -15,6 +16,7 @@
 namespace LunaDash {
 
 class WindowSwitcher;
+struct WindowTemplate;
 class ScreenCapture;
 class BrightnessSettings;
 class DdcBrightnessSettings;
@@ -27,7 +29,6 @@ class NetworkStatus;
 class PluginManager;
 class ControlServer;
 class SessionActions;
-class SceneWindowAnimations;
 class ShortcutSettings;
 class UpdateChecker;
 struct ClientWindow;
@@ -59,7 +60,7 @@ private:
   SessionActions *sessionActions_ = nullptr;
   ShortcutSettings *shortcutSettings_ = nullptr;
   UpdateChecker *updateChecker_ = nullptr;
-  SceneWindowAnimations *windowAnimations_ = nullptr;
+  std::unique_ptr<SceneWindowAnimationTemplate> windowAnimations_;
   SystemStatus *systemStatus_ = nullptr;
   NetworkStatus *networkStatus_ = nullptr;
   XWaylandSupport *xwayland_ = nullptr;
@@ -78,6 +79,9 @@ private:
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
+  int launcherSerial_ = 0;
+  bool launcherVisible_ = false;
+  const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
   QHash<int, int> resizeOriginalWidths_;
   bool shuttingDown_ = false;
@@ -98,10 +102,13 @@ private:
   bool launchExternalCommand(QStringList command, QString *error,
                              bool x11Helper = false);
   void resendKeyboardModifiers();
+  void setLauncherVisible(bool visible, bool publish = true);
   QString nextCapturePath() const;
   void configure(ClientWindow *client, const QRect &rectangle);
   void arrange();
   QRect workArea() const;
+  QJsonObject currentWindowLayoutSettings() const;
+  bool updateWindowLayoutSettings(const QJsonObject &changes, QString *error);
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);
@@ -113,8 +120,9 @@ private:
   void captureWorkspaceThumbnail(int serial, QList<int> windows);
   void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
+  void setFullscreen(ClientWindow *client, bool fullscreen);
   void focusNext(int direction);
-  void synchronizeTilingFocus();
+  void synchronizeWindowFocus();
   void updateClientMetadata(ClientWindow *client);
   void removeClient(ClientWindow *client);
   void handleShortcut(const QString &action);

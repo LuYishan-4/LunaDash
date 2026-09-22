@@ -6,9 +6,15 @@ session_bin=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
 if [ "$(id -u)" = 0 ]; then echo 'LunaDash must run as a normal login user, not root.' >&2; exit 1; fi
 # Only these are required to bring up the desktop. A terminal (kitty) and a
 # shell are optional defaults: missing them must not block login.
-for program in dbus-run-session quickshell; do
+for program in quickshell; do
     command -v "$program" >/dev/null || { echo "Missing session dependency: $program" >&2; exit 1; }
 done
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    command -v dbus-run-session >/dev/null || {
+        echo "Missing session dependency: dbus-run-session" >&2
+        exit 1
+    }
+fi
 for program in kitty; do
     command -v "$program" >/dev/null || echo "Note: optional default terminal '$program' is not installed." >&2
 done
@@ -45,9 +51,20 @@ export SDL_IM_MODULE=fcitx
 export GTK_USE_PORTAL=1
 export QT_QPA_PLATFORMTHEME=xdgdesktopportal
 export QSG_RHI_BACKEND=opengl
-# The compositor runs on a private session bus here, so it may publish the
-# display variables for D-Bus activated and systemd user clients.
+# Once the compositor owns its Wayland socket it publishes WAYLAND_DISPLAY and
+# the LunaDash desktop identity to D-Bus activation and the systemd user
+# manager, so portal services start in this compositor session.
 export LUNADASH_PUBLISH_ACTIVATION_ENV=1
-# Session launch only: scope EGLFS/KMS to the compositor, not the D-Bus daemon.
+# Keep the login session's existing user D-Bus when available. Replacing it
+# with an unconditional dbus-run-session isolates Discord/Chromium from the
+# systemd user xdg-desktop-portal and xdg-desktop-portal-wlr services, which
+# prevents ScreenCast from returning a PipeWire stream.
+if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    exec env QT_QPA_PLATFORM=eglfs QT_QPA_EGLFS_INTEGRATION="$eglfs_integration" \
+        "$compositor" --fullscreen --graphics "${LUDASH_GRAPHICS:-gles}" "$@"
+fi
+
+# Minimal/manual launches without a PAM/systemd user bus still need a session
+# bus for portals and the rest of the desktop.
 exec dbus-run-session -- env QT_QPA_PLATFORM=eglfs QT_QPA_EGLFS_INTEGRATION="$eglfs_integration" \
     "$compositor" --fullscreen --graphics "${LUDASH_GRAPHICS:-gles}" "$@"

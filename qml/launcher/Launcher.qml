@@ -22,7 +22,8 @@ ModuleSurface {
     // Never retain keyboard ownership while the launcher is collapsed. Keeping
     // Exclusive set on a one-pixel hidden surface makes it compete with normal
     // applications for keyboard focus.
-    WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: opened && shell.launcherKeyboardActive
+        ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     WlrLayershell.namespace: "lunadash-launcher"
     color: "transparent"
     contentItem.transformOrigin: Item.Top
@@ -31,21 +32,36 @@ ModuleSurface {
 
     property var builtins: [
         { builtin: true, id: "settings", name: "Settings", description: "Configure the desktop and system", genericName: "Preferences", keywords: "appearance network power applications", icon: "preferences-system" },
-        { builtin: true, id: "files", name: "Files", description: "Browse files and folders", genericName: "File manager", keywords: "home documents downloads", icon: "system-file-manager" },
-        { builtin: true, id: "monitor", name: "System monitor", description: "View system resources and performance", genericName: "Monitor", keywords: "cpu memory performance processes", icon: "utilities-system-monitor" }
+        { builtin: true, id: "files", name: "Files", description: "Browse files and folders", genericName: "File manager", keywords: "home documents downloads", icon: "system-file-manager" }
     ]
     function value(entry, key) { const candidate = entry[key]; if (candidate === undefined || candidate === null) return ""; return Array.isArray(candidate) ? candidate.join(" ") : String(candidate) }
     function installedEntries() { return DesktopEntries.applications.values.filter(entry => !entry.noDisplay).map(entry => ({ builtin:false,id:value(entry,"id"),name:value(entry,"name"),description:value(entry,"comment")||value(entry,"description")||value(entry,"genericName"),genericName:value(entry,"genericName"),keywords:value(entry,"keywords"),icon:value(entry,"icon"),desktopEntry:entry })) }
     function rank(entry, tokens) { const fields=[entry.name,entry.description,entry.genericName,entry.id,entry.keywords].map(field=>String(field||"").toLocaleLowerCase()); let score=0; for(const token of tokens){let tokenScore=0;for(const field of fields){const words=field.split(/[^\p{L}\p{N}]+/u).filter(Boolean);if(words.some(word=>word.startsWith(token)))tokenScore=Math.max(tokenScore,3);else if(field.includes(token))tokenScore=Math.max(tokenScore,1)}if(!tokenScore)return -1;score+=tokenScore}return score }
     function rankedEntries(query) { const tokens=query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);return builtins.concat(installedEntries()).map((entry,order)=>({entry:entry,score:rank(entry,tokens),order:order})).filter(candidate=>candidate.score>=0).sort((left,right)=>right.score-left.score||left.order-right.order||left.entry.name.localeCompare(right.entry.name)).map(candidate=>candidate.entry) }
     readonly property var results: rankedEntries(search.text)
-    function activate(entry) { if(entry.builtin)shell.launch(entry.id);else shell.command("launch-command",JSON.stringify(entry.desktopEntry.command));shell.launcherOpen=false }
-    function focusSearch() {
+    function activate(entry) {
+        if (entry.builtin) {
+            shell.launch(entry.id)
+        } else {
+            shell.command("launch-application", JSON.stringify({
+                desktopId: entry.id,
+                command: entry.desktopEntry.command
+            }))
+        }
+        shell.launcherOpen = false
+    }
+    function focusSearch(selectEverything = true) {
         if (!opened)
             return
-        search.forceActiveFocus(Qt.PopupFocusReason)
-        search.prepareInputMethod()
-        search.selectAll()
+        shell.launcherKeyboardActive = true
+        Qt.callLater(function() {
+            if (!launcher.opened || !shell.launcherKeyboardActive)
+                return
+            search.forceActiveFocus(Qt.PopupFocusReason)
+            search.prepareInputMethod()
+            if (selectEverything)
+                search.selectAll()
+        })
     }
 
     Rectangle { anchors.fill: parent; radius: moduleRadius; color: moduleBackground; border.color: Theme.border }
@@ -65,6 +81,7 @@ ModuleSurface {
             Keys.onEscapePressed: shell.launcherOpen = false
         }
         RowLayout {
+            visible: shell.launcherKeyboardActive
             Layout.fillWidth: true
             spacing: 8
             Text {
@@ -190,8 +207,14 @@ ModuleSurface {
     onOpenedChanged: {
         if (opened) {
             search.clear()
-            Qt.callLater(focusSearch)
+            if (shell.launcherOpenSource === "keyboard")
+                Qt.callLater(function() { launcher.focusSearch(false) })
+            else {
+                search.focus = false
+                applications.focus = false
+            }
         } else {
+            shell.launcherKeyboardActive = false
             search.focus = false
             applications.focus = false
         }

@@ -147,6 +147,121 @@ bool publishClientEnvironment(const QProcessEnvironment &environment) {
   return true;
 }
 
+void refreshScreencastPortalServices(
+    const QProcessEnvironment &environment, QObject *owner) {
+  const QString config = QStringLiteral(LUDASH_XDPW_CONFIG_PATH);
+
+  auto findXdpw = [] {
+    QString executable =
+        QStandardPaths::findExecutable(QStringLiteral("xdg-desktop-portal-wlr"));
+    if (!executable.isEmpty())
+      return executable;
+    const QStringList candidates = {
+        QStringLiteral("/usr/lib/xdg-desktop-portal-wlr"),
+        QStringLiteral("/usr/libexec/xdg-desktop-portal-wlr"),
+        QStringLiteral("/usr/local/libexec/xdg-desktop-portal-wlr")};
+    for (const auto &candidate : candidates) {
+      const QFileInfo info(candidate);
+      if (info.exists() && info.isExecutable())
+        return candidate;
+    }
+    return QString();
+  };
+
+  auto restartFrontend = [environment, owner] {
+    const QString systemctl =
+        QStandardPaths::findExecutable(QStringLiteral("systemctl"));
+    if (systemctl.isEmpty())
+      return;
+    auto *frontend = new QProcess(owner);
+    frontend->setProcessEnvironment(environment);
+    frontend->setProcessChannelMode(QProcess::MergedChannels);
+    QObject::connect(frontend, &QProcess::finished, owner,
+                     [frontend](int code, QProcess::ExitStatus status) {
+                       if (code != 0 || status != QProcess::NormalExit) {
+                         const QString diagnostic =
+                             QString::fromLocal8Bit(frontend->readAll())
+                                 .trimmed()
+                                 .left(1024);
+                         if (!diagnostic.isEmpty())
+                           qWarning().noquote()
+                               << "LunaDash portal frontend refresh:"
+                               << diagnostic;
+                       }
+                       frontend->deleteLater();
+                     });
+    frontend->start(systemctl,
+                    {QStringLiteral("--user"), QStringLiteral("try-restart"),
+                     QStringLiteral("xdg-desktop-portal.service")});
+  };
+
+  // xdpw searches the user's generic config before the desktop-specific
+  // system config. Start it with LunaDash's config explicitly so an existing
+  // ~/.config/xdg-desktop-portal-wlr/config cannot silently restore the
+  // default slurp screenshot-style chooser for Discord ScreenCast.
+  const QString xdpw = findXdpw();
+  if (!xdpw.isEmpty() && QFileInfo::exists(config)) {
+    auto *existing =
+        owner->findChild<QProcess *>(QStringLiteral("lunadash-xdpw"));
+    if (existing && existing->state() != QProcess::NotRunning) {
+      restartFrontend();
+      return;
+    }
+
+    auto *portal = new QProcess(owner);
+    portal->setObjectName(QStringLiteral("lunadash-xdpw"));
+    portal->setProcessEnvironment(environment);
+    portal->setProcessChannelMode(QProcess::ForwardedChannels);
+    QObject::connect(portal, &QProcess::started, owner, restartFrontend);
+    QObject::connect(
+        portal, &QProcess::errorOccurred, owner,
+        [portal](QProcess::ProcessError error) {
+          if (error == QProcess::FailedToStart)
+            qWarning().noquote()
+                << "LunaDash could not start xdg-desktop-portal-wlr:"
+                << portal->errorString();
+        });
+    QObject::connect(
+        portal, &QProcess::finished, owner,
+        [portal](int code, QProcess::ExitStatus status) {
+          if (code != 0 || status != QProcess::NormalExit)
+            qWarning().noquote()
+                << "LunaDash xdg-desktop-portal-wlr exited:" << code;
+          portal->deleteLater();
+        });
+    portal->start(
+        xdpw, {QStringLiteral("--replace"), QStringLiteral("--config"), config,
+               QStringLiteral("--loglevel"), QStringLiteral("INFO")});
+    return;
+  }
+
+  // Fallback for unusual installations where xdpw or the installed LunaDash
+  // config cannot be located.
+  const QString systemctl =
+      QStandardPaths::findExecutable(QStringLiteral("systemctl"));
+  if (systemctl.isEmpty())
+    return;
+  auto *process = new QProcess(owner);
+  process->setProcessEnvironment(environment);
+  process->setProcessChannelMode(QProcess::MergedChannels);
+  QObject::connect(
+      process, &QProcess::finished, owner,
+      [process](int code, QProcess::ExitStatus status) {
+        if (code != 0 || status != QProcess::NormalExit) {
+          const QString diagnostic =
+              QString::fromLocal8Bit(process->readAll()).trimmed().left(1024);
+          if (!diagnostic.isEmpty())
+            qWarning().noquote() << "LunaDash portal refresh:" << diagnostic;
+        }
+        process->deleteLater();
+      });
+  process->start(
+      systemctl,
+      {QStringLiteral("--user"), QStringLiteral("try-restart"),
+       QStringLiteral("xdg-desktop-portal-wlr.service"),
+       QStringLiteral("xdg-desktop-portal.service")});
+}
+
 void publishActivationEnvironment(
     const QProcessEnvironment &environment, QObject *owner,
     std::function<void(bool, const QString &)> completion) {

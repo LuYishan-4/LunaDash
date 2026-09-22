@@ -30,14 +30,20 @@ ShellRoot {
     readonly property string desktopExecutable: bin ? bin + "/lunadash-desktop" : "lunadash-desktop"
     readonly property string updaterExecutable: bin ? bin + "/lunadash-update" : "lunadash-update"
     readonly property string shellToolExecutable: bin ? bin + "/lunadash-shell-tool" : "lunadash-shell-tool"
+    readonly property string clipboardExecutable: bin ? bin + "/lunadash-clipboard-history" : "lunadash-clipboard-history"
+    readonly property string clipboardBridgeExecutable: bin ? bin + "/lunadash-clipboard-bridge" : "lunadash-clipboard-bridge"
     readonly property string assetDirectory: Quickshell.env("LUNADASH_ASSET_DIR")
     readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadash.png" : ""
     signal commandCompleted(string method, var result)
     property bool stopping: false
     property int lastSettingsSerial: 0
     property int lastPickerSerial: 0
+    property int lastLauncherSerial: 0
+    property int lastInteractionLauncherSerial: 0
     property int dropTarget: 0
     property bool launcherOpen: false
+    property bool launcherKeyboardActive: false
+    property string launcherOpenSource: "mouse"
     property bool settingsOpen: false
     property bool pickerOpen: false
     property string pickerPurpose: "wallpaper"
@@ -47,6 +53,7 @@ ShellRoot {
     property bool usbPopupOpen: false
     property bool volumePopupOpen: false
     property bool wifiPopupOpen: false
+    property bool clipboardPopupOpen: false
     property var removableDevices: []
     property bool notificationVisible: false
     property bool notificationDetailsExpanded: false
@@ -66,6 +73,22 @@ ShellRoot {
         message: "",
         details: ""
     })
+
+    function applyLauncherSignal(serial, visible) {
+        if (!serial || serial === lastLauncherSerial)
+            return
+        lastLauncherSerial = serial
+        lastInteractionLauncherSerial = serial
+        launcherOpenSource = "keyboard"
+        launcherKeyboardActive = Boolean(visible)
+        launcherOpen = Boolean(visible)
+    }
+
+    function openLauncherFromMouse() {
+        launcherOpenSource = "mouse"
+        launcherKeyboardActive = false
+        launcherOpen = !launcherOpen
+    }
 
     function notify(title, body, kind, details) {
         if (!((state.appearance || {}).notificationsEnabled ?? true)) return
@@ -176,18 +199,31 @@ ShellRoot {
         }
     }
 
-    onLauncherOpenChanged: if (launcherOpen) { settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
-    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false } else { pickerOpen = false }
-    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
-    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
-    onVolumePopupOpenChanged: if (volumePopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; wifiPopupOpen = false }
-    onWifiPopupOpenChanged: if (wifiPopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; volumePopupOpen = false }
+    onLauncherOpenChanged: {
+        command("launcher-visible", launcherOpen ? "true" : "false")
+        if (launcherOpen) {
+            settingsOpen = false
+            calendarOpen = false
+            usbPopupOpen = false
+            volumePopupOpen = false
+            wifiPopupOpen = false
+            clipboardPopupOpen = false
+        } else {
+            launcherKeyboardActive = false
+        }
+    }
+    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false } else { pickerOpen = false }
+    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onVolumePopupOpenChanged: if (volumePopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onWifiPopupOpenChanged: if (wifiPopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; volumePopupOpen = false; clipboardPopupOpen = false }
+    onClipboardPopupOpenChanged: if (clipboardPopupOpen) { calendarOpen = false; launcherOpen = false; settingsOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
 
     property bool menuOpen: false
     property real menuX: 0
     property real menuY: 0
     function openMenu(x, y) { menuX = x; menuY = y; menuOpen = true }
-    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
+    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
     property bool x11Open: false
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
@@ -258,6 +294,8 @@ ShellRoot {
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; openSettingsPage(state.settingsPage || "general") }
         if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; openSettingsPage("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
+        if ((state.launcherSerial || 0) !== lastLauncherSerial)
+            applyLauncherSignal(state.launcherSerial || 0, state.launcherOpen ?? true)
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
         Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
         Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
@@ -316,6 +354,26 @@ ShellRoot {
             }
         }
         onExited: (exitCode, exitStatus) => { if (exitCode !== 0 && !root.errorMessage) root.errorMessage = "Could not contact the desktop."; Qt.callLater(root.dispatch) }
+    }
+
+    Process {
+        id: clipboardWatcher
+        command: [root.clipboardExecutable, "watch"]
+        running: !root.stopping
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim())
+                console.warn("Clipboard watcher:", text.trim())
+        }
+    }
+
+    Process {
+        id: clipboardBridge
+        command: [root.clipboardBridgeExecutable]
+        running: !root.stopping && Boolean((root.state.xwayland || {}).available)
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim())
+                console.warn("Clipboard bridge:", text.trim())
+        }
     }
 
     Process {
@@ -417,7 +475,15 @@ ShellRoot {
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {
-            try { root.interaction = JSON.parse(text()) } catch (error) { root.interaction = ({}) }
+            try {
+                const next = JSON.parse(text())
+                root.interaction = next
+                const serial = Number(next.launcherSerial || 0)
+                if (serial && serial !== root.lastInteractionLauncherSerial)
+                    root.applyLauncherSignal(serial, next.launcherOpen ?? true)
+            } catch (error) {
+                root.interaction = ({})
+            }
         }
     }
     PluginHost { shell: root }
@@ -443,6 +509,10 @@ ShellRoot {
     LazyLoader {
         loading: root.volumePopupOpen
         AudioPopup { shell: root; opened: !root.stopping && root.volumePopupOpen }
+    }
+    LazyLoader {
+        loading: root.clipboardPopupOpen
+        ClipboardPopup { shell: root; opened: !root.stopping && root.clipboardPopupOpen }
     }
     LazyLoader {
         loading: root.wifiPopupOpen

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "applications": [
+    {
+      "desktopIds": [
+        "com.discordapp.Discord"
+      ],
+      "flatpakIds": [
+        "com.discordapp.Discord"
+      ],
+      "capabilities": [
+        "x11-helper"
+      ]
+    },
+    {
+      "desktopIds": [
+        "com.dec05eba.gpu_screen_recorder",
+        "gpu-screen-recorder-ui",
+        "gpu-screen-recorder"
+      ],
+      "flatpakIds": [
+        "com.dec05eba.gpu_screen_recorder"
+      ],
+      "executables": [
+        "gsr-ui",
+        "gpu-screen-recorder-ui"
+      ],
+      "capabilities": [
+        "x11-helper"
+      ]
+    }
+  ]
+}

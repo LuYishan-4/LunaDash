@@ -1,6 +1,6 @@
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/input/Keyboard.hpp"
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
@@ -35,7 +35,7 @@ bool keypadSymbol(xkb_keysym_t symbol) {
 
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
-  if (updateTiledPointer())
+  if (updateWindowPointer())
     return;
   double sx = 0;
   double sy = 0;
@@ -231,9 +231,79 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
           ? xkb_state_key_get_syms(keyboard->xkb_state, keycode, &symbols)
           : 0;
 
+  bool metaKey = false;
+  for (int i = 0; i < count; ++i)
+    metaKey = metaKey || symbols[i] == XKB_KEY_Meta_L ||
+              symbols[i] == XKB_KEY_Meta_R ||
+              symbols[i] == XKB_KEY_Super_L ||
+              symbols[i] == XKB_KEY_Super_R;
+
+  // A launcher opened with the mouse must not steal normal application input.
+  // If keyboard focus is already on an application, the first printable key
+  // dismisses the launcher and is still forwarded to that application.
+  if (!state->virtualKeyboard &&
+      event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+      self->q->launcherVisible_ &&
+      self->clientForSurface(self->seat->keyboard_state.focused_surface)) {
+    bool printable = false;
+    for (int i = 0; i < count; ++i)
+      printable = printable || xkb_keysym_to_utf32(symbols[i]) >= 0x20;
+    if (printable)
+      self->q->setLauncherVisible(false);
+  }
+
+  // Reserve a quick press-and-release of Meta for the shell launcher without
+  // breaking the existing Meta+key compositor shortcuts. The modifier event is
+  // still delivered through wl_keyboard.modifiers, so an unbound Meta combo
+  // can continue to reach a client even though the bare modifier key event is
+  // kept by the compositor.
+  if (!state->virtualKeyboard && !self->q->shortcutCapture_) {
+    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED && metaKey) {
+      const auto modifiers = wlr_keyboard_get_modifiers(keyboard);
+      if (!(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT |
+                         WLR_MODIFIER_SHIFT))) {
+        state->metaTapPending = true;
+        state->metaTapKeycode = static_cast<int>(event->keycode);
+        return;
+      }
+    } else if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+               state->metaTapPending) {
+      state->metaTapPending = false;
+    }
+
+    if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
+        state->metaTapKeycode == static_cast<int>(event->keycode)) {
+      const bool openLauncher = state->metaTapPending;
+      state->metaTapPending = false;
+      state->metaTapKeycode = -1;
+      if (openLauncher)
+        self->q->handleShortcut("launchLauncher");
+      return;
+    }
+  }
+
   if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
       state->consumedKeys.remove(event->keycode))
     return;
+
+  // F12 is a fixed compositor shortcut for true fullscreen. Keep it outside
+  // the configurable shortcut table, whose policy intentionally requires
+  // Meta or Alt combinations.
+  if (!state->virtualKeyboard &&
+      event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+      !self->q->shortcutCapture_) {
+    const uint32_t rawModifiers = wlr_keyboard_get_modifiers(keyboard);
+    for (int i = 0; i < count; ++i) {
+      if (symbols[i] == XKB_KEY_F12 &&
+          !(rawModifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT |
+                            WLR_MODIFIER_SHIFT | WLR_MODIFIER_LOGO))) {
+        self->q->handleShortcut("toggleFullscreen");
+        state->consumedKeys.insert(event->keycode);
+        return;
+      }
+    }
+  }
+
   const bool shortcutPress = !state->virtualKeyboard &&
                              event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
                              !self->q->shortcutCapture_;
@@ -295,8 +365,12 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
   if (shortcutPress)
     state->consumedKeys.remove(event->keycode);
 
-  if (self->inputMethod && self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard) {
+  const bool inputMethodOwnsKeyboard =
+      self->activeTextInput && self->activeTextInput->text &&
+      self->activeTextInput->text->focused_surface && self->inputMethod &&
+      self->inputMethod->method &&
+      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+  if (inputMethodOwnsKeyboard) {
     wlr_input_method_keyboard_grab_v2_send_key(
         self->inputMethod->method->keyboard_grab, event->time_msec,
         event->keycode, event->state);
@@ -316,8 +390,12 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
     return;
   auto *self = state->impl;
   wlr_seat_set_keyboard(self->seat, state->keyboard);
-  if (self->inputMethod && self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard) {
+  const bool inputMethodOwnsKeyboard =
+      self->activeTextInput && self->activeTextInput->text &&
+      self->activeTextInput->text->focused_surface && self->inputMethod &&
+      self->inputMethod->method &&
+      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+  if (inputMethodOwnsKeyboard) {
     auto modifiers = state->keyboard->modifiers;
     wlr_input_method_keyboard_grab_v2_send_modifiers(
         self->inputMethod->method->keyboard_grab, &modifiers);
@@ -380,8 +458,9 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
         event->button == self->pointerButton) {
       if (self->pointerClientGrab)
-        wlr_seat_pointer_notify_button(self->seat, event->time_msec, event->button, event->state);
-      self->finishTiledPointer(true);
+        wlr_seat_pointer_notify_button(self->seat, event->time_msec,
+                                       event->button, event->state);
+      self->finishWindowPointer(true);
     }
     return;
   }
@@ -393,7 +472,7 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
   }
   const bool grabbed = wlr_seat_pointer_has_grab(self->seat);
   if (!grabbed && event->state == WL_POINTER_BUTTON_STATE_PRESSED &&
-      self->beginTiledPointer(event->button))
+      self->beginWindowPointer(event->button))
     return;
   if (event->state == WL_POINTER_BUTTON_STATE_PRESSED && !grabbed) {
     double sx = 0;

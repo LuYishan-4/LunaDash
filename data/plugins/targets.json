@@ -255,6 +255,23 @@
     }
   },
   {
+    "id": "clipboard",
+    "name": "Clipboard history",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    }
+  },
+  {
     "id": "feedback",
     "name": "Messages",
     "category": "Feedback",

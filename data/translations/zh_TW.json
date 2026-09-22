@@ -287,7 +287,6 @@
     "Mint": "薄荷綠",
     "Peach": "蜜桃色",
     "A quiet, focused Linux desktop.": "安靜、專注的 Linux 桌面。",
-    "Use LunaDash default": "使用 LunaDash 預設值",
     "Setting search results": "設定搜尋結果",
     "No settings found": "找不到符合的設定",
     "Session controls": "工作階段控制",
@@ -356,5 +355,12 @@
     "Custom command…": "自訂命令…",
     "Command: ": "命令：",
     " (built-in)": "（內建）",
-    "Enter a JSON array of command arguments.": "請輸入命令參數的 JSON 陣列。"
+    "Enter a JSON array of command arguments.": "請輸入命令參數的 JSON 陣列。",
+    "Clipboard": "剪貼簿",
+    "Clipboard history": "剪貼簿歷史",
+    "Clear": "清除",
+    "entry": "筆",
+    "entries": "筆",
+    "Empty text": "空白文字",
+    "Clipboard history is empty": "剪貼簿歷史是空的"
 }
