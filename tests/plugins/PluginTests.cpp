@@ -225,6 +225,50 @@ private Q_SLOTS:
     QVERIFY(QDir(legacyDir).removeRecursively());
   }
 
+  void outdatedStoreVersionRemainsOperable() {
+    const auto directory = root + "/org.lunadash.digitalclock";
+    QVERIFY(QDir().mkpath(directory));
+    const QByteArray metadata =
+        R"({"schemaVersion":2,"sdk":{"name":"LunaDash","apiVersion":2},"id":"org.lunadash.digitalclock","name":"Digital Clock","version":"1.9.0","author":"test","type":"quickshell","target":"desktop-widgets","mode":"augment","entry":"Main.qml","enabledByDefault":false,"settings":{}})";
+    QVERIFY(writeFile(directory + "/metadata.json", metadata));
+    QVERIFY(writeFile(
+        directory + "/Main.qml",
+        "import QtQuick\nItem { required property var shell; required property var settings; required property var context }\n"));
+    const auto hash = QString::fromLatin1(
+        QCryptographicHash::hash(metadata, QCryptographicHash::Sha256).toHex());
+    QVERIFY(writeFile(
+        directory + "/.lunadash-sdk.json",
+        QJsonDocument(QJsonObject{{"apiVersion", 2},
+                                  {"metadataSha256", hash}})
+            .toJson(QJsonDocument::Compact)));
+
+    PluginManager manager;
+    manager.refresh();
+    const auto snapshot = manager.snapshot();
+    const auto installed = snapshot.value("installed").toArray();
+    auto oldClock = std::find_if(
+        installed.begin(), installed.end(), [](const QJsonValue &value) {
+          return value.toObject().value("id").toString() ==
+                 "org.lunadash.digitalclock";
+        });
+    QVERIFY(oldClock != installed.end());
+    QVERIFY(oldClock->toObject().value("outdated").toBool());
+    QCOMPARE(oldClock->toObject().value("storeVersion").toString(),
+             QString("2.0.1"));
+    QVERIFY(oldClock->toObject().value("removable").toBool());
+
+    const auto remote = snapshot.value("remote").toArray();
+    auto storeClock = std::find_if(
+        remote.begin(), remote.end(), [](const QJsonValue &value) {
+          return value.toObject().value("id").toString() ==
+                 "org.lunadash.digitalclock";
+        });
+    QVERIFY(storeClock != remote.end());
+    QVERIFY(storeClock->toObject().value("updateAvailable").toBool());
+
+    QVERIFY(QDir(directory).removeRecursively());
+  }
+
   void configurationRecovery() {
     QString error;
     QVERIFY(!saveExtensionConfiguration(

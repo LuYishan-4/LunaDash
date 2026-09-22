@@ -311,16 +311,18 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
 
   const auto discovered = discoverPlugins();
   const auto storeVersion = item.value("version").toString();
+  bool installedPackageFound = false;
   for (const auto &plugin : discovered) {
     if (plugin.id != id)
       continue;
+    installedPackageFound = true;
     if (plugin.version == storeVersion) {
       if (error)
         *error = "Plugin is already installed";
       return false;
     }
     // A different version is an explicit Store update. The downloaded package
-    // is staged and validated before the old user copy/config is replaced.
+    // is staged and validated before the old copy/config is replaced.
     break;
   }
 
@@ -331,7 +333,7 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
     return false;
   }
   const auto destination = QDir(root).filePath(id);
-  if (QFileInfo::exists(destination)) {
+  if (QFileInfo::exists(destination) && !installedPackageFound) {
     if (error)
       *error = "Plugin destination already exists";
     return false;
@@ -794,11 +796,13 @@ QJsonObject PluginManager::snapshot() {
     // The modern settings surface is SDK 2 only. Legacy schema-1/native
     // descriptors remain readable for migration but are intentionally hidden.
     if (descriptor.schemaVersion != 2 ||
-        retiredBundledIds.contains(descriptor.id) ||
-        (storeVersions.contains(descriptor.id) &&
-         storeVersions.value(descriptor.id) != descriptor.version))
+        retiredBundledIds.contains(descriptor.id))
       continue;
     auto item = pluginDescriptorJson(descriptor);
+    const auto storeVersion = storeVersions.value(descriptor.id);
+    item["outdated"] =
+        !storeVersion.isEmpty() && storeVersion != descriptor.version;
+    item["storeVersion"] = storeVersion;
     const auto packageDir =
         QFileInfo(descriptor.metadataPath).absoluteDir().canonicalPath();
     item["removable"] =

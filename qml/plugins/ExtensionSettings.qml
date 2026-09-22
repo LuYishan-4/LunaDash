@@ -380,6 +380,25 @@ ColumnLayout {
                                             font.weight: Font.DemiBold
                                         }
                                     }
+
+                                    Rectangle {
+                                        visible: !pluginCard.remote &&
+                                                 Boolean(pluginCard.modelData.outdated)
+                                        implicitWidth: outdatedText.implicitWidth + 14
+                                        implicitHeight: outdatedText.implicitHeight + 5
+                                        radius: implicitHeight / 2
+                                        color: Qt.rgba(Theme.warning.r, Theme.warning.g,
+                                                       Theme.warning.b, 0.18)
+                                        Text {
+                                            id: outdatedText
+                                            anchors.centerIn: parent
+                                            text: page.shell.tr("Outdated")
+                                            color: Theme.warning
+                                            font.family: Theme.font
+                                            font.pixelSize: 10
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
                                 }
 
                                 Text {
@@ -489,6 +508,15 @@ ColumnLayout {
                                 enabled: pluginCard.modelData.layoutMode !== "stacking"
                                 onActivated: index => page.setPlugin(
                                     pluginCard.modelData, "mode", index === 1 ? "replace" : "augment")
+                            }
+
+                            HelpText {
+                                visible: Boolean(pluginCard.modelData.outdated)
+                                shell: page.shell
+                                message: page.shell.tr("This installed plugin is outdated. Installed version: ") +
+                                         String(pluginCard.modelData.version || "") +
+                                         page.shell.tr(" · Store version: ") +
+                                         String(pluginCard.modelData.storeVersion || "")
                             }
 
                             HelpText {
