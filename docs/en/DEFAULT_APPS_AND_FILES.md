@@ -8,13 +8,19 @@ Super+Return and the shell's Terminal buttons use the selected terminal. Super+E
 
 The default terminal is **Kitty**, opened with `Meta+T` or `Meta+Return`. LunaDash leaves Kitty configuration and the login shell unchanged. Non-empty user commands remain supported; explicitly selecting Konsole continues to use its configured profile.
 
-LunaDash's Command Console remains a separate non-interactive diagnostic tool (`--app console`), not the default terminal.
+The retired Command Console is no longer a built-in application. Interactive commands use the configured terminal role.
 
 ```sh
 lunadashctl default-apps '{"terminal":["kitty","fish"],"files":["dolphin"]}'  # explicit command example
 lunadashctl launch-default terminal
 lunadashctl default-apps '{"terminal":[],"files":[]}'                            # Kitty and built-in Files
 ```
+
+## Portal and wallpaper pickers
+
+The xdg-desktop-portal FileChooser backend uses a frameless LunaDash-owned shell around the non-native Qt file view. LunaDash owns the dark title/header surface, location field and outer frame, so host decorations cannot reintroduce a white title bar. The location field accepts local absolute paths and `file://` URLs; values are validated by Qt and never evaluated by a shell.
+
+The wallpaper/calendar picker remains a separate in-shell QML picker.
 
 ## Wallpaper picker
 

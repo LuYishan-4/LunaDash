@@ -43,8 +43,8 @@
 - [網站與 GitHub Pages](WEBSITE.md)
 - [測試快速入口](TESTING.md)
 
-## 目前 dev 已涵蓋的重點
+## 目前 dev 1.0.1a 已涵蓋的重點
 
-目前文件會跟進 wlroots 合成器與生命週期拆分、受邊界限制的平鋪與可選 stacking 策略、2×5 的十工作區切換器、Plugin SDK 2（原生 C/C++、Quickshell、OpenGL）、MPRIS 媒體控制、GPU/軟體桌布轉場、亮度與 DDC/CI、slurp/grim 區域截圖，以及可在保留原生 Wayland 的同時準備 X11 helper 的 XWayland 流程。
+目前文件會跟進 wlroots 合成器與生命週期拆分、卡片式 Dashboard、可最大化 Settings、LunaDash 風格 FileChooser 與螢幕分享來源選擇器、受邊界限制的平鋪與可選 stacking、Plugin SDK 2、Wallpaper Background layer 的桌面 widget（Digital Clock / Audio Wave）、MPRIS、亮度/DDC/CI、擷取與 XWayland。
 
 - [共用設定 API 與自動控制項](SETTINGS_API.md)

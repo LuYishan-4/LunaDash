@@ -11,6 +11,6 @@ The language directories are the canonical locations for new documentation links
 
 ## Current development documentation
 
-The documentation tracks the `dev` branch, including the wlroots compositor, bounded tiling and optional stacking layout, ten-workspace switcher, Plugin SDK 2, media/MPRIS support, wallpaper transitions, DDC/CI display controls, region capture, and on-demand XWayland helpers.
+The documentation tracks the `dev` branch and current **1.0.1a** behavior, including the wlroots compositor, redesigned Dashboard/Settings surfaces, LunaDash-styled portal pickers, bounded tiling and optional stacking layout, Plugin SDK 2, wallpaper-layer desktop widgets, media/MPRIS support, DDC/CI display controls, region capture, and on-demand XWayland helpers.
 
 When behavior changes, update the matching English and Traditional Chinese document together, then update the relevant public website content under `site/`.

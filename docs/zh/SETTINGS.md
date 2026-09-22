@@ -1,4 +1,4 @@
-# Settings 設定中心
+# Settings 設定中心 — 1.0.1a
 
 [English](../en/SETTINGS.md) · [繁中索引](README.md)
 
@@ -78,3 +78,10 @@ About 將目前 check 與上次 install 記錄分開。背景更新的 package c
 新圖片 ready 前保留舊圖；完成後從右下角以圓形 reveal 覆蓋。GPU path 使用 masked image，software path 使用 Canvas clip。快速選擇以最後一張為準，失敗則保留舊圖；停用 animations 時立即套用。
 
 相關：[視窗](WINDOWS.md)、[Display](DISPLAY_AND_STARTUP.md)、[Plugin SDK 2](PLUGINS.md)、[Shell modules](MODULES.md)、[Media](MEDIA.md)。
+
+
+## 1.0.1a 介面規則
+
+Settings 可在預設大小與最大化間切換；搜尋框在頂部 header，左側分類與右側 page content 都使用與 Dashboard 相同的 glass/strong surface。Dashboard 使用固定 12 欄 bounded layout，hero、快捷操作、CPU/GPU/RAM/Storage、開啟中的視窗與桌面狀態都必須限制在各自 card 中，不能再以未限制的絕對文字座標重疊。
+
+舊 Command Console 已從內建 app、startup 設定與測試移除。互動式命令請使用設定的 terminal。舊「Motion」不再是獨立設定項；外觀頁統一稱為 **Visual effects**，無障礙頁仍保留 **Reduced motion**。

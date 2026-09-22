@@ -26,12 +26,12 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 
 ## LunaDash
 
-- **Everyday essentials, together.** A panel, launcher, dashboard, notifications, settings and file tools are part of the desktop.
+- **Everyday essentials, together.** A panel, launcher, card-based dashboard, resizable settings center, notifications and LunaDash-styled file/portal pickers are part of the desktop.
 - **A workspace that moves with you.** Tiles contained within one screen, groups of up to eight windows, Alt dragging, a ten-workspace thumbnail overview and a taskbar spanning all workspaces.
 - **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings.
 - **Go further when you want.** Arrange shell modules, customize Quickshell/QML and use the local control interface for your own workflow.
 
-Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. LunaDash is an active development preview, with Arch Linux as its primary platform.
+Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The current development version is **1.0.1a**. LunaDash is an active development preview, with Arch Linux as its primary platform.
 
 <a id="gallery"></a>
 
@@ -62,7 +62,7 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch shows a welcome message and a help link. Use Settings to choose your language and personalize the desktop.
+The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to choose your language and personalize the desktop.
 
 Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
 

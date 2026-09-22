@@ -31,3 +31,10 @@ lunadashctl default-apps '{"terminal":[],"files":[]}'
 原生 Qt Files 有 back/forward/up、address bar、filter、details/icon view、hidden files、排序與 file operations。現有目的地不會被覆寫。Copy/move/trash 在 UI thread 外執行，遇錯即停，沒有整批 rollback。
 
 完整 Files 現在支援更多檔案關聯與操作，請以 [FILES.md](FILES.md) 為準。Wallpaper picker 是刻意限制成 image-only 的 Shell UI，不取代 Files 或 MIME chooser。
+
+
+## Portal File Picker — 1.0.1a
+
+xdg-desktop-portal FileChooser 使用 LunaDash 自己的 frameless 外框包住 non-native Qt file view；標題列、Location、邊框與按鈕都由 LunaDash theme 控制，因此不應再出現 host 的白色系統標題框。Location 可貼本機絕對路徑或 `file://` URL，路徑以 Qt 驗證，不經 shell。
+
+已刪除的 Command Console 不再是內建應用程式；互動式命令請使用設定的 terminal。

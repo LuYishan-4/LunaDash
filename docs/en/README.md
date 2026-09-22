@@ -43,9 +43,9 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 - [Website and GitHub Pages](WEBSITE.md)
 - [Testing shortcut](TESTING.md)
 
-## Current dev snapshot
+## Current dev snapshot — 1.0.1a
 
-The current documentation covers the wlroots compositor and lifecycle split, bounded tiling plus the opt-in stacking strategy, a 2×5 ten-workspace switcher, Plugin SDK 2 (native C/C++, Quickshell and OpenGL packages), MPRIS media controls, GPU/software wallpaper transitions, brightness and DDC/CI controls, region screenshots through slurp/grim, and XWayland helpers that can be prepared without forcing a native Wayland application onto X11.
+The current documentation covers the wlroots compositor and lifecycle split, the bounded card-based Dashboard, maximizable Settings center, LunaDash-styled FileChooser and screen-share source selector, bounded tiling plus optional stacking, Plugin SDK 2, wallpaper-layer desktop widgets such as Digital Clock and Audio Wave, MPRIS media controls, brightness/DDC/CI, capture, and XWayland helpers.
 
 - [Shared settings API and generated controls](SETTINGS_API.md)
 - [Extension architecture audit](EXTENSION_ARCHITECTURE_AUDIT.md)
