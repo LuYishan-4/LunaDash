@@ -10,7 +10,7 @@ LunaDash Plugin SDK 2 provides feature hooks, visual slots and shared metadata f
 | `quickshell` | QML/JavaScript | An `Item` inside the selected shell feature; desktop widgets may own windows |
 | `opengl` | GLSL `.vert` and `.frag` | SDK-baked shader packages in a Qt Quick visual slot |
 
-`target` names the feature being replaced, independently of the implementation language. [The target reference](PLUGIN_TARGETS.md) lists every registered hook, visual slot and settings-page slot. The registry is `data/plugins/targets.json`; the SDK and runtime use the same registry. A package may keep the legacy single-target fields or declare a `targets` array. Each target declares its own `type`, `target`, `mode`, entry/shaders and settings schema, while the package keeps one shared identity and version.
+`target` names the feature being replaced, independently of the implementation language. [The target reference](PLUGIN_TARGETS.md) lists every registered hook, visual slot and settings-page slot. The registry is `data/plugins/targets.json`; the SDK and runtime use the same registry. A plugin has one target; a larger collection can ship several independently selectable plugins.
 
 ## Create and build
 
@@ -65,25 +65,7 @@ Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs
 }
 ```
 
-`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Targets marked `selection: "single"` allow only one enabled plugin implementation at a time. When a user enables another implementation in Settings, LunaDash shows the conflicting plugin(s); after confirmation it disables the old target configuration and enables the new one. The backend enforces the same rule for manually edited JSON. `desktop-widgets` remains multi-select. Replacement mode is still exclusive even on composable targets. Layouts that request `windowTemplate: stacking` must be replacements: two layout owners cannot simultaneously place the same windows.
-
-For a multi-target package, runtime configuration is nested by target:
-
-```json
-{
-  "schemaVersion": 1,
-  "builtins": {},
-  "plugins": {
-    "org.example.behavior": {
-      "enabled": true,
-      "targets": {
-        "panel": {"enabled": true, "mode": "replace", "settings": {}},
-        "window-rules": {"enabled": true, "mode": "replace", "settings": {}}
-      }
-    }
-  }
-}
-```
+`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `windowTemplate: stacking` must be replacements: two layout owners cannot simultaneously place the same windows. `lunadash-create-plugin --type effect --target window-layout ...` now starts from the generic native effect template. The shipped stacking/cascade implementation is a real SDK 2 package under `data/plugins/stacking-windows`, while the compositor core retains only generic freeform geometry state for stacking-mode interaction.
 
 Plugin settings are rendered automatically through the shared Settings API. SDK 2 plugins may expose only four stable controls: **Yes/No** (`toggle`), **drop-down** (`select`), **numeric input** (`number`) and **numeric slider** (`slider`). Free-form text and array controls remain host/module-only and are rejected for plugins. Unknown settings and invalid values are rejected both by the SDK and again by the runtime before loading or saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
 
@@ -129,7 +111,7 @@ Settings → Plugins groups features into Desktop, Windows, Animation, Effects, 
 
 The corresponding control commands are `lunadashctl extension-save '<JSON>'` and `lunadashctl open-settings plugins`. To restore all extension defaults, save `{"schemaVersion":1,"builtins":{},"plugins":{}}` and disable legacy plugin preferences if any were previously enabled. To explicitly turn off an individual installed plugin, keep its entry with `enabled: false`.
 
-SDK 2 discovery uses only the canonical `lunadash/plugins` data directory (user data first, then system data) plus an executable-adjacent `plugins` directory for development builds. Legacy `lunadash/shell/plugins` and `ludash/plugins` directories are intentionally ignored so stale packages from older releases cannot shadow Store packages. Legacy schema-1 packages are also hidden from the modern Plugins page.
+Discovery prefers the user's data directory, then system data directories: `lunadash/plugins`, legacy `lunadash/shell/plugins`, legacy `ludash/plugins`; an executable-adjacent `plugins` directory supports development builds. Legacy schema-1 QML widgets continue as desktop widgets. The old Qt Quick native effect ABI is rejected with a rebuild message; it never drove the active wlroots scene. Existing trusted custom module QML remains a migration path, but new plugin packages use SDK 2.
 
 ## Community registry and Plugin Store
 
@@ -137,8 +119,6 @@ Community plugins are published through [LunaDash-Plugins](https://github.com/Lu
 
 Settings → Plugins → Store reads the reviewed registry from [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins). The runtime fetches `https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json` over HTTPS and validates the catalogue identity, target/type contract, tags and remote URLs before exposing entries to QML. A bundled copy of the same registry is used when the network catalogue is unavailable. Set `LUNADASH_PLUGIN_CATALOG_URL` to another HTTPS index for development, or to `off` to disable network refresh.
 
-The Store is both the discovery source and the one-click installer for reviewed source-only QML packages that publish an `install.files` payload. LunaDash downloads only catalogue-declared HTTPS files, verifies every SHA-256 digest, stages them in the user's data directory, creates the SDK receipt, validates the installed manifest again, and leaves the plugin disabled. The user then adjusts its generated settings and enables it. Native/effect packages still use the SDK/CMake installation path and are never enabled merely because they appear in the Store.
-
-User-installed packages live under `~/.local/share/lunadash/plugins/<id>/`. The Installed tab exposes **Delete** only for packages under that user root; system plugins cannot be removed there. Legacy schema-1 plugins are intentionally hidden from the modern Plugins page while the parser keeps migration compatibility.
+The Store is the discovery source; the existing SDK/CMake installation path is unchanged. Source and marketplace links come from the registry, while installed packages are still validated from their local `metadata.json` and SDK receipt before they can run. Native plugins remain unrestricted code and are never enabled merely because they appear in the Store.
 
 Metadata and QML run with user permissions. Protocol/session ownership, authentication, system services and update installation are host responsibilities, not replaceable native services in SDK 2.
