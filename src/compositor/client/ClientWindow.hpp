@@ -23,6 +23,9 @@ struct ClientWindow {
   bool mapped = false;
   bool minimized = false;
   bool maximized = false;
+  // True fullscreen occupies the entire output. It is separate from maximized,
+  // which remains constrained to the normal panel/gap work area.
+  bool fullscreen = false;
   bool hiddenByMaximize = false;
   bool manualResize = false;
   bool initialRuleApplied = false;
