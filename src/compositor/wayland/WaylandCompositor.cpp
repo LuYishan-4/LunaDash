@@ -75,6 +75,41 @@ bool isUtilityWindow(const QString &appId) {
   return appId == QLatin1String("io.github.bugaevc.wl-clipboard");
 }
 
+bool clientReady(const ClientWindow *client) {
+  if (!client || !client->wlSurface)
+    return false;
+  if (client->x11)
+    return client->xwayland != nullptr;
+  return client->surface && client->surface->initialized &&
+         client->toplevel != nullptr;
+}
+
+void setClientActivated(ClientWindow *client, bool active) {
+  if (!client)
+    return;
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (client->x11 && client->xwayland) {
+    wlr_xwayland_surface_activate(client->xwayland, active);
+    return;
+  }
+#endif
+  if (client->toplevel)
+    wlr_xdg_toplevel_set_activated(client->toplevel, active);
+}
+
+void closeClient(ClientWindow *client) {
+  if (!client)
+    return;
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (client->x11 && client->xwayland) {
+    wlr_xwayland_surface_close(client->xwayland);
+    return;
+  }
+#endif
+  if (client->toplevel)
+    wlr_xdg_toplevel_send_close(client->toplevel);
+}
+
 std::optional<int> textWindowId(const QString &text) {
   bool ok = false;
   const int id = text.toInt(&ok);
@@ -486,27 +521,42 @@ QRect WaylandCompositor::workArea() const {
 }
 
 void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
-  if (!client || !client->toplevel)
+  if (!client)
     return;
-  client->title = safeUtf8(client->toplevel->title);
-  client->appId = safeUtf8(client->toplevel->app_id);
-  client->utility =
-      isUtilityWindow(client->appId) ||
-      (xwayland_ && xwayland_->isHelperSurface(client->processId));
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (client->x11 && client->xwayland) {
+    client->title = safeUtf8(client->xwayland->title);
+    client->appId = safeUtf8(client->xwayland->class
+                                 ? client->xwayland->class
+                                 : client->xwayland->instance);
+    client->processId = client->xwayland->pid;
+    client->utility = client->xwayland->override_redirect;
+    if (!client->initialRuleApplied)
+      client->floating = client->utility || client->xwayland->parent ||
+                         client->xwayland->modal;
+    else if (client->xwayland->parent || client->xwayland->modal)
+      client->floating = true;
+  } else
+#endif
+  {
+    if (!client->toplevel)
+      return;
+    client->title = safeUtf8(client->toplevel->title);
+    client->appId = safeUtf8(client->toplevel->app_id);
+    client->utility = isUtilityWindow(client->appId);
+    if (!client->initialRuleApplied)
+      client->floating = client->toplevel->parent != nullptr;
+    else if (client->toplevel->parent)
+      client->floating = true;
+  }
   client->iconName = client->utility
                          ? QString()
                          : windowIconName(client->appId, client->title);
-  if (!client->initialRuleApplied) {
-    client->floating = client->toplevel->parent != nullptr;
-  } else if (client->toplevel->parent) {
-    client->floating = true;
-  }
 }
 
 void WaylandCompositor::configure(ClientWindow *client,
                                   const QRect &rectangle) {
-  if (!client || !client->toplevel || !client->surface ||
-      !client->surface->initialized || !client->sceneTree)
+  if (!clientReady(client) || !client->sceneTree)
     return;
   if (windowAnimations_)
     windowAnimations_->relayout(
@@ -517,6 +567,27 @@ void WaylandCompositor::configure(ClientWindow *client,
     wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
                                 rectangle.y());
   client->geometry = rectangle;
+  const QSize size(std::max(1, rectangle.width()),
+                   std::max(1, rectangle.height()));
+
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (client->x11 && client->xwayland) {
+    const auto x = static_cast<int16_t>(
+        std::clamp(rectangle.x(), -32768, 32767));
+    const auto y = static_cast<int16_t>(
+        std::clamp(rectangle.y(), -32768, 32767));
+    const auto width = static_cast<uint16_t>(
+        std::clamp(size.width(), 1, 65535));
+    const auto height = static_cast<uint16_t>(
+        std::clamp(size.height(), 1, 65535));
+    wlr_xwayland_surface_configure(client->xwayland, x, y, width, height);
+    wlr_xwayland_surface_set_maximized(client->xwayland, client->maximized);
+    wlr_xwayland_surface_set_fullscreen(client->xwayland, client->fullscreen);
+    client->lastSize = size;
+    return;
+  }
+#endif
+
   wlr_box geometry{};
 #if WLR_VERSION_MINOR >= 19
   geometry = client->surface->geometry;
@@ -530,13 +601,10 @@ void WaylandCompositor::configure(ClientWindow *client,
         d->xdgPopups.begin(), d->xdgPopups.end(), [child](const auto *state) {
           return state->sceneTree && &state->sceneTree->node == child;
         });
-    // Clip client content, never popup menus attached beside that content.
     if (!popup)
       wlr_scene_subsurface_tree_set_clip(child,
                                          client->floating ? nullptr : &clip);
   }
-  const QSize size(std::max(1, rectangle.width()),
-                   std::max(1, rectangle.height()));
   if (client->lastSize != size) {
     client->lastSize = size;
     wlr_xdg_toplevel_set_size(client->toplevel, size.width(), size.height());
@@ -588,16 +656,28 @@ void WaylandCompositor::arrange() {
     client->workspace = std::min(client->workspace, count - 1);
     const bool managed = windowUsesManagedLayout(*client);
     if (managed) {
-      wlr_box initialGeometry{};
-#if WLR_VERSION_MINOR >= 19
-      initialGeometry = client->surface->geometry;
-#else
-      wlr_xdg_surface_get_geometry(client->surface, &initialGeometry);
+      int initialWidth = 0;
+      int initialHeight = 0;
+#if LUDASH_WLR_HAS_XWAYLAND
+      if (client->x11 && client->xwayland) {
+        initialWidth = client->xwayland->width;
+        initialHeight = client->xwayland->height;
+      } else
 #endif
+      if (client->surface) {
+        wlr_box initialGeometry{};
+#if WLR_VERSION_MINOR >= 19
+        initialGeometry = client->surface->geometry;
+#else
+        wlr_xdg_surface_get_geometry(client->surface, &initialGeometry);
+#endif
+        initialWidth = initialGeometry.width;
+        initialHeight = initialGeometry.height;
+      }
       if (!client->preferredFloatingSize.isValid() &&
-          initialGeometry.width > 0 && initialGeometry.height > 0)
+          initialWidth > 0 && initialHeight > 0)
         client->preferredFloatingSize =
-            QSize(initialGeometry.width, initialGeometry.height);
+            QSize(initialWidth, initialHeight);
       const QSize preferred =
           windowTemplate_ && windowTemplate_->allowOverlap
               ? client->preferredFloatingSize
@@ -747,14 +827,13 @@ void WaylandCompositor::raiseWithDialogs(ClientWindow *client) {
 
 void WaylandCompositor::focus(ClientWindow *client) {
   if (!d || !client || !client->mapped || client->minimized ||
-      client->utility || client->workspace != workspace_ || !client->surface ||
-      !client->surface->initialized)
+      client->utility || client->workspace != workspace_ ||
+      !clientReady(client))
     return;
 
   ClientWindow *previous = focused_;
-  if (focused_ && focused_ != client && focused_->toplevel &&
-      focused_->surface && focused_->surface->initialized)
-    wlr_xdg_toplevel_set_activated(focused_->toplevel, false);
+  if (focused_ && focused_ != client && clientReady(focused_))
+    setClientActivated(focused_, false);
 
   const bool changed = focused_ != client;
   focused_ = client;
@@ -783,20 +862,20 @@ void WaylandCompositor::focus(ClientWindow *client) {
   if (changed && windowAnimations_ && client->sceneTree)
     windowAnimations_->focus(client->sceneTree, client->geometry);
   if (changed)
-    wlr_xdg_toplevel_set_activated(client->toplevel, true);
+    setClientActivated(client, true);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (changed) {
-    if (previous && previous->nativeState)
+    if (previous && !previous->x11 && previous->nativeState)
       d->updateLegacyForeignToplevel(
           static_cast<WaylandCompositor::Impl::ToplevelState *>(
               previous->nativeState));
-    if (client->nativeState)
+    if (!client->x11 && client->nativeState)
       d->updateLegacyForeignToplevel(
           static_cast<WaylandCompositor::Impl::ToplevelState *>(
               client->nativeState));
   }
 #endif
-  d->focusSurface(client->surface->surface);
+  d->focusSurface(client->wlSurface);
   publishWindowLayout();
 }
 
@@ -833,6 +912,11 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
             other->floating || !other->maximized)
           continue;
         other->maximized = false;
+#if LUDASH_WLR_HAS_XWAYLAND
+        if (other->x11 && other->xwayland)
+          wlr_xwayland_surface_set_maximized(other->xwayland, false);
+        else
+#endif
         if (other->toplevel && other->surface && other->surface->initialized)
           wlr_xdg_toplevel_set_maximized(other->toplevel, false);
       }
@@ -840,10 +924,15 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
     windowLayout_->setMaximized(client->id, maximized);
   }
   client->maximized = maximized;
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (client->x11 && client->xwayland)
+    wlr_xwayland_surface_set_maximized(client->xwayland, maximized);
+  else
+#endif
   if (client->toplevel)
     wlr_xdg_toplevel_set_maximized(client->toplevel, maximized);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-  if (d && client->nativeState)
+  if (d && !client->x11 && client->nativeState)
     d->updateLegacyForeignToplevel(
         static_cast<WaylandCompositor::Impl::ToplevelState *>(
             client->nativeState));
@@ -860,10 +949,15 @@ void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
           !other->fullscreen)
         continue;
       other->fullscreen = false;
+#if LUDASH_WLR_HAS_XWAYLAND
+      if (other->x11 && other->xwayland)
+        wlr_xwayland_surface_set_fullscreen(other->xwayland, false);
+      else
+#endif
       if (other->toplevel)
         wlr_xdg_toplevel_set_fullscreen(other->toplevel, false);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-      if (other->nativeState)
+      if (!other->x11 && other->nativeState)
         d->updateLegacyForeignToplevel(
             static_cast<WaylandCompositor::Impl::ToplevelState *>(
                 other->nativeState));
@@ -872,10 +966,15 @@ void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
   }
 
   client->fullscreen = fullscreen;
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (client->x11 && client->xwayland)
+    wlr_xwayland_surface_set_fullscreen(client->xwayland, fullscreen);
+  else
+#endif
   if (client->toplevel)
     wlr_xdg_toplevel_set_fullscreen(client->toplevel, fullscreen);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-  if (client->nativeState)
+  if (!client->x11 && client->nativeState)
     d->updateLegacyForeignToplevel(
         static_cast<WaylandCompositor::Impl::ToplevelState *>(
             client->nativeState));
@@ -1040,8 +1139,8 @@ void WaylandCompositor::handleShortcut(const QString &action) {
   } else if (action == "toggleFullscreen" && focused_) {
     setFullscreen(focused_, !focused_->fullscreen);
   } else if ((action == "closeWindow" || action == "closeWindowAlternate") &&
-             focused_ && focused_->toplevel)
-    wlr_xdg_toplevel_send_close(focused_->toplevel);
+             focused_)
+    closeClient(focused_);
   else if (action == "minimizeWindow" && focused_) {
     focused_->minimized = true;
     windowLayout_->setMinimized(focused_->id, true);
@@ -1072,9 +1171,9 @@ QJsonObject WaylandCompositor::state() const {
       continue;
     int bufferWidth = 0;
     int bufferHeight = 0;
-    if (client->surface && client->surface->surface) {
-      bufferWidth = client->surface->surface->current.width;
-      bufferHeight = client->surface->surface->current.height;
+    if (client->wlSurface) {
+      bufferWidth = client->wlSurface->current.width;
+      bufferHeight = client->wlSurface->current.height;
     }
     entries.append(QJsonObject{
         {"contentWidth", bufferWidth},
@@ -1089,6 +1188,7 @@ QJsonObject WaylandCompositor::state() const {
         {"appId", client->appId},
         {"icon", client->iconName},
         {"desktop", client->desktop},
+        {"x11", client->x11},
         {"workspace", client->workspace},
         {"visible",
          client->sceneTree ? client->sceneTree->node.enabled : false},
@@ -1667,10 +1767,13 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       if (client->id != *id)
         continue;
       if (method == "close") {
-        if (client->toplevel)
-          wlr_xdg_toplevel_send_close(client->toplevel);
+        closeClient(client.get());
       } else if (method == "minimize") {
         client->minimized = true;
+#if LUDASH_WLR_HAS_XWAYLAND
+        if (client->x11 && client->xwayland)
+          wlr_xwayland_surface_set_minimized(client->xwayland, true);
+#endif
         windowLayout_->setMinimized(client->id, true);
         arrange();
         synchronizeWindowFocus();

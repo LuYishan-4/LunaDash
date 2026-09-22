@@ -130,6 +130,7 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
   client->id = q->nextWindowId_++;
   client->surface = surface;
   client->toplevel = toplevel;
+  client->wlSurface = surface->surface;
   client->workspace = q->workspace_;
   client->sceneTree = wlr_scene_xdg_surface_create(normalLayer, surface);
   if (!client->sceneTree)
@@ -284,7 +285,7 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
   if (state->impl->q->windowAnimations_ && state->client->sceneTree)
     state->impl->q->windowAnimations_->cancel(state->client->sceneTree);
   if (state->impl->seat->keyboard_state.focused_surface ==
-      state->client->surface->surface)
+      state->client->wlSurface)
     wlr_seat_keyboard_notify_clear_focus(state->impl->seat);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   destroyForeignToplevel(state);
@@ -594,8 +595,9 @@ void WaylandCompositor::Impl::restoreLayerFocus() {
   }
   if (target)
     focusSurface(target->surface->surface);
-  else if (q->focused_ && q->focused_->mapped && !q->focused_->minimized)
-    focusSurface(q->focused_->surface->surface);
+  else if (q->focused_ && q->focused_->mapped && !q->focused_->minimized &&
+           q->focused_->wlSurface)
+    focusSurface(q->focused_->wlSurface);
   else if (seat)
     wlr_seat_keyboard_notify_clear_focus(seat);
 }
@@ -612,7 +614,7 @@ WaylandCompositor::Impl::clientForSurface(wlr_surface *surface) const {
     xdg = wlr_xdg_surface_try_from_wlr_surface(surface);
   }
   for (const auto &client : q->clients_) {
-    if (client->surface && client->surface->surface == surface)
+    if (client->wlSurface == surface)
       return client.get();
   }
   return nullptr;

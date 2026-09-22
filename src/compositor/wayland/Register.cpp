@@ -301,6 +301,30 @@ void WaylandCompositor::Impl::shutdown() {
     delete state;
   }
 
+  const auto xwaylandStates = xwaylandSurfaces;
+  xwaylandSurfaces.clear();
+  for (auto *state : xwaylandStates) {
+    if (!state)
+      continue;
+    detachListener(state->map);
+    detachListener(state->unmap);
+    detachListener(state->destroy);
+    detachListener(state->requestConfigure);
+    detachListener(state->requestMove);
+    detachListener(state->requestResize);
+    detachListener(state->requestMinimize);
+    detachListener(state->requestMaximize);
+    detachListener(state->requestFullscreen);
+    detachListener(state->requestActivate);
+    detachListener(state->setTitle);
+    detachListener(state->setClass);
+    detachListener(state->setParent);
+    detachListener(state->setPid);
+    detachListener(state->setGeometry);
+    detachListener(state->setOverrideRedirect);
+    delete state;
+  }
+
   const auto layerStates = layers;
   layers.clear();
   for (auto *state : layerStates) {
