@@ -101,10 +101,10 @@ void WaylandCompositor::Impl::handleXWaylandDissociate(
   if (!state || !state->client)
     return;
   auto *client = state->client;
-  detachListener(state->map);
-  detachListener(state->unmap);
   if (client->mapped)
     handleXWaylandUnmap(&state->unmap.listener, nullptr);
+  detachListener(state->map);
+  detachListener(state->unmap);
   if (client->sceneTree) {
     wlr_scene_node_destroy(&client->sceneTree->node);
     client->sceneTree = nullptr;
