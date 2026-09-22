@@ -139,6 +139,11 @@ jobs:
                         wlroots0.20 libinput libxkbcommon systemd-libs glib2 \
                         qt6-base qt6-declarative qt6-wayland pixman \
                         xdg-desktop-portal-wlr pipewire dbus
+                      xdpw_version=$(pacman -Q xdg-desktop-portal-wlr | awk '{print $2}')
+                      if (( $(vercmp "$xdpw_version" 0.8.4) < 0 )); then
+                        echo "xdg-desktop-portal-wlr >= 0.8.4 is required for Chromium/Discord multi-frame streaming (found $xdpw_version)" >&2
+                        exit 1
+                      fi
                       cmake -S . -B build-modern -G Ninja -DCMAKE_BUILD_TYPE=Release
                       cmake --build build-modern --target lunadash-compositor lunadash-portal --parallel 2
                       python3 tests/wayland/test_screencast_chooser.py build-modern
@@ -173,6 +178,7 @@ jobs:
                       # Require both MONITOR (1) and WINDOW (2) source bits.
                       XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-window-capture \
                         XDG_CURRENT_DESKTOP=LunaDash XDG_SESSION_TYPE=wayland \
+                        XDPW_CONFIG="$PWD/build-modern/xdg-desktop-portal-wlr-LunaDash" \
                         dbus-run-session -- ./scripts/test-xdpw-sources.sh "$PWD/build-modern"
                       kill "$pid"
                       wait "$pid" || true
