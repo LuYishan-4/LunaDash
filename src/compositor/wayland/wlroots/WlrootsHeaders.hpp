@@ -29,6 +29,12 @@ extern "C" {
 #if __has_include(<wlr/types/wlr_linux_dmabuf_v1.h>)
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #endif
+#if __has_include(<wlr/types/wlr_linux_drm_syncobj_v1.h>)
+#include <wlr/types/wlr_linux_drm_syncobj_v1.h>
+#define LUDASH_WLR_HAS_DRM_SYNCOBJ 1
+#else
+#define LUDASH_WLR_HAS_DRM_SYNCOBJ 0
+#endif
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_input_method_v2.h>
 #include <wlr/types/wlr_keyboard.h>

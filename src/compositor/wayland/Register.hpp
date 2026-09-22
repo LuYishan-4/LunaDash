@@ -21,6 +21,9 @@ public:
     Impl *impl = nullptr;
     wlr_output *output = nullptr;
     wlr_scene_output *sceneOutput = nullptr;
+    // Keep a short frame tail after a screencopy request is consumed so
+    // portal clients have time to queue their next streaming frame.
+    int screencopyKeepalive = 0;
     Slot<OutputState> frame;
     Slot<OutputState> destroy;
     Slot<OutputState> requestState;
@@ -135,6 +138,9 @@ public:
   wlr_cursor *cursor = nullptr;
   wlr_xcursor_manager *cursorManager = nullptr;
   wlr_screencopy_manager_v1 *screencopy = nullptr;
+#if LUDASH_WLR_HAS_DRM_SYNCOBJ
+  wlr_linux_drm_syncobj_manager_v1 *explicitSync = nullptr;
+#endif
   wlr_xdg_output_manager_v1 *xdgOutput = nullptr;
   wlr_idle_inhibit_manager_v1 *idleInhibit = nullptr;
   wlr_input_method_manager_v2 *inputMethodManager = nullptr;

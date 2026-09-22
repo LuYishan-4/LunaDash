@@ -81,6 +81,20 @@ bool WaylandCompositor::Impl::initialize() {
     wlr_scene_set_linux_dmabuf_v1(scene, linuxDmabuf);
   }
 #endif
+#if LUDASH_WLR_HAS_DRM_SYNCOBJ
+  // Modern Chromium/Electron clients can use explicit DRM timeline fences.
+  // wlroots' scene-surface helper integrates this protocol with scene
+  // rendering, but it is safe to advertise only when both ends support
+  // timeline synchronization.
+  const int rendererDrmFd = wlr_renderer_get_drm_fd(renderer);
+  if (rendererDrmFd >= 0 && renderer->features.timeline &&
+      backend->features.timeline) {
+    explicitSync =
+        wlr_linux_drm_syncobj_manager_v1_create(display, 1, rendererDrmFd);
+    if (!explicitSync)
+      qWarning("LunaDash: DRM explicit synchronization is unavailable.");
+  }
+#endif
   sceneLayout = wlr_scene_attach_output_layout(scene, outputLayout);
   backgroundLayer = wlr_scene_tree_create(&scene->tree);
   bottomLayer = wlr_scene_tree_create(&scene->tree);

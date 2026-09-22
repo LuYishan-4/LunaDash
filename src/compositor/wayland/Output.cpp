@@ -11,6 +11,19 @@
 #include <ctime>
 
 namespace LunaDash {
+namespace {
+bool screencopyPendingForOutput(wlr_screencopy_manager_v1 *manager,
+                                wlr_output *output) {
+  if (!manager || !output)
+    return false;
+  wlr_screencopy_frame_v1 *frame = nullptr;
+  wl_list_for_each(frame, &manager->frames, link)
+    if (frame->output == output)
+      return true;
+  return false;
+}
+} // namespace
+
 using Templates::attachListener;
 using Templates::detachListener;
 using Templates::listenerOwner;
@@ -206,6 +219,17 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *state = listenerOwner<OutputState>(listener);
   if (!state || !state->sceneOutput)
     return;
+
+  // Sample before commit: a screencopy frame is removed when this output
+  // commit satisfies it. The tail bridges the small gap before xdpw queues
+  // the next PipeWire frame and prevents a one-frame/frozen stream.
+  const bool capturePending =
+      screencopyPendingForOutput(state->impl->screencopy, state->output);
+  if (capturePending)
+    state->screencopyKeepalive = 6;
+  else if (state->screencopyKeepalive > 0)
+    --state->screencopyKeepalive;
+
   auto *animations = state->impl->q->windowAnimations_.get();
   if (animations)
     animations->advance();
@@ -214,7 +238,9 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   timespec now{};
   clock_gettime(CLOCK_MONOTONIC, &now);
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
-  if (animations && animations->activeCount() > 0)
+
+  if ((animations && animations->activeCount() > 0) || capturePending ||
+      state->screencopyKeepalive > 0)
     wlr_output_schedule_frame(state->output);
 }
 
