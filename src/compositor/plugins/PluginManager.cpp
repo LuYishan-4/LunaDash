@@ -3,6 +3,7 @@
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "core/plugins/PluginApi.h"
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -301,12 +302,19 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
     return false;
   }
 
-  for (const auto &plugin : discoverPlugins()) {
-    if (plugin.id == id) {
+  const auto discovered = discoverPlugins();
+  const auto storeVersion = item.value("version").toString();
+  for (const auto &plugin : discovered) {
+    if (plugin.id != id)
+      continue;
+    if (plugin.version == storeVersion) {
       if (error)
         *error = "Plugin is already installed";
       return false;
     }
+    // A different version is an explicit Store update. The downloaded package
+    // is staged and validated before the old user copy/config is replaced.
+    break;
   }
 
   const auto root = userPluginRoot();
@@ -390,12 +398,47 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
     const auto root = userPluginRoot();
     const auto stagePath = job->stage->path();
     const auto sourceName = QFileInfo(stagePath).fileName();
+    const auto destination = QDir(root).filePath(job->id);
+    const auto backupName = ".old-" + job->id + "-" +
+                            QString::number(QDateTime::currentMSecsSinceEpoch());
+    const auto backup = QDir(root).filePath(backupName);
+
+    // A Store install/update always starts disabled. Remove stale settings so a
+    // previously enabled older package cannot auto-enable newly downloaded QML.
+    auto configDocument = readExtensionConfiguration();
+    auto configs = configDocument.value("plugins").toObject();
+    configs.remove(job->id);
+    configDocument["plugins"] = configs;
+    QString configError;
+    if (!saveExtensionConfiguration(QJsonDocument(configDocument).toJson(),
+                                    &configError)) {
+      finishStoreInstall(job, configError.isEmpty()
+                                  ? "Could not reset the plugin configuration"
+                                  : configError);
+      return;
+    }
+    refresh();
+
+    bool backedUp = false;
+    if (QFileInfo::exists(destination)) {
+      if (!QDir(root).rename(job->id, backupName)) {
+        finishStoreInstall(job, "Could not stage the existing plugin for update");
+        return;
+      }
+      backedUp = true;
+    }
+
     job->stage->setAutoRemove(false);
     if (!QDir(root).rename(sourceName, job->id)) {
       job->stage->setAutoRemove(true);
+      if (backedUp)
+        QDir(root).rename(backupName, job->id);
       finishStoreInstall(job, "Could not move the plugin into the user plugin directory");
       return;
     }
+    if (backedUp)
+      QDir(backup).removeRecursively();
+
     finishStoreInstall(job, {});
     return;
   }
@@ -638,6 +681,12 @@ void PluginManager::refresh() {
 QJsonObject PluginManager::snapshot() {
   QJsonArray installed;
   QSet<QString> replacements;
+  QHash<QString, QString> storeVersions;
+  for (const auto &value : storeCatalog_) {
+    const auto item = value.toObject();
+    storeVersions.insert(item.value("id").toString(),
+                         item.value("version").toString());
+  }
   const auto removableRoot = QFileInfo(userPluginRoot()).canonicalFilePath();
   static const QSet<QString> retiredBundledIds{
       "org.ludash.fade",
@@ -646,7 +695,10 @@ QJsonObject PluginManager::snapshot() {
   for (const auto &descriptor : catalog_) {
     // The modern settings surface is SDK 2 only. Legacy schema-1/native
     // descriptors remain readable for migration but are intentionally hidden.
-    if (descriptor.schemaVersion != 2 || retiredBundledIds.contains(descriptor.id))
+    if (descriptor.schemaVersion != 2 ||
+        retiredBundledIds.contains(descriptor.id) ||
+        (storeVersions.contains(descriptor.id) &&
+         storeVersions.value(descriptor.id) != descriptor.version))
       continue;
     auto item = pluginDescriptorJson(descriptor);
     const auto packageDir =

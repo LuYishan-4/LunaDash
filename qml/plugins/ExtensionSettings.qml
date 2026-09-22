@@ -531,8 +531,7 @@ ColumnLayout {
                                         ? page.shell.tr("Update plugin")
                                         : page.shell.tr("Download plugin")
                                 active: true
-                                enabled: !pluginCard.modelData.installing &&
-                                         !Boolean(pluginCard.modelData.updateAvailable)
+                                enabled: !pluginCard.modelData.installing
                                 onClicked: page.shell.command(
                                     "extension-install", pluginCard.modelData.id)
                             }
@@ -554,7 +553,7 @@ ColumnLayout {
                             visible: pluginCard.remote &&
                                      Boolean(pluginCard.modelData.updateAvailable)
                             shell: page.shell
-                            message: "An older user plugin is installed. Delete it from Installed, then download the current Store version."
+                            message: "An older plugin version was found. Updating downloads and validates the current Store package, resets it to disabled, and keeps the old copy out of the modern plugin list."
                         }
 
                         Text {
