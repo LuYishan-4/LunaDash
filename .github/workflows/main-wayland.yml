@@ -139,7 +139,7 @@ jobs:
                         wlroots0.20 libinput libxkbcommon systemd-libs glib2 \
                         qt6-base qt6-declarative qt6-wayland pixman \
                         xdg-desktop-portal-wlr pipewire dbus
-                      xdpw_version=$(pacman -Q xdg-desktop-portal-wlr | awk '{print $2}')
+                      xdpw_version=$(pacman -Q xdg-desktop-portal-wlr | cut -d " " -f2)
                       if (( $(vercmp "$xdpw_version" 0.8.4) < 0 )); then
                         echo "xdg-desktop-portal-wlr >= 0.8.4 is required for Chromium/Discord multi-frame streaming (found $xdpw_version)" >&2
                         exit 1
