@@ -12,7 +12,7 @@ LunaDash Plugin SDK 2 提供 feature hook、visual slot 與共用 metadata。內
 | `quickshell` | QML / JavaScript | 指定 Shell visual slot |
 | `opengl` | GLSL `.vert/.frag` | SDK 建置的 Qt Quick shader package |
 
-Registry 是 `data/plugins/targets.json`。
+Registry 是 `data/plugins/targets.json`。一個 package 可以使用舊的單 target 欄位，也可以宣告 `targets` 陣列；每個 target 都有獨立的 `type / target / mode / entry / settings`，但共用同一個 package ID、名稱與版本。
 
 ## 建立與安裝
 
@@ -62,7 +62,25 @@ QML/JS/assets 用 `FILES` 明確列出。不要只手動 copy source folder；SD
 }
 ```
 
-`replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `windowTemplate: stacking` 的 window-layout plugin 必須是 replacement。現在執行 `lunadash-create-plugin --type effect --target window-layout ...` 會從通用 native effect template 建立；實際的 stacking / cascade 實作改成 `data/plugins/stacking-windows` 下的正式 SDK 2 plugin package，compositor core 只保留 stacking-mode 互動所需的通用 freeform geometry state。
+Target registry 中標記為 `selection: "single"` 的功能同時間只允許一個 plugin implementation。使用者啟用另一個衝突插件時，設定介面會先列出衝突項目；確認後自動停用舊 target、再啟用新的。Backend 也會拒絕手動 JSON 繞過限制。`desktop-widgets` 保持可多選；即使是可組合 target，`replace` 仍只能有一個。要求 `windowTemplate: stacking` 的 window-layout plugin 必須是 replacement。
+
+Multi-target package 的 runtime config 會依 target 分開：
+
+```json
+{
+  "schemaVersion": 1,
+  "builtins": {},
+  "plugins": {
+    "org.example.behavior": {
+      "enabled": true,
+      "targets": {
+        "panel": {"enabled": true, "mode": "replace", "settings": {}},
+        "window-rules": {"enabled": true, "mode": "replace", "settings": {}}
+      }
+    }
+  }
+}
+```
 
 Plugin 的 settings 不需要另外寫設定 QML。Host 會透過共用 Settings API 自動產生與 LunaDash 原生介面一致的控制項；Plugin SDK 只允許四種：**是/否 toggle**、**下拉 select**、**數值輸入 number**、**數值拉條 slider**。自由文字與 array 類控制保留給 host/module 內部設定，第三方 plugin metadata 會被 SDK 與 runtime 雙重拒絕。
 

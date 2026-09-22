@@ -31,7 +31,6 @@ ShellRoot {
     readonly property string updaterExecutable: bin ? bin + "/lunadash-update" : "lunadash-update"
     readonly property string shellToolExecutable: bin ? bin + "/lunadash-shell-tool" : "lunadash-shell-tool"
     readonly property string clipboardExecutable: bin ? bin + "/lunadash-clipboard-history" : "lunadash-clipboard-history"
-    readonly property string clipboardBridgeExecutable: bin ? bin + "/lunadash-clipboard-bridge" : "lunadash-clipboard-bridge"
     readonly property string assetDirectory: Quickshell.env("LUNADASH_ASSET_DIR")
     readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadash.png" : ""
     signal commandCompleted(string method, var result)
@@ -365,16 +364,6 @@ ShellRoot {
         stderr: StdioCollector {
             onStreamFinished: if (text.trim())
                 console.warn("Clipboard watcher:", text.trim())
-        }
-    }
-
-    Process {
-        id: clipboardBridge
-        command: [root.clipboardBridgeExecutable]
-        running: !root.stopping && Boolean((root.state.xwayland || {}).available)
-        stderr: StdioCollector {
-            onStreamFinished: if (text.trim())
-                console.warn("Clipboard bridge:", text.trim())
         }
     }
 

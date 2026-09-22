@@ -10,7 +10,7 @@ LunaDash Plugin SDK 2 provides feature hooks, visual slots and shared metadata f
 | `quickshell` | QML/JavaScript | An `Item` inside the selected shell feature; desktop widgets may own windows |
 | `opengl` | GLSL `.vert` and `.frag` | SDK-baked shader packages in a Qt Quick visual slot |
 
-`target` names the feature being replaced, independently of the implementation language. [The target reference](PLUGIN_TARGETS.md) lists every registered hook, visual slot and settings-page slot. The registry is `data/plugins/targets.json`; the SDK and runtime use the same registry. A plugin has one target; a larger collection can ship several independently selectable plugins.
+`target` names the feature being replaced, independently of the implementation language. [The target reference](PLUGIN_TARGETS.md) lists every registered hook, visual slot and settings-page slot. The registry is `data/plugins/targets.json`; the SDK and runtime use the same registry. A package may keep the legacy single-target fields or declare a `targets` array. Each target declares its own `type`, `target`, `mode`, entry/shaders and settings schema, while the package keeps one shared identity and version.
 
 ## Create and build
 
@@ -65,7 +65,25 @@ Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs
 }
 ```
 
-`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `windowTemplate: stacking` must be replacements: two layout owners cannot simultaneously place the same windows. `lunadash-create-plugin --type effect --target window-layout ...` now starts from the generic native effect template. The shipped stacking/cascade implementation is a real SDK 2 package under `data/plugins/stacking-windows`, while the compositor core retains only generic freeform geometry state for stacking-mode interaction.
+`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Targets marked `selection: "single"` allow only one enabled plugin implementation at a time. When a user enables another implementation in Settings, LunaDash shows the conflicting plugin(s); after confirmation it disables the old target configuration and enables the new one. The backend enforces the same rule for manually edited JSON. `desktop-widgets` remains multi-select. Replacement mode is still exclusive even on composable targets. Layouts that request `windowTemplate: stacking` must be replacements: two layout owners cannot simultaneously place the same windows.
+
+For a multi-target package, runtime configuration is nested by target:
+
+```json
+{
+  "schemaVersion": 1,
+  "builtins": {},
+  "plugins": {
+    "org.example.behavior": {
+      "enabled": true,
+      "targets": {
+        "panel": {"enabled": true, "mode": "replace", "settings": {}},
+        "window-rules": {"enabled": true, "mode": "replace", "settings": {}}
+      }
+    }
+  }
+}
+```
 
 Plugin settings are rendered automatically through the shared Settings API. SDK 2 plugins may expose only four stable controls: **Yes/No** (`toggle`), **drop-down** (`select`), **numeric input** (`number`) and **numeric slider** (`slider`). Free-form text and array controls remain host/module-only and are rejected for plugins. Unknown settings and invalid values are rejected both by the SDK and again by the runtime before loading or saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
 
