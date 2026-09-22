@@ -48,7 +48,7 @@ namespace {
 bool safeInstallPath(const QString &value) {
   static const QRegularExpression pattern(
       R"(^(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$)");
-  if (value.isEmpty() || value.size() > 180 || value.contains('\') ||
+  if (value.isEmpty() || value.size() > 180 || value.contains('\\') ||
       !pattern.match(value).hasMatch())
     return false;
   const auto parts = value.split('/');
