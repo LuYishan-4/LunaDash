@@ -526,6 +526,7 @@ void WaylandCompositor::configure(ClientWindow *client,
     wlr_xdg_toplevel_set_size(client->toplevel, size.width(), size.height());
   }
   wlr_xdg_toplevel_set_maximized(client->toplevel, client->maximized);
+  wlr_xdg_toplevel_set_fullscreen(client->toplevel, client->fullscreen);
 }
 
 void WaylandCompositor::arrange() {
@@ -553,7 +554,19 @@ void WaylandCompositor::arrange() {
   const int count = preferences.value("workspaceCount").toInt();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const QRect area = workArea();
+  const QSize output = d->outputSize();
+  const QRect fullscreenArea(0, 0, std::max(1, output.width()),
+                             std::max(1, output.height()));
   windowLayout_->configure(currentWindowLayoutSettings());
+
+  ClientWindow *fullscreenClient = nullptr;
+  for (const auto &candidate : clients_) {
+    if (candidate->mapped && !candidate->minimized && candidate->fullscreen &&
+        candidate->workspace == workspace_ && !candidate->utility) {
+      fullscreenClient = candidate.get();
+      break;
+    }
+  }
 
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
@@ -609,10 +622,31 @@ void WaylandCompositor::arrange() {
     client->hiddenByMaximize =
         windowHiddenByMaximize(*windowTemplate_, maximized, inMaximizedFamily,
                                *client);
-    const bool visible = client->mapped && !client->minimized &&
-                         client->workspace == workspace_ && !client->utility &&
-                         !client->hiddenByMaximize;
+
+    bool inFullscreenFamily =
+        fullscreenClient && client.get() == fullscreenClient;
+    auto *fullscreenParent = client->toplevel ? client->toplevel->parent : nullptr;
+    for (std::size_t depth = 0;
+         fullscreenClient && fullscreenParent && depth < clients_.size();
+         ++depth) {
+      if (fullscreenParent == fullscreenClient->toplevel) {
+        inFullscreenFamily = true;
+        break;
+      }
+      fullscreenParent = fullscreenParent->parent;
+    }
+
+    const bool visible =
+        client->mapped && !client->minimized &&
+        client->workspace == workspace_ && !client->utility &&
+        (fullscreenClient ? inFullscreenFamily : !client->hiddenByMaximize);
     if (client->sceneTree) {
+      auto *targetLayer =
+          fullscreenClient && inFullscreenFamily && d->fullscreenLayer
+              ? d->fullscreenLayer
+              : d->normalLayer;
+      if (client->sceneTree->node.parent != targetLayer)
+        wlr_scene_node_reparent(&client->sceneTree->node, targetLayer);
       const bool wasVisible = client->sceneTree->node.enabled;
       if (!visible && wasVisible && client->mapped && windowAnimations_)
         windowAnimations_->close(client->sceneTree, d->animationLayer);
@@ -625,6 +659,10 @@ void WaylandCompositor::arrange() {
 
     if (!visible)
       continue;
+    if (fullscreenClient && client.get() == fullscreenClient) {
+      configure(client.get(), fullscreenArea);
+      continue;
+    }
     if (client->floating) {
       const QSize preferred = client->preferredFloatingSize.isValid()
                                   ? client->preferredFloatingSize
@@ -647,15 +685,17 @@ void WaylandCompositor::arrange() {
     arrange();
     return;
   }
-  for (const auto &placement : placements) {
-    auto found = std::find_if(
-        clients_.begin(), clients_.end(), [&placement](const auto &client) {
-          return client->id == static_cast<int>(placement.window);
-        });
-    if (found == clients_.end() || (*found)->minimized ||
-        placement.hiddenByMaximize || (*found)->workspace != workspace_)
-      continue;
-    configure(found->get(), placement.geometry);
+  if (!fullscreenClient) {
+    for (const auto &placement : placements) {
+      auto found = std::find_if(
+          clients_.begin(), clients_.end(), [&placement](const auto &client) {
+            return client->id == static_cast<int>(placement.window);
+          });
+      if (found == clients_.end() || (*found)->minimized ||
+          placement.hiddenByMaximize || (*found)->workspace != workspace_)
+        continue;
+      configure(found->get(), placement.geometry);
+    }
   }
 
   if (windowAnimations_)
@@ -703,14 +743,16 @@ void WaylandCompositor::focus(ClientWindow *client) {
   const bool changed = focused_ != client;
   focused_ = client;
 
-  if (client->floating && client->hiddenByMaximize) {
+  if (!client->fullscreen && client->floating &&
+      client->hiddenByMaximize) {
     for (const auto &other : clients_)
       if (!other->floating && other->workspace == client->workspace &&
           other->maximized)
         setMaximized(other.get(), false);
     arrange();
   }
-  if (windowTemplate_ && !windowTemplate_->allowOverlap && !client->floating &&
+  if (!client->fullscreen && windowTemplate_ &&
+      !windowTemplate_->allowOverlap && !client->floating &&
       !client->maximized &&
       windowLayout_->snapshot(client->workspace).maximizedWindow)
     setMaximized(client, true);
@@ -790,6 +832,42 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
         static_cast<WaylandCompositor::Impl::ToplevelState *>(
             client->nativeState));
 #endif
+}
+
+void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
+  if (!d || !client || client->fullscreen == fullscreen)
+    return;
+
+  if (fullscreen) {
+    for (const auto &other : clients_) {
+      if (other.get() == client || other->workspace != client->workspace ||
+          !other->fullscreen)
+        continue;
+      other->fullscreen = false;
+      if (other->toplevel)
+        wlr_xdg_toplevel_set_fullscreen(other->toplevel, false);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+      if (other->nativeState)
+        d->updateLegacyForeignToplevel(
+            static_cast<WaylandCompositor::Impl::ToplevelState *>(
+                other->nativeState));
+#endif
+    }
+  }
+
+  client->fullscreen = fullscreen;
+  if (client->toplevel)
+    wlr_xdg_toplevel_set_fullscreen(client->toplevel, fullscreen);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  if (client->nativeState)
+    d->updateLegacyForeignToplevel(
+        static_cast<WaylandCompositor::Impl::ToplevelState *>(
+            client->nativeState));
+#endif
+
+  arrange();
+  if (fullscreen)
+    focus(client);
 }
 
 void WaylandCompositor::synchronizeWindowFocus() {
@@ -943,6 +1021,8 @@ void WaylandCompositor::handleShortcut(const QString &action) {
          {"width", std::max(120, focused_->geometry.width() - 80)}});
   else if (action == "maximizeWindow" && focused_) {
     setMaximized(focused_, !focused_->maximized);
+  } else if (action == "toggleFullscreen" && focused_) {
+    setFullscreen(focused_, !focused_->fullscreen);
   } else if ((action == "closeWindow" || action == "closeWindowAlternate") &&
              focused_ && focused_->toplevel)
     wlr_xdg_toplevel_send_close(focused_->toplevel);
@@ -1003,6 +1083,7 @@ QJsonObject WaylandCompositor::state() const {
         {"height", client->geometry.height()},
         {"minimized", client->minimized},
         {"maximized", client->maximized},
+        {"fullscreen", client->fullscreen},
         {"hiddenByMaximize", client->hiddenByMaximize},
         {"manualResize", client->manualResize},
         {"mapped", client->mapped}});
