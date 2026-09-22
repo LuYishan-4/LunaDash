@@ -732,15 +732,20 @@ void WaylandCompositor::arrange() {
       fullscreenParent = fullscreenParent->parent;
     }
 
+    const bool unmanagedX11 = client->x11 && client->utility;
     const bool visible =
         client->mapped && !client->minimized &&
-        client->workspace == workspace_ && !client->utility &&
-        (fullscreenClient ? inFullscreenFamily : !client->hiddenByMaximize);
+        client->workspace == workspace_ &&
+        (unmanagedX11 ||
+         (!client->utility &&
+          (fullscreenClient ? inFullscreenFamily : !client->hiddenByMaximize)));
     if (client->sceneTree) {
       auto *targetLayer =
-          fullscreenClient && inFullscreenFamily && d->fullscreenLayer
-              ? d->fullscreenLayer
-              : d->normalLayer;
+          unmanagedX11 && d->overlayLayer
+              ? d->overlayLayer
+              : fullscreenClient && inFullscreenFamily && d->fullscreenLayer
+                    ? d->fullscreenLayer
+                    : d->normalLayer;
       if (client->sceneTree->node.parent != targetLayer)
         wlr_scene_node_reparent(&client->sceneTree->node, targetLayer);
       const bool wasVisible = client->sceneTree->node.enabled;

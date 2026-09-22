@@ -32,6 +32,12 @@ void WaylandCompositor::Impl::addXWaylandSurface(
   client->utility = surface->override_redirect;
   client->preferredFloatingSize =
       QSize(std::max<int>(1, surface->width), std::max<int>(1, surface->height));
+  if (surface->override_redirect) {
+    client->manualGeometry =
+        QRect(surface->x, surface->y,
+              std::max<int>(1, surface->width),
+              std::max<int>(1, surface->height));
+  }
 
   auto *current = client.get();
   auto *state = new XWaylandState;
@@ -318,6 +324,13 @@ void WaylandCompositor::Impl::handleXWaylandMetadata(wl_listener *listener,
     return;
   state->client->processId = state->surface->pid;
   state->impl->q->updateClientMetadata(state->client);
+  if (state->client->utility) {
+    state->client->floating = true;
+    state->client->manualGeometry =
+        QRect(state->surface->x, state->surface->y,
+              std::max<int>(1, state->surface->width),
+              std::max<int>(1, state->surface->height));
+  }
   state->impl->q->arrange();
 #endif
 }
