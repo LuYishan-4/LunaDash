@@ -89,6 +89,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
         )
         xclip_owner = None
         history = None
+        wayland_owner = None
         try:
             state = wait_for(lambda value: value["xwayland"]["available"])
             xstate = state["xwayland"]
@@ -294,10 +295,17 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
 
             request("quit")
             assert process.wait(timeout=10) == 0
-            print(
-                "XWayland passed: lazy rootless XWM, first-class X11 window, "
-                "bidirectional selection bridge and clipboard history."
-            )
+            if xclip is None:
+                print(
+                    "XWayland passed: lazy rootless XWM and first-class X11 "
+                    "window; clipboard round-trip was skipped because xclip "
+                    "is unavailable."
+                )
+            else:
+                print(
+                    "XWayland passed: lazy rootless XWM, first-class X11 "
+                    "window, bidirectional selection bridge and clipboard history."
+                )
         except BaseException:
             log.flush()
             log.seek(0)
