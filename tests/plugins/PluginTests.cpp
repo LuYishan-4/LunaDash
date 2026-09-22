@@ -233,11 +233,11 @@ private Q_SLOTS:
     auto packages = document.value("plugins").toObject();
     auto package =
         packages.value("org.lunadash.kde-behavior").toObject();
-    auto targetConfigs = package.value("targets").toObject();
-    auto animation = targetConfigs.value("window-animation").toObject();
+    auto runtimeTargets = package.value("targets").toObject();
+    auto animation = runtimeTargets.value("window-animation").toObject();
     animation["enabled"] = false;
-    targetConfigs["window-animation"] = animation;
-    package["targets"] = targetConfigs;
+    runtimeTargets["window-animation"] = animation;
+    package["targets"] = runtimeTargets;
     packages["org.lunadash.kde-behavior"] = package;
     document["plugins"] = packages;
     save(document);
