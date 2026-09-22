@@ -78,6 +78,8 @@ void WaylandCompositor::Impl::updateLegacyForeignToplevel(
                                                 state->client->minimized);
   wlr_foreign_toplevel_handle_v1_set_maximized(state->legacyForeignHandle,
                                                 state->client->maximized);
+  wlr_foreign_toplevel_handle_v1_set_fullscreen(state->legacyForeignHandle,
+                                                 state->client->fullscreen);
 }
 
 void WaylandCompositor::Impl::createLegacyForeignToplevel(
@@ -108,6 +110,7 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
     return;
   const bool fullscreen = client->toplevel->requested.fullscreen;
   const bool maximized = client->toplevel->requested.maximized;
+  client->fullscreen = fullscreen;
   const QSize size = fullscreen ? outputSize() : q->workArea().size();
   wlr_xdg_toplevel_set_size(
       client->toplevel, fullscreen || maximized ? std::max(1, size.width()) : 0,
@@ -374,14 +377,7 @@ void WaylandCompositor::Impl::handleToplevelFullscreen(wl_listener *listener,
       !state->client->surface->initialized)
     return;
   const bool fullscreen = state->client->toplevel->requested.fullscreen;
-  state->impl->q->setMaximized(state->client, fullscreen);
-  wlr_xdg_toplevel_set_fullscreen(state->client->toplevel, fullscreen);
-#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-  updateLegacyForeignToplevel(state);
-#endif
-  state->impl->q->arrange();
-  if (fullscreen)
-    state->impl->q->focus(state->client);
+  state->impl->q->setFullscreen(state->client, fullscreen);
 }
 
 void WaylandCompositor::Impl::handleToplevelMove(wl_listener *listener,
