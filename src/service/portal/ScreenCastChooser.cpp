@@ -1,3 +1,5 @@
+#include "service/portal/ScreenCastChooser.hpp"
+
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -11,6 +13,7 @@
 
 #include <cstdio>
 
+namespace LunaDash {
 namespace {
 
 QString displayLabel(const QString &source) {
@@ -41,18 +44,19 @@ int printSource(const QString &source) {
 
 } // namespace
 
-int main(int argc, char **argv) {
+int runScreenCastChooser(int argc, char **argv) {
   const QStringList sources = readSources();
   if (sources.isEmpty())
     return 1;
 
-  // CI exercises the same stdin/stdout chooser contract without requiring a
-  // graphical session. xdg-desktop-portal-wlr never sets this variable.
   if (qEnvironmentVariableIntValue(
           "LUNADASH_SCREENCAST_CHOOSER_AUTOPICK") == 1)
     return printSource(sources.constFirst());
 
-  QApplication app(argc, argv);
+  (void)argc;
+  int qtArgc = 1;
+  char *qtArgv[] = {argv[0], nullptr};
+  QApplication app(qtArgc, qtArgv);
   app.setApplicationName(QStringLiteral("LunaDash Screen Share"));
   app.setOrganizationName(QStringLiteral("LunaDash"));
 
@@ -113,3 +117,5 @@ int main(int argc, char **argv) {
     return 1;
   return printSource(selected->data(Qt::UserRole).toString());
 }
+
+} // namespace LunaDash

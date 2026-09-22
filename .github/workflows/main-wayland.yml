@@ -139,7 +139,7 @@ jobs:
                         qt6-base qt6-declarative qt6-wayland pixman \
                         xdg-desktop-portal-wlr pipewire dbus
                       cmake -S . -B build-modern -G Ninja -DCMAKE_BUILD_TYPE=Release
-                      cmake --build build-modern --target lunadash-compositor lunadash-screencast-chooser --parallel 2
+                      cmake --build build-modern --target lunadash-compositor lunadash-portal --parallel 2
                       python3 tests/wayland/test_screencast_chooser.py build-modern
 
                       runtime=$(mktemp -d)
