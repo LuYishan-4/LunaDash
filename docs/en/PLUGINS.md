@@ -7,10 +7,10 @@ LunaDash Plugin SDK 2 provides feature hooks, visual slots and shared metadata f
 | `type` | Implementation | Runtime |
 | --- | --- | --- |
 | `effect` | C11 or C++20, compiled with the SDK | Versioned C ABI with JSON hook requests and validated results |
-| `quickshell` | QML/JavaScript | An `Item` inside the selected shell feature; desktop widgets may own windows |
+| `quickshell` | QML/JavaScript | An `Item` inside the selected shell feature; `desktop-widgets` are embedded in the wallpaper Background layer |
 | `opengl` | GLSL `.vert` and `.frag` | SDK-baked shader packages in a Qt Quick visual slot |
 
-`target` names the feature being replaced, independently of the implementation language. [The target reference](PLUGIN_TARGETS.md) lists every registered hook, visual slot and settings-page slot. The registry is `data/plugins/targets.json`; the SDK and runtime use the same registry. A plugin has one target; a larger collection can ship several independently selectable plugins.
+`target` names the feature being replaced, independently of the implementation language. [The target reference](PLUGIN_TARGETS.md) lists every registered hook, visual slot and settings-page slot. The registry is `data/plugins/targets.json`; the SDK and runtime use the same registry. Metadata may declare one target or a multi-target package. Settings groups a multi-target package into one installed card while the runtime keeps target-level enable/mode/settings state.
 
 ## Create and build
 
@@ -47,7 +47,7 @@ Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs
   "id": "org.example.panel",
   "name": "My panel",
   "description": "A custom taskbar.",
-  "version": "1.0.0",
+  "version": "1.0.1a",
   "author": "Your name",
   "type": "quickshell",
   "target": "panel",
@@ -122,3 +122,10 @@ Settings → Plugins → Store reads the reviewed registry from [LunaDash-Plugin
 The Store is the discovery source; the existing SDK/CMake installation path is unchanged. Source and marketplace links come from the registry, while installed packages are still validated from their local `metadata.json` and SDK receipt before they can run. Native plugins remain unrestricted code and are never enabled merely because they appear in the Store.
 
 Metadata and QML run with user permissions. Protocol/session ownership, authentication, system services and update installation are host responsibilities, not replaceable native services in SDK 2.
+
+
+## Desktop widgets and Audio Wave
+
+The `desktop-widgets` target is multi-selection. Digital Clock, Audio Wave and other wallpaper widgets may coexist. They are instantiated inside `Wallpaper.qml` on the layer-shell Background surface; a desktop widget must not open an independent Top/Overlay window to stay visible above applications.
+
+Audio Wave 1.0.1a uses playback state plus current output volume, higher sensitivity, 60 Hz attack/release interpolation and a multi-harmonic spatial profile. It smoothly returns to its idle baseline when playback stops. It is a visualizer, not a PCM/FFT analyzer.

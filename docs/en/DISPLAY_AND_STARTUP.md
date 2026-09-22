@@ -52,3 +52,8 @@ Hidden panels load lazily. Buffer-only shell commits no longer rearrange every c
 Installed sessions load QML beside their installed executable before considering a source checkout. `lunadash-compositor --version` and the session log identify the compiled revision; source archives preserve that revision.
 
 Use `lunadash-compositor --profile` to report event-loop stalls. The maintained CI covers general startup, protocol and rendering behavior. Actual FPS, physical refresh rate switching and backlight writes require testing on the target hardware; CI alone does not establish those results.
+
+
+## Portal window appearance
+
+The 1.0.1a FileChooser no longer relies on host window decorations for its visible frame. A frameless LunaDash dialog owns the header, border and location control and embeds the non-native Qt file view inside it. This avoids the light/white host title bar seen when a Qt dialog inherits an unrelated desktop theme.

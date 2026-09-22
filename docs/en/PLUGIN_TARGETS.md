@@ -60,3 +60,8 @@ The [stacking-windows example](../../examples/plugins/stacking-windows/README.md
 4. Add its contract here and update relevant behavioral tests. The scaffolder, CMake validator and settings categories consume the registry automatically.
 
 A registry entry alone does not implement a feature hook. Do not advertise new targets until their host actually calls/mounts them. Asynchronous services and application-buffer shader passes need a future host interface; they cannot be implemented by inventing metadata targets.
+
+
+## 1.0.1a desktop-widget rule
+
+`desktop-widgets` uses `selection: multiple`. The host embeds every enabled QML item into the wallpaper Background surface. Multiple widgets may coexist, and application windows render above them.

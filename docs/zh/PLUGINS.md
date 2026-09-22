@@ -45,7 +45,7 @@ QML/JS/assets 用 `FILES` 明確列出。不要只手動 copy source folder；SD
   "sdk": {"name": "LunaDash", "apiVersion": 2},
   "id": "org.example.panel",
   "name": "My panel",
-  "version": "1.0.0",
+  "version": "1.0.1a",
   "type": "quickshell",
   "target": "panel",
   "mode": "replace",
@@ -120,3 +120,10 @@ Settings → Plugins → Store 現在直接讀取 [LunaDash-Plugins](https://git
 Store 只改 discovery 來源，既有 SDK/CMake 安裝流程不變；真正執行的本機 package 仍必須通過 `metadata.json`、SDK receipt 與 native ABI 驗證。出現在 Store 不會自動啟用 native plugin。
 
 Metadata/QML/native 都以使用者權限執行，protocol/session/system-service ownership 仍屬 host。
+
+
+## Desktop widgets 與 Audio Wave
+
+`desktop-widgets` 是 multi-selection target，可同時啟用 Digital Clock、Audio Wave 與其他桌布 widget。它們由 `Wallpaper.qml` 嵌入 layer-shell Background surface；desktop widget 不應自行建立 Top/Overlay window 來覆蓋一般應用程式。
+
+Audio Wave 1.0.1a 使用媒體播放狀態與目前 output volume，加入較高 sensitivity、約 60 Hz 的 attack/release 插值與多組 harmonic profile；停止播放時會平滑回到底線。它是視覺化效果，不宣稱是 PCM/FFT 頻譜分析器。

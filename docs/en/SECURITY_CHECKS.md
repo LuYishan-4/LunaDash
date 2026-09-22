@@ -40,3 +40,10 @@ LUDASH_GRAPHICS=opengl LUDASH_TEST_NO_SHELL=1 \
 The command above checks a headless wlroots pixman session. For the separate Xvfb/Mesa OpenGL regression, use the commands in [Graphics](GRAPHICS.md). Neither verifies physical GPU drivers or a complete standalone login session.
 
 References: [CodeQL builds](https://docs.github.com/en/code-security/reference/code-scanning/codeql/build-options-for-compiled-languages), [clang-tidy](https://clang.llvm.org/extra/clang-tidy/index.html).
+
+
+## UI/process safety notes in 1.0.1a
+
+Settings hardware probes and portal path handling do not build shell command strings from user input. FileChooser location input accepts only validated local absolute paths or local `file://` URLs. System-tool launches come from fixed executable/argument allowlists.
+
+Logout requires an explicit `quit confirm` control request. The compositor logs clean event-loop shutdown separately from fatal signals, making session-loss reports distinguish deliberate logout from a crash. Native plugins still execute in-process and remain trusted code.

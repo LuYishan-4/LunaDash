@@ -35,3 +35,8 @@ QProcess: Cannot create pipe (Too many open files)
 Renderer tests 驗 relocation、software OpenGL、failure cleanup，但不能證明所有 GPU/fence leak 都不存在，也不能表示這些 Qt effects 已接到 wlroots scene。
 
 更多：[Graphics](GRAPHICS.md)、[Effects](EFFECTS.md)、[Testing](TESTING_AND_FILES.md)。
+
+
+## 共用 Surface 設計
+
+1.0.1a 的 Dashboard、Settings、桌布 picker 與 portal wrapper 使用同一套 strong/glass/hairline/radius 規則。Dashboard telemetry 使用 bounded layout，不應靠絕對文字座標堆疊；Settings 可切換最大化而不改 page contract；desktop widget plugin 直接繪製在 wallpaper Background surface。

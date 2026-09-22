@@ -18,3 +18,10 @@ Earlier NVIDIA/Qt observations motivated that compatibility helper and descripto
 The separate Qt render-element library embeds explicitly listed shaders from `src/compositor/renderer/opengl/shaders/`. `ShaderAssetLoader` recognizes vertex/fragment/geometry/compute/tessellation suffixes and aliases, including `.glsl`, `.glal` and `.shader` when a stage suffix or `#pragma ludash_stage` supplies the stage. The loader adds an appropriate GLSL version when absent; the active context must support it.
 
 Renderer tests check embedded resource relocation, software OpenGL and failure cleanup. They do not prove absence of all GPU/fence leaks or that those retained Qt effects are connected to the wlroots scene. See [graphics](GRAPHICS.md), [effects](EFFECTS.md) and [testing](TESTING_AND_FILES.md).
+
+
+## Shared surface design
+
+The 1.0.1a shell uses one desktop design language for Dashboard, Settings, wallpaper pickers and portal wrappers: strong outer surfaces, glass cards, hairline borders, shared radii and bounded layouts. Desktop-visible plugins should consume host theme/context values instead of inventing unrelated window chrome.
+
+Dashboard telemetry uses bounded layouts rather than absolute text placement. Settings supports a maximized presentation without changing page contracts. Desktop widget plugins render in the wallpaper Background surface.

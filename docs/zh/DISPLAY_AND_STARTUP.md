@@ -48,3 +48,8 @@ Shell 會顯示 LunaDash logo/loading，從第一個 rendered frame 起至少 65
 安裝後優先載入安裝路徑旁的 QML，不依賴 source checkout。`lunadash-compositor --version` 與 session log 可確認實際 revision。
 
 `--profile` 可輸出 event-loop stall。CI 能驗證啟動與 protocol 行為，但實際 FPS、實體 refresh rate、DDC/背光仍要在目標硬體測試。
+
+
+## Portal 視窗外觀
+
+1.0.1a FileChooser 不再讓 host window decoration 決定可見外框。LunaDash 的 frameless dialog 自己提供 header、border 與 Location control，內部才嵌入 non-native Qt file view，因此不應再出現和 LunaDash dark UI 不一致的白色系統標題列。

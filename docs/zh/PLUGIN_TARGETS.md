@@ -63,3 +63,8 @@ Stacking 時 Alt+left-drag 移動，Shift+Alt+left-drag resize；focus-to-front�
 5. 補文件與 regression test。
 
 Registry entry 本身不會自動實作 host hook；沒有實際 mount/call 的 target 不應發布。
+
+
+## 1.0.1a desktop-widget 規則
+
+`desktop-widgets` 使用 `selection: multiple`。Host 會把每個已啟用 QML item 嵌入 wallpaper 的 Background surface，可同時存在多個 widget，而且一般 application window 一定在其上方。

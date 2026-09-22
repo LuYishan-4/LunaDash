@@ -40,3 +40,10 @@ LUDASH_GRAPHICS=opengl LUDASH_TEST_NO_SHELL=1 \
 ```
 
 最後一個是 headless wlroots/pixman session，不等於實體 GPU 測試。Separate software OpenGL regression 請看 [Graphics](GRAPHICS.md)。
+
+
+## 1.0.1a UI／process 安全補充
+
+Settings hardware probe 與 portal path 不會把使用者輸入拼成 shell command。FileChooser Location 只接受經 Qt 驗證的本機絕對路徑或本機 `file://` URL；system-tool 只從固定 executable/argument allowlist 啟動。
+
+登出必須明確送出 `quit confirm`。Compositor 會把 clean event-loop shutdown 與 fatal signal 分開記錄，方便判斷 session 消失是正常登出還是真正 crash。Native plugin 仍在 compositor process 內執行，必須視為可信任程式碼。
