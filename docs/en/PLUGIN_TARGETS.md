@@ -4,8 +4,6 @@
 
 ## Visual targets (`quickshell` / `opengl`)
 
-Each registry entry also declares `selection`: `single` means at most one plugin implementation may be enabled for that target, while `multiple` allows concurrent implementations. LunaDash currently keeps `desktop-widgets` multi-select; panel/taskbar, window rules, animations, layout and the other single feature surfaces are single-owner. Enabling a conflicting single-owner plugin requires confirmation and then disables the previous target configuration. The runtime also refuses to activate a second owner if configuration is edited outside the UI.
-
 Every visual slot has its host's dimensions. The host retains layer placement, input region and open/close lifecycle; the plugin supplies content. Common context: `target`, `source` (built-in item), `builtinSettings`, `mode`, `reportError(message)`. Module surfaces also provide `module`, `moduleId`, `style`, `config`, `opened`. Built-in `opacity` affects that target's original content; plugin settings are independent.
 
 | Target | Original feature / extra context |
@@ -52,7 +50,7 @@ Window layout normally forbids overlap. A native replacement can declare `"windo
 
 Visual stacking order follows focus-to-front. In stacking mode, taskbar activation restores/focuses a window without automatically zooming it; other windows remain present behind a maximized window. Alt+left-drag moves each window, Shift+Alt+left-drag resizes it independently, and validated xdg-shell titlebar move/edge-resize requests use the same interaction path. Native client popups/dialogs retain host handling. Windows without client decorations can use these shortcuts; this SDK does not add a server-side titlebar protocol.
 
-LunaDash no longer bundles runtime example plugins. The generic SDK templates under `templates/plugins/` cover C, C++, Quickshell, OpenGL and window-animation authoring; real published packages are validated through the external LunaDash-Plugins registry.
+The [stacking-windows example](../../examples/plugins/stacking-windows/README.md) demonstrates this policy and a configurable initial cascade. It is installed disabled alongside the native fade example when example plugins are enabled. The four generic templates cover C, C++, Quickshell and OpenGL.
 
 ## Adding a host feature
 
