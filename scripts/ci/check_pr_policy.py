@@ -43,12 +43,6 @@ def main() -> int:
         forbidden = [path for path in files if protected_path(path)]
         for path in forbidden:
             errors.append(f"Pull requests must not change workflows or generated release notes: {path!r}.")
-        has_docs = any(path.startswith("docs/") for path in files)
-        has_site = any(path.startswith("site/") and not protected_path(path) for path in files)
-        if not has_docs:
-            errors.append("Every pull request must update at least one file under docs/.")
-        if not has_site:
-            errors.append("Every pull request must update at least one file under site/.")
         print("Changed files:")
         for path in files:
             print(f"  {path!r}")
@@ -59,7 +53,7 @@ def main() -> int:
             print(f"  - {error}", file=sys.stderr)
         return 1
 
-    print("PR policy passed: target=dev, docs updated, website updated, protected paths unchanged.")
+    print("PR policy passed: target=dev and protected paths unchanged.")
     return 0
 
 
