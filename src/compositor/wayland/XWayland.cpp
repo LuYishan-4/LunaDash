@@ -6,6 +6,7 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include <algorithm>
+#include <QTimer>
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -185,21 +186,19 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
   auto *self = state->impl;
   auto *client = state->client;
 
-  // X11 clients can disappear without a clean unmap/dissociate sequence
-  // (GPU Screen Recorder creates and destroys short-lived helper windows this
-  // way). Tear down every compositor-owned reference before the XWM surface
-  // disappears so late scene/input work never dereferences ClientWindow.
-  if (client->mapped)
-    handleXWaylandUnmap(&state->unmap.listener, nullptr);
+  // wlroots emits unmap before destroy for mapped XWayland surfaces, and
+  // its scene helpers participate in the wl_surface destruction lifecycle.
+  // Do not synthesize another unmap or destroy the scene tree from inside the
+  // XWM destroy signal: short-lived override-redirect windows (GSR overlays,
+  // menus, tooltips) can otherwise re-enter layout and double-destroy scene
+  // state while wlroots is still dispatching the same destruction sequence.
   if (self->seat && client->wlSurface &&
       self->seat->keyboard_state.focused_surface == client->wlSurface)
     wlr_seat_keyboard_notify_clear_focus(self->seat);
-  if (client->sceneTree) {
-    client->sceneTree->node.data = nullptr;
-    wlr_scene_node_destroy(&client->sceneTree->node);
-    client->sceneTree = nullptr;
-  }
+  client->mapped = false;
   client->wlSurface = nullptr;
+  client->sceneTree = nullptr;
+  client->xwayland = nullptr;
 
   detachListener(state->associate);
   detachListener(state->dissociate);
@@ -222,7 +221,14 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
     state->surface->data = nullptr;
   self->xwaylandSurfaces.removeAll(state);
   client->nativeState = nullptr;
-  self->q->removeClient(client);
+
+  // Keep ClientWindow alive until the current Wayland/XWM signal dispatch has
+  // fully unwound. Scene nodes and other wlroots listeners may still be
+  // finishing callbacks that carry this pointer as node.data.
+  auto *owner = self->q;
+  QTimer::singleShot(0, owner, [owner, client] {
+    owner->removeClient(client);
+  });
   delete state;
 #endif
 }
