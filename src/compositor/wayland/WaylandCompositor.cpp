@@ -695,6 +695,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
       !client->surface->initialized)
     return;
 
+  ClientWindow *previous = focused_;
   if (focused_ && focused_ != client && focused_->toplevel &&
       focused_->surface && focused_->surface->initialized)
     wlr_xdg_toplevel_set_activated(focused_->toplevel, false);
@@ -725,6 +726,18 @@ void WaylandCompositor::focus(ClientWindow *client) {
     windowAnimations_->focus(client->sceneTree, client->geometry);
   if (changed)
     wlr_xdg_toplevel_set_activated(client->toplevel, true);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  if (changed) {
+    if (previous && previous->nativeState)
+      d->updateLegacyForeignToplevel(
+          static_cast<WaylandCompositor::Impl::ToplevelState *>(
+              previous->nativeState));
+    if (client->nativeState)
+      d->updateLegacyForeignToplevel(
+          static_cast<WaylandCompositor::Impl::ToplevelState *>(
+              client->nativeState));
+  }
+#endif
   d->focusSurface(client->surface->surface);
   publishWindowLayout();
 }
@@ -736,7 +749,14 @@ void WaylandCompositor::focusNext(int direction) {
         client->workspace == workspace_)
       visible << client.get();
   if (visible.isEmpty()) {
+    ClientWindow *previous = focused_;
     focused_ = nullptr;
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+    if (d && previous && previous->nativeState)
+      d->updateLegacyForeignToplevel(
+          static_cast<WaylandCompositor::Impl::ToplevelState *>(
+              previous->nativeState));
+#endif
     if (d && d->seat)
       wlr_seat_keyboard_notify_clear_focus(d->seat);
     return;
@@ -764,6 +784,12 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
   client->maximized = maximized;
   if (client->toplevel)
     wlr_xdg_toplevel_set_maximized(client->toplevel, maximized);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  if (d && client->nativeState)
+    d->updateLegacyForeignToplevel(
+        static_cast<WaylandCompositor::Impl::ToplevelState *>(
+            client->nativeState));
+#endif
 }
 
 void WaylandCompositor::synchronizeWindowFocus() {

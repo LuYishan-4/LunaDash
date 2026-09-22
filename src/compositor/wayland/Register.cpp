@@ -115,6 +115,13 @@ bool WaylandCompositor::Impl::initialize() {
 
   xdgShell = wlr_xdg_shell_create(display, 3);
   layerShell = wlr_layer_shell_v1_create(display, 4);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  // Keep the wlroots toplevel-management compatibility global alongside the
+  // newer ext-foreign-toplevel-list protocol. Native Wayland applications
+  // such as GPU Screen Recorder UI still probe this interface for the active
+  // toplevel and its title/app-id.
+  foreignToplevelManager = wlr_foreign_toplevel_manager_v1_create(display);
+#endif
   screencopy = wlr_screencopy_manager_v1_create(display);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   foreignToplevelList = wlr_ext_foreign_toplevel_list_v1_create(display, 1);
@@ -135,6 +142,10 @@ bool WaylandCompositor::Impl::initialize() {
   if (!xdgShell || !layerShell || !screencopy || !xdgOutput || !idleInhibit ||
       !inputMethodManager || !textInputManager || !virtualKeyboardManager)
     return fail("wlroots could not create required Wayland protocol globals.");
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  if (!foreignToplevelManager)
+    return fail("wlroots could not create foreign-toplevel management.");
+#endif
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   if (!foreignToplevelList || !imageCopyCapture || !foreignToplevelCaptureSource)
     return fail("wlroots could not create window capture protocol globals.");

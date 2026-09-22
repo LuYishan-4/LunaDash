@@ -38,6 +38,11 @@ public:
     wlr_ext_foreign_toplevel_handle_v1 *foreignHandle = nullptr;
     wlr_ext_image_capture_source_v1 *imageCaptureSource = nullptr;
 #endif
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+    // Compatibility global used by native Wayland utilities such as
+    // GPU Screen Recorder UI to discover the active/focused toplevel.
+    wlr_foreign_toplevel_handle_v1 *legacyForeignHandle = nullptr;
+#endif
     Slot<ToplevelState> map;
     Slot<ToplevelState> unmap;
     Slot<ToplevelState> commit;
@@ -143,6 +148,9 @@ public:
 
   wlr_xdg_shell *xdgShell = nullptr;
   wlr_layer_shell_v1 *layerShell = nullptr;
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  wlr_foreign_toplevel_manager_v1 *foreignToplevelManager = nullptr;
+#endif
   wlr_seat *seat = nullptr;
   wlr_cursor *cursor = nullptr;
   wlr_xcursor_manager *cursorManager = nullptr;
@@ -382,6 +390,11 @@ public:
   static void destroyForeignToplevel(ToplevelState *state);
   static void handleForeignToplevelCaptureRequest(wl_listener *listener,
                                                   void *data);
+#endif
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  static void updateLegacyForeignToplevel(ToplevelState *state);
+  static void createLegacyForeignToplevel(ToplevelState *state);
+  static void destroyLegacyForeignToplevel(ToplevelState *state);
 #endif
 };
 

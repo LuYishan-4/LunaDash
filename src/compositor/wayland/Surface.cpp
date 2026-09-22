@@ -57,6 +57,51 @@ void WaylandCompositor::Impl::destroyForeignToplevel(ToplevelState *state) {
   state->foreignHandle = nullptr;
 }
 #endif
+
+
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+void WaylandCompositor::Impl::updateLegacyForeignToplevel(
+    ToplevelState *state) {
+  if (!state || !state->legacyForeignHandle || !state->client)
+    return;
+  const QByteArray title = state->client->title.toUtf8();
+  const QByteArray appId = state->client->appId.toUtf8();
+  wlr_foreign_toplevel_handle_v1_set_title(state->legacyForeignHandle,
+                                            title.constData());
+  wlr_foreign_toplevel_handle_v1_set_app_id(state->legacyForeignHandle,
+                                             appId.constData());
+  wlr_foreign_toplevel_handle_v1_set_activated(
+      state->legacyForeignHandle,
+      state->client->mapped && !state->client->minimized &&
+          state->impl->q->focused_ == state->client);
+  wlr_foreign_toplevel_handle_v1_set_minimized(state->legacyForeignHandle,
+                                                state->client->minimized);
+  wlr_foreign_toplevel_handle_v1_set_maximized(state->legacyForeignHandle,
+                                                state->client->maximized);
+}
+
+void WaylandCompositor::Impl::createLegacyForeignToplevel(
+    ToplevelState *state) {
+  if (!state || state->legacyForeignHandle || !state->client ||
+      !state->client->mapped || !state->impl->foreignToplevelManager)
+    return;
+  state->legacyForeignHandle = wlr_foreign_toplevel_handle_v1_create(
+      state->impl->foreignToplevelManager);
+  if (!state->legacyForeignHandle)
+    return;
+  state->legacyForeignHandle->data = state;
+  updateLegacyForeignToplevel(state);
+}
+
+void WaylandCompositor::Impl::destroyLegacyForeignToplevel(
+    ToplevelState *state) {
+  if (!state || !state->legacyForeignHandle)
+    return;
+  state->legacyForeignHandle->data = nullptr;
+  wlr_foreign_toplevel_handle_v1_destroy(state->legacyForeignHandle);
+  state->legacyForeignHandle = nullptr;
+}
+#endif
 void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
   if (!client || !client->surface || !client->toplevel ||
       !client->surface->initialized)
@@ -193,6 +238,9 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   // Only mapped windows belong in the portal's selectable toplevel list.
   createForeignToplevel(state);
 #endif
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  createLegacyForeignToplevel(state);
+#endif
   if (!client->initialRuleApplied && !client->utility && !client->floating) {
     const auto rule =
         initialWindowRule(*state->impl->q->pluginManager_,
@@ -238,6 +286,9 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   destroyForeignToplevel(state);
 #endif
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  destroyLegacyForeignToplevel(state);
+#endif
   state->client->mapped = false;
   state->impl->q->windowSwitcher_->remove(state->client->id);
   if (state->impl->pointerWindow == state->client->id)
@@ -272,6 +323,9 @@ void WaylandCompositor::Impl::handleToplevelMetadata(wl_listener *listener,
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   updateForeignToplevel(state);
 #endif
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  updateLegacyForeignToplevel(state);
+#endif
   state->impl->q->arrange();
 }
 
@@ -293,6 +347,9 @@ void WaylandCompositor::Impl::handleToplevelMinimize(wl_listener *listener,
     return;
   state->client->minimized = true;
   state->impl->q->windowLayout_->setMinimized(state->client->id, true);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  updateLegacyForeignToplevel(state);
+#endif
   state->impl->q->arrange();
   state->impl->q->synchronizeWindowFocus();
 }
@@ -319,6 +376,9 @@ void WaylandCompositor::Impl::handleToplevelFullscreen(wl_listener *listener,
   const bool fullscreen = state->client->toplevel->requested.fullscreen;
   state->impl->q->setMaximized(state->client, fullscreen);
   wlr_xdg_toplevel_set_fullscreen(state->client->toplevel, fullscreen);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  updateLegacyForeignToplevel(state);
+#endif
   state->impl->q->arrange();
   if (fullscreen)
     state->impl->q->focus(state->client);
@@ -360,6 +420,9 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   detachListener(state->requestFullscreen);
   detachListener(state->requestMove);
   detachListener(state->requestResize);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  destroyLegacyForeignToplevel(state);
+#endif
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   destroyForeignToplevel(state);
   if (state->imageCaptureScene) {

@@ -64,6 +64,7 @@ jobs:
                   grep -Eq "interface: 'wl_data_device_manager',[[:space:]]+version:[[:space:]]+([3-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_data_control_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_layer_shell_v1'" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwlr_foreign_toplevel_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_screencopy_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_text_input_manager_v3'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_input_method_manager_v2'" build-wayland/core-protocol-globals.txt
@@ -162,6 +163,7 @@ jobs:
                         wayland-info > build-modern/window-capture-globals.txt
                       cat "$log"
                       cat build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'zwlr_foreign_toplevel_manager_v1'"'"'" build-modern/window-capture-globals.txt
                       grep -q "interface: '"'"'ext_foreign_toplevel_list_v1'"'"'" build-modern/window-capture-globals.txt
                       grep -q "interface: '"'"'ext_image_copy_capture_manager_v1'"'"'" build-modern/window-capture-globals.txt
                       grep -q "interface: '"'"'ext_output_image_capture_source_manager_v1'"'"'" build-modern/window-capture-globals.txt
