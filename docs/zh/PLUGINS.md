@@ -104,7 +104,9 @@ lunadashctl open-settings plugins
 
 搜尋順序先 user data，再 system data，並保留舊 path 相容。
 
-## Plugin Store
+## 社群 Registry 與 Plugin Store
+
+社群 plugin 統一透過 [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins) 投稿。每個 plugin 放在 `plugins/<id>/`，PR 會依 LunaDash SDK 2 的 target、manifest 與 settings schema 驗證，必須通過 registry CI 與 maintainer review 後才會進入產生的 catalogue；同一份 reviewed registry 也由 Astro 網站提供瀏覽。
 
 Settings → Plugins → Store 現在直接讀取 [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins) 的 reviewed registry。Runtime 預設透過 HTTPS 取得 `https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json`，在交給 QML 前驗證 catalogue 格式、plugin ID、target/type、tags 與 remote URL；網路不可用時使用內建的同版 registry fallback。開發者可用 `LUNADASH_PLUGIN_CATALOG_URL` 指向其他 HTTPS index，或設為 `off` 停用遠端 refresh。
 

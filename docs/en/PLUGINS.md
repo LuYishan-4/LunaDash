@@ -108,7 +108,9 @@ The corresponding control commands are `lunadashctl extension-save '<JSON>'` and
 
 Discovery prefers the user's data directory, then system data directories: `lunadash/plugins`, legacy `lunadash/shell/plugins`, legacy `ludash/plugins`; an executable-adjacent `plugins` directory supports development builds. Legacy schema-1 QML widgets continue as desktop widgets. The old Qt Quick native effect ABI is rejected with a rebuild message; it never drove the active wlroots scene. Existing trusted custom module QML remains a migration path, but new plugin packages use SDK 2.
 
-## Plugin Store
+## Community registry and Plugin Store
+
+Community plugins are published through [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins). A submission lives in `plugins/<id>/`, is validated against the SDK 2 target, manifest and settings contracts, and must pass registry CI and maintainer review before it can appear in the generated catalogue. The companion Astro site browses the same reviewed registry.
 
 Settings → Plugins → Store reads the reviewed registry from [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins). The runtime fetches `https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json` over HTTPS and validates the catalogue identity, target/type contract, tags and remote URLs before exposing entries to QML. A bundled copy of the same registry is used when the network catalogue is unavailable. Set `LUNADASH_PLUGIN_CATALOG_URL` to another HTTPS index for development, or to `off` to disable network refresh.
 
