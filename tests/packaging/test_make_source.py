@@ -75,8 +75,7 @@ class SourceArchiveTests(unittest.TestCase):
             for name in (
                 "CMakeLists.txt", "cmake/plugins/LunaDashPlugin.cmake",
                 "cmake/plugins/SettingsSchema.py", "src/core/plugins/PluginApi.h",
-                "data/plugins/targets.json", "data/plugins/fade/Effect.cpp",
-                "data/plugins/stacking-windows/StackingWindows.cpp",
+                "data/plugins/targets.json", "data/plugins/catalog.json",
                 "data/modules/registry.json", "templates/plugins/effect-c/Effect.c",
                 "templates/plugins/effect-cpp/Effect.cpp",
                 "templates/plugins/quickshell/Main.qml",
@@ -92,6 +91,12 @@ class SourceArchiveTests(unittest.TestCase):
             self.assertFalse(any("__pycache__" in name or name.endswith(".pyc")
                                  for name in names))
             self.assertNotIn(PREFIX + ".git", names)
+            self.assertFalse(any(
+                name.startswith(PREFIX + "data/plugins/fade/") or
+                name.startswith(PREFIX + "data/plugins/stacking-windows/") or
+                name.startswith(PREFIX + "qml/plugins/digital-clock/")
+                for name in names
+            ))
             self.assertEqual(
                 archive.extractfile(PREFIX + ".lunadash-revision").read().decode().strip(),
                 self.revision,

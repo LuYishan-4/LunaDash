@@ -134,6 +134,128 @@ private Q_SLOTS:
     QVERIFY(!saveExtensionConfiguration(QByteArray(24577, ' '), &error));
     QCOMPARE(readExtensionConfiguration(), previous);
   }
+  void externalMultiTarget() {
+    const auto source =
+        QString::fromLocal8Bit(qgetenv("LUNADASH_EXTERNAL_PLUGIN_DIR"));
+    if (source.isEmpty() || !QFile::exists(source + "/metadata.json"))
+      QSKIP("External multi-target plugin package was not supplied");
+
+    const auto directory = root + "/org.lunadash.kde-behavior";
+    QVERIFY(copyPlugin(source, directory));
+    const auto descriptors =
+        readPluginMetadataTargets(directory + "/metadata.json");
+    QCOMPARE(descriptors.size(), 3);
+
+    QSet<QString> targets;
+    for (const auto &descriptor : descriptors) {
+      QVERIFY2(descriptor.error.isEmpty(), qPrintable(descriptor.error));
+      targets.insert(descriptor.target);
+      QVERIFY(!descriptor.enabled);
+    }
+    QCOMPARE(targets,
+             QSet<QString>({"panel", "window-rules", "window-animation"}));
+
+    const QJsonObject configuration{
+        {"schemaVersion", 1},
+        {"builtins", QJsonObject{}},
+        {"plugins",
+         QJsonObject{
+             {"org.lunadash.kde-behavior",
+              QJsonObject{
+                  {"enabled", true},
+                  {"targets",
+                   QJsonObject{
+                       {"panel",
+                        QJsonObject{
+                            {"enabled", true},
+                            {"mode", "replace"},
+                            {"settings",
+                             QJsonObject{{"compact", true},
+                                         {"showLabels", false},
+                                         {"showWorkspaceSwitcher", true}}}}},
+                       {"window-rules",
+                        QJsonObject{
+                            {"enabled", true},
+                            {"mode", "replace"},
+                            {"settings",
+                             QJsonObject{{"workspacePolicy", "first"},
+                                         {"maximizeNewWindows", true}}}}},
+                       {"window-animation",
+                        QJsonObject{
+                            {"enabled", true},
+                            {"mode", "replace"},
+                            {"settings",
+                             QJsonObject{{"duration", 333},
+                                         {"enterOffset", 7},
+                                         {"focusOpacity", 0.91},
+                                         {"exitScale", 0.95},
+                                         {"easing", "outQuint"}}}}}}}}}}};
+    save(configuration);
+
+    PluginManager manager;
+    manager.refresh();
+    const auto snapshot = manager.snapshot();
+    const auto installed = snapshot.value("installed").toArray();
+    QCOMPARE(installed.size(), 3);
+    for (const auto &value : installed) {
+      const auto item = value.toObject();
+      QCOMPARE(item.value("id").toString(),
+               QString("org.lunadash.kde-behavior"));
+      QVERIFY2(item.value("available").toBool(),
+               qPrintable(item.value("error").toString()));
+    }
+
+    const auto panel = std::find_if(
+        installed.begin(), installed.end(), [](const QJsonValue &value) {
+          return value.toObject().value("target").toString() == "panel";
+        });
+    QVERIFY(panel != installed.end());
+    QVERIFY(panel->toObject().value("settings").toObject().value("compact").toBool());
+    QVERIFY(!panel->toObject()
+                 .value("settings")
+                 .toObject()
+                 .value("showLabels")
+                 .toBool());
+
+    const auto rule = initialWindowRule(
+        manager, {{"appId", "org.example.App"}, {"title", "Example"}},
+        4, false, 10);
+    QCOMPARE(rule.value("workspace").toInt(), 0);
+    QVERIFY(rule.value("maximized").toBool());
+
+    const QJsonObject preferences{
+        {"animations", true}, {"animationDuration", 200}};
+    const auto profile = windowAnimationProfile(
+        manager, preferences, windowTemplateForKey("tiling"));
+    QCOMPARE(profile.value("duration").toInt(), 333);
+    QCOMPARE(profile.value("enterOffset").toInt(), 7);
+    QCOMPARE(profile.value("easing").toString(), QString("outQuint"));
+
+    auto document = readExtensionConfiguration();
+    auto packages = document.value("plugins").toObject();
+    auto package =
+        packages.value("org.lunadash.kde-behavior").toObject();
+    auto targetConfigs = package.value("targets").toObject();
+    auto animation = targetConfigs.value("window-animation").toObject();
+    animation["enabled"] = false;
+    targetConfigs["window-animation"] = animation;
+    package["targets"] = targetConfigs;
+    packages["org.lunadash.kde-behavior"] = package;
+    document["plugins"] = packages;
+    save(document);
+    manager.refresh();
+    QCOMPARE(windowAnimationProfile(
+                 manager, preferences, windowTemplateForKey("tiling"))
+                 .value("duration")
+                 .toInt(),
+             200);
+    QCOMPARE(initialWindowRule(
+                 manager, {{"appId", "org.example.App2"}}, 3, false, 10)
+                 .value("workspace")
+                 .toInt(),
+             0);
+  }
+
   void nativeLifecycle() {
     const auto source =
         QCoreApplication::applicationDirPath() + "/plugins/org.ludash.fade";
