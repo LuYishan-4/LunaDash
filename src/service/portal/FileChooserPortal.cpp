@@ -10,9 +10,13 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QLabel>
+#include <QLayout>
+#include <QLineEdit>
 #include <QStandardPaths>
 #include <QUrl>
 #include <QVariantMap>
+#include <QWidget>
 
 namespace LunaDash {
 namespace {
@@ -37,6 +41,16 @@ QString initialDirectory(const QVariantMap &options) {
              : path;
 }
 
+QString localPath(QString value) {
+  value = value.trimmed();
+  const QUrl url(value);
+  if (url.isValid() && url.isLocalFile())
+    value = url.toLocalFile();
+  if (!QFileInfo(value).isAbsolute())
+    return {};
+  return QDir::cleanPath(value);
+}
+
 QVariantMap uriResults(const QStringList &paths) {
   QStringList uris;
   for (const auto &path : paths) {
@@ -48,11 +62,57 @@ QVariantMap uriResults(const QStringList &paths) {
   return {{QStringLiteral("uris"), uris}};
 }
 
-void styleDialog(QFileDialog &dialog) {
+void installLocationBar(QFileDialog &dialog, const QString &initial) {
+  auto *container = new QWidget(&dialog);
+  auto *layout = new QHBoxLayout(container);
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(8);
+
+  auto *label = new QLabel(LunaDash::translate("Location"), container);
+  label->setObjectName(QStringLiteral("muted"));
+  auto *field = new QLineEdit(container);
+  field->setObjectName(QStringLiteral("portalLocation"));
+  field->setClearButtonEnabled(true);
+  field->setPlaceholderText(
+      LunaDash::translate("Paste an absolute path or file:// URL"));
+  field->setText(QDir::cleanPath(initial));
+  layout->addWidget(label);
+  layout->addWidget(field, 1);
+
+  if (dialog.layout())
+    dialog.layout()->addWidget(container);
+
+  QObject::connect(&dialog, &QFileDialog::directoryEntered, field,
+                   [field](const QString &path) { field->setText(path); });
+  QObject::connect(field, &QLineEdit::returnPressed, &dialog,
+                   [&dialog, field] {
+                     const QString path = localPath(field->text());
+                     if (path.isEmpty()) {
+                       field->setProperty("invalidPath", true);
+                       field->style()->unpolish(field);
+                       field->style()->polish(field);
+                       return;
+                     }
+                     field->setProperty("invalidPath", false);
+                     const QFileInfo info(path);
+                     if (info.isDir()) {
+                       dialog.setDirectory(path);
+                     } else {
+                       const QString parent = info.absolutePath();
+                       if (QFileInfo(parent).isDir())
+                         dialog.setDirectory(parent);
+                       dialog.selectFile(path);
+                     }
+                   });
+}
+
+void styleDialog(QFileDialog &dialog, const QString &initial) {
   dialog.setOption(QFileDialog::DontUseNativeDialog, true);
   dialog.setOption(QFileDialog::DontResolveSymlinks, false);
-  dialog.resize(880, 580);
+  dialog.resize(980, 650);
+  dialog.setMinimumSize(760, 480);
   LunaDash::watchDesktopTheme(&dialog);
+  installLocationBar(dialog, initial);
 }
 } // namespace
 
@@ -60,10 +120,11 @@ uint FileChooserPortal::OpenFile(const QDBusObjectPath &, const QString &,
                                  const QString &, const QString &title,
                                  const QVariantMap &options,
                                  QVariantMap &results) {
+  const QString initial = initialDirectory(options);
   QFileDialog dialog(nullptr,
                      title.isEmpty() ? LunaDash::translate("Open file") : title,
-                     initialDirectory(options));
-  styleDialog(dialog);
+                     initial);
+  styleDialog(dialog, initial);
   const bool directory =
       options.value(QStringLiteral("directory"), false).toBool();
   const bool multiple =
@@ -89,10 +150,11 @@ uint FileChooserPortal::SaveFile(const QDBusObjectPath &, const QString &,
                                  const QString &, const QString &title,
                                  const QVariantMap &options,
                                  QVariantMap &results) {
+  const QString initial = initialDirectory(options);
   QFileDialog dialog(nullptr,
                      title.isEmpty() ? LunaDash::translate("Save file") : title,
-                     initialDirectory(options));
-  styleDialog(dialog);
+                     initial);
+  styleDialog(dialog, initial);
   dialog.setAcceptMode(QFileDialog::AcceptSave);
   dialog.setFileMode(QFileDialog::AnyFile);
   const auto currentName =
@@ -114,10 +176,11 @@ uint FileChooserPortal::SaveFiles(const QDBusObjectPath &, const QString &,
                                   const QString &, const QString &title,
                                   const QVariantMap &options,
                                   QVariantMap &results) {
+  const QString initial = initialDirectory(options);
   QFileDialog dialog(
       nullptr, title.isEmpty() ? LunaDash::translate("Choose folder") : title,
-      initialDirectory(options));
-  styleDialog(dialog);
+      initial);
+  styleDialog(dialog, initial);
   dialog.setAcceptMode(QFileDialog::AcceptOpen);
   dialog.setFileMode(QFileDialog::Directory);
   dialog.setOption(QFileDialog::ShowDirsOnly, true);

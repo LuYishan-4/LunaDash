@@ -26,7 +26,14 @@ QLabel#eyebrow { color: #9ccbfb; font-size: 11px; letter-spacing: 2px; }
 QLabel#heroTitle { font-size: 32px; font-weight: bold; }
 QLabel#heading { font-size: 24px; font-weight: bold; }
 QLabel#description { color: #aab7d1; font-size: 14px; }
-QLineEdit, QPlainTextEdit, QTreeView, QListView { background: #141c31; border: 1px solid #465777; border-radius: 7px; padding: 9px; selection-background-color: #2c3b5c; }
+QLineEdit, QPlainTextEdit, QTreeView, QListView { background: #141c31; border: 1px solid #465777; border-radius: 11px; padding: 9px; selection-background-color: #2c3b5c; }
+QLineEdit#portalLocation { background: #10192c; border-radius: 12px; padding: 9px 12px; }
+QLineEdit#portalLocation[invalidPath="true"] { border-color: #f2b8c6; }
+QDialog#screenShareChooser { background: #0b1020; }
+QListWidget#screenShareSources { background: #10192c; border: 1px solid #465777; border-radius: 18px; padding: 12px; outline: none; }
+QListWidget#screenShareSources::item { background: #162036; border: 1px solid #334766; border-radius: 16px; padding: 10px; margin: 3px; }
+QListWidget#screenShareSources::item:hover { background: #202b45; border-color: #607aa2; }
+QListWidget#screenShareSources::item:selected { background: #243755; border-color: #9ccbfb; }
 QTreeView { alternate-background-color: #162036; }
 QTreeView::item { min-height: 30px; }
 QHeaderView::section { background: #1a2440; color: #aab7d1; border: none; padding: 7px; }
