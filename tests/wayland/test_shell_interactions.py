@@ -162,6 +162,24 @@ with tempfile.TemporaryDirectory(prefix="ludash-shell-test-") as runtime:
                 "Window did not restore",
             )
 
+            # F12 is a fixed compositor shortcut for true fullscreen. It must
+            # cover the whole output, including the panel/gap area.
+            subprocess.run(["xdotool", "key", "F12"], check=True)
+            state = wait_for(
+                lambda state: windows(state)[0].get("fullscreen") is True,
+                "F12 did not enter fullscreen",
+            )
+            fullscreen = windows(state)[0]
+            assert fullscreen["x"] == 0 and fullscreen["y"] == 0, fullscreen
+            assert fullscreen["width"] == state["display"]["width"], fullscreen
+            assert fullscreen["height"] == state["display"]["height"], fullscreen
+
+            subprocess.run(["xdotool", "key", "F12"], check=True)
+            wait_for(
+                lambda state: windows(state)[0].get("fullscreen") is False,
+                "Second F12 did not leave fullscreen",
+            )
+
             click(SETTINGS)
             wait_for(lambda state: state["layerSurfaces"] >= 3, "Settings did not open")
             state = request()
