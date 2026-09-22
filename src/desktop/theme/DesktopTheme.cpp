@@ -26,6 +26,20 @@ QLabel#eyebrow { color: #9ccbfb; font-size: 11px; letter-spacing: 2px; }
 QLabel#heroTitle { font-size: 32px; font-weight: bold; }
 QLabel#heading { font-size: 24px; font-weight: bold; }
 QLabel#description { color: #aab7d1; font-size: 14px; }
+QWidget#welcomePage { background: #0a0f1d; }
+QFrame#welcomeHero { background: #0f1728; border: 1px solid #52698d; border-radius: 24px; }
+QFrame#welcomeCard { background: #10192c; border: 1px solid #2f4263; border-radius: 18px; min-height: 122px; }
+QFrame#welcomeMark { background: #121f36; border: 1px solid #52698d; border-radius: 28px; }
+QLabel#welcomeEyebrow { color: #9ccbfb; font-size: 10px; font-weight: 600; letter-spacing: 2px; }
+QLabel#welcomeHeroTitle { color: #edf3ff; font-size: 30px; font-weight: 650; }
+QLabel#welcomeHeroDescription { color: #b7c5df; font-size: 13px; }
+QLabel#welcomeValue { color: #edf3ff; font-size: 17px; font-weight: 600; }
+QLabel#welcomeDetail { color: #aab7d1; font-size: 11px; }
+QLabel#welcomeMeta { color: #9fb1d0; font-size: 9px; letter-spacing: 1px; }
+QLabel#welcomeGlyph { color: #9ccbfb; font-size: 72px; }
+QPushButton#welcomeAction { background: #182541; border: 1px solid #334766; border-radius: 12px; }
+QPushButton#welcomeAction:hover { background: #223454; border-color: #607aa2; }
+
 QLineEdit, QPlainTextEdit, QTreeView, QListView { background: #141c31; border: 1px solid #465777; border-radius: 11px; padding: 9px; selection-background-color: #2c3b5c; }
 QLineEdit#portalLocation { background: #10192c; border-radius: 12px; padding: 9px 12px; }
 QLineEdit#portalLocation[invalidPath="true"] { border-color: #f2b8c6; }
