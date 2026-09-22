@@ -337,7 +337,14 @@ void WaylandCompositor::Impl::handleXWaylandMetadata(wl_listener *listener,
               std::max<int>(1, state->surface->width),
               std::max<int>(1, state->surface->height));
   }
-  state->impl->q->arrange();
+  // Property/class/geometry notifications are also emitted while XWM is
+  // still constructing a window. Do not feed those short-lived, unmapped
+  // helpers into the full workspace layout: the map handler will arrange the
+  // window once its wl_surface is actually ready. This avoids configure/layout
+  // churn for notification and recorder helper windows that may disappear
+  // within the same X11 event burst.
+  if (state->client->mapped)
+    state->impl->q->arrange();
 #endif
 }
 

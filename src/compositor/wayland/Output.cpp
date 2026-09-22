@@ -191,6 +191,13 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   }
   wlr_output_state_finish(&pending);
 
+  // Direct KMS recorders capture the primary scanout buffer, but hardware
+  // cursor planes are separate and are not reliably composited by all drivers
+  // (notably NVIDIA). Keep the cursor in the scene-rendered framebuffer on
+  // real login outputs so monitor recording sees exactly what LunaDash shows.
+  if (!self->nested)
+    wlr_output_lock_software_cursors(output, true);
+
   auto *state = new OutputState;
   state->impl = self;
   state->output = output;

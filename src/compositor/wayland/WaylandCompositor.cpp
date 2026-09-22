@@ -267,15 +267,19 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     if (auto *process = spawn({"--session"}, {}, false)) {
       connect(process, &QProcess::finished, this,
               [this](int code, QProcess::ExitStatus status) {
-                if (shuttingDown_ || testStopping_)
+                if (shuttingDown_ || testStopping_ || logoutPending_)
                   return;
-                if (status == QProcess::NormalExit && code == 0) {
-                  requestShutdown();
-                  return;
-                }
-                qWarning("LunaDash shell exited unexpectedly; restarting.");
+
+                // The shell is a recoverable client, not the session owner.
+                // A clean Quickshell exit must not silently log the user out:
+                // transient display/XWayland failures can make a shell quit
+                // normally even though the compositor and other clients are
+                // healthy. Explicit logout is carried by logoutPending_.
+                qWarning().noquote()
+                    << "LunaDash shell exited; restarting:"
+                    << "code" << code << "status" << status;
                 QTimer::singleShot(250, this, [this] {
-                  if (!shuttingDown_ && !testStopping_)
+                  if (!shuttingDown_ && !testStopping_ && !logoutPending_)
                     spawn({"--session", "--no-welcome"}, {}, false);
                 });
               });

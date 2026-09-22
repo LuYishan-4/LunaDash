@@ -81,7 +81,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                 "--socket",
                 "ludash-x11-test",
                 "--exit-after",
-                "30000",
+                "45000",
             ],
             env=env,
             stdout=log,
@@ -292,6 +292,48 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                     for client in value["clients"]
                 )
             )
+
+            # Recorder/notification helpers create and destroy X11 windows in
+            # very short bursts. Repeatedly exercise the same asynchronous
+            # XWM -> wl_surface -> ClientWindow teardown path and verify a
+            # destroyed helper cannot take the compositor down with it.
+            for _ in range(3):
+                previous = {
+                    client["id"]
+                    for client in request()["clients"]
+                    if client.get("x11")
+                }
+                result = request(
+                    "launch-x11",
+                    '"' + str(build / "ludash-desktop") + '" --app console',
+                )
+                assert "error" not in result, result
+                state = wait_for(
+                    lambda value: any(
+                        client["mapped"]
+                        and client.get("x11")
+                        and client["id"] not in previous
+                        for client in value["clients"]
+                    ),
+                    timeout=10,
+                )
+                transient = next(
+                    client
+                    for client in state["clients"]
+                    if client["mapped"]
+                    and client.get("x11")
+                    and client["id"] not in previous
+                )
+                request("close", str(transient["id"]))
+                wait_for(
+                    lambda value, window=transient["id"]: all(
+                        client["id"] != window for client in value["clients"]
+                    ),
+                    timeout=8,
+                )
+                assert process.poll() is None, (
+                    "Short-lived X11 window terminated the compositor"
+                )
 
             request("quit")
             assert process.wait(timeout=10) == 0
