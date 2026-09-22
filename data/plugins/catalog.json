@@ -3,6 +3,187 @@
   "format": "lunadash-plugin-index",
   "plugins": [
     {
+      "id": "org.lunadash.digitalclock",
+      "name": "Digital Clock",
+      "description": "A configurable desktop digital clock for LunaDash.",
+      "version": "2.0.0",
+      "author": "LuYishan",
+      "icon": "clock",
+      "targets": [
+        {
+          "id": "desktop-widgets",
+          "target": "desktop-widgets",
+          "type": "quickshell",
+          "mode": "augment",
+          "settings": {
+            "position": {
+              "type": "string",
+              "control": "select",
+              "label": "Position",
+              "default": "bottomRight",
+              "enum": [
+                "topLeft",
+                "topRight",
+                "bottomLeft",
+                "bottomRight"
+              ]
+            },
+            "marginX": {
+              "type": "integer",
+              "control": "number",
+              "label": "Horizontal margin",
+              "default": 34,
+              "minimum": 0,
+              "maximum": 240,
+              "step": 1
+            },
+            "marginY": {
+              "type": "integer",
+              "control": "number",
+              "label": "Vertical margin",
+              "default": 34,
+              "minimum": 0,
+              "maximum": 240,
+              "step": 1
+            },
+            "use24Hour": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Use 24-hour time",
+              "default": true
+            },
+            "showSeconds": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show seconds",
+              "default": false
+            },
+            "showDate": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show date",
+              "default": true
+            },
+            "scale": {
+              "type": "number",
+              "control": "slider",
+              "label": "Clock scale",
+              "default": 1.0,
+              "minimum": 0.7,
+              "maximum": 1.5,
+              "step": 0.05
+            },
+            "opacity": {
+              "type": "number",
+              "control": "slider",
+              "label": "Opacity",
+              "default": 1.0,
+              "minimum": 0.3,
+              "maximum": 1.0,
+              "step": 0.05
+            }
+          }
+        }
+      ],
+      "tags": [
+        "Widget",
+        "Clock",
+        "Desktop"
+      ],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.digitalclock",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/",
+      "license": "GPL-3.0-or-later",
+      "repository": "https://github.com/LuYishan-4/LunaDash-Plugins",
+      "featured": true,
+      "deprecated": false,
+      "type": "quickshell",
+      "target": "desktop-widgets",
+      "mode": "augment",
+      "settings": {
+        "position": {
+          "type": "string",
+          "control": "select",
+          "label": "Position",
+          "default": "bottomRight",
+          "enum": [
+            "topLeft",
+            "topRight",
+            "bottomLeft",
+            "bottomRight"
+          ]
+        },
+        "marginX": {
+          "type": "integer",
+          "control": "number",
+          "label": "Horizontal margin",
+          "default": 34,
+          "minimum": 0,
+          "maximum": 240,
+          "step": 1
+        },
+        "marginY": {
+          "type": "integer",
+          "control": "number",
+          "label": "Vertical margin",
+          "default": 34,
+          "minimum": 0,
+          "maximum": 240,
+          "step": 1
+        },
+        "use24Hour": {
+          "type": "boolean",
+          "control": "toggle",
+          "label": "Use 24-hour time",
+          "default": true
+        },
+        "showSeconds": {
+          "type": "boolean",
+          "control": "toggle",
+          "label": "Show seconds",
+          "default": false
+        },
+        "showDate": {
+          "type": "boolean",
+          "control": "toggle",
+          "label": "Show date",
+          "default": true
+        },
+        "scale": {
+          "type": "number",
+          "control": "slider",
+          "label": "Clock scale",
+          "default": 1.0,
+          "minimum": 0.7,
+          "maximum": 1.5,
+          "step": 0.05
+        },
+        "opacity": {
+          "type": "number",
+          "control": "slider",
+          "label": "Opacity",
+          "default": 1.0,
+          "minimum": 0.3,
+          "maximum": 1.0,
+          "step": 0.05
+        }
+      },
+      "homepage": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/",
+      "install": {
+        "files": [
+          {
+            "path": "metadata.json",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/metadata.json",
+            "sha256": "879d7504ac0ec0720dd07b204054c77b12d283abcf4cc3acef311a776cac05bb"
+          },
+          {
+            "path": "Main.qml",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/Main.qml",
+            "sha256": "729210c538f3fb91b386a3eff33af3591752d5c902389bed968c6afb5db0839f"
+          }
+        ]
+      }
+    },
+    {
       "id": "org.lunadash.kde-behavior",
       "name": "KDE Behavior Pack",
       "description": "KDE-inspired taskbar, window-rule and window-animation behavior packaged as one multi-target LunaDash plugin.",

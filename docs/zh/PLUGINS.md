@@ -135,6 +135,8 @@ lunadashctl open-settings plugins
 
 Settings → Plugins → Store 現在直接讀取 [LunaDash-Plugins](https://github.com/LuYishan-4/LunaDash-Plugins) 的 reviewed registry。Runtime 預設透過 HTTPS 取得 `https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json`，在交給 QML 前驗證 catalogue 格式、plugin ID、target/type、tags 與 remote URL；網路不可用時使用內建的同版 registry fallback。開發者可用 `LUNADASH_PLUGIN_CATALOG_URL` 指向其他 HTTPS index，或設為 `off` 停用遠端 refresh。
 
-Store 只改 discovery 來源，既有 SDK/CMake 安裝流程不變；真正執行的本機 package 仍必須通過 `metadata.json`、SDK receipt 與 native ABI 驗證。出現在 Store 不會自動啟用 native plugin。
+Store 除了 discovery，也支援 reviewed 的純 QML package 一鍵下載。只有 catalogue 明確提供 `install.files` 的 package 才會出現下載按鈕；LunaDash 逐檔以 HTTPS 下載、驗證 SHA-256、先寫入使用者暫存目錄、建立 SDK receipt，再重新驗證 `metadata.json`。下載完成後保持停用，使用者只需調整自動產生的參數並自行開啟。
+
+使用者下載的 package 位於 `~/.local/share/lunadash/plugins/<id>/`。Installed 卡片只對這個 user root 下的 plugin 顯示「刪除」；系統 plugin 不可從此處刪除。舊 schema 1 / legacy plugin 不再顯示於新版 Plugins QML，但 parser 保留 migration 相容。Native/effect package 仍走 SDK/CMake 安裝流程，Store 不會因為上架就自動啟用。
 
 Metadata/QML/native 都以使用者權限執行，protocol/session/system-service ownership 仍屬 host。

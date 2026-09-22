@@ -150,17 +150,74 @@ private Q_SLOTS:
     PluginManager manager;
     const auto snapshot = manager.snapshot();
     const auto remote = snapshot.value("remote").toArray();
-    QCOMPARE(remote.size(), 1);
-    const auto item = remote.first().toObject();
-    QCOMPARE(item.value("id").toString(),
-             QString("org.lunadash.kde-behavior"));
-    QCOMPARE(item.value("targets").toArray().size(), 3);
-    const auto source = item.value("sourceUrl").toString();
+    QCOMPARE(remote.size(), 2);
+
+    auto findRemote = [&](const QString &id) {
+      return std::find_if(remote.begin(), remote.end(),
+                          [&](const QJsonValue &value) {
+                            return value.toObject().value("id").toString() == id;
+                          });
+    };
+
+    const auto clock = findRemote("org.lunadash.digitalclock");
+    QVERIFY(clock != remote.end());
+    QCOMPARE(clock->toObject().value("targets").toArray().size(), 1);
+    QVERIFY(clock->toObject().value("installable").toBool());
+    QVERIFY(clock->toObject().value("install").toObject()
+                .value("files").toArray().size() >= 2);
+
+    const auto kde = findRemote("org.lunadash.kde-behavior");
+    QVERIFY(kde != remote.end());
+    QCOMPARE(kde->toObject().value("targets").toArray().size(), 3);
+    QVERIFY(!kde->toObject().value("installable").toBool());
+
+    const auto source = clock->toObject().value("sourceUrl").toString();
     QVERIFY2(source.startsWith(
                  "https://github.com/LuYishan-4/LunaDash-Plugins/"),
              qPrintable(source));
     QVERIFY(snapshot.value("storeSupported").toBool());
     QVERIFY(!snapshot.value("storeLoading").toBool());
+  }
+
+  void hidesLegacyPluginsAndRemovesUserPackages() {
+    const auto legacyDir = root + "/org.example.legacy";
+    QVERIFY(QDir().mkpath(legacyDir));
+    QVERIFY(writeFile(
+        legacyDir + "/metadata.json",
+        R"({"schemaVersion":1,"id":"org.example.legacy","name":"Legacy","version":"1","type":"quickshell","target":"desktop-widgets","entry":"Main.qml","enabledByDefault":false})"));
+    QVERIFY(writeFile(
+        legacyDir + "/Main.qml",
+        "import QtQuick\nItem {}\n"));
+
+    QVERIFY(createQmlPlugin(root, "org.example.removable", "desktop-widgets"));
+
+    PluginManager manager;
+    manager.refresh();
+    auto installed = manager.snapshot().value("installed").toArray();
+    QVERIFY(std::none_of(installed.begin(), installed.end(),
+                         [](const QJsonValue &value) {
+                           return value.toObject().value("id").toString() ==
+                                  "org.example.legacy";
+                         }));
+    auto removable = std::find_if(
+        installed.begin(), installed.end(), [](const QJsonValue &value) {
+          const auto item = value.toObject();
+          return item.value("id").toString() == "org.example.removable" &&
+                 item.value("removable").toBool();
+        });
+    QVERIFY(removable != installed.end());
+
+    QString error;
+    QVERIFY2(manager.removeInstalledPlugin("org.example.removable", &error),
+             qPrintable(error));
+    QVERIFY(!QFileInfo::exists(root + "/org.example.removable"));
+    installed = manager.snapshot().value("installed").toArray();
+    QVERIFY(std::none_of(installed.begin(), installed.end(),
+                         [](const QJsonValue &value) {
+                           return value.toObject().value("id").toString() ==
+                                  "org.example.removable";
+                         }));
+    QVERIFY(QDir(legacyDir).removeRecursively());
   }
 
   void configurationRecovery() {
