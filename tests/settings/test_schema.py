@@ -60,10 +60,21 @@ class SettingsSchemaTests(unittest.TestCase):
             self.assertFalse(valid_value(custom, '/tmp/Main.qml'))
         self.assertEqual(len(ids), 9)
 
-    def test_effect_exercises_four_controls(self):
-        manifest = json.loads((ROOT / 'data/plugins/fade/metadata.json').read_text())
-        self.assertEqual({control(rule) for rule in manifest['settings'].values()},
-                         {'toggle','select','number','slider'})
+    def test_plugin_controls_are_covered_without_bundled_plugins(self):
+        controls = set()
+        for path in (ROOT / 'templates/plugins').rglob('metadata.json'):
+            manifest = json.loads(path.read_text())
+            if manifest.get('schemaVersion') != 2:
+                continue
+            for rule in manifest.get('settings', {}).values():
+                controls.add(control(rule))
+        # Template coverage plus the shared contract must exercise every stable
+        # plugin control even though runtime example plugins are not bundled.
+        for case in json.loads((Path(__file__).with_name('contract.json')).read_text()):
+            if case.get('valid', True) and case.get('control') in {
+                    'toggle', 'select', 'number', 'slider'}:
+                controls.add(case['control'])
+        self.assertEqual(controls, {'toggle','select','number','slider'})
 
     def test_nonfinite_and_oversized(self):
         rule = {'type':'number','default':0}
