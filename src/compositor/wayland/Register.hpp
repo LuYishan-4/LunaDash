@@ -435,6 +435,7 @@ public:
                                                   void *data);
 #endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  static void updateClientLegacyForeignToplevel(ClientWindow *client);
   static void updateLegacyForeignToplevel(ToplevelState *state);
   static void createLegacyForeignToplevel(ToplevelState *state);
   static void destroyLegacyForeignToplevel(ToplevelState *state);

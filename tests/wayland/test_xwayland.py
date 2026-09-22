@@ -166,6 +166,28 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
             assert x11_client["bufferWidth"] > 0
             assert x11_client["bufferHeight"] > 0
 
+            # Clearing focus on an empty workspace must not reinterpret an
+            # XWaylandState as an xdg ToplevelState (Spotify regression).
+            home_workspace = x11_client["workspace"]
+            empty_workspace = (home_workspace + 1) % state["appearance"]["workspaceCount"]
+            assert empty_workspace != home_workspace
+            for _ in range(8):
+                request("focus", str(x11_client["id"]))
+                request("workspace", str(empty_workspace))
+                away = wait_for(lambda value: value["workspace"] == empty_workspace)
+                assert not any(client["focused"] for client in away["clients"])
+                assert not any(client["visible"] for client in away["clients"])
+                request("workspace", str(home_workspace))
+                wait_for(lambda value: any(
+                    client["id"] == x11_client["id"] and client["focused"] and client["visible"]
+                    for client in value["clients"]))
+            request("minimize", str(x11_client["id"]))
+            assert not any(client["focused"] for client in request()["clients"])
+            request("focus", str(x11_client["id"]))
+            wait_for(lambda value: any(
+                client["id"] == x11_client["id"] and client["focused"] and not client["minimized"]
+                for client in value["clients"]))
+
             xenv = env | {
                 "DISPLAY": display,
                 "WAYLAND_DISPLAY": "ludash-x11-test",

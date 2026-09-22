@@ -60,6 +60,15 @@ void WaylandCompositor::Impl::destroyForeignToplevel(ToplevelState *state) {
 
 
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+void WaylandCompositor::Impl::updateClientLegacyForeignToplevel(
+    ClientWindow *client) {
+  // nativeState holds XWaylandState for X11 clients. Its listener pointers
+  // must never be interpreted as ToplevelState's foreign protocol handles.
+  if (!client || client->x11 || !client->nativeState)
+    return;
+  updateLegacyForeignToplevel(static_cast<ToplevelState *>(client->nativeState));
+}
+
 void WaylandCompositor::Impl::updateLegacyForeignToplevel(
     ToplevelState *state) {
   if (!state || !state->legacyForeignHandle || !state->client)

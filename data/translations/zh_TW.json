@@ -383,5 +383,11 @@
     "%1 items · %2 selected": "%1 個項目 · 已選取 %2 個",
     "Wave amplitude": "波浪振幅",
     "Normalize quiet playback": "自動放大小聲音訊",
-    "Bar spacing": "柱狀間距"
+    "Bar spacing": "柱狀間距",
+    "Keep the center clear": "中央留白",
+    "Bars on each side": "每側長條數量",
+    "Clear center width": "中央留白寬度",
+    "Side bar spacing": "兩側長條間距",
+    "Bar count (full width)": "整排模式長條數量",
+    "Bar spacing (full width)": "整排模式長條間距"
 }

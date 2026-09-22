@@ -934,13 +934,9 @@ void WaylandCompositor::focus(ClientWindow *client) {
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (changed) {
     if (previous && !previous->x11 && previous->nativeState)
-      d->updateLegacyForeignToplevel(
-          static_cast<WaylandCompositor::Impl::ToplevelState *>(
-              previous->nativeState));
+      d->updateClientLegacyForeignToplevel(previous);
     if (!client->x11 && client->nativeState)
-      d->updateLegacyForeignToplevel(
-          static_cast<WaylandCompositor::Impl::ToplevelState *>(
-              client->nativeState));
+      d->updateClientLegacyForeignToplevel(client);
   }
 #endif
   d->focusSurface(client->wlSurface);
@@ -955,12 +951,12 @@ void WaylandCompositor::focusNext(int direction) {
       visible << client.get();
   if (visible.isEmpty()) {
     ClientWindow *previous = focused_;
+    if (previous && clientReady(previous))
+      setClientActivated(previous, false);
     focused_ = nullptr;
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-    if (d && previous && previous->nativeState)
-      d->updateLegacyForeignToplevel(
-          static_cast<WaylandCompositor::Impl::ToplevelState *>(
-              previous->nativeState));
+    if (d)
+      d->updateClientLegacyForeignToplevel(previous);
 #endif
     if (d && d->seat)
       wlr_seat_keyboard_notify_clear_focus(d->seat);
@@ -1001,9 +997,7 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
     wlr_xdg_toplevel_set_maximized(client->toplevel, maximized);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (d && !client->x11 && client->nativeState)
-    d->updateLegacyForeignToplevel(
-        static_cast<WaylandCompositor::Impl::ToplevelState *>(
-            client->nativeState));
+    d->updateClientLegacyForeignToplevel(client);
 #endif
 }
 
@@ -1026,9 +1020,7 @@ void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
         wlr_xdg_toplevel_set_fullscreen(other->toplevel, false);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
       if (!other->x11 && other->nativeState)
-        d->updateLegacyForeignToplevel(
-            static_cast<WaylandCompositor::Impl::ToplevelState *>(
-                other->nativeState));
+        d->updateClientLegacyForeignToplevel(other.get());
 #endif
     }
   }
@@ -1043,9 +1035,7 @@ void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
     wlr_xdg_toplevel_set_fullscreen(client->toplevel, fullscreen);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (!client->x11 && client->nativeState)
-    d->updateLegacyForeignToplevel(
-        static_cast<WaylandCompositor::Impl::ToplevelState *>(
-            client->nativeState));
+    d->updateClientLegacyForeignToplevel(client);
 #endif
 
   arrange();
