@@ -811,6 +811,17 @@ void WaylandCompositor::resendKeyboardModifiers() {
   }
 }
 
+void WaylandCompositor::setLauncherVisible(bool visible, bool publish) {
+  if (launcherVisible_ == visible)
+    return;
+  launcherVisible_ = visible;
+  if (!publish)
+    return;
+  launcherSerial_ = launcherSerial_ >= 999999 ? 1 : launcherSerial_ + 1;
+  windowSwitcher_->setLauncherState(launcherSerial_, launcherVisible_);
+}
+
+
 void WaylandCompositor::handleShortcut(const QString &action) {
   if (action.startsWith("workspace")) {
     bool ok = false;
@@ -917,8 +928,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
   else if (action == "launchLauncher") {
-    launcherSerial_ = launcherSerial_ >= 999999 ? 1 : launcherSerial_ + 1;
-    windowSwitcher_->setLauncherSerial(launcherSerial_);
+    setLauncherVisible(!launcherVisible_);
     // The interaction channel is owner-only and publishes within one frame,
     // avoiding the shell status poll latency for an input shortcut.
     return;
@@ -1068,6 +1078,7 @@ QJsonObject WaylandCompositor::state() const {
       {"settingsPage", settingsPage_},
       {"pickerSerial", pickerSerial_},
       {"launcherSerial", launcherSerial_},
+      {"launcherOpen", launcherVisible_},
       {"input",
        QJsonObject{{"layout", keyboardLayoutPreference(preferences)},
                    {"repeatRate", keyboardRepeatRate()},
@@ -1389,6 +1400,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", error}};
     arrange();
     return state();
+  } else if (method == "launcher-visible") {
+    if (value != "true" && value != "false")
+      return {{"error", "launcher-visible expects true or false."}};
+    setLauncherVisible(value == "true", false);
   } else if (method == "appearance") {
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);

@@ -238,6 +238,20 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
               symbols[i] == XKB_KEY_Super_L ||
               symbols[i] == XKB_KEY_Super_R;
 
+  // A launcher opened with the mouse must not steal normal application input.
+  // If keyboard focus is already on an application, the first printable key
+  // dismisses the launcher and is still forwarded to that application.
+  if (!state->virtualKeyboard &&
+      event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+      self->q->launcherVisible_ &&
+      self->clientForSurface(self->seat->keyboard_state.focused_surface)) {
+    bool printable = false;
+    for (int i = 0; i < count; ++i)
+      printable = printable || xkb_keysym_to_utf32(symbols[i]) >= 0x20;
+    if (printable)
+      self->q->setLauncherVisible(false);
+  }
+
   // Reserve a quick press-and-release of Meta for the shell launcher without
   // breaking the existing Meta+key compositor shortcuts. The modifier event is
   // still delivered through wl_keyboard.modifiers, so an unbound Meta combo
@@ -332,8 +346,12 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
   if (shortcutPress)
     state->consumedKeys.remove(event->keycode);
 
-  if (self->inputMethod && self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard) {
+  const bool inputMethodOwnsKeyboard =
+      self->activeTextInput && self->activeTextInput->text &&
+      self->activeTextInput->text->focused_surface && self->inputMethod &&
+      self->inputMethod->method &&
+      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+  if (inputMethodOwnsKeyboard) {
     wlr_input_method_keyboard_grab_v2_send_key(
         self->inputMethod->method->keyboard_grab, event->time_msec,
         event->keycode, event->state);
@@ -353,8 +371,12 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
     return;
   auto *self = state->impl;
   wlr_seat_set_keyboard(self->seat, state->keyboard);
-  if (self->inputMethod && self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard) {
+  const bool inputMethodOwnsKeyboard =
+      self->activeTextInput && self->activeTextInput->text &&
+      self->activeTextInput->text->focused_surface && self->inputMethod &&
+      self->inputMethod->method &&
+      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+  if (inputMethodOwnsKeyboard) {
     auto modifiers = state->keyboard->modifiers;
     wlr_input_method_keyboard_grab_v2_send_modifiers(
         self->inputMethod->method->keyboard_grab, &modifiers);

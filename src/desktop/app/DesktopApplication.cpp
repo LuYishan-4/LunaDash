@@ -9,7 +9,6 @@
 #include "desktop/filemanager/FileManager.hpp"
 #include "desktop/launcher/Launcher.hpp"
 #include "desktop/package/PackageManager.hpp"
-#include "desktop/system/SystemMonitor.hpp"
 #include "desktop/theme/DesktopTheme.hpp"
 #include "desktop/welcome/Welcome.hpp"
 #include <QProcess>
@@ -78,8 +77,6 @@ int DesktopApplication::run(int argc, char **argv) {
       content = LunaDash::createFileManager();
     else if (id == "console")
       content = LunaDash::createConsole();
-    else if (id == "monitor")
-      content = LunaDash::createSystemMonitor();
     else if (id == "packages")
       content = LunaDash::createPackageManager();
     else if (id == "launcher")

@@ -41,6 +41,8 @@ ShellRoot {
     property int lastInteractionLauncherSerial: 0
     property int dropTarget: 0
     property bool launcherOpen: false
+    property bool launcherKeyboardActive: false
+    property string launcherOpenSource: "mouse"
     property bool settingsOpen: false
     property bool pickerOpen: false
     property string pickerPurpose: "wallpaper"
@@ -70,6 +72,22 @@ ShellRoot {
         message: "",
         details: ""
     })
+
+    function applyLauncherSignal(serial, visible) {
+        if (!serial || serial === lastLauncherSerial)
+            return
+        lastLauncherSerial = serial
+        lastInteractionLauncherSerial = serial
+        launcherOpenSource = "keyboard"
+        launcherKeyboardActive = Boolean(visible)
+        launcherOpen = Boolean(visible)
+    }
+
+    function openLauncherFromMouse() {
+        launcherOpenSource = "mouse"
+        launcherKeyboardActive = false
+        launcherOpen = !launcherOpen
+    }
 
     function notify(title, body, kind, details) {
         if (!((state.appearance || {}).notificationsEnabled ?? true)) return
@@ -180,7 +198,19 @@ ShellRoot {
         }
     }
 
-    onLauncherOpenChanged: if (launcherOpen) { settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onLauncherOpenChanged: {
+        command("launcher-visible", launcherOpen ? "true" : "false")
+        if (launcherOpen) {
+            settingsOpen = false
+            calendarOpen = false
+            usbPopupOpen = false
+            volumePopupOpen = false
+            wifiPopupOpen = false
+            clipboardPopupOpen = false
+        } else {
+            launcherKeyboardActive = false
+        }
+    }
     onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false } else { pickerOpen = false }
     onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
     onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
@@ -263,11 +293,8 @@ ShellRoot {
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; openSettingsPage(state.settingsPage || "general") }
         if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; openSettingsPage("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
-        if ((state.launcherSerial || 0) !== lastLauncherSerial) {
-            lastLauncherSerial = state.launcherSerial || 0
-            lastInteractionLauncherSerial = lastLauncherSerial
-            launcherOpen = true
-        }
+        if ((state.launcherSerial || 0) !== lastLauncherSerial)
+            applyLauncherSignal(state.launcherSerial || 0, state.launcherOpen ?? true)
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
         Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
         Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
@@ -441,11 +468,8 @@ ShellRoot {
                 const next = JSON.parse(text())
                 root.interaction = next
                 const serial = Number(next.launcherSerial || 0)
-                if (serial && serial !== root.lastInteractionLauncherSerial) {
-                    root.lastInteractionLauncherSerial = serial
-                    root.lastLauncherSerial = serial
-                    root.launcherOpen = true
-                }
+                if (serial && serial !== root.lastInteractionLauncherSerial)
+                    root.applyLauncherSignal(serial, next.launcherOpen ?? true)
             } catch (error) {
                 root.interaction = ({})
             }

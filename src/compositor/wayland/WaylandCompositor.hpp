@@ -80,6 +80,7 @@ private:
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
   int launcherSerial_ = 0;
+  bool launcherVisible_ = false;
   const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
   QHash<int, int> resizeOriginalWidths_;
@@ -101,6 +102,7 @@ private:
   bool launchExternalCommand(QStringList command, QString *error,
                              bool x11Helper = false);
   void resendKeyboardModifiers();
+  void setLauncherVisible(bool visible, bool publish = true);
   QString nextCapturePath() const;
   void configure(ClientWindow *client, const QRect &rectangle);
   void arrange();

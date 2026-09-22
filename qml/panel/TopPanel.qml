@@ -319,9 +319,9 @@ ModuleSurface {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: shell.launcherOpen = !shell.launcherOpen
+                    onClicked: shell.openLauncherFromMouse()
                 }
-                ToolTip.visible: launcherMouse.containsMouse
+                ToolTip.visible: launcherMouse.containsMouse && !shell.launcherOpen
                 ToolTip.delay: 450
                 ToolTip.text: shell.tr("Applications")
             }

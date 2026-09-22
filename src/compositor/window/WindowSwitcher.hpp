@@ -27,7 +27,7 @@ public:
   QString thumbnailPath(int window) const;
   void setThumbnail(int serial, int window, const QString &path);
   void setLayout(const QJsonArray &clients, int workspace, bool dragging);
-  void setLauncherSerial(int serial);
+  void setLauncherState(int serial, bool open);
 
 private:
   QString channelPath_;
@@ -38,6 +38,7 @@ private:
   int workspace_ = 0;
   bool dragging_ = false;
   int launcherSerial_ = 0;
+  bool launcherOpen_ = false;
   QTimer feedbackTimer_;
   int index_ = 0;
   int serial_ = 0;

@@ -8,7 +8,6 @@ QList<BuiltinApplication> builtinApplications() {
   return {{"welcome", "◈", LunaDash::translate("Welcome")},
           {"files", "▱", LunaDash::translate("Files")},
           {"console", "❯", LunaDash::translate("Command console")},
-          {"monitor", "▥", LunaDash::translate("System monitor")},
           {"settings", "⚙", LunaDash::translate("Settings")},
           {"packages", "⬡", LunaDash::translate("Package manager")},
           {"plugins", "◇", LunaDash::translate("Plugins")}};
