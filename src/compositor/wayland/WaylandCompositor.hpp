@@ -120,6 +120,7 @@ private:
   void captureWorkspaceThumbnail(int serial, QList<int> windows);
   void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
+  void setFullscreen(ClientWindow *client, bool fullscreen);
   void focusNext(int direction);
   void synchronizeWindowFocus();
   void updateClientMetadata(ClientWindow *client);
