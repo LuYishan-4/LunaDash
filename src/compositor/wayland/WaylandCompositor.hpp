@@ -41,7 +41,8 @@ public:
 
   QProcess *spawn(const QStringList &arguments, const QString &program = {},
                   bool required = true);
-  bool saveScreenshot(const QString &path);
+  bool saveScreenshot(const QString &path,
+                      const std::function<void(bool)> &finished = {});
   void saveState(const QString &path);
   bool hasProcessFailure() const;
   void closeTestSession(const std::function<void(bool)> &finished);

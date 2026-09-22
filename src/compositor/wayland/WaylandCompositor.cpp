@@ -43,8 +43,6 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
-#include <QElapsedTimer>
-#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -371,29 +369,35 @@ bool WaylandCompositor::launchExternalCommand(QStringList command,
   return true;
 }
 
-bool WaylandCompositor::saveScreenshot(const QString &path) {
-  if (!d || !d->primaryOutput || !path.startsWith('/'))
+bool WaylandCompositor::saveScreenshot(
+    const QString &path, const std::function<void(bool)> &finished) {
+  if (!d || !d->primaryOutput || !QFileInfo(path).isAbsolute() ||
+      QFileInfo::exists(path) || screenCapture_->busy())
     return false;
-  const QString grim = QStandardPaths::findExecutable("grim");
-  if (grim.isEmpty()) {
-    qWarning("Screenshot requested but grim is not installed.");
-    return false;
+
+  captureError_.clear();
+  std::shared_ptr<QMetaObject::Connection> completion;
+  if (finished) {
+    completion = std::make_shared<QMetaObject::Connection>();
+    *completion = connect(
+        screenCapture_, &ScreenCapture::completed, this,
+        [this, path, finished, completion](const QString &saved,
+                                           const QString &error) {
+          disconnect(*completion);
+          finished(error.isEmpty() && saved == path &&
+                   QFileInfo::exists(path));
+        });
   }
 
   wlr_output_schedule_frame(d->primaryOutput);
-  QProcess process;
-  process.setProcessEnvironment(clientEnvironment_);
-  process.start(grim, {path});
-  QElapsedTimer timer;
-  timer.start();
-  while (process.state() != QProcess::NotRunning && timer.elapsed() < 4000) {
-    QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-    process.waitForFinished(10);
+  QString error;
+  if (!screenCapture_->captureOutput(clientEnvironment_, path, &error)) {
+    if (completion)
+      disconnect(*completion);
+    captureError_ = error;
+    return false;
   }
-  if (process.state() != QProcess::NotRunning)
-    process.kill();
-  return process.exitStatus() == QProcess::NormalExit &&
-         process.exitCode() == 0 && QFileInfo::exists(path);
+  return true;
 }
 
 void WaylandCompositor::saveState(const QString &path) {
@@ -1285,10 +1289,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (QFileInfo::exists(value))
       return {{"error", "Refusing to overwrite " + value}};
     if (!saveScreenshot(value))
-      return {{"error", "Could not write " + value}};
-    lastCapture_ = value;
-    captureError_.clear();
-    return {{"path", value}};
+      return {{"error", captureError_.isEmpty()
+                            ? "Could not start capture for " + value
+                            : captureError_}};
+    return {{"path", value},
+            {"pending", true},
+            {"phase", screenCapture_->phase()}};
   } else if (method == "screenshot") {
     captureScreen();
     if (!captureError_.isEmpty())

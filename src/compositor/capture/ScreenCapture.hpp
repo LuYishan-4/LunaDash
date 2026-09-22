@@ -14,6 +14,8 @@ public:
   ~ScreenCapture() override;
   bool selectRegion(const QProcessEnvironment &environment, const QString &path,
                     QString *error);
+  bool captureOutput(const QProcessEnvironment &environment, const QString &path,
+                     QString *error);
   bool busy() const;
   QString phase() const;
 signals:

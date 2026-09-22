@@ -85,12 +85,17 @@ int SessionApplication::run(int argc, char **argv) {
         std::max(1000, parser.value("exit-after").toInt()), &app, [&] {
           if (parser.isSet("state"))
             compositor.saveState(parser.value("state"));
-          bool ok = true;
-          if (parser.isSet("screenshot"))
-            ok = compositor.saveScreenshot(parser.value("screenshot"));
-          compositor.closeTestSession([&, ok](bool clean) {
-            app.exit(ok && clean && !compositor.hasProcessFailure() ? 0 : 2);
-          });
+          const auto finish = [&app, &compositor](bool ok) {
+            compositor.closeTestSession([&app, &compositor, ok](bool clean) {
+              app.exit(ok && clean && !compositor.hasProcessFailure() ? 0 : 2);
+            });
+          };
+          if (!parser.isSet("screenshot")) {
+            finish(true);
+            return;
+          }
+          if (!compositor.saveScreenshot(parser.value("screenshot"), finish))
+            finish(false);
         });
   }
 
