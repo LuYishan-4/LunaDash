@@ -7,7 +7,7 @@ QtObject {
         {page:"general", pageName:"General", name:"Notifications", keywords:"desktop notification crash alerts toast details"},
         {page:"general", pageName:"General", name:"Reset desktop preferences", keywords:"restore defaults reset"},
         {page:"appearance", pageName:"Appearance", name:"Wallpaper", keywords:"background image accent color font panel height"},
-        {page:"appearance", pageName:"Appearance", name:"Animations", keywords:"motion blur opacity duration effects"},
+        {page:"appearance", pageName:"Appearance", name:"Visual effects", keywords:"animation blur opacity duration effects"},
         {page:"windows", pageName:"Windows and workspaces", name:"Number of workspaces", keywords:"tiling floating master window gap resize guide Alt"},
         {page:"shortcuts", pageName:"Keyboard shortcuts", name:"Global shortcuts", keywords:"keys Meta bind launch focus group workspace close maximize"},
         {page:"plugins", pageName:"Plugins", name:"Desktop extensions", keywords:"plugins addons native Quickshell OpenGL effect hooks enable disable settings JSON stacking window layout animation"},

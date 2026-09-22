@@ -356,6 +356,8 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
                   << "LunaDash child exited abnormally:" << process->program()
                   << "code" << code;
             }
+            processes_.removeAll(process);
+            process->deleteLater();
           });
 
   if (program.isEmpty() && arguments.contains("--session")) {
@@ -1796,6 +1798,9 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     arrange();
     synchronizeWindowFocus();
   } else if (method == "quit") {
+    if (value != "confirm")
+      return {{"error", "Logout requires explicit confirmation."}};
+    qInfo("LunaDash logout requested through the control channel.");
     QTimer::singleShot(0, this, &WaylandCompositor::requestShutdown);
   } else if (method == "switch-window") {
     const auto id = textWindowId(value);

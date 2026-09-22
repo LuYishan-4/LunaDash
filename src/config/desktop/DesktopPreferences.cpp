@@ -82,12 +82,12 @@ bool valid(const QString &key, const QJsonValue &value) {
   if (key == "proxyBypass")
     return validProxyText(value, false);
   if (key == "startupApps") {
-    if (!value.isArray() || value.toArray().size() > 4)
+    if (!value.isArray() || value.toArray().size() > 3)
       return false;
     QSet<QString> seen;
     for (const auto &app : value.toArray()) {
       if (!app.isString() ||
-          !QStringList{"files", "console", "monitor", "welcome"}.contains(
+          !QStringList{"files", "packages", "welcome"}.contains(
               app.toString()) ||
           seen.contains(app.toString()))
         return false;

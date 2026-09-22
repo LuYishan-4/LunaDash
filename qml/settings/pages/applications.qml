@@ -26,7 +26,7 @@ ColumnLayout {
     }
     SettingsComponents.SettingsCard {
         title: shell.tr("Plugins")
-        description: shell.tr("Manage Quickshell, native and OpenGL plugins. The plugin store is reserved for a future release.")
+        description: shell.tr("Manage installed Quickshell, native and OpenGL plugins and browse the live plugin store.")
         RowLayout {
             Layout.fillWidth: true
             ColumnLayout {
@@ -43,7 +43,7 @@ ColumnLayout {
         Flow {
             Layout.fillWidth: true; spacing: 8
             Repeater {
-                model: ["files", "console", "monitor", "welcome"]
+                model: ["files", "packages", "welcome"]
                 ShellButton {
                     required property string modelData
                     text: modelData; active: ((shell.state.appearance || {}).startupApps || []).includes(modelData)

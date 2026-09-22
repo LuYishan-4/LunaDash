@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
             # individual ClientWindow rather than a rootful container.
             result = request(
                 "launch-x11",
-                '"' + str(build / "ludash-desktop") + '" --app console',
+                '"' + str(build / "ludash-desktop") + '" --app welcome',
             )
             assert "error" not in result, result
             state = wait_for(
@@ -171,7 +171,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                 "WAYLAND_DISPLAY": "ludash-x11-test",
             }
             found = subprocess.run(
-                ["xdotool", "search", "--name", "console"],
+                ["xdotool", "search", "--name", "welcome"],
                 env=xenv,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -305,7 +305,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                 }
                 result = request(
                     "launch-x11",
-                    '"' + str(build / "ludash-desktop") + '" --app console',
+                    '"' + str(build / "ludash-desktop") + '" --app welcome',
                 )
                 assert "error" not in result, result
                 state = wait_for(
@@ -335,7 +335,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                     "Short-lived X11 window terminated the compositor"
                 )
 
-            request("quit")
+            request("quit", "confirm")
             assert process.wait(timeout=10) == 0
             if xclip is None:
                 print(

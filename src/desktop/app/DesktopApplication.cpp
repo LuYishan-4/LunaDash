@@ -4,7 +4,6 @@
 #include "desktop/app/ApplicationWindow.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/app/WaylandClientShutdown.hpp"
-#include "desktop/console/Console.hpp"
 #include "desktop/filemanager/FileManager.hpp"
 #include "desktop/package/PackageManager.hpp"
 #include "desktop/theme/DesktopTheme.hpp"
@@ -73,8 +72,6 @@ int DesktopApplication::run(int argc, char **argv) {
     const auto id = parser.value("app");
     if (id == "files")
       content = LunaDash::createFileManager();
-    else if (id == "console")
-      content = LunaDash::createConsole();
     else if (id == "packages")
       content = LunaDash::createPackageManager();
     else if (id == "welcome")

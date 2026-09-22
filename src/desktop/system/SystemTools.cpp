@@ -129,12 +129,25 @@ QList<Tool> tools() {
        {{"kcmshell6", "kcm_componentchooser"}, {"xfce4-mime-settings"}}}};
 }
 
+bool insideLunaDashSession() {
+  const QString desktop = qEnvironmentVariable("XDG_CURRENT_DESKTOP");
+  const QString display = qEnvironmentVariable("WAYLAND_DISPLAY");
+  return !qEnvironmentVariable("LUNADASH_CONTROL").isEmpty() ||
+         display.startsWith("lunadash-") || display.startsWith("ludash-") ||
+         desktop.contains("LunaDash", Qt::CaseInsensitive) ||
+         desktop.contains("LuDash", Qt::CaseInsensitive);
+}
+
 QStringList resolve(const Tool &tool) {
-  const auto desktop = qEnvironmentVariable("XDG_CURRENT_DESKTOP");
-  if (tool.host && (desktop.isEmpty() || desktop.contains("LuDash") ||
-                    qEnvironmentVariable("QT_QPA_PLATFORM") == "eglfs"))
+  const bool lunaDash = insideLunaDashSession();
+  if (tool.host && (lunaDash || qEnvironmentVariable("QT_QPA_PLATFORM") == "eglfs"))
     return {};
   for (auto command : tool.commands) {
+    // KDE KCMs assume a Plasma host and can partially initialize under a
+    // standalone LunaDash session. Prefer the standalone system tool fallback
+    // instead of launching a host-specific control module.
+    if (lunaDash && command.first() == "kcmshell6")
+      continue;
     if (command.first() == "kcmshell6") {
       bool found = false;
       for (const auto &root : QCoreApplication::libraryPaths())

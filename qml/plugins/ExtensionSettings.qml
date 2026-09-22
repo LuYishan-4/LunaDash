@@ -97,12 +97,12 @@ ColumnLayout {
             return packageConfig.targets[plugin.target]
         if (!packageConfig.targets && (packageConfig.mode !== undefined || packageConfig.settings !== undefined))
             return {
-                enabled: packageConfig.enabled ?? plugin.enabled,
+                enabled: Boolean(packageConfig.enabled ?? plugin.enabled ?? false),
                 mode: packageConfig.mode || plugin.mode,
                 settings: packageConfig.settings || plugin.settings || {}
             }
         return {
-            enabled: plugin.enabled,
+            enabled: Boolean(plugin.enabled ?? false),
             mode: plugin.mode,
             settings: plugin.settings || {}
         }
@@ -113,7 +113,8 @@ ColumnLayout {
         if (targets.length > 0)
             return targets.some(target => effectiveEnabled(target))
         const packageConfig = document.plugins[plugin.id] || ({})
-        return (packageConfig.enabled ?? plugin.enabled) && Boolean(pluginValue(plugin).enabled)
+        return Boolean(packageConfig.enabled ?? plugin.enabled ?? false) &&
+            Boolean(pluginValue(plugin).enabled ?? false)
     }
 
     function setPackageEnabled(plugin, enabled) {
@@ -520,7 +521,7 @@ ColumnLayout {
 
                             SoftSwitch {
                                 visible: !pluginCard.remote
-                                checked: page.effectiveEnabled(pluginCard.modelData)
+                                checked: Boolean(page.effectiveEnabled(pluginCard.modelData))
                                 onToggled: page.requestEnabled(pluginCard.modelData, checked)
                             }
 
@@ -630,7 +631,7 @@ ColumnLayout {
                                                 font.pixelSize: 10
                                             }
                                             SoftSwitch {
-                                                checked: page.effectiveEnabled(targetCard.modelData)
+                                                checked: Boolean(page.effectiveEnabled(targetCard.modelData))
                                                 onToggled: page.requestEnabled(targetCard.modelData, checked)
                                             }
                                         }
