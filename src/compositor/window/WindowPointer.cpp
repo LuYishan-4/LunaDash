@@ -43,9 +43,8 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
                                                    uint32_t edges) {
   if (!client || !q->windowTemplate_ ||
       !windowAllowsClientMoveResize(*q->windowTemplate_, *client) ||
-      pointerWindow ||
-      !wlr_seat_validate_pointer_grab_serial(seat, client->surface->surface,
-                                             serial))
+      pointerWindow || !client->wlSurface ||
+      !wlr_seat_validate_pointer_grab_serial(seat, client->wlSurface, serial))
     return false;
   // xdg-shell edges are top=1, bottom=2, left=4, right=8.
   if ((edges & ~15u) || (edges & 3u) == 3u || (edges & 12u) == 12u)
@@ -63,7 +62,8 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   pointerLast = QPointF(cursor->x, cursor->y);
   pointerTarget = pointerEdge = 0;
   client->manualResize = true;
-  wlr_xdg_toplevel_set_resizing(client->toplevel, pointerResize);
+  if (client->toplevel)
+    wlr_xdg_toplevel_set_resizing(client->toplevel, pointerResize);
   wlr_cursor_set_xcursor(cursor, cursorManager,
                          pointerResize ? "se-resize" : "grabbing");
   return true;

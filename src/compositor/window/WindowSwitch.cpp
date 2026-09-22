@@ -24,6 +24,7 @@ void WaylandCompositor::publishWindowLayout() {
                                {"workspace", client->workspace},
                                {"mapped", true},
                                {"desktop", client->desktop},
+                               {"x11", client->x11},
                                {"floating", client->floating},
                                {"minimized", client->minimized},
                                {"maximized", client->maximized},
@@ -56,6 +57,10 @@ void WaylandCompositor::activateTask(int window) {
                          client->workspace == workspace_ && client->maximized;
     selectWorkspace(client->workspace);
     client->minimized = false;
+#if LUDASH_WLR_HAS_XWAYLAND
+    if (client->x11 && client->xwayland)
+      wlr_xwayland_surface_set_minimized(client->xwayland, false);
+#endif
     windowLayout_->setMinimized(window, false);
     if (windowTemplate_ &&
         windowActivationTogglesMaximize(*windowTemplate_, *client))
@@ -134,8 +139,8 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
         return client->id == id && client->mapped;
       });
   QImage image;
-  if (found != clients_.end()) {
-    auto *surface = (*found)->surface->surface;
+  if (found != clients_.end() && (*found)->wlSurface) {
+    auto *surface = (*found)->wlSurface;
     auto *texture = wlr_surface_get_texture(surface);
     const QSize size = QSize(std::max(1, surface->current.width),
                              std::max(1, surface->current.height))
