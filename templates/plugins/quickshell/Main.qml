@@ -8,7 +8,9 @@ Item {
     implicitHeight: 48
     Text {
         anchors.centerIn: parent
-        text: plugin.settings.text
+        visible: plugin.settings.showGreeting
+        text: "LunaDash"
+        opacity: Number(plugin.settings.opacity ?? 1)
         color: (plugin.shell.state.appearance || {}).accent || "#9ccbfb"
         font.family: (plugin.shell.state.appearance || {}).fontFamily || Qt.application.font.family
     }

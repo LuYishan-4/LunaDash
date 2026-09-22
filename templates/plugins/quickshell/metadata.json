@@ -14,9 +14,20 @@
   "mode": "augment",
   "enabledByDefault": false,
   "settings": {
-    "text": {
-      "type": "string",
-      "default": "Hello, LunaDash"
+    "showGreeting": {
+      "type": "boolean",
+      "control": "toggle",
+      "label": "Show greeting",
+      "default": true
+    },
+    "opacity": {
+      "type": "number",
+      "control": "slider",
+      "label": "Opacity",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 1,
+      "step": 0.05
     }
   },
   "entry": "Main.qml"

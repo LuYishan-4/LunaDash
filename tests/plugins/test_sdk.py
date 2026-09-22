@@ -61,6 +61,17 @@ def main():
         run("cmake", "-S", str(broken.parent), "-B", str(root / "invalid"),
             f"-DLunaDashPlugin_DIR={args.sdk.resolve()}", ok=False)
         print("SDK rejects an incompatible target/type pair")
+
+        text_control = root / "effect-cpp/metadata.json"
+        manifest = json.loads(text_control.read_text())
+        manifest["settings"]["freeText"] = {
+            "type": "string", "default": "custom", "control": "text"
+        }
+        text_control.write_text(json.dumps(manifest))
+        run("cmake", "-S", str(text_control.parent),
+            "-B", str(root / "invalid-text-control"),
+            f"-DLunaDashPlugin_DIR={args.sdk.resolve()}", ok=False)
+        print("SDK rejects plugin settings that require custom text controls")
     return 0
 
 

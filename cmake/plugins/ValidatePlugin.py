@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from SettingsSchema import validate_schema
+from SettingsSchema import control, validate_schema
 
 
 def validate(manifest, root, targets):
@@ -63,6 +63,12 @@ def validate(manifest, root, targets):
     schema = manifest.get("settings")
     require(isinstance(schema, dict), "settings must be an object (empty is allowed)")
     validate_schema(schema)
+    # Plugin settings are rendered automatically by the shared QML settings
+    # surface. Keep the plugin SDK to the four stable controls so native
+    # effects and visual plugins never require custom settings QML.
+    allowed_controls = {"toggle", "select", "number", "slider"}
+    require(all(control(rule) in allowed_controls for rule in schema.values()),
+            "Plugin settings support only toggle, select, number and slider controls")
     if kind == "opengl":
         shaders = manifest.get("shaders", {})
         require(isinstance(shaders, dict), "shaders must be an object")
