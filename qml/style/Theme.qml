@@ -33,6 +33,12 @@ QtObject {
     property string font: "sans-serif"
     property bool clock24Hour: true
     property int barHeight: 40
+    property string panelEdge: "top"
+    property int panelExtent: 40
+    readonly property int panelTopInset: panelEdge === "top" ? panelExtent : 0
+    readonly property int panelBottomInset: panelEdge === "bottom" ? panelExtent : 0
+    readonly property int panelLeftInset: panelEdge === "left" ? panelExtent : 0
+    readonly property int panelRightInset: panelEdge === "right" ? panelExtent : 0
     property bool animations: true
     property int animationDuration: 220
 

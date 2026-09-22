@@ -300,7 +300,9 @@ ShellRoot {
         Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
         Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
         Theme.secondaryAccent = (state.appearance || {}).secondaryAccent || Theme.defaultSecondaryAccent
-        Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
+        Theme.panelEdge = state.panelEdge || (state.panelAtBottom ? "bottom" : "top")
+        Theme.panelExtent = state.panelExtent ?? 40
+        Theme.barHeight = Theme.panelTopInset
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true)
         Theme.animationDuration = state.shellAnimationDuration ?? (state.appearance || {}).animationDuration ?? 220
         const captureError = String((state.screenCapture || {}).error || "")

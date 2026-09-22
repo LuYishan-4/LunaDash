@@ -1186,6 +1186,7 @@ QJsonObject WaylandCompositor::state() const {
                               preferences.value("animationDuration").toInt())},
       {"panelExtent",
        shellModules_->panelExtent(preferences.value("panelHeight").toInt())},
+      {"panelEdge", shellModules_->panelEdge()},
       {"panelAtBottom", shellModules_->panelAtBottom()},
       {"audio", audioSettings_->snapshot()},
       {"power", powerSettings_->snapshot()},
