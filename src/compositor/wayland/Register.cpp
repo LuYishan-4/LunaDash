@@ -89,7 +89,9 @@ bool WaylandCompositor::Impl::initialize() {
     wlr_scene_set_linux_dmabuf_v1(scene, linuxDmabuf);
   }
 #endif
-#if LUDASH_WLR_HAS_DRM_SYNCOBJ
+#if LUDASH_WLR_HAS_DRM_SYNCOBJ && WLR_VERSION_MINOR >= 19
+  // wlroots 0.18 ships the protocol header, but renderer/backend timeline
+  // feature flags were added in 0.19.
   // Modern Chromium/Electron clients can use explicit DRM timeline fences.
   // wlroots' scene-surface helper integrates this protocol with scene
   // rendering, but it is safe to advertise only when both ends support

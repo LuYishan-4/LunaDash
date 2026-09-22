@@ -12,14 +12,20 @@
 #include <QRegularExpression>
 #include <QScopedValueRollback>
 #include <QSet>
+#include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
 #include <algorithm>
 
 namespace LunaDash {
 struct PluginManager::Native {
+  // Load native code from an immutable private path. Some libc/loader
+  // implementations keep mappings alive after dlclose(); mutating the
+  // installed .so in place would then invalidate executable pages.
+  // QTemporaryDir is declared before QLibrary so the library is destroyed
+  // before its staged file is unlinked.
+  QTemporaryDir stage;
   QLibrary library;
-  ~Native() { library.unload(); }
   PluginDescriptor descriptor;
   PluginDescriptor current;
   const ludash_plugin_api *api = nullptr;
@@ -202,24 +208,33 @@ void PluginManager::refresh() {
       } else if (!errors_.contains(id)) {
         auto native = std::make_unique<Native>();
         native->descriptor = native->current = descriptor;
-        native->library.setFileName(descriptor.libraryPath);
 
-        using Entry = const ludash_plugin_api *(*)();
-        const auto entry = reinterpret_cast<Entry>(
-            native->library.resolve("ludash_plugin_entry_v2"));
-        if (!entry) {
-          errors_[id] = native->library.errorString();
+        const QString stagedLibrary = native->stage.filePath("plugin.so");
+        QFile sourceLibrary(descriptor.libraryPath);
+        if (!native->stage.isValid()) {
+          errors_[id] = "Could not create native plugin staging directory";
+        } else if (!sourceLibrary.copy(stagedLibrary)) {
+          errors_[id] = sourceLibrary.errorString();
         } else {
-          native->api = entry();
-          const auto *api = native->api;
-          if (!api || api->struct_size != sizeof(ludash_plugin_api) ||
-              api->api_version != LUDASH_PLUGIN_API_VERSION || !api->process ||
-              !api->metadata_json ||
-              QJsonDocument::fromJson(api->metadata_json).object() !=
-                  descriptor.manifest) {
-            errors_[id] = "SDK ABI or embedded metadata mismatch";
+          native->library.setFileName(stagedLibrary);
+
+          using Entry = const ludash_plugin_api *(*)();
+          const auto entry = reinterpret_cast<Entry>(
+              native->library.resolve("ludash_plugin_entry_v2"));
+          if (!entry) {
+            errors_[id] = native->library.errorString();
           } else {
-            native_.push_back(std::move(native));
+            native->api = entry();
+            const auto *api = native->api;
+            if (!api || api->struct_size != sizeof(ludash_plugin_api) ||
+                api->api_version != LUDASH_PLUGIN_API_VERSION || !api->process ||
+                !api->metadata_json ||
+                QJsonDocument::fromJson(api->metadata_json).object() !=
+                    descriptor.manifest) {
+              errors_[id] = "SDK ABI or embedded metadata mismatch";
+            } else {
+              native_.push_back(std::move(native));
+            }
           }
         }
       }
