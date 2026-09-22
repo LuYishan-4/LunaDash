@@ -26,33 +26,71 @@ constexpr auto kDevCommitApi =
 constexpr auto kRepositoryUrl = "https://github.com/LuYishan-4/LunaDash";
 constexpr qsizetype kMaximumReplyBytes = 256 * 1024;
 
-QList<int> versionParts(QString version) {
+struct ParsedVersion {
+  QList<int> core;
+  QStringList prerelease;
+  bool valid = false;
+};
+
+// Parse a tag such as "v1.2.0", "1.2" or "1.2.0-rc1". The pre-release suffix is
+// kept so "1.2.0-rc1" is not treated as the final "1.2.0".
+ParsedVersion parseVersion(QString version) {
   if (version.startsWith('v'))
     version.remove(0, 1);
-  QList<int> parts;
-  for (const auto &part : version.split('.')) {
+  ParsedVersion result;
+  const int dash = version.indexOf('-');
+  const QString core = dash >= 0 ? version.left(dash) : version;
+  const QString prerelease = dash >= 0 ? version.mid(dash + 1) : QString();
+  if (core.isEmpty())
+    return result;
+  for (const auto &part : core.split('.')) {
     bool ok = false;
-    const int number = part.section('-', 0, 0).toInt(&ok);
+    const int number = part.toInt(&ok);
     if (!ok || number < 0)
-      return {};
-    parts.append(number);
+      return result;
+    result.core.append(number);
   }
-  return parts;
+  result.valid = true;
+  if (!prerelease.isEmpty())
+    result.prerelease = prerelease.split('.', Qt::SkipEmptyParts);
+  return result;
 }
 
 bool isNewer(const QString &latest, const QString &current) {
-  auto left = versionParts(latest);
-  auto right = versionParts(current);
-  if (left.isEmpty() || right.isEmpty())
+  const auto left = parseVersion(latest);
+  const auto right = parseVersion(current);
+  if (!left.valid || !right.valid)
     return false;
-  while (left.size() < right.size())
-    left.append(0);
-  while (right.size() < left.size())
-    right.append(0);
-  for (qsizetype i = 0; i < left.size(); ++i)
-    if (left[i] != right[i])
-      return left[i] > right[i];
-  return false;
+  auto leftCore = left.core;
+  auto rightCore = right.core;
+  while (leftCore.size() < rightCore.size())
+    leftCore.append(0);
+  while (rightCore.size() < leftCore.size())
+    rightCore.append(0);
+  for (qsizetype i = 0; i < leftCore.size(); ++i)
+    if (leftCore[i] != rightCore[i])
+      return leftCore[i] > rightCore[i];
+  // Equal numeric core: a release sorts after any pre-release of that core.
+  const auto &leftPre = left.prerelease;
+  const auto &rightPre = right.prerelease;
+  if (leftPre.isEmpty() || rightPre.isEmpty())
+    return leftPre.isEmpty() && !rightPre.isEmpty();
+  const auto count = std::min(leftPre.size(), rightPre.size());
+  for (qsizetype i = 0; i < count; ++i) {
+    bool leftNumeric = false;
+    bool rightNumeric = false;
+    const int leftNumber = leftPre[i].toInt(&leftNumeric);
+    const int rightNumber = rightPre[i].toInt(&rightNumeric);
+    if (leftNumeric && rightNumeric) {
+      if (leftNumber != rightNumber)
+        return leftNumber > rightNumber;
+    } else if (leftNumeric != rightNumeric) {
+      return rightNumeric; // numeric identifiers sort before alphanumeric ones
+    } else if (leftPre[i] != rightPre[i]) {
+      return leftPre[i] > rightPre[i];
+    }
+  }
+  return leftPre.size() > rightPre.size();
 }
 
 QString selectedChannel() {
@@ -298,7 +336,7 @@ void UpdateChecker::finishReply() {
     latestVersion_ = object.value("tag_name").toString();
     releaseUrl_ = object.value("html_url").toString();
     const QUrl url(releaseUrl_);
-    if (versionParts(latestVersion_).isEmpty() || url.scheme() != "https" ||
+    if (!parseVersion(latestVersion_).valid || url.scheme() != "https" ||
         url.host() != "github.com" ||
         !url.path().startsWith("/LuYishan-4/LunaDash/releases/")) {
       finishWithError("GitHub returned unexpected release information.");
