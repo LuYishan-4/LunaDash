@@ -35,7 +35,9 @@ jobs:
           python3 tests/architecture/test_source_layout.py
           python3 tests/renderer/test_render_architecture.py
       - name: Validate QML command bindings
-        run: python3 scripts/ci/check_qml_actions.py
+        run: |
+          python3 scripts/ci/check_qml_actions.py
+          python3 tests/wayland/test_input_contract.py
       - name: Validate settings schema contracts
         run: python3 tests/settings/test_schema.py
       - name: Validate Arch source packaging
