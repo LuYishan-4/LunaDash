@@ -15,7 +15,7 @@ ModuleSurface {
     property int tab: 0
     property string time: ""
     property string date: ""
-    property real reveal: opened ? 1 : 0
+    property bool closeArmed: false
 
     readonly property var network: shell.state.network || ({})
     readonly property var weather: shell.state.weather || ({})
@@ -35,6 +35,43 @@ ModuleSurface {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "lunadash-overview"
     color: "transparent"
+
+    HoverHandler {
+        id: dashboardHover
+        onHoveredChanged: {
+            if (hovered) {
+                dashboard.closeArmed = true
+                closeTimer.stop()
+            } else if (dashboard.closeArmed) {
+                closeTimer.restart()
+            }
+        }
+    }
+    Timer {
+        id: armCloseTimer
+        interval: 520
+        onTriggered: {
+            dashboard.closeArmed = true
+            if (!dashboardHover.hovered)
+                closeTimer.restart()
+        }
+    }
+    Timer {
+        id: closeTimer
+        interval: 260
+        onTriggered: if (dashboard.opened && !dashboardHover.hovered)
+            shell.setAppearance({overview: false})
+    }
+    onOpenedChanged: {
+        if (opened) {
+            closeArmed = false
+            armCloseTimer.restart()
+        } else {
+            closeArmed = false
+            armCloseTimer.stop()
+            closeTimer.stop()
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -100,7 +137,8 @@ ModuleSurface {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: dashboard.tab = index
+                        onEntered: dashboard.tab = index
+                    onClicked: dashboard.tab = index
                     }
                     Behavior on color { ColorAnimation { duration: Theme.motion } }
                 }

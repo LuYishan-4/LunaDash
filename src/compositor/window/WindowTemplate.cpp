@@ -23,9 +23,9 @@ QJsonObject defaults(const QJsonObject &schema) {
 
 QJsonObject defaultWindowAnimation() {
   return {{"duration", -1},
-          {"enterOffset", 12},
-          {"focusOpacity", 0.82},
-          {"exitScale", 0.90},
+          {"enterOffset", 8},
+          {"focusOpacity", 0.88},
+          {"exitScale", 0.96},
           {"easing", "outCubic"}};
 }
 
@@ -79,7 +79,7 @@ const WindowTemplate &tilingTemplate() {
                            {"maximum", 64},
                            {"label", "Window gaps"}}},
       {"defaultWidth", QJsonObject{{"type", "integer"},
-                                    {"default", 960},
+                                    {"default", 1120},
                                     {"minimum", 240},
                                     {"maximum", 2400},
                                     {"label", "Default window width"}}}};

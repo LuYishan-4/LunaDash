@@ -79,6 +79,7 @@ private:
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
+  int launcherSerial_ = 0;
   const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
   QHash<int, int> resizeOriginalWidths_;

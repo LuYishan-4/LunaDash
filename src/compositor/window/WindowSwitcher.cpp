@@ -127,6 +127,12 @@ void WindowSwitcher::setLayout(const QJsonArray &clients, int workspace,
   dragging_ = dragging;
   publish();
 }
+void WindowSwitcher::setLauncherSerial(int serial) {
+  if (launcherSerial_ == serial)
+    return;
+  launcherSerial_ = serial;
+  publish();
+}
 void WindowSwitcher::setDrag(const QJsonObject &drag) {
   drag_ = drag;
   publish();
@@ -141,7 +147,8 @@ QJsonObject WindowSwitcher::snapshot() const {
           {"drag", drag_},
           {"clients", clients_},
           {"workspace", workspace_},
-          {"dragging", dragging_}};
+          {"dragging", dragging_},
+          {"launcherSerial", launcherSerial_}};
 }
 void WindowSwitcher::publish() {
   if (!feedbackTimer_.isActive())

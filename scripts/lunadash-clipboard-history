@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
+import time
+
+MAX_ENTRIES = 20
+MAX_TEXT_BYTES = 65536
+POLL_SECONDS = 0.35
+
+
+def runtime_path() -> pathlib.Path:
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if not runtime:
+        raise RuntimeError("XDG_RUNTIME_DIR is not set")
+    directory = pathlib.Path(runtime) / "lunadash"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        directory.chmod(0o700)
+    except OSError:
+        pass
+    return directory / "clipboard-history.json"
+
+
+def load() -> list[dict]:
+    path = runtime_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(data, list):
+        return []
+    result = []
+    for item in data[:MAX_ENTRIES]:
+        if not isinstance(item, dict):
+            continue
+        text = item.get("text")
+        stamp = item.get("timestamp")
+        if isinstance(text, str) and isinstance(stamp, (int, float)):
+            result.append({"text": text, "timestamp": int(stamp)})
+    return result
+
+
+def save(entries: list[dict]) -> None:
+    path = runtime_path()
+    payload = json.dumps(entries[:MAX_ENTRIES], ensure_ascii=False, separators=(",", ":"))
+    fd, temporary = tempfile.mkstemp(prefix=".clipboard-", dir=str(path.parent))
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        path.chmod(0o600)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def record(raw: bytes) -> bool:
+    if not raw or len(raw) > MAX_TEXT_BYTES or b"\0" in raw:
+        return False
+    text = raw.decode("utf-8", "replace")
+    if not text:
+        return False
+    entries = [entry for entry in load() if entry["text"] != text]
+    entries.insert(0, {"text": text, "timestamp": int(time.time())})
+    save(entries)
+    return True
+
+
+def read_wayland_clipboard() -> bytes | None:
+    try:
+        advertised = subprocess.run(
+            ["wl-paste", "--list-types"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=0.6,
+            check=False,
+            text=True,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if advertised.returncode != 0:
+        return None
+    offered = {line.strip() for line in advertised.stdout.splitlines() if line.strip()}
+    preferred = (
+        "text/plain;charset=utf-8",
+        "text/plain",
+        "UTF8_STRING",
+        "TEXT",
+        "STRING",
+    )
+    mime = next((candidate for candidate in preferred if candidate in offered), None)
+    if mime is None:
+        return None
+    try:
+        result = subprocess.run(
+            ["wl-paste", "--no-newline", "--type", mime],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=0.6,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0 or len(result.stdout) > MAX_TEXT_BYTES:
+        return None
+    return result.stdout
+
+
+def watch() -> int:
+    # Create a valid owner-only file immediately so UI readers never need to
+    # distinguish "no history yet" from a partially-created file.
+    if not runtime_path().exists():
+        save([])
+    last: bytes | None = None
+    while True:
+        current = read_wayland_clipboard()
+        if current is not None and current != last:
+            record(current)
+            last = current
+        time.sleep(POLL_SECONDS)
+
+
+def copy_entry(index: int) -> int:
+    entries = load()
+    if index < 0 or index >= len(entries):
+        print("Clipboard history entry is no longer available.", file=sys.stderr)
+        return 2
+    raw = entries[index]["text"].encode("utf-8")
+    try:
+        result = subprocess.run(
+            ["wl-copy", "--type", "text/plain;charset=utf-8"],
+            input=raw,
+            stderr=subprocess.PIPE,
+            timeout=2,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        print("wl-copy is unavailable or did not respond.", file=sys.stderr)
+        return 2
+    if result.returncode != 0:
+        sys.stderr.buffer.write(result.stderr)
+        return result.returncode
+    record(raw)
+    return 0
+
+
+def main() -> int:
+    command = sys.argv[1] if len(sys.argv) > 1 else "list"
+    if command == "watch":
+        return watch()
+    if command == "list":
+        print(json.dumps(load(), ensure_ascii=False))
+        return 0
+    if command == "clear":
+        save([])
+        return 0
+    if command == "record":
+        raw = sys.stdin.buffer.read(MAX_TEXT_BYTES + 1)
+        return 0 if record(raw) else 1
+    if command == "copy" and len(sys.argv) == 3:
+        try:
+            index = int(sys.argv[2])
+        except ValueError:
+            return 2
+        return copy_entry(index)
+    print("Usage: lunadash-clipboard-history [watch|list|clear|record|copy INDEX]", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

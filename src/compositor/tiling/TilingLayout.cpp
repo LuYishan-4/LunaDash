@@ -322,7 +322,7 @@ public:
   std::unordered_map<LayoutWorkspaceId, Workspace> workspaces;
 };
 
-TilingLayout::TilingLayout() : d(std::make_unique<Impl>(960, 12)) {}
+TilingLayout::TilingLayout() : d(std::make_unique<Impl>(1120, 12)) {}
 TilingLayout::~TilingLayout() = default;
 TilingLayout::TilingLayout(TilingLayout &&) noexcept = default;
 TilingLayout &TilingLayout::operator=(TilingLayout &&) noexcept = default;

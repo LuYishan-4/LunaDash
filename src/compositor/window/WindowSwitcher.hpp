@@ -36,6 +36,7 @@ private:
   QJsonArray clients_;
   int workspace_ = 0;
   bool dragging_ = false;
+  int launcherSerial_ = 0;
   QTimer feedbackTimer_;
   int index_ = 0;
   int serial_ = 0;

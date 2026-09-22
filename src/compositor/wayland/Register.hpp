@@ -69,6 +69,8 @@ public:
     wlr_keyboard *keyboard = nullptr;
     bool virtualKeyboard = false;
     QSet<uint32_t> consumedKeys;
+    bool metaTapPending = false;
+    int metaTapKeycode = -1;
     Slot<KeyboardState> key;
     Slot<KeyboardState> modifiers;
     Slot<KeyboardState> destroy;

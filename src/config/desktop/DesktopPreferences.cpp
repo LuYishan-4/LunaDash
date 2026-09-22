@@ -21,7 +21,7 @@ QJsonObject defaults() {
           {"secondaryAccent", "#41576b"},
           {"colorPins",
            QJsonArray{"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
-          {"gap", 6},
+          {"gap", 12},
           {"panelHeight", 40},
           {"blur", true},
           {"blurRadius", 18},

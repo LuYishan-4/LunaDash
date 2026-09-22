@@ -17,7 +17,17 @@ Item {
             ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.38)
             : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, memberMouse.containsMouse ? 0.24 : 0)
         opacity: memberIcon.member.minimized ? 0.58 : 1
-        scale: memberMouse.pressed ? 0.92 : 1
+        scale: memberMouse.pressed ? 0.92 : memberMouse.containsMouse ? 1.08 : 1
+        Rectangle {
+            visible: memberIcon.member.focused
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 1
+            width: 12
+            height: 2
+            radius: 1
+            color: Theme.accent
+        }
         ApplicationIcon {
             shell: memberIcon.shell
             anchors.centerIn: parent
@@ -34,14 +44,20 @@ Item {
         id: memberMouse
         objectName: "windowTaskButton"
         anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         property var pressedWindow: 0
         onPressed: pressedWindow = memberIcon.member.window
-        onClicked: {
+        onClicked: mouse => {
             // Polling must never redirect a held click to a replacement client.
-            if (pressedWindow && String(pressedWindow) === String(memberIcon.member.window))
+            if (!pressedWindow || String(pressedWindow) !== String(memberIcon.member.window)) {
+                pressedWindow = 0
+                return
+            }
+            if (mouse.button === Qt.MiddleButton)
+                memberIcon.shell.command("close", pressedWindow)
+            else
                 memberIcon.shell.command("activate-window", pressedWindow)
             pressedWindow = 0
         }

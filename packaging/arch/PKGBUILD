@@ -1,11 +1,11 @@
 # Local source release: run scripts/make-source.sh first, then makepkg -Cfs.
 pkgname=ludash
 pkgver=1.0.0
-pkgrel=32
+pkgrel=33
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr' 'pipewire' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr' 'pipewire' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard')
 makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel' 'wayland-protocols')
 optdepends=('qt6-shadertools: Build OpenGL shader plugins with the LunaDash SDK'
             'networkmanager: Network status and connection management'

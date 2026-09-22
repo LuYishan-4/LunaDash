@@ -569,8 +569,11 @@ void WaylandCompositor::arrange() {
           initialGeometry.width > 0 && initialGeometry.height > 0)
         client->preferredFloatingSize =
             QSize(initialGeometry.width, initialGeometry.height);
-      windowLayout_->insert(client->workspace, client->id,
-                            client->preferredFloatingSize);
+      const QSize preferred =
+          windowTemplate_ && windowTemplate_->allowOverlap
+              ? client->preferredFloatingSize
+              : QSize();
+      windowLayout_->insert(client->workspace, client->id, preferred);
       windowLayout_->moveToWorkspace(client->id, client->workspace);
       windowLayout_->setMinimized(client->id, client->minimized);
       if (client->maximized)
@@ -913,9 +916,13 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
-  else if (action == "launchLauncher")
-    spawn({"--app", "launcher"});
-  else if (action == "screenshot") {
+  else if (action == "launchLauncher") {
+    launcherSerial_ = launcherSerial_ >= 999999 ? 1 : launcherSerial_ + 1;
+    windowSwitcher_->setLauncherSerial(launcherSerial_);
+    // The interaction channel is owner-only and publishes within one frame,
+    // avoiding the shell status poll latency for an input shortcut.
+    return;
+  } else if (action == "screenshot") {
     captureScreen();
     // A repeated shortcut must leave keyboard focus on the active selector so
     // Escape can still cancel it.
@@ -1060,6 +1067,7 @@ QJsonObject WaylandCompositor::state() const {
       {"settingsSerial", settingsSerial_},
       {"settingsPage", settingsPage_},
       {"pickerSerial", pickerSerial_},
+      {"launcherSerial", launcherSerial_},
       {"input",
        QJsonObject{{"layout", keyboardLayoutPreference(preferences)},
                    {"repeatRate", keyboardRepeatRate()},

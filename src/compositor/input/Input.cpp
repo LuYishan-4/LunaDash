@@ -231,6 +231,43 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
           ? xkb_state_key_get_syms(keyboard->xkb_state, keycode, &symbols)
           : 0;
 
+  bool metaKey = false;
+  for (int i = 0; i < count; ++i)
+    metaKey = metaKey || symbols[i] == XKB_KEY_Meta_L ||
+              symbols[i] == XKB_KEY_Meta_R ||
+              symbols[i] == XKB_KEY_Super_L ||
+              symbols[i] == XKB_KEY_Super_R;
+
+  // Reserve a quick press-and-release of Meta for the shell launcher without
+  // breaking the existing Meta+key compositor shortcuts. The modifier event is
+  // still delivered through wl_keyboard.modifiers, so an unbound Meta combo
+  // can continue to reach a client even though the bare modifier key event is
+  // kept by the compositor.
+  if (!state->virtualKeyboard && !self->q->shortcutCapture_) {
+    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED && metaKey) {
+      const auto modifiers = wlr_keyboard_get_modifiers(keyboard);
+      if (!(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT |
+                         WLR_MODIFIER_SHIFT))) {
+        state->metaTapPending = true;
+        state->metaTapKeycode = static_cast<int>(event->keycode);
+        return;
+      }
+    } else if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+               state->metaTapPending) {
+      state->metaTapPending = false;
+    }
+
+    if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
+        state->metaTapKeycode == static_cast<int>(event->keycode)) {
+      const bool openLauncher = state->metaTapPending;
+      state->metaTapPending = false;
+      state->metaTapKeycode = -1;
+      if (openLauncher)
+        self->q->handleShortcut("launchLauncher");
+      return;
+    }
+  }
+
   if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
       state->consumedKeys.remove(event->keycode))
     return;
