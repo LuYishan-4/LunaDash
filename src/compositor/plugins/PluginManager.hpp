@@ -18,6 +18,7 @@ public:
   QJsonObject snapshot();
   void refresh();
   bool setEnabled(const QString &id, bool enabled, QString *error = nullptr);
+  bool installFromStore(const QString &id, QString *error = nullptr);
   using Validator = std::function<bool(const QJsonObject &)>;
   QJsonObject filter(const QString &target, const QJsonObject &builtin,
                      const QJsonObject &context, const Validator &validate);
@@ -28,8 +29,11 @@ signals:
 
 private:
   struct Native;
+  struct StoreInstall;
   std::vector<std::unique_ptr<Native>> native_;
+  std::vector<std::unique_ptr<StoreInstall>> storeInstalls_;
   QHash<QString, QString> errors_;
+  QHash<QString, QString> storeInstallErrors_;
   QList<PluginDescriptor> catalog_;
   QJsonArray storeCatalog_;
   QString storeError_;
@@ -39,5 +43,7 @@ private:
 
   void refreshStore();
   bool applyStoreCatalog(const QByteArray &bytes, QString *error);
+  void continueStoreInstall(StoreInstall *job);
+  void finishStoreInstall(StoreInstall *job, const QString &error);
 };
 } // namespace LunaDash

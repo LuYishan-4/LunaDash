@@ -2,7 +2,10 @@
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "core/plugins/PluginApi.h"
+#include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLibrary>
@@ -10,8 +13,10 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QScopedValueRollback>
 #include <QSet>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
@@ -30,6 +35,35 @@ struct PluginManager::Native {
   PluginDescriptor current;
   const ludash_plugin_api *api = nullptr;
 };
+
+struct PluginManager::StoreInstall {
+  QString id;
+  QJsonObject item;
+  QJsonArray files;
+  std::unique_ptr<QTemporaryDir> stage;
+  int index = 0;
+};
+
+namespace {
+bool safeInstallPath(const QString &value) {
+  static const QRegularExpression pattern(
+      R"(^(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$)");
+  if (value.isEmpty() || value.size() > 180 || value.contains('\') ||
+      !pattern.match(value).hasMatch())
+    return false;
+  const auto parts = value.split('/');
+  return std::none_of(parts.cbegin(), parts.cend(),
+                      [](const QString &part) {
+                        return part.isEmpty() || part == "." || part == "..";
+                      });
+}
+
+QString userPluginRoot() {
+  const auto data =
+      QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+  return data.isEmpty() ? QString() : data + "/lunadash/plugins";
+}
+} // namespace
 PluginManager::PluginManager(QObject *parent) : QObject(parent) {
   QFile bundled(":/LunaDash/plugins/catalog.json");
   if (bundled.open(QIODevice::ReadOnly)) {
@@ -75,6 +109,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
     const auto name = item.value("name").toString();
     const auto version = item.value("version").toString();
     bool validTargets = false;
+    bool qmlOnly = true;
     if (item.value("targets").isArray()) {
       const auto targetItems = item.value("targets").toArray();
       QSet<QString> targetIds;
@@ -84,6 +119,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
         const auto targetId = implementation.value("target").toString(
             implementation.value("id").toString());
         const auto type = implementation.value("type").toString();
+        qmlOnly = qmlOnly && type == "quickshell";
         const auto target = extensionTarget(targetId);
         if (!targetValue.isObject() || targetId.isEmpty() ||
             targetIds.contains(targetId) || target.isEmpty() ||
@@ -95,6 +131,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
       }
     } else {
       const auto type = item.value("type").toString();
+      qmlOnly = type == "quickshell";
       const auto targetId = item.value("target").toString();
       const auto target = extensionTarget(targetId);
       validTargets =
@@ -142,6 +179,50 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
         return false;
       }
     }
+
+    if (item.contains("install")) {
+      const auto install = item.value("install");
+      if (!install.isObject() || !qmlOnly) {
+        if (error)
+          *error = "Only QML packages may expose store installation files";
+        return false;
+      }
+      const auto files = install.toObject().value("files");
+      if (!files.isArray() || files.toArray().isEmpty() ||
+          files.toArray().size() > 32) {
+        if (error)
+          *error = "Plugin install file list is invalid";
+        return false;
+      }
+      QSet<QString> paths;
+      bool metadata = false;
+      static const QRegularExpression shaPattern("^[0-9a-fA-F]{64}$");
+      for (const auto &fileValue : files.toArray()) {
+        if (!fileValue.isObject()) {
+          if (error)
+            *error = "Plugin install entries must be objects";
+          return false;
+        }
+        const auto file = fileValue.toObject();
+        const auto path = file.value("path").toString();
+        const QUrl url(file.value("url").toString());
+        const auto sha = file.value("sha256").toString();
+        if (!safeInstallPath(path) || paths.contains(path) ||
+            !url.isValid() || url.scheme() != "https" ||
+            !shaPattern.match(sha).hasMatch()) {
+          if (error)
+            *error = "Plugin install entry is invalid";
+          return false;
+        }
+        metadata = metadata || path == "metadata.json";
+        paths.insert(path);
+      }
+      if (!metadata) {
+        if (error)
+          *error = "Plugin install package must include metadata.json";
+        return false;
+      }
+    }
     normalized.append(item);
   }
   storeCatalog_ = normalized;
@@ -183,6 +264,204 @@ void PluginManager::refreshStore() {
     reply->deleteLater();
     emit changed();
   });
+}
+
+
+bool PluginManager::installFromStore(const QString &id, QString *error) {
+  if (id.isEmpty()) {
+    if (error)
+      *error = "Plugin id is required";
+    return false;
+  }
+  if (std::any_of(storeInstalls_.cbegin(), storeInstalls_.cend(),
+                  [&](const auto &job) { return job->id == id; })) {
+    if (error)
+      *error = "Plugin download is already running";
+    return false;
+  }
+
+  QJsonObject item;
+  for (const auto &value : storeCatalog_) {
+    const auto candidate = value.toObject();
+    if (candidate.value("id").toString() == id) {
+      item = candidate;
+      break;
+    }
+  }
+  if (item.isEmpty()) {
+    if (error)
+      *error = "Plugin is not in the reviewed store catalogue";
+    return false;
+  }
+  const auto install = item.value("install").toObject();
+  const auto files = install.value("files").toArray();
+  if (install.isEmpty() || files.isEmpty()) {
+    if (error)
+      *error = "This plugin is source-only and cannot be downloaded directly";
+    return false;
+  }
+
+  for (const auto &plugin : discoverPlugins()) {
+    if (plugin.id == id) {
+      if (error)
+        *error = "Plugin is already installed";
+      return false;
+    }
+  }
+
+  const auto root = userPluginRoot();
+  if (root.isEmpty() || !QDir().mkpath(root)) {
+    if (error)
+      *error = "Could not create the user plugin directory";
+    return false;
+  }
+  const auto destination = QDir(root).filePath(id);
+  if (QFileInfo::exists(destination)) {
+    if (error)
+      *error = "Plugin destination already exists";
+    return false;
+  }
+
+  auto job = std::make_unique<StoreInstall>();
+  job->id = id;
+  job->item = item;
+  job->files = files;
+  job->stage = std::make_unique<QTemporaryDir>(
+      QDir(root).filePath(".install-" + id + "-XXXXXX"));
+  if (!job->stage->isValid()) {
+    if (error)
+      *error = "Could not create a plugin staging directory";
+    return false;
+  }
+
+  auto *raw = job.get();
+  storeInstallErrors_.remove(id);
+  storeInstalls_.push_back(std::move(job));
+  emit changed();
+  continueStoreInstall(raw);
+  if (error)
+    error->clear();
+  return true;
+}
+
+void PluginManager::continueStoreInstall(StoreInstall *job) {
+  if (!job)
+    return;
+
+  if (job->index >= job->files.size()) {
+    const auto metadataPath = job->stage->filePath("metadata.json");
+    QFile metadata(metadataPath);
+    if (!metadata.open(QIODevice::ReadOnly) || metadata.size() > 65536) {
+      finishStoreInstall(job, "Downloaded plugin metadata is unreadable");
+      return;
+    }
+    const auto metadataBytes = metadata.readAll();
+    const auto metadataHash = QString::fromLatin1(
+        QCryptographicHash::hash(metadataBytes, QCryptographicHash::Sha256)
+            .toHex());
+    const QJsonObject receipt{
+        {"sdk", "LunaDash"},
+        {"apiVersion", 2},
+        {"metadataSha256", metadataHash},
+    };
+    QSaveFile receiptFile(job->stage->filePath(".lunadash-sdk.json"));
+    receiptFile.setDirectWriteFallback(false);
+    if (!receiptFile.open(QIODevice::WriteOnly) ||
+        receiptFile.write(QJsonDocument(receipt).toJson(QJsonDocument::Compact)) < 0 ||
+        !receiptFile.commit()) {
+      finishStoreInstall(job, "Could not create the plugin SDK receipt");
+      return;
+    }
+    QFile::setPermissions(job->stage->filePath(".lunadash-sdk.json"),
+                          QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+
+    const auto descriptors = readPluginMetadataTargets(metadataPath, false);
+    if (descriptors.isEmpty() ||
+        std::any_of(descriptors.cbegin(), descriptors.cend(),
+                    [&](const auto &descriptor) {
+                      return descriptor.id != job->id ||
+                             descriptor.type != "quickshell" ||
+                             !descriptor.error.isEmpty();
+                    })) {
+      finishStoreInstall(job, "Downloaded plugin failed LunaDash validation");
+      return;
+    }
+
+    const auto root = userPluginRoot();
+    const auto stagePath = job->stage->path();
+    const auto sourceName = QFileInfo(stagePath).fileName();
+    job->stage->setAutoRemove(false);
+    if (!QDir(root).rename(sourceName, job->id)) {
+      job->stage->setAutoRemove(true);
+      finishStoreInstall(job, "Could not move the plugin into the user plugin directory");
+      return;
+    }
+    finishStoreInstall(job, {});
+    return;
+  }
+
+  const auto entry = job->files.at(job->index).toObject();
+  const auto relativePath = entry.value("path").toString();
+  const auto expectedSha = entry.value("sha256").toString().toLower();
+  const QUrl url(entry.value("url").toString());
+  QNetworkRequest request(url);
+  request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                       QNetworkRequest::NoLessSafeRedirectPolicy);
+  auto *reply = storeNetwork_->get(request);
+  connect(reply, &QNetworkReply::finished, this,
+          [this, job, reply, relativePath, expectedSha] {
+            const auto failure = reply->error();
+            const auto data = reply->readAll();
+            reply->deleteLater();
+            if (failure != QNetworkReply::NoError) {
+              finishStoreInstall(job, "Plugin download failed");
+              return;
+            }
+            if (data.size() > 4 * 1024 * 1024) {
+              finishStoreInstall(job, "Plugin file exceeds the 4 MiB limit");
+              return;
+            }
+            const auto actual = QString::fromLatin1(
+                QCryptographicHash::hash(data, QCryptographicHash::Sha256)
+                    .toHex());
+            if (actual != expectedSha) {
+              finishStoreInstall(job, "Plugin file hash verification failed");
+              return;
+            }
+
+            const auto path = job->stage->filePath(relativePath);
+            if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
+              finishStoreInstall(job, "Could not create the plugin staging path");
+              return;
+            }
+            QSaveFile file(path);
+            file.setDirectWriteFallback(false);
+            if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size() ||
+                !file.commit()) {
+              finishStoreInstall(job, "Could not write a downloaded plugin file");
+              return;
+            }
+            QFile::setPermissions(path,
+                                  QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+            ++job->index;
+            continueStoreInstall(job);
+          });
+}
+
+void PluginManager::finishStoreInstall(StoreInstall *job,
+                                       const QString &error) {
+  if (!job)
+    return;
+  const auto id = job->id;
+  std::erase_if(storeInstalls_,
+                [job](const auto &entry) { return entry.get() == job; });
+  if (!error.isEmpty()) {
+    storeInstallErrors_[id] = error.left(1024);
+    emit changed();
+    return;
+  }
+  storeInstallErrors_.remove(id);
+  refresh();
 }
 
 void PluginManager::loadEnabled() { refresh(); }
@@ -343,7 +622,13 @@ QJsonObject PluginManager::snapshot() {
   QJsonArray remote;
   for (const auto &value : storeCatalog_) {
     auto item = value.toObject();
-    item["installed"] = installedIds.contains(item.value("id").toString());
+    const auto id = item.value("id").toString();
+    item["installed"] = installedIds.contains(id);
+    item["installable"] = item.value("install").isObject();
+    item["installing"] =
+        std::any_of(storeInstalls_.cbegin(), storeInstalls_.cend(),
+                    [&](const auto &job) { return job->id == id; });
+    item["installError"] = storeInstallErrors_.value(id);
     remote.append(item);
   }
   return {{"installed", installed},
