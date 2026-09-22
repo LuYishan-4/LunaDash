@@ -109,19 +109,15 @@ private Q_SLOTS:
     PluginManager manager;
     const auto snapshot = manager.snapshot();
     const auto remote = snapshot.value("remote").toArray();
-    QVERIFY(remote.size() >= 3);
-    QSet<QString> ids;
-    for (const auto &value : remote) {
-      const auto item = value.toObject();
-      ids.insert(item.value("id").toString());
-      const auto source = item.value("sourceUrl").toString();
-      QVERIFY2(source.startsWith(
-                   "https://github.com/LuYishan-4/LunaDash-Plugins/"),
-               qPrintable(source));
-    }
-    QVERIFY(ids.contains("org.ludash.fade"));
-    QVERIFY(ids.contains("org.lunadash.digitalclock"));
-    QVERIFY(ids.contains("org.lunadash.stacking-windows"));
+    QCOMPARE(remote.size(), 1);
+    const auto item = remote.first().toObject();
+    QCOMPARE(item.value("id").toString(),
+             QString("org.lunadash.kde-behavior"));
+    QCOMPARE(item.value("targets").toArray().size(), 3);
+    const auto source = item.value("sourceUrl").toString();
+    QVERIFY2(source.startsWith(
+                 "https://github.com/LuYishan-4/LunaDash-Plugins/"),
+             qPrintable(source));
     QVERIFY(snapshot.value("storeSupported").toBool());
     QVERIFY(!snapshot.value("storeLoading").toBool());
   }

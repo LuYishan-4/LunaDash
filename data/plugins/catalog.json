@@ -3,119 +3,135 @@
   "format": "lunadash-plugin-index",
   "plugins": [
     {
-      "id": "org.ludash.fade",
-      "name": "Window fade",
-      "description": "A configurable native window animation profile.",
-      "version": "2.0.0",
+      "id": "org.lunadash.kde-behavior",
+      "name": "KDE Behavior Pack",
+      "description": "KDE-inspired taskbar, window-rule and window-animation behavior packaged as one multi-target LunaDash plugin.",
+      "version": "1.0.0",
       "author": "LunaDash contributors",
-      "icon": "preferences-desktop-effects",
-      "type": "effect",
-      "target": "window-animation",
-      "mode": "replace",
+      "icon": "preferences-desktop",
+      "targets": [
+        {
+          "id": "panel",
+          "target": "panel",
+          "type": "quickshell",
+          "mode": "replace",
+          "settings": {
+            "compact": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Compact task buttons",
+              "default": false
+            },
+            "showLabels": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show window titles",
+              "default": true
+            },
+            "showWorkspaceSwitcher": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show workspace switcher",
+              "default": true
+            }
+          }
+        },
+        {
+          "id": "window-rules",
+          "target": "window-rules",
+          "type": "effect",
+          "mode": "replace",
+          "settings": {
+            "workspacePolicy": {
+              "type": "string",
+              "control": "select",
+              "label": "New-window workspace policy",
+              "default": "current",
+              "enum": [
+                "current",
+                "first",
+                "remember"
+              ]
+            },
+            "maximizeNewWindows": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Maximize new windows",
+              "default": false
+            }
+          }
+        },
+        {
+          "id": "window-animation",
+          "target": "window-animation",
+          "type": "effect",
+          "mode": "replace",
+          "settings": {
+            "duration": {
+              "type": "integer",
+              "control": "number",
+              "label": "Animation duration",
+              "default": 220,
+              "minimum": 0,
+              "maximum": 600,
+              "step": 10
+            },
+            "enterOffset": {
+              "type": "integer",
+              "control": "number",
+              "label": "Opening offset",
+              "default": 8,
+              "minimum": -100,
+              "maximum": 100,
+              "step": 1
+            },
+            "focusOpacity": {
+              "type": "number",
+              "control": "slider",
+              "label": "Unfocused opacity",
+              "default": 0.9,
+              "minimum": 0,
+              "maximum": 1,
+              "step": 0.01
+            },
+            "exitScale": {
+              "type": "number",
+              "control": "slider",
+              "label": "Closing scale",
+              "default": 0.96,
+              "minimum": 0.5,
+              "maximum": 1,
+              "step": 0.01
+            },
+            "easing": {
+              "type": "string",
+              "control": "select",
+              "label": "Easing curve",
+              "default": "outCubic",
+              "enum": [
+                "linear",
+                "outCubic",
+                "outQuint",
+                "inOutCubic"
+              ]
+            }
+          }
+        }
+      ],
       "tags": [
+        "KDE",
+        "Panel",
+        "Windows",
         "Animation",
-        "Native"
+        "Multi-target"
       ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.ludash.fade",
-      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.ludash.fade/",
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.kde-behavior",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.kde-behavior/",
       "license": "GPL-3.0-or-later",
-      "repository": "https://github.com/LuYishan-4/LunaDash",
+      "repository": "https://github.com/LuYishan-4/LunaDash-Plugins",
       "featured": true,
       "deprecated": false,
-      "settings": {
-        "duration": {
-          "type": "integer",
-          "control": "number",
-          "label": "Animation duration",
-          "description": "Milliseconds; zero disables animation.",
-          "default": 260,
-          "minimum": 0,
-          "maximum": 600,
-          "step": 10
-        },
-        "softFocus": {
-          "type": "boolean",
-          "control": "toggle",
-          "label": "Fade on focus",
-          "default": true
-        },
-        "easing": {
-          "type": "string",
-          "control": "select",
-          "label": "Easing curve",
-          "default": "outQuint",
-          "enum": [
-            "linear",
-            "outCubic",
-            "outQuint",
-            "inOutCubic"
-          ]
-        },
-        "exitScale": {
-          "type": "number",
-          "control": "slider",
-          "label": "Closing scale",
-          "default": 1,
-          "minimum": 0.5,
-          "maximum": 1,
-          "step": 0.01
-        }
-      },
-      "upstream": "https://github.com/LuYishan-4/LunaDash/tree/fix/plugin/data/plugins/fade"
-    },
-    {
-      "id": "org.lunadash.digitalclock",
-      "name": "Digital Clock",
-      "description": "A desktop clock showing the current time, month, date, and weekday.",
-      "version": "1.0.0",
-      "author": "LuYishan",
-      "icon": "clock",
-      "type": "quickshell",
-      "target": "desktop-widgets",
-      "mode": "augment",
-      "tags": [
-        "Widget",
-        "Clock"
-      ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.digitalclock",
-      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/",
-      "license": "GPL-3.0-or-later",
-      "repository": "https://github.com/LuYishan-4/LunaDash",
-      "featured": true,
-      "deprecated": false,
-      "settings": {},
-      "upstream": "https://github.com/LuYishan-4/LunaDash/tree/fix/plugin/qml/plugins/digital-clock"
-    },
-    {
-      "id": "org.lunadash.stacking-windows",
-      "name": "Stacking windows",
-      "description": "Overlapping windows with independent movement, resizing and focus-to-front behavior.",
-      "version": "1.0.0",
-      "author": "LunaDash contributors",
-      "icon": "preferences-system-windows",
-      "type": "effect",
-      "target": "window-layout",
-      "mode": "replace",
-      "tags": [
-        "Layout",
-        "Stacking",
-        "Native"
-      ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.stacking-windows",
-      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.stacking-windows/",
-      "license": "GPL-3.0-or-later",
-      "repository": "https://github.com/LuYishan-4/LunaDash",
-      "featured": true,
-      "deprecated": false,
-      "settings": {
-        "cascadeStep": {
-          "type": "integer",
-          "default": 32,
-          "minimum": 0,
-          "maximum": 96
-        }
-      },
-      "upstream": "https://github.com/LuYishan-4/LunaDash/tree/fix/plugin/data/plugins/stacking-windows"
+      "homepage": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.kde-behavior/"
     }
   ]
 }

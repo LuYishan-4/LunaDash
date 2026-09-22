@@ -46,13 +46,31 @@ def main():
                 assert (installed / manifest["entry"]).is_file()
             print(f"SDK template built and staged: {name}")
 
-        for name in ("fade", "stacking-windows"):
-            project = root / name
-            shutil.copytree(source / "data/plugins" / name, project)
-            manifest, installed = build_and_install(
-                project, root / (name + "-build"), args.sdk, prefix)
-            assert (installed / manifest["entry"]).is_file()
-            print(f"SDK 2 plugin package built and staged: {name}")
+        multi = root / "multi-target"
+        shutil.copytree(source / "templates/plugins" / "effect-cpp", multi)
+        multi_manifest = json.loads((multi / "metadata.json").read_text())
+        animation = {
+            "id": "window-animation",
+            "type": multi_manifest.pop("type"),
+            "target": multi_manifest.pop("target"),
+            "mode": multi_manifest.pop("mode"),
+            "entry": multi_manifest.pop("entry"),
+            "settings": multi_manifest.pop("settings"),
+        }
+        rules = {
+            "id": "window-rules",
+            "type": "effect",
+            "target": "window-rules",
+            "mode": "replace",
+            "entry": animation["entry"],
+            "settings": {},
+        }
+        multi_manifest["targets"] = [animation, rules]
+        (multi / "metadata.json").write_text(json.dumps(multi_manifest))
+        _, installed = build_and_install(
+            multi, root / "multi-target-build", args.sdk, prefix)
+        assert (installed / animation["entry"]).is_file()
+        print("SDK multi-target package built and staged")
 
         broken = root / "quickshell/metadata.json"
         manifest = json.loads(broken.read_text())
