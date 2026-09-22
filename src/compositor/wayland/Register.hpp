@@ -65,6 +65,7 @@ public:
     Slot<XWaylandState> dissociate;
     Slot<XWaylandState> map;
     Slot<XWaylandState> unmap;
+    Slot<XWaylandState> sceneDestroy;
     Slot<XWaylandState> destroy;
     Slot<XWaylandState> requestConfigure;
     Slot<XWaylandState> requestMove;
@@ -382,6 +383,7 @@ public:
   static void handleXWaylandDissociate(wl_listener *listener, void *data);
   static void handleXWaylandMap(wl_listener *listener, void *data);
   static void handleXWaylandUnmap(wl_listener *listener, void *data);
+  static void handleXWaylandSceneDestroy(wl_listener *listener, void *data);
   static void handleXWaylandDestroy(wl_listener *listener, void *data);
   static void handleXWaylandConfigure(wl_listener *listener, void *data);
   static void handleXWaylandMove(wl_listener *listener, void *data);

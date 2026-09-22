@@ -81,7 +81,7 @@ case "$manager" in
             shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil polkit-kde-agent \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             fcitx5 fcitx5-qt fcitx5-configtool networkmanager network-manager-applet \
-            wireplumber pavucontrol bluez bluez-utils blueman system-config-printer \
+            libpulse wireplumber pavucontrol bluez bluez-utils blueman system-config-printer \
             gnome-disk-utility partitionmanager firewalld seahorse pciutils usbutils \
             udisks2 power-profiles-daemon gnome-control-center
         wlroots_package=wlroots0.20
@@ -113,7 +113,7 @@ case "$manager" in
             "$wlroots_package" qt6-base-dev qt6-declarative-dev qt6-wayland \
             libqt6opengl6-dev shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            fcitx5 fcitx5-frontend-qt6 fcitx5-config-qt
+            pulseaudio-utils fcitx5 fcitx5-frontend-qt6 fcitx5-config-qt
         ;;
     dnf)
         run "${elevate[@]}" dnf install -y \
@@ -123,7 +123,7 @@ case "$manager" in
             wlroots-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland \
             shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
+            pulseaudio-utils fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
         ;;
     zypper)
         run "${elevate[@]}" zypper --non-interactive install \
@@ -133,7 +133,7 @@ case "$manager" in
             wlroots-devel qt6-base-devel qt6-declarative-devel qt6-wayland \
             shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            fcitx5 fcitx5-qt6 fcitx5-configtool
+            pulseaudio-utils fcitx5 fcitx5-qt6 fcitx5-configtool
         ;;
     apk)
         run "${elevate[@]}" apk add \
@@ -142,7 +142,7 @@ case "$manager" in
             glib-dev wlroots-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland \
             shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            fcitx5 fcitx5-qt fcitx5-configtool
+            pulseaudio-utils fcitx5 fcitx5-qt fcitx5-configtool
         ;;
     xbps)
         run "${elevate[@]}" xbps-install -Sy \
@@ -151,7 +151,7 @@ case "$manager" in
             eudev-libudev-devel glib-devel wlroots-devel qt6-base-devel qt6-declarative-devel \
             qt6-wayland shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            fcitx5 fcitx5-qt fcitx5-configtool
+            pulseaudio-utils fcitx5 fcitx5-qt fcitx5-configtool
         ;;
     emerge)
         run "${elevate[@]}" emerge --noreplace \

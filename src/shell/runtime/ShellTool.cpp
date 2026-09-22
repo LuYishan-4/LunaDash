@@ -1,5 +1,6 @@
 #include "shell/runtime/ShellTool.hpp"
 #include "shell/media/MediaPlayer.hpp"
+#include "shell/audio/AudioSpectrum.hpp"
 #include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -28,7 +29,10 @@ int ShellTool::run(int argc, char **argv) {
   const QStringList arguments = app.arguments();
   if (arguments.size() < 2)
     return printJson(
-        {{"error", "Expected media-status, media-action, or language."}});
+        {{"error", "Expected media-status, media-action, audio-spectrum, or language."}});
+
+  if (arguments[1] == "audio-spectrum")
+    return runAudioSpectrum();
 
   if (arguments[1] == "media-status")
     return printJson(mediaStatus(arguments.value(2), arguments.value(3)));

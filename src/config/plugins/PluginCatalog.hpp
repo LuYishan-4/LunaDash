@@ -35,4 +35,7 @@ QList<PluginDescriptor> readPluginMetadataTargets(
 QString pluginInstanceId(const PluginDescriptor &plugin);
 QList<PluginDescriptor> discoverPlugins();
 QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin);
+QString pluginStoreFingerprint(const QJsonObject &storeItem);
+bool pluginMatchesStore(const PluginDescriptor &plugin,
+                        const QJsonObject &storeItem);
 } // namespace LunaDash

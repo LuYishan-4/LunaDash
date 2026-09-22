@@ -38,6 +38,8 @@ jobs:
               run: ./scripts/test-xdg-lifecycle.sh "$PWD/build-wayland"
             - name: Verify XWayland is on demand
               run: xvfb-run -a python3 tests/wayland/test_xwayland.py build-wayland
+            - name: Exercise accelerated recording notification teardown
+              run: python3 tests/wayland/test_xwayland_notifications.py build-wayland
             - name: Verify wlroots protocol globals
               run: |
                   runtime=$(mktemp -d)

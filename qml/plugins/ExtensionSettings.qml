@@ -511,7 +511,7 @@ ColumnLayout {
                                 text: page.shell.tr(pluginCard.modelData.installed
                                                     ? "Installed locally"
                                                     : pluginCard.modelData.updateAvailable
-                                                        ? "Older version installed"
+                                                        ? "Updated package available"
                                                         : "Available remotely")
                                 color: pluginCard.modelData.installed ? Theme.success : Theme.accent
                                 font.family: Theme.font
@@ -583,7 +583,7 @@ ColumnLayout {
                             HelpText {
                                 visible: Boolean(pluginCard.modelData.outdated)
                                 shell: page.shell
-                                message: page.shell.tr("This installed plugin is outdated. Installed version: ") +
+                                message: page.shell.tr("A revised plugin package is available. Installed version: ") +
                                          String(pluginCard.modelData.version || "") +
                                          page.shell.tr(" · Store version: ") +
                                          String(pluginCard.modelData.storeVersion || "")
@@ -729,7 +729,7 @@ ColumnLayout {
                             visible: pluginCard.remote &&
                                      Boolean(pluginCard.modelData.updateAvailable)
                             shell: page.shell
-                            message: "An older plugin version was found. Updating downloads and validates the current Store package, resets it to disabled, and keeps the old copy out of the modern plugin list."
+                            message: "A revised plugin package was found. Updating downloads and validates the current Store package and resets it to disabled. Revisions may share the same version number."
                         }
 
                         Text {

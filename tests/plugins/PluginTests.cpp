@@ -81,6 +81,27 @@ class PluginTests : public QObject {
              qPrintable(error));
   }
 private Q_SLOTS:
+  void sameVersionStoreRevision() {
+    QTemporaryDir package;
+    QVERIFY(package.isValid());
+    PluginDescriptor plugin;
+    plugin.id = "org.example.spectrum";
+    plugin.version = "1.0.1a";
+    plugin.metadataPath = package.filePath("metadata.json");
+    QJsonObject file{{"path", "Main.qml"}, {"sha256", "first"}, {"url", "https://example.test/a"}};
+    QJsonObject item{{"id", plugin.id}, {"version", plugin.version},
+                     {"install", QJsonObject{{"files", QJsonArray{file}}}}};
+    QVERIFY(!pluginMatchesStore(plugin, item));
+    QVERIFY(writeFile(package.filePath(".lunadash-store.json"),
+        QJsonDocument(QJsonObject{{"fingerprint", pluginStoreFingerprint(item)}}).toJson()));
+    QVERIFY(pluginMatchesStore(plugin, item));
+    file["url"] = "https://example.test/moved";
+    item["install"] = QJsonObject{{"files", QJsonArray{file}}};
+    QVERIFY(pluginMatchesStore(plugin, item));
+    file["sha256"] = "second";
+    item["install"] = QJsonObject{{"files", QJsonArray{file}}};
+    QVERIFY(!pluginMatchesStore(plugin, item));
+  }
   void initTestCase() {
     QVERIFY(temporary.isValid());
     qputenv("XDG_CONFIG_HOME", (temporary.path() + "/config").toUtf8());

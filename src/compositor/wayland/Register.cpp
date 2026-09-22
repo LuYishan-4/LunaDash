@@ -324,6 +324,7 @@ void WaylandCompositor::Impl::shutdown() {
       continue;
     detachListener(state->associate);
     detachListener(state->dissociate);
+    detachListener(state->sceneDestroy);
     detachListener(state->map);
     detachListener(state->unmap);
     detachListener(state->destroy);

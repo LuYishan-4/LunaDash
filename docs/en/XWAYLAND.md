@@ -100,3 +100,7 @@ The built-in registry is data, not compositor branching. A user or downstream pa
 ```
 
 The optional user file is `~/.config/lunadash/launch-capabilities.json`. Matching rules are additive. Unknown applications remain Wayland-only and arbitrary URLs or document arguments are not treated as application identities.
+
+## Recording notification teardown
+
+XWayland scene trees have an independent destroy listener. wlroots can destroy the subsurface tree before XWM emits `dissociate`; the listener clears the client pointer immediately so dissociate and layout never reuse freed scene memory. Repeated accelerated override-redirect notifications are exercised by `tests/wayland/test_xwayland_notifications.py BUILD_DIR`. Set `LUNADASH_TEST_GSR_NOTIFY` to a local `gsr-notify` executable to repeat the test with the real recorder helper. These tests isolate notification lifecycle; they do not certify the full NVIDIA KMS recording path.

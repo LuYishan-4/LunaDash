@@ -362,5 +362,8 @@
     "entry": "筆",
     "entries": "筆",
     "Empty text": "空白文字",
-    "Clipboard history is empty": "剪貼簿歷史是空的"
+    "Clipboard history is empty": "剪貼簿歷史是空的",
+    "Updated package available": "有可更新的插件套件",
+    "A revised plugin package is available. Installed version: ": "有新的插件修訂可更新。已安裝版本：",
+    "A revised plugin package was found. Updating downloads and validates the current Store package and resets it to disabled. Revisions may share the same version number.": "發現新的插件套件修訂。更新會下載並驗證目前 Store 套件，完成後重設為停用。不同修訂可能使用相同版本號。"
 }

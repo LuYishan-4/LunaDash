@@ -327,19 +327,18 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
   }
 
   const auto discovered = discoverPlugins();
-  const auto storeVersion = item.value("version").toString();
   bool installedPackageFound = false;
   for (const auto &plugin : discovered) {
     if (plugin.id != id)
       continue;
     installedPackageFound = true;
-    if (plugin.version == storeVersion) {
+    if (pluginMatchesStore(plugin, item)) {
       if (error)
         *error = "Plugin is already installed";
       return false;
     }
-    // A different version is an explicit Store update. The downloaded package
-    // is staged and validated before the old copy/config is replaced.
+    // Revisions may share a product version; compare the complete Store source
+    // fingerprint. Downloads are still staged and validated before replacement.
     break;
   }
 
@@ -560,6 +559,16 @@ void PluginManager::installBuiltStorePackage(StoreInstall *job) {
                   })) {
     finishStoreInstall(
         job, "Built plugin failed LunaDash SDK/runtime validation");
+    return;
+  }
+
+  QSaveFile receipt(QDir(builtDirectory).filePath(".lunadash-store.json"));
+  receipt.setDirectWriteFallback(false);
+  const auto receiptBytes = QJsonDocument(QJsonObject{
+      {"fingerprint", pluginStoreFingerprint(job->item)}}).toJson(QJsonDocument::Compact);
+  if (!receipt.open(QIODevice::WriteOnly) ||
+      receipt.write(receiptBytes) != receiptBytes.size() || !receipt.commit()) {
+    finishStoreInstall(job, "Could not write the Store revision receipt");
     return;
   }
 
@@ -806,11 +815,10 @@ void PluginManager::refresh() {
 QJsonObject PluginManager::snapshot() {
   QJsonArray installed;
   QSet<QString> replacements;
-  QHash<QString, QString> storeVersions;
+  QHash<QString, QJsonObject> storeItems;
   for (const auto &value : storeCatalog_) {
     const auto item = value.toObject();
-    storeVersions.insert(item.value("id").toString(),
-                         item.value("version").toString());
+    storeItems.insert(item.value("id").toString(), item);
   }
   const auto removableRoot = QFileInfo(userPluginRoot()).canonicalFilePath();
   static const QSet<QString> retiredBundledIds{
@@ -824,9 +832,10 @@ QJsonObject PluginManager::snapshot() {
         retiredBundledIds.contains(descriptor.id))
       continue;
     auto item = pluginDescriptorJson(descriptor);
-    const auto storeVersion = storeVersions.value(descriptor.id);
+    const auto storeItem = storeItems.value(descriptor.id);
+    const auto storeVersion = storeItem.value("version").toString();
     item["outdated"] =
-        !storeVersion.isEmpty() && storeVersion != descriptor.version;
+        !storeVersion.isEmpty() && !pluginMatchesStore(descriptor, storeItem);
     item["storeVersion"] = storeVersion;
     const auto packageDir =
         QFileInfo(descriptor.metadataPath).absoluteDir().canonicalPath();
@@ -874,15 +883,15 @@ QJsonObject PluginManager::snapshot() {
     auto item = value.toObject();
     const auto id = item.value("id").toString();
     QString installedVersion;
+    bool current = false;
     for (const auto &descriptor : catalog_) {
       if (descriptor.id == id && descriptor.schemaVersion == 2) {
         installedVersion = descriptor.version;
+        current = pluginMatchesStore(descriptor, item);
         break;
       }
     }
     const bool installed = !installedVersion.isEmpty();
-    const bool current =
-        installed && installedVersion == item.value("version").toString();
     item["installed"] = current;
     item["installedVersion"] = installedVersion;
     item["updateAvailable"] = installed && !current;

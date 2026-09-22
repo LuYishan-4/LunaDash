@@ -71,6 +71,37 @@ QString pluginInstanceId(const PluginDescriptor &plugin) {
   return plugin.id + "@" + plugin.target;
 }
 
+QString pluginStoreFingerprint(const QJsonObject &storeItem) {
+  QJsonObject hashes;
+  for (const auto &value : storeItem.value("install").toObject().value("files").toArray()) {
+    const auto file = value.toObject();
+    hashes.insert(file.value("path").toString(), file.value("sha256"));
+  }
+  if (hashes.isEmpty())
+    return {};
+  const QJsonObject package{{"id", storeItem.value("id")},
+                            {"version", storeItem.value("version")},
+                            {"files", hashes}};
+  return QString::fromLatin1(QCryptographicHash::hash(
+      QJsonDocument(package).toJson(QJsonDocument::Compact),
+      QCryptographicHash::Sha256).toHex());
+}
+
+bool pluginMatchesStore(const PluginDescriptor &plugin,
+                        const QJsonObject &storeItem) {
+  if (plugin.version != storeItem.value("version").toString())
+    return false;
+  const auto fingerprint = pluginStoreFingerprint(storeItem);
+  if (fingerprint.isEmpty())
+    return true;
+  QFile receipt(QFileInfo(plugin.metadataPath).absoluteDir().filePath(
+      ".lunadash-store.json"));
+  if (!receipt.open(QIODevice::ReadOnly) || receipt.size() > 4096)
+    return false;
+  return QJsonDocument::fromJson(receipt.readAll()).object()
+             .value("fingerprint").toString() == fingerprint;
+}
+
 QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
                                                   bool applyConfiguration) {
   QFile file(path);

@@ -83,3 +83,7 @@ Flatpak GPU Screen Recorder 6.1.2 的記錄中，GPU/capture discovery 能找到
 ```
 
 Launcher 會保留 `WAYLAND_DISPLAY`；只有命中的 app 才額外取得 authenticated `DISPLAY` / `XAUTHORITY`。未知 app 維持純 Wayland。解析 Flatpak 時只辨識真正的 reverse-DNS app ID，不會因 URL、檔名或其他 argument 內含相同文字而誤判。
+
+## 錄影通知視窗的釋放
+
+XWayland scene tree 現在有獨立的 destroy listener。wlroots 可能先釋放 subsurface tree，XWM 才送出 `dissociate`；listener 會立即清除 client 指標，避免 dissociate 或 layout 存取已釋放的記憶體。`tests/wayland/test_xwayland_notifications.py BUILD_DIR` 反覆建立及關閉加速的 override-redirect 通知視窗；設定 `LUNADASH_TEST_GSR_NOTIFY` 為本機 `gsr-notify` 路徑可用實際錄影通知程式測試。此測試隔離通知生命週期，不等於完整驗證 NVIDIA KMS 錄影路徑。

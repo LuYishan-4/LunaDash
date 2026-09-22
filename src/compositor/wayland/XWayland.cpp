@@ -138,6 +138,8 @@ void WaylandCompositor::Impl::handleXWaylandMap(wl_listener *listener,
     if (!client->sceneTree)
       return;
     client->sceneTree->node.data = client;
+    attachListener(&client->sceneTree->node.events.destroy, state->sceneDestroy,
+                   state, handleXWaylandSceneDestroy);
   }
   client->mapped = true;
   state->impl->q->updateClientMetadata(client);
@@ -177,6 +179,20 @@ void WaylandCompositor::Impl::handleXWaylandUnmap(wl_listener *listener,
 #endif
 }
 
+void WaylandCompositor::Impl::handleXWaylandSceneDestroy(wl_listener *listener,
+                                                       void *) {
+#if LUDASH_WLR_HAS_XWAYLAND
+  auto *state = listenerOwner<XWaylandState>(listener);
+  if (!state)
+    return;
+  detachListener(state->sceneDestroy);
+  // The subsurface helper can be destroyed by wl_surface teardown before XWM
+  // emits dissociate. Never leave layout or dissociate with a dangling tree.
+  if (state->client)
+    state->client->sceneTree = nullptr;
+#endif
+}
+
 void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
                                                      void *) {
 #if LUDASH_WLR_HAS_XWAYLAND
@@ -186,16 +202,16 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
   auto *self = state->impl;
   auto *client = state->client;
 
-  // wlroots emits unmap before destroy for mapped XWayland surfaces, and
-  // its scene helpers participate in the wl_surface destruction lifecycle.
-  // Do not synthesize another unmap or destroy the scene tree from inside the
-  // XWM destroy signal: short-lived override-redirect windows (GSR overlays,
-  // menus, tooltips) can otherwise re-enter layout and double-destroy scene
-  // state while wlroots is still dispatching the same destruction sequence.
+  // Scene lifetime is independent of XWM lifetime. The destroy listener clears
+  // sceneTree when wlroots goes first; otherwise dispose of the live tree now
+  // so node.data cannot outlive ClientWindow. Do not synthesize another unmap.
   if (self->seat && client->wlSurface &&
       self->seat->keyboard_state.focused_surface == client->wlSurface)
     wlr_seat_keyboard_notify_clear_focus(self->seat);
   client->mapped = false;
+  if (client->sceneTree)
+    wlr_scene_node_destroy(&client->sceneTree->node);
+  detachListener(state->sceneDestroy);
   client->wlSurface = nullptr;
   client->sceneTree = nullptr;
   client->xwayland = nullptr;
