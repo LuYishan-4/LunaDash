@@ -435,7 +435,10 @@
         "control": "select",
         "default": "top",
         "enum": [
-          "top"
+          "top",
+          "bottom",
+          "left",
+          "right"
         ],
         "label": "Panel edge",
         "type": "string"

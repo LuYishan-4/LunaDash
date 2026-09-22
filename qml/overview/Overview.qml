@@ -307,7 +307,7 @@ ModuleSurface {
             Repeater {
                 model: [
                     ["CPU", Math.round(dashboard.stats.cpuPercent || 0) + "%", dashboard.stats.cpuModel || "CPU", Math.max(0, Math.min(100, Number(dashboard.stats.cpuPercent || 0)))],
-                    ["GPU", Math.round(dashboard.stats.gpuPercent || 0) + "%", dashboard.stats.gpuModel || "GPU", Math.max(0, Math.min(100, Number(dashboard.stats.gpuPercent || 0)))],
+                    ["GPU", dashboard.stats.gpuAvailable === false ? "N/A" : Math.round(dashboard.stats.gpuPercent || 0) + "%", dashboard.stats.gpuModel || dashboard.stats.gpuDriver || "GPU", dashboard.stats.gpuAvailable === false ? 0 : Math.max(0, Math.min(100, Number(dashboard.stats.gpuPercent || 0)))],
                     [shell.tr("Memory"), Math.round(dashboard.stats.memoryPercent || 0) + "%", Number(dashboard.stats.memoryUsed || 0).toFixed(1) + " GiB", Math.max(0, Math.min(100, Number(dashboard.stats.memoryPercent || 0)))],
                     [shell.tr("Storage"), Number(dashboard.stats.diskUsed || 0).toFixed(1) + " GiB", dashboard.stats.diskDevice || "Disk", Math.max(0, Math.min(100, Number(dashboard.stats.diskPercent || 0)))]
                 ]

@@ -14,9 +14,37 @@ ColumnLayout {
     onIncomingStateChanged: if (JSON.stringify(incomingState) !== JSON.stringify(state))
         state = incomingState
 
-    readonly property var installedPlugins: (state.installed || [])
+    readonly property var installedTargets: (state.installed || [])
         .filter(plugin => Number(plugin.schemaVersion || 0) >= 2)
+    readonly property var installedPlugins: collapseInstalledPlugins(installedTargets)
     readonly property var remotePlugins: state.remote || []
+
+    function collapseInstalledPlugins(entries) {
+        const packages = ({})
+        entries.forEach(target => {
+            const id = String(target.id || target.packageId || "")
+            if (!id.length)
+                return
+            if (!packages[id]) {
+                packages[id] = Object.assign({}, target, {
+                    packageId: id,
+                    targets: [],
+                    tags: []
+                })
+            }
+            packages[id].targets.push(target)
+            const tags = packages[id].tags
+            ;(target.tags || []).forEach(tag => {
+                if (!tags.includes(tag))
+                    tags.push(tag)
+            })
+            if (target.error && !packages[id].error)
+                packages[id].error = target.error
+            packages[id].outdated = Boolean(packages[id].outdated || target.outdated)
+            packages[id].removable = Boolean(packages[id].removable || target.removable)
+        })
+        return Object.keys(packages).sort().map(id => packages[id])
+    }
     property int pluginTab: 0
     property int filterIndex: 0
     property string searchText: ""
@@ -81,8 +109,30 @@ ColumnLayout {
     }
 
     function effectiveEnabled(plugin) {
+        const targets = plugin.targets || []
+        if (targets.length > 0)
+            return targets.some(target => effectiveEnabled(target))
         const packageConfig = document.plugins[plugin.id] || ({})
-        return (packageConfig.enabled ?? true) && Boolean(pluginValue(plugin).enabled)
+        return (packageConfig.enabled ?? plugin.enabled) && Boolean(pluginValue(plugin).enabled)
+    }
+
+    function setPackageEnabled(plugin, enabled) {
+        const next = JSON.parse(JSON.stringify(document))
+        const previous = next.plugins[plugin.id] || ({})
+        const packageConfig = previous.targets
+            ? previous
+            : { enabled: previous.enabled ?? false, targets: {} }
+        packageConfig.enabled = enabled
+        ;(plugin.targets || []).forEach(target => {
+            const targetConfig = packageConfig.targets[target.target]
+                || JSON.parse(JSON.stringify(pluginValue(target)))
+            targetConfig.enabled = enabled
+            targetConfig.mode = targetConfig.mode || target.mode
+            targetConfig.settings = targetConfig.settings || target.settings || {}
+            packageConfig.targets[target.target] = targetConfig
+        })
+        next.plugins[plugin.id] = packageConfig
+        saveImmediately(next)
     }
 
     function setPlugin(plugin, key, value, immediate) {
@@ -118,7 +168,7 @@ ColumnLayout {
     function conflictsFor(plugin) {
         if ((targetPolicy(plugin).selection || "single") !== "single")
             return []
-        return installedPlugins.filter(other =>
+        return installedTargets.filter(other =>
             other.target === plugin.target &&
             (other.instanceId || (other.id + "@" + other.target)) !==
                 (plugin.instanceId || (plugin.id + "@" + plugin.target)) &&
@@ -126,16 +176,35 @@ ColumnLayout {
     }
 
     function requestEnabled(plugin, enabled) {
+        const selectedTargets = (plugin.targets || []).length
+            ? plugin.targets
+            : [plugin]
         if (!enabled) {
-            setPlugin(plugin, "enabled", false, true)
+            if (selectedTargets.length > 1)
+                setPackageEnabled(plugin, false)
+            else
+                setPlugin(plugin, "enabled", false, true)
             return
         }
-        const conflicts = conflictsFor(plugin)
+        const conflicts = []
+        selectedTargets.forEach(target => conflictsFor(target).forEach(other => {
+            const key = other.instanceId || (other.id + "@" + other.target)
+            if (!conflicts.some(candidate =>
+                    (candidate.instanceId || (candidate.id + "@" + candidate.target)) === key))
+                conflicts.push(other)
+        }))
         if (conflicts.length) {
-            pendingConflict = { plugin: plugin, conflicts: conflicts }
+            pendingConflict = {
+                plugin: plugin,
+                selectedTargets: selectedTargets,
+                conflicts: conflicts
+            }
             return
         }
-        setPlugin(plugin, "enabled", true, true)
+        if (selectedTargets.length > 1)
+            setPackageEnabled(plugin, true)
+        else
+            setPlugin(plugin, "enabled", true, true)
     }
 
     function confirmConflict() {
@@ -167,9 +236,19 @@ ColumnLayout {
         }
 
         conflicts.forEach(plugin => setTarget(plugin, false))
-        setTarget(selected, true)
+        const selectedTargets = pendingConflict.selectedTargets || [selected]
+        selectedTargets.forEach(plugin => setTarget(plugin, true))
+        if (selectedTargets.length > 1) {
+            const packageConfig = next.plugins[selected.id] || ({})
+            packageConfig.enabled = true
+            next.plugins[selected.id] = packageConfig
+        }
         pendingConflict = null
         saveImmediately(next)
+    }
+
+    function targetLabel(plugin) {
+        return targetPolicy(plugin).name || plugin.target || plugin.id
     }
 
     function matchesSearch(plugin) {
@@ -500,16 +579,6 @@ ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 9
 
-                            StyledComboBox {
-                                Layout.fillWidth: true
-                                model: [page.shell.tr("Built-in and plugin"),
-                                        page.shell.tr("Plugin only")]
-                                currentIndex: pluginCard.config.mode === "replace" ? 1 : 0
-                                enabled: pluginCard.modelData.layoutMode !== "stacking"
-                                onActivated: index => page.setPlugin(
-                                    pluginCard.modelData, "mode", index === 1 ? "replace" : "augment")
-                            }
-
                             HelpText {
                                 visible: Boolean(pluginCard.modelData.outdated)
                                 shell: page.shell
@@ -519,39 +588,101 @@ ColumnLayout {
                                          String(pluginCard.modelData.storeVersion || "")
                             }
 
-                            HelpText {
-                                shell: page.shell
-                                message: pluginCard.modelData.type === "effect"
-                                    ? "Native plugins run in the compositor. Enable only trusted code. Configuration changes apply directly; disable a native plugin before replacing its binary."
-                                    : pluginCard.modelData.type === "opengl"
-                                        ? "OpenGL shader plugins require GPU rendering. Software rendering keeps the built-in feature."
-                                        : ""
-                            }
+                            Repeater {
+                                model: (pluginCard.modelData.targets || []).length
+                                    ? pluginCard.modelData.targets
+                                    : [pluginCard.modelData]
 
-                            SettingsTargetEditor {
-                                Layout.fillWidth: true
-                                visible: Object.keys(pluginCard.modelData.settingsSchema || {}).length > 0
-                                shell: page.shell
-                                targetId: "plugin:" + pluginCard.modelData.id + ":" + pluginCard.modelData.target
-                            }
+                                delegate: Rectangle {
+                                    id: targetCard
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: targetBody.implicitHeight + 20
+                                    radius: 12
+                                    color: Qt.rgba(Theme.surface.r, Theme.surface.g,
+                                                   Theme.surface.b, 0.56)
+                                    border.width: 1
+                                    border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g,
+                                                          Theme.starlight.b, 0.16)
 
-                            Text {
-                                visible: Boolean(pluginCard.modelData.error)
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 0
-                                wrapMode: Text.Wrap
-                                color: Theme.danger
-                                font.family: Theme.font
-                                text: pluginCard.modelData.error || ""
-                            }
+                                    ColumnLayout {
+                                        id: targetBody
+                                        anchors.fill: parent
+                                        anchors.margins: 10
+                                        spacing: 8
 
-                            ShellButton {
-                                visible: Boolean(pluginCard.modelData.error)
-                                text: page.shell.tr("Retry plugin")
-                                onClicked: page.shell.command("extension-error", JSON.stringify({
-                                    id: pluginCard.modelData.instanceId || (pluginCard.modelData.id + "@" + pluginCard.modelData.target),
-                                    error: ""
-                                }))
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            Text {
+                                                Layout.fillWidth: true
+                                                Layout.minimumWidth: 0
+                                                text: page.targetLabel(targetCard.modelData)
+                                                color: Theme.text
+                                                font.family: Theme.font
+                                                font.pixelSize: 12
+                                                font.weight: Font.DemiBold
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                text: targetCard.modelData.type || ""
+                                                color: Theme.muted
+                                                font.family: Theme.font
+                                                font.pixelSize: 10
+                                            }
+                                            SoftSwitch {
+                                                checked: page.effectiveEnabled(targetCard.modelData)
+                                                onToggled: page.requestEnabled(targetCard.modelData, checked)
+                                            }
+                                        }
+
+                                        StyledComboBox {
+                                            Layout.fillWidth: true
+                                            model: [page.shell.tr("Built-in and plugin"),
+                                                    page.shell.tr("Plugin only")]
+                                            currentIndex: page.pluginValue(targetCard.modelData).mode === "replace" ? 1 : 0
+                                            enabled: targetCard.modelData.windowTemplate !== "stacking"
+                                            onActivated: index => page.setPlugin(
+                                                targetCard.modelData, "mode",
+                                                index === 1 ? "replace" : "augment")
+                                        }
+
+                                        HelpText {
+                                            shell: page.shell
+                                            message: targetCard.modelData.type === "effect"
+                                                ? "Native plugin component. It runs in the compositor and should only be enabled from a trusted package."
+                                                : targetCard.modelData.type === "opengl"
+                                                    ? "OpenGL shader component. Software rendering keeps the built-in feature."
+                                                    : ""
+                                        }
+
+                                        SettingsTargetEditor {
+                                            Layout.fillWidth: true
+                                            visible: Object.keys(targetCard.modelData.settingsSchema || {}).length > 0
+                                            shell: page.shell
+                                            targetId: "plugin:" + targetCard.modelData.id + ":" + targetCard.modelData.target
+                                        }
+
+                                        Text {
+                                            visible: Boolean(targetCard.modelData.error)
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 0
+                                            wrapMode: Text.Wrap
+                                            color: Theme.danger
+                                            font.family: Theme.font
+                                            text: targetCard.modelData.error || ""
+                                        }
+
+                                        ShellButton {
+                                            visible: Boolean(targetCard.modelData.error)
+                                            text: page.shell.tr("Retry plugin")
+                                            onClicked: page.shell.command("extension-error", JSON.stringify({
+                                                id: targetCard.modelData.instanceId ||
+                                                    (targetCard.modelData.id + "@" + targetCard.modelData.target),
+                                                error: ""
+                                            }))
+                                        }
+                                    }
+                                }
                             }
                         }
 
