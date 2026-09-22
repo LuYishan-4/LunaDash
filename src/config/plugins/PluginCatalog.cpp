@@ -366,9 +366,10 @@ QList<PluginDescriptor> discoverPlugins() {
   QStringList roots;
   for (const auto &path :
        QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
+    // SDK 2 packages have one canonical location. Do not discover the old
+    // lunadash/shell/plugins or ludash/plugins trees: stale files left by old
+    // releases otherwise shadow Store packages with the same id.
     roots << path + "/lunadash/plugins";
-    roots << path + "/lunadash/shell/plugins";
-    roots << path + "/ludash/plugins";
   }
   roots << QCoreApplication::applicationDirPath() + "/plugins";
 

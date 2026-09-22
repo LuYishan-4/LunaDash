@@ -414,6 +414,7 @@ ColumnLayout {
                             }
 
                             ShellButton {
+                                objectName: "plugin-delete-" + pluginCard.modelData.id
                                 visible: !pluginCard.remote && Boolean(pluginCard.modelData.removable)
                                 text: pluginCard.confirmDelete
                                     ? page.shell.tr("Confirm delete")
@@ -519,8 +520,9 @@ ColumnLayout {
                             spacing: 8
 
                             ShellButton {
-                                visible: !pluginCard.modelData.installed &&
-                                         Boolean(pluginCard.modelData.installable)
+                                objectName: "plugin-download-" + pluginCard.modelData.id
+                                visible: Boolean(pluginCard.modelData.installable) &&
+                                         !Boolean(pluginCard.modelData.installed)
                                 text: pluginCard.modelData.installing
                                     ? page.shell.tr("Downloading…")
                                     : page.shell.tr("Download plugin")

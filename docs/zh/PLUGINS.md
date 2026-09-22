@@ -127,7 +127,7 @@ lunadashctl extension-save '<JSON>'
 lunadashctl open-settings plugins
 ```
 
-搜尋順序先 user data，再 system data，並保留舊 path 相容。
+SDK 2 只掃描正式的 `lunadash/plugins`（user data 優先，再 system data），以及開發用 executable-adjacent `plugins`。舊的 `lunadash/shell/plugins` 與 `ludash/plugins` 不再掃描，避免舊版殘留擋住 Store 的新版插件。
 
 ## 社群 Registry 與 Plugin Store
 

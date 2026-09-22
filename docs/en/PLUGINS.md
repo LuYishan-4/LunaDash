@@ -129,7 +129,7 @@ Settings → Plugins groups features into Desktop, Windows, Animation, Effects, 
 
 The corresponding control commands are `lunadashctl extension-save '<JSON>'` and `lunadashctl open-settings plugins`. To restore all extension defaults, save `{"schemaVersion":1,"builtins":{},"plugins":{}}` and disable legacy plugin preferences if any were previously enabled. To explicitly turn off an individual installed plugin, keep its entry with `enabled: false`.
 
-Discovery prefers the user's data directory, then system data directories: `lunadash/plugins`, legacy `lunadash/shell/plugins`, legacy `ludash/plugins`; an executable-adjacent `plugins` directory supports development builds. Legacy schema-1 QML widgets continue as desktop widgets. The old Qt Quick native effect ABI is rejected with a rebuild message; it never drove the active wlroots scene. Existing trusted custom module QML remains a migration path, but new plugin packages use SDK 2.
+SDK 2 discovery uses only the canonical `lunadash/plugins` data directory (user data first, then system data) plus an executable-adjacent `plugins` directory for development builds. Legacy `lunadash/shell/plugins` and `ludash/plugins` directories are intentionally ignored so stale packages from older releases cannot shadow Store packages. Legacy schema-1 packages are also hidden from the modern Plugins page.
 
 ## Community registry and Plugin Store
 
