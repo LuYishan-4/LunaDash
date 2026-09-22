@@ -16,22 +16,35 @@ ModuleSurface {
     id: panel
     moduleId: "panel"
 
+    readonly property string edge: ["top", "bottom", "left", "right"].includes(moduleStyle.edge)
+        ? moduleStyle.edge : "top"
+    readonly property bool vertical: edge === "left" || edge === "right"
+    readonly property int thickness: Math.max(
+        42, moduleStyle.height || (shell.state.appearance || {}).panelHeight || 40)
+    readonly property int requestedLength: moduleStyle.width || 0
+
     anchors {
-        top: moduleStyle.edge !== "bottom"
-        bottom: moduleStyle.edge === "bottom"
-        left: !moduleStyle.width
-        right: !moduleStyle.width
+        top: edge === "top" || (vertical && !requestedLength)
+        bottom: edge === "bottom" || (vertical && !requestedLength)
+        left: edge === "left" || (!vertical && !requestedLength)
+        right: edge === "right" || (!vertical && !requestedLength)
     }
     margins {
-        top: moduleStyle.edge !== "bottom" ? moduleMargin + 4 : moduleMargin
-        bottom: moduleStyle.edge === "bottom" ? moduleMargin + 4 : moduleMargin
-        left: moduleMargin
-        right: moduleMargin
+        top: edge === "top" ? moduleMargin + 4 : moduleMargin
+        bottom: edge === "bottom" ? moduleMargin + 4 : moduleMargin
+        left: edge === "left" ? moduleMargin + 4 : moduleMargin
+        right: edge === "right" ? moduleMargin + 4 : moduleMargin
     }
 
-    implicitWidth: moduleWidth(1440)
-    implicitHeight: moduleHeight(Math.max(42, (shell.state.appearance || {}).panelHeight || 40))
-    exclusiveZone: implicitHeight + moduleMargin + 6
+    implicitWidth: vertical
+        ? thickness
+        : Math.max(1, Math.min(requestedLength || (screen ? screen.width : 1440),
+                              screen ? screen.width - 2 * moduleMargin : 3840))
+    implicitHeight: vertical
+        ? Math.max(1, Math.min(requestedLength || (screen ? screen.height : 900),
+                              screen ? screen.height - 2 * moduleMargin : 2160))
+        : thickness
+    exclusiveZone: (vertical ? implicitWidth : implicitHeight) + moduleMargin + 6
     color: "transparent"
     WlrLayershell.namespace: "lunadash-panel"
 
@@ -68,11 +81,19 @@ ModuleSurface {
     }
 
     onFocusedGroupIndexChanged: {
-        if (focusedGroupIndex >= 0)
+        if (focusedGroupIndex < 0)
+            return
+        if (panel.vertical)
+            verticalTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain)
+        else
             columnTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain)
     }
     onGroupsChanged: Qt.callLater(() => {
-        if (focusedGroupIndex >= 0)
+        if (focusedGroupIndex < 0)
+            return
+        if (panel.vertical)
+            verticalTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain)
+        else
             columnTasks.positionViewAtIndex(focusedGroupIndex, ListView.Contain)
     })
 
@@ -126,6 +147,7 @@ ModuleSurface {
 
     Item {
         id: workspaceShell
+        visible: !panel.vertical
         anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
         width: workspaceControls.implicitWidth + 18
@@ -192,10 +214,10 @@ ModuleSurface {
 
     Item {
         id: taskShell
+        visible: !panel.vertical && columnTasks.count > 0
         anchors { left: workspaceShell.right; leftMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
         width: Math.min(columnTasks.contentWidth + 8, Math.max(0, centerShell.x - x - panel.capsuleGap))
-        visible: columnTasks.count > 0
         ExtensionSlot {
             anchors.fill: parent
             shell: panel.shell
@@ -229,6 +251,7 @@ ModuleSurface {
 
     Item {
         id: centerShell
+        visible: !panel.vertical
         anchors.centerIn: parent
         width: centerControls.implicitWidth + 14
         height: panel.capsuleHeight
@@ -339,6 +362,7 @@ ModuleSurface {
 
     Item {
         id: statusShell
+        visible: !panel.vertical
         anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
         width: statusControls.implicitWidth + 14
@@ -563,6 +587,7 @@ ModuleSurface {
 
     Item {
         id: clockShell
+        visible: !panel.vertical
         anchors { right: statusShell.left; rightMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
         width: panel.width > 1120 ? 156 : 78
@@ -607,4 +632,239 @@ ModuleSurface {
             }
         }
     }
+    Item {
+        id: verticalContent
+        visible: panel.vertical
+        anchors.fill: parent
+        anchors.margins: 5
+
+        Rectangle {
+            anchors.fill: parent
+            visible: panel.backgroundVisible
+            radius: Math.min(width, 20)
+            color: panel.capsuleColor(0.20, 0.58)
+            border.width: 1
+            border.color: panel.capsuleBorder(0.22)
+        }
+
+        Rectangle {
+            id: verticalLauncher
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.max(30, parent.width - 6)
+            height: width
+            radius: width / 2
+            color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g,
+                           panel.launcherAccent.b, shell.launcherOpen ? 0.34 : 0.20)
+            border.width: 1
+            border.color: panel.launcherAccent
+            LunaDashLogo {
+                anchors.centerIn: parent
+                width: parent.width * 0.72
+                height: width
+                animated: false
+                primaryColor: panel.launcherAccent
+                secondaryColor: Qt.lighter(panel.launcherAccent, 1.22)
+                inkColor: Theme.text
+            }
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: shell.openLauncherFromMouse()
+            }
+        }
+
+        Column {
+            id: verticalWorkspaces
+            anchors.top: verticalLauncher.bottom
+            anchors.topMargin: 7
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 3
+            Repeater {
+                model: Math.max((shell.state.appearance || {}).workspaceCount || 10,
+                                Number((shell.interaction || {}).workspace || 0) + 1)
+                delegate: Rectangle {
+                    required property int index
+                    readonly property bool active:
+                        Number((shell.interaction || {}).workspace ?? shell.state.workspace) === index
+                    width: Math.max(24, verticalContent.width - 10)
+                    height: active ? 26 : 20
+                    radius: 8
+                    color: active ? moduleAccent
+                                  : Qt.rgba(moduleForeground.r, moduleForeground.g,
+                                            moduleForeground.b, 0.12)
+                    Text {
+                        anchors.centerIn: parent
+                        text: String(parent.index + 1)
+                        color: parent.active ? Theme.accentInk : moduleForeground
+                        font.family: Theme.font
+                        font.pixelSize: 10
+                        font.weight: parent.active ? Font.Bold : Font.Normal
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: shell.command("workspace", parent.index)
+                    }
+                }
+            }
+        }
+
+        ListView {
+            id: verticalTasks
+            anchors.top: verticalWorkspaces.bottom
+            anchors.topMargin: 7
+            anchors.bottom: verticalStatus.top
+            anchors.bottomMargin: 7
+            anchors.left: parent.left
+            anchors.right: parent.right
+            orientation: ListView.Vertical
+            spacing: 4
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            model: panel.groups.length
+            delegate: Rectangle {
+                id: verticalTask
+                required property int index
+                readonly property var group: panel.groups[index] || ({})
+                readonly property var members: group.members || []
+                width: verticalTasks.width
+                height: Math.max(34, width)
+                radius: 10
+                color: group.active
+                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
+                    : Qt.rgba(Theme.surfaceOpaque.r, Theme.surfaceOpaque.g,
+                              Theme.surfaceOpaque.b, 0.62)
+                border.width: 1
+                border.color: group.active ? Theme.accent : panel.capsuleBorder(0.22)
+                MemberIcon {
+                    anchors.centerIn: parent
+                    width: Math.max(20, Math.min(30, parent.width - 8))
+                    height: width
+                    shell: panel.shell
+                    member: verticalTask.members.length ? verticalTask.members[0] : ({})
+                }
+                Rectangle {
+                    visible: verticalTask.members.length > 1
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    width: 14
+                    height: 14
+                    radius: 7
+                    color: Theme.accent
+                    Text {
+                        anchors.centerIn: parent
+                        text: String(Math.min(9, verticalTask.members.length))
+                        color: Theme.accentInk
+                        font.family: Theme.font
+                        font.pixelSize: 8
+                        font.bold: true
+                    }
+                }
+            }
+        }
+
+        Column {
+            id: verticalStatus
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 4
+
+            Repeater {
+                model: SystemTray.items
+                delegate: Item {
+                    required property var modelData
+                    readonly property var item: modelData
+                    visible: item.status !== Status.Passive
+                    width: visible ? Math.max(26, verticalContent.width - 12) : 0
+                    height: visible ? 28 : 0
+                    readonly property string iconSource: panel.trayImage(item)
+                    Image {
+                        id: verticalTrayIcon
+                        anchors.centerIn: parent
+                        width: 18
+                        height: 18
+                        source: parent.iconSource
+                        fillMode: Image.PreserveAspectFit
+                        visible: parent.iconSource.length > 0 && status === Image.Ready
+                    }
+                    LineIcon {
+                        anchors.centerIn: parent
+                        width: 17
+                        height: 17
+                        visible: !verticalTrayIcon.visible
+                        name: panel.trayGlyph(parent.item)
+                        ink: Theme.text
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: mouse => mouse.button === Qt.LeftButton
+                            ? parent.item.activate() : parent.item.secondaryActivate()
+                    }
+                }
+            }
+
+            PanelSegment {
+                moduleHost: panel
+                width: Math.max(26, verticalContent.width - 12)
+                height: 28
+                text: "☷"
+                fill: "transparent"
+                border.width: 0
+                Accessible.name: shell.tr("Clipboard")
+                onClicked: shell.clipboardPopupOpen = !shell.clipboardPopupOpen
+            }
+            PanelSegment {
+                moduleHost: panel
+                width: Math.max(26, verticalContent.width - 12)
+                height: 28
+                text: panel.networkState.connected ? "◉" : "○"
+                fill: "transparent"
+                border.width: 0
+                Accessible.name: panel.networkLabel()
+                onClicked: shell.wifiPopupOpen = !shell.wifiPopupOpen
+            }
+            PanelSegment {
+                moduleHost: panel
+                width: Math.max(26, verticalContent.width - 12)
+                height: 28
+                text: "⚙"
+                fill: "transparent"
+                border.width: 0
+                Accessible.name: shell.tr("Settings")
+                onClicked: shell.settingsOpen = !shell.settingsOpen
+            }
+            Text {
+                width: Math.max(26, verticalContent.width - 12)
+                horizontalAlignment: Text.AlignHCenter
+                color: moduleForeground
+                font.family: Theme.font
+                font.pixelSize: 10
+                text: verticalClock.time
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: shell.calendarOpen = !shell.calendarOpen
+                }
+            }
+            Item {
+                id: verticalClock
+                width: 1
+                height: 1
+                property string time: ""
+                Timer {
+                    interval: 1000
+                    repeat: true
+                    running: true
+                    triggeredOnStart: true
+                    onTriggered: verticalClock.time =
+                        Qt.formatDateTime(new Date(), Theme.clock24Hour ? "HH:mm" : "h:mm")
+                }
+            }
+        }
+    }
+
 }

@@ -98,7 +98,16 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
             state = request("module-save", json.dumps(document))
             assert "error" not in state, state
             assert state["panelExtent"] == 64 and state["panelAtBottom"]
+            assert state["panelEdge"] == "bottom"
             assert not state["shellModules"]["modules"]["panel"]["custom"]["source"]
+
+            for edge in ("left", "right", "top", "bottom"):
+                document["modules"]["panel"]["style"]["edge"] = edge
+                edge_state = request("module-save", json.dumps(document))
+                assert "error" not in edge_state, edge_state
+                assert edge_state["panelEdge"] == edge
+                assert edge_state["panelExtent"] == 64
+                assert edge_state["panelAtBottom"] == (edge == "bottom")
             assert "error" in request(
                 "module-save",
                 '{"schemaVersion":1,"modules":{"settings":{"enabled":false}}}',
