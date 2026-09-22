@@ -377,6 +377,9 @@ public:
 
   static void handleNewVirtualKeyboard(wl_listener *listener, void *data);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  static void updateForeignToplevel(ToplevelState *state);
+  static void createForeignToplevel(ToplevelState *state);
+  static void destroyForeignToplevel(ToplevelState *state);
   static void handleForeignToplevelCaptureRequest(wl_listener *listener,
                                                   void *data);
 #endif

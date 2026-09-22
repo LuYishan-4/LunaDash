@@ -1,4 +1,5 @@
 #include "compositor/wayland/Register.hpp"
+#include "compositor/client/ClientWindow.hpp"
 
 namespace LunaDash {
 using Templates::attachListener;

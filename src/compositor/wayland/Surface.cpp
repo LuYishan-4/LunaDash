@@ -20,7 +20,7 @@ QString safeUtf8(const char *text) {
 }
 
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-void updateForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
+void WaylandCompositor::Impl::updateForeignToplevel(ToplevelState *state) {
   if (!state || !state->foreignHandle || !state->client)
     return;
   const QByteArray title = state->client->title.toUtf8();
@@ -33,7 +33,7 @@ void updateForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
                                                    &foreignState);
 }
 
-void createForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
+void WaylandCompositor::Impl::createForeignToplevel(ToplevelState *state) {
   if (!state || state->foreignHandle || !state->client ||
       !state->client->mapped || !state->impl->foreignToplevelList)
     return;
@@ -49,7 +49,7 @@ void createForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
     state->foreignHandle->data = state;
 }
 
-void destroyForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
+void WaylandCompositor::Impl::destroyForeignToplevel(ToplevelState *state) {
   if (!state || !state->foreignHandle)
     return;
   state->foreignHandle->data = nullptr;
