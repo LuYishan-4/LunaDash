@@ -57,7 +57,7 @@ export const groups: SettingGroup[] = [
       "Sound controls the default output and microphone through WirePlumber. Power profiles use power-profiles-daemon.",
     details: [
       "Volume is capped at 100%. Unavailable devices and failed commands are shown rather than reported as successful changes.",
-      "Existing network connections are reused. Network configuration opens NetworkManager's editor; passwords remain in that editor.",
+      "Existing network connections are reused. Network configuration opens NetworkManager's editor; passwords remain in that editor. Saved profiles and Wi-Fi names that contain a colon are listed correctly.",
       "Bluetooth, printers, disks, accounts, clock and accessibility pages show available system tools and packages to install.",
       "LunaDash displays application notifications and starts an installed polkit authentication agent. Screen locking and screen-sharing/PipeWire portals remain incomplete.",
     ],
