@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-PREFIX = "ludash-1.0.0/"
+PREFIX = "ludash-1.0.1a/"
 
 
 class SourceArchiveTests(unittest.TestCase):
@@ -39,7 +39,7 @@ class SourceArchiveTests(unittest.TestCase):
                  "-c", "user.email=packaging-test@example.invalid",
                  "-c", "commit.gpgsign=false", "commit", "-qm", "Test input")
         self.revision = self.git("rev-parse", "HEAD").stdout.strip()
-        self.archive = self.project / "packaging/arch/ludash-1.0.0.tar.gz"
+        self.archive = self.project / "packaging/arch/ludash-1.0.1a.tar.gz"
 
     def git(self, *args):
         return subprocess.run(
