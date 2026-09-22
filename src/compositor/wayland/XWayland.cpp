@@ -178,6 +178,23 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
     return;
   auto *self = state->impl;
   auto *client = state->client;
+
+  // X11 clients can disappear without a clean unmap/dissociate sequence
+  // (GPU Screen Recorder creates and destroys short-lived helper windows this
+  // way). Tear down every compositor-owned reference before the XWM surface
+  // disappears so late scene/input work never dereferences ClientWindow.
+  if (client->mapped)
+    handleXWaylandUnmap(&state->unmap.listener, nullptr);
+  if (self->seat && client->wlSurface &&
+      self->seat->keyboard_state.focused_surface == client->wlSurface)
+    wlr_seat_keyboard_notify_clear_focus(self->seat);
+  if (client->sceneTree) {
+    client->sceneTree->node.data = nullptr;
+    wlr_scene_node_destroy(&client->sceneTree->node);
+    client->sceneTree = nullptr;
+  }
+  client->wlSurface = nullptr;
+
   detachListener(state->associate);
   detachListener(state->dissociate);
   detachListener(state->map);
