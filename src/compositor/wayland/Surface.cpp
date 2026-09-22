@@ -18,6 +18,21 @@ using Templates::listenerOwner;
 QString safeUtf8(const char *text) {
   return QString::fromUtf8(text ? text : "");
 }
+
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+void updateForeignToplevel(WaylandCompositor::Impl::ToplevelState *state) {
+  if (!state || !state->foreignHandle || !state->client)
+    return;
+  const QByteArray title = state->client->title.toUtf8();
+  const QByteArray appId = state->client->appId.toUtf8();
+  const wlr_ext_foreign_toplevel_handle_v1_state foreignState{
+      .title = title.constData(),
+      .app_id = appId.constData(),
+  };
+  wlr_ext_foreign_toplevel_handle_v1_update_state(state->foreignHandle,
+                                                   &foreignState);
+}
+#endif
 void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
   if (!client || !client->surface || !client->toplevel ||
       !client->surface->initialized)
@@ -65,6 +80,22 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
   current->nativeState = state;
   q->clients_.push_back(std::move(client));
   q->updateClientMetadata(current);
+
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  if (foreignToplevelList) {
+    const QByteArray title = current->title.toUtf8();
+    const QByteArray appId = current->appId.toUtf8();
+    const wlr_ext_foreign_toplevel_handle_v1_state foreignState{
+        .title = title.constData(),
+        .app_id = appId.constData(),
+    };
+    state->foreignHandle =
+        wlr_ext_foreign_toplevel_handle_v1_create(foreignToplevelList,
+                                                  &foreignState);
+    if (state->foreignHandle)
+      state->foreignHandle->data = state;
+  }
+#endif
 
   attachListener(&surface->surface->events.map, state->map, state,
                  handleToplevelMap);
@@ -137,6 +168,9 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   auto *client = state->client;
   client->mapped = true;
   state->impl->q->updateClientMetadata(client);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  updateForeignToplevel(state);
+#endif
   if (!client->initialRuleApplied && !client->utility && !client->floating) {
     const auto rule =
         initialWindowRule(*state->impl->q->pluginManager_,
@@ -210,6 +244,9 @@ void WaylandCompositor::Impl::handleToplevelMetadata(wl_listener *listener,
   if (!state || !state->client)
     return;
   state->impl->q->updateClientMetadata(state->client);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  updateForeignToplevel(state);
+#endif
   state->impl->q->arrange();
 }
 
@@ -298,10 +335,47 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   detachListener(state->requestFullscreen);
   detachListener(state->requestMove);
   detachListener(state->requestResize);
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  if (state->imageCaptureSource) {
+    wlr_ext_image_capture_source_v1_finish(state->imageCaptureSource);
+    state->imageCaptureSource = nullptr;
+  }
+  if (state->foreignHandle) {
+    state->foreignHandle->data = nullptr;
+    wlr_ext_foreign_toplevel_handle_v1_destroy(state->foreignHandle);
+    state->foreignHandle = nullptr;
+  }
+#endif
   client->nativeState = nullptr;
   self->q->removeClient(client);
   delete state;
 }
+
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+void WaylandCompositor::Impl::handleForeignToplevelCaptureRequest(
+    wl_listener *listener, void *data) {
+  auto *self = listenerOwner<Impl>(listener);
+  auto *request = static_cast<
+      wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_event *>(
+      data);
+  if (!self || !request || !request->toplevel_handle)
+    return;
+  auto *state =
+      static_cast<ToplevelState *>(request->toplevel_handle->data);
+  if (!state || state->impl != self || !state->client ||
+      !state->client->sceneTree || !state->client->mapped)
+    return;
+  if (!state->imageCaptureSource) {
+    state->imageCaptureSource =
+        wlr_ext_image_capture_source_v1_create_with_scene_node(
+            &state->client->sceneTree->node, self->eventLoop, self->allocator,
+            self->renderer);
+  }
+  if (state->imageCaptureSource)
+    wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
+        request, state->imageCaptureSource);
+}
+#endif
 
 void WaylandCompositor::Impl::handleNewLayerSurface(wl_listener *listener,
                                                     void *data) {
