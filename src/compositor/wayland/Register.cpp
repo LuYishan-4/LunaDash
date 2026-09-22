@@ -109,6 +109,9 @@ bool WaylandCompositor::Impl::initialize() {
   normalLayer = wlr_scene_tree_create(&scene->tree);
   animationLayer = wlr_scene_tree_create(&scene->tree);
   topLayer = wlr_scene_tree_create(&scene->tree);
+  // True xdg fullscreen sits above ordinary top-layer panels. Layer-shell
+  // OVERLAY stays above it for OSD/recorder overlays and selectors.
+  fullscreenLayer = wlr_scene_tree_create(&scene->tree);
   overlayLayer = wlr_scene_tree_create(&scene->tree);
   const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
   background = wlr_scene_rect_create(backgroundLayer, 1440, 900, color);
@@ -358,6 +361,7 @@ void WaylandCompositor::Impl::shutdown() {
   normalLayer = nullptr;
   animationLayer = nullptr;
   topLayer = nullptr;
+  fullscreenLayer = nullptr;
   overlayLayer = nullptr;
   background = nullptr;
 
