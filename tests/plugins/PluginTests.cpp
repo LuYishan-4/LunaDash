@@ -269,6 +269,24 @@ private Q_SLOTS:
     QVERIFY(QDir(directory).removeRecursively());
   }
 
+  void legacyDestinationCanBeUpdatedWhenIdentityMatches() {
+    const auto directory = root + "/org.lunadash.digitalclock";
+    QVERIFY(QDir().mkpath(directory));
+    QVERIFY(writeFile(
+        directory + "/manifest.json",
+        R"({"id":"org.lunadash.digitalclock","name":"Digital Clock","version":"1.0.0"})"));
+
+    PluginManager manager;
+    QString error;
+    // The one-click update is asynchronous; success here means the stale
+    // destination was accepted and the download/build pipeline was started
+    // instead of returning "Plugin destination already exists".
+    QVERIFY2(manager.installFromStore("org.lunadash.digitalclock", &error),
+             qPrintable(error));
+    QVERIFY(error.isEmpty());
+    QVERIFY(QDir(directory).removeRecursively());
+  }
+
   void configurationRecovery() {
     QString error;
     QVERIFY(!saveExtensionConfiguration(

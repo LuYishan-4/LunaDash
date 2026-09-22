@@ -72,6 +72,23 @@ QString userPluginRoot() {
       QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
   return data.isEmpty() ? QString() : data + "/lunadash/plugins";
 }
+
+bool directoryClaimsPluginId(const QString &directory, const QString &id) {
+  for (const auto &name : {QString("metadata.json"), QString("manifest.json")}) {
+    QFile file(QDir(directory).filePath(name));
+    if (!file.open(QIODevice::ReadOnly) || file.size() > 65536)
+      continue;
+    const auto object = QJsonDocument::fromJson(file.readAll()).object();
+    if (object.isEmpty())
+      continue;
+    const auto directId = object.value("id").toString();
+    const auto kpluginId =
+        object.value("KPlugin").toObject().value("Id").toString();
+    if (directId == id || kpluginId == id)
+      return true;
+  }
+  return false;
+}
 } // namespace
 PluginManager::PluginManager(QObject *parent) : QObject(parent) {
   QFile bundled(":/LunaDash/plugins/catalog.json");
@@ -334,9 +351,17 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
   }
   const auto destination = QDir(root).filePath(id);
   if (QFileInfo::exists(destination) && !installedPackageFound) {
-    if (error)
-      *error = "Plugin destination already exists";
-    return false;
+    // Older LunaDash releases could leave a same-id package in the canonical
+    // user directory without a current SDK receipt, so discoverPlugins() may
+    // not classify it as an installed SDK2 package. If its old metadata still
+    // proves ownership, treat it as an outdated install and let the verified
+    // Store build replace it. Unknown directories are never overwritten.
+    if (!directoryClaimsPluginId(destination, id)) {
+      if (error)
+        *error = "Plugin destination already exists";
+      return false;
+    }
+    installedPackageFound = true;
   }
 
   auto job = std::make_unique<StoreInstall>();
