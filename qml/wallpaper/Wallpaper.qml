@@ -42,6 +42,22 @@ ModuleSurface {
         visible: background.displayedSource.toString().length > 0
     }
 
+    // Desktop widgets render inside the wallpaper's Background layer. Plugins
+    // can no longer accidentally create an always-on-top desktop widget that
+    // remains visible over application windows.
+    ExtensionSlot {
+        id: desktopWidgets
+        anchors.fill: parent
+        shell: wallpaper.shell
+        target: "desktop-widgets"
+        context: ({
+            wallpaper: wallpaper,
+            screen: wallpaper.screen,
+            layer: "background"
+        })
+        z: 2
+    }
+
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton

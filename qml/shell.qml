@@ -477,7 +477,6 @@ ShellRoot {
             }
         }
     }
-    PluginHost { shell: root }
     WindowFrames { shell: root; interaction: root.interaction }
     WindowSwitcher { shell: root; interaction: root.interaction }
     TilingDropHint { shell: root; drag: root.interaction.drag || ({}) }
