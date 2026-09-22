@@ -116,3 +116,63 @@ jobs:
                       build-wayland/wayland-state.json
                   if-no-files-found: ignore
                   retention-days: 7
+
+
+    modern-window-capture:
+        name: wlroots 0.20 window capture globals
+        runs-on: ubuntu-24.04
+        timeout-minutes: 25
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Build and verify modern capture protocols
+              run: |
+                  docker run --rm \
+                    -v "$PWD:/src" -w /src archlinux:latest \
+                    bash -lc '
+                      set -euo pipefail
+                      pacman -Syu --needed --noconfirm \
+                        base-devel cmake ninja pkgconf git \
+                        mesa libglvnd wayland wayland-protocols wayland-utils \
+                        wlroots0.20 libinput libxkbcommon systemd-libs glib2 \
+                        qt6-base qt6-declarative qt6-wayland pixman
+                      cmake -S . -B build-modern -G Ninja -DCMAKE_BUILD_TYPE=Release
+                      cmake --build build-modern --target lunadash-compositor --parallel 2
+
+                      runtime=$(mktemp -d)
+                      chmod 700 "$runtime"
+                      log="$PWD/build-modern/window-capture.log"
+                      env XDG_RUNTIME_DIR="$runtime" \
+                        WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+                        LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 \
+                        build-modern/lunadash-compositor --socket ludash-window-capture \
+                        --no-shell --exit-after 12000 >"$log" 2>&1 &
+                      pid=$!
+                      trap '"'"'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"'"'"' EXIT
+                      for _ in $(seq 1 120); do
+                        test -S "$runtime/ludash-window-capture" && break
+                        kill -0 "$pid"
+                        sleep 0.1
+                      done
+                      test -S "$runtime/ludash-window-capture"
+                      XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-window-capture \
+                        wayland-info > build-modern/window-capture-globals.txt
+                      cat "$log"
+                      cat build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'ext_foreign_toplevel_list_v1'"'"'" build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'ext_image_copy_capture_manager_v1'"'"'" build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'ext_foreign_toplevel_image_capture_source_manager_v1'"'"'" build-modern/window-capture-globals.txt
+                      kill "$pid"
+                      wait "$pid" || true
+                    '
+            - name: Preserve modern capture diagnostics
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: modern-window-capture-diagnostics
+                  path: |
+                      build-modern/window-capture.log
+                      build-modern/window-capture-globals.txt
+                  if-no-files-found: ignore
+                  retention-days: 7
