@@ -6,6 +6,7 @@
 #include "core/settings/SettingsSchema.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -24,6 +25,46 @@ class PluginTests : public QObject {
       if (!QFile::copy(from + "/" + name, to + "/" + name))
         return false;
     return QFile::exists(to + "/metadata.json");
+  }
+  static bool writeFile(const QString &path, const QByteArray &bytes) {
+    QFile file(path);
+    return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+           file.write(bytes) == bytes.size();
+  }
+  static bool createQmlPlugin(const QString &base, const QString &id,
+                              const QString &target) {
+    const auto directory = base + "/" + id;
+    if (!QDir().mkpath(directory))
+      return false;
+    const QJsonObject manifest{
+        {"schemaVersion", 2},
+        {"sdk", QJsonObject{{"name", "LunaDash"}, {"apiVersion", 2}}},
+        {"id", id},
+        {"name", id},
+        {"version", "1.0.0"},
+        {"author", "Plugin tests"},
+        {"type", "quickshell"},
+        {"target", target},
+        {"mode", "augment"},
+        {"entry", "Main.qml"},
+        {"enabledByDefault", true},
+        {"settings", QJsonObject{}}};
+    const auto metadata =
+        QJsonDocument(manifest).toJson(QJsonDocument::Compact);
+    if (!writeFile(directory + "/metadata.json", metadata) ||
+        !writeFile(directory + "/Main.qml",
+                   "import QtQuick\nItem { required property var shell; "
+                   "required property var settings; required property var context }\n"))
+      return false;
+    const auto hash =
+        QString::fromLatin1(QCryptographicHash::hash(
+                                metadata, QCryptographicHash::Sha256)
+                                .toHex());
+    return writeFile(
+        directory + "/.lunadash-sdk.json",
+        QJsonDocument(QJsonObject{{"apiVersion", 2},
+                                  {"metadataSha256", hash}})
+                .toJson(QJsonDocument::Compact));
   }
   QJsonObject config(const QString &id, bool enabled, const QString &mode,
                      QJsonObject settings = {}) {
@@ -134,6 +175,58 @@ private Q_SLOTS:
     QVERIFY(!saveExtensionConfiguration(QByteArray(24577, ' '), &error));
     QCOMPARE(readExtensionConfiguration(), previous);
   }
+  void exclusiveTargetOwnership() {
+    const auto first = root + "/org.example.panel-a";
+    const auto second = root + "/org.example.panel-b";
+    QVERIFY(createQmlPlugin(root, "org.example.panel-a", "panel"));
+    QVERIFY(createQmlPlugin(root, "org.example.panel-b", "panel"));
+
+    const QJsonObject conflicting{
+        {"schemaVersion", 1},
+        {"builtins", QJsonObject{}},
+        {"plugins",
+         QJsonObject{
+             {"org.example.panel-a",
+              QJsonObject{{"enabled", true},
+                          {"mode", "augment"},
+                          {"settings", QJsonObject{}}}},
+             {"org.example.panel-b",
+              QJsonObject{{"enabled", true},
+                          {"mode", "augment"},
+                          {"settings", QJsonObject{}}}}}}};
+    QString error;
+    QVERIFY(!saveExtensionConfiguration(
+        QJsonDocument(conflicting).toJson(), &error));
+    QVERIFY2(error.contains("Only one plugin can be enabled for: panel"),
+             qPrintable(error));
+
+    PluginManager manager;
+    manager.refresh();
+    const auto installed = manager.snapshot().value("installed").toArray();
+    int panelPlugins = 0;
+    int available = 0;
+    int conflicts = 0;
+    for (const auto &value : installed) {
+      const auto item = value.toObject();
+      if (item.value("target").toString() != "panel" ||
+          !item.value("id").toString().startsWith("org.example.panel-"))
+        continue;
+      ++panelPlugins;
+      if (item.value("available").toBool())
+        ++available;
+      if (item.value("error")
+              .toString()
+              .contains("single-owner target"))
+        ++conflicts;
+    }
+    QCOMPARE(panelPlugins, 2);
+    QCOMPARE(available, 1);
+    QCOMPARE(conflicts, 1);
+
+    QVERIFY(QDir(first).removeRecursively());
+    QVERIFY(QDir(second).removeRecursively());
+  }
+
   void externalMultiTarget() {
     const auto source =
         QString::fromLocal8Bit(qgetenv("LUNADASH_EXTERNAL_PLUGIN_DIR"));

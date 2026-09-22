@@ -193,6 +193,7 @@ void PluginManager::refresh() {
   const auto discovered = discoverPlugins();
   QList<PluginDescriptor> catalog;
   QSet<QString> active;
+  QSet<QString> selectedTargets;
 
   for (auto descriptor : discovered) {
     const auto id = descriptor.id;
@@ -207,6 +208,17 @@ void PluginManager::refresh() {
         previous->settings != descriptor.settings ||
         previous->enabled != descriptor.enabled)
       errors_.remove(key);
+
+    if (descriptor.enabled && descriptor.error.isEmpty() &&
+        extensionTarget(descriptor.target)
+                .value("selection")
+                .toString("single") == "single") {
+      if (selectedTargets.contains(descriptor.target))
+        descriptor.error =
+            "Another plugin is already enabled for this single-owner target";
+      else
+        selectedTargets.insert(descriptor.target);
+    }
 
     if (!descriptor.enabled || !descriptor.error.isEmpty()) {
       catalog.append(descriptor);
