@@ -155,41 +155,39 @@ private Q_SLOTS:
     QCOMPARE(targets,
              QSet<QString>({"panel", "window-rules", "window-animation"}));
 
+    const QJsonObject targetConfigs{
+        {"panel",
+         QJsonObject{
+             {"enabled", true},
+             {"mode", "replace"},
+             {"settings",
+              QJsonObject{{"compact", true},
+                          {"showLabels", false},
+                          {"showWorkspaceSwitcher", true}}}}},
+        {"window-rules",
+         QJsonObject{
+             {"enabled", true},
+             {"mode", "replace"},
+             {"settings",
+              QJsonObject{{"workspacePolicy", "first"},
+                          {"maximizeNewWindows", true}}}}},
+        {"window-animation",
+         QJsonObject{
+             {"enabled", true},
+             {"mode", "replace"},
+             {"settings",
+              QJsonObject{{"duration", 333},
+                          {"enterOffset", 7},
+                          {"focusOpacity", 0.91},
+                          {"exitScale", 0.95},
+                          {"easing", "outQuint"}}}}}};
     const QJsonObject configuration{
         {"schemaVersion", 1},
         {"builtins", QJsonObject{}},
         {"plugins",
-         QJsonObject{
-             {"org.lunadash.kde-behavior",
-              QJsonObject{
-                  {"enabled", true},
-                  {"targets",
-                   QJsonObject{
-                       {"panel",
-                        QJsonObject{
-                            {"enabled", true},
-                            {"mode", "replace"},
-                            {"settings",
-                             QJsonObject{{"compact", true},
-                                         {"showLabels", false},
-                                         {"showWorkspaceSwitcher", true}}}}},
-                       {"window-rules",
-                        QJsonObject{
-                            {"enabled", true},
-                            {"mode", "replace"},
-                            {"settings",
-                             QJsonObject{{"workspacePolicy", "first"},
-                                         {"maximizeNewWindows", true}}}}},
-                       {"window-animation",
-                        QJsonObject{
-                            {"enabled", true},
-                            {"mode", "replace"},
-                            {"settings",
-                             QJsonObject{{"duration", 333},
-                                         {"enterOffset", 7},
-                                         {"focusOpacity", 0.91},
-                                         {"exitScale", 0.95},
-                                         {"easing", "outQuint"}}}}}}}}}}};
+         QJsonObject{{"org.lunadash.kde-behavior",
+                      QJsonObject{{"enabled", true},
+                                  {"targets", targetConfigs}}}}}};
     save(configuration);
 
     PluginManager manager;
