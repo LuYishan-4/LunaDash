@@ -53,7 +53,9 @@ bool WaylandCompositor::Impl::initialize() {
   if (!allocator)
     return fail("wlroots could not create a buffer allocator.");
 
-  wlr_compositor_create(display, 5, renderer);
+  compositor = wlr_compositor_create(display, 5, renderer);
+  if (!compositor)
+    return fail("wlroots could not create the compositor global.");
   wlr_subcompositor_create(display);
   wlr_data_device_manager_create(display);
 #if LUDASH_WLR_HAS_DATA_CONTROL
@@ -376,6 +378,7 @@ void WaylandCompositor::Impl::shutdown() {
   allocator = nullptr;
   renderer = nullptr;
   backend = nullptr;
+  compositor = nullptr;
   if (outputLayout) {
     wlr_output_layout_destroy(outputLayout);
     outputLayout = nullptr;

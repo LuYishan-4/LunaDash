@@ -166,10 +166,13 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     environment.insert(
         "XCURSOR_SIZE",
         QString::number(desktopPreferences().value("cursorSize").toInt()));
-    if (!xwayland_->start(environment, d->outputSize()))
-      qWarning("XWayland could not be prepared; X11 clients are unavailable.");
-    // Do not start the rootful XWayland server during desktop startup.
-    // Explicit X11 launches show its root; native input helpers keep it hidden.
+    if (!xwayland_->start(
+            d->display, d->compositor, d->seat, environment,
+            [this](wlr_xwayland_surface *surface) {
+              if (d)
+                d->addXWaylandSurface(surface);
+            }))
+      qWarning("XWayland/XWM could not be prepared; X11 clients are unavailable.");
   }
 
   publishSessionActivationEnvironment();

@@ -53,7 +53,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/modules/Renderer.cmake)
 
 add_library(ludash-xwayland src/compositor/xwayland/XWaylandSupport.cpp)
 target_include_directories(ludash-xwayland PUBLIC src)
-target_link_libraries(ludash-xwayland PUBLIC Qt6::Core)
+target_compile_definitions(ludash-xwayland PRIVATE WLR_USE_UNSTABLE=1)
+target_link_libraries(ludash-xwayland PUBLIC Qt6::Core PkgConfig::WLROOTS)
 add_library(ludash-wallpaper src/desktop/wallpaper/WallpaperSettings.cpp)
 target_include_directories(ludash-wallpaper PUBLIC src)
 target_link_libraries(ludash-wallpaper PUBLIC Qt6::Gui)
@@ -189,6 +190,7 @@ add_library(ludash-wayland
     src/compositor/capture/ScreenCapture.hpp
     src/compositor/capture/ScreenCapture.cpp
     src/compositor/wayland/Surface.cpp
+    src/compositor/wayland/XWayland.cpp
     src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
     src/compositor/settings/SettingsApi.cpp

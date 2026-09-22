@@ -1,18 +1,30 @@
 #pragma once
+
+#include "core/templates/WaylandSlot.hpp"
 #include <QJsonObject>
 #include <QObject>
 #include <QProcess>
 #include <QProcessEnvironment>
-#include <QSize>
-#include <QTemporaryDir>
-#include <memory>
+#include <functional>
+
+struct wl_display;
+struct wlr_compositor;
+struct wlr_seat;
+struct wlr_xwayland;
+struct wlr_xwayland_surface;
+
 namespace LunaDash {
+
 class XWaylandSupport final : public QObject {
 public:
+  using NewSurfaceCallback = std::function<void(wlr_xwayland_surface *)>;
+
   explicit XWaylandSupport(QObject *parent = nullptr);
   ~XWaylandSupport() override;
-  bool start(const QProcessEnvironment &environment,
-             const QSize &screenSize = QSize(1440, 900));
+
+  bool start(wl_display *display, wlr_compositor *compositor, wlr_seat *seat,
+             const QProcessEnvironment &environment,
+             NewSurfaceCallback newSurface);
   void stop();
   bool stopped() const;
   bool startServer(QString *error = nullptr);
@@ -22,20 +34,20 @@ public:
   bool launch(const QStringList &command, QString *error);
 
 private:
-  void releaseSocket();
-  QProcess server_;
+  using Slot = Templates::WaylandSlot<XWaylandSupport>;
+  static void handleReady(wl_listener *listener, void *data);
+  static void handleNewSurface(wl_listener *listener, void *data);
+
+  wlr_xwayland *xwayland_ = nullptr;
+  wlr_seat *seat_ = nullptr;
   QList<QProcess *> clients_;
   QProcessEnvironment environment_;
-  QSize screenSize_;
-  std::unique_ptr<QTemporaryDir> runtime_;
-  QString display_;
-  QString socketPath_;
-  QString authority_;
+  NewSurfaceCallback newSurface_;
+  Slot ready_;
+  Slot newSurfaceListener_;
   QString error_;
-  int descriptor_ = -1;
-  qint64 groupId_ = 0;
   bool stopping_ = false;
-  bool configured_ = false;
-  bool rootWindowVisible_ = false;
+  bool xwmReady_ = false;
 };
+
 } // namespace LunaDash
