@@ -48,6 +48,16 @@ export QSG_RHI_BACKEND=opengl
 # The compositor runs on a private session bus here, so it may publish the
 # display variables for D-Bus activated and systemd user clients.
 export LUNADASH_PUBLISH_ACTIVATION_ENV=1
-# Session launch only: scope EGLFS/KMS to the compositor, not the D-Bus daemon.
+# Keep the login session's existing user D-Bus when available. Replacing it
+# with an unconditional dbus-run-session isolates Discord/Chromium from the
+# systemd user xdg-desktop-portal and xdg-desktop-portal-wlr services, which
+# prevents ScreenCast from returning a PipeWire stream.
+if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    exec env QT_QPA_PLATFORM=eglfs QT_QPA_EGLFS_INTEGRATION="$eglfs_integration" \
+        "$compositor" --fullscreen --graphics "${LUDASH_GRAPHICS:-gles}" "$@"
+fi
+
+# Minimal/manual launches without a PAM/systemd user bus still need a session
+# bus for portals and the rest of the desktop.
 exec dbus-run-session -- env QT_QPA_PLATFORM=eglfs QT_QPA_EGLFS_INTEGRATION="$eglfs_integration" \
     "$compositor" --fullscreen --graphics "${LUDASH_GRAPHICS:-gles}" "$@"
