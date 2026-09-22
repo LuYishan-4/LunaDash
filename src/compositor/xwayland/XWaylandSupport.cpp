@@ -1,5 +1,30 @@
 #include "compositor/xwayland/XWaylandSupport.hpp"
-#include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
+
+#ifdef __cplusplus
+#define static
+#define delete delete_
+#define namespace namespace_
+extern "C" {
+#endif
+#include <wayland-server-core.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
+#if __has_include(<wlr/xwayland.h>)
+#include <wlr/xwayland.h>
+#define LUDASH_WLR_HAS_XWAYLAND 1
+#elif __has_include(<wlr/xwayland/xwayland.h>)
+#include <wlr/xwayland/xwayland.h>
+#define LUDASH_WLR_HAS_XWAYLAND 1
+#else
+#define LUDASH_WLR_HAS_XWAYLAND 0
+#endif
+#ifdef __cplusplus
+}
+#undef namespace
+#undef delete
+#undef static
+#endif
+
 #include <QFileInfo>
 #include <QStandardPaths>
 
