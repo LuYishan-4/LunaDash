@@ -240,14 +240,24 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
             # Wayland -> X11 must traverse the same bridge in the other
             # direction, preserving ordinary UTF-8 clipboard behavior.
             wayland_value = b"lunadash-wayland-to-x11"
-            copied = subprocess.run(
+            wayland_owner = subprocess.Popen(
                 ["wl-copy", "--type", "text/plain;charset=utf-8"],
-                input=wayland_value,
                 env=wayland_env,
-                capture_output=True,
-                timeout=4,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
             )
-            assert copied.returncode == 0, copied.stderr
+            assert wayland_owner.stdin is not None
+            wayland_owner.stdin.write(wayland_value)
+            wayland_owner.stdin.close()
+            # Do not wait for wl-copy here. With XWM mirroring active, a
+            # foreground selection owner is valid and must remain alive while
+            # X11 requests the selection.
+            time.sleep(0.15)
+            assert wayland_owner.poll() in (None, 0), (
+                wayland_owner.stderr.read() if wayland_owner.stderr else b""
+            )
             deadline = time.monotonic() + 6
             x11_paste = b""
             while time.monotonic() < deadline:
@@ -285,7 +295,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
             print(log.read(), file=sys.stderr)
             raise
         finally:
-            for child in (history, xclip_owner):
+            for child in (history, xclip_owner, wayland_owner):
                 if child is not None and child.poll() is None:
                     child.terminate()
                     try:

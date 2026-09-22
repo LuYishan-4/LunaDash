@@ -379,6 +379,45 @@ def entry_bytes(entry: dict) -> bytes | None:
     return raw if len(raw) <= MAX_PAYLOAD_BYTES else None
 
 
+def publish_selection(raw: bytes, mime: str) -> bool:
+    """Publish a selection without assuming the owner process exits.
+
+    wl-copy normally daemonizes, but with an active XWM bridge it may remain as
+    the selection owner while X11 consumers request TARGETS/data. That is a
+    valid clipboard state, not a timeout. Feed stdin, close it, then accept
+    either a successful quick exit or a still-running owner process.
+    """
+    try:
+        process = subprocess.Popen(
+            ["wl-copy", "--type", mime],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            close_fds=True,
+        )
+    except OSError:
+        return False
+    try:
+        assert process.stdin is not None
+        process.stdin.write(raw)
+        process.stdin.close()
+    except (BrokenPipeError, OSError):
+        try:
+            process.kill()
+        except OSError:
+            pass
+        return False
+
+    # Give immediate exec/protocol failures a chance to surface. If the
+    # process stays alive, it is serving the clipboard and must not be killed.
+    try:
+        code = process.wait(timeout=0.15)
+    except subprocess.TimeoutExpired:
+        return True
+    return code == 0
+
+
 def copy_entry(index: int) -> int:
     entries = load()
     if index < 0 or index >= len(entries):
@@ -389,20 +428,10 @@ def copy_entry(index: int) -> int:
     if raw is None:
         print("Clipboard history payload is missing.", file=sys.stderr)
         return 2
-    try:
-        result = subprocess.run(
-            ["wl-copy", "--type", entry["mime"]],
-            input=raw,
-            stderr=subprocess.PIPE,
-            timeout=5,
-            check=False,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        print("wl-copy is unavailable or did not respond.", file=sys.stderr)
+    if not publish_selection(raw, entry["mime"]):
+        print("wl-copy is unavailable or could not publish the selection.",
+              file=sys.stderr)
         return 2
-    if result.returncode != 0:
-        sys.stderr.buffer.write(result.stderr)
-        return result.returncode
     entries.pop(index)
     entry["timestamp"] = int(time.time())
     entries.insert(0, entry)
