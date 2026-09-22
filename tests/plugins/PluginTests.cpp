@@ -169,7 +169,12 @@ private Q_SLOTS:
     const auto kde = findRemote("org.lunadash.kde-behavior");
     QVERIFY(kde != remote.end());
     QCOMPARE(kde->toObject().value("targets").toArray().size(), 3);
-    QVERIFY(!kde->toObject().value("installable").toBool());
+    QVERIFY(kde->toObject().value("installable").toBool());
+    QCOMPARE(kde->toObject().value("install").toObject()
+                 .value("mode").toString(),
+             QString("cmake"));
+    QVERIFY(kde->toObject().value("install").toObject()
+                .value("files").toArray().size() >= 4);
 
     const auto source = clock->toObject().value("sourceUrl").toString();
     QVERIFY2(source.startsWith(

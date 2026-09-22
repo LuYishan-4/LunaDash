@@ -169,11 +169,17 @@
       },
       "homepage": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/",
       "install": {
+        "mode": "cmake",
         "files": [
           {
             "path": "metadata.json",
             "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/metadata.json",
             "sha256": "446987b35aaf9e4946cb93a7aaa2b224e06c9b40a7702391d4eac8decf32f350"
+          },
+          {
+            "path": "CMakeLists.txt",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/CMakeLists.txt",
+            "sha256": "513d66b74a9b2675140b04d6774328f1045da0eebab0242ee95d55e55f43eea6"
           },
           {
             "path": "Main.qml",
@@ -312,7 +318,32 @@
       "repository": "https://github.com/LuYishan-4/LunaDash-Plugins",
       "featured": true,
       "deprecated": false,
-      "homepage": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.kde-behavior/"
+      "homepage": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.kde-behavior/",
+      "install": {
+        "mode": "cmake",
+        "files": [
+          {
+            "path": "metadata.json",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/metadata.json",
+            "sha256": "f44b895c0a3d91a23e0403e037d8822359de80b9aec3bdef6596f9c2d13a259a"
+          },
+          {
+            "path": "CMakeLists.txt",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/CMakeLists.txt",
+            "sha256": "46d7f4c6423d8a06b18b4d6fa8da43bd1c6d595443046ce3453731fbbf7720b7"
+          },
+          {
+            "path": "Effect.cpp",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/Effect.cpp",
+            "sha256": "4f45ce7b4f377d72e16c26a2aa91d7fffa30e111953a92ef5d674bcd209a1e2e"
+          },
+          {
+            "path": "KdePanel.qml",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/KdePanel.qml",
+            "sha256": "c28a71593926e0917bd4d03be018a9914e64862af88b235d53d14a3b2649bb95"
+          }
+        ]
+      }
     }
   ]
 }
