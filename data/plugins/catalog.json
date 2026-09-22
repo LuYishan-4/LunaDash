@@ -1,21 +1,7 @@
 {
   "schemaVersion": 1,
+  "format": "lunadash-plugin-index",
   "plugins": [
-    {
-      "id": "org.lunadash.digitalclock",
-      "name": "Digital Clock",
-      "description": "A desktop clock showing the current time, month, date, and weekday.",
-      "version": "1.0.0",
-      "author": "LuYishan",
-      "icon": "clock",
-      "type": "quickshell",
-      "target": "desktop-widgets",
-      "tags": [
-        "Widget",
-        "Clock"
-      ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/qml/plugins/digital-clock"
-    },
     {
       "id": "org.ludash.fade",
       "name": "Window fade",
@@ -25,11 +11,80 @@
       "icon": "preferences-desktop-effects",
       "type": "effect",
       "target": "window-animation",
+      "mode": "replace",
       "tags": [
         "Animation",
         "Native"
       ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/data/plugins/fade"
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.ludash.fade",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.ludash.fade/",
+      "license": "GPL-3.0-or-later",
+      "repository": "https://github.com/LuYishan-4/LunaDash",
+      "featured": true,
+      "deprecated": false,
+      "settings": {
+        "duration": {
+          "type": "integer",
+          "control": "number",
+          "label": "Animation duration",
+          "description": "Milliseconds; zero disables animation.",
+          "default": 260,
+          "minimum": 0,
+          "maximum": 600,
+          "step": 10
+        },
+        "softFocus": {
+          "type": "boolean",
+          "control": "toggle",
+          "label": "Fade on focus",
+          "default": true
+        },
+        "easing": {
+          "type": "string",
+          "control": "select",
+          "label": "Easing curve",
+          "default": "outQuint",
+          "enum": [
+            "linear",
+            "outCubic",
+            "outQuint",
+            "inOutCubic"
+          ]
+        },
+        "exitScale": {
+          "type": "number",
+          "control": "slider",
+          "label": "Closing scale",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 1,
+          "step": 0.01
+        }
+      },
+      "upstream": "https://github.com/LuYishan-4/LunaDash/tree/fix/plugin/data/plugins/fade"
+    },
+    {
+      "id": "org.lunadash.digitalclock",
+      "name": "Digital Clock",
+      "description": "A desktop clock showing the current time, month, date, and weekday.",
+      "version": "1.0.0",
+      "author": "LuYishan",
+      "icon": "clock",
+      "type": "quickshell",
+      "target": "desktop-widgets",
+      "mode": "augment",
+      "tags": [
+        "Widget",
+        "Clock"
+      ],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.digitalclock",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/",
+      "license": "GPL-3.0-or-later",
+      "repository": "https://github.com/LuYishan-4/LunaDash",
+      "featured": true,
+      "deprecated": false,
+      "settings": {},
+      "upstream": "https://github.com/LuYishan-4/LunaDash/tree/fix/plugin/qml/plugins/digital-clock"
     },
     {
       "id": "org.lunadash.stacking-windows",
@@ -40,11 +95,27 @@
       "icon": "preferences-system-windows",
       "type": "effect",
       "target": "window-layout",
+      "mode": "replace",
       "tags": [
         "Layout",
+        "Stacking",
         "Native"
       ],
-      "sourceUrl": "https://github.com/LuYishan-4/LunaDash/tree/main/data/plugins/stacking-windows"
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.stacking-windows",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.stacking-windows/",
+      "license": "GPL-3.0-or-later",
+      "repository": "https://github.com/LuYishan-4/LunaDash",
+      "featured": true,
+      "deprecated": false,
+      "settings": {
+        "cascadeStep": {
+          "type": "integer",
+          "default": 32,
+          "minimum": 0,
+          "maximum": 96
+        }
+      },
+      "upstream": "https://github.com/LuYishan-4/LunaDash/tree/fix/plugin/data/plugins/stacking-windows"
     }
   ]
 }

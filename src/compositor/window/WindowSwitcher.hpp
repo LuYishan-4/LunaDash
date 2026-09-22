@@ -27,6 +27,7 @@ public:
   QString thumbnailPath(int window) const;
   void setThumbnail(int serial, int window, const QString &path);
   void setLayout(const QJsonArray &clients, int workspace, bool dragging);
+  void setLauncherSerial(int serial);
 
 private:
   QString channelPath_;

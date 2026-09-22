@@ -46,8 +46,10 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
   }
   const auto root = document.object();
   const auto values = root.value("plugins");
-  if (root.value("schemaVersion").toInt() != 1 || !values.isArray() ||
-      values.toArray().size() > 256) {
+  if (root.value("schemaVersion").toInt() != 1 ||
+      (root.contains("format") &&
+       root.value("format").toString() != "lunadash-plugin-index") ||
+      !values.isArray() || values.toArray().size() > 256) {
     if (error)
       *error = "Unsupported or oversized plugin catalogue";
     return false;
@@ -123,7 +125,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
 void PluginManager::refreshStore() {
   const QString configured = qEnvironmentVariable(
       "LUNADASH_PLUGIN_CATALOG_URL",
-      "https://raw.githubusercontent.com/LuYishan-4/LunaDash/main/data/plugins/catalog.json");
+      "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/index.json");
   if (configured.isEmpty() || configured.compare("off", Qt::CaseInsensitive) == 0)
     return;
 

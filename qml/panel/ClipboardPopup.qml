@@ -255,7 +255,10 @@ ModuleSurface {
     }
     Process {
         id: clearProcess
-        onExited: (code, status) => if (code === 0) popup.refresh()
+        onExited: (code, status) => {
+            if (code === 0)
+                popup.refresh()
+        }
     }
 
     onOpenedChanged: {

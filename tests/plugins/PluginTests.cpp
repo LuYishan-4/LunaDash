@@ -44,6 +44,7 @@ private Q_SLOTS:
     qputenv("XDG_CONFIG_HOME", (temporary.path() + "/config").toUtf8());
     qputenv("XDG_DATA_HOME", (temporary.path() + "/data").toUtf8());
     qputenv("XDG_DATA_DIRS", (temporary.path() + "/empty").toUtf8());
+    qputenv("LUNADASH_PLUGIN_CATALOG_URL", "off");
     QCoreApplication::setOrganizationName("LunaDashPluginTests");
     QCoreApplication::setApplicationName("Plugins");
     root = temporary.path() + "/data/lunadash/plugins";
@@ -70,6 +71,27 @@ private Q_SLOTS:
         R"({"schemaVersion":1,"builtins":{},"plugins":{"unknown":{"enabled":true}}})",
         &error));
   }
+  void bundledStoreRegistry() {
+    PluginManager manager;
+    const auto snapshot = manager.snapshot();
+    const auto remote = snapshot.value("remote").toArray();
+    QVERIFY(remote.size() >= 3);
+    QSet<QString> ids;
+    for (const auto &value : remote) {
+      const auto item = value.toObject();
+      ids.insert(item.value("id").toString());
+      const auto source = item.value("sourceUrl").toString();
+      QVERIFY2(source.startsWith(
+                   "https://github.com/LuYishan-4/LunaDash-Plugins/"),
+               qPrintable(source));
+    }
+    QVERIFY(ids.contains("org.ludash.fade"));
+    QVERIFY(ids.contains("org.lunadash.digitalclock"));
+    QVERIFY(ids.contains("org.lunadash.stacking-windows"));
+    QVERIFY(snapshot.value("storeSupported").toBool());
+    QVERIFY(!snapshot.value("storeLoading").toBool());
+  }
+
   void configurationRecovery() {
     QString error;
     QVERIFY(!saveExtensionConfiguration(
