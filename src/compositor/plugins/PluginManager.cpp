@@ -373,7 +373,7 @@ bool PluginManager::setEnabled(const QString &id, bool enabled,
     *error = "Unknown plugin";
   return false;
 }
-void PluginManager::reportError(const QString &id, const QString &error) {
+void PluginManager::reportError(const QString &key, const QString &error) {
   if (!error.isEmpty()) {
     errors_[key] = error.left(1024);
     emit changed();
