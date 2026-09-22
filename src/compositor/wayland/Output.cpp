@@ -239,9 +239,28 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   clock_gettime(CLOCK_MONOTONIC, &now);
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
 
-  if ((animations && animations->activeCount() > 0) || capturePending ||
-      state->screencopyKeepalive > 0)
+  if (animations && animations->activeCount() > 0)
     wlr_output_schedule_frame(state->output);
+
+  // Do not spin a screencopy tail synchronously from the output frame
+  // callback. The headless backend can deliver scheduled frames immediately;
+  // chaining them here starves the Wayland event loop and later screencopy
+  // clients never get far enough to submit their copy request. Pace the tail
+  // at roughly one display interval instead. wlroots still schedules the
+  // first frame for every copy request itself.
+  if (capturePending || state->screencopyKeepalive > 0) {
+    auto *impl = state->impl;
+    auto *output = state->output;
+    QTimer::singleShot(16, impl->q, [impl, output] {
+      const bool alive =
+          std::any_of(impl->outputs.cbegin(), impl->outputs.cend(),
+                      [output](const auto *candidate) {
+                        return candidate && candidate->output == output;
+                      });
+      if (alive)
+        wlr_output_schedule_frame(output);
+    });
+  }
 }
 
 void WaylandCompositor::Impl::handleOutputRequestState(wl_listener *listener,
