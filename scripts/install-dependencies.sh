@@ -80,7 +80,10 @@ case "$manager" in
             systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations \
             shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil polkit-kde-agent \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            fcitx5 fcitx5-qt fcitx5-configtool
+            fcitx5 fcitx5-qt fcitx5-configtool networkmanager network-manager-applet \
+            wireplumber pavucontrol bluez bluez-utils blueman system-config-printer \
+            gnome-disk-utility partitionmanager firewalld seahorse pciutils usbutils \
+            udisks2 power-profiles-daemon gnome-control-center
         wlroots_package=wlroots0.20
         if ! pacman -Si "$wlroots_package" >/dev/null 2>&1; then
             wlroots_package=wlroots

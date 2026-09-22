@@ -21,7 +21,7 @@ ColumnLayout {
             LunaDashLogo { Layout.preferredWidth: 126; Layout.preferredHeight: 126; animated: Theme.animations }
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 6
-                Text { text: "LunaDash " + (page.update.currentVersion || "1.0.0"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.bold: true }
+                Text { text: "LunaDash " + (page.update.currentVersion || "1.0.1a"); color: Theme.text; font.family: Theme.font; font.pixelSize: 28; font.bold: true }
                 Text { text: "⑨ baka ᗜˬᗜ"; color: Theme.muted; font.family: Theme.font; font.pixelSize: 13 }
                 Text { visible: Boolean(page.update.currentCommit); text: String(page.update.currentCommit || "").slice(0, 12); color: Theme.muted; font.family: Theme.font; font.pixelSize: 10 }
             }

@@ -1,23 +1,13 @@
 # Local source release: run scripts/make-source.sh first, then makepkg -Cfs.
 pkgname=ludash
-pkgver=1.0.0
-pkgrel=34
+pkgver=1.0.1a
+pkgrel=1
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard' 'networkmanager' 'network-manager-applet' 'wireplumber' 'pavucontrol' 'bluez' 'bluez-utils' 'blueman' 'system-config-printer' 'gnome-disk-utility' 'partitionmanager' 'firewalld' 'seahorse' 'pciutils' 'usbutils' 'udisks2' 'power-profiles-daemon' 'gnome-control-center')
 makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel' 'wayland-protocols')
 optdepends=('qt6-shadertools: Build OpenGL shader plugins with the LunaDash SDK'
-            'networkmanager: Network status and connection management'
-            'nm-connection-editor: Graphical network setup'
-            'wireplumber: Native volume and microphone controls'
-            'pavucontrol: Audio device and routing settings'
-            'power-profiles-daemon: System power profile controls'
-            'blueman: Bluetooth pairing and adapter settings'
-            'system-config-printer: Printer configuration'
-            'gnome-disk-utility: Disk and storage settings'
-            'gnome-control-center: Optional account and date settings'
-            'xfce4-settings: Optional default application editor'
             'noto-fonts-cjk: CJK interface fonts'
             'mesa: Mesa OpenGL drivers')
 source=("ludash-${pkgver}.tar.gz")

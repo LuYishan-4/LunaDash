@@ -24,9 +24,9 @@ if [ -n "$(git -C "$project_dir" status --porcelain --untracked-files=no)" ]; th
   revision="$revision-dirty"
 fi
 printf '%s\n' "$revision" > "$metadata/.lunadash-revision"
-tar -czf "$metadata/ludash-1.0.0.tar.gz" \
+tar -czf "$metadata/ludash-1.0.1a.tar.gz" \
   --exclude='__pycache__' --exclude='*.pyc' \
-  --transform='s,^,ludash-1.0.0/,' -C "$project_dir" "$@" \
+  --transform='s,^,ludash-1.0.1a/,' -C "$project_dir" "$@" \
   -C "$metadata" .lunadash-revision
-mv -f -- "$metadata/ludash-1.0.0.tar.gz" \
-  "$project_dir/packaging/arch/ludash-1.0.0.tar.gz"
+mv -f -- "$metadata/ludash-1.0.1a.tar.gz" \
+  "$project_dir/packaging/arch/ludash-1.0.1a.tar.gz"

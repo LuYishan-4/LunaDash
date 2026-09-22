@@ -38,9 +38,20 @@ ParsedVersion parseVersion(QString version) {
   if (version.startsWith('v'))
     version.remove(0, 1);
   ParsedVersion result;
-  const int dash = version.indexOf('-');
-  const QString core = dash >= 0 ? version.left(dash) : version;
-  const QString prerelease = dash >= 0 ? version.mid(dash + 1) : QString();
+  int split = version.indexOf('-');
+  if (split < 0) {
+    for (qsizetype i = 0; i < version.size(); ++i) {
+      const QChar ch = version.at(i);
+      if (!ch.isDigit() && ch != '.') {
+        split = static_cast<int>(i);
+        break;
+      }
+    }
+  }
+  const QString core = split >= 0 ? version.left(split) : version;
+  QString prerelease = split >= 0 ? version.mid(split) : QString();
+  if (prerelease.startsWith('-'))
+    prerelease.remove(0, 1);
   if (core.isEmpty())
     return result;
   for (const auto &part : core.split('.')) {

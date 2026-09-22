@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
-project(LunaDash VERSION 1.0.0 LANGUAGES C CXX)
+project(LunaDash VERSION 1.0.1 LANGUAGES C CXX)
+if(NOT DEFINED LUDASH_RELEASE_VERSION)
+    set(LUDASH_RELEASE_VERSION "1.0.1a")
+endif()
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -42,7 +45,7 @@ if(NOT LUNADASH_GIT_COMMIT)
 endif()
 
 add_compile_definitions(
-    LUDASH_VERSION="${PROJECT_VERSION}"
+    LUDASH_VERSION="${LUDASH_RELEASE_VERSION}"
     LUDASH_GIT_COMMIT="${LUNADASH_GIT_COMMIT}")
 
 add_library(ludash-localization src/config/localization/Localization.cpp src/config/localization/JsonTranslator.cpp)
