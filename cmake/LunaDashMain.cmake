@@ -93,7 +93,9 @@ target_link_libraries(ludash-network PUBLIC Qt6::Network Qt6::DBus)
 add_library(ludash-session-environment src/compositor/session/SessionEnvironment.cpp)
 target_include_directories(ludash-session-environment PUBLIC src)
 target_link_libraries(ludash-session-environment PUBLIC Qt6::Core Qt6::DBus)
-target_compile_definitions(ludash-session-environment PRIVATE LUDASH_ASSET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/assets")
+target_compile_definitions(ludash-session-environment PRIVATE
+    LUDASH_ASSET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/assets"
+    LUDASH_XDPW_CONFIG_PATH="${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/xdg-desktop-portal-wlr/LunaDash")
 add_library(ludash-launch-policy src/compositor/session/LaunchPolicy.cpp)
 target_include_directories(ludash-launch-policy PUBLIC src)
 target_link_libraries(ludash-launch-policy PUBLIC Qt6::Core)
