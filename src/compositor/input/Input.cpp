@@ -285,6 +285,23 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
   if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
       state->consumedKeys.remove(event->keycode))
     return;
+
+  // F12 is a fixed compositor shortcut for true fullscreen. Keep it outside
+  // the configurable shortcut table, whose policy intentionally requires
+  // Meta or Alt combinations.
+  if (!state->virtualKeyboard &&
+      event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
+      !self->q->shortcutCapture_) {
+    const uint32_t rawModifiers = wlr_keyboard_get_modifiers(keyboard);
+    for (int i = 0; i < count; ++i) {
+      if (symbols[i] == XKB_KEY_F12 && rawModifiers == 0) {
+        self->q->handleShortcut("toggleFullscreen");
+        state->consumedKeys.insert(event->keycode);
+        return;
+      }
+    }
+  }
+
   const bool shortcutPress = !state->virtualKeyboard &&
                              event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
                              !self->q->shortcutCapture_;
