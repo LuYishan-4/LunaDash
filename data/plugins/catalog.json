@@ -6,7 +6,7 @@
       "id": "org.lunadash.digitalclock",
       "name": "Digital Clock",
       "description": "A configurable desktop digital clock for LunaDash.",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "author": "LuYishan",
       "icon": "clock",
       "targets": [
@@ -173,12 +173,12 @@
           {
             "path": "metadata.json",
             "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/metadata.json",
-            "sha256": "879d7504ac0ec0720dd07b204054c77b12d283abcf4cc3acef311a776cac05bb"
+            "sha256": "446987b35aaf9e4946cb93a7aaa2b224e06c9b40a7702391d4eac8decf32f350"
           },
           {
             "path": "Main.qml",
             "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/Main.qml",
-            "sha256": "729210c538f3fb91b386a3eff33af3591752d5c902389bed968c6afb5db0839f"
+            "sha256": "ea9b0a92f893e469d9403c4ffbcdcfb8f2d9bf197d8b27dd2ffd71d755d5338c"
           }
         ]
       }
