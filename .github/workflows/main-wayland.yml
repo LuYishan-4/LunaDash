@@ -136,7 +136,8 @@ jobs:
                         base-devel cmake ninja pkgconf git \
                         mesa libglvnd wayland wayland-protocols wayland-utils \
                         wlroots0.20 libinput libxkbcommon systemd-libs glib2 \
-                        qt6-base qt6-declarative qt6-wayland pixman
+                        qt6-base qt6-declarative qt6-wayland pixman \
+                        xdg-desktop-portal-wlr pipewire dbus
                       cmake -S . -B build-modern -G Ninja -DCMAKE_BUILD_TYPE=Release
                       cmake --build build-modern --target lunadash-compositor --parallel 2
 
@@ -163,6 +164,55 @@ jobs:
                       grep -q "interface: '"'"'ext_foreign_toplevel_list_v1'"'"'" build-modern/window-capture-globals.txt
                       grep -q "interface: '"'"'ext_image_copy_capture_manager_v1'"'"'" build-modern/window-capture-globals.txt
                       grep -q "interface: '"'"'ext_foreign_toplevel_image_capture_source_manager_v1'"'"'" build-modern/window-capture-globals.txt
+
+                      # Exercise the actual ScreenCast backend used by Discord.
+                      # xdpw must translate compositor globals into both
+                      # MONITOR (1) and WINDOW (2) portal source types.
+                      xdpw=$(find /usr -type f -name xdg-desktop-portal-wlr -perm -111 -print -quit)
+                      test -n "$xdpw"
+                      cat > build-modern/check-portal-sources.sh <<EOF
+                      #!/usr/bin/env bash
+                      set -euo pipefail
+                      pipewire > "$PWD/build-modern/pipewire.log" 2>&1 &
+                      pw_pid=\$!
+                      xdpw_pid=""
+                      cleanup() {
+                        test -z "\$xdpw_pid" || kill "\$xdpw_pid" 2>/dev/null || true
+                        kill "\$pw_pid" 2>/dev/null || true
+                        test -z "\$xdpw_pid" || wait "\$xdpw_pid" 2>/dev/null || true
+                        wait "\$pw_pid" 2>/dev/null || true
+                      }
+                      trap cleanup EXIT
+                      for _ in \$(seq 1 50); do
+                        test -S "\$XDG_RUNTIME_DIR/pipewire-0" && break
+                        kill -0 "\$pw_pid"
+                        sleep 0.1
+                      done
+                      test -S "\$XDG_RUNTIME_DIR/pipewire-0"
+                      "$xdpw" -l DEBUG > "$PWD/build-modern/xdpw.log" 2>&1 &
+                      xdpw_pid=\$!
+                      types=""
+                      for _ in \$(seq 1 80); do
+                        if types=\$(gdbus call --session \
+                          --dest org.freedesktop.impl.portal.desktop.wlr \
+                          --object-path /org/freedesktop/portal/desktop \
+                          --method org.freedesktop.DBus.Properties.Get \
+                          org.freedesktop.impl.portal.ScreenCast AvailableSourceTypes 2>/dev/null); then
+                          break
+                        fi
+                        kill -0 "\$xdpw_pid"
+                        sleep 0.1
+                      done
+                      printf "%s\\n" "\$types" | tee "$PWD/build-modern/portal-source-types.txt"
+                      value=\$(printf "%s\\n" "\$types" | sed -E "s/.*uint32 ([0-9]+).*/\\1/")
+                      test "\$value" != "\$types"
+                      test \$((value & 1)) -ne 0
+                      test \$((value & 2)) -ne 0
+                      EOF
+                      chmod +x build-modern/check-portal-sources.sh
+                      XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-window-capture \
+                        XDG_CURRENT_DESKTOP=LunaDash XDG_SESSION_TYPE=wayland \
+                        dbus-run-session -- bash build-modern/check-portal-sources.sh
                       kill "$pid"
                       wait "$pid" || true
                     '
@@ -174,5 +224,8 @@ jobs:
                   path: |
                       build-modern/window-capture.log
                       build-modern/window-capture-globals.txt
+                      build-modern/portal-source-types.txt
+                      build-modern/pipewire.log
+                      build-modern/xdpw.log
                   if-no-files-found: ignore
                   retention-days: 7
