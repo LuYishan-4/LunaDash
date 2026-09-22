@@ -422,7 +422,7 @@ void PluginManager::startStoreBuild(StoreInstall *job) {
     return;
   const auto cmakeFile = job->stage->filePath("CMakeLists.txt");
   const auto metadataFile = job->stage->filePath("metadata.json");
-  if (!QFileInfo::isFile(cmakeFile) || !QFileInfo::isFile(metadataFile)) {
+  if (!QFileInfo(cmakeFile).isFile() || !QFileInfo(metadataFile).isFile()) {
     finishStoreInstall(job, "Downloaded plugin is missing its SDK CMake project");
     return;
   }
