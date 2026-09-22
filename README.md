@@ -1,5 +1,4 @@
 <div align="center">
-
 <a href="https://luyishan-4.github.io/LunaDash/"><img src="docs/brand/banner.svg" alt="LunaDash" width="880"></a>
 
 ### A desktop environment.
