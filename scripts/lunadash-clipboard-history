@@ -122,9 +122,9 @@ def watch() -> int:
     helper = str(pathlib.Path(__file__).resolve())
     command = [
         "wl-paste",
-        "--watch",
         "--type",
         "text",
+        "--watch",
         sys.executable,
         helper,
         "record",
