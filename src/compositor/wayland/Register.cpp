@@ -56,6 +56,14 @@ bool WaylandCompositor::Impl::initialize() {
   wlr_compositor_create(display, 5, renderer);
   wlr_subcompositor_create(display);
   wlr_data_device_manager_create(display);
+#if LUDASH_WLR_HAS_DATA_CONTROL
+  // Clipboard managers such as wl-paste --watch need the privileged
+  // wlr-data-control protocol; wl_data_device alone is focus-bound and cannot
+  // provide global clipboard history.
+  dataControl = wlr_data_control_manager_v1_create(display);
+  if (!dataControl)
+    return fail("wlroots could not create the data-control manager.");
+#endif
   wlr_viewporter_create(display);
 #if WLR_VERSION_MINOR >= 20
   if (!wlr_single_pixel_buffer_manager_v1_create(display))

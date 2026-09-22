@@ -62,6 +62,7 @@ jobs:
                   cat build-wayland/core-protocol-globals.txt
                   grep -Eq "interface: 'wl_seat',[[:space:]]+version:[[:space:]]+([5-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
                   grep -Eq "interface: 'wl_data_device_manager',[[:space:]]+version:[[:space:]]+([3-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwlr_data_control_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_layer_shell_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_screencopy_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_text_input_manager_v3'" build-wayland/core-protocol-globals.txt

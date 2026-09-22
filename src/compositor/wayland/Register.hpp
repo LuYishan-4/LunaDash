@@ -138,6 +138,9 @@ public:
   wlr_cursor *cursor = nullptr;
   wlr_xcursor_manager *cursorManager = nullptr;
   wlr_screencopy_manager_v1 *screencopy = nullptr;
+#if LUDASH_WLR_HAS_DATA_CONTROL
+  wlr_data_control_manager_v1 *dataControl = nullptr;
+#endif
 #if LUDASH_WLR_HAS_DRM_SYNCOBJ
   wlr_linux_drm_syncobj_manager_v1 *explicitSync = nullptr;
 #endif

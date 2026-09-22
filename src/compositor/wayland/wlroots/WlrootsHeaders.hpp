@@ -22,6 +22,12 @@ extern "C" {
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_data_device.h>
+#if __has_include(<wlr/types/wlr_data_control_v1.h>)
+#include <wlr/types/wlr_data_control_v1.h>
+#define LUDASH_WLR_HAS_DATA_CONTROL 1
+#else
+#define LUDASH_WLR_HAS_DATA_CONTROL 0
+#endif
 #if __has_include(<wlr/types/wlr_drm.h>)
 #include <wlr/types/wlr_drm.h>
 #endif
