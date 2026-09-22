@@ -462,8 +462,12 @@ private Q_SLOTS:
     WindowSwitcher switcher;
     const QString channel = runtime.filePath("interaction.json");
     switcher.setChannelPath(channel);
-    switcher.setLauncherSerial(7);
+    switcher.setLauncherState(7, true);
     QCOMPARE(switcher.snapshot().value("launcherSerial").toInt(), 7);
+    QVERIFY(switcher.snapshot().value("launcherOpen").toBool());
+    switcher.setLauncherState(8, false);
+    QCOMPARE(switcher.snapshot().value("launcherSerial").toInt(), 8);
+    QVERIFY(!switcher.snapshot().value("launcherOpen").toBool());
     QProcessEnvironment environment;
     environment.insert("XDG_RUNTIME_DIR", runtime.path());
     environment.insert("WAYLAND_DISPLAY", runtime.filePath("no-display"));

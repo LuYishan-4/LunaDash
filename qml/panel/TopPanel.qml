@@ -556,7 +556,7 @@ ModuleSurface {
                 fill: "transparent"
                 border.width: 0
                 Accessible.name: shell.tr("Battery")
-                onClicked: shell.launch("monitor")
+                onClicked: shell.openSettingsPage("power")
             }
         }
     }

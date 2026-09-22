@@ -284,7 +284,6 @@ ModuleSurface {
                         spacing: 8
                         ShellButton { Layout.fillWidth: true; iconName: "settings"; text: shell.tr("Settings"); onClicked: { shell.setAppearance({overview:false}); shell.settingsOpen = true } }
                         ShellButton { Layout.fillWidth: true; iconName: "files"; text: shell.tr("Files"); onClicked: shell.launch("files") }
-                        ShellButton { Layout.fillWidth: true; iconName: "monitor"; text: shell.tr("Monitor"); onClicked: shell.launch("monitor") }
                     }
                 }
             }
