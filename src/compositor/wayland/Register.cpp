@@ -119,6 +119,11 @@ bool WaylandCompositor::Impl::initialize() {
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   foreignToplevelList = wlr_ext_foreign_toplevel_list_v1_create(display, 1);
   imageCopyCapture = wlr_ext_image_copy_capture_manager_v1_create(display, 1);
+  // xdg-desktop-portal-wlr uses this manager for the modern monitor
+  // ScreenCast path. Without it, xdpw must fall back to screencopy+dmabuf,
+  // which is not available on every renderer/GPU combination.
+  if (!wlr_ext_output_image_capture_source_manager_v1_create(display, 1))
+    return fail("wlroots could not create output image capture sources.");
   foreignToplevelCaptureSource =
       wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(display, 1);
 #endif
