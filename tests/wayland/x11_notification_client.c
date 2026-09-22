@@ -1,9 +1,11 @@
 /* Exercise accelerated override-redirect windows like recording notifications. */
+#define _POSIX_C_SOURCE 200809L
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
-#include <unistd.h>
+#include <errno.h>
+#include <time.h>
 
 int main(void) {
   Display *display = XOpenDisplay(NULL);
@@ -30,7 +32,8 @@ int main(void) {
     glClearColor(0.1f, 0.6f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glXSwapBuffers(display, window);
-    usleep(20000);
+    struct timespec remaining = {.tv_nsec = 20000000};
+    while (nanosleep(&remaining, &remaining) == -1 && errno == EINTR) {}
   }
   glXMakeCurrent(display, None, NULL);
   glXDestroyContext(display, context);
