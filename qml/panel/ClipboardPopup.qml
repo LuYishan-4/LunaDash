@@ -41,6 +41,29 @@ ModuleSurface {
         copyProcess.running = true
     }
 
+    function kindIcon(kind) {
+        if (kind === "files")
+            return "files"
+        if (kind === "image")
+            return "appearance"
+        if (kind === "audio")
+            return "music"
+        if (kind === "video")
+            return "play"
+        if (kind === "binary")
+            return "general"
+        return "copy"
+    }
+
+    function sizeLabel(bytes) {
+        const value = Number(bytes || 0)
+        if (value >= 1048576)
+            return (value / 1048576).toFixed(value >= 10485760 ? 0 : 1) + " MiB"
+        if (value >= 1024)
+            return (value / 1024).toFixed(value >= 10240 ? 0 : 1) + " KiB"
+        return value + " B"
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.radiusLarge
@@ -117,7 +140,7 @@ ModuleSurface {
                 required property var modelData
                 required property int index
                 width: ListView.view.width
-                height: 58
+                height: 68
                 radius: 12
                 color: rowMouse.containsMouse
                     ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.13)
@@ -129,34 +152,80 @@ ModuleSurface {
                 scale: rowMouse.pressed ? 0.992 : rowMouse.containsMouse ? 1.004 : 1
 
                 readonly property string previewText: {
-                    const value = String(modelData.text || "").replace(/\s+/g, " ").trim()
+                    const preferred = String(modelData.preview || "")
+                    const source = preferred.length ? preferred : String(modelData.text || "")
+                    const value = source.replace(/\s+/g, " ").trim()
                     return value.length > 150 ? value.slice(0, 147) + "…" : value
                 }
+                readonly property string kind: String(modelData.kind || "text")
+                readonly property bool imagePayload: kind === "image" && Boolean(modelData.payload)
 
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 10
 
-                    Text {
-                        Layout.preferredWidth: 24
-                        text: String(row.index + 1)
-                        color: Theme.accent
-                        font.family: Theme.font
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
+                    Rectangle {
+                        Layout.preferredWidth: 38
+                        Layout.preferredHeight: 38
+                        radius: 9
+                        clip: true
+                        color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.10)
+
+                        Image {
+                            id: previewImage
+                            anchors.fill: parent
+                            source: row.imagePayload ? String(row.modelData.payload || "") : ""
+                            fillMode: Image.PreserveAspectCrop
+                            visible: row.imagePayload && status === Image.Ready
+                            asynchronous: true
+                            cache: false
+                        }
+                        LineIcon {
+                            anchors.centerIn: parent
+                            width: 18
+                            height: 18
+                            visible: !previewImage.visible
+                            name: popup.kindIcon(row.kind)
+                            ink: Theme.accent
+                        }
                     }
-                    Text {
+
+                    ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        text: row.previewText || shell.tr("Empty text")
-                        color: Theme.text
+                        spacing: 2
+
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: row.previewText || String(row.modelData.mime || row.kind)
+                            color: Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: 12
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: row.kind + " · " + String(row.modelData.mime || "") +
+                                  " · " + popup.sizeLabel(row.modelData.size)
+                            color: Theme.muted
+                            font.family: Theme.font
+                            font.pixelSize: 9
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    Text {
+                        Layout.preferredWidth: 18
+                        text: String(row.index + 1)
+                        color: Theme.muted
                         font.family: Theme.font
-                        font.pixelSize: 12
-                        elide: Text.ElideRight
-                        maximumLineCount: 2
-                        wrapMode: Text.Wrap
+                        font.pixelSize: 9
+                        horizontalAlignment: Text.AlignHCenter
                     }
                     LineIcon {
                         Layout.preferredWidth: 16
