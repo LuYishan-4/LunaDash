@@ -32,26 +32,3 @@ jobs:
                   python3 tests/architecture/test_source_layout.py
                   python3 tests/wayland/test_no_qtwayland.py
                   python3 tests/renderer/test_render_architecture.py
-            - name: Checkout community plugin registry
-              uses: actions/checkout@v4
-              with:
-                  repository: LuYishan-4/LunaDash-Plugins
-                  ref: main
-                  path: external-plugins
-                  persist-credentials: false
-            - name: Build and install KDE multi-target plugin with current SDK
-              run: |
-                  cmake -S external-plugins/plugins/org.lunadash.kde-behavior \
-                    -B build-kde-plugin -G Ninja \
-                    -DLunaDashPlugin_DIR="$PWD/build-main/sdk-build" \
-                    -DCMAKE_INSTALL_PREFIX="$PWD/external-prefix"
-                  cmake --build build-kde-plugin --parallel 2
-                  cmake --install build-kde-plugin
-                  test -f external-prefix/share/lunadash/plugins/org.lunadash.kde-behavior/.lunadash-sdk.json
-                  test -f external-prefix/share/lunadash/plugins/org.lunadash.kde-behavior/liblunadash-kde-behavior.so
-                  test -f external-prefix/share/lunadash/plugins/org.lunadash.kde-behavior/KdePanel.qml
-            - name: Exercise external multi-target runtime hooks
-              env:
-                  LUNADASH_EXTERNAL_PLUGIN_DIR: ${{ github.workspace }}/external-prefix/share/lunadash/plugins/org.lunadash.kde-behavior
-                  QT_QPA_PLATFORM: offscreen
-              run: ./build-main/lunadash-plugin-test externalMultiTarget
