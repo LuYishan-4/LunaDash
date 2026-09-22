@@ -24,9 +24,13 @@ QJsonArray settingsApiTargets(const QJsonObject &extensions,
   for (const auto &entry : extensions.value("installed").toArray()) {
     const auto item = entry.toObject();
     if (!item.value("error").toString().isEmpty()) continue;
-    targets.append(Settings::target("plugin:" + item.value("id").toString(),
-        item.value("name").toString(), item.value("type").toString(),
-        item.value("target").toString(), item.value("settingsSchema").toObject(),
+    targets.append(Settings::target(
+        "plugin:" + item.value("id").toString() + ":" +
+            item.value("target").toString(),
+        item.value("name").toString() + " / " +
+            item.value("target").toString(),
+        item.value("type").toString(), item.value("target").toString(),
+        item.value("settingsSchema").toObject(),
         item.value("settings").toObject()));
   }
   const auto values = modules.value("document").toObject().value("modules").toObject();
@@ -93,24 +97,40 @@ bool updateSettingsApi(PluginManager &plugins, ShellModules &modules,
   QString configError;
   auto document = readExtensionConfiguration(&configError);
   if (!configError.isEmpty()) return fail(configError);
-  if (parts.size() != 2) return fail("Invalid settings target.");
-  if (parts[0] == "builtin") {
+  if (parts.isEmpty()) return fail("Invalid settings target.");
+  if (parts.size() == 2 && parts[0] == "builtin") {
     auto builtins = document.value("builtins").toObject();
     builtins[parts[1]] = Settings::merged(builtins.value(parts[1]).toObject(), changes);
     document["builtins"] = builtins;
-  } else if (parts[0] == "plugin") {
+  } else if (parts[0] == "plugin" && parts.size() == 3) {
     bool found = false;
     for (const auto &plugin : discoverPlugins()) {
-      if (plugin.id != parts[1]) continue;
-      if (!plugin.error.isEmpty()) return fail(plugin.error);
+      if (plugin.id != parts[1] || plugin.target != parts[2])
+        continue;
+      if (!plugin.error.isEmpty())
+        return fail(plugin.error);
       auto entries = document.value("plugins").toObject();
-      entries[plugin.id] = QJsonObject{{"enabled", plugin.enabled}, {"mode", plugin.mode},
-          {"settings", Settings::merged(plugin.settings, changes)}};
+      auto package = entries.value(plugin.id).toObject();
+      package["enabled"] = package.value("enabled").toBool(true);
+      auto targetEntries = package.value("targets").toObject();
+      auto targetConfig = targetEntries.value(plugin.target).toObject();
+      targetConfig["enabled"] =
+          targetConfig.value("enabled").toBool(plugin.enabled);
+      targetConfig["mode"] =
+          targetConfig.value("mode").toString(plugin.mode);
+      targetConfig["settings"] =
+          Settings::merged(plugin.settings, changes);
+      targetEntries[plugin.target] = targetConfig;
+      package.remove("mode");
+      package.remove("settings");
+      package["targets"] = targetEntries;
+      entries[plugin.id] = package;
       document["plugins"] = entries;
       found = true;
       break;
     }
-    if (!found) return fail("Plugin is no longer installed.");
+    if (!found)
+      return fail("Plugin target is no longer installed.");
   } else return fail("Unknown settings target.");
   if (!saveExtensionConfiguration(QJsonDocument(document).toJson(), error)) return false;
   plugins.refresh();

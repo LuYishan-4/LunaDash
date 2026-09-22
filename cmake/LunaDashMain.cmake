@@ -10,7 +10,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(GNUInstallDirs)
 option(LUDASH_ENABLE_SANITIZERS "Enable ASan and UBSan for project code" OFF)
-option(LUDASH_BUILD_EXAMPLE_PLUGIN "Build the metadata-based fade effect example" ON)
 if(LUDASH_ENABLE_SANITIZERS)
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         message(FATAL_ERROR "Sanitizers require GCC or Clang")
@@ -54,7 +53,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/modules/Renderer.cmake)
 
 add_library(ludash-xwayland src/compositor/xwayland/XWaylandSupport.cpp)
 target_include_directories(ludash-xwayland PUBLIC src)
-target_link_libraries(ludash-xwayland PUBLIC Qt6::Core)
+target_compile_definitions(ludash-xwayland PRIVATE WLR_USE_UNSTABLE=1)
+target_link_libraries(ludash-xwayland PUBLIC Qt6::Core PkgConfig::WLROOTS)
 add_library(ludash-wallpaper src/desktop/wallpaper/WallpaperSettings.cpp)
 target_include_directories(ludash-wallpaper PUBLIC src)
 target_link_libraries(ludash-wallpaper PUBLIC Qt6::Gui)
@@ -190,6 +190,7 @@ add_library(ludash-wayland
     src/compositor/capture/ScreenCapture.hpp
     src/compositor/capture/ScreenCapture.cpp
     src/compositor/wayland/Surface.cpp
+    src/compositor/wayland/XWayland.cpp
     src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
     src/compositor/settings/SettingsApi.cpp
@@ -266,7 +267,7 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop ${CMAKE_CURRENT_BINA
 install(PROGRAMS scripts/lunadash-session scripts/ludash-session scripts/lunadash-clipboard-history DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash.desktop ${CMAKE_CURRENT_BINARY_DIR}/ludash.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash-app.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(DIRECTORY qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/shell PATTERN "digital-clock" EXCLUDE)
+install(DIRECTORY qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/shell)
 install(DIRECTORY data/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/data/assets)
 install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps)
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)

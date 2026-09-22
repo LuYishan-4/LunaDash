@@ -6,6 +6,7 @@
 #include "core/settings/SettingsSchema.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -24,6 +25,46 @@ class PluginTests : public QObject {
       if (!QFile::copy(from + "/" + name, to + "/" + name))
         return false;
     return QFile::exists(to + "/metadata.json");
+  }
+  static bool writeFile(const QString &path, const QByteArray &bytes) {
+    QFile file(path);
+    return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+           file.write(bytes) == bytes.size();
+  }
+  static bool createQmlPlugin(const QString &base, const QString &id,
+                              const QString &target) {
+    const auto directory = base + "/" + id;
+    if (!QDir().mkpath(directory))
+      return false;
+    const QJsonObject manifest{
+        {"schemaVersion", 2},
+        {"sdk", QJsonObject{{"name", "LunaDash"}, {"apiVersion", 2}}},
+        {"id", id},
+        {"name", id},
+        {"version", "1.0.0"},
+        {"author", "Plugin tests"},
+        {"type", "quickshell"},
+        {"target", target},
+        {"mode", "augment"},
+        {"entry", "Main.qml"},
+        {"enabledByDefault", true},
+        {"settings", QJsonObject{}}};
+    const auto metadata =
+        QJsonDocument(manifest).toJson(QJsonDocument::Compact);
+    if (!writeFile(directory + "/metadata.json", metadata) ||
+        !writeFile(directory + "/Main.qml",
+                   "import QtQuick\nItem { required property var shell; "
+                   "required property var settings; required property var context }\n"))
+      return false;
+    const auto hash =
+        QString::fromLatin1(QCryptographicHash::hash(
+                                metadata, QCryptographicHash::Sha256)
+                                .toHex());
+    return writeFile(
+        directory + "/.lunadash-sdk.json",
+        QJsonDocument(QJsonObject{{"apiVersion", 2},
+                                  {"metadataSha256", hash}})
+                .toJson(QJsonDocument::Compact));
   }
   QJsonObject config(const QString &id, bool enabled, const QString &mode,
                      QJsonObject settings = {}) {
@@ -109,21 +150,141 @@ private Q_SLOTS:
     PluginManager manager;
     const auto snapshot = manager.snapshot();
     const auto remote = snapshot.value("remote").toArray();
-    QVERIFY(remote.size() >= 3);
-    QSet<QString> ids;
-    for (const auto &value : remote) {
-      const auto item = value.toObject();
-      ids.insert(item.value("id").toString());
-      const auto source = item.value("sourceUrl").toString();
-      QVERIFY2(source.startsWith(
-                   "https://github.com/LuYishan-4/LunaDash-Plugins/"),
-               qPrintable(source));
-    }
-    QVERIFY(ids.contains("org.ludash.fade"));
-    QVERIFY(ids.contains("org.lunadash.digitalclock"));
-    QVERIFY(ids.contains("org.lunadash.stacking-windows"));
+    QCOMPARE(remote.size(), 2);
+
+    auto findRemote = [&](const QString &id) {
+      return std::find_if(remote.begin(), remote.end(),
+                          [&](const QJsonValue &value) {
+                            return value.toObject().value("id").toString() == id;
+                          });
+    };
+
+    const auto clock = findRemote("org.lunadash.digitalclock");
+    QVERIFY(clock != remote.end());
+    QCOMPARE(clock->toObject().value("targets").toArray().size(), 1);
+    QVERIFY(clock->toObject().value("installable").toBool());
+    QVERIFY(clock->toObject().value("install").toObject()
+                .value("files").toArray().size() >= 2);
+
+    const auto kde = findRemote("org.lunadash.kde-behavior");
+    QVERIFY(kde != remote.end());
+    QCOMPARE(kde->toObject().value("targets").toArray().size(), 3);
+    QVERIFY(kde->toObject().value("installable").toBool());
+    QCOMPARE(kde->toObject().value("install").toObject()
+                 .value("mode").toString(),
+             QString("cmake"));
+    QVERIFY(kde->toObject().value("install").toObject()
+                .value("files").toArray().size() >= 4);
+
+    const auto source = clock->toObject().value("sourceUrl").toString();
+    QVERIFY2(source.startsWith(
+                 "https://github.com/LuYishan-4/LunaDash-Plugins/"),
+             qPrintable(source));
     QVERIFY(snapshot.value("storeSupported").toBool());
     QVERIFY(!snapshot.value("storeLoading").toBool());
+  }
+
+  void hidesLegacyPluginsAndRemovesUserPackages() {
+    const auto legacyDir = root + "/org.example.legacy";
+    QVERIFY(QDir().mkpath(legacyDir));
+    QVERIFY(writeFile(
+        legacyDir + "/metadata.json",
+        R"({"schemaVersion":1,"id":"org.example.legacy","name":"Legacy","version":"1","type":"quickshell","target":"desktop-widgets","entry":"Main.qml","enabledByDefault":false})"));
+    QVERIFY(writeFile(
+        legacyDir + "/Main.qml",
+        "import QtQuick\nItem {}\n"));
+
+    QVERIFY(createQmlPlugin(root, "org.example.removable", "desktop-widgets"));
+
+    PluginManager manager;
+    manager.refresh();
+    auto installed = manager.snapshot().value("installed").toArray();
+    QVERIFY(std::none_of(installed.begin(), installed.end(),
+                         [](const QJsonValue &value) {
+                           return value.toObject().value("id").toString() ==
+                                  "org.example.legacy";
+                         }));
+    auto removable = std::find_if(
+        installed.begin(), installed.end(), [](const QJsonValue &value) {
+          const auto item = value.toObject();
+          return item.value("id").toString() == "org.example.removable" &&
+                 item.value("removable").toBool();
+        });
+    QVERIFY(removable != installed.end());
+
+    QString error;
+    QVERIFY2(manager.removeInstalledPlugin("org.example.removable", &error),
+             qPrintable(error));
+    QVERIFY(!QFileInfo::exists(root + "/org.example.removable"));
+    installed = manager.snapshot().value("installed").toArray();
+    QVERIFY(std::none_of(installed.begin(), installed.end(),
+                         [](const QJsonValue &value) {
+                           return value.toObject().value("id").toString() ==
+                                  "org.example.removable";
+                         }));
+    QVERIFY(QDir(legacyDir).removeRecursively());
+  }
+
+  void outdatedStoreVersionRemainsOperable() {
+    const auto directory = root + "/org.lunadash.digitalclock";
+    QVERIFY(QDir().mkpath(directory));
+    const QByteArray metadata =
+        R"({"schemaVersion":2,"sdk":{"name":"LunaDash","apiVersion":2},"id":"org.lunadash.digitalclock","name":"Digital Clock","version":"1.9.0","author":"test","type":"quickshell","target":"desktop-widgets","mode":"augment","entry":"Main.qml","enabledByDefault":false,"settings":{}})";
+    QVERIFY(writeFile(directory + "/metadata.json", metadata));
+    QVERIFY(writeFile(
+        directory + "/Main.qml",
+        "import QtQuick\nItem { required property var shell; required property var settings; required property var context }\n"));
+    const auto hash = QString::fromLatin1(
+        QCryptographicHash::hash(metadata, QCryptographicHash::Sha256).toHex());
+    QVERIFY(writeFile(
+        directory + "/.lunadash-sdk.json",
+        QJsonDocument(QJsonObject{{"apiVersion", 2},
+                                  {"metadataSha256", hash}})
+            .toJson(QJsonDocument::Compact)));
+
+    PluginManager manager;
+    manager.refresh();
+    const auto snapshot = manager.snapshot();
+    const auto installed = snapshot.value("installed").toArray();
+    auto oldClock = std::find_if(
+        installed.begin(), installed.end(), [](const QJsonValue &value) {
+          return value.toObject().value("id").toString() ==
+                 "org.lunadash.digitalclock";
+        });
+    QVERIFY(oldClock != installed.end());
+    QVERIFY(oldClock->toObject().value("outdated").toBool());
+    QCOMPARE(oldClock->toObject().value("storeVersion").toString(),
+             QString("2.0.1"));
+    QVERIFY(oldClock->toObject().value("removable").toBool());
+
+    const auto remote = snapshot.value("remote").toArray();
+    auto storeClock = std::find_if(
+        remote.begin(), remote.end(), [](const QJsonValue &value) {
+          return value.toObject().value("id").toString() ==
+                 "org.lunadash.digitalclock";
+        });
+    QVERIFY(storeClock != remote.end());
+    QVERIFY(storeClock->toObject().value("updateAvailable").toBool());
+
+    QVERIFY(QDir(directory).removeRecursively());
+  }
+
+  void legacyDestinationCanBeUpdatedWhenIdentityMatches() {
+    const auto directory = root + "/org.lunadash.digitalclock";
+    QVERIFY(QDir().mkpath(directory));
+    QVERIFY(writeFile(
+        directory + "/manifest.json",
+        R"({"id":"org.lunadash.digitalclock","name":"Digital Clock","version":"1.0.0"})"));
+
+    PluginManager manager;
+    QString error;
+    // The one-click update is asynchronous; success here means the stale
+    // destination was accepted and the download/build pipeline was started
+    // instead of returning "Plugin destination already exists".
+    QVERIFY2(manager.installFromStore("org.lunadash.digitalclock", &error),
+             qPrintable(error));
+    QVERIFY(error.isEmpty());
+    QVERIFY(QDir(directory).removeRecursively());
   }
 
   void configurationRecovery() {
@@ -138,6 +299,178 @@ private Q_SLOTS:
     QVERIFY(!saveExtensionConfiguration(QByteArray(24577, ' '), &error));
     QCOMPARE(readExtensionConfiguration(), previous);
   }
+  void exclusiveTargetOwnership() {
+    const auto first = root + "/org.example.panel-a";
+    const auto second = root + "/org.example.panel-b";
+    QVERIFY(createQmlPlugin(root, "org.example.panel-a", "panel"));
+    QVERIFY(createQmlPlugin(root, "org.example.panel-b", "panel"));
+
+    const QJsonObject conflicting{
+        {"schemaVersion", 1},
+        {"builtins", QJsonObject{}},
+        {"plugins",
+         QJsonObject{
+             {"org.example.panel-a",
+              QJsonObject{{"enabled", true},
+                          {"mode", "augment"},
+                          {"settings", QJsonObject{}}}},
+             {"org.example.panel-b",
+              QJsonObject{{"enabled", true},
+                          {"mode", "augment"},
+                          {"settings", QJsonObject{}}}}}}};
+    QString error;
+    QVERIFY(!saveExtensionConfiguration(
+        QJsonDocument(conflicting).toJson(), &error));
+    QVERIFY2(error.contains("Only one plugin can be enabled for: panel"),
+             qPrintable(error));
+
+    PluginManager manager;
+    manager.refresh();
+    const auto installed = manager.snapshot().value("installed").toArray();
+    int panelPlugins = 0;
+    int available = 0;
+    int conflicts = 0;
+    for (const auto &value : installed) {
+      const auto item = value.toObject();
+      if (item.value("target").toString() != "panel" ||
+          !item.value("id").toString().startsWith("org.example.panel-"))
+        continue;
+      ++panelPlugins;
+      if (item.value("available").toBool())
+        ++available;
+      if (item.value("error")
+              .toString()
+              .contains("single-owner target"))
+        ++conflicts;
+    }
+    QCOMPARE(panelPlugins, 2);
+    QCOMPARE(available, 1);
+    QCOMPARE(conflicts, 1);
+
+    QVERIFY(QDir(first).removeRecursively());
+    QVERIFY(QDir(second).removeRecursively());
+  }
+
+  void externalMultiTarget() {
+    const auto source =
+        QString::fromLocal8Bit(qgetenv("LUNADASH_EXTERNAL_PLUGIN_DIR"));
+    if (source.isEmpty() || !QFile::exists(source + "/metadata.json"))
+      QSKIP("External multi-target plugin package was not supplied");
+
+    const auto directory = root + "/org.lunadash.kde-behavior";
+    QVERIFY(copyPlugin(source, directory));
+    const auto descriptors =
+        readPluginMetadataTargets(directory + "/metadata.json");
+    QCOMPARE(descriptors.size(), 3);
+
+    QSet<QString> targets;
+    for (const auto &descriptor : descriptors) {
+      QVERIFY2(descriptor.error.isEmpty(), qPrintable(descriptor.error));
+      targets.insert(descriptor.target);
+      QVERIFY(!descriptor.enabled);
+    }
+    QCOMPARE(targets,
+             QSet<QString>({"panel", "window-rules", "window-animation"}));
+
+    const QJsonObject targetConfigs{
+        {"panel",
+         QJsonObject{
+             {"enabled", true},
+             {"mode", "replace"},
+             {"settings",
+              QJsonObject{{"compact", true},
+                          {"showLabels", false},
+                          {"showWorkspaceSwitcher", true}}}}},
+        {"window-rules",
+         QJsonObject{
+             {"enabled", true},
+             {"mode", "replace"},
+             {"settings",
+              QJsonObject{{"workspacePolicy", "first"},
+                          {"maximizeNewWindows", true}}}}},
+        {"window-animation",
+         QJsonObject{
+             {"enabled", true},
+             {"mode", "replace"},
+             {"settings",
+              QJsonObject{{"duration", 333},
+                          {"enterOffset", 7},
+                          {"focusOpacity", 0.91},
+                          {"exitScale", 0.95},
+                          {"easing", "outQuint"}}}}}};
+    const QJsonObject configuration{
+        {"schemaVersion", 1},
+        {"builtins", QJsonObject{}},
+        {"plugins",
+         QJsonObject{{"org.lunadash.kde-behavior",
+                      QJsonObject{{"enabled", true},
+                                  {"targets", targetConfigs}}}}}};
+    save(configuration);
+
+    PluginManager manager;
+    manager.refresh();
+    const auto snapshot = manager.snapshot();
+    const auto installed = snapshot.value("installed").toArray();
+    QCOMPARE(installed.size(), 3);
+    for (const auto &value : installed) {
+      const auto item = value.toObject();
+      QCOMPARE(item.value("id").toString(),
+               QString("org.lunadash.kde-behavior"));
+      QVERIFY2(item.value("available").toBool(),
+               qPrintable(item.value("error").toString()));
+    }
+
+    const auto panel = std::find_if(
+        installed.begin(), installed.end(), [](const QJsonValue &value) {
+          return value.toObject().value("target").toString() == "panel";
+        });
+    QVERIFY(panel != installed.end());
+    QVERIFY(panel->toObject().value("settings").toObject().value("compact").toBool());
+    QVERIFY(!panel->toObject()
+                 .value("settings")
+                 .toObject()
+                 .value("showLabels")
+                 .toBool());
+
+    const auto rule = initialWindowRule(
+        manager, {{"appId", "org.example.App"}, {"title", "Example"}},
+        4, false, 10);
+    QCOMPARE(rule.value("workspace").toInt(), 0);
+    QVERIFY(rule.value("maximized").toBool());
+
+    const QJsonObject preferences{
+        {"animations", true}, {"animationDuration", 200}};
+    const auto profile = windowAnimationProfile(
+        manager, preferences, windowTemplateForKey("tiling"));
+    QCOMPARE(profile.value("duration").toInt(), 333);
+    QCOMPARE(profile.value("enterOffset").toInt(), 7);
+    QCOMPARE(profile.value("easing").toString(), QString("outQuint"));
+
+    auto document = readExtensionConfiguration();
+    auto packages = document.value("plugins").toObject();
+    auto package =
+        packages.value("org.lunadash.kde-behavior").toObject();
+    auto runtimeTargets = package.value("targets").toObject();
+    auto animation = runtimeTargets.value("window-animation").toObject();
+    animation["enabled"] = false;
+    runtimeTargets["window-animation"] = animation;
+    package["targets"] = runtimeTargets;
+    packages["org.lunadash.kde-behavior"] = package;
+    document["plugins"] = packages;
+    save(document);
+    manager.refresh();
+    QCOMPARE(windowAnimationProfile(
+                 manager, preferences, windowTemplateForKey("tiling"))
+                 .value("duration")
+                 .toInt(),
+             200);
+    QCOMPARE(initialWindowRule(
+                 manager, {{"appId", "org.example.App2"}}, 3, false, 10)
+                 .value("workspace")
+                 .toInt(),
+             0);
+  }
+
   void nativeLifecycle() {
     const auto source =
         QCoreApplication::applicationDirPath() + "/plugins/org.ludash.fade";

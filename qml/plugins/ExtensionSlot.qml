@@ -85,7 +85,7 @@ Item {
                     builtinSettings: slot.targetSpec.builtinSettings || {},
                     mode: modelData.mode,
                     reportError: message => slot.shell.command("extension-error", JSON.stringify({
-                            id: modelData.id,
+                            id: modelData.instanceId || (modelData.id + "@" + modelData.target),
                             error: String(message)
                         }))
                 })

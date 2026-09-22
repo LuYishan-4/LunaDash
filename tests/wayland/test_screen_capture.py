@@ -126,8 +126,14 @@ with tempfile.TemporaryDirectory(prefix="ludash-capture-test-") as runtime:
             assert versions.get("wl_output") == 2, versions
 
             assert "error" in request("capture", "relative.png")
-            assert request("capture", str(shot)) == {"path": str(shot)}, shot
-            assert shot.exists(), "The capture command wrote no file"
+            capture = request("capture", str(shot))
+            assert capture["path"] == str(shot) and capture["pending"], capture
+            deadline = time.monotonic() + 5
+            while not shot.exists():
+                assert time.monotonic() < deadline, "The capture command wrote no file"
+                capture_status = request()["screenCapture"]
+                assert not capture_status["error"], capture_status
+                time.sleep(0.05)
             assert "error" in request("capture", str(shot)), (
                 "An existing file was overwritten"
             )

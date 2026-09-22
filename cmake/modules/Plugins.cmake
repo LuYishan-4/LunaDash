@@ -23,8 +23,3 @@ install(FILES src/core/plugins/PluginApi.c DESTINATION "${CMAKE_INSTALL_DATADIR}
 install(PROGRAMS scripts/create-plugin.py DESTINATION "${CMAKE_INSTALL_BINDIR}" RENAME lunadash-create-plugin)
 install(FILES data/plugins/targets.json docs/PLUGIN_TARGETS.md docs/PLUGINS.md DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")
 install(DIRECTORY templates/plugins/ DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk/templates")
-lunadash_add_plugin(lunadash-clock METADATA "${CMAKE_SOURCE_DIR}/qml/plugins/digital-clock/metadata.json")
-if(LUDASH_BUILD_EXAMPLE_PLUGIN)
-    add_subdirectory("${CMAKE_SOURCE_DIR}/data/plugins/fade" "${CMAKE_BINARY_DIR}/example-plugins/fade")
-    add_subdirectory("${CMAKE_SOURCE_DIR}/data/plugins/stacking-windows" "${CMAKE_BINARY_DIR}/example-plugins/stacking-windows")
-endif()

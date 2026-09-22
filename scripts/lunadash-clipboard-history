@@ -1,17 +1,33 @@
 #!/usr/bin/env python3
+import hashlib
 import json
+import mimetypes
 import os
 import pathlib
 import subprocess
 import sys
 import tempfile
 import time
+from urllib.parse import unquote, urlparse
 
 MAX_ENTRIES = 20
-MAX_TEXT_BYTES = 65536
+MAX_TEXT_BYTES = 1024 * 1024
+MAX_PAYLOAD_BYTES = 64 * 1024 * 1024
+TEXT_MIMES = (
+    "text/plain;charset=utf-8",
+    "text/plain",
+    "UTF8_STRING",
+    "TEXT",
+    "STRING",
+)
+URI_MIMES = (
+    "text/uri-list",
+    "x-special/gnome-copied-files",
+    "application/x-kde4-urilist",
+)
 
 
-def runtime_path() -> pathlib.Path:
+def runtime_directory() -> pathlib.Path:
     runtime = os.environ.get("XDG_RUNTIME_DIR")
     if not runtime:
         raise RuntimeError("XDG_RUNTIME_DIR is not set")
@@ -21,7 +37,79 @@ def runtime_path() -> pathlib.Path:
         directory.chmod(0o700)
     except OSError:
         pass
-    return directory / "clipboard-history.json"
+    return directory
+
+
+def runtime_path() -> pathlib.Path:
+    return runtime_directory() / "clipboard-history.json"
+
+
+def payload_directory() -> pathlib.Path:
+    directory = runtime_directory() / "clipboard-payloads"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        directory.chmod(0o700)
+    except OSError:
+        pass
+    return directory
+
+
+def normalize_entry(item: dict) -> dict | None:
+    if not isinstance(item, dict):
+        return None
+    stamp = item.get("timestamp")
+    if not isinstance(stamp, (int, float)):
+        return None
+    # Schema-1 text compatibility.
+    if "kind" not in item and isinstance(item.get("text"), str):
+        raw = item["text"].encode("utf-8")
+        digest = hashlib.sha256(b"text/plain\0" + raw).hexdigest()
+        return {
+            "id": digest,
+            "kind": "text",
+            "mime": "text/plain;charset=utf-8",
+            "text": item["text"],
+            "preview": preview_text(item["text"]),
+            "size": len(raw),
+            "timestamp": int(stamp),
+        }
+    kind = item.get("kind")
+    mime = item.get("mime")
+    digest = item.get("id")
+    size = item.get("size")
+    if kind not in {"text", "files", "image", "audio", "video", "binary"}:
+        return None
+    if not isinstance(mime, str) or not mime or not isinstance(digest, str):
+        return None
+    if not isinstance(size, int) or size < 0 or size > MAX_PAYLOAD_BYTES:
+        return None
+    result = {
+        "id": digest,
+        "kind": kind,
+        "mime": mime,
+        "preview": str(item.get("preview", ""))[:512],
+        "size": size,
+        "timestamp": int(stamp),
+    }
+    if kind in {"text", "files"}:
+        text = item.get("text")
+        if not isinstance(text, str):
+            return None
+        result["text"] = text
+    else:
+        payload = item.get("payload")
+        if not isinstance(payload, str):
+            return None
+        path = pathlib.Path(payload)
+        try:
+            resolved = path.resolve()
+            root = payload_directory().resolve()
+        except OSError:
+            return None
+        if resolved.parent != root or not resolved.is_file():
+            return None
+        result["payload"] = str(resolved)
+    return result
 
 
 def load() -> list[dict]:
@@ -34,18 +122,34 @@ def load() -> list[dict]:
         return []
     result = []
     for item in data[:MAX_ENTRIES]:
-        if not isinstance(item, dict):
-            continue
-        text = item.get("text")
-        stamp = item.get("timestamp")
-        if isinstance(text, str) and isinstance(stamp, (int, float)):
-            result.append({"text": text, "timestamp": int(stamp)})
+        normalized = normalize_entry(item)
+        if normalized is not None:
+            result.append(normalized)
     return result
 
 
+def cleanup_payloads(entries: list[dict]) -> None:
+    keep = {
+        pathlib.Path(entry["payload"]).name
+        for entry in entries
+        if isinstance(entry.get("payload"), str)
+    }
+    try:
+        files = list(payload_directory().iterdir())
+    except OSError:
+        return
+    for path in files:
+        if path.is_file() and path.name not in keep:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+
+
 def save(entries: list[dict]) -> None:
+    entries = entries[:MAX_ENTRIES]
     path = runtime_path()
-    payload = json.dumps(entries[:MAX_ENTRIES], ensure_ascii=False, separators=(",", ":"))
+    payload = json.dumps(entries, ensure_ascii=False, separators=(",", ":"))
     fd, temporary = tempfile.mkstemp(prefix=".clipboard-", dir=str(path.parent))
     try:
         os.fchmod(fd, 0o600)
@@ -55,6 +159,7 @@ def save(entries: list[dict]) -> None:
             os.fsync(handle.fileno())
         os.replace(temporary, path)
         path.chmod(0o600)
+        cleanup_payloads(entries)
     finally:
         try:
             os.unlink(temporary)
@@ -62,72 +167,190 @@ def save(entries: list[dict]) -> None:
             pass
 
 
-def record(raw: bytes) -> bool:
-    if not raw or len(raw) > MAX_TEXT_BYTES or b"\0" in raw:
+def preview_text(text: str) -> str:
+    value = " ".join(text.replace("\0", "").split())
+    return value[:180]
+
+
+def file_preview(text: str) -> str:
+    names = []
+    for line in text.splitlines():
+        value = line.strip()
+        if not value or value.startswith("#") or value in {"copy", "cut"}:
+            continue
+        if value.startswith("file://"):
+            path = unquote(urlparse(value).path)
+            names.append(pathlib.Path(path).name or path)
+        else:
+            names.append(value)
+        if len(names) >= 4:
+            break
+    if not names:
+        return "Files"
+    suffix = "" if len(names) < 4 else " …"
+    return ", ".join(names) + suffix
+
+
+def choose_kind(mime: str, raw: bytes) -> str:
+    lower = mime.lower()
+    if lower in URI_MIMES or lower == "text/uri-list":
+        return "files"
+    if lower.startswith("image/"):
+        return "image"
+    if lower.startswith("audio/"):
+        return "audio"
+    if lower.startswith("video/"):
+        return "video"
+    if lower.startswith("text/") or mime in TEXT_MIMES:
+        return "text"
+    # File managers occasionally offer octet-stream together with a URI list.
+    # Preserve unknown payloads losslessly instead of decoding them as text.
+    return "binary"
+
+
+def payload_suffix(mime: str) -> str:
+    suffix = mimetypes.guess_extension(mime.split(";", 1)[0].strip()) or ""
+    if not suffix or len(suffix) > 10 or "/" in suffix:
+        return ".bin"
+    return suffix
+
+
+def record_payload(raw: bytes, mime: str, timestamp: int | None = None) -> bool:
+    if not raw or len(raw) > MAX_PAYLOAD_BYTES:
         return False
-    text = raw.decode("utf-8", "replace")
-    if not text:
+    mime = (mime or "application/octet-stream").strip()[:256]
+    kind = choose_kind(mime, raw)
+    if kind in {"text", "files"} and len(raw) > MAX_TEXT_BYTES:
         return False
-    entries = [entry for entry in load() if entry["text"] != text]
-    entries.insert(0, {"text": text, "timestamp": int(time.time())})
+
+    digest = hashlib.sha256(mime.encode("utf-8", "replace") + b"\0" + raw).hexdigest()
+    entry = {
+        "id": digest,
+        "kind": kind,
+        "mime": mime,
+        "size": len(raw),
+        "timestamp": int(timestamp or time.time()),
+    }
+    if kind in {"text", "files"}:
+        text = raw.decode("utf-8", "replace")
+        if not text:
+            return False
+        entry["text"] = text
+        entry["preview"] = file_preview(text) if kind == "files" else preview_text(text)
+    else:
+        path = payload_directory() / (digest + payload_suffix(mime))
+        if not path.exists():
+            fd, temporary = tempfile.mkstemp(prefix=".payload-", dir=str(path.parent))
+            try:
+                os.fchmod(fd, 0o600)
+                with os.fdopen(fd, "wb") as handle:
+                    handle.write(raw)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(temporary, path)
+                path.chmod(0o600)
+            finally:
+                try:
+                    os.unlink(temporary)
+                except FileNotFoundError:
+                    pass
+        entry["payload"] = str(path)
+        entry["preview"] = {
+            "image": "Image",
+            "audio": "Audio clip",
+            "video": "Video clip",
+            "binary": "Binary clipboard data",
+        }[kind]
+
+    entries = [item for item in load() if item.get("id") != digest]
+    entries.insert(0, entry)
     save(entries)
     return True
 
 
-def read_wayland_clipboard() -> bytes | None:
+def advertised_types() -> list[str]:
     try:
-        advertised = subprocess.run(
+        result = subprocess.run(
             ["wl-paste", "--list-types"],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            timeout=0.6,
+            timeout=0.8,
             check=False,
             text=True,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return None
-    if advertised.returncode != 0:
-        return None
-    offered = {line.strip() for line in advertised.stdout.splitlines() if line.strip()}
-    preferred = (
-        "text/plain;charset=utf-8",
-        "text/plain",
-        "UTF8_STRING",
-        "TEXT",
-        "STRING",
-    )
-    mime = next((candidate for candidate in preferred if candidate in offered), None)
-    if mime is None:
-        return None
+        return []
+    if result.returncode != 0:
+        return []
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def preferred_mime(offered: list[str]) -> str | None:
+    for candidate in URI_MIMES:
+        if candidate in offered:
+            return candidate
+    for prefix in ("image/", "audio/", "video/"):
+        found = next(
+            (item for item in offered if item.lower().startswith(prefix)), None
+        )
+        if found:
+            return found
+    for candidate in TEXT_MIMES:
+        if candidate in offered:
+            return candidate
+    return offered[0] if offered else None
+
+
+def read_current_selection(mime: str) -> bytes | None:
     try:
         result = subprocess.run(
             ["wl-paste", "--no-newline", "--type", mime],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            timeout=0.6,
+            timeout=3,
             check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
-    if result.returncode != 0 or len(result.stdout) > MAX_TEXT_BYTES:
+    if result.returncode != 0 or len(result.stdout) > MAX_PAYLOAD_BYTES:
         return None
     return result.stdout
 
 
+def watch_record() -> int:
+    if os.environ.get("CLIPBOARD_STATE") == "nil":
+        return 0
+
+    watched_raw = sys.stdin.buffer.read(MAX_PAYLOAD_BYTES + 1)
+    if len(watched_raw) > MAX_PAYLOAD_BYTES:
+        return 1
+
+    # Watch mode chooses one offered type. File managers and browsers often
+    # advertise both text/plain and richer URI/image/media types, so ask the
+    # current selection for the richest supported MIME before recording it.
+    offered = advertised_types()
+    mime = preferred_mime(offered)
+    if mime:
+        raw = read_current_selection(mime)
+        if raw is not None:
+            return 0 if record_payload(raw, mime) else 1
+
+    mime = os.environ.get("CLIPBOARD_TYPE", "").strip()
+    if not mime:
+        mime = "application/octet-stream"
+    return 0 if record_payload(watched_raw, mime) else 1
+
+
 def watch() -> int:
-    # Use wl-paste's compositor event stream instead of polling. Each clipboard
-    # change starts this same helper in record mode with the selection on stdin.
     if not runtime_path().exists():
         save([])
     helper = str(pathlib.Path(__file__).resolve())
     command = [
         "wl-paste",
-        "--type",
-        "text",
         "--watch",
         sys.executable,
         helper,
-        "record",
+        "watch-record",
     ]
     while True:
         try:
@@ -135,11 +358,93 @@ def watch() -> int:
         except FileNotFoundError:
             print("wl-paste is unavailable; install wl-clipboard.", file=sys.stderr)
             return 2
-        # A compositor restart can terminate the watch process. Reconnect
-        # instead of silently leaving the panel with stale history.
         if result.returncode == 0:
             return 0
         time.sleep(0.5)
+
+
+def entry_bytes(entry: dict) -> bytes | None:
+    if entry.get("kind") in {"text", "files"}:
+        return str(entry.get("text", "")).encode("utf-8")
+    payload = entry.get("payload")
+    if not isinstance(payload, str):
+        return None
+    try:
+        path = pathlib.Path(payload).resolve()
+        if path.parent != payload_directory().resolve():
+            return None
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    return raw if len(raw) <= MAX_PAYLOAD_BYTES else None
+
+
+def publish_selection(raw: bytes, mime: str) -> bool:
+    """Publish a selection without assuming the owner process exits.
+
+    wl-copy normally daemonizes, but with an active XWM bridge it may remain as
+    the selection owner while X11 consumers request TARGETS/data. That is a
+    valid clipboard state, not a timeout. Feed stdin, close it, then accept
+    either a successful quick exit or a still-running owner process.
+    """
+    try:
+        process = subprocess.Popen(
+            ["wl-copy", "--type", mime],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            close_fds=True,
+        )
+    except OSError:
+        return False
+    try:
+        assert process.stdin is not None
+        process.stdin.write(raw)
+        process.stdin.close()
+    except (BrokenPipeError, OSError):
+        try:
+            process.kill()
+        except OSError:
+            pass
+        return False
+
+    # Give immediate exec/protocol failures a chance to surface. If the
+    # process stays alive, it is serving the clipboard and must not be killed.
+    try:
+        code = process.wait(timeout=0.15)
+    except subprocess.TimeoutExpired:
+        return True
+    return code == 0
+
+
+def publish_file(mime: str, filename: str) -> int:
+    path = pathlib.Path(filename)
+    if not path.is_absolute() or not path.is_file():
+        print("Clipboard publish path must be an existing absolute file.",
+              file=sys.stderr)
+        return 2
+    try:
+        if path.stat().st_size <= 0 or path.stat().st_size > MAX_PAYLOAD_BYTES:
+            print("Clipboard publish file is empty or too large.", file=sys.stderr)
+            return 2
+        raw = path.read_bytes()
+    except OSError:
+        print("Clipboard publish file could not be read.", file=sys.stderr)
+        return 2
+
+    mime = (mime or "application/octet-stream").strip()[:256]
+    if not publish_selection(raw, mime):
+        print("wl-copy is unavailable or could not publish the selection.",
+              file=sys.stderr)
+        return 2
+    # Record directly as well as publishing the selection. The watcher may see
+    # the same selection later; record_payload deduplicates by MIME + content.
+    if not record_payload(raw, mime):
+        print("Clipboard selection was published but history could not store it.",
+              file=sys.stderr)
+        return 1
+    return 0
 
 
 def copy_entry(index: int) -> int:
@@ -147,45 +452,56 @@ def copy_entry(index: int) -> int:
     if index < 0 or index >= len(entries):
         print("Clipboard history entry is no longer available.", file=sys.stderr)
         return 2
-    raw = entries[index]["text"].encode("utf-8")
-    try:
-        result = subprocess.run(
-            ["wl-copy", "--type", "text/plain;charset=utf-8"],
-            input=raw,
-            stderr=subprocess.PIPE,
-            timeout=2,
-            check=False,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        print("wl-copy is unavailable or did not respond.", file=sys.stderr)
+    entry = entries[index]
+    raw = entry_bytes(entry)
+    if raw is None:
+        print("Clipboard history payload is missing.", file=sys.stderr)
         return 2
-    if result.returncode != 0:
-        sys.stderr.buffer.write(result.stderr)
-        return result.returncode
-    record(raw)
+    if not publish_selection(raw, entry["mime"]):
+        print("wl-copy is unavailable or could not publish the selection.",
+              file=sys.stderr)
+        return 2
+    entries.pop(index)
+    entry["timestamp"] = int(time.time())
+    entries.insert(0, entry)
+    save(entries)
     return 0
+
+
+def clear() -> None:
+    save([])
+    cleanup_payloads([])
 
 
 def main() -> int:
     command = sys.argv[1] if len(sys.argv) > 1 else "list"
     if command == "watch":
         return watch()
+    if command == "watch-record":
+        return watch_record()
     if command == "list":
         print(json.dumps(load(), ensure_ascii=False))
         return 0
     if command == "clear":
-        save([])
+        clear()
         return 0
     if command == "record":
-        raw = sys.stdin.buffer.read(MAX_TEXT_BYTES + 1)
-        return 0 if record(raw) else 1
+        mime = sys.argv[2] if len(sys.argv) >= 3 else "text/plain;charset=utf-8"
+        raw = sys.stdin.buffer.read(MAX_PAYLOAD_BYTES + 1)
+        return 0 if record_payload(raw, mime) else 1
+    if command == "publish-file" and len(sys.argv) == 4:
+        return publish_file(sys.argv[2], sys.argv[3])
     if command == "copy" and len(sys.argv) == 3:
         try:
             index = int(sys.argv[2])
         except ValueError:
             return 2
         return copy_entry(index)
-    print("Usage: lunadash-clipboard-history [watch|list|clear|record|copy INDEX]", file=sys.stderr)
+    print(
+        "Usage: lunadash-clipboard-history "
+        "[watch|list|clear|record [MIME]|publish-file MIME PATH|copy INDEX]",
+        file=sys.stderr,
+    )
     return 2
 
 

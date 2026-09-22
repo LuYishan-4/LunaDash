@@ -57,6 +57,29 @@ public:
     Slot<ToplevelState> requestResize;
   };
 
+  struct XWaylandState {
+    Impl *impl = nullptr;
+    ClientWindow *client = nullptr;
+    wlr_xwayland_surface *surface = nullptr;
+    Slot<XWaylandState> associate;
+    Slot<XWaylandState> dissociate;
+    Slot<XWaylandState> map;
+    Slot<XWaylandState> unmap;
+    Slot<XWaylandState> destroy;
+    Slot<XWaylandState> requestConfigure;
+    Slot<XWaylandState> requestMove;
+    Slot<XWaylandState> requestResize;
+    Slot<XWaylandState> requestMinimize;
+    Slot<XWaylandState> requestMaximize;
+    Slot<XWaylandState> requestFullscreen;
+    Slot<XWaylandState> requestActivate;
+    Slot<XWaylandState> setTitle;
+    Slot<XWaylandState> setClass;
+    Slot<XWaylandState> setParent;
+    Slot<XWaylandState> setGeometry;
+    Slot<XWaylandState> setOverrideRedirect;
+  };
+
   struct LayerState {
     Impl *impl = nullptr;
     wlr_layer_surface_v1 *surface = nullptr;
@@ -127,6 +150,7 @@ public:
   wl_display *display = nullptr;
   wl_event_loop *eventLoop = nullptr;
   wlr_backend *backend = nullptr;
+  wlr_compositor *compositor = nullptr;
   wlr_renderer *renderer = nullptr;
   wlr_allocator *allocator = nullptr;
   wlr_output_layout *outputLayout = nullptr;
@@ -176,6 +200,7 @@ public:
 
   QSocketNotifier *waylandNotifier = nullptr;
   QList<OutputState *> outputs;
+  QList<XWaylandState *> xwaylandSurfaces;
   QList<LayerState *> layers;
   QList<XdgPopupState *> xdgPopups;
   QList<KeyboardState *> keyboards;
@@ -249,6 +274,7 @@ public:
   void arrangeLayers();
   void restoreLayerFocus();
   void addXdgPopup(wlr_xdg_popup *popup);
+  void addXWaylandSurface(wlr_xwayland_surface *surface);
   void configureXdgPopup(XdgPopupState *state);
   wlr_scene_tree *sceneForSurface(wlr_surface *surface) const;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
@@ -351,6 +377,20 @@ public:
   static void handleToplevelResize(wl_listener *listener, void *data);
 
   static void handleToplevelDestroy(wl_listener *listener, void *);
+
+  static void handleXWaylandAssociate(wl_listener *listener, void *data);
+  static void handleXWaylandDissociate(wl_listener *listener, void *data);
+  static void handleXWaylandMap(wl_listener *listener, void *data);
+  static void handleXWaylandUnmap(wl_listener *listener, void *data);
+  static void handleXWaylandDestroy(wl_listener *listener, void *data);
+  static void handleXWaylandConfigure(wl_listener *listener, void *data);
+  static void handleXWaylandMove(wl_listener *listener, void *data);
+  static void handleXWaylandResize(wl_listener *listener, void *data);
+  static void handleXWaylandMinimize(wl_listener *listener, void *data);
+  static void handleXWaylandMaximize(wl_listener *listener, void *data);
+  static void handleXWaylandFullscreen(wl_listener *listener, void *data);
+  static void handleXWaylandActivate(wl_listener *listener, void *data);
+  static void handleXWaylandMetadata(wl_listener *listener, void *data);
 
   static void handleNewLayerSurface(wl_listener *listener, void *data);
 

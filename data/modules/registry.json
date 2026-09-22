@@ -44,7 +44,9 @@
             "default": "top",
             "enum": [
               "top",
-              "bottom"
+              "bottom",
+              "left",
+              "right"
             ],
             "label": "Panel edge",
             "control": "select"

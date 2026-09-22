@@ -65,5 +65,13 @@
   "Plugin settings": "插件设置",
   "A duration or gap of -1 follows the desktop preference.": "时长或间距设为 -1 时，会沿用桌面偏好设置。",
   "plugins addons native Quickshell OpenGL effect hooks enable disable settings JSON stacking window layout animation": "插件 扩展 原生 Quickshell OpenGL 特效 hook 启用 停用 设置 JSON 堆叠 窗口 布局 动画",
-  "Native plugins run in the compositor. Enable only trusted code. Configuration changes apply directly; disable a native plugin before replacing its binary.": "原生插件在合成器内执行，请仅启用可信代码。设置变更会直接应用；替换原生插件二进制文件前请先停用插件。"
+  "Native plugins run in the compositor. Enable only trusted code. Configuration changes apply directly; disable a native plugin before replacing its binary.": "原生插件在合成器内执行，请仅启用可信代码。设置变更会直接应用；替换原生插件二进制文件前请先停用插件。",
+  "Download plugin": "下载插件",
+  "Downloading…": "下载中…",
+  "Downloading plugin…": "正在下载插件…",
+  "Delete": "删除",
+  "Confirm delete": "确认删除",
+  "Plugin removed.": "插件已删除。",
+  "A configurable desktop digital clock for LunaDash.": "可调整位置、格式与外观的 LunaDash 桌面数字时钟。",
+  "Browse reviewed plugins, download supported QML packages, and manage installed plugins.": "浏览已审核插件、下载支持的一键 QML 软件包，并管理已安装插件。"
 }

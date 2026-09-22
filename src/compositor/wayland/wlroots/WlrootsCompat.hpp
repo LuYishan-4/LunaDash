@@ -50,6 +50,20 @@ inline wl_signal *newTextInputSignal(wlr_text_input_manager_v3 *manager) {
 #endif
 }
 
+inline void setXWaylandMaximized(wlr_xwayland_surface *surface,
+                                  bool maximized) {
+#if LUDASH_WLR_HAS_XWAYLAND
+#if WLR_VERSION_MINOR >= 19
+  wlr_xwayland_surface_set_maximized(surface, maximized, maximized);
+#else
+  wlr_xwayland_surface_set_maximized(surface, maximized);
+#endif
+#else
+  (void)surface;
+  (void)maximized;
+#endif
+}
+
 inline wl_signal *xdgToplevelDestroySignal(wlr_xdg_surface *surface,
                                            wlr_xdg_toplevel *toplevel) {
 #if WLR_VERSION_MINOR < 18

@@ -18,6 +18,7 @@ struct PluginDescriptor {
   QString mode = "augment";
   int schemaVersion = 1;
   QJsonObject manifest;
+  QJsonObject implementation;
   QJsonObject settingsSchema;
   QJsonObject settings;
   QJsonObject shaders;
@@ -29,6 +30,9 @@ struct PluginDescriptor {
 };
 PluginDescriptor readPluginMetadata(const QString &metadataPath,
                                     bool applyConfiguration = true);
+QList<PluginDescriptor> readPluginMetadataTargets(
+    const QString &metadataPath, bool applyConfiguration = true);
+QString pluginInstanceId(const PluginDescriptor &plugin);
 QList<PluginDescriptor> discoverPlugins();
 QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin);
 } // namespace LunaDash

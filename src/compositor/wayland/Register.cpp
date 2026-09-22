@@ -53,7 +53,9 @@ bool WaylandCompositor::Impl::initialize() {
   if (!allocator)
     return fail("wlroots could not create a buffer allocator.");
 
-  wlr_compositor_create(display, 5, renderer);
+  compositor = wlr_compositor_create(display, 5, renderer);
+  if (!compositor)
+    return fail("wlroots could not create the compositor global.");
   wlr_subcompositor_create(display);
   wlr_data_device_manager_create(display);
 #if LUDASH_WLR_HAS_DATA_CONTROL
@@ -213,6 +215,22 @@ bool WaylandCompositor::Impl::initialize() {
   if (wl_display_add_socket(display, socketName.constData()) != 0)
     return fail("Could not create the requested Wayland socket.");
 
+  // A few host-side Wayland helpers (notably GPU Screen Recorder's Flatpak
+  // bridge) still probe the conventional $XDG_RUNTIME_DIR/wayland-0 path
+  // instead of honoring a desktop-specific WAYLAND_DISPLAY. Keep LunaDash's
+  // stable lunadash-* socket for its own clients/control paths, but expose the
+  // same wl_display through the conventional socket in a real login session.
+  // Never add this alias while nested: wayland-0 may belong to the host
+  // compositor and must not be shadowed or treated as a startup failure.
+  if (!nested && socketName != "wayland-0") {
+    if (wl_display_add_socket(display, "wayland-0") == 0) {
+      qInfo("LunaDash Wayland compatibility socket: wayland-0");
+    } else {
+      qWarning("LunaDash could not expose wayland-0 compatibility socket; "
+               "helpers that hard-code wayland-0 may not work.");
+    }
+  }
+
   const int fd = wl_event_loop_get_fd(eventLoop);
   waylandNotifier = new QSocketNotifier(fd, QSocketNotifier::Read, q);
   QObject::connect(waylandNotifier, &QSocketNotifier::activated, q,
@@ -299,6 +317,31 @@ void WaylandCompositor::Impl::shutdown() {
     delete state;
   }
 
+  const auto xwaylandStates = xwaylandSurfaces;
+  xwaylandSurfaces.clear();
+  for (auto *state : xwaylandStates) {
+    if (!state)
+      continue;
+    detachListener(state->associate);
+    detachListener(state->dissociate);
+    detachListener(state->map);
+    detachListener(state->unmap);
+    detachListener(state->destroy);
+    detachListener(state->requestConfigure);
+    detachListener(state->requestMove);
+    detachListener(state->requestResize);
+    detachListener(state->requestMinimize);
+    detachListener(state->requestMaximize);
+    detachListener(state->requestFullscreen);
+    detachListener(state->requestActivate);
+    detachListener(state->setTitle);
+    detachListener(state->setClass);
+    detachListener(state->setParent);
+    detachListener(state->setGeometry);
+    detachListener(state->setOverrideRedirect);
+    delete state;
+  }
+
   const auto layerStates = layers;
   layers.clear();
   for (auto *state : layerStates) {
@@ -376,6 +419,7 @@ void WaylandCompositor::Impl::shutdown() {
   allocator = nullptr;
   renderer = nullptr;
   backend = nullptr;
+  compositor = nullptr;
   if (outputLayout) {
     wlr_output_layout_destroy(outputLayout);
     outputLayout = nullptr;

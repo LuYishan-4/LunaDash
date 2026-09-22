@@ -14,7 +14,8 @@ ColumnLayout {
     onIncomingStateChanged: if (JSON.stringify(incomingState) !== JSON.stringify(state))
         state = incomingState
 
-    readonly property var installedPlugins: state.installed || []
+    readonly property var installedPlugins: (state.installed || [])
+        .filter(plugin => Number(plugin.schemaVersion || 0) >= 2)
     readonly property var remotePlugins: state.remote || []
     property int pluginTab: 0
     property int filterIndex: 0
@@ -34,6 +35,7 @@ ColumnLayout {
     property bool saving: false
     property bool advanced: false
     property string message: ""
+    property var pendingConflict: null
     spacing: 16
 
     function reload() {
@@ -53,19 +55,121 @@ ColumnLayout {
         dirty = true
     }
 
+    function saveImmediately(next) {
+        document = next
+        editor.text = JSON.stringify(next, null, 2)
+        loadedDocument = JSON.stringify(next)
+        dirty = false
+        page.shell.command("extension-save", JSON.stringify(next))
+    }
+
     function pluginValue(plugin) {
-        return document.plugins[plugin.id] || {
+        const packageConfig = document.plugins[plugin.id] || ({})
+        if (packageConfig.targets && packageConfig.targets[plugin.target])
+            return packageConfig.targets[plugin.target]
+        if (!packageConfig.targets && (packageConfig.mode !== undefined || packageConfig.settings !== undefined))
+            return {
+                enabled: packageConfig.enabled ?? plugin.enabled,
+                mode: packageConfig.mode || plugin.mode,
+                settings: packageConfig.settings || plugin.settings || {}
+            }
+        return {
             enabled: plugin.enabled,
             mode: plugin.mode,
             settings: plugin.settings || {}
         }
     }
 
-    function setPlugin(plugin, key, value) {
+    function effectiveEnabled(plugin) {
+        const packageConfig = document.plugins[plugin.id] || ({})
+        return (packageConfig.enabled ?? true) && Boolean(pluginValue(plugin).enabled)
+    }
+
+    function setPlugin(plugin, key, value, immediate) {
         const next = JSON.parse(JSON.stringify(document))
-        next.plugins[plugin.id] = JSON.parse(JSON.stringify(pluginValue(plugin)))
-        next.plugins[plugin.id][key] = value
-        adopt(next)
+        const previous = next.plugins[plugin.id] || ({})
+        let packageConfig
+        if (previous.targets) {
+            packageConfig = previous
+        } else {
+            packageConfig = { enabled: previous.enabled ?? true, targets: {} }
+            if (previous.mode !== undefined || previous.settings !== undefined)
+                packageConfig.targets[plugin.target] = {
+                    enabled: previous.enabled ?? plugin.enabled,
+                    mode: previous.mode || plugin.mode,
+                    settings: previous.settings || plugin.settings || {}
+                }
+        }
+        packageConfig.enabled = true
+        const targetConfig = packageConfig.targets[plugin.target] || JSON.parse(JSON.stringify(pluginValue(plugin)))
+        targetConfig[key] = value
+        packageConfig.targets[plugin.target] = targetConfig
+        next.plugins[plugin.id] = packageConfig
+        if (immediate)
+            saveImmediately(next)
+        else
+            adopt(next)
+    }
+
+    function targetPolicy(plugin) {
+        return (state.targets || []).find(target => target.id === plugin.target) || ({})
+    }
+
+    function conflictsFor(plugin) {
+        if ((targetPolicy(plugin).selection || "single") !== "single")
+            return []
+        return installedPlugins.filter(other =>
+            other.target === plugin.target &&
+            (other.instanceId || (other.id + "@" + other.target)) !==
+                (plugin.instanceId || (plugin.id + "@" + plugin.target)) &&
+            effectiveEnabled(other))
+    }
+
+    function requestEnabled(plugin, enabled) {
+        if (!enabled) {
+            setPlugin(plugin, "enabled", false, true)
+            return
+        }
+        const conflicts = conflictsFor(plugin)
+        if (conflicts.length) {
+            pendingConflict = { plugin: plugin, conflicts: conflicts }
+            return
+        }
+        setPlugin(plugin, "enabled", true, true)
+    }
+
+    function confirmConflict() {
+        if (!pendingConflict)
+            return
+        const selected = pendingConflict.plugin
+        const conflicts = pendingConflict.conflicts || []
+        const next = JSON.parse(JSON.stringify(document))
+
+        function setTarget(plugin, enabled) {
+            const previous = next.plugins[plugin.id] || ({})
+            let packageConfig
+            if (previous.targets) {
+                packageConfig = previous
+            } else {
+                packageConfig = { enabled: previous.enabled ?? true, targets: {} }
+                if (previous.mode !== undefined || previous.settings !== undefined)
+                    packageConfig.targets[plugin.target] = {
+                        enabled: previous.enabled ?? plugin.enabled,
+                        mode: previous.mode || plugin.mode,
+                        settings: previous.settings || plugin.settings || {}
+                    }
+            }
+            packageConfig.enabled = true
+            const targetConfig = packageConfig.targets[plugin.target] || JSON.parse(JSON.stringify(pluginValue(plugin)))
+            targetConfig.enabled = enabled
+            packageConfig.targets[plugin.target] = targetConfig
+            next.plugins[plugin.id] = packageConfig
+        }
+
+        conflicts.forEach(plugin => setTarget(plugin, false))
+        setTarget(selected, true)
+        pendingConflict = null
+        saveImmediately(next)
     }
 
     function matchesSearch(plugin) {
@@ -73,8 +177,10 @@ ColumnLayout {
         if (!query.length)
             return true
         const tags = (plugin.tags || []).join(" ")
+        const targets = (plugin.targets || []).map(target =>
+            [target.id || target.target, target.type, target.mode].join(" ")).join(" ")
         return [plugin.name, plugin.id, plugin.description, plugin.author, plugin.type,
-                plugin.target, tags].join(" ").toLowerCase().includes(query)
+                plugin.target, targets, tags].join(" ").toLowerCase().includes(query)
     }
 
     function matchesFilter(plugin) {
@@ -82,19 +188,19 @@ ColumnLayout {
         if (value === "All plugins")
             return true
         if (value === "Enabled")
-            return Boolean(pluginValue(plugin).enabled)
+            return effectiveEnabled(plugin)
         if (value === "Disabled")
-            return !Boolean(pluginValue(plugin).enabled)
+            return !effectiveEnabled(plugin)
         if (value === "Installed locally")
             return Boolean(plugin.installed)
         if (value === "Available remotely")
             return !Boolean(plugin.installed)
         if (value === "Quickshell")
-            return plugin.type === "quickshell"
+            return plugin.type === "quickshell" || (plugin.targets || []).some(target => target.type === "quickshell")
         if (value === "Native")
-            return plugin.type === "effect"
+            return plugin.type === "effect" || (plugin.targets || []).some(target => target.type === "effect")
         if (value === "OpenGL")
-            return plugin.type === "opengl"
+            return plugin.type === "opengl" || (plugin.targets || []).some(target => target.type === "opengl")
         return true
     }
 
@@ -184,6 +290,7 @@ ColumnLayout {
                     readonly property bool remoteIcon: String(modelData.icon || "").startsWith("https://")
                     readonly property var config: remote ? ({}) : page.pluginValue(modelData)
                     property bool expanded: false
+                    property bool confirmDelete: false
 
                     Layout.fillWidth: true
                     implicitHeight: pluginBody.implicitHeight + 28
@@ -273,6 +380,25 @@ ColumnLayout {
                                             font.weight: Font.DemiBold
                                         }
                                     }
+
+                                    Rectangle {
+                                        visible: !pluginCard.remote &&
+                                                 Boolean(pluginCard.modelData.outdated)
+                                        implicitWidth: outdatedText.implicitWidth + 14
+                                        implicitHeight: outdatedText.implicitHeight + 5
+                                        radius: implicitHeight / 2
+                                        color: Qt.rgba(Theme.warning.r, Theme.warning.g,
+                                                       Theme.warning.b, 0.18)
+                                        Text {
+                                            id: outdatedText
+                                            anchors.centerIn: parent
+                                            text: page.shell.tr("Outdated")
+                                            color: Theme.warning
+                                            font.family: Theme.font
+                                            font.pixelSize: 10
+                                            font.weight: Font.DemiBold
+                                        }
+                                    }
                                 }
 
                                 Text {
@@ -304,7 +430,9 @@ ColumnLayout {
                                 visible: pluginCard.remote
                                 text: page.shell.tr(pluginCard.modelData.installed
                                                     ? "Installed locally"
-                                                    : "Available remotely")
+                                                    : pluginCard.modelData.updateAvailable
+                                                        ? "Older version installed"
+                                                        : "Available remotely")
                                 color: pluginCard.modelData.installed ? Theme.success : Theme.accent
                                 font.family: Theme.font
                                 font.pixelSize: 11
@@ -313,8 +441,25 @@ ColumnLayout {
 
                             SoftSwitch {
                                 visible: !pluginCard.remote
-                                checked: Boolean(pluginCard.config.enabled)
-                                onToggled: page.setPlugin(pluginCard.modelData, "enabled", checked)
+                                checked: page.effectiveEnabled(pluginCard.modelData)
+                                onToggled: page.requestEnabled(pluginCard.modelData, checked)
+                            }
+
+                            ShellButton {
+                                objectName: "plugin-delete-" + pluginCard.modelData.id
+                                visible: !pluginCard.remote && Boolean(pluginCard.modelData.removable)
+                                text: pluginCard.confirmDelete
+                                    ? page.shell.tr("Confirm delete")
+                                    : page.shell.tr("Delete")
+                                destructive: pluginCard.confirmDelete
+                                onClicked: {
+                                    if (!pluginCard.confirmDelete) {
+                                        pluginCard.confirmDelete = true
+                                        return
+                                    }
+                                    page.shell.command("extension-remove", pluginCard.modelData.id)
+                                    pluginCard.confirmDelete = false
+                                }
                             }
 
                             ShellButton {
@@ -366,12 +511,28 @@ ColumnLayout {
                             }
 
                             HelpText {
+                                visible: Boolean(pluginCard.modelData.outdated)
+                                shell: page.shell
+                                message: page.shell.tr("This installed plugin is outdated. Installed version: ") +
+                                         String(pluginCard.modelData.version || "") +
+                                         page.shell.tr(" · Store version: ") +
+                                         String(pluginCard.modelData.storeVersion || "")
+                            }
+
+                            HelpText {
                                 shell: page.shell
                                 message: pluginCard.modelData.type === "effect"
                                     ? "Native plugins run in the compositor. Enable only trusted code. Configuration changes apply directly; disable a native plugin before replacing its binary."
                                     : pluginCard.modelData.type === "opengl"
                                         ? "OpenGL shader plugins require GPU rendering. Software rendering keeps the built-in feature."
                                         : ""
+                            }
+
+                            SettingsTargetEditor {
+                                Layout.fillWidth: true
+                                visible: Object.keys(pluginCard.modelData.settingsSchema || {}).length > 0
+                                shell: page.shell
+                                targetId: "plugin:" + pluginCard.modelData.id + ":" + pluginCard.modelData.target
                             }
 
                             Text {
@@ -388,7 +549,7 @@ ColumnLayout {
                                 visible: Boolean(pluginCard.modelData.error)
                                 text: page.shell.tr("Retry plugin")
                                 onClicked: page.shell.command("extension-error", JSON.stringify({
-                                    id: pluginCard.modelData.id,
+                                    id: pluginCard.modelData.instanceId || (pluginCard.modelData.id + "@" + pluginCard.modelData.target),
                                     error: ""
                                 }))
                             }
@@ -400,9 +561,28 @@ ColumnLayout {
                             spacing: 8
 
                             ShellButton {
+                                objectName: "plugin-download-" + pluginCard.modelData.id
+                                visible: Boolean(pluginCard.modelData.installable) &&
+                                         !Boolean(pluginCard.modelData.installed)
+                                text: pluginCard.modelData.installing
+                                    ? page.shell.tr(
+                                        pluginCard.modelData.installPhase === "building"
+                                            ? "Building plugin…"
+                                            : pluginCard.modelData.installPhase === "installing"
+                                                ? "Installing plugin…"
+                                                : "Downloading…")
+                                    : Boolean(pluginCard.modelData.updateAvailable)
+                                        ? page.shell.tr("Update plugin")
+                                        : page.shell.tr("Download plugin")
+                                active: true
+                                enabled: !pluginCard.modelData.installing
+                                onClicked: page.shell.command(
+                                    "extension-install", pluginCard.modelData.id)
+                            }
+
+                            ShellButton {
                                 visible: Boolean(pluginCard.modelData.siteUrl)
                                 text: page.shell.tr("Plugin page")
-                                active: true
                                 onClicked: page.shell.openUrl(pluginCard.modelData.siteUrl)
                             }
 
@@ -411,6 +591,25 @@ ColumnLayout {
                                 text: page.shell.tr("View source")
                                 onClicked: page.shell.openUrl(pluginCard.modelData.sourceUrl)
                             }
+                        }
+
+                        HelpText {
+                            visible: pluginCard.remote &&
+                                     Boolean(pluginCard.modelData.updateAvailable)
+                            shell: page.shell
+                            message: "An older plugin version was found. Updating downloads and validates the current Store package, resets it to disabled, and keeps the old copy out of the modern plugin list."
+                        }
+
+                        Text {
+                            visible: pluginCard.remote &&
+                                     Boolean(pluginCard.modelData.installError)
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: pluginCard.modelData.installError || ""
+                            wrapMode: Text.Wrap
+                            color: Theme.danger
+                            font.family: Theme.font
+                            font.pixelSize: 11
                         }
                     }
                 }
@@ -421,6 +620,29 @@ ColumnLayout {
                 shell: page.shell
                 message: "No plugins match your search or filter."
             }
+        }
+    }
+
+    SettingsCard {
+        visible: Boolean(page.pendingConflict)
+        title: page.shell.tr("Replace active plugin?")
+        description: page.pendingConflict
+            ? page.shell.tr("This target allows only one active plugin. Confirming will disable: ") +
+              page.pendingConflict.conflicts.map(plugin => plugin.name || plugin.id).join(", ")
+            : ""
+
+        RowLayout {
+            Layout.fillWidth: true
+            ShellButton {
+                text: page.shell.tr("Confirm")
+                active: true
+                onClicked: page.confirmConflict()
+            }
+            ShellButton {
+                text: page.shell.tr("Cancel")
+                onClicked: page.pendingConflict = null
+            }
+            Item { Layout.fillWidth: true }
         }
     }
 
@@ -491,6 +713,14 @@ ColumnLayout {
         target: page.shell
 
         function onCommandCompleted(method, result) {
+            if (method === "extension-install") {
+                page.message = result.error || page.shell.tr("Downloading plugin…")
+                return
+            }
+            if (method === "extension-remove") {
+                page.message = result.error || page.shell.tr("Plugin removed.")
+                return
+            }
             if (method !== "extension-save" || !page.saving)
                 return
             page.saving = false

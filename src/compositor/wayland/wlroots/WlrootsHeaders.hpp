@@ -6,6 +6,7 @@
 // the macros are undefined immediately after the C headers are parsed.
 #ifdef __cplusplus
 #define static
+#define class class_
 #define delete delete_
 #define namespace namespace_
 extern "C" {
@@ -77,6 +78,15 @@ extern "C" {
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#if __has_include(<wlr/xwayland.h>)
+#include <wlr/xwayland.h>
+#define LUDASH_WLR_HAS_XWAYLAND 1
+#elif __has_include(<wlr/xwayland/xwayland.h>)
+#include <wlr/xwayland/xwayland.h>
+#define LUDASH_WLR_HAS_XWAYLAND 1
+#else
+#define LUDASH_WLR_HAS_XWAYLAND 0
+#endif
 #include <wlr/util/log.h>
 #include <wlr/version.h>
 #if __has_include(<wlr/util/transform.h>)
@@ -88,5 +98,6 @@ extern "C" {
 }
 #undef namespace
 #undef delete
+#undef class
 #undef static
 #endif

@@ -180,7 +180,7 @@ FileManagerActions::FileManagerActions(QWidget *page)
   action(
       "refresh", translate("Refresh"), QKeySequence::Refresh,
       [this] {
-        installModel();
+        refreshModel();
         refreshPlaces();
       },
       nullptr, true);
@@ -383,8 +383,9 @@ QStringList FileManagerActions::selection() const {
 }
 
 void FileManagerActions::installModel() {
-  auto *oldModel = model_;
-  const auto oldSelections = page_->findChildren<QItemSelectionModel *>();
+  if (model_)
+    return;
+
   model_ = new QFileSystemModel(this);
   model_->setReadOnly(true);
   model_->setNameFilterDisables(false);
@@ -397,11 +398,7 @@ void FileManagerActions::installModel() {
   auto *unusedSelection = icons_->selectionModel();
   icons_->setSelectionModel(details_->selectionModel());
   unusedSelection->deleteLater();
-  for (auto *selection : oldSelections)
-    if (selection->model() == oldModel)
-      selection->deleteLater();
-  if (oldModel)
-    oldModel->deleteLater();
+
   connect(details_->selectionModel(), &QItemSelectionModel::selectionChanged,
           this, [this] {
             updateActions();
@@ -416,6 +413,7 @@ void FileManagerActions::installModel() {
                   translate("%1 items")
                       .arg(model_->rowCount(details_->rootIndex())));
           });
+
   details_->setRootIndex(model_->index(path));
   icons_->setRootIndex(model_->index(path));
   details_->setColumnWidth(0, 290);
@@ -423,6 +421,35 @@ void FileManagerActions::installModel() {
                              ? QStringList{}
                              : QStringList{"*" + search_->text() + "*"});
   sort(sortColumn_, ascending_);
+  updateActions();
+}
+
+void FileManagerActions::refreshModel() {
+  if (!model_) {
+    installModel();
+    return;
+  }
+
+  const QString path =
+      currentPath_.isEmpty() ? QDir::homePath() : currentPath_;
+  // QFileSystemModel watches the filesystem already. Rebind its root for an
+  // explicit F5/Ctrl+R refresh while keeping both the model and the shared
+  // selection model alive.
+  model_->setRootPath(QString());
+  const auto root = model_->setRootPath(path);
+  details_->setRootIndex(root);
+  icons_->setRootIndex(root);
+  details_->selectionModel()->clear();
+  model_->setNameFilters(search_->text().isEmpty()
+                             ? QStringList{}
+                             : QStringList{"*" + search_->text() + "*"});
+  sort(sortColumn_, ascending_);
+  details_->viewport()->update();
+  icons_->viewport()->update();
+  if (!busy_)
+    status_->setText(
+        translate("%1 items").arg(model_->rowCount(details_->rootIndex())));
+  updatePreview(currentPath_);
   updateActions();
 }
 

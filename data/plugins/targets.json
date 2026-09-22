@@ -14,7 +14,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "taskbar-windows",
@@ -31,7 +32,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "wallpaper",
@@ -48,7 +50,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "launcher",
@@ -65,7 +68,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "overview",
@@ -82,7 +86,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "desktop-menu",
@@ -99,7 +104,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "media",
@@ -116,7 +122,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "calendar",
@@ -133,7 +140,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "audio",
@@ -150,7 +158,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "network",
@@ -167,7 +176,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "devices",
@@ -184,7 +194,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "session",
@@ -201,7 +212,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings",
@@ -218,7 +230,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "setup",
@@ -235,7 +248,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "compatibility",
@@ -252,7 +266,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "clipboard",
@@ -269,7 +284,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "feedback",
@@ -286,7 +302,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "notifications",
@@ -303,7 +320,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "screenshot",
@@ -320,7 +338,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "workspace-transition",
@@ -337,7 +356,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "startup",
@@ -354,7 +374,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "window-decoration",
@@ -371,7 +392,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "window-switcher",
@@ -388,7 +410,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "tiling-hint",
@@ -405,7 +428,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "blur",
@@ -422,7 +446,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "wallpaper-transition",
@@ -439,7 +464,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "desktop-widgets",
@@ -448,7 +474,8 @@
     "types": [
       "quickshell"
     ],
-    "settings": {}
+    "settings": {},
+    "selection": "multiple"
   },
   {
     "id": "settings.general",
@@ -465,7 +492,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.appearance",
@@ -482,7 +510,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.windows",
@@ -499,7 +528,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.shortcuts",
@@ -516,7 +546,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.display",
@@ -533,7 +564,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.input",
@@ -550,7 +582,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.input-method",
@@ -567,7 +600,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.sound",
@@ -584,7 +618,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.network",
@@ -601,7 +636,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.bluetooth",
@@ -618,7 +654,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.power",
@@ -635,7 +672,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.applications",
@@ -652,7 +690,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.privacy",
@@ -669,7 +708,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.system",
@@ -686,7 +726,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.devices",
@@ -703,7 +744,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.about",
@@ -720,7 +762,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "settings.dashboard",
@@ -737,7 +780,8 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "window-animation",
@@ -781,7 +825,8 @@
           "inOutCubic"
         ]
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "window-layout",
@@ -797,7 +842,8 @@
         "minimum": -1,
         "maximum": 64
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "window-rules",
@@ -806,7 +852,8 @@
     "types": [
       "effect"
     ],
-    "settings": {}
+    "settings": {},
+    "selection": "single"
   },
   {
     "id": "shell-animation",
@@ -822,7 +869,8 @@
         "minimum": -1,
         "maximum": 600
       }
-    }
+    },
+    "selection": "single"
   },
   {
     "id": "image-picker",
@@ -839,6 +887,7 @@
         "minimum": 0,
         "maximum": 1
       }
-    }
+    },
+    "selection": "single"
   }
 ]

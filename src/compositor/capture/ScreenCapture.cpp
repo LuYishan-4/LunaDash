@@ -34,6 +34,41 @@ bool ScreenCapture::busy() const {
          phase_ == "capturing";
 }
 QString ScreenCapture::phase() const { return phase_; }
+
+bool ScreenCapture::captureOutput(const QProcessEnvironment &environment,
+                                  const QString &path, QString *error) {
+  if (busy()) {
+    *error = "A screenshot capture is already active.";
+    return false;
+  }
+  grim_ = QStandardPaths::findExecutable("grim");
+  if (grim_.isEmpty()) {
+    *error = "Install grim to capture the compositor output.";
+    return false;
+  }
+  if (!QFileInfo(path).isAbsolute() || QFileInfo::exists(path)) {
+    *error = "Screenshot destination must be a new absolute path.";
+    return false;
+  }
+
+  temporary_ = std::make_unique<QTemporaryFile>(
+      QFileInfo(path).absolutePath() + "/.lunadash-capture-XXXXXX");
+  if (!temporary_->open()) {
+    temporary_.reset();
+    *error = "Could not create the screenshot file.";
+    return false;
+  }
+  temporary_->close();
+
+  environment_ = environment;
+  destination_ = path;
+  phase_ = "capturing";
+  process_.setProcessEnvironment(environment_);
+  process_.start(grim_, {temporary_->fileName()});
+  timeout_.start();
+  return true;
+}
+
 bool ScreenCapture::selectRegion(const QProcessEnvironment &environment,
                                  const QString &path, QString *error) {
   if (busy()) {
