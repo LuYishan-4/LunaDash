@@ -36,7 +36,15 @@ for _ in $(seq 1 50); do
 done
 [[ -S "$XDG_RUNTIME_DIR/pipewire-0" ]]
 
-"$xdpw" -l DEBUG >"$output_dir/xdpw.log" 2>&1 &
+xdpw_args=(-l DEBUG)
+if [[ -n "${XDPW_CONFIG:-}" ]]; then
+    [[ -r "$XDPW_CONFIG" ]] || {
+        echo "Requested xdpw config is not readable: $XDPW_CONFIG" >&2
+        exit 2
+    }
+    xdpw_args+=(-c "$XDPW_CONFIG")
+fi
+"$xdpw" "${xdpw_args[@]}" >"$output_dir/xdpw.log" 2>&1 &
 xdpw_pid=$!
 
 types=""
@@ -51,6 +59,11 @@ for _ in $(seq 1 80); do
     kill -0 "$xdpw_pid"
     sleep 0.1
 done
+
+if [[ -n "${XDPW_CONFIG:-}" ]]; then
+    grep -Fq "chooser_type: dmenu" "$output_dir/xdpw.log"
+    grep -Fq "xdg-desktop-portal-lunadash --screencast-chooser" "$output_dir/xdpw.log"
+fi
 
 printf "%s\n" "$types" | tee "$output_dir/portal-source-types.txt"
 value=$(printf "%s\n" "$types" | sed -E "s/.*uint32 ([0-9]+).*/\\1/")
