@@ -319,7 +319,6 @@ void WaylandCompositor::Impl::shutdown() {
     detachListener(state->setTitle);
     detachListener(state->setClass);
     detachListener(state->setParent);
-    detachListener(state->setPid);
     detachListener(state->setGeometry);
     detachListener(state->setOverrideRedirect);
     delete state;

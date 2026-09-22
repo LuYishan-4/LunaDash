@@ -3,6 +3,7 @@
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/window/WindowRules.hpp"
+#include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include <algorithm>
 
@@ -42,8 +43,15 @@ void WaylandCompositor::Impl::addXWaylandSurface(
   q->clients_.push_back(std::move(client));
   q->updateClientMetadata(current);
 
-  attachListener(&surface->events.map, state->map, state, handleXWaylandMap);
-  attachListener(&surface->events.unmap, state->unmap, state,
+  if (!surface->surface) {
+    surface->data = nullptr;
+    q->clients_.pop_back();
+    delete state;
+    return;
+  }
+  attachListener(&surface->surface->events.map, state->map, state,
+                 handleXWaylandMap);
+  attachListener(&surface->surface->events.unmap, state->unmap, state,
                  handleXWaylandUnmap);
   attachListener(&surface->events.destroy, state->destroy, state,
                  handleXWaylandDestroy);
@@ -66,8 +74,6 @@ void WaylandCompositor::Impl::addXWaylandSurface(
   attachListener(&surface->events.set_class, state->setClass, state,
                  handleXWaylandMetadata);
   attachListener(&surface->events.set_parent, state->setParent, state,
-                 handleXWaylandMetadata);
-  attachListener(&surface->events.set_pid, state->setPid, state,
                  handleXWaylandMetadata);
   attachListener(&surface->events.set_geometry, state->setGeometry, state,
                  handleXWaylandMetadata);
@@ -152,7 +158,6 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
   detachListener(state->setTitle);
   detachListener(state->setClass);
   detachListener(state->setParent);
-  detachListener(state->setPid);
   detachListener(state->setGeometry);
   detachListener(state->setOverrideRedirect);
   if (state->surface)

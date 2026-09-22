@@ -74,7 +74,6 @@ public:
     Slot<XWaylandState> setTitle;
     Slot<XWaylandState> setClass;
     Slot<XWaylandState> setParent;
-    Slot<XWaylandState> setPid;
     Slot<XWaylandState> setGeometry;
     Slot<XWaylandState> setOverrideRedirect;
   };
