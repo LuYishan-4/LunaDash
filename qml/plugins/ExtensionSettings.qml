@@ -400,7 +400,9 @@ ColumnLayout {
                                 visible: pluginCard.remote
                                 text: page.shell.tr(pluginCard.modelData.installed
                                                     ? "Installed locally"
-                                                    : "Available remotely")
+                                                    : pluginCard.modelData.updateAvailable
+                                                        ? "Older version installed"
+                                                        : "Available remotely")
                                 color: pluginCard.modelData.installed ? Theme.success : Theme.accent
                                 font.family: Theme.font
                                 font.pixelSize: 11
@@ -525,9 +527,12 @@ ColumnLayout {
                                          !Boolean(pluginCard.modelData.installed)
                                 text: pluginCard.modelData.installing
                                     ? page.shell.tr("Downloading…")
-                                    : page.shell.tr("Download plugin")
+                                    : Boolean(pluginCard.modelData.updateAvailable)
+                                        ? page.shell.tr("Update plugin")
+                                        : page.shell.tr("Download plugin")
                                 active: true
-                                enabled: !pluginCard.modelData.installing
+                                enabled: !pluginCard.modelData.installing &&
+                                         !Boolean(pluginCard.modelData.updateAvailable)
                                 onClicked: page.shell.command(
                                     "extension-install", pluginCard.modelData.id)
                             }
@@ -543,6 +548,13 @@ ColumnLayout {
                                 text: page.shell.tr("View source")
                                 onClicked: page.shell.openUrl(pluginCard.modelData.sourceUrl)
                             }
+                        }
+
+                        HelpText {
+                            visible: pluginCard.remote &&
+                                     Boolean(pluginCard.modelData.updateAvailable)
+                            shell: page.shell
+                            message: "An older user plugin is installed. Delete it from Installed, then download the current Store version."
                         }
 
                         Text {

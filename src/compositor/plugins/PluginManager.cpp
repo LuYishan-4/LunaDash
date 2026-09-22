@@ -639,10 +639,14 @@ QJsonObject PluginManager::snapshot() {
   QJsonArray installed;
   QSet<QString> replacements;
   const auto removableRoot = QFileInfo(userPluginRoot()).canonicalFilePath();
+  static const QSet<QString> retiredBundledIds{
+      "org.ludash.fade",
+      "org.lunadash.stacking-windows",
+  };
   for (const auto &descriptor : catalog_) {
     // The modern settings surface is SDK 2 only. Legacy schema-1/native
     // descriptors remain readable for migration but are intentionally hidden.
-    if (descriptor.schemaVersion != 2)
+    if (descriptor.schemaVersion != 2 || retiredBundledIds.contains(descriptor.id))
       continue;
     auto item = pluginDescriptorJson(descriptor);
     const auto packageDir =
@@ -690,7 +694,19 @@ QJsonObject PluginManager::snapshot() {
   for (const auto &value : storeCatalog_) {
     auto item = value.toObject();
     const auto id = item.value("id").toString();
-    item["installed"] = installedIds.contains(id);
+    QString installedVersion;
+    for (const auto &descriptor : catalog_) {
+      if (descriptor.id == id && descriptor.schemaVersion == 2) {
+        installedVersion = descriptor.version;
+        break;
+      }
+    }
+    const bool installed = !installedVersion.isEmpty();
+    const bool current =
+        installed && installedVersion == item.value("version").toString();
+    item["installed"] = current;
+    item["installedVersion"] = installedVersion;
+    item["updateAvailable"] = installed && !current;
     item["installable"] = item.value("install").isObject();
     item["installing"] =
         std::any_of(storeInstalls_.cbegin(), storeInstalls_.cend(),
