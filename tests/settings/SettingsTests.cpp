@@ -6,7 +6,12 @@
 #include "core/settings/SettingsTarget.hpp"
 #include "shell/modules/ShellModules.hpp"
 #include "shell/modules/ShellModuleSchema.hpp"
+#include "shell/launcher/OrbitSettings.hpp"
+#include "config/desktop/DesktopPreferences.hpp"
+#include "config/appearance/AppearancePresets.hpp"
+#include "config/appearance/AppearancePalette.hpp"
 #include <QDir>
+#include <QColor>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -102,12 +107,57 @@ private Q_SLOTS:
     const auto defaults = defaultModuleDocument();
     QVERIFY(validateModuleDocument(QJsonDocument(defaults).toJson(), &normalized, &error));
     QCOMPARE(normalized, defaults);
-    QCOMPARE(shellModuleIds().size(), 9);
+    QCOMPARE(shellModuleIds().size(), 11);
+    QVERIFY(shellModuleIds().contains("orbit"));
+    QVERIFY(shellModuleIds().contains("dock"));
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"settings":{"enabled":false}}})", &normalized, &error));
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"config":{"workspaceInactiveWidth":48,"workspaceActiveWidth":18}}}})", &normalized, &error));
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"custom":{"entry":"../Main.qml"}}}})", &normalized, &error));
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"custom":{"enabled":true,"entry":""}}}})", &normalized, &error));
     QVERIFY(!validateModuleDocument(QByteArray(16385, ' '), &normalized, &error));
+  }
+  void orbitRejectsInvalidDocumentsWithoutLosingConfiguration() {
+    QString error;
+    QVERIFY(resetOrbitSettings(&error));
+    const auto original = orbitSettings().value("document").toObject();
+    QVERIFY(!original.isEmpty());
+    auto invalid = original;
+    invalid["defaultEngine"] = "missing";
+    QVERIFY(!saveOrbitSettings(QJsonDocument(invalid).toJson(), &error));
+    invalid = original;
+    invalid["items"] = QJsonArray{QJsonObject{{"id", "bad"}, {"name", "Bad"},
+        {"command", "sh -c echo test"}}};
+    QVERIFY(!saveOrbitSettings(QJsonDocument(invalid).toJson(), &error));
+    invalid["items"] = QJsonArray{QJsonObject{{"id", "bad"}, {"name", "Bad"},
+        {"url", "file:///etc/passwd"}}};
+    QVERIFY(!saveOrbitSettings(QJsonDocument(invalid).toJson(), &error));
+    QVERIFY(!saveOrbitSettings(QByteArray(32769, ' '), &error));
+    QCOMPARE(orbitSettings().value("document").toObject(), original);
+  }
+  void appearancePresetsValidateBeforeApplying() {
+    QString error;
+    QVERIFY(updateDesktopPreferences({{"themeMode", "light"}, {"eyeCareTemperature", 4200}}, &error));
+    QVERIFY(saveAppearancePreset("daylight", &error));
+    QVERIFY(!saveAppearancePreset("../outside", &error));
+    QVERIFY(updateDesktopPreferences({{"themeMode", "dark"}}, &error));
+    QVERIFY(applyAppearancePreset("daylight", &error));
+    QCOMPARE(desktopPreferences().value("themeMode").toString(), QString("light"));
+    const auto before = desktopPreferences();
+    QVERIFY(!updateDesktopPreferences({{"themeMode", "dark"}, {"eyeCareTemperature", 0}}, &error));
+    QCOMPARE(desktopPreferences(), before);
+    QVERIFY(!updateDesktopPreferences({{"weatherLatitude", 91}}, &error));
+    QVERIFY(!updateDesktopPreferences({{"wallpaperDirectory", "relative"}}, &error));
+    QVERIFY(deleteAppearancePreset("daylight", &error));
+  }
+  void paletteFollowsDesktopColorScheme() {
+    const auto light = appearancePalette({{"themeMode", "light"}, {"accent", "#6699cc"}});
+    const auto dark = appearancePalette({{"themeMode", "dark"}, {"accent", "#6699cc"}});
+    QVERIFY(!light.value("dark").toBool());
+    QVERIFY(dark.value("dark").toBool());
+    QVERIFY(QColor(light.value("text").toString()).lightnessF() <
+            QColor(light.value("background").toString()).lightnessF());
+    QVERIFY(QColor(dark.value("text").toString()).lightnessF() >
+            QColor(dark.value("background").toString()).lightnessF());
   }
   void moduleApiPersistsAndRejectsStaleEdits() {
     PluginManager plugins;

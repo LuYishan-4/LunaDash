@@ -61,7 +61,7 @@ if(BUILD_TESTING)
     set_tests_properties(lunadash-window-animation-template PROPERTIES TIMEOUT 30)
     add_executable(lunadash-settings-test tests/settings/SettingsTests.cpp
         src/compositor/settings/SettingsApi.cpp)
-    target_link_libraries(lunadash-settings-test PRIVATE ludash-plugins ludash-shell-modules Qt6::Test)
+    target_link_libraries(lunadash-settings-test PRIVATE ludash-plugins ludash-shell-modules ludash-configuration Qt6::Test)
     target_compile_definitions(lunadash-settings-test PRIVATE
         SETTINGS_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/settings/contract.json")
     if(TARGET ludash-fade)

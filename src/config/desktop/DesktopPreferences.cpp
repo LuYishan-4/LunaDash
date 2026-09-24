@@ -19,6 +19,19 @@ namespace {
 QJsonObject defaults() {
   return {{"accent", "#9ccbfb"},
           {"secondaryAccent", "#41576b"},
+          {"themeMode", "dark"},
+          {"wallpaperColors", true},
+          {"wallpaperDirectory", QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/Wallpapers"},
+          {"eyeCare", false},
+          {"eyeCareTemperature", 4500},
+          {"syncApplicationThemes", false},
+          {"syncFcitxTheme", false},
+          {"weatherEnabled", false},
+          {"weatherLocation", ""},
+          {"weatherLatitude", 0.0},
+          {"weatherLongitude", 0.0},
+          {"dockEnabled", true},
+          {"dockAutoHide", true},
           {"colorPins",
            QJsonArray{"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
           {"gap", 12},
@@ -66,6 +79,24 @@ bool validColor(const QJsonValue &value) {
 }
 
 bool valid(const QString &key, const QJsonValue &value) {
+  if (key == "weatherEnabled" || key == "syncFcitxTheme") return value.isBool();
+  if (key == "weatherLocation")
+    return value.isString() && value.toString().size() <= 80 && !value.toString().contains(QChar::Null);
+  if (key == "weatherLatitude" || key == "weatherLongitude") {
+    const auto number = value.toDouble();
+    const auto limit = key == "weatherLatitude" ? 90.0 : 180.0;
+    return value.isDouble() && std::isfinite(number) && number >= -limit && number <= limit;
+  }
+  if (key == "themeMode")
+    return value.isString() && QStringList{"dark", "light", "auto"}.contains(value.toString());
+  if (key == "wallpaperDirectory")
+    return value.isString() && value.toString().size() <= 4096 &&
+           QDir::isAbsolutePath(value.toString()) &&
+           !value.toString().contains(QChar::Null) &&
+           !value.toString().contains('\n');
+  if (key == "wallpaperColors" || key == "eyeCare" ||
+      key == "syncApplicationThemes" || key == "dockEnabled" || key == "dockAutoHide")
+    return value.isBool();
   if (key == "keyboardLayout")
     return value.isString() &&
            QStringList{"us", "gb", "de", "fr", "es", "jp", "tw"}.contains(
@@ -110,6 +141,7 @@ bool valid(const QString &key, const QJsonValue &value) {
     return true;
   }
   const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 10}},
+                                              {"eyeCareTemperature", {2500, 6500}},
                                               {"cursorSize", {16, 64}}};
   if (ranges.contains(key)) {
     const double number = value.toDouble(-1);

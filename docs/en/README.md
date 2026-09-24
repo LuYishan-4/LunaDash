@@ -2,6 +2,7 @@
 
 [Traditional Chinese](../zh/README.md) · [Documentation index](../README.md)
 
+- [NyxNiri-inspired desktop, Orbit and live wallpapers](NYXNIRI_DESKTOP.md)
 These guides describe the current `dev` branch. LunaDash remains a development preview; nested and CI results do not establish compatibility with every physical GPU, display manager, input device, application, or multi-monitor setup.
 
 ## Start here

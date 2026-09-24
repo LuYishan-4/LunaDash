@@ -30,6 +30,16 @@ QJsonObject defaults() {
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
   result.insert("screenshot", "Meta+Shift+S");
+  result.insert("launchOrbit", "Meta+A");
+  result.insert("chooseWallpaper", "Meta+W");
+  result.insert("randomWallpaper", "Meta+Ctrl+W");
+  result.insert("toggleEyeCare", "Meta+N");
+  result.insert("toggleScratchpad", "Meta+grave");
+  result.insert("openControlCenter", "Meta+I");
+  result.insert("openClipboard", "Meta+V");
+  result.insert("openPowerMenu", "Meta+X");
+  result.insert("toggleFloating", "Meta+Shift+T");
+  result.insert("toggleFullscreen", "Meta+Shift+F");
   for (int workspace = 1; workspace <= 10; ++workspace) {
     result.insert(QString("workspace%1").arg(workspace),
                   QString("Meta+%1").arg(workspace % 10));
@@ -117,7 +127,7 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   QSettings settings;
   auto configured =
       QJsonObject::fromVariantMap(settings.value("shortcuts/bindings").toMap());
-  configured.remove("toggleFloating");
+
   // Older settings may reserve Meta+T for a different action. Keep those
   // assignments; add the terminal defaults only when their keys are free.
   const auto uses = [&configured](const QString &sequence,
@@ -159,6 +169,10 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
     if (!used)
       configured["screenshot"] = "Meta+Shift+S";
   }
+  // New defaults never invalidate a user's existing custom bindings.
+  for (auto it = bindings_.begin(); it != bindings_.end(); ++it)
+    if (!configured.contains(it.key()) && uses(it.value().toString(), it.key()))
+      it.value() = "Disabled";
   QString error;
   if (!configured.isEmpty())
     apply(configured, &error);

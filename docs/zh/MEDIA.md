@@ -31,3 +31,7 @@ Command 同時綁定 selected **service + bus**，若 player 關閉不會把 act
 Browser/app 必須自己提供 MPRIS 才能被控制；Media panel 不擷取 arbitrary application audio/window pixels。
 
 實作：native helper 在 `src/shell/media/`，QML 與 lyrics parser 在 `qml/overview/`。測試使用隔離 D-Bus service，不會控制使用者真實 player。
+
+## NyxNiri 桌面整合、Orbit 與動態桌布
+
+新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。

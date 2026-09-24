@@ -21,7 +21,7 @@ Taskbar 依 workspace 將已 map 的視窗包成 capsule，和 tiling column 無
 | Esc | 取消 overview |
 | Super+T / Super+Return | 開預設 terminal |
 
-普通 window 維持 tiled；parent dialog 可疊在 parent 上。Minimized window 仍占 group capacity。Maximize 只改 presentation：其他 tile 暫時隱藏，但原 split ratio、row height、順序保留；restore 完整回復。
+普通 window 預設 tiled；Super+Shift+T 切換浮動／平鋪。浮動視窗支援 Alt+拖曳移動、Alt+Shift+拖曳縮放；parent dialog 仍可疊在 parent 上。Minimized window 仍占 group capacity。Maximize 只改 presentation：其他 tile 暫時隱藏，浮動視窗保持可見，但原 split ratio、row height、順序保留；restore 完整回復。
 
 ## 2×5 Overview
 
@@ -49,3 +49,5 @@ Taskbar capsule 改成較輕的樣式，active workspace／window 有清楚但�
 Dashboard 內的分頁只要滑鼠移上去就會切換，不必再點一下；Dashboard 開啟後若滑鼠離開其表面，經過短暫 grace period 會自動收起，避免一直佔住桌面。
 
 狀態列新增 **剪貼簿** 按鈕。LunaDash 最多保存 20 筆純文字歷史，而且只放在目前登入 session 的 `$XDG_RUNTIME_DIR/lunadash/clipboard-history.json`，權限為 owner-only，不會長期寫入家目錄。圖片等 binary MIME 不進歷史。點選任一筆會透過 `wl-copy` 重新放回剪貼簿；**清除**只清掉這份 session history。需要安裝 `wl-clipboard`。
+
+新版面板預設顯示工作區編號，仍可設定膠囊樣式。[桌面整合說明](NYXNIRI_DESKTOP.md) 列出常駐終端機 scratchpad 與新增快捷鍵。

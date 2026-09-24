@@ -454,6 +454,19 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
   auto *event = static_cast<wlr_pointer_button_event *>(data);
   if (!self || !event)
     return;
+  if (event->button == BTN_FORWARD) {
+    auto *keyboard = self->preferredKeyboard();
+    if (event->state == WL_POINTER_BUTTON_STATE_PRESSED && keyboard &&
+        (wlr_keyboard_get_modifiers(keyboard) & WLR_MODIFIER_LOGO)) {
+      self->orbitPointerConsumed = true;
+      self->q->handleShortcut("launchOrbit");
+      return;
+    }
+    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED && self->orbitPointerConsumed) {
+      self->orbitPointerConsumed = false;
+      return;
+    }
+  }
   if (self->pointerWindow) {
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
         event->button == self->pointerButton) {

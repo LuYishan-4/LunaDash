@@ -77,7 +77,7 @@ case "$manager" in
         run "${elevate[@]}" "${pacman_install[@]}" \
             base-devel cmake ninja git python pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon \
-            systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations \
+            systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations qt6-multimedia ffmpeg \
             shared-mime-info kitty fish grim slurp wl-clipboard brightnessctl ddcutil polkit-kde-agent \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             fcitx5 fcitx5-qt fcitx5-configtool networkmanager network-manager-applet \

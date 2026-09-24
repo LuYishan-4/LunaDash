@@ -2,35 +2,43 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property color background: "#f00a0f1d"
-    readonly property color surface: "#e6121a2d"
-    readonly property color surfaceOpaque: "#f5162036"
-    readonly property color surfaceElevated: "#f71b2742"
-    readonly property color surfaceHover: "#f3263556"
-    readonly property color surfaceGlass: "#cc10192c"
-    readonly property color surfaceStrong: "#fa0f1728"
-    readonly property color border: "#52698d"
-    readonly property color hairline: "#2f4263"
+    property var palette: ({})
+    property bool eyeCare: false
+    readonly property bool dark: palette.dark ?? true
+    function tone(name, fallback) { return palette[name] || fallback }
+    function translucent(color, alpha) {
+        return Qt.rgba(color.r, color.g, color.b, eyeCare ? 1 : alpha)
+    }
+    readonly property color base: tone("background", "#111318")
+    readonly property color background: translucent(base, 0.96)
+    readonly property color surface: tone("surface", "#191c22")
+    readonly property color surfaceOpaque: surface
+    readonly property color surfaceElevated: tone("surfaceElevated", "#22262e")
+    readonly property color surfaceHover: tone("surfaceHover", "#303640")
+    readonly property color surfaceGlass: translucent(surface, 0.86)
+    readonly property color surfaceStrong: translucent(base, 0.98)
+    readonly property color border: tone("border", "#586172")
+    readonly property color hairline: tone("hairline", "#353b46")
 
-    property color accent: "#9ccbfb"
-    property color secondaryAccent: "#6e5f9f"
+    property color accent: tone("accent", defaultAccent)
+    property color secondaryAccent: tone("secondaryAccent", "#bbc7d9")
     readonly property color defaultAccent: "#9ccbfb"
-    readonly property color defaultSecondaryAccent: "#6e5f9f"
-    readonly property color moon: "#dbe9ff"
-    readonly property color starlight: "#b7ccff"
-    readonly property color lavender: "#cdbdf3"
-    readonly property color text: "#edf3ff"
-    readonly property color muted: "#aab7d1"
-    readonly property color danger: "#f2b8c6"
-    readonly property color success: "#a8e6cf"
-    readonly property color warning: "#f4d58d"
+    readonly property color defaultSecondaryAccent: "#bbc7d9"
+    readonly property color moon: text
+    readonly property color starlight: secondaryAccent
+    readonly property color lavender: secondaryAccent
+    readonly property color text: tone("text", "#e2e5ed")
+    readonly property color muted: tone("muted", "#bdc5d3")
+    readonly property color danger: tone("danger", "#ffb4ab")
+    readonly property color success: tone("success", "#b4d7ad")
+    readonly property color warning: tone("warning", "#efcd8c")
 
-    readonly property color control: "#202b45"
-    readonly property color controlHover: "#2c3b5c"
-    readonly property color track: "#33415f"
-    readonly property color knob: "#d8e4fb"
-    readonly property color accentInk: "#10182a"
-    readonly property color focusRing: "#e8f0ff"
+    readonly property color control: surfaceElevated
+    readonly property color controlHover: surfaceHover
+    readonly property color track: hairline
+    readonly property color knob: accent
+    readonly property color accentInk: tone("accentInk", "#152331")
+    readonly property color focusRing: accent
     readonly property color scrim: "#99060a14"
 
     property string font: "sans-serif"

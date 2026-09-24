@@ -118,3 +118,7 @@ See [Media](MEDIA.md) for the player controls and lyrics area, and [Window layou
 Dashboard and Settings share the same strong/glass surface hierarchy. Dashboard uses a bounded 12-column layout for the hero, quick actions, four telemetry cards, active-window strip and desktop-status card; content may shrink but must not overlap or escape its card. Settings uses a glass header with search, category badge, version, maximize/restore and close controls.
 
 The old standalone “Motion” wording is retired. Appearance exposes **Visual effects**, while **Reduced motion** remains the accessibility preference. Settings no longer exposes the removed Command Console.
+
+## NyxNiri-inspired desktop, Orbit and live wallpapers
+
+See [the desktop integration guide](NYXNIRI_DESKTOP.md) for the new modules, palette and portal services, shortcuts, dependencies, and current verification limits.

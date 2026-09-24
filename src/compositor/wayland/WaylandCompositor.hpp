@@ -24,6 +24,7 @@ class ShellModules;
 class AudioSettings;
 class PowerSettings;
 class SystemStatus;
+class WeatherStatus;
 class XWaylandSupport;
 class NetworkStatus;
 class PluginManager;
@@ -63,6 +64,7 @@ private:
   UpdateChecker *updateChecker_ = nullptr;
   std::unique_ptr<SceneWindowAnimationTemplate> windowAnimations_;
   SystemStatus *systemStatus_ = nullptr;
+  WeatherStatus *weatherStatus_ = nullptr;
   NetworkStatus *networkStatus_ = nullptr;
   XWaylandSupport *xwayland_ = nullptr;
   PluginManager *pluginManager_ = nullptr;
@@ -80,6 +82,13 @@ private:
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
   int launcherSerial_ = 0;
+  int shellActionSerial_ = 0;
+  QString shellAction_;
+  int scratchpadWindow_ = 0;
+  qint64 scratchpadProcess_ = 0;
+  bool scratchpadPending_ = false;
+  quint64 scratchpadGeneration_ = 0;
+  QString scratchpadError_;
   bool launcherVisible_ = false;
   const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
@@ -129,6 +138,8 @@ private:
   void updateClientMetadata(ClientWindow *client);
   void removeClient(ClientWindow *client);
   void handleShortcut(const QString &action);
+  bool toggleScratchpad(QString *error);
+  void adoptScratchpad(ClientWindow *client);
   void applyKeyboardConfiguration();
 };
 

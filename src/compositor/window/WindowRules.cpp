@@ -25,12 +25,14 @@ bool windowUsesManagedLayout(const ClientWindow &client) {
 
 bool windowAllowsPointerInteraction(const WindowTemplate &,
                                     const ClientWindow &client) {
-  return windowUsesManagedLayout(client);
+  return client.mapped && !client.utility && !client.desktop &&
+         !client.fullscreen;
 }
 
 bool windowAllowsClientMoveResize(const WindowTemplate &windowTemplate,
                                   const ClientWindow &client) {
-  return windowTemplate.clientMoveResize && windowUsesManagedLayout(client);
+  return windowAllowsPointerInteraction(windowTemplate, client) &&
+         (client.floating || windowTemplate.clientMoveResize);
 }
 
 bool windowActivationTogglesMaximize(const WindowTemplate &windowTemplate,
@@ -42,7 +44,7 @@ bool windowHiddenByMaximize(const WindowTemplate &windowTemplate,
                             LayoutWindowId maximized, bool inMaximizedFamily,
                             const ClientWindow &client) {
   return !windowTemplate.allowOverlap && maximized && !inMaximizedFamily &&
-         !client.desktop;
+         !client.desktop && !client.floating;
 }
 
 } // namespace LunaDash

@@ -53,7 +53,7 @@ ExtensionSlot {
         }
         pathField.invalid = false
         const lower = normalized.toLowerCase()
-        const imageFile = [".png", ".jpg", ".jpeg", ".webp", ".gif"].some(suffix => lower.endsWith(suffix))
+        const imageFile = (calendarMode ? [".png", ".jpg", ".jpeg", ".webp", ".gif"] : [".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".mkv", ".mov", ".m4v"]).some(suffix => lower.endsWith(suffix))
         if (imageFile) {
             const slash = normalized.lastIndexOf("/")
             folder = slash <= 0 ? "/" : normalized.slice(0, slash)
@@ -118,7 +118,7 @@ ExtensionSlot {
         showDotAndDotDot: false
         showHidden: false
         sortField: FolderListModel.Name
-        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"]
+        nameFilters: picker.calendarMode ? ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"] : ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.mp4", "*.webm", "*.mkv", "*.mov", "*.m4v", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF", "*.MP4", "*.WEBM", "*.MKV", "*.MOV", "*.M4V"]
     }
 
     Rectangle {
@@ -175,7 +175,7 @@ ExtensionSlot {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : "Choose a wallpaper image")
+                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : "Choose a wallpaper")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 18
@@ -263,8 +263,8 @@ ExtensionSlot {
 
                                 Image {
                                     anchors.fill: parent
-                                    visible: !model.fileIsDir
-                                    source: model.fileIsDir ? "" : "file://" + model.filePath
+                                    visible: !model.fileIsDir && !/\.(mp4|webm|mkv|mov|m4v)$/i.test(model.filePath)
+                                    source: visible ? "file://" + model.filePath : ""
                                     sourceSize.width: 320
                                     sourceSize.height: 220
                                     fillMode: Image.PreserveAspectCrop
@@ -273,7 +273,7 @@ ExtensionSlot {
                                 }
                                 Rectangle {
                                     anchors.fill: parent
-                                    visible: model.fileIsDir
+                                    visible: model.fileIsDir || /\.(mp4|webm|mkv|mov|m4v)$/i.test(model.filePath)
                                     color: "transparent"
                                     LineIcon {
                                         anchors.centerIn: parent

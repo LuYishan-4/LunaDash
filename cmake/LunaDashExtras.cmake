@@ -12,6 +12,8 @@ install(PROGRAMS scripts/lunadash-update scripts/lunadash-polkit-agent DESTINATI
 
 add_executable(lunadash-portal src/service/portal/Main.cpp
     src/service/portal/Portal.cpp
+    src/service/portal/SettingsPortal.cpp
+    src/service/portal/SettingsPortal.hpp
     src/service/portal/FileChooserPortal.cpp
     src/service/portal/FileChooserPortal.hpp
     src/service/portal/FileChooserOptions.cpp

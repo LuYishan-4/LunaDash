@@ -25,7 +25,7 @@
           },
           "margin": {
             "type": "integer",
-            "default": 0,
+            "default": 10,
             "minimum": 0,
             "maximum": 64,
             "label": "Margin",
@@ -67,7 +67,7 @@
           },
           "workspacePills": {
             "type": "boolean",
-            "default": true,
+            "default": false,
             "label": "Workspace pills",
             "control": "toggle"
           },
@@ -255,6 +255,12 @@
             "maxItems": 6,
             "control": "select",
             "label": "Shortcuts"
+          },
+          "compactControlCenter": {
+            "type": "boolean",
+            "default": true,
+            "label": "Compact control center",
+            "control": "toggle"
           }
         },
         "custom": {}
@@ -401,6 +407,55 @@
         "module": {},
         "style": {},
         "config": {},
+        "custom": {}
+      }
+    },
+    {
+      "id": "orbit",
+      "name": "Orbit launcher",
+      "type": "launcher",
+      "category": "Shell",
+      "recovery": false,
+      "template": false,
+      "sections": {
+        "module": {},
+        "style": {},
+        "config": {},
+        "custom": {}
+      }
+    },
+    {
+      "id": "dock",
+      "name": "Dock",
+      "type": "panel",
+      "category": "Shell",
+      "recovery": false,
+      "template": false,
+      "sections": {
+        "module": {},
+        "style": {},
+        "config": {
+          "pins": {
+            "type": "array",
+            "default": [
+              "terminal",
+              "files",
+              "browser"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "terminal",
+                "files",
+                "browser"
+              ]
+            },
+            "maxItems": 3,
+            "uniqueItems": true,
+            "label": "Pinned applications",
+            "control": "select"
+          }
+        },
         "custom": {}
       }
     }

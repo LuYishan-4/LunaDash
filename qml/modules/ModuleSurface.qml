@@ -35,7 +35,8 @@ AnimatedPanel {
         CelestialBackdrop {
             anchors.fill: parent
             accent: host.moduleAccent
-            strength: 0.9
+            strength: 0.0
+            visible: false
             z: -1
         },
         ExtensionSlot {

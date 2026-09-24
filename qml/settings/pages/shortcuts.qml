@@ -32,7 +32,17 @@ ColumnLayout {
             {id:"launchTerminalAlternate", name:"Open terminal alternative"},
             {id:"launchFiles", name:"Open files"},
             {id:"launchLauncher", name:"Open launcher"},
-            {id:"screenshot", name:"Take a screenshot"}
+            {id:"screenshot", name:"Take a screenshot"},
+            {id:"launchOrbit", name:"Orbit launcher"},
+            {id:"chooseWallpaper", name:"Wallpaper library"},
+            {id:"randomWallpaper", name:"Random wallpaper"},
+            {id:"toggleEyeCare", name:"Eye care"},
+            {id:"toggleScratchpad", name:"Scratchpad"},
+            {id:"toggleFloating", name:"Toggle floating window"},
+            {id:"toggleFullscreen", name:"Toggle fullscreen"},
+            {id:"openControlCenter", name:"Control center"},
+            {id:"openClipboard", name:"Clipboard"},
+            {id:"openPowerMenu", name:"Session controls"}
         ]
         for (let workspace = 1; workspace <= 10; ++workspace) {
             result.push({id:"workspace" + workspace, name:"Switch to workspace %1", workspace:workspace})

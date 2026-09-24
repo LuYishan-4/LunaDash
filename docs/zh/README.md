@@ -2,6 +2,7 @@
 
 [English](../en/README.md) · [文件總索引](../README.md)
 
+- [NyxNiri 桌面整合、Orbit 與動態桌布](NYXNIRI_DESKTOP.md)
 這裡放置與 `dev` 分支同步的繁體中文技術文件。LunaDash 目前仍是開發預覽版；CI、巢狀工作階段或軟體繪圖測試通過，不代表所有實體 GPU、登入管理器、輸入裝置、應用程式與多螢幕環境都已完成驗證。
 
 ## 建議先看

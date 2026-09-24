@@ -2,6 +2,7 @@
 
 // Private wlroots runtime state. Public callers use WaylandCompositor.hpp.
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/renderer/color/NightColor.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 #include <QJsonArray>
@@ -24,6 +25,9 @@ public:
     // Keep a short frame tail after a screencopy request is consumed so
     // portal clients have time to queue their next streaming frame.
     int screencopyKeepalive = 0;
+    ludash_night_color *nightColor = nullptr;
+    int nightTemperature = 6500;
+    QString nightError;
     Slot<OutputState> frame;
     Slot<OutputState> destroy;
     Slot<OutputState> requestState;
@@ -217,6 +221,7 @@ public:
   bool pointerClientGrab = false;
   uint32_t pointerResizeEdges = 0;
   uint32_t pointerButton = 0;
+  bool orbitPointerConsumed = false;
   QPointF pointerLast;
   bool beginWindowPointer(uint32_t button);
   bool beginClientWindowPointer(ClientWindow *client, uint32_t serial,
@@ -271,6 +276,7 @@ public:
   bool inputBridgeReady() const;
 
   void updateBackground();
+  void updateNightLight();
 
   void arrangeLayers();
   void restoreLayerFocus();

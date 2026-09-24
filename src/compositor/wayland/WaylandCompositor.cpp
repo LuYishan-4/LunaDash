@@ -37,6 +37,12 @@
 #include "desktop/system/SystemTools.hpp"
 #include "desktop/system/UpdateChecker.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
+#include "desktop/wallpaper/WallpaperPalette.hpp"
+#include "config/appearance/AppearancePalette.hpp"
+#include "config/appearance/AppearancePresets.hpp"
+#include "desktop/theme/ThemeSync.hpp"
+#include "desktop/weather/WeatherStatus.hpp"
+#include "shell/launcher/OrbitSettings.hpp"
 #include "shell/modules/ShellModules.hpp"
 
 #include <QAbstractEventDispatcher>
@@ -190,6 +196,11 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   ddcBrightnessSettings_ = new DdcBrightnessSettings(this);
   shellModules_ = new ShellModules(this);
   systemStatus_ = new SystemStatus(this);
+  weatherStatus_ = new WeatherStatus(this);
+  QTimer::singleShot(0, this, [] {
+    const auto path = QUrl(wallpaperImageUrl()).toLocalFile();
+    if (!path.isEmpty()) refreshWallpaperPalette(path, wallpaperIsVideo(path));
+  });
   audioSettings_ = new AudioSettings(this);
   powerSettings_ = new PowerSettings(this);
   sessionActions_ = new SessionActions(this);
@@ -612,6 +623,7 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
     else if (client->toplevel->parent)
       client->floating = true;
   }
+  adoptScratchpad(client);
   client->iconName = client->utility
                          ? QString()
                          : windowIconName(client->appId, client->title);
@@ -837,10 +849,12 @@ void WaylandCompositor::arrange() {
           area.x() + (area.width() - bounded.width()) / 2,
           area.y() + (area.height() - bounded.height()) / 2, bounded.width(),
           bounded.height());
-      configure(client.get(), client->maximized ? area
-                              : client->manualGeometry.isValid()
-                                  ? client->manualGeometry
-                                  : defaultGeometry);
+      auto floatingGeometry = client->manualGeometry.isValid()
+                                  ? client->manualGeometry : defaultGeometry;
+      floatingGeometry.setSize(floatingGeometry.size().boundedTo(area.size()));
+      floatingGeometry.moveLeft(std::clamp(floatingGeometry.x(), area.left(), area.right() - floatingGeometry.width() + 1));
+      floatingGeometry.moveTop(std::clamp(floatingGeometry.y(), area.top(), area.bottom() - floatingGeometry.height() + 1));
+      configure(client.get(), client->maximized ? area : floatingGeometry);
     }
   }
 
@@ -1062,6 +1076,8 @@ void WaylandCompositor::synchronizeWindowFocus() {
 void WaylandCompositor::removeClient(ClientWindow *client) {
   if (!client)
     return;
+  if (scratchpadWindow_ == client->id)
+    scratchpadWindow_ = 0;
   if (focused_ == client)
     focused_ = nullptr;
   windowSwitcher_->remove(client->id);
@@ -1206,7 +1222,29 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
-  else if (action == "launchLauncher") {
+  else if (action == "toggleFloating" && focused_) {
+    focused_->floating = !focused_->floating;
+    focused_->maximized = false;
+    focused_->manualGeometry = {};
+    arrange();
+    focus(focused_);
+    return;
+  } else if (action == "toggleScratchpad") {
+    QString error;
+    toggleScratchpad(&error);
+    if (!error.isEmpty()) scratchpadError_ = error;
+    return;
+  } else if (action == "toggleEyeCare") {
+    control({{"method", "eye-care"}, {"value", "toggle"}});
+  } else if (action == "chooseWallpaper") {
+    control({{"method", "choose-wallpaper"}});
+  } else if (action == "randomWallpaper") {
+    control({{"method", "wallpaper-random"}});
+  } else if (action == "launchOrbit" || action == "openControlCenter" ||
+             action == "openClipboard" || action == "openPowerMenu") {
+    shellAction_ = action;
+    shellActionSerial_ = shellActionSerial_ >= 999999 ? 1 : shellActionSerial_ + 1;
+  } else if (action == "launchLauncher") {
     setLauncherVisible(!launcherVisible_);
     // The interaction channel is owner-only and publishes within one frame,
     // avoiding the shell status poll latency for an input shortcut.
@@ -1401,9 +1439,18 @@ QJsonObject WaylandCompositor::state() const {
       {"brightness", brightnessSettings_->snapshot()},
       {"ddcBrightness", ddcBrightnessSettings_->snapshot()},
       {"appearance", preferences},
+      {"palette", appearancePalette(preferences)},
+      {"applicationTheme", synchronizeApplicationTheme()},
+      {"appearancePresets", appearancePresets()},
+      {"orbit", orbitSettings()},
+      {"wallpapers", wallpaperSnapshot()},
+      {"shellAction", shellAction_},
+      {"shellActionSerial", shellActionSerial_},
+      {"scratchpad", QJsonObject{{"window", scratchpadWindow_}, {"pending", scratchpadPending_}, {"error", scratchpadError_}}},
       {"setupComplete", setupComplete()},
       {"network", networkStatus_->snapshot()},
       {"system", systemStatus_->snapshot()},
+      {"weather", weatherStatus_->snapshot()},
       {"wallpaperImage", wallpaperImageUrl()},
       {"workspace", workspace_},
       {"processFailure", processFailure_},
@@ -1667,6 +1714,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     QSettings settings;
     settings.remove("desktop");
     settings.sync();
+    weatherStatus_->refresh();
+    if (d) d->updateNightLight();
     applyKeyboardConfiguration();
     arrange();
   } else if (method == "window-layout-action") {
@@ -1707,6 +1756,32 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (value != "true" && value != "false")
       return {{"error", "launcher-visible expects true or false."}};
     setLauncherVisible(value == "true", false);
+  } else if (method == "orbit-save" || method == "orbit-reset") {
+    QString error;
+    if (!(method == "orbit-save" ? saveOrbitSettings(value.toUtf8(), &error) : resetOrbitSettings(&error)))
+      return {{"error", error}};
+  } else if (method == "appearance-preset-save" || method == "appearance-preset-apply" || method == "appearance-preset-delete") {
+    QString error;
+    const bool ok = method == "appearance-preset-save" ? saveAppearancePreset(value, &error)
+                    : method == "appearance-preset-apply" ? applyAppearancePreset(value, &error)
+                    : deleteAppearancePreset(value, &error);
+    if (!ok) return {{"error", error}};
+    if (d) d->updateNightLight();
+    arrange();
+  } else if (method == "scratchpad") {
+    QString error;
+    if (!toggleScratchpad(&error)) return {{"error", error}};
+  } else if (method == "eye-care") {
+    if (value != "toggle" && value != "true" && value != "false")
+      return {{"error", "Eye care expects toggle, true or false."}};
+    QString error;
+    const bool enabled = value == "toggle" ? !desktopPreferences().value("eyeCare").toBool() : value == "true";
+    if (!updateDesktopPreferences({{"eyeCare", enabled}}, &error)) return {{"error", error}};
+    if (d) d->updateNightLight();
+    arrange();
+  } else if (method == "wallpaper-random") {
+    QString error;
+    if (!selectRandomWallpaper(&error)) return {{"error", error}};
   } else if (method == "appearance") {
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
@@ -1716,8 +1791,16 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!updateDesktopPreferences(document.object(), &error))
       return {{"error", error}};
     applyKeyboardConfiguration();
-    if (d)
+    for (const auto &key : {"weatherEnabled", "weatherLatitude", "weatherLongitude", "weatherLocation"})
+      if (document.object().contains(key)) { weatherStatus_->refresh(); break; }
+    if (document.object().value("wallpaperColors").toBool()) {
+      const auto path = QUrl(wallpaperImageUrl()).toLocalFile();
+      refreshWallpaperPalette(path, wallpaperIsVideo(path));
+    }
+    if (d) {
       d->updateBackground();
+      d->updateNightLight();
+    }
     arrange();
   } else if (method == "launch-x11") {
     QString error;

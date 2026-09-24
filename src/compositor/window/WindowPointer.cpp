@@ -83,6 +83,25 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   const QPointF current(cursor->x, cursor->y);
   const QPoint delta = (current - pointerLast).toPoint();
   pointerLast = current;
+  if (client->floating) {
+    auto geometry = client->geometry;
+    const auto area = q->workArea();
+    if (pointerResize) {
+      if (pointerResizeEdges & 4u) geometry.setLeft(std::min(geometry.right() - 119, geometry.left() + delta.x()));
+      if (pointerResizeEdges & 8u) geometry.setRight(std::max(geometry.left() + 119, geometry.right() + delta.x()));
+      if (pointerResizeEdges & 1u) geometry.setTop(std::min(geometry.bottom() - 79, geometry.top() + delta.y()));
+      if (pointerResizeEdges & 2u) geometry.setBottom(std::max(geometry.top() + 79, geometry.bottom() + delta.y()));
+    } else {
+      geometry.translate(delta);
+    }
+    geometry.setSize(geometry.size().boundedTo(area.size()));
+    geometry.moveLeft(std::clamp(geometry.x(), area.left(), area.right() - geometry.width() + 1));
+    geometry.moveTop(std::clamp(geometry.y(), area.top(), area.bottom() - geometry.height() + 1));
+    client->manualGeometry = geometry;
+    client->preferredFloatingSize = geometry.size();
+    q->arrange();
+    return true;
+  }
   const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
   const bool freeform =
       q->windowTemplate_ && q->windowTemplate_->allowOverlap &&

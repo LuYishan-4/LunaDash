@@ -73,3 +73,7 @@ The renderer regression tests load embedded assets from an unrelated directory, 
 Wayland CI exercises protocol globals, xdg-toplevel commit/map/unmap/destroy, client startup, on-demand XWayland and clean shutdown. Chrome, Zed, Fcitx candidate placement, physical input, multiple physical outputs and display-manager login still need application/hardware testing. The current file chooser portal is not a complete screen-sharing/PipeWire portal. There is no complete screen-locking or polkit-agent implementation. See [testing](TESTING_AND_FILES.md), [graphics](GRAPHICS.md), [input methods](INPUT_METHODS.md) and [release process](RELEASE_PROCESS.md).
 
 Media discovery and control are owned by `src/shell/media/`, with QML presentation under `qml/overview/`. See [Media](MEDIA.md) and [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
+
+## NyxNiri-inspired desktop, Orbit and live wallpapers
+
+See [the desktop integration guide](NYXNIRI_DESKTOP.md) for the new modules, palette and portal services, shortcuts, dependencies, and current verification limits.

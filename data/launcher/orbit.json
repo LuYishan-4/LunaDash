@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "defaultEngine": "bing",
+  "searchEngines": [
+    {"id": "bing", "name": "Bing", "url": "https://www.bing.com/search?q={query}"},
+    {"id": "google", "name": "Google", "url": "https://www.google.com/search?q={query}"},
+    {"id": "deepseek", "name": "DeepSeek", "url": "https://chat.deepseek.com/?q={query}"},
+    {"id": "chatgpt", "name": "ChatGPT", "url": "https://chatgpt.com/?hints=search&q={query}"},
+    {"id": "claude", "name": "Claude", "url": "https://claude.ai/new?q={query}"}
+  ],
+  "items": [
+    {"id": "terminal", "name": "Terminal", "description": "Your configured terminal", "icon": "terminal", "action": "terminal"},
+    {"id": "tools", "name": "System tools", "description": "Desktop controls", "icon": "settings", "children": [
+      {"id": "settings", "name": "Settings", "icon": "settings", "action": "settings"},
+      {"id": "eyecare", "name": "Eye care", "icon": "moon", "action": "eye-care"},
+      {"id": "scratchpad", "name": "Scratchpad", "icon": "terminal", "action": "scratchpad"},
+      {"id": "clipboard", "name": "Clipboard", "icon": "copy", "action": "clipboard"}
+    ]},
+    {"id": "websites", "name": "Websites", "description": "Links and search", "icon": "search", "children": [
+      {"id": "github", "name": "GitHub", "url": "https://github.com"},
+      {"id": "bilibili", "name": "Bilibili", "url": "https://www.bilibili.com"},
+      {"id": "zhihu", "name": "Zhihu", "url": "https://www.zhihu.com"}
+    ]},
+    {"id": "wallpapers", "name": "Wallpapers", "description": "Static and live", "icon": "appearance", "action": "wallpapers"}
+  ]
+}

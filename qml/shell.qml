@@ -7,6 +7,7 @@ import "wallpaper"
 import "panel"
 import "overview"
 import "launcher"
+import "dock"
 import "settings"
 import "session"
 import "feedback"
@@ -40,6 +41,9 @@ ShellRoot {
     property int lastLauncherSerial: 0
     property int lastInteractionLauncherSerial: 0
     property int dropTarget: 0
+    property int controlCenterTab: 0
+    property bool orbitOpen: false
+    property int lastShellActionSerial: 0
     property bool launcherOpen: false
     property bool launcherKeyboardActive: false
     property string launcherOpenSource: "mouse"
@@ -198,7 +202,17 @@ ShellRoot {
         }
     }
 
+    onOrbitOpenChanged: if (orbitOpen) {
+        launcherOpen = false
+        settingsOpen = false
+        calendarOpen = false
+        volumePopupOpen = false
+        wifiPopupOpen = false
+        clipboardPopupOpen = false
+        menuOpen = false
+    }
     onLauncherOpenChanged: {
+        if (launcherOpen) orbitOpen = false
         command("launcher-visible", launcherOpen ? "true" : "false")
         if (launcherOpen) {
             settingsOpen = false
@@ -211,7 +225,7 @@ ShellRoot {
             launcherKeyboardActive = false
         }
     }
-    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false } else { pickerOpen = false }
+    onSettingsOpenChanged: if (settingsOpen) { orbitOpen = false; launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false } else { pickerOpen = false }
     onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
     onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
     onVolumePopupOpenChanged: if (volumePopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
@@ -297,8 +311,15 @@ ShellRoot {
             applyLauncherSignal(state.launcherSerial || 0, state.launcherOpen ?? true)
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
         Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
-        Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
-        Theme.secondaryAccent = (state.appearance || {}).secondaryAccent || Theme.defaultSecondaryAccent
+        Theme.palette = state.palette || ({})
+        Theme.eyeCare = (state.appearance || {}).eyeCare ?? false
+        if ((state.shellActionSerial || 0) !== lastShellActionSerial) {
+            lastShellActionSerial = state.shellActionSerial || 0
+            if (state.shellAction === "launchOrbit") orbitOpen = !orbitOpen
+            else if (state.shellAction === "openControlCenter") setAppearance({overview: !overviewOpen})
+            else if (state.shellAction === "openClipboard") clipboardPopupOpen = !clipboardPopupOpen
+            else if (state.shellAction === "openPowerMenu") logoutOpen = !logoutOpen
+        }
         Theme.panelEdge = state.panelEdge || (state.panelAtBottom ? "bottom" : "top")
         Theme.panelExtent = state.panelExtent ?? 40
         Theme.barHeight = Theme.panelTopInset
@@ -484,8 +505,13 @@ ShellRoot {
     StartupSplash { shell: root; ready: root.stateReady && desktopWallpaper.ready }
     Wallpaper { id: desktopWallpaper; shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
+    readonly property bool compactControlCenter: (((state.shellModules || {}).modules || {}).overview || {}).config?.compactControlCenter ?? true
     LazyLoader {
-        loading: root.overviewOpen
+        loading: root.overviewOpen && root.compactControlCenter
+        ControlCenter { shell: root; opened: !root.stopping && root.overviewOpen }
+    }
+    LazyLoader {
+        loading: root.overviewOpen && !root.compactControlCenter
         Overview { shell: root; opened: !root.stopping && root.overviewOpen }
     }
     LazyLoader {
@@ -512,6 +538,11 @@ ShellRoot {
         loading: root.launcherOpen
         Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
     }
+    LazyLoader {
+        loading: root.orbitOpen
+        OrbitLauncher { shell: root; opened: !root.stopping && root.orbitOpen }
+    }
+    Dock { shell: root; opened: !root.stopping && ((root.state.appearance || {}).dockEnabled ?? true) }
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     LazyLoader {
         id: settingsLoader

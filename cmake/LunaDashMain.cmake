@@ -58,13 +58,16 @@ add_library(ludash-xwayland src/compositor/xwayland/XWaylandSupport.cpp)
 target_include_directories(ludash-xwayland PUBLIC src)
 target_compile_definitions(ludash-xwayland PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-xwayland PUBLIC Qt6::Core PkgConfig::WLROOTS)
-add_library(ludash-wallpaper src/desktop/wallpaper/WallpaperSettings.cpp)
+add_library(ludash-wallpaper src/desktop/wallpaper/WallpaperSettings.cpp
+    src/desktop/wallpaper/WallpaperPalette.cpp)
 target_include_directories(ludash-wallpaper PUBLIC src)
-target_link_libraries(ludash-wallpaper PUBLIC Qt6::Gui)
+target_link_libraries(ludash-wallpaper PUBLIC Qt6::Gui ludash-configuration)
 target_compile_definitions(ludash-wallpaper PRIVATE LUDASH_WALLPAPER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/wallpapers")
-add_library(ludash-configuration src/config/desktop/DesktopPreferences.cpp)
+add_library(ludash-configuration src/config/desktop/DesktopPreferences.cpp
+    src/config/appearance/AppearancePalette.cpp
+    src/config/appearance/AppearancePresets.cpp)
 target_include_directories(ludash-configuration PUBLIC src)
-target_link_libraries(ludash-configuration PUBLIC Qt6::Core)
+target_link_libraries(ludash-configuration PUBLIC Qt6::Gui)
 add_library(ludash-process-runner src/config/command/CommandRunner.cpp)
 target_include_directories(ludash-process-runner PUBLIC src)
 target_link_libraries(ludash-process-runner PUBLIC Qt6::Core)
@@ -86,10 +89,22 @@ target_link_libraries(ludash-display-settings PUBLIC Qt6::Gui ludash-process-run
 add_library(ludash-input-settings src/desktop/input/InputSettings.cpp)
 target_include_directories(ludash-input-settings PUBLIC src)
 target_link_libraries(ludash-input-settings PUBLIC Qt6::Core)
-add_library(ludash-shell-modules src/shell/modules/ShellModules.hpp src/shell/modules/ShellModuleSchema.cpp src/shell/modules/ShellModules.cpp)
+add_library(ludash-shell-modules src/shell/launcher/OrbitSettings.cpp src/shell/modules/ShellModules.hpp src/shell/modules/ShellModuleSchema.cpp src/shell/modules/ShellModules.cpp)
 target_include_directories(ludash-shell-modules PUBLIC src)
 target_link_libraries(ludash-shell-modules PUBLIC Qt6::Core)
 qt_add_resources(ludash-shell-modules module_templates PREFIX /LuDash FILES data/modules/registry.json data/modules/templates/panel/Main.qml data/modules/templates/overview/Main.qml)
+qt_add_resources(ludash-shell-modules orbit_defaults PREFIX /LunaDash/launcher
+    BASE data/launcher FILES data/launcher/orbit.json)
+add_library(ludash-theme-sync src/desktop/theme/ThemeSync.cpp
+    src/desktop/theme/FcitxTheme.cpp)
+target_include_directories(ludash-theme-sync PUBLIC src)
+target_link_libraries(ludash-theme-sync PUBLIC ludash-configuration Qt6::DBus)
+qt_add_resources(ludash-theme-sync application_themes PREFIX /LunaDash/theme
+    BASE data/themes FILES data/themes/nyxmellow/theme.conf
+    data/themes/nyxmellow/panel.svg data/themes/nyxmellow/highlight.svg)
+add_library(ludash-weather src/desktop/weather/WeatherStatus.cpp)
+target_include_directories(ludash-weather PUBLIC src)
+target_link_libraries(ludash-weather PUBLIC ludash-configuration Qt6::Network)
 add_library(ludash-network src/desktop/network/NetworkStatus.cpp)
 target_include_directories(ludash-network PUBLIC src)
 target_link_libraries(ludash-network PUBLIC Qt6::Network Qt6::DBus)
@@ -185,7 +200,13 @@ add_library(ludash-thumbnail-readback src/compositor/renderer/capture/ThumbnailR
 target_include_directories(ludash-thumbnail-readback PUBLIC src)
 target_compile_definitions(ludash-thumbnail-readback PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-thumbnail-readback PUBLIC PkgConfig::WLROOTS)
+add_library(ludash-night-color src/compositor/renderer/color/NightColor.c)
+target_include_directories(ludash-night-color PUBLIC src)
+target_compile_definitions(ludash-night-color PRIVATE WLR_USE_UNSTABLE=1)
+target_link_libraries(ludash-night-color PUBLIC PkgConfig::WLROOTS m)
 add_library(ludash-wayland
+    src/compositor/wayland/NightLight.cpp
+    src/compositor/window/Scratchpad.cpp
     src/compositor/wayland/WaylandCompositor.cpp
     src/compositor/wayland/Register.cpp
     src/compositor/wayland/Output.cpp
@@ -235,6 +256,9 @@ target_link_libraries(ludash-wayland
         ludash-tiling
         ludash-window-rules
         ludash-thumbnail-readback
+        ludash-night-color
+        ludash-theme-sync
+        ludash-weather
         Qt6::Concurrent
         ludash-localization
         ludash-plugins
@@ -276,3 +300,5 @@ install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icon
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)
 install(DIRECTORY data/modules/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/modules)
 install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)
+
+install(DIRECTORY data/themes/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/themes)

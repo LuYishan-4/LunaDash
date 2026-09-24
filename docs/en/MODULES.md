@@ -89,3 +89,7 @@ lunadashctl module-reset
 ## Feature plugins and categorized settings
 
 SDK 2 adds a separate `extensions.json` document for built-in feature options, per-plugin options and replacement/augmentation mode. Settings → Plugins lists these by category inside the main Settings surface. Shell modules retains the shell layout controls and links to Plugin settings. The original `shell-modules.json` editor remains available. See [desktop plugins](PLUGINS.md), [target contracts](PLUGIN_TARGETS.md), and the [stacking windows example](../../examples/plugins/stacking-windows/README.md). Both documents are validated and saved atomically. Legacy trusted custom QML still loads as a fallback replacement; new plugins use mandatory SDK metadata/CMake packaging.
+
+## NyxNiri-inspired desktop, Orbit and live wallpapers
+
+See [the desktop integration guide](NYXNIRI_DESKTOP.md) for the new modules, palette and portal services, shortcuts, dependencies, and current verification limits.

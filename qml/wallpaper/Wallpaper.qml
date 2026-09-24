@@ -19,6 +19,8 @@ ModuleSurface {
 
     readonly property bool ready: replacementReady || background.ready
     readonly property string stateSource: String(wallpaper.shell.state.wallpaperImage || "")
+    readonly property var media: ((shell.state.wallpapers || {}).current || {})
+    readonly property bool live: media.type === "video" && !shell.wallpaperOverride.length
     readonly property string desiredSource: wallpaper.shell.wallpaperOverride.length
         ? wallpaper.shell.wallpaperOverride : stateSource
 
@@ -32,8 +34,24 @@ ModuleSurface {
         id: background
         shell: wallpaper.shell
         anchors.fill: parent
-        source: wallpaper.desiredSource
+        source: wallpaper.live ? (wallpaper.media.preview || "") : wallpaper.desiredSource
         pixelRatio: wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1
+    }
+    Loader {
+        id: liveLoader
+        anchors.fill: parent
+        active: wallpaper.live
+        source: active ? "LiveWallpaper.qml" : ""
+        onLoaded: {
+            item.source = Qt.binding(() => wallpaper.media.url || "")
+            item.playing = Qt.binding(() => !wallpaper.shell.stopping)
+        }
+        onStatusChanged: if (status === Loader.Error)
+            wallpaper.shell.notify(wallpaper.shell.tr("Live wallpaper"), wallpaper.shell.tr("Install Qt Multimedia to play video wallpapers."), "error", "")
+        Connections {
+            target: liveLoader.item
+            function onFailed(message) { wallpaper.shell.notify(wallpaper.shell.tr("Live wallpaper"), message, "error", "") }
+        }
     }
     Rectangle {
         anchors.fill: parent
@@ -56,6 +74,11 @@ ModuleSurface {
             layer: "background"
         })
         z: 2
+        DesktopWidgets {
+            anchors.fill: parent
+            shell: wallpaper.shell
+            settings: desktopWidgets.targetSpec.builtinSettings || ({})
+        }
     }
 
     MouseArea {

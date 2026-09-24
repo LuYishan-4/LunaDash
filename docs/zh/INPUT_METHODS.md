@@ -25,3 +25,7 @@ Protocol CI 只能證明 global 有 advertised，不能證明所有 toolkit/inpu
 - physical layout、Caps/Num lock、AltGr、hotplug
 
 Arch 常用套件：`fcitx5`、`fcitx5-qt`、`fcitx5-configtool` 與對應語言 addon。
+
+## NyxNiri 桌面整合、Orbit 與動態桌布
+
+新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。

@@ -9,6 +9,7 @@ import Quickshell.Services.SystemTray
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "../columns"
+import "../overview"
 import "../components"
 import "../style"
 
@@ -52,7 +53,7 @@ ModuleSurface {
     readonly property var panelConfig: specification.config || ({})
     readonly property bool backgroundVisible: panelConfig.backgroundVisible ?? false
     readonly property bool contrastShells: panelConfig.contrastShells ?? true
-    readonly property bool workspacePills: panelConfig.workspacePills ?? true
+    readonly property bool workspacePills: panelConfig.workspacePills ?? false
     readonly property int workspaceInactiveWidth: panelConfig.workspaceInactiveWidth ?? 16
     readonly property int workspaceActiveWidth: panelConfig.workspaceActiveWidth ?? 34
     readonly property int workspacePillHeight: panelConfig.workspacePillHeight ?? 8
@@ -103,7 +104,7 @@ ModuleSurface {
             moduleBackground.r * (1 - t) + Theme.secondaryAccent.r * t,
             moduleBackground.g * (1 - t) + Theme.secondaryAccent.g * t,
             moduleBackground.b * (1 - t) + Theme.secondaryAccent.b * t,
-            alpha
+            Theme.eyeCare ? 1 : Math.min(alpha, 0.84)
         )
     }
     function capsuleBorder(alpha) {
@@ -148,9 +149,10 @@ ModuleSurface {
     Item {
         id: workspaceShell
         visible: !panel.vertical
-        anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+        anchors { left: centerShell.right; leftMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
-        width: workspaceControls.implicitWidth + 18
+        width: Math.min(workspaceControls.implicitWidth + 18, Math.max(0, clockShell.x - centerShell.width - panel.capsuleGap * 3))
+        clip: true
         Rectangle {
             anchors.fill: parent
             visible: panel.contrastShells
@@ -185,6 +187,15 @@ ModuleSurface {
                         border.width: workspacePill.active ? 0 : 1
                         border.color: panel.capsuleBorder(0.30)
                         scale: workspaceMouse.pressed ? 0.90 : workspaceMouse.containsMouse ? 1.06 : 1.0
+                        Text {
+                            visible: !panel.workspacePills
+                            anchors.centerIn: parent
+                            text: String(workspacePill.index + 1)
+                            color: workspacePill.active ? Theme.accentInk : Theme.text
+                            font.family: Theme.font
+                            font.pixelSize: 10
+                            font.weight: Font.DemiBold
+                        }
                         Behavior on width { NumberAnimation { duration: Math.max(150, Theme.motion); easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: Theme.motion } }
                         Behavior on scale { NumberAnimation { duration: Math.max(100, Theme.motion); easing.type: Easing.OutCubic } }
@@ -201,13 +212,13 @@ ModuleSurface {
             Rectangle { width: 1; height: 16; anchors.verticalCenter: parent.verticalCenter; color: panel.capsuleBorder(0.24) }
             PanelSegment {
                 moduleHost: panel
-                text: "⏻"
+                text: "◈"
                 implicitWidth: 26
                 fill: "transparent"
                 border.width: 0
                 ink: Theme.danger
-                Accessible.name: shell.tr("Session controls")
-                onClicked: shell.logoutOpen = !shell.logoutOpen
+                Accessible.name: shell.tr("Control center")
+                onClicked: { shell.controlCenterTab = 0; shell.setAppearance({overview: !shell.overviewOpen}) }
             }
         }
     }
@@ -217,7 +228,7 @@ ModuleSurface {
         visible: !panel.vertical && columnTasks.count > 0
         anchors { left: workspaceShell.right; leftMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
         height: panel.capsuleHeight
-        width: Math.min(columnTasks.contentWidth + 8, Math.max(0, centerShell.x - x - panel.capsuleGap))
+        width: Math.min(columnTasks.contentWidth + 8, Math.max(0, clockShell.x - x - panel.capsuleGap))
         ExtensionSlot {
             anchors.fill: parent
             shell: panel.shell
@@ -252,111 +263,15 @@ ModuleSurface {
     Item {
         id: centerShell
         visible: !panel.vertical
-        anchors.centerIn: parent
-        width: centerControls.implicitWidth + 14
+        anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+        width: 80
         height: panel.capsuleHeight
-        Rectangle {
-            anchors.fill: parent
-            visible: panel.contrastShells
-            radius: height / 2
-            color: panel.capsuleColor(0.66, 0.94)
-            border.width: 1
-            border.color: panel.capsuleBorder(0.38)
-        }
+        Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.surfaceGlass; border.width: 1; border.color: Theme.hairline }
         Row {
-            id: centerControls
             anchors.centerIn: parent
-            height: parent.height
-            spacing: 3
-            PanelSegment {
-                moduleHost: panel
-                text: "◈"
-                implicitWidth: 28
-                fill: "transparent"
-                border.width: 0
-                Accessible.name: shell.tr("Dashboard")
-                onClicked: shell.setAppearance({overview: !shell.overviewOpen})
-            }
-            Item {
-                id: launcherButton
-                readonly property int requestedSize: panel.launcherConfig.buttonSize ?? 38
-                readonly property real logoScale: (panel.launcherConfig.logoScale ?? 88) / 100.0
-                readonly property real backgroundOpacity: (panel.launcherConfig.backgroundOpacity ?? 18) / 100.0
-                readonly property bool glowEnabled: panel.launcherConfig.glow ?? true
-                readonly property bool orbitEnabled: panel.launcherConfig.orbit ?? true
-                readonly property real extent: Math.min(requestedSize, centerShell.height - 2)
-                width: Math.max(34, extent)
-                height: centerShell.height
-                Accessible.role: Accessible.Button
-                Accessible.name: shell.tr("Applications")
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: launcherButton.extent + (launcherButton.glowEnabled ? 7 : 0)
-                    height: width
-                    radius: width / 2
-                    color: "transparent"
-                    border.width: launcherButton.glowEnabled ? 4 : 0
-                    border.color: launcherButton.glowEnabled
-                        ? Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
-                                  launcherMouse.containsMouse || shell.launcherOpen ? 0.28 : 0.12)
-                        : "transparent"
-                    Behavior on border.color { ColorAnimation { duration: Theme.motion } }
-                }
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: launcherButton.extent
-                    height: width
-                    radius: width / 2
-                    color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
-                                   shell.launcherOpen ? Math.max(0.30, launcherButton.backgroundOpacity + 0.14)
-                                                      : Math.max(0.18, launcherButton.backgroundOpacity))
-                    border.width: launcherButton.orbitEnabled ? 1.5 : 0
-                    border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b,
-                                          shell.launcherOpen ? 0.94 : 0.58)
-                    scale: launcherMouse.pressed ? 0.92 : launcherMouse.containsMouse ? 1.06 : 1.0
-                    Behavior on scale { NumberAnimation { duration: Math.max(90, Theme.motion); easing.type: Easing.OutCubic } }
-                    Behavior on color { ColorAnimation { duration: Theme.motion } }
-                    Rectangle {
-                        visible: launcherButton.orbitEnabled
-                        anchors.centerIn: parent
-                        width: parent.width + 6
-                        height: width
-                        radius: width / 2
-                        color: "transparent"
-                        border.width: 1
-                        border.color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g, panel.launcherAccent.b, 0.26)
-                        rotation: 18
-                    }
-                    LunaDashLogo {
-                        anchors.centerIn: parent
-                        width: parent.width * launcherButton.logoScale
-                        height: width
-                        animated: false
-                        primaryColor: panel.launcherAccent
-                        secondaryColor: Qt.lighter(panel.launcherAccent, 1.22)
-                        inkColor: Theme.text
-                    }
-                }
-                MouseArea {
-                    id: launcherMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: shell.openLauncherFromMouse()
-                }
-                ToolTip.visible: launcherMouse.containsMouse && !shell.launcherOpen
-                ToolTip.delay: 450
-                ToolTip.text: shell.tr("Applications")
-            }
-            PanelSegment {
-                moduleHost: panel
-                text: "⚙"
-                implicitWidth: 28
-                fill: "transparent"
-                border.width: 0
-                Accessible.name: shell.tr("Settings")
-                onClicked: shell.settingsOpen = !shell.settingsOpen
-            }
+            spacing: 2
+            PanelSegment { moduleHost: panel; text: "⌕"; implicitWidth: 32; fill: "transparent"; border.width: 0; Accessible.name: shell.tr("Applications"); onClicked: shell.openLauncherFromMouse() }
+            PanelSegment { moduleHost: panel; text: "◎"; implicitWidth: 32; fill: "transparent"; border.width: 0; Accessible.name: shell.tr("Orbit launcher"); onClicked: shell.orbitOpen = !shell.orbitOpen }
         }
     }
 
@@ -588,7 +503,7 @@ ModuleSurface {
     Item {
         id: clockShell
         visible: !panel.vertical
-        anchors { right: statusShell.left; rightMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
+        anchors.centerIn: parent
         height: panel.capsuleHeight
         width: panel.width > 1120 ? 156 : 78
         scale: clockMouse.pressed ? 0.97 : clockMouse.containsMouse || shell.calendarOpen ? 1.012 : 1
@@ -631,6 +546,19 @@ ModuleSurface {
                 clockShell.date = Qt.formatDateTime(now, "ddd, MM.dd")
             }
         }
+    }
+    MediaController { id: panelMedia; shell: panel.shell; polling: panel.visible && !panel.vertical }
+    Rectangle {
+        visible: !panel.vertical && panelMedia.media.available && width > 100
+        anchors { right: statusShell.left; rightMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
+        width: Math.min(220, Math.max(0, statusShell.x - clockShell.x - clockShell.width - panel.capsuleGap * 2))
+        height: panel.capsuleHeight
+        radius: height / 2
+        color: Theme.surfaceGlass
+        border.width: 1
+        border.color: Theme.hairline
+        Text { anchors.fill: parent; anchors.margins: 10; text: panelMedia.media.title || shell.tr("Media"); color: Theme.text; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+        MouseArea { anchors.fill: parent; onClicked: { shell.controlCenterTab = 1; shell.setAppearance({overview: !shell.overviewOpen}) } }
     }
     Item {
         id: verticalContent

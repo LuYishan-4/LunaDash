@@ -46,8 +46,13 @@ ColumnLayout {
 
     SettingsCard {
         title: shell.tr("Dashboard")
-        description: shell.tr("Open the dashboard from the center panel button, then choose which quick controls and cards should appear.")
+        description: shell.tr("Open the control center from the panel or Super+I. Turn off compact mode for the full dashboard.")
 
+        RowLayout {
+            Layout.fillWidth: true
+            Text { Layout.fillWidth: true; text: shell.tr("Compact control center"); color: Theme.text; font.family: Theme.font; wrapMode: Text.Wrap }
+            SoftSwitch { checked: page.config.compactControlCenter ?? true; onToggled: page.updateConfig("compactControlCenter", checked) }
+        }
         RowLayout {
             Layout.fillWidth: true
             Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Media player"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }

@@ -474,7 +474,36 @@
     "types": [
       "quickshell"
     ],
-    "settings": {},
+    "settings": {
+      "clockEnabled": {
+        "type": "boolean",
+        "default": true,
+        "label": "Desktop clock",
+        "control": "toggle"
+      },
+      "visualizerEnabled": {
+        "type": "boolean",
+        "default": false,
+        "label": "Desktop audio visualizer",
+        "control": "toggle"
+      },
+      "clockX": {
+        "type": "integer",
+        "default": 3,
+        "minimum": 0,
+        "maximum": 100,
+        "label": "Clock horizontal position",
+        "control": "slider"
+      },
+      "clockY": {
+        "type": "integer",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 100,
+        "label": "Clock vertical position",
+        "control": "slider"
+      }
+    },
     "selection": "multiple"
   },
   {
@@ -888,6 +917,28 @@
         "maximum": 1
       }
     },
+    "selection": "single"
+  },
+  {
+    "id": "orbit",
+    "name": "Orbit launcher",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {},
+    "selection": "single"
+  },
+  {
+    "id": "dock",
+    "name": "Dock",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {},
     "selection": "single"
   }
 ]

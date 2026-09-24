@@ -1,5 +1,8 @@
 #include "desktop/theme/DesktopTheme.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include "config/appearance/AppearancePalette.hpp"
+#include <QMap>
+#include <QRegularExpression>
 #include <QColor>
 #include <QTimer>
 #include <QWidget>
@@ -85,7 +88,7 @@ QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #465777; bor
 QCheckBox::indicator:checked { background: #9ccbfb; border-color: #9ccbfb; }
 )";
   const auto preferences = desktopPreferences();
-  const QColor accent(preferences.value("accent").toString());
+  const auto colors = appearancePalette(preferences);
   style += R"(
 QLabel#fileBrand { font-size: 21px; font-weight: 600; }
 QLabel#fileFolderTitle { font-size: 18px; font-weight: 600; }
@@ -153,7 +156,32 @@ QAbstractItemView::item:selected { background: #2c3b5c; color: #edf3ff; }
 )";
   // Match the shell Theme palette, and substitute preferences after all rules
   // so later file-manager and dialog rules cannot restore the default accent.
-  style.replace("#9ccbfb", accent.name());
+  const QMap<QString, QString> roles{
+      {"#9ccbfb", "accent"}, {"#0b1020", "background"}, {"#0a0f1d", "background"},
+      {"#0f1728", "background"}, {"#10192c", "surface"}, {"#141c31", "surface"},
+      {"#162036", "surfaceElevated"}, {"#202b45", "surfaceElevated"},
+      {"#2c3b5c", "surfaceHover"}, {"#1a2440", "surfaceElevated"},
+      {"#edf3ff", "text"}, {"#eef2ff", "text"}, {"#aab7d1", "muted"},
+      {"#b7c5df", "muted"}, {"#9fb1d0", "muted"}, {"#10182a", "accentInk"},
+      {"#465777", "border"}, {"#52698d", "border"}, {"#2f4263", "hairline"},
+      {"#334766", "hairline"}, {"#607aa2", "border"}, {"#e8f0ff", "accent"},
+      {"#f2b8c6", "danger"}};
+  const QRegularExpression colorPattern("#[0-9a-fA-F]{6}");
+  auto matches = colorPattern.globalMatch(style);
+  QString themed;
+  qsizetype offset = 0;
+  while (matches.hasNext()) {
+    const auto match = matches.next();
+    themed += style.mid(offset, match.capturedStart() - offset);
+    const auto role = roles.value(match.captured().toLower());
+    themed += role.isEmpty() ? match.captured() : colors.value(role).toString();
+    offset = match.capturedEnd();
+  }
+  style = themed + style.mid(offset);
+  // The LunaDash portal retains its owned dark header in both theme modes.
+  style += " QFrame#portalFileHeader { background: #191c22; border-color: #353b46; }"
+           " QLabel#portalFileHeading { color: #e2e5ed; }"
+           " QLabel#portalFileCaption { color: #bdc5d3; }";
   auto font = preferences.value("fontFamily").toString();
   font.replace("\\", "\\\\");
   font.replace("'", "\\'");
@@ -164,20 +192,22 @@ QAbstractItemView::item:selected { background: #2c3b5c; color: #edf3ff; }
 void watchDesktopTheme(QWidget *window) {
   const auto applyPalette = [window] {
     QPalette palette = window->palette();
-    palette.setColor(QPalette::Window, QColor("#0b1020"));
-    palette.setColor(QPalette::WindowText, QColor("#edf3ff"));
-    palette.setColor(QPalette::Base, QColor("#141c31"));
-    palette.setColor(QPalette::AlternateBase, QColor("#162036"));
-    palette.setColor(QPalette::Text, QColor("#edf3ff"));
-    palette.setColor(QPalette::Button, QColor("#202b45"));
-    palette.setColor(QPalette::ButtonText, QColor("#edf3ff"));
-    palette.setColor(QPalette::PlaceholderText, QColor("#aab7d1"));
+    const auto colors = appearancePalette(desktopPreferences());
+    const auto color = [&colors](const QString &key) { return QColor(colors.value(key).toString()); };
+    palette.setColor(QPalette::Window, color("background"));
+    palette.setColor(QPalette::WindowText, color("text"));
+    palette.setColor(QPalette::Base, color("surface"));
+    palette.setColor(QPalette::AlternateBase, color("surfaceElevated"));
+    palette.setColor(QPalette::Text, color("text"));
+    palette.setColor(QPalette::Button, color("surfaceElevated"));
+    palette.setColor(QPalette::ButtonText, color("text"));
+    palette.setColor(QPalette::PlaceholderText, color("muted"));
     palette.setColor(QPalette::Highlight,
-                     QColor(desktopPreferences().value("accent").toString()));
-    palette.setColor(QPalette::HighlightedText, QColor("#10182a"));
-    palette.setColor(QPalette::Disabled, QPalette::Text, QColor("#aab7d1"));
+                     color("accent"));
+    palette.setColor(QPalette::HighlightedText, color("accentInk"));
+    palette.setColor(QPalette::Disabled, QPalette::Text, color("muted"));
     palette.setColor(QPalette::Disabled, QPalette::ButtonText,
-                     QColor("#aab7d1"));
+                     color("muted"));
     window->setPalette(palette);
     window->setProperty("ludashAccent", palette.color(QPalette::Highlight));
   };

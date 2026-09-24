@@ -75,3 +75,7 @@ lunadashctl module-reset
 Plugin SDK 2 使用另一份 `extensions.json`，負責 built-in feature options、plugin options、replace/augment mode。Shell modules 管的是 Shell surface layout/style；兩者分開驗證與原子寫入。
 
 Legacy trusted custom QML 仍作 migration fallback；新 extension 應使用 SDK metadata/CMake packaging。見 [Plugin SDK 2](PLUGINS.md)、[Target reference](PLUGIN_TARGETS.md)、[stacking example](../../examples/plugins/stacking-windows/README.md)。
+
+## NyxNiri 桌面整合、Orbit 與動態桌布
+
+新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。

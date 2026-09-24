@@ -85,3 +85,7 @@ About 將目前 check 與上次 install 記錄分開。背景更新的 package c
 Settings 可在預設大小與最大化間切換；搜尋框在頂部 header，左側分類與右側 page content 都使用與 Dashboard 相同的 glass/strong surface。Dashboard 使用固定 12 欄 bounded layout，hero、快捷操作、CPU/GPU/RAM/Storage、開啟中的視窗與桌面狀態都必須限制在各自 card 中，不能再以未限制的絕對文字座標重疊。
 
 舊 Command Console 已從內建 app、startup 設定與測試移除。互動式命令請使用設定的 terminal。舊「Motion」不再是獨立設定項；外觀頁統一稱為 **Visual effects**，無障礙頁仍保留 **Reduced motion**。
+
+## NyxNiri 桌面整合、Orbit 與動態桌布
+
+新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。

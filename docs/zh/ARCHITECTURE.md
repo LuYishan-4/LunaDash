@@ -85,3 +85,7 @@ python3 tests/architecture/test_source_layout.py
 CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless compositor、on-demand XWayland、renderer 資源與 plugin SDK regression。實體 GPU、Chrome/Zed、Fcitx 候選視窗、實體輸入、多螢幕與 display-manager login 仍需真實工作階段測試。FileChooser portal 也不是完整 PipeWire ScreenCast portal。
 
 延伸閱讀：[測試與原始碼地圖](TESTING_AND_FILES.md)、[圖形](GRAPHICS.md)、[輸入法](INPUT_METHODS.md)、[Plugin SDK 2](PLUGINS.md)。
+
+## NyxNiri 桌面整合、Orbit 與動態桌布
+
+新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。

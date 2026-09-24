@@ -314,6 +314,7 @@ void WaylandCompositor::Impl::shutdown() {
     detachListener(state->frame);
     detachListener(state->destroy);
     detachListener(state->requestState);
+    ludash_night_color_destroy(state->nightColor);
     delete state;
   }
 

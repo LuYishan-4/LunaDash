@@ -9,3 +9,7 @@ Fcitx5 remains a separate process. The session uses toolkit module variables (`Q
 The protocol-global CI test establishes that the interfaces are announced. It does not verify every input method or toolkit. In a real session test switching input methods, preedit, candidate selection, commit/deletion, cursor movement, focus transitions and popup placement in Qt, GTK, Chrome/Electron and Zed. Physical keyboard layout, NumLock/CapsLock, AltGr and device hotplug also require physical-session validation.
 
 Optional Fcitx packages on Arch include `fcitx5`, `fcitx5-qt`, `fcitx5-configtool` and the desired language add-ons. See [Fcitx5's Wayland guide](https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland/en) for toolkit setup and [testing](TESTING_AND_FILES.md) for LunaDash's verification scope.
+
+## NyxNiri-inspired desktop, Orbit and live wallpapers
+
+See [the desktop integration guide](NYXNIRI_DESKTOP.md) for the new modules, palette and portal services, shortcuts, dependencies, and current verification limits.

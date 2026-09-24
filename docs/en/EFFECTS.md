@@ -13,3 +13,7 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 The Qt render-element library retains two-pass Gaussian blur, procedural wallpaper and decoration shaders in `src/compositor/renderer/opengl`. Its scene-graph adapter clips transformed blur geometry and performs GL resource work while Qt's render-thread context is current. This library is built and tested separately; it is not currently wired into the active wlroots scene. Consequently blur preferences alone do not demonstrate rendered background blur, and the wlroots status currently reports `blurReady: false`.
 
 Quickshell independently animates shell surfaces and image wallpaper changes. Visual validation, application compatibility and GPU performance still require a real session. The development implementation does not claim full KWin effect compatibility. See [graphics](GRAPHICS.md) for shader/lifetime tests and [architecture](ARCHITECTURE.md) for ownership.
+
+## NyxNiri-inspired desktop, Orbit and live wallpapers
+
+See [the desktop integration guide](NYXNIRI_DESKTOP.md) for the new modules, palette and portal services, shortcuts, dependencies, and current verification limits.

@@ -39,7 +39,13 @@ QSize WaylandCompositor::Impl::outputSize() const {
 
 QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
   const QSize size = outputSize();
+  QJsonArray nightLight;
+  for (const auto *output : outputs)
+    nightLight.append(QJsonObject{{"output", safeUtf8(output->output->name)},
+                                  {"temperature", output->nightTemperature},
+                                  {"error", output->nightError}});
   return {
+      {"nightLight", nightLight},
       {"width", size.width()},
       {"pixelWidth", primaryOutput ? primaryOutput->width : 0},
       {"pixelHeight", primaryOutput ? primaryOutput->height : 0},
@@ -213,6 +219,7 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   attachListener(&output->events.request_state, state->requestState, state,
                  handleOutputRequestState);
   self->outputs.append(state);
+  self->updateNightLight();
 
   if (!self->primaryOutput)
     self->primaryOutput = output;
@@ -240,8 +247,16 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *animations = state->impl->q->windowAnimations_.get();
   if (animations)
     animations->advance();
-  if (!wlr_scene_output_commit(state->sceneOutput, nullptr))
+  if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
     qWarning("wlroots scene output commit failed.");
+    if (state->nightColor) {
+      ludash_night_color_destroy(state->nightColor);
+      state->nightColor = nullptr;
+      state->nightTemperature = 6500;
+      state->nightError = "The renderer rejected night light; the normal output has been restored.";
+      wlr_output_schedule_frame(state->output);
+    }
+  }
   timespec now{};
   clock_gettime(CLOCK_MONOTONIC, &now);
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
@@ -295,6 +310,7 @@ void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
   if (self->primaryOutput == state->output)
     self->primaryOutput = nullptr;
   self->outputs.removeAll(state);
+  ludash_night_color_destroy(state->nightColor);
   for (auto *candidate : self->outputs)
     if (candidate && candidate->output) {
       self->primaryOutput = candidate->output;

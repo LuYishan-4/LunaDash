@@ -58,7 +58,8 @@ class SettingsSchemaTests(unittest.TestCase):
             self.assertTrue(valid_value(custom, module['id'] + '/Main.qml'))
             self.assertFalse(valid_value(custom, '../Main.qml'))
             self.assertFalse(valid_value(custom, '/tmp/Main.qml'))
-        self.assertEqual(len(ids), 9)
+        self.assertEqual(len(ids), 11)
+        self.assertTrue({'orbit', 'dock'}.issubset(ids))
 
     def test_plugin_controls_are_covered_without_bundled_plugins(self):
         controls = set()
