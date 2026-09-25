@@ -28,13 +28,13 @@ public:
   void clear();
   int activeCount() const;
   void advance();
+  QRect visualGeometry(wlr_scene_tree *tree, const QRect &fallback) const;
 
 private:
   struct LiveState;
   struct SnapshotState;
 
   void setDuration(int milliseconds);
-  QRect visualGeometry(wlr_scene_tree *tree, const QRect &fallback) const;
   void applyLive(LiveState *state, qreal progress);
   void finishLive(wlr_scene_tree *tree, LiveState *state, bool restore = true);
   void startLive(LiveState *state);

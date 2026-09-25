@@ -16,11 +16,12 @@ PanelSegment {
     border.width: activeFocus ? 1.5 : moduleHost.contrastShells ? 1 : 0
     border.color: activeFocus ? Theme.focusRing : Theme.hairline
     Accessible.name: toolTip || label
+    Accessible.onPressAction: if (enabled) clicked()
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 9
-        anchors.rightMargin: 9
+        anchors.leftMargin: Math.min(9, Math.max(0, (button.width - 16) / 2))
+        anchors.rightMargin: Math.min(9, Math.max(0, (button.width - 16) / 2))
         spacing: 5
         LineIcon {
             visible: button.iconName.length > 0 && button.label.length > 0

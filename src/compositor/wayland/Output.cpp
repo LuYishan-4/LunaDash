@@ -90,6 +90,33 @@ void WaylandCompositor::Impl::updateBackground() {
   wlr_scene_rect_set_color(background, color);
 }
 
+void WaylandCompositor::Impl::updateWindowCorners() {
+  if (!windowCorners)
+    return;
+  QList<WindowCorners::Surface> surfaces;
+  const auto preferences = desktopPreferences();
+  const float opacity = preferences.value("eyeCare").toBool()
+                            ? 1.0f
+                            : preferences.value("windowOpacity").toInt(90) / 100.0f;
+  for (const auto &client : q->clients_) {
+    if (!client->sceneTree)
+      continue;
+    wlr_box geometry{};
+    if (client->surface) {
+#if WLR_VERSION_MINOR >= 19
+      geometry = client->surface->geometry;
+#else
+      wlr_xdg_surface_get_geometry(client->surface, &geometry);
+#endif
+    }
+    surfaces.append({client->sceneTree, client->sceneContent, client->wlSurface,
+                     client->geometry.size(), {geometry.x, geometry.y},
+                     client->mapped && !client->fullscreen &&
+                         !client->desktop && !client->utility, opacity});
+  }
+  windowCorners->update(surfaces);
+}
+
 void WaylandCompositor::Impl::updateWindowGlass() {
   if (!windowGlass)
     return;
@@ -98,7 +125,8 @@ void WaylandCompositor::Impl::updateWindowGlass() {
     if (client->sceneTree)
       surfaces.append({client->sceneTree, client->geometry.size(),
                        client->mapped && !client->fullscreen &&
-                           !client->desktop && !client->utility});
+                           !client->desktop && !client->utility,
+                       windowCorners ? windowCorners->radius(client->sceneTree) : 0});
   const bool animating = q->windowAnimations_ &&
                          q->windowAnimations_->activeCount() > 0;
   windowGlass->update(surfaces, animating);
@@ -108,17 +136,22 @@ void WaylandCompositor::Impl::arrangeLayers() {
   const QSize size = outputSize();
   wlr_box full{0, 0, size.width(), size.height()};
   wlr_box usable = full;
-  for (auto *layer : layers) {
-    if (!layer || !layer->sceneLayer || !layer->surface)
-      continue;
-    // wlroots 0.20 emits layer_shell.new_surface before the client's first
-    // commit. wlr_scene_layer_surface_v1_configure() is only valid after the
-    // role has been initialized by that commit.
-    if (!layer->surface->initialized)
-      continue;
-    if (!layer->surface->output && primaryOutput)
-      layer->surface->output = primaryOutput;
-    wlr_scene_layer_surface_v1_configure(layer->sceneLayer, &full, &usable);
+  // Reserve panels before configuring non-exclusive surfaces, regardless of
+  // client startup/commit order.
+  for (const bool exclusive : {true, false}) {
+    for (auto *layer : layers) {
+      if (!layer || !layer->sceneLayer || !layer->surface)
+        continue;
+      // wlroots 0.20 emits layer_shell.new_surface before the client's first
+      // commit. wlr_scene_layer_surface_v1_configure() is only valid after the
+      // role has been initialized by that commit.
+      if (!layer->surface->initialized ||
+          (layer->surface->current.exclusive_zone > 0) != exclusive)
+        continue;
+      if (!layer->surface->output && primaryOutput)
+        layer->surface->output = primaryOutput;
+      wlr_scene_layer_surface_v1_configure(layer->sceneLayer, &full, &usable);
+    }
   }
   usableArea = QRect(usable.x, usable.y, usable.width, usable.height);
 }
@@ -259,8 +292,12 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
     --state->screencopyKeepalive;
 
   auto *animations = state->impl->q->windowAnimations_.get();
+  const bool wasAnimating = animations && animations->activeCount() > 0;
+  state->impl->updateWindowCorners();
   if (animations)
     animations->advance();
+  if (wasAnimating)
+    state->impl->q->publishWindowLayout();
   state->impl->updateWindowGlass();
   if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
     qWarning("wlroots scene output commit failed.");

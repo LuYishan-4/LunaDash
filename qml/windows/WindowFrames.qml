@@ -17,15 +17,17 @@ PluginPanel {
     WlrLayershell.namespace: "lunadash-window-frames"
     mask: Region {}
     color: "transparent"
-    readonly property var windows: (interaction.clients || []).filter(client => (shell.state.layoutMode !== "stacking" || client.focused) && !client.desktop && !client.floating && !client.minimized && !client.hiddenByMaximize && Number(client.workspace) === Number(interaction.workspace))
+    readonly property var windows: (interaction.clients || []).filter(client => (shell.state.layoutMode !== "stacking" || client.focused) && !client.desktop && !client.utility && !client.fullscreen && !client.minimized && !client.hiddenByMaximize && client.visible !== false && Number(client.workspace) === Number(interaction.workspace))
     Repeater {
         model: panel.windows.length
         delegate: Rectangle {
             required property int index
             readonly property var client: panel.windows[index] || ({})
-            x: Number(client.x || 0); y: Number(client.y || 0)
-            width: Number(client.width || 0); height: Number(client.height || 0)
-            radius: 16
+            x: Number(client.frameX ?? client.x ?? 0)
+            y: Number(client.frameY ?? client.y ?? 0)
+            width: Number(client.frameWidth ?? client.width ?? 0)
+            height: Number(client.frameHeight ?? client.height ?? 0)
+            radius: Math.max(0, Math.min(Number(client.cornerRadius ?? 16), width / 2, height / 2))
             color: "transparent"
             border.color: client.focused
                 ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.94)
@@ -43,10 +45,6 @@ PluginPanel {
                 opacity: 0.9
             }
             Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
-            Behavior on x { enabled: !panel.interaction.dragging; NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-            Behavior on y { enabled: !panel.interaction.dragging; NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-            Behavior on width { enabled: !panel.interaction.dragging; NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-            Behavior on height { enabled: !panel.interaction.dragging; NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
         }
     }
 }

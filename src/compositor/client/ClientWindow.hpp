@@ -18,6 +18,7 @@ struct ClientWindow {
   wlr_xwayland_surface *xwayland = nullptr;
   wlr_surface *wlSurface = nullptr;
   wlr_scene_tree *sceneTree = nullptr;
+  wlr_scene_tree *sceneContent = nullptr;
   void *nativeState = nullptr;
   int workspace = 0;
   int id = 0;

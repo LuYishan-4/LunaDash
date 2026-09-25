@@ -1,5 +1,6 @@
 #include "compositor/renderer/blur/WindowGlass.hpp"
 #include <QByteArray>
+#include <QVector>
 #include <QtTest>
 #include <cstring>
 #include <drm_fourcc.h>
@@ -91,15 +92,27 @@ struct Window {
   wlr_scene_buffer *content = nullptr;
 };
 
-wlr_scene_buffer *underlay(wlr_scene_tree *tree) {
+wlr_scene_tree *underlay(wlr_scene_tree *tree) {
   if (!tree->node.parent ||
       tree->node.link.prev == &tree->node.parent->children)
     return nullptr;
   wlr_scene_node *previous = nullptr;
   previous = wl_container_of(tree->node.link.prev, previous, link);
-  return previous->type == WLR_SCENE_NODE_BUFFER
-             ? wlr_scene_buffer_from_node(previous)
-             : nullptr;
+  if (previous->type != WLR_SCENE_NODE_TREE)
+    return nullptr;
+  auto *candidate = wlr_scene_tree_from_node(previous);
+  if (wl_list_empty(&candidate->children))
+    return nullptr;
+  wlr_scene_node *child = nullptr;
+  wl_list_for_each(child, &candidate->children, link) {
+    if (child->type != WLR_SCENE_NODE_BUFFER)
+      return nullptr;
+    auto *part = wlr_scene_buffer_from_node(child);
+    double x = 0, y = 0;
+    if (!part->point_accepts_input || part->point_accepts_input(part, &x, &y))
+      return nullptr;
+  }
+  return candidate;
 }
 
 int childCount(wlr_scene_tree *tree) {
@@ -207,8 +220,33 @@ private Q_SLOTS:
     QCOMPARE(backdrop->node.y, 16);
     glass_->update({{window.tree, {96, 80}, true}}, false);
     QCOMPARE(glass_->frames(), quint64{3});
-    QCOMPARE(backdrop->dst_width, 96);
-    QCOMPARE(backdrop->dst_height, 80);
+    QVERIFY(childCount(backdrop) > 1);
+    QVector<int> coveredWidth(80, 0);
+    int bottom = 0;
+    wlr_scene_node *child = nullptr;
+    wl_list_for_each(child, &backdrop->children, link) {
+      QCOMPARE(child->type, WLR_SCENE_NODE_BUFFER);
+      auto *part = wlr_scene_buffer_from_node(child);
+      QVERIFY(part->buffer);
+      QVERIFY(child->x >= 0 && child->y >= 0);
+      QVERIFY(part->dst_width > 0 && part->dst_height > 0);
+      QVERIFY(child->x + part->dst_width <= 96);
+      QVERIFY(child->y + part->dst_height <= 80);
+      QCOMPARE(child->y, bottom);
+      bottom = child->y + part->dst_height;
+      QCOMPARE(part->src_box.x, double(child->x) * part->buffer->width / 96);
+      QCOMPARE(part->src_box.y, double(child->y) * part->buffer->height / 80);
+      QCOMPARE(part->src_box.width,
+               double(part->dst_width) * part->buffer->width / 96);
+      QCOMPARE(part->src_box.height,
+               double(part->dst_height) * part->buffer->height / 80);
+      for (int row = child->y; row < bottom; ++row)
+        coveredWidth[row] += part->dst_width;
+    }
+    QCOMPARE(bottom, 80);
+    QVERIFY(coveredWidth.front() > 0 && coveredWidth.front() < 96);
+    QCOMPARE(coveredWidth.front(), coveredWidth.back());
+    QCOMPARE(coveredWidth[40], 96);
     glass_->update({{window.tree, {96, 80}, true}}, false);
     QCOMPARE(glass_->frames(), quint64{3});
   }
@@ -326,9 +364,14 @@ private Q_SLOTS:
     QVERIFY(window.tree && window.content);
     glass_->update({{window.tree, {64, 64}, true}}, false);
     auto *backdrop = underlay(window.tree);
-    QVERIFY(backdrop && backdrop->point_accepts_input);
-    double x = 16, y = 16;
-    QVERIFY(!backdrop->point_accepts_input(backdrop, &x, &y));
+    QVERIFY(backdrop);
+    wlr_scene_node *child = nullptr;
+    wl_list_for_each(child, &backdrop->children, link) {
+      auto *part = wlr_scene_buffer_from_node(child);
+      QVERIFY(part->point_accepts_input);
+      double x = 0, y = 0;
+      QVERIFY(!part->point_accepts_input(part, &x, &y));
+    }
     double localX = 0, localY = 0;
     QCOMPARE(wlr_scene_node_at(&scene_->tree.node, 16, 16, &localX, &localY),
              &window.content->node);

@@ -40,6 +40,7 @@ Rectangle {
     Accessible.role: Accessible.Button
     Accessible.name: text
     Accessible.description: toolTip
+    Accessible.onPressAction: if (enabled && !busy) clicked()
 
     Keys.onReturnPressed: if (enabled && !busy) clicked()
     Keys.onEnterPressed: if (enabled && !busy) clicked()

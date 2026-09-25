@@ -3,6 +3,7 @@
 // Private wlroots runtime state. Public callers use WaylandCompositor.hpp.
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/renderer/blur/WindowGlass.hpp"
+#include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/color/NightColor.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
@@ -52,6 +53,7 @@ public:
     Slot<ToplevelState> unmap;
     Slot<ToplevelState> commit;
     Slot<ToplevelState> destroy;
+    Slot<ToplevelState> sceneContentDestroy;
     Slot<ToplevelState> setTitle;
     Slot<ToplevelState> setAppId;
     Slot<ToplevelState> setParent;
@@ -71,6 +73,7 @@ public:
     Slot<XWaylandState> map;
     Slot<XWaylandState> unmap;
     Slot<XWaylandState> sceneDestroy;
+    Slot<XWaylandState> sceneContentDestroy;
     Slot<XWaylandState> destroy;
     Slot<XWaylandState> requestConfigure;
     Slot<XWaylandState> requestMove;
@@ -162,6 +165,7 @@ public:
   wlr_output_layout *outputLayout = nullptr;
   wlr_scene *scene = nullptr;
   std::unique_ptr<WindowGlass> windowGlass;
+  std::unique_ptr<WindowCorners> windowCorners;
   wlr_scene_output_layout *sceneLayout = nullptr;
   wlr_scene_tree *backgroundLayer = nullptr;
   wlr_scene_tree *bottomLayer = nullptr;
@@ -279,6 +283,7 @@ public:
 
   void updateBackground();
   void updateWindowGlass();
+  void updateWindowCorners();
   void updateNightLight();
 
   void arrangeLayers();

@@ -21,6 +21,7 @@ public:
     wlr_scene_tree *tree = nullptr;
     QSize size;
     bool enabled = true;
+    int cornerRadius = 16;
   };
 
   WindowGlass(wlr_renderer *renderer, wlr_allocator *allocator,

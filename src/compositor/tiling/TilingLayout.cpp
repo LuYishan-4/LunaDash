@@ -184,8 +184,50 @@ Split *focusedLeaf(Split *node, quint64 column, bool nextVertical,
   return focusedLeaf(node->second.get(), column, !node->vertical, vertical);
 }
 
+bool splitFits(Workspace &workspace, const Split *node, bool vertical, int gap,
+               int minimumWidth, int minimumHeight) {
+  if (!node || node->first)
+    return false;
+  const auto *column = columnById(workspace, node->column);
+  const int count = column ? static_cast<int>(activeCount(*column)) : 0;
+  if (!count)
+    return false;
+  const int existingHeight = minimumHeight * count + gap * (count - 1);
+  return vertical
+      ? node->geometry.width() >= minimumWidth * 2 + gap &&
+            node->geometry.height() >= existingHeight
+      : node->geometry.width() >= minimumWidth &&
+            node->geometry.height() >= existingHeight + minimumHeight + gap;
+}
+
+void largestFittingLeaf(Workspace &workspace, Split *node, Split *&best,
+                        bool &vertical, qint64 &size, int gap,
+                        int minimumWidth, int minimumHeight) {
+  if (!node)
+    return;
+  if (node->first) {
+    largestFittingLeaf(workspace, node->first.get(), best, vertical, size, gap,
+                       minimumWidth, minimumHeight);
+    largestFittingLeaf(workspace, node->second.get(), best, vertical, size, gap,
+                       minimumWidth, minimumHeight);
+    return;
+  }
+  bool axis = node->geometry.width() >= node->geometry.height();
+  if (!splitFits(workspace, node, axis, gap, minimumWidth, minimumHeight)) {
+    axis = !axis;
+    if (!splitFits(workspace, node, axis, gap, minimumWidth, minimumHeight))
+      return;
+  }
+  const qint64 candidate = qint64(node->geometry.width()) * node->geometry.height();
+  if (candidate >= size) {
+    best = node;
+    vertical = axis;
+    size = candidate;
+  }
+}
+
 void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
-                bool firstWindowOnRight) {
+                bool firstWindowOnRight, int minimumWidth, int minimumHeight) {
   placeSplits(workspace, workspace.root.get(), workspace.area, gap);
   const quint64 id = workspace.nextColumn++;
   Split *target = nullptr;
@@ -196,19 +238,21 @@ void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
         !workspace.columns[focus.column].members[focus.member].minimized) {
       target = focusedLeaf(workspace.root.get(),
                             workspace.columns[focus.column].id, true, vertical);
-      if (target) {
-        const auto minimum = minimumSize(workspace, target);
-        const int available = vertical ? target->geometry.width()
-                                       : target->geometry.height();
-        const int required = (vertical ? minimum.width() : minimum.height()) + 1;
-        // Avoid subdividing an exhausted pixel-sized leaf when other slots
-        // still have space. The existing tree retains its bounds and ratios.
-        if (available < required)
-          target = nullptr;
-      }
+      // Stop recursively crushing the focused window while larger usable
+      // slots remain. Keep existing slots and user-adjusted ratios intact.
+      if (!splitFits(workspace, target, vertical, gap, minimumWidth, minimumHeight))
+        target = nullptr;
     }
   }
   if (!target) {
+    qint64 size = -1;
+    largestFittingLeaf(workspace, workspace.root.get(), target, vertical, size,
+                       gap, minimumWidth, minimumHeight);
+  }
+  if (!target) {
+    // On a crowded or very small output no tile can meet the preferred
+    // minimum. Continue the existing bounded layout instead of overlapping
+    // windows or silently refusing a new application.
     qint64 size = -1;
     largestLeaf(workspace, workspace.root.get(), target, size);
     if (target)
@@ -369,6 +413,8 @@ public:
   int gap;
   bool splitFocused = true;
   bool firstWindowOnRight = true;
+  int minimumTileWidth = 320;
+  int minimumTileHeight = 220;
   std::unordered_map<LayoutWorkspaceId, Workspace> workspaces;
 };
 
@@ -382,6 +428,10 @@ void TilingLayout::configure(const QJsonObject &settings) {
       std::clamp(settings.value("defaultWidth").toInt(d->defaultWidth), 240,
                  2400);
   d->gap = std::clamp(settings.value("gap").toInt(d->gap), 0, 64);
+  d->minimumTileWidth = std::clamp(
+      settings.value("minimumTileWidth").toInt(d->minimumTileWidth), 1, 1200);
+  d->minimumTileHeight = std::clamp(
+      settings.value("minimumTileHeight").toInt(d->minimumTileHeight), 1, 900);
   const auto splitTarget = settings.value("splitTarget").toString();
   if (splitTarget == "focused" || splitTarget == "largest")
     d->splitFocused = splitTarget == "focused";
@@ -403,7 +453,7 @@ bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
             ? preferredSize
             : QSize(d->defaultWidth, std::max(1, d->defaultWidth * 2 / 3));
   addColumn(workspace, {window, false, {}}, d->gap, d->splitFocused,
-            d->firstWindowOnRight);
+            d->firstWindowOnRight, d->minimumTileWidth, d->minimumTileHeight);
   workspace.focused = window;
   return true;
 }
@@ -485,7 +535,7 @@ bool TilingLayout::moveToWorkspace(LayoutWindowId window,
   if (sourceColumn.members.empty())
     eraseColumn(*source, location.column);
   addColumn(destination, member, d->gap, d->splitFocused,
-            d->firstWindowOnRight);
+            d->firstWindowOnRight, d->minimumTileWidth, d->minimumTileHeight);
   if (!member.minimized)
     destination.focused = window;
   selectAvailableFocus(*source);
@@ -732,7 +782,7 @@ bool TilingLayout::expel(LayoutWindowId window) {
   column.members.erase(column.members.begin() +
                        static_cast<std::ptrdiff_t>(location.member));
   addColumn(*workspace, member, d->gap, d->splitFocused,
-            d->firstWindowOnRight);
+            d->firstWindowOnRight, d->minimumTileWidth, d->minimumTileHeight);
   workspace->focused = window;
   return true;
 }

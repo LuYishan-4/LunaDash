@@ -210,7 +210,14 @@ add_library(ludash-scene-backdrop
 target_include_directories(ludash-scene-backdrop PUBLIC src)
 target_compile_definitions(ludash-scene-backdrop PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-scene-backdrop PUBLIC PkgConfig::WLROOTS m)
+add_library(ludash-corner-geometry
+    src/compositor/renderer/clip/CornerGeometry.h
+    src/compositor/renderer/clip/CornerGeometry.c)
+target_include_directories(ludash-corner-geometry PUBLIC src)
+target_link_libraries(ludash-corner-geometry PUBLIC m)
 add_library(ludash-wayland
+    src/compositor/renderer/clip/WindowCorners.hpp
+    src/compositor/renderer/clip/WindowCorners.cpp
     src/compositor/renderer/blur/WindowGlass.hpp
     src/compositor/renderer/blur/WindowGlass.cpp
     src/compositor/wayland/NightLight.cpp
@@ -266,6 +273,7 @@ target_link_libraries(ludash-wayland
         ludash-thumbnail-readback
         ludash-night-color
         ludash-scene-backdrop
+        ludash-corner-geometry
         ludash-theme-sync
         ludash-weather
         Qt6::Concurrent

@@ -2,6 +2,7 @@
 #include "compositor/renderer/capture/ThumbnailReadback.h"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/window/WindowRules.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
@@ -17,7 +18,19 @@ void WaylandCompositor::publishWindowLayout() {
   for (const auto &client : clients_) {
     if (client->utility || !client->mapped)
       continue;
+    const QRect frame = windowAnimations_
+                            ? windowAnimations_->backend().visualGeometry(
+                                  client->sceneTree, client->geometry)
+                            : client->geometry;
     clients.append(QJsonObject{{"id", client->id},
+                               {"frameX", frame.x()},
+                               {"frameY", frame.y()},
+                               {"frameWidth", frame.width()},
+                               {"frameHeight", frame.height()},
+                               {"cornerRadius", d->windowCorners
+                                    ? d->windowCorners->radius(client->sceneTree) : 0},
+                               {"fullscreen", client->fullscreen},
+                               {"visible", client->sceneTree && client->sceneTree->node.enabled},
                                {"title", client->title},
                                {"appId", client->appId},
                                {"icon", client->iconName},

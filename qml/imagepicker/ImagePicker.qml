@@ -19,10 +19,14 @@ ExtensionSlot {
     property string folder: Quickshell.env("HOME") || "/"
     property string selectedPath: ""
     property real cornerRadius: 24
+    property bool savingLauncher: false
+    property string selectionError: ""
     signal closed
 
     readonly property string homePath: Quickshell.env("HOME") || "/"
     readonly property bool calendarMode: shell.pickerPurpose === "calendar"
+    readonly property bool launcherMode: shell.pickerPurpose === "panel-launcher"
+    readonly property bool imageOnly: calendarMode || launcherMode
 
     function parentDirectory() {
         const trimmed = String(folder).replace(/\/+$/, "");
@@ -31,8 +35,10 @@ ExtensionSlot {
     }
     function normalizedLocalPath(value) {
         let path = String(value || "").trim()
-        if (path.startsWith("file://"))
-            path = decodeURIComponent(path.slice(7))
+        if (path.startsWith("file://")) {
+            try { path = decodeURIComponent(path.slice(7)) }
+            catch (error) { return "" }
+        }
         if (!path.startsWith("/"))
             return ""
         return path.replace(/\/{2,}/g, "/")
@@ -53,7 +59,7 @@ ExtensionSlot {
         }
         pathField.invalid = false
         const lower = normalized.toLowerCase()
-        const imageFile = (calendarMode ? [".png", ".jpg", ".jpeg", ".webp", ".gif"] : [".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".mkv", ".mov", ".m4v"]).some(suffix => lower.endsWith(suffix))
+        const imageFile = (imageOnly ? [".png", ".jpg", ".jpeg", ".webp", ".gif"].concat(launcherMode ? [".svg"] : []) : [".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".mkv", ".mov", ".m4v"]).some(suffix => lower.endsWith(suffix))
         if (imageFile) {
             const slash = normalized.lastIndexOf("/")
             folder = slash <= 0 ? "/" : normalized.slice(0, slash)
@@ -78,6 +84,18 @@ ExtensionSlot {
     function acceptSelection() {
         if (!selectedPath.length)
             return;
+        if (launcherMode) {
+            const target = ((shell.state.settingsApi || {}).targets || []).find(item => item.id === "module:panel:config")
+            if (!target || savingLauncher)
+                return
+            savingLauncher = true
+            selectionError = ""
+            const url = "file://" + selectedPath.split("/").map(part => encodeURIComponent(part)).join("/")
+            shell.command("settings-update", JSON.stringify({
+                target: target.id, revision: target.revision, changes: {launcherImage: url}
+            }))
+            return
+        }
         if (calendarMode) {
             if (!saveCalendarImage(selectedPath))
                 return;
@@ -96,6 +114,7 @@ ExtensionSlot {
         folder = homePath;
         selectedPath = "";
         pathField.text = homePath;
+        selectionError = "";
     }
 
     visible: opened
@@ -118,7 +137,7 @@ ExtensionSlot {
         showDotAndDotDot: false
         showHidden: false
         sortField: FolderListModel.Name
-        nameFilters: picker.calendarMode ? ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"] : ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.mp4", "*.webm", "*.mkv", "*.mov", "*.m4v", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF", "*.MP4", "*.WEBM", "*.MKV", "*.MOV", "*.M4V"]
+        nameFilters: picker.imageOnly ? ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"].concat(picker.launcherMode ? ["*.svg", "*.SVG"] : []) : ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.mp4", "*.webm", "*.mkv", "*.mov", "*.m4v", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF", "*.MP4", "*.WEBM", "*.MKV", "*.MOV", "*.M4V"]
     }
 
     Rectangle {
@@ -175,7 +194,7 @@ ExtensionSlot {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : "Choose a wallpaper")
+                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : picker.launcherMode ? "Choose launcher image" : "Choose a wallpaper")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 18
@@ -217,6 +236,7 @@ ExtensionSlot {
                     placeholderText: picker.shell.tr("Paste an absolute path or file:// URL")
                     text: picker.folder
                     clearButtonEnabled: false
+                    Accessible.name: picker.shell.tr("Image path")
                     onAccepted: picker.applyTypedPath()
                     ToolTip.visible: hovered
                     ToolTip.text: picker.shell.tr("Paste a folder path or the full path of an image")
@@ -313,6 +333,16 @@ ExtensionSlot {
                 }
             }
 
+            Text {
+                visible: picker.selectionError.length > 0
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                text: picker.selectionError
+                textFormat: Text.PlainText
+                wrapMode: Text.Wrap
+                color: Theme.danger
+                font.family: Theme.font
+            }
             RowLayout {
                 Layout.fillWidth: true
                 Text {
@@ -335,12 +365,26 @@ ExtensionSlot {
                     }
                 }
                 ShellButton {
-                    text: picker.shell.tr(picker.calendarMode ? "Use image" : "Add to wallpapers")
+                    text: picker.shell.tr(picker.imageOnly ? "Use image" : "Add to wallpapers")
                     active: true
-                    enabled: picker.selectedPath.length > 0
+                    enabled: picker.selectedPath.length > 0 && !picker.savingLauncher
                     onClicked: picker.acceptSelection()
                 }
             }
+        }
+    }
+    Connections {
+        target: picker.shell
+        function onCommandCompleted(method, result) {
+            if (method !== "settings-update" || !picker.savingLauncher || result.settingsTarget !== "module:panel:config")
+                return
+            picker.savingLauncher = false
+            if (result.error) {
+                picker.selectionError = picker.shell.tr(result.error)
+                return
+            }
+            picker.shell.pickerPurpose = "wallpaper"
+            picker.closed()
         }
     }
 }

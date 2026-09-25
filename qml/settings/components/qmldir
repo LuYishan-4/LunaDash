@@ -11,3 +11,4 @@ UpdateCard 1.0 UpdateCard.qml
 UpdateState 1.0 UpdateState.qml
 SchemaOptions 1.0 SchemaOptions.qml
 SettingsTargetEditor 1.0 SettingsTargetEditor.qml
+PanelSettings 1.0 PanelSettings.qml

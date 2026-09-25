@@ -1,5 +1,6 @@
 #include "compositor/renderer/blur/WindowGlass.hpp"
 #include "compositor/renderer/blur/SceneBackdrop.h"
+#include "compositor/renderer/clip/CornerGeometry.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 
@@ -69,11 +70,14 @@ public:
 
   struct Entry {
     wlr_scene_tree *tree = nullptr;
-    wlr_scene_buffer *glass = nullptr;
+    wlr_scene_tree *glass = nullptr;
+    std::vector<wlr_scene_buffer *> parts;
     wlr_buffer *backing = nullptr;
     Templates::WaylandSlot<Entry> treeDestroy;
     Templates::WaylandSlot<Entry> glassDestroy;
     QRect area;
+    QSize clipSize;
+    int cornerRadius = -1;
     quint64 fingerprint = 0;
     quint64 revision = 0;
     bool attempted = false;
@@ -98,6 +102,9 @@ public:
       if (glass)
         wlr_scene_node_destroy(&glass->node);
       glass = nullptr;
+      parts.clear();
+      clipSize = {};
+      cornerRadius = -1;
       if (backing)
         wlr_buffer_unlock(backing);
       backing = nullptr;
@@ -106,12 +113,9 @@ public:
     bool createGlass() {
       if (glass)
         return true;
-      glass = wlr_scene_buffer_create(tree->node.parent, nullptr);
+      glass = wlr_scene_tree_create(tree->node.parent);
       if (!glass)
         return false;
-      glass->point_accepts_input = [](wlr_scene_buffer *, double *, double *) {
-        return false;
-      };
       wlr_scene_node_set_enabled(&glass->node, false);
       Templates::attachListener(
           &glass->node.events.destroy, glassDestroy, this,
@@ -119,12 +123,62 @@ public:
             auto *entry = Templates::listenerOwner<Entry>(listener);
             Templates::detachListener(entry->glassDestroy);
             entry->glass = nullptr;
+            entry->parts.clear();
+            entry->clipSize = {};
+            entry->cornerRadius = -1;
             if (entry->backing)
               wlr_buffer_unlock(entry->backing);
             entry->backing = nullptr;
             entry->attempted = false;
           });
       return true;
+    }
+
+    bool configureClips(QSize size, int radius) {
+      radius = std::max(0, std::min({radius, 32, size.width() / 2,
+                                     size.height() / 2}));
+      if (!parts.empty() && clipSize == size && cornerRadius == radius)
+        return true;
+      ludash_corner_band bands[LUDASH_CORNER_MAX_BANDS];
+      const auto count = ludash_corner_bands(size.width(), size.height(), radius,
+                                             bands, LUDASH_CORNER_MAX_BANDS);
+      if (!count)
+        return false;
+      std::vector<wlr_scene_buffer *> next;
+      for (std::size_t i = 0; i < count; ++i) {
+        auto *part = wlr_scene_buffer_create(glass, nullptr);
+        if (!part) {
+          for (auto *created : next)
+            wlr_scene_node_destroy(&created->node);
+          return false;
+        }
+        part->point_accepts_input = [](wlr_scene_buffer *, double *, double *) {
+          return false;
+        };
+        const auto &band = bands[i];
+        wlr_scene_node_set_position(&part->node, band.x, band.y);
+        wlr_scene_buffer_set_dest_size(part, band.width, band.height);
+        next.push_back(part);
+      }
+      for (auto *part : parts)
+        wlr_scene_node_destroy(&part->node);
+      parts = std::move(next);
+      clipSize = size;
+      cornerRadius = radius;
+      attempted = false;
+      return true;
+    }
+
+    void setBuffer(wlr_buffer *buffer) {
+      for (auto *part : parts) {
+        const wlr_fbox crop{
+            double(part->node.x) * buffer->width / clipSize.width(),
+            double(part->node.y) * buffer->height / clipSize.height(),
+            double(part->dst_width) * buffer->width / clipSize.width(),
+            double(part->dst_height) * buffer->height / clipSize.height()};
+        wlr_scene_buffer_set_source_box(part, &crop);
+        wlr_scene_buffer_set_buffer(part, buffer);
+      }
     }
   };
 
@@ -212,7 +266,7 @@ public:
         bool managed = false;
         for (const auto &[tree, candidate] : entries) {
           Q_UNUSED(tree);
-          if (candidate->glass == buffer) {
+          if (candidate->glass && buffer->node.parent == candidate->glass) {
             hash.add(candidate->revision);
             managed = true;
             break;
@@ -245,6 +299,7 @@ public:
     hash.add(entry.area.width());
     hash.add(entry.area.height());
     hash.add(radius);
+    hash.add(entry.cornerRadius);
     const bool found = fingerprint(root, entry, hash);
     if (!found)
       return;
@@ -257,7 +312,7 @@ public:
           renderer, allocator, root, &entry.tree->node, &entry.glass->node,
           &area, radius);
       if (buffer) {
-        wlr_scene_buffer_set_buffer(entry.glass, buffer);
+        entry.setBuffer(buffer);
         if (entry.backing)
           wlr_buffer_unlock(entry.backing);
         // Hold an extra consumer lock after scene texture upload so higher
@@ -324,7 +379,9 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
     auto &entry = d->entries[tree];
     if (!entry || entry->tree != tree)
       entry = std::make_unique<Impl::Entry>(tree);
-    if (!entry->createGlass()) {
+    if (!entry->createGlass() ||
+        !entry->configureClips(surface.size, surface.cornerRadius)) {
+      entry->clearGlass();
       d->failed = true;
       d->error = "The renderer could not allocate a window backdrop node.";
       continue;
@@ -336,10 +393,6 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
     if (entry->glass->node.x != tree->node.x ||
         entry->glass->node.y != tree->node.y)
       wlr_scene_node_set_position(&entry->glass->node, tree->node.x, tree->node.y);
-    if (entry->glass->dst_width != surface.size.width() ||
-        entry->glass->dst_height != surface.size.height())
-      wlr_scene_buffer_set_dest_size(entry->glass, surface.size.width(),
-                                     surface.size.height());
     entry->area = QRect(QPoint(x, y), surface.size);
   }
   std::erase_if(d->entries, [&active](const auto &item) {

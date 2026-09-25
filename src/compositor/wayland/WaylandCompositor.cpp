@@ -670,16 +670,9 @@ void WaylandCompositor::configure(ClientWindow *client,
   wlr_xdg_surface_get_geometry(client->surface, &geometry);
 #endif
   wlr_box clip{geometry.x, geometry.y, rectangle.width(), rectangle.height()};
-  wlr_scene_node *child;
-  wl_list_for_each(child, &client->sceneTree->children, link) {
-    const bool popup = std::any_of(
-        d->xdgPopups.begin(), d->xdgPopups.end(), [child](const auto *state) {
-          return state->sceneTree && &state->sceneTree->node == child;
-        });
-    if (!popup)
-      wlr_scene_subsurface_tree_set_clip(child,
-                                         client->floating ? nullptr : &clip);
-  }
+  if (client->sceneContent)
+    wlr_scene_subsurface_tree_set_clip(&client->sceneContent->node,
+                                       client->floating ? nullptr : &clip);
   if (client->lastSize != size) {
     client->lastSize = size;
     wlr_xdg_toplevel_set_size(client->toplevel, size.width(), size.height());
@@ -895,6 +888,7 @@ void WaylandCompositor::arrange() {
     raiseWithDialogs(focused_);
 
   d->updateBackground();
+  d->updateWindowCorners();
   publishWindowLayout();
 }
 
@@ -1288,7 +1282,30 @@ QJsonObject WaylandCompositor::state() const {
       bufferWidth = client->wlSurface->current.width;
       bufferHeight = client->wlSurface->current.height;
     }
+    wlr_box contentGeometry{};
+    if (client->surface) {
+#if WLR_VERSION_MINOR >= 19
+      contentGeometry = client->surface->geometry;
+#else
+      wlr_xdg_surface_get_geometry(client->surface, &contentGeometry);
+#endif
+    }
+    const QRect frame = windowAnimations_
+                            ? windowAnimations_->backend().visualGeometry(
+                                  client->sceneTree, client->geometry)
+                            : client->geometry;
     entries.append(QJsonObject{
+        {"contentX", contentGeometry.x},
+        {"contentY", contentGeometry.y},
+        {"contentGeometryWidth", client->surface ? contentGeometry.width : bufferWidth},
+        {"contentGeometryHeight", client->surface ? contentGeometry.height : bufferHeight},
+        {"frameX", frame.x()},
+        {"frameY", frame.y()},
+        {"frameWidth", frame.width()},
+        {"frameHeight", frame.height()},
+        {"cornerRadius", d && d->windowCorners
+                             ? d->windowCorners->radius(client->sceneTree) : 0},
+        {"floating", client->floating},
         {"contentWidth", bufferWidth},
         {"contentHeight", bufferHeight},
         {"contentVisible",
@@ -1404,6 +1421,9 @@ QJsonObject WaylandCompositor::state() const {
                               preferences.value("animationDuration").toInt())},
       {"panelExtent",
        shellModules_->panelExtent(preferences.value("panelHeight").toInt())},
+      {"workArea", QJsonObject{{"x", workArea().x()}, {"y", workArea().y()},
+                                {"width", workArea().width()},
+                                {"height", workArea().height()}}},
       {"panelEdge", shellModules_->panelEdge()},
       {"panelAtBottom", shellModules_->panelAtBottom()},
       {"audio", audioSettings_->snapshot()},

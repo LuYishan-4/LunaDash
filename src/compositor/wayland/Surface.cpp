@@ -141,9 +141,14 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
   client->toplevel = toplevel;
   client->wlSurface = surface->surface;
   client->workspace = q->workspace_;
-  client->sceneTree = wlr_scene_xdg_surface_create(normalLayer, surface);
+  client->sceneTree = wlr_scene_tree_create(normalLayer);
   if (!client->sceneTree)
     return;
+  client->sceneContent = wlr_scene_xdg_surface_create(client->sceneTree, surface);
+  if (!client->sceneContent) {
+    wlr_scene_node_destroy(&client->sceneTree->node);
+    return;
+  }
 
   client->sceneTree->node.data = client.get();
   surface->data = client->sceneTree;
@@ -160,6 +165,14 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
   state->impl = this;
   state->client = current;
   current->nativeState = state;
+  attachListener(
+      &current->sceneContent->node.events.destroy, state->sceneContentDestroy,
+      state, [](wl_listener *listener, void *) {
+        auto *state = listenerOwner<ToplevelState>(listener);
+        detachListener(state->sceneContentDestroy);
+        if (state->client)
+          state->client->sceneContent = nullptr;
+      });
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   // Window capture gets a private scene so the stream does not inherit
   // workspace transforms, tiling clips or visibility of the desktop scene.
@@ -418,6 +431,7 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   detachListener(state->unmap);
   detachListener(state->commit);
   detachListener(state->destroy);
+  detachListener(state->sceneContentDestroy);
   detachListener(state->setTitle);
   detachListener(state->setAppId);
   detachListener(state->setParent);
@@ -441,6 +455,12 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   }
 #endif
   client->nativeState = nullptr;
+  if (client->sceneTree)
+    wlr_scene_node_destroy(&client->sceneTree->node);
+  client->sceneTree = nullptr;
+  client->sceneContent = nullptr;
+  if (client->surface)
+    client->surface->data = nullptr;
   self->q->removeClient(client);
   delete state;
 }

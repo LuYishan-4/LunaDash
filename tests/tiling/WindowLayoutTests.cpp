@@ -216,7 +216,7 @@ private Q_SLOTS:
   }
   void focusedSplitsPreserveMainPane() {
     TilingLayout layout;
-    layout.configure({{"gap", 8}});
+    layout.configure({{"gap", 8}, {"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
     const QRect bounds(16, 48, 1608, 1000);
     QVERIFY(layout.insert(0, 1));
     layout.layout(0, bounds);
@@ -302,6 +302,39 @@ private Q_SLOTS:
     verifyNoOverlap(restored);
     for (const auto &slot : restored)
       QVERIFY(bounds.contains(slot.geometry));
+  }
+  void focusedSplitsPreferReadableTiles() {
+    TilingLayout layout;
+    layout.configure({{"gap", 12}});
+    const QRect bounds(12, 72, 1896, 996);
+    for (int id = 1; id <= 6; ++id) {
+      if (id == 4)
+        QVERIFY(layout.focus(2));
+      QVERIFY(layout.insert(0, id));
+      const auto slots = layout.layout(0, bounds);
+      verifyNoOverlap(slots);
+      for (const auto &slot : slots) {
+        QVERIFY(bounds.contains(slot.geometry));
+        QVERIFY(slot.geometry.width() >= 320);
+        QVERIFY(slot.geometry.height() >= 220);
+      }
+    }
+    const auto six = geometries(layout.layout(0, bounds));
+    // The sixth window uses the large right tile instead of halving the
+    // already small upper-left branch into two 226 px wide windows.
+    QCOMPARE(six[1], QRect(966, 72, 942, 492));
+    QCOMPARE(six[6], QRect(966, 576, 942, 492));
+    QCOMPARE(six[5], QRect(489, 324, 465, 240));
+
+    // On a crowded screen the preference remains a soft bound: every
+    // application still has a non-overlapping, on-screen slot.
+    for (int id = 7; id <= 20; ++id) {
+      QVERIFY(layout.insert(0, id));
+      const auto slots = layout.layout(0, bounds);
+      verifyNoOverlap(slots);
+      for (const auto &slot : slots)
+        QVERIFY(bounds.contains(slot.geometry));
+    }
   }
   void manyWindowsAndOutputChanges() {
     for (const QRect bounds :

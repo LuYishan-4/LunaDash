@@ -11,6 +11,16 @@
       "sections": {
         "module": {},
         "style": {
+          "width": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 320,
+            "maximum": 3840,
+            "specialValues": [0],
+            "label": "Panel width",
+            "description": "0 fills the edge. On a vertical panel this controls its length.",
+            "control": "number"
+          },
           "height": {
             "type": "integer",
             "default": 0,
@@ -53,6 +63,23 @@
           }
         },
         "config": {
+          "launcherImage": {
+            "type": "string",
+            "default": "",
+            "label": "Launcher image",
+            "control": "text",
+            "pattern": "^(|file:///[^\\r\\n]+\\.(?i:png|jpe?g|webp|gif|svg))$",
+            "description": "Local image URL; leave empty for the LunaDash logo."
+          },
+          "capsuleTint": {
+            "type": "integer",
+            "default": 12,
+            "minimum": 0,
+            "maximum": 100,
+            "label": "Capsule tint",
+            "description": "Mix the secondary color into the panel background. Lower values keep capsules dark.",
+            "control": "slider"
+          },
           "centerLauncher": {
             "type": "boolean",
             "default": true,

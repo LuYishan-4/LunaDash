@@ -11,9 +11,9 @@ Bounded tiling is the default. Enabling a native stacking replacement in Desktop
 
 ## Focused split layout
 
-The default arrangement uses the existing bounded split tree. The first two windows form a left/right pair, keeping the first window on the right. New windows then divide the focused tile, alternating top/bottom and left/right at each level. Focus a tile before opening an application to choose which part of the desktop it divides. Other branches retain their geometry. When a focused tile has too little space to split, insertion uses the largest active tile. Grouped windows remain rows within their existing leaf; grouping, shared-boundary resize, minimize/restore and maximize/restore continue to use the same template.
+The default arrangement uses the existing bounded split tree. The first two windows form a left/right pair, keeping the first window on the right. New windows then divide the focused tile, alternating top/bottom and left/right at each level. Focus a tile before opening an application to choose which part of the desktop it divides. Other branches retain their geometry. When a focused split would produce a tile below the preferred minimum (320 × 220 logical pixels by default), insertion chooses the largest tile with a fitting split, trying its other axis if necessary. If no tile can fit the preferred minimum, the largest tile is divided anyway to keep every window bounded and non-overlapping. These are layout preferences, not an application minimum-size guarantee. Grouped windows remain rows within their existing leaf; grouping, shared-boundary resize, minimize/restore and maximize/restore continue to use the same template.
 
-For the six-window reference arrangement: open three windows, focus the upper-left window, then open three more. The first window stays in the full-height right half; the lower-left tile remains intact while the upper-left branch splits into progressively smaller panes. Ordinary focus changes never rearrange tiles.
+For the exact densely divided six-window reference arrangement, lower both preferred minimums (down to 1), open three windows, focus the upper-left window, then open three more. The first window stays in the full-height right half; the lower-left tile remains intact while the upper-left branch splits into progressively smaller panes. The default preferred minimums instead allow the right-hand main pane to divide before left-hand controls become too cramped. Ordinary focus changes never rearrange tiles.
 
 Settings > Windows and workspaces > Window layout exposes:
 
@@ -22,6 +22,8 @@ Settings > Windows and workspaces > Window layout exposes:
 | `splitTarget` | `focused` | Split the active tile with alternating axes; `largest` selects the largest tile and divides its longer dimension. |
 | `firstWindowSide` | `right` | Keep the original window on the right of the first pair; `left` places it on the left. |
 | `gap` | inherited desktop gap, initially 12 | Space between adjacent tiles. |
+| `minimumTileWidth` | 320 | Preferred minimum width of new tiles; falls back on crowded outputs. |
+| `minimumTileHeight` | 220 | Preferred minimum height of new tiles; falls back on crowded outputs. |
 | `defaultWidth` | 1120 | Initial width for a lone window when it does not supply a preferred size. |
 
 The first pair always uses left/right placement. Split policy and first-window-side changes apply to future insertions, workspace moves and group expulsions; saved tile arrangements are retained. Existing explicit settings remain authoritative. The fields are validated and persisted by the existing `layout:tiling` settings target under `windowLayout/tiling/`; no new configuration file, Niri parser or layout backend is added. Selecting `largest` and `left` restores the earlier insertion policy for a typical landscape screen.

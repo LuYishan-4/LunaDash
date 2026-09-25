@@ -122,6 +122,8 @@ bool WaylandCompositor::Impl::initialize() {
   windowGlass = std::make_unique<WindowGlass>(renderer, allocator,
                                              &scene->tree.node);
 
+  windowCorners = std::make_unique<WindowCorners>();
+
   xdgShell = wlr_xdg_shell_create(display, 3);
   layerShell = wlr_layer_shell_v1_create(display, 4);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
@@ -285,6 +287,7 @@ void WaylandCompositor::Impl::shutdown() {
   // Underlays retain renderer buffers and listeners on client scene nodes.
   // Release them while both the scene and renderer are still alive.
   windowGlass.reset();
+  windowCorners.reset();
   wl_display_destroy_clients(display);
 
   detachListener(newOutput);
@@ -331,6 +334,7 @@ void WaylandCompositor::Impl::shutdown() {
     detachListener(state->associate);
     detachListener(state->dissociate);
     detachListener(state->sceneDestroy);
+    detachListener(state->sceneContentDestroy);
     detachListener(state->map);
     detachListener(state->unmap);
     detachListener(state->destroy);

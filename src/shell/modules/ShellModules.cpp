@@ -202,8 +202,8 @@ int ShellModules::panelExtent(int fallbackHeight) const {
     return 0;
   const auto style = panel.value("style").toObject();
   const int height = style.value("height").toInt();
-  return qMax(42, height ? height : fallbackHeight) +
-         style.value("margin").toInt() + 6;
+  return qMax(24, height ? height : fallbackHeight) +
+         2 * style.value("margin").toInt();
 }
 QString ShellModules::panelEdge() const {
   const auto edge =

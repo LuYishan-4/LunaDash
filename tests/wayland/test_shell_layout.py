@@ -2,7 +2,8 @@
 
 The compositor uses pixman and Qt Quick uses its software renderer. Screenshots
 are evidence of this software session, not physical GPU or login-session tests.
-Run from the dedicated Arch workflow with Quickshell, grim and Pillow installed.
+Run from the dedicated Arch workflow with Quickshell, grim, wtype, AT-SPI and
+Pillow installed. Settings edits use its public accessible controls and keyboard.
 """
 
 import json
@@ -17,15 +18,17 @@ import sys
 import tempfile
 import time
 
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageDraw, ImageStat
 
 if os.environ.get("CI", "").lower() != "true":
     raise SystemExit("This smoke test runs only in CI; no local session is started.")
 
+import pyatspi
+
 build = Path(sys.argv[1]).resolve()
 evidence = build / "ci-evidence" / "shell-layout"
 evidence.mkdir(parents=True, exist_ok=True)
-for executable in ("quickshell", "grim"):
+for executable in ("quickshell", "grim", "wtype"):
     assert shutil.which(executable), f"Required runtime tool is missing: {executable}"
 for executable in ("lunadash-compositor", "lunadash-desktop", "lunadashctl", "lunadash-shell-tool"):
     assert (build / executable).is_file(), f"Required build target is missing: {executable}"
@@ -81,6 +84,32 @@ def reject_qml_errors(path):
     assert not errors, "Quickshell runtime errors:\n" + "\n".join(errors[-25:])
 
 
+def accessibility_nodes():
+    """Read the public accessibility tree, without a shell test/debug endpoint."""
+    pending = [(pyatspi.Registry.getDesktop(0), 0)]
+    visited = 0
+    while pending and visited < 6000:
+        node, depth = pending.pop()
+        visited += 1
+        try:
+            role = node.getRoleName()
+            name = node.name or ""
+            description = node.description or ""
+            try:
+                action = node.queryAction()
+                actions = [action.getName(index) for index in range(action.nActions)]
+            except NotImplementedError:
+                actions = []
+            yield node, {"name": name, "role": role, "description": description,
+                         "actions": actions, "depth": depth}
+            if depth < 30:
+                pending.extend((node.getChildAtIndex(index), depth + 1)
+                               for index in range(node.childCount - 1, -1, -1))
+        except Exception:
+            # A popup or settings page may disappear during an accessibility read.
+            continue
+
+
 with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
     runtime = Path(temporary)
     os.chmod(runtime, 0o700)
@@ -107,6 +136,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
         "QT_QUICK_BACKEND": "software",
         "QSG_RHI_BACKEND": "software",
         "QT_FORCE_STDERR_LOGGING": "1",
+        "QT_LINUX_ACCESSIBILITY_ALWAYS_ON": "1",
         "LIBGL_ALWAYS_SOFTWARE": "1",
         "LUDASH_SKIP_SETUP": "1",
         "LUDASH_LANGUAGE": "en_US",
@@ -121,7 +151,8 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
         "WAYLAND_DISPLAY": "lunadash-ci-headless-parent-marker",
     }
     for key in ("DISPLAY", "XAUTHORITY", "MESA_GL_VERSION_OVERRIDE", "MESA_GLSL_VERSION_OVERRIDE",
-                "LUNADASH_CONTROL", "LUDASH_CONTROL", "LUNADASH_PUBLISH_ACTIVATION_ENV"):
+                "LUNADASH_CONTROL", "LUDASH_CONTROL", "LUNADASH_PUBLISH_ACTIVATION_ENV",
+                "NO_AT_BRIDGE", "QT_ACCESSIBILITY"):
         env.pop(key, None)
 
     def request(method="status", value=""):
@@ -140,9 +171,10 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
 
     log_path = evidence / "session.log"
     snapshots = []
+    ui_actions = []
     with log_path.open("w+") as log:
         process = subprocess.Popen(
-            [str(build / "lunadash-compositor"), "--socket", socket_name, "--exit-after", "150000"],
+            [str(build / "lunadash-compositor"), "--socket", socket_name, "--exit-after", "220000"],
             env=env, stdout=log, stderr=log, start_new_session=True,
         )
 
@@ -177,6 +209,147 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                 converted = image.convert("RGB")
                 assert converted.getcolors(maxcolors=256) is None, "Captured desktop is blank"
                 return converted
+
+        def find_control(name, kind="action", description=None, timeout=12):
+            deadline = time.monotonic() + timeout
+            last_tree = []
+            while time.monotonic() < deadline:
+                assert process.poll() is None, "Compositor exited during settings interaction"
+                reject_qml_errors(log_path)
+                last_tree = []
+                for node, details in accessibility_nodes():
+                    last_tree.append(details)
+                    if details["name"] != name or (description and details["description"] != description):
+                        continue
+                    try:
+                        states = node.getState()
+                        if not states.contains(pyatspi.STATE_ENABLED) or not states.contains(pyatspi.STATE_SENSITIVE):
+                            continue
+                        if kind == "action" and not details["actions"]:
+                            continue
+                        if kind == "editable":
+                            node.queryEditableText()
+                        if kind == "combo" and "combo" not in details["role"]:
+                            continue
+                        return node, details
+                    except NotImplementedError:
+                        continue
+                time.sleep(0.2)
+            (evidence / "accessibility-missing-control.json").write_text(json.dumps(last_tree, indent=2))
+            raise AssertionError(f"Accessible Settings control is missing: {name} ({kind})")
+
+        def press_control(name, description=None):
+            node, details = find_control(name, description=description)
+            try:
+                details["scrolledIntoView"] = bool(node.queryComponent().scrollTo(pyatspi.SCROLL_ANYWHERE))
+            except Exception:
+                # AT-SPI actions remain available for controls inside a clipped
+                # Settings page even when Qt does not implement ScrollTo.
+                details["scrolledIntoView"] = False
+            action = node.queryAction()
+            preferred = next((index for index, label in enumerate(details["actions"])
+                              if label.lower() in ("press", "click", "toggle")), 0)
+            assert action.doAction(preferred), details
+            ui_actions.append(details | {"operation": "activate", "action": details["actions"][preferred]})
+
+        def key_input(*arguments):
+            key_env = env | {"WAYLAND_DISPLAY": socket_name}
+            key_env.pop("WAYLAND_DEBUG", None)
+            completed = subprocess.run(["wtype", *arguments], env=key_env, text=True,
+                                       capture_output=True, timeout=5)
+            assert completed.returncode == 0, completed.stderr
+
+        def edit_control(name, value):
+            node, details = find_control(name, kind="editable")
+            assert node.queryComponent().grabFocus(), details
+            key_input("-M", "ctrl", "-k", "a", "-m", "ctrl", str(value), "-k", "Return")
+            ui_actions.append(details | {"operation": "keyboard-edit", "value": value})
+
+        def select_control(name, index):
+            node, details = find_control(name, kind="combo")
+            assert node.queryComponent().grabFocus(), details
+            key_input("-k", "space")
+            # The shipped combo deliberately arms its popup after 140 ms to avoid
+            # opening presses accidentally activating a choice.
+            time.sleep(0.2)
+            arguments = ["-k", "Home"]
+            for _ in range(index):
+                arguments.extend(("-k", "Down"))
+            arguments.extend(("-k", "Return"))
+            key_input(*arguments)
+            ui_actions.append(details | {"operation": "keyboard-select", "index": index})
+
+        def panel_document(state):
+            return state["shellModules"]["document"]["modules"]["panel"]
+
+        def application_clients(state):
+            return [client for client in state["clients"] if client["mapped"]
+                    and not client.get("desktop") and not client.get("utility")]
+
+        def clients_settled(state, count):
+            clients = application_clients(state)
+            return len(clients) == count and all(
+                client["contentGeometryWidth"] == client["width"]
+                and client["contentGeometryHeight"] == client["height"]
+                and client["frameX"] == client["x"] and client["frameY"] == client["y"]
+                and client["frameWidth"] == client["width"]
+                and client["frameHeight"] == client["height"]
+                and client["cornerRadius"] == 16
+                for client in clients)
+
+        def verify_tiles(state):
+            area = state["workArea"]
+            clients = application_clients(state)
+            assert area["y"] >= panel_box[3], (area, panel_box)
+            boxes = []
+            for client in clients:
+                assert client["visible"] and client["contentVisible"], client
+                assert client["width"] >= 320 and client["height"] >= 220, client
+                x, y, width, height = (client[key] for key in ("frameX", "frameY", "frameWidth", "frameHeight"))
+                box = (x, y, x + width, y + height)
+                assert x >= area["x"] and y >= area["y"], (client, area)
+                assert box[2] <= area["x"] + area["width"], (client, area)
+                assert box[3] <= area["y"] + area["height"], (client, area)
+                for previous in boxes:
+                    assert box[2] <= previous[0] or previous[2] <= box[0] or box[3] <= previous[1] or previous[3] <= box[1], (boxes, box)
+                boxes.append(box)
+            return clients
+
+        def verify_corners(name, rendered, baseline, clients):
+            # The contrasting CI wallpaper makes a painted square corner visibly
+            # different from the expected uncovered desktop in both glass modes.
+            atlas = Image.new("RGB", (4 * 256, len(clients) * 280), "#111111")
+            labels = ImageDraw.Draw(atlas)
+            metrics = []
+            errors = []
+            for row, client in enumerate(clients):
+                x, y, width, height = (client[key] for key in ("frameX", "frameY", "frameWidth", "frameHeight"))
+                radius = client["cornerRadius"]
+                corners = (("top-left", x, y, 1, 1),
+                           ("top-right", x + width - 1, y, -1, 1),
+                           ("bottom-left", x, y + height - 1, 1, -1),
+                           ("bottom-right", x + width - 1, y + height - 1, -1, -1))
+                for column, (label, cx, cy, dx, dy) in enumerate(corners):
+                    px, py = min(cx, cx + dx), min(cy, cy + dy)
+                    patch = (px, py, px + 2, py + 2)
+                    outside = ImageStat.Stat(ImageChops.difference(rendered.crop(patch), baseline.crop(patch))).mean
+                    ix, iy = cx + dx * (radius + 6), cy + dy * (radius + 6)
+                    inner_patch = (ix, iy, ix + 2, iy + 2)
+                    inside = ImageStat.Stat(ImageChops.difference(rendered.crop(inner_patch), baseline.crop(inner_patch))).mean
+                    metrics.append({"client": client["id"], "corner": label,
+                                    "desktopDifference": outside, "contentDifference": inside})
+                    if max(outside) > 8:
+                        errors.append((client["id"], label, "square corner painted over desktop", outside))
+                    if max(inside) < 12:
+                        errors.append((client["id"], label, "window interior did not paint", inside))
+                    crop_x = cx - 4 if dx > 0 else cx - 27
+                    crop_y = cy - 4 if dy > 0 else cy - 27
+                    crop = rendered.crop((crop_x, crop_y, crop_x + 32, crop_y + 32))
+                    atlas.paste(crop.resize((256, 256), Image.Resampling.NEAREST), (column * 256, row * 280))
+                    labels.text((column * 256 + 4, row * 280 + 260), f"Window {client['id']} / {label}", fill="white")
+            atlas.save(evidence / f"{name}-corner-details.png")
+            (evidence / f"{name}-corner-pixels.json").write_text(json.dumps(metrics, indent=2))
+            assert not errors, (name, errors)
 
         try:
             initial = wait_for(
@@ -225,43 +398,161 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                                   "controlCenter": popup, "popupBox": box, "state": opened})
                 request("appearance", json.dumps({"overview": False}))
                 wait_for(lambda state: state["layerSurfaces"] == 3, "control-center close")
+            # Settings values must pass through the shipped QML controls. IPC is
+            # used to open the page and observe state, never to save these fields.
+            request("desktop-size", "1920x1080")
+            wait_for(lambda state: state["display"]["width"] == 1920, "large settings output")
+            request("open-settings", "appearance")
+            wait_for(lambda state: live_layer(log_path, "lunadash-settings") is not None,
+                     "Appearance settings mapping")
+            time.sleep(0.5)
+            press_control("Show CPU and memory")
+            wait_for(lambda state: panel_document(state)["config"]["showSystemStats"] is False,
+                     "the actual Settings switch saves the panel config")
+            press_control("Show CPU and memory")
+            wait_for(lambda state: panel_document(state)["config"]["showSystemStats"] is True,
+                     "the panel switch can be enabled again")
+            press_control("Centered launcher")
+            wait_for(lambda state: panel_document(state)["config"]["centerLauncher"] is False,
+                     "the centered launcher switch saves")
+            press_control("Centered launcher")
+            wait_for(lambda state: panel_document(state)["config"]["centerLauncher"] is True,
+                     "the centered launcher switch restores")
+            select_control("Panel length", 1)
+            wait_for(lambda state: panel_document(state)["style"]["width"] == 960,
+                     "custom length saves before editing its width")
+            edit_control("Panel width", "1200")
+            wait_for(lambda state: panel_document(state)["style"]["width"] == 1200,
+                     "custom panel width saves from its input field")
+            edit_control("Panel height", "48")
+            wait_for(lambda state: panel_document(state)["style"]["height"] == 48,
+                     "panel height saves before editing its margin")
+            edit_control("Panel margin", "14")
+            configured = wait_for(
+                lambda state: panel_document(state)["style"]["height"] == 48
+                    and panel_document(state)["style"]["margin"] == 14,
+                "panel height and margin save from Settings",
+            )
+            saved_path = runtime / "config" / "LuDash" / "shell-modules.json"
+            saved = json.loads(saved_path.read_text())
+            assert saved["modules"]["panel"]["style"]["width"] == 1200, saved
+            assert saved["modules"]["panel"]["style"]["height"] == 48, saved
+            assert saved["modules"]["panel"]["style"]["margin"] == 14, saved
+            (evidence / "settings-saved-shell-modules.json").write_text(json.dumps(saved, indent=2))
+            capture("settings-panel-saved-1920x1080", (1920, 1080))
+            snapshots.append({"scene": "settings-ui-save", "state": configured})
+            launcher_path = evidence / "custom-launcher.png"
+            launcher = Image.new("RGBA", (64, 64), "#ed354f")
+            launcher_draw = ImageDraw.Draw(launcher)
+            launcher_draw.ellipse((12, 12, 52, 52), fill="#52f5ee")
+            launcher.save(launcher_path)
+            press_control("Choose launcher image")
+            edit_control("Image path", str(launcher_path))
+            capture("settings-launcher-image-picker-1920x1080", (1920, 1080))
+            press_control("Use image")
+            custom_logo_state = wait_for(
+                lambda state: panel_document(state)["config"]["launcherImage"] == launcher_path.as_uri(),
+                "the actual image picker saves the custom launcher image",
+            )
+            saved_logo = json.loads(saved_path.read_text())
+            assert saved_logo["modules"]["panel"]["config"]["launcherImage"] == launcher_path.as_uri(), saved_logo
+            (evidence / "settings-custom-launcher-modules.json").write_text(json.dumps(saved_logo, indent=2))
+            snapshots.append({"scene": "settings-custom-launcher", "state": custom_logo_state})
+            # Close and reopen the real page before checking the saved value.
+            press_control("×", description="Quick hide settings")
+            wait_for(lambda state: live_layer(log_path, "lunadash-settings") is None,
+                     "Settings closes through its own button")
+            time.sleep(0.4)
+            custom_logo_image = capture("custom-panel-launcher-1920x1080", (1920, 1080))
+            request("open-settings", "appearance")
+            wait_for(lambda state: live_layer(log_path, "lunadash-settings") is not None,
+                     "Settings reopens with the saved profile")
+            width_field, _ = find_control("Panel width", kind="editable")
+            assert width_field.queryText().getText(0, -1) == "1200", "Saved panel width did not reload in Settings"
+            press_control("Restore LunaDash logo")
+            wait_for(lambda state: panel_document(state)["config"]["launcherImage"] == "",
+                     "the Settings restore button reinstates the built-in LunaDash logo")
+            restored_profile = json.loads(saved_path.read_text())
+            assert restored_profile["modules"]["panel"]["config"]["launcherImage"] == "", restored_profile
+            press_control("×", description="Quick hide settings")
+            wait_for(lambda state: live_layer(log_path, "lunadash-settings") is None,
+                     "Settings closes before panel rendering checks")
+            wait_for(lambda state: live_layer(log_path, "lunadash-panel")["configure"][-2:] == [1200, 48],
+                     "the Wayland panel uses its saved custom size")
+            custom_panel = live_layer(log_path, "lunadash-panel")
+            assert custom_panel.get("set_anchor") == [1], custom_panel  # Centered along the top edge.
+            assert custom_panel.get("set_margin", []) == [14, 14, 14, 14], custom_panel
+            panel_box = (360, 14, 1560, 62)
+            time.sleep(0.4)
+            restored_logo_image = capture("restored-lunadash-launcher-1920x1080", (1920, 1080))
+            launcher_box = (940, 18, 980, 58)
+            logo_change = ImageChops.difference(custom_logo_image.crop(launcher_box), restored_logo_image.crop(launcher_box)).convert("L")
+            changed_logo_pixels = logo_change.point(lambda value: 255 if value > 15 else 0).histogram()[255]
+            assert changed_logo_pixels > 150, "The saved custom image did not visibly replace the centered LunaDash logo"
+            request("appearance", json.dumps({"themeMode": "light"}))
+            wait_for(lambda state: state["palette"]["dark"] is False, "light panel reference palette")
+            time.sleep(0.5)
+            light_panel = capture("custom-panel-light-1920x1080", (1920, 1080))
+            request("appearance", json.dumps({"themeMode": "dark"}))
+            dark_state = wait_for(lambda state: state["palette"]["dark"] is True, "dark panel palette")
+            time.sleep(0.5)
+            dark_panel = capture("custom-panel-dark-1920x1080", (1920, 1080))
+            light_crop = light_panel.crop(panel_box).convert("L")
+            dark_crop = dark_panel.crop(panel_box).convert("L")
+            darker = ImageChops.subtract(light_crop, dark_crop)
+            darkened = darker.point(lambda value: 255 if value > 12 else 0).histogram()[255]
+            assert darkened > 1200 * 48 * 0.08, "Dark panel capsules stayed bright after the palette changed"
+            snapshots.append({"scene": "custom-panel-dark", "panel": custom_panel,
+                              "panelBox": panel_box, "darkenedPixels": darkened, "state": dark_state})
+            corner_wallpaper_path = evidence / "corner-check-wallpaper.png"
+            corner_wallpaper = Image.new("RGB", (1920, 1080), "#2d598c")
+            wallpaper_draw = ImageDraw.Draw(corner_wallpaper)
+            for row in range(0, 1080, 24):
+                for column in range(0, 1920, 24):
+                    if (row // 24 + column // 24) % 2:
+                        wallpaper_draw.rectangle((column, row, column + 23, row + 23), fill="#5e3778")
+            corner_wallpaper.save(corner_wallpaper_path)
+            request("wallpaper-image", str(corner_wallpaper_path))
+            wait_for(lambda state: str(corner_wallpaper_path) in state["wallpaperImage"],
+                     "contrasting wallpaper for native corner pixel checks")
+            time.sleep(0.8)
+            corner_baseline = capture("corner-reference-desktop-1920x1080", (1920, 1080))
             # Exercise the screenshot's recursive split using actual Qt Wayland
             # clients, then verify that the same clients receive real backdrops.
             request("desktop-size", "1920x1080")
             wait_for(lambda state: state["display"]["width"] == 1920, "large split-layout output")
             opened_ids = []
-            main_geometry = None
             for index in range(6):
                 if index == 3:
                     request("focus", opened_ids[1])
                 request("launch-default", "files")
                 state = wait_for(
-                    lambda state: len([client for client in state["clients"]
-                                      if client["mapped"] and not client.get("desktop")
-                                      and not client.get("utility")]) == index + 1,
-                    f"application {index + 1} mapping",
+                    lambda state: clients_settled(state, index + 1),
+                    f"application {index + 1} mapping with its configured buffer size",
                 )
-                clients = [client for client in state["clients"] if client["mapped"]
-                           and not client.get("desktop") and not client.get("utility")]
+                clients = verify_tiles(state)
                 added = [client for client in clients if client["id"] not in opened_ids]
                 assert len(added) == 1, clients
                 opened_ids.append(added[0]["id"])
                 if index == 1:
                     main = next(client for client in clients if client["id"] == opened_ids[0])
-                    main_geometry = [main[key] for key in ("x", "y", "width", "height")]
+                    assert main["x"] > added[0]["x"], clients
+                snapshots.append({"scene": f"recursive-windows-{index + 1}", "state": state})
             glass = wait_for(lambda state: state.get("blurReady")
                              and not state.get("blurFailed") and state.get("blurFrames", 0) > 0,
                              "application backdrop rendering")
-            main = next(client for client in glass["clients"] if client["id"] == opened_ids[0])
-            assert [main[key] for key in ("x", "y", "width", "height")] == main_geometry, main
-            assert main["x"] >= 900, main
+            clients = verify_tiles(glass)
             time.sleep(0.5)
-            capture("recursive-windows-frosted-1920x1080", (1920, 1080))
+            frosted = capture("recursive-windows-frosted-1920x1080", (1920, 1080))
+            verify_corners("frosted", frosted, corner_baseline, clients)
             snapshots.append({"scene": "recursive-windows-frosted", "state": glass})
             request("appearance", json.dumps({"blur": False, "windowOpacity": 100}))
-            wait_for(lambda state: not state.get("blurReady") and not state.get("blurFailed"),
-                     "disabled backdrop rendering")
-            capture("recursive-windows-opaque-1920x1080", (1920, 1080))
+            opaque_state = wait_for(lambda state: not state.get("blurReady") and not state.get("blurFailed"),
+                                   "disabled backdrop rendering")
+            time.sleep(0.3)
+            opaque = capture("recursive-windows-opaque-1920x1080", (1920, 1080))
+            verify_corners("opaque", opaque, corner_baseline, verify_tiles(opaque_state))
+            snapshots.append({"scene": "recursive-windows-opaque", "state": opaque_state})
             request("appearance", json.dumps({"blur": True, "windowOpacity": 90}))
             wait_for(lambda state: state.get("blurReady") and not state.get("blurFailed"),
                      "restored backdrop rendering")
@@ -269,12 +560,13 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                 "The disabled bottom dock created a layer-shell surface"
             )
             reject_qml_errors(log_path)
-            print("Quickshell layout passed: top panel, bounded right popup, no dock, recursive client tiles, frosted glass, and six screenshots.")
+            print("Quickshell layout passed: Settings UI saves, custom dark panel, bounded popup, no dock, fitted client buffers, and rounded glass/opaque window screenshots.")
         except BaseException:
             print(log_path.read_text(errors="replace")[-20000:], file=sys.stderr)
             raise
         finally:
             (evidence / "snapshots.json").write_text(json.dumps(snapshots, indent=2))
+            (evidence / "ui-actions.json").write_text(json.dumps(ui_actions, indent=2))
             (evidence / "layer-surfaces.json").write_text(json.dumps(layers_from_log(log_path), indent=2))
             # Quickshell and its helpers belong to this isolated process group;
             # also stop them if a compositor startup error left children alive.
