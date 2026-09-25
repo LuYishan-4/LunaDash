@@ -23,7 +23,13 @@ from PIL import Image, ImageChops, ImageDraw, ImageStat
 if os.environ.get("CI", "").lower() != "true":
     raise SystemExit("This smoke test runs only in CI; no local session is started.")
 
+# This synchronous polling client must query the live tree, rather than retain
+# libatspi's initial empty child cache before the shell maps its windows. Qt's
+# bridge exposes the standard shared bus, without the optional private bus API.
+os.environ["ATSPI_NO_CACHE"] = "1"
+os.environ["ATSPI_DISABLE_P2P"] = "1"
 import pyatspi
+from gi.repository import GLib
 
 build = Path(sys.argv[1]).resolve()
 evidence = build / "ci-evidence" / "shell-layout"
@@ -86,6 +92,9 @@ def reject_qml_errors(path):
 
 def accessibility_nodes():
     """Read the public accessibility tree, without a shell test/debug endpoint."""
+    context = GLib.MainContext.default()
+    while context.pending():
+        context.iteration(False)
     pending = [(pyatspi.Registry.getDesktop(0), 0)]
     visited = 0
     while pending and visited < 6000:
@@ -101,7 +110,7 @@ def accessibility_nodes():
             except NotImplementedError:
                 actions = []
             yield node, {"name": name, "role": role, "description": description,
-                         "actions": actions, "depth": depth}
+                         "actions": actions, "children": node.childCount, "depth": depth}
             if depth < 30:
                 pending.extend((node.getChildAtIndex(index), depth + 1)
                                for index in range(node.childCount - 1, -1, -1))
@@ -396,6 +405,75 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                                   "controlCenter": popup, "popupBox": box, "state": opened})
                 request("appearance", json.dumps({"overview": False}))
                 wait_for(lambda state: state["layerSurfaces"] == 3, "control-center close")
+            # Capture native tiling and rounded pixels before UI automation so
+            # an accessibility failure still leaves independent renderer evidence.
+            request("desktop-size", "1920x1080")
+            wait_for(lambda state: state["display"]["width"] == 1920, "large native rendering output")
+            time.sleep(0.5)
+            native_panel = live_layer(log_path, "lunadash-panel")
+            top, right, bottom, left = native_panel.get("set_margin", [0, 0, 0, 0])
+            panel_box = (left, top, 1920 - right, top + native_panel["configure"][-1])
+            request("appearance", json.dumps({"themeMode": "dark"}))
+            wait_for(lambda state: state["palette"]["dark"] is True, "native rendering dark palette")
+            corner_wallpaper_path = evidence / "corner-check-wallpaper.png"
+            corner_wallpaper = Image.new("RGB", (1920, 1080), "#2d598c")
+            wallpaper_draw = ImageDraw.Draw(corner_wallpaper)
+            for row in range(0, 1080, 24):
+                for column in range(0, 1920, 24):
+                    if (row // 24 + column // 24) % 2:
+                        wallpaper_draw.rectangle((column, row, column + 23, row + 23), fill="#5e3778")
+            corner_wallpaper.save(corner_wallpaper_path)
+            request("wallpaper-image", str(corner_wallpaper_path))
+            wait_for(lambda state: str(corner_wallpaper_path) in state["wallpaperImage"],
+                     "contrasting wallpaper for native corner pixel checks")
+            time.sleep(0.8)
+            corner_baseline = capture("corner-reference-desktop-1920x1080", (1920, 1080))
+            # Exercise the screenshot's recursive split using actual Qt Wayland
+            # clients, then verify that the same clients receive real backdrops.
+            request("desktop-size", "1920x1080")
+            wait_for(lambda state: state["display"]["width"] == 1920, "large split-layout output")
+            opened_ids = []
+            for index in range(6):
+                if index == 3:
+                    request("focus", opened_ids[1])
+                request("launch-default", "files")
+                state = wait_for(
+                    lambda state: clients_settled(state, index + 1),
+                    f"application {index + 1} mapping with its configured buffer size",
+                )
+                clients = verify_tiles(state)
+                added = [client for client in clients if client["id"] not in opened_ids]
+                assert len(added) == 1, clients
+                opened_ids.append(added[0]["id"])
+                if index == 1:
+                    main = next(client for client in clients if client["id"] == opened_ids[0])
+                    assert main["x"] > added[0]["x"], clients
+                snapshots.append({"scene": f"recursive-windows-{index + 1}", "state": state})
+            glass = wait_for(lambda state: state.get("blurReady")
+                             and not state.get("blurFailed") and state.get("blurFrames", 0) > 0,
+                             "application backdrop rendering")
+            clients = verify_tiles(glass)
+            time.sleep(0.5)
+            frosted = capture("recursive-windows-frosted-1920x1080", (1920, 1080))
+            verify_corners("frosted", frosted, corner_baseline, clients)
+            snapshots.append({"scene": "recursive-windows-frosted", "state": glass})
+            request("appearance", json.dumps({"blur": False, "windowOpacity": 100}))
+            opaque_state = wait_for(lambda state: not state.get("blurReady") and not state.get("blurFailed"),
+                                   "disabled backdrop rendering")
+            time.sleep(0.3)
+            opaque = capture("recursive-windows-opaque-1920x1080", (1920, 1080))
+            verify_corners("opaque", opaque, corner_baseline, verify_tiles(opaque_state))
+            snapshots.append({"scene": "recursive-windows-opaque", "state": opaque_state})
+            request("appearance", json.dumps({"blur": True, "windowOpacity": 90}))
+            wait_for(lambda state: state.get("blurReady") and not state.get("blurFailed"),
+                     "restored backdrop rendering")
+            for client_id in opened_ids:
+                request("close", client_id)
+            wait_for(lambda state: not application_clients(state), "native verification clients close")
+            request("wallpaper-default")
+            wait_for(lambda state: str(corner_wallpaper_path) not in state["wallpaperImage"],
+                     "restore the shipped wallpaper before Settings screenshots")
+            time.sleep(0.8)
             # Settings values must pass through the shipped QML controls. IPC is
             # used to open the page and observe state, never to save these fields.
             request("desktop-size", "1920x1080")
@@ -502,58 +580,16 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             assert darkened > 1200 * 48 * 0.08, "Dark panel capsules stayed bright after the palette changed"
             snapshots.append({"scene": "custom-panel-dark", "panel": custom_panel,
                               "panelBox": panel_box, "darkenedPixels": darkened, "state": dark_state})
-            corner_wallpaper_path = evidence / "corner-check-wallpaper.png"
-            corner_wallpaper = Image.new("RGB", (1920, 1080), "#2d598c")
-            wallpaper_draw = ImageDraw.Draw(corner_wallpaper)
-            for row in range(0, 1080, 24):
-                for column in range(0, 1920, 24):
-                    if (row // 24 + column // 24) % 2:
-                        wallpaper_draw.rectangle((column, row, column + 23, row + 23), fill="#5e3778")
-            corner_wallpaper.save(corner_wallpaper_path)
-            request("wallpaper-image", str(corner_wallpaper_path))
-            wait_for(lambda state: str(corner_wallpaper_path) in state["wallpaperImage"],
-                     "contrasting wallpaper for native corner pixel checks")
-            time.sleep(0.8)
-            corner_baseline = capture("corner-reference-desktop-1920x1080", (1920, 1080))
-            # Exercise the screenshot's recursive split using actual Qt Wayland
-            # clients, then verify that the same clients receive real backdrops.
-            request("desktop-size", "1920x1080")
-            wait_for(lambda state: state["display"]["width"] == 1920, "large split-layout output")
-            opened_ids = []
-            for index in range(6):
-                if index == 3:
-                    request("focus", opened_ids[1])
+            for count in (1, 2):
                 request("launch-default", "files")
-                state = wait_for(
-                    lambda state: clients_settled(state, index + 1),
-                    f"application {index + 1} mapping with its configured buffer size",
-                )
-                clients = verify_tiles(state)
-                added = [client for client in clients if client["id"] not in opened_ids]
-                assert len(added) == 1, clients
-                opened_ids.append(added[0]["id"])
-                if index == 1:
-                    main = next(client for client in clients if client["id"] == opened_ids[0])
-                    assert main["x"] > added[0]["x"], clients
-                snapshots.append({"scene": f"recursive-windows-{index + 1}", "state": state})
-            glass = wait_for(lambda state: state.get("blurReady")
-                             and not state.get("blurFailed") and state.get("blurFrames", 0) > 0,
-                             "application backdrop rendering")
-            clients = verify_tiles(glass)
-            time.sleep(0.5)
-            frosted = capture("recursive-windows-frosted-1920x1080", (1920, 1080))
-            verify_corners("frosted", frosted, corner_baseline, clients)
-            snapshots.append({"scene": "recursive-windows-frosted", "state": glass})
-            request("appearance", json.dumps({"blur": False, "windowOpacity": 100}))
-            opaque_state = wait_for(lambda state: not state.get("blurReady") and not state.get("blurFailed"),
-                                   "disabled backdrop rendering")
-            time.sleep(0.3)
-            opaque = capture("recursive-windows-opaque-1920x1080", (1920, 1080))
-            verify_corners("opaque", opaque, corner_baseline, verify_tiles(opaque_state))
-            snapshots.append({"scene": "recursive-windows-opaque", "state": opaque_state})
-            request("appearance", json.dumps({"blur": True, "windowOpacity": 90}))
-            wait_for(lambda state: state.get("blurReady") and not state.get("blurFailed"),
-                     "restored backdrop rendering")
+                custom_windows = wait_for(lambda state: clients_settled(state, count),
+                                          f"custom-panel work area with {count} clients")
+                verify_tiles(custom_windows)
+            capture("custom-panel-window-work-area-1920x1080", (1920, 1080))
+            snapshots.append({"scene": "custom-panel-window-work-area", "state": custom_windows})
+            for client in application_clients(custom_windows):
+                request("close", client["id"])
+            wait_for(lambda state: not application_clients(state), "custom-panel clients close")
             assert not any(layer["namespace"] == "lunadash-dock" for layer in layers_from_log(log_path)), (
                 "The disabled bottom dock created a layer-shell surface"
             )
