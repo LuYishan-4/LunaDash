@@ -25,5 +25,6 @@ void publishActivationEnvironment(
 // environment has reached the user service manager. try-restart is used so
 // inactive services remain D-Bus activated on demand.
 void refreshScreencastPortalServices(
-    const QProcessEnvironment &environment, QObject *owner);
+    const QProcessEnvironment &environment, QObject *owner,
+    std::function<void()> completion = {});
 } // namespace LunaDash
