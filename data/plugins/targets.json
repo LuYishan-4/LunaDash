@@ -978,5 +978,23 @@
         "unit": "ms"
       }
     }
+  },
+  {
+    "id": "wallpaper-gallery",
+    "name": "Wallpaper gallery",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
   }
 ]

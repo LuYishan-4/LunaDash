@@ -54,7 +54,17 @@ Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The 
 
 ## Install
 
-Clone the development branch, then run the session installer:
+On Arch Linux, the guided installer offers Traditional Chinese / English,
+optional applications and a separate system-locale choice. Review the script
+before executing downloaded code. See the [English guide](docs/en/GUIDED_INSTALL.md)
+or [繁體中文指南](docs/zh/GUIDED_INSTALL.md).
+
+```bash
+curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/LuYishan-4/LunaDash/dev/install.sh | bash
+```
+
+For developer/testing installs or other distributions, the existing session
+installer remains available and unchanged:
 
 ```sh
 git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
@@ -75,7 +85,9 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 | `Super` + `H` / `L` | Focus the window to the left / right |
 | `Super` + `K` / `J` | Focus the window above / below |
 | `Super` + `F` | Maximize one window / restore all workspace tiles |
-| `Alt` + `Tab` | Ten workspace previews; release Alt to switch |
+| `Alt` + `Tab` | Preview windows in the current workspace; release Alt to select |
+| `Super` + `Tab` | Workspace previews; release Super to switch |
+| `Super` + `W` | Toggle the directory-based wallpaper gallery |
 | `Alt` + drag | Move or swap slots; add Shift to resize |
 | `Super` + `Shift` + `S` | Select a screenshot region |
 | `Super` + `1`–`9` / `0` | Switch workspace |

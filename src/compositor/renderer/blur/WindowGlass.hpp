@@ -22,6 +22,9 @@ public:
     QSize size;
     bool enabled = true;
     int cornerRadius = 16;
+    // A shell surface owns its alpha in its client buffer. Negative uses the
+    // application-window preference; explicit values never dim shell text.
+    float opacity = -1.0f;
   };
 
   WindowGlass(wlr_renderer *renderer, wlr_allocator *allocator,

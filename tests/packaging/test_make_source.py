@@ -82,7 +82,7 @@ class SourceArchiveTests(unittest.TestCase):
         with tarfile.open(self.archive, "r:gz") as archive:
             names = archive.getnames()
             for name in (
-                "CMakeLists.txt", "cmake/plugins/LunaDashPlugin.cmake",
+                "CMakeLists.txt", "install.sh", "cmake/plugins/LunaDashPlugin.cmake",
                 "cmake/plugins/SettingsSchema.py", "src/core/plugins/PluginApi.h",
                 "data/plugins/targets.json", "data/plugins/catalog.json",
                 "data/modules/registry.json", "templates/plugins/effect-c/Effect.c",
@@ -143,6 +143,26 @@ class SourceArchiveTests(unittest.TestCase):
                    any(arg in ("maintenance", "gc")
                        for arg in event.get("argv", []))]
         self.assertEqual(workers, [], "Fixture Git started maintenance workers")
+
+    def test_sha_pinned_download_packages_without_git_checkout(self):
+        shutil.rmtree(self.project / ".git")
+        (self.project / ".lunadash-revision").write_text(self.revision + "\n")
+        self.assert_packaged()
+        with tarfile.open(self.archive, "r:gz") as archive:
+            self.assertEqual(
+                archive.extractfile(PREFIX + ".lunadash-revision").read().decode().strip(),
+                self.revision,
+            )
+            self.assertTrue(archive.getmember(PREFIX + "install.sh").mode & 0o111)
+
+    def test_invalid_archive_revision_is_rejected(self):
+        shutil.rmtree(self.project / ".git")
+        for revision in ("dev", "../main", "$(touch injected)", "a" * 40 + "\n" + "b" * 40):
+            (self.project / ".lunadash-revision").write_text(revision)
+            result = self.package()
+            self.assertNotEqual(result.returncode, 0, revision)
+            self.assertFalse(self.archive.exists())
+            self.assert_no_staging_files()
 
     def test_local_edits_are_included_and_mark_revision_dirty(self):
         readme = self.project / "README.md"

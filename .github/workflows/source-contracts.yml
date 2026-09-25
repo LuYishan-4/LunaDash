@@ -44,3 +44,7 @@ jobs:
         run: python3 tests/settings/test_schema.py
       - name: Validate Arch source packaging
         run: python3 tests/packaging/test_make_source.py
+      - name: Validate curl installer terminal isolation
+        run: |
+          bash -n install.sh
+          python3 tests/installer/test_install.py

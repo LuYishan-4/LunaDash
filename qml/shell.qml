@@ -50,6 +50,13 @@ ShellRoot {
     property bool launcherKeyboardActive: false
     property string launcherOpenSource: "mouse"
     property bool settingsOpen: false
+    property bool wallpaperGalleryOpen: false
+    readonly property alias wallpaperActions: wallpaperController
+    WallpaperActions {
+        id: wallpaperController
+        shell: root
+        onUpdated: if (!status.running) status.running = true
+    }
     property bool pickerOpen: false
     property string pickerPurpose: "wallpaper"
     property string pendingWallpaper: ""
@@ -227,6 +234,7 @@ ShellRoot {
         if (settingsOpen) dismissPopups("settings")
         else pickerOpen = false
     }
+    onWallpaperGalleryOpenChanged: if (wallpaperGalleryOpen) dismissPopups("wallpaper")
     onCalendarOpenChanged: if (calendarOpen) dismissPopups("calendar")
     onUsbPopupOpenChanged: if (usbPopupOpen) dismissPopups("devices")
     onVolumePopupOpenChanged: if (volumePopupOpen) dismissPopups("audio")
@@ -324,7 +332,10 @@ ShellRoot {
             overviewOpen = incomingOverview
         }
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; openSettingsPage(state.settingsPage || "general") }
-        if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; openSettingsPage("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
+        if ((state.pickerSerial || 0) !== lastPickerSerial) {
+            lastPickerSerial = state.pickerSerial || 0
+            togglePopup("wallpaper")
+        }
         if ((state.launcherSerial || 0) !== lastLauncherSerial)
             applyLauncherSignal(state.launcherSerial || 0, state.launcherOpen ?? true)
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
@@ -490,7 +501,7 @@ ShellRoot {
     }
 
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
-    Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running) Qt.quit() }
+    Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running && !wallpaperController.busy) Qt.quit() }
     Timer {
         interval: updateAction.running ? 350 : 1200
         running: true
@@ -570,13 +581,18 @@ ShellRoot {
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     LazyLoader {
         id: settingsLoader
-        loading: root.settingsOpen
+        activeAsync: root.settingsOpen || (active && item && item.reveal > 0)
         onActiveChanged: if (active) item.showCategory(root.settingsPage)
         SettingsPanel {
             shell: root
             opened: !root.stopping && root.settingsOpen
             onCategoryChanged: if (settingsLoader.active) root.settingsPage = category
         }
+    }
+    LazyLoader {
+        id: wallpaperGalleryLoader
+        activeAsync: root.wallpaperGalleryOpen || (active && item && item.reveal > 0)
+        WallpaperGallery { shell: root; opened: !root.stopping && root.wallpaperGalleryOpen }
     }
     SetupWizard { shell: root; opened: !root.stopping && root.state.setupComplete === false && !root.setupPaused }
     LazyLoader {

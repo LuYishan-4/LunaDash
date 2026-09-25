@@ -384,7 +384,10 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
     // Animation owns its temporary alpha and records this steady-state alpha
     // as its baseline. Never replace an in-progress fade with a preference.
     if (!animationsActive) {
-      float opacity = surface.enabled ? d->opacity : 1.0f;
+      float opacity = surface.enabled
+          ? (surface.opacity >= 0.0f ? std::clamp(surface.opacity, 0.0f, 1.0f)
+                                     : d->opacity)
+          : 1.0f;
       wlr_scene_node_for_each_buffer(&tree->node, setWindowOpacity, &opacity);
     }
     int x = 0, y = 0;

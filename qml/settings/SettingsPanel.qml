@@ -15,6 +15,11 @@ ModuleSurface {
 
     property string category: "general"
     property bool maximized: false
+    property real expansion: maximized ? 1 : 0
+    readonly property bool compact: width < 860
+    Behavior on expansion {
+        NumberAnimation { duration: Theme.motion; easing.type: Easing.InOutCubic }
+    }
     property var categories: [
         {id:"general",name:"General"},
         {id:"appearance",name:"Appearance"},
@@ -65,16 +70,23 @@ ModuleSurface {
 
     anchors.top: true
     anchors.left: true
-    margins.left: maximized ? overlayMargin
-        : (configuredX === 0 ? overlayMargin : configuredX)
-    margins.top: maximized ? Theme.panelTopInset + overlayMargin
-        : (configuredY === 0 ? Theme.panelTopInset + overlayMargin : configuredY)
-    implicitWidth: maximized
-        ? Math.max(820, availableScreenWidth - margins.left - overlayMargin)
-        : moduleWidth(1160)
-    implicitHeight: maximized
-        ? Math.max(600, availableScreenHeight - margins.top - overlayMargin)
-        : moduleHeight(740)
+    readonly property int normalX: Math.max(Theme.panelLeftInset + overlayMargin,
+        Math.min(configuredX || Theme.panelLeftInset + overlayMargin, availableScreenWidth - 360))
+    readonly property int normalY: Math.max(Theme.panelTopInset + overlayMargin,
+        Math.min(configuredY || Theme.panelTopInset + overlayMargin,
+                 availableScreenHeight - 280))
+    margins.left: Math.round(normalX +
+        (Theme.panelLeftInset + overlayMargin - normalX) * expansion)
+    margins.top: Math.round(normalY +
+        (Theme.panelTopInset + overlayMargin - normalY) * expansion)
+    readonly property int maximumWidth: Math.max(1,
+        availableScreenWidth - margins.left - overlayMargin - Theme.panelRightInset)
+    readonly property int maximumHeight: Math.max(1,
+        availableScreenHeight - margins.top - overlayMargin - Theme.panelBottomInset)
+    implicitWidth: Math.round(Math.min(maximumWidth,
+        moduleWidth(1160) + (maximumWidth - moduleWidth(1160)) * expansion))
+    implicitHeight: Math.round(Math.min(maximumHeight,
+        moduleHeight(740) + (maximumHeight - moduleHeight(740)) * expansion))
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: updateAuthorizing ? WlrLayer.Bottom : WlrLayer.Overlay
     WlrLayershell.namespace: "lunadash-settings"
@@ -82,14 +94,10 @@ ModuleSurface {
         ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
 
-    Rectangle {
+    GlassSurface {
         anchors.fill: parent
-        radius: maximized ? 26 : Theme.radiusHero
-        color: Theme.surfaceStrong
-        border.width: 1
-        border.color: Qt.rgba(Theme.starlight.r, Theme.starlight.g,
-                              Theme.starlight.b, 0.26)
-        Behavior on radius { NumberAnimation { duration: Theme.motionFast } }
+        shell: settings.shell
+        radius: 28
     }
 
     ColumnLayout {
@@ -102,7 +110,7 @@ ModuleSurface {
             Layout.fillWidth: true
             Layout.preferredHeight: 62
             radius: 20
-            color: Theme.surfaceGlass
+            color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.28)
             border.width: 1
             border.color: Theme.hairline
 
@@ -113,8 +121,8 @@ ModuleSurface {
                 spacing: 12
 
                 ColumnLayout {
-                    Layout.preferredWidth: 210
-                    Layout.minimumWidth: 160
+                    Layout.preferredWidth: settings.compact ? 100 : 210
+                    Layout.minimumWidth: settings.compact ? 90 : 160
                     spacing: 0
                     Text {
                         text: shell.tr("Settings")
@@ -142,7 +150,7 @@ ModuleSurface {
                     placeholderText: shell.tr("Search settings")
                     Accessible.name: placeholderText
                     Shortcut {
-                        sequence: StandardKey.Find
+                        sequences: [StandardKey.Find]
                         context: Qt.WindowShortcut
                         enabled: settings.opened && !settings.shell.pickerOpen
                         onActivated: {
@@ -170,6 +178,7 @@ ModuleSurface {
                 Item { Layout.fillWidth: true }
 
                 Rectangle {
+                    visible: !settings.compact
                     implicitWidth: categoryBadge.implicitWidth + 40
                     implicitHeight: 30
                     radius: 15
@@ -199,7 +208,8 @@ ModuleSurface {
                 }
 
                 Text {
-                    text: "1.0.1a"
+                    visible: !settings.compact
+                    text: (shell.state.update || {}).currentVersion || "1.0.1a"
                     color: Theme.muted
                     font.family: Theme.font
                     font.pixelSize: 9
@@ -228,12 +238,12 @@ ModuleSurface {
             spacing: 12
 
             Rectangle {
-                Layout.preferredWidth: maximized ? 282 : 254
-                Layout.minimumWidth: 180
+                Layout.preferredWidth: settings.compact ? 72 : 254 + 28 * settings.expansion
+                Layout.minimumWidth: settings.compact ? 60 : 180
                 Layout.maximumWidth: 300
                 Layout.fillHeight: true
                 radius: 22
-                color: Theme.surfaceGlass
+                color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.28)
                 border.width: 1
                 border.color: Theme.hairline
 
@@ -296,7 +306,7 @@ ModuleSurface {
                             readonly property bool selected:
                                 settings.category === modelData.id
                             width: ListView.view.width
-                            height: Math.max(42, categoryLabel.implicitHeight + 18)
+                            height: settings.compact ? 42 : Math.max(42, categoryLabel.implicitHeight + 18)
                             radius: 12
                             color: selected
                                 ? Qt.rgba(settings.moduleAccent.r,
@@ -324,6 +334,7 @@ ModuleSurface {
                                 }
                                 Text {
                                     id: categoryLabel
+                                    visible: !settings.compact
                                     width: Math.max(0, parent.width - 28)
                                     text: shell.tr(modelData.name)
                                     color: categoryRow.selected
@@ -350,14 +361,14 @@ ModuleSurface {
                 Layout.fillHeight: true
                 Layout.minimumWidth: 0
                 radius: 24
-                color: Theme.surfaceGlass
+                color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.28)
                 border.width: 1
                 border.color: Theme.hairline
                 clip: true
 
                 SettingsPageView {
                     anchors.fill: parent
-                    anchors.margins: maximized ? 26 : 22
+                    anchors.margins: settings.compact ? 12 : 22
                     shell: settings.shell
                     category: settings.category
                 }

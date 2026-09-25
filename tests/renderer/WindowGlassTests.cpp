@@ -312,6 +312,35 @@ private Q_SLOTS:
     QCOMPARE(window.content->opacity, 1.0f);
   }
 
+  void shellSurfaceKeepsItsOwnAlphaAndLayerGeometry() {
+    const auto app = addWindow();
+    auto *overlay = wlr_scene_tree_create(&scene_->tree);
+    const auto panel = addWindow();
+    wlr_scene_node_reparent(&panel.tree->node, overlay);
+    wlr_scene_node_set_position(&panel.tree->node, 40, 24);
+    QList<WindowGlass::Surface> targets{
+        {app.tree, {64, 64}, true}, {panel.tree, {64, 64}, true, 24, 1.0f}};
+    glass_->update(targets, false);
+    QVERIFY2(glass_->ready(), qPrintable(glass_->error()));
+    QCOMPARE(app.content->opacity, 0.8f);
+    QCOMPARE(panel.content->opacity, 1.0f);
+    auto *backdrop = underlay(panel.tree);
+    QVERIFY(backdrop);
+    QCOMPARE(backdrop->node.parent, overlay);
+    // Maximize/restore follows the layer's geometry without recreating content.
+    targets[1].size = {240, 180};
+    glass_->update(targets, false);
+    QCOMPARE(panel.content->opacity, 1.0f);
+    QCOMPARE(underlay(panel.tree), backdrop);
+    wlr_scene_node_set_enabled(&panel.tree->node, false);
+    glass_->update(targets, false);
+    QVERIFY(!underlay(panel.tree));
+    wlr_scene_node_destroy(&overlay->node);
+    targets.removeLast();
+    glass_->update(targets, false);
+    QCOMPARE(app.content->opacity, 0.8f);
+  }
+
   void invisibleAndExcludedWindowsHaveNoBackdrop() {
     const auto window = addWindow();
     QVERIFY(window.tree && window.content);

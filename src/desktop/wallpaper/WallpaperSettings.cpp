@@ -14,10 +14,12 @@
 #include <QStandardPaths>
 #include <QStringList>
 #include <QUrl>
+#include <QUuid>
 
 namespace LunaDash {
 namespace {
 constexpr int kWallpaperHistoryLimit = 12;
+constexpr int kWallpaperFavoriteLimit = 256;
 
 QString bundledWallpaperPath() {
   auto path = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
@@ -127,16 +129,34 @@ QJsonArray wallpaperLibrarySnapshot() {
       continue;
     result.append(wallpaperEntry(path, current, false));
   }
+  // Favorites remain reachable after switching libraries or rotating history.
+  // Ignore stale paths without ever making the shell open arbitrary file types.
+  const QStringList favorites =
+      settings.value("appearance/wallpaperFavorites").toStringList();
+  int favoriteCount = 0;
+  for (const auto &entry : favorites) {
+    if (++favoriteCount > kWallpaperFavoriteLimit) break;
+    const QString path = canonicalExistingFile(entry);
+    if (path.isEmpty() || (!wallpaperIsVideo(path) && !QImageReader(path).canRead()) ||
+        path == current || path == bundled || history.contains(path))
+      continue;
+    result.append(wallpaperEntry(path, current, false));
+  }
   // Bound discovery and cache it between shell polls. Categories are folders
   // one level below the user-selected library; symlinks are not traversed.
   static QString cachedDirectory;
   static QStringList library;
   static QElapsedTimer age;
+  static QString cachedRevision;
+  const QString libraryRevision = settings.value("appearance/wallpaperLibraryRefresh").toString();
   const auto directory = desktopPreferences().value("wallpaperDirectory").toString();
-  if (directory != cachedDirectory || !age.isValid() || age.elapsed() > 5000) {
+  if (directory != cachedDirectory || cachedRevision != libraryRevision ||
+      !age.isValid() || age.elapsed() > 5000) {
+    cachedRevision = libraryRevision;
     cachedDirectory = directory;
     library.clear();
     const auto addDirectory = [](const QString &folder) {
+      if (!QDir::isAbsolutePath(folder) || !QFileInfo(folder).isDir()) return;
       QDirIterator entries(folder, QDir::Files | QDir::Readable | QDir::NoSymLinks);
       int inspected = 0;
       while (entries.hasNext() && library.size() < 512 && ++inspected <= 2048) {
@@ -147,15 +167,17 @@ QJsonArray wallpaperLibrarySnapshot() {
       }
     };
     addDirectory(directory);
-    QDirIterator categories(directory, QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
-    int count = 0;
-    while (categories.hasNext() && library.size() < 512 && ++count <= 64)
-      addDirectory(categories.next());
+    if (QDir::isAbsolutePath(directory) && QFileInfo(directory).isDir()) {
+      QDirIterator categories(directory, QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+      int count = 0;
+      while (categories.hasNext() && library.size() < 512 && ++count <= 64)
+        addDirectory(categories.next());
+    }
     library.sort(Qt::CaseInsensitive);
     age.restart();
   }
   for (const auto &path : library) {
-    if (path != bundled && path != current && !history.contains(path))
+    if (path != bundled && path != current && !history.contains(path) && !favorites.contains(path))
       result.append(wallpaperEntry(path, current, false));
   }
   settings.sync();
@@ -167,9 +189,63 @@ QJsonObject wallpaperSnapshot() {
   const auto path = activeWallpaperPath(settings);
   auto result = wallpaperMediaStatus();
   result["current"] = wallpaperEntry(path, path, path == bundledWallpaperPath());
-  result["library"] = wallpaperLibrarySnapshot();
-  result["directory"] = desktopPreferences().value("wallpaperDirectory");
+  auto library = wallpaperLibrarySnapshot();
+  const QStringList favorites = settings.value("appearance/wallpaperFavorites").toStringList();
+  for (qsizetype i = 0; i < library.size(); ++i) {
+    auto entry = library[i].toObject();
+    entry["favorite"] = favorites.contains(entry.value("path").toString());
+    library[i] = entry;
+  }
+  result["library"] = library;
+  const QString directory = desktopPreferences().value("wallpaperDirectory").toString();
+  const QFileInfo info(directory);
+  result["directory"] = directory;
+  result["resolvedDirectory"] = info.exists() ? info.canonicalFilePath() : QDir::cleanPath(directory);
+  result["directoryExists"] = info.isDir();
+  result["directoryUrl"] = QUrl::fromLocalFile(directory).toString();
   return result;
+}
+
+bool refreshWallpaperLibrary(QString *error) {
+  QSettings settings;
+  settings.setValue("appearance/wallpaperLibraryRefresh", QUuid::createUuid().toString());
+  settings.sync();
+  if (settings.status() != QSettings::NoError) {
+    if (error) *error = "Could not refresh the wallpaper library.";
+    return false;
+  }
+  return true;
+}
+
+bool createWallpaperDirectory(QString *error) {
+  const QString directory = desktopPreferences().value("wallpaperDirectory").toString();
+  if (!QDir::isAbsolutePath(directory) || !QDir().mkpath(directory)) {
+    if (error) *error = "Could not create the wallpaper library directory.";
+    return false;
+  }
+  return refreshWallpaperLibrary(error);
+}
+
+bool setWallpaperFavorite(const QString &path, bool favorite, QString *error) {
+  const QString canonical = canonicalExistingFile(path);
+  if (canonical.isEmpty() || (!wallpaperIsVideo(canonical) &&
+      !QImageReader(canonical).canRead())) {
+    if (error) *error = "The wallpaper is no longer readable.";
+    return false;
+  }
+  QSettings settings;
+  QStringList favorites = settings.value("appearance/wallpaperFavorites").toStringList();
+  favorites.removeDuplicates();
+  favorites.removeAll(canonical);
+  if (favorite) favorites.prepend(canonical);
+  while (favorites.size() > kWallpaperFavoriteLimit) favorites.removeLast();
+  settings.setValue("appearance/wallpaperFavorites", favorites);
+  settings.sync();
+  if (settings.status() != QSettings::NoError) {
+    if (error) *error = "Could not save wallpaper favorites.";
+    return false;
+  }
+  return true;
 }
 
 bool selectRandomWallpaper(QString *error) {

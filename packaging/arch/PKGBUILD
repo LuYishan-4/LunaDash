@@ -5,9 +5,12 @@ pkgrel=1
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-multimedia' 'ffmpeg' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'dolphin' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'libpulse' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard' 'networkmanager' 'network-manager-applet' 'wireplumber' 'pavucontrol' 'bluez' 'bluez-utils' 'blueman' 'system-config-printer' 'gnome-disk-utility' 'partitionmanager' 'firewalld' 'seahorse' 'pciutils' 'usbutils' 'udisks2' 'power-profiles-daemon' 'gnome-control-center')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-multimedia' 'ffmpeg' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'libpulse' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard' 'networkmanager' 'network-manager-applet' 'wireplumber' 'pavucontrol' 'bluez' 'bluez-utils' 'blueman' 'system-config-printer' 'gnome-disk-utility' 'partitionmanager' 'firewalld' 'seahorse' 'pciutils' 'usbutils' 'udisks2' 'power-profiles-daemon' 'gnome-control-center')
 makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel' 'wayland-protocols')
-optdepends=('qt6-shadertools: Build OpenGL shader plugins with the LunaDash SDK'
+optdepends=('kitty: Optional default terminal'
+            'dolphin: Optional default file manager'
+            'fish: Optional interactive shell'
+            'qt6-shadertools: Build OpenGL shader plugins with the LunaDash SDK'
             'noto-fonts-cjk: CJK interface fonts'
             'mesa: Mesa OpenGL drivers')
 source=("ludash-${pkgver}.tar.gz")

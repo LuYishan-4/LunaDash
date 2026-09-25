@@ -46,6 +46,9 @@ jobs:
       - name: Exercise Settings through accessibility and real Wayland keyboard input
         if: ${{ !cancelled() && steps.build_shell.outcome == 'success' }}
         run: timeout 300 dbus-run-session -- python3 tests/wayland/test_shell_layout.py build-shell-layout
+      - name: Exercise animated Settings, inline controls and the wallpaper gallery
+        if: ${{ !cancelled() && steps.build_shell.outcome == 'success' }}
+        run: timeout 120 dbus-run-session -- python3 tests/wayland/test_desktop_flows.py build-shell-layout
       - name: Preserve desktop screenshots and runtime diagnostics
         if: always()
         uses: actions/upload-artifact@v4

@@ -7,6 +7,8 @@ import Quickshell.Wayland
 import "../modules"
 import "../components"
 import "../style"
+import "../settings"
+import "../imagepicker"
 
 ModuleSurface {
     id: center
@@ -15,14 +17,37 @@ ModuleSurface {
     anchors.right: true
     margins.top: Theme.panelTopInset + moduleMargin
     margins.right: Theme.panelRightInset + moduleMargin
-    implicitWidth: Math.min(moduleWidth(600), screen
+    implicitWidth: Math.min(moduleWidth(detailPage.length ? 840 : 600), screen
         ? Math.max(1, screen.width - margins.right - moduleMargin) : 600)
-    implicitHeight: Math.min(moduleHeight(520), screen
+    implicitHeight: Math.min(moduleHeight(detailPage.length ? 640 : 520), screen
         ? Math.max(1, screen.height - margins.top - Theme.panelBottomInset - moduleMargin) : 520)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "lunadash-control-center"
     color: "transparent"
+    WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    property string detailPage: ""
+    readonly property var detailNames: ({display: "Display", network: "Network",
+        bluetooth: "Bluetooth", power: "Power and battery", appearance: "Appearance",
+        system: "Users, date and time"})
+    function openDetail(page) {
+        if (Object.prototype.hasOwnProperty.call(detailNames, page))
+            detailPage = page
+    }
+    function focusNavigation() {
+        if (opened && navigationTabs.itemAt(0))
+            navigationTabs.itemAt(0).forceActiveFocus(Qt.OtherFocusReason)
+    }
+    function back() {
+        if (detailPage.length) { detailPage = ""; Qt.callLater(focusNavigation) }
+        else shell.setAppearance({overview: false})
+    }
+    Shortcut {
+        sequences: ["Escape"]
+        enabled: center.opened && !center.shell.pickerOpen
+        context: Qt.WindowShortcut
+        onActivated: center.back()
+    }
     readonly property int tab: config.showMedia === false && shell.controlCenterTab === 1
         ? 0 : Math.max(0, Math.min(3, shell.controlCenterTab))
     readonly property var config: specification.config || ({})
@@ -106,7 +131,7 @@ ModuleSurface {
     MediaController {
         id: compactMedia
         shell: center.shell
-        polling: center.opened && center.tab === 0 && (center.config.showMedia ?? true)
+        polling: center.opened && !center.detailPage.length && center.tab === 0 && (center.config.showMedia ?? true)
     }
     Timer {
         interval: 1000
@@ -119,14 +144,13 @@ ModuleSurface {
         }
     }
 
-    Rectangle {
+    GlassSurface {
         anchors.fill: parent
-        radius: Theme.radiusLarge
-        color: Theme.surfaceStrong
-        border.width: 1
-        border.color: Theme.hairline
+        shell: center.shell
+        radius: 24
         clip: true
         RowLayout {
+            enabled: !center.shell.pickerOpen
             anchors.fill: parent
             anchors.margins: 12
             spacing: 12
@@ -147,6 +171,7 @@ ModuleSurface {
                         width: navigation.availableWidth
                         spacing: 4
                         Repeater {
+                            id: navigationTabs
                             model: center.tabs
                             CenterButton {
                                 required property var modelData
@@ -155,11 +180,11 @@ ModuleSurface {
                                 Layout.preferredHeight: 36
                                 glyph: modelData.icon
                                 quiet: true
-                                active: center.tab === index
+                                active: !center.detailPage.length && center.tab === index
                                 visible: index !== 1 || (center.config.showMedia ?? true)
                                 toolTip: shell.tr(modelData.name)
                                 Accessible.name: toolTip
-                                onClicked: shell.controlCenterTab = index
+                                onClicked: { center.detailPage = ""; shell.controlCenterTab = index }
                             }
                         }
                         Rectangle {
@@ -185,7 +210,8 @@ ModuleSurface {
                                 quiet: true
                                 toolTip: shell.tr(modelData.name)
                                 Accessible.name: toolTip
-                                onClicked: center.openSettings(modelData.page)
+                                active: center.detailPage === modelData.page
+                                onClicked: center.openDetail(modelData.page)
                             }
                         }
                     }
@@ -200,10 +226,16 @@ ModuleSurface {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 6
+                    CenterButton {
+                        visible: center.detailPage.length > 0
+                        text: "‹"
+                        Accessible.name: shell.tr("Back")
+                        onClicked: center.detailPage = ""
+                    }
                     Text {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        text: shell.tr(center.tabs[center.tab].name)
+                        text: shell.tr(center.detailNames[center.detailPage] || center.tabs[center.tab].name)
                         color: Theme.accent
                         font.family: Theme.font
                         font.pixelSize: 15
@@ -232,13 +264,25 @@ ModuleSurface {
                         onClicked: shell.setAppearance({overview: false})
                     }
                 }
+                Loader {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumWidth: 0
+                    Layout.minimumHeight: 0
+                    active: center.detailPage.length > 0
+                    visible: active
+                    sourceComponent: SettingsPageView {
+                        shell: center.shell
+                        category: center.detailPage || "display"
+                    }
+                }
                 ScrollView {
                     id: mediaScroll
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
                     Layout.minimumHeight: 0
-                    visible: center.tab === 1
+                    visible: !center.detailPage.length && center.tab === 1
                     clip: true
                     contentWidth: Math.max(380, availableWidth)
                     contentHeight: Math.max(400, availableHeight)
@@ -254,7 +298,7 @@ ModuleSurface {
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
                     Layout.minimumHeight: 0
-                    visible: center.tab !== 1
+                    visible: !center.detailPage.length && center.tab !== 1
                     clip: true
                     contentWidth: availableWidth
                     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
@@ -517,14 +561,13 @@ ModuleSurface {
                                     caption: shell.tr("Network")
                                     active: Boolean((shell.state.network || {}).connected)
                                     onClicked: {
-                                        shell.setAppearance({overview: false});
-                                        shell.wifiPopupOpen = true;
+                                        center.openDetail("network");
                                     }
                                 }
                                 QuickTile {
                                     tileIcon: "bluetooth"
                                     caption: shell.tr("Bluetooth")
-                                    onClicked: center.openSettings("bluetooth")
+                                    onClicked: center.openDetail("bluetooth")
                                 }
                                 QuickTile {
                                     tileIcon: "moon"
@@ -548,7 +591,7 @@ ModuleSurface {
                                     tileIcon: "power"
                                     caption: shell.tr(center.power.current || "Power profile")
                                     active: center.power.current === "performance"
-                                    onClicked: center.openSettings("power")
+                                    onClicked: center.openDetail("power")
                                 }
                             }
                         }
@@ -644,4 +687,16 @@ ModuleSurface {
             }
         }
     }
+    ImagePicker {
+        anchors.fill: parent
+        shell: center.shell
+        opened: center.opened && center.shell.pickerOpen
+        onClosed: center.shell.pickerOpen = false
+    }
+    onOpenedChanged: {
+        if (opened) Qt.callLater(focusNavigation)
+        else { detailPage = ""; shell.pickerOpen = false }
+    }
+    Component.onCompleted: Qt.callLater(focusNavigation)
+
 }

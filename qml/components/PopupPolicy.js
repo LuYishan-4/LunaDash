@@ -3,7 +3,7 @@ var properties = {
     launcher: "launcherOpen", orbit: "orbitOpen", settings: "settingsOpen",
     calendar: "calendarOpen", devices: "usbPopupOpen", audio: "volumePopupOpen",
     network: "wifiPopupOpen", clipboard: "clipboardPopupOpen", session: "logoutOpen",
-    menu: "menuOpen", compatibility: "x11Open"
+    menu: "menuOpen", compatibility: "x11Open", wallpaper: "wallpaperGalleryOpen"
 };
 function dismiss(shell, except) {
     Object.keys(properties).forEach(name => {

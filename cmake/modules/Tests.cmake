@@ -14,6 +14,9 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_test(NAME lunadash-installer COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/installer/test_install.py)
+    set_tests_properties(lunadash-installer PROPERTIES TIMEOUT 90)
     find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
     add_executable(lunadash-portal-picker-test tests/files/PortalPickerTests.cpp
         src/service/portal/FileChooserPortal.cpp
@@ -30,6 +33,10 @@ if(BUILD_TESTING)
     add_test(NAME lunadash-portal-picker COMMAND lunadash-portal-picker-test)
     set_tests_properties(lunadash-portal-picker PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+    add_executable(lunadash-wallpaper-library-test tests/wallpaper/WallpaperLibraryTests.cpp)
+    target_link_libraries(lunadash-wallpaper-library-test PRIVATE ludash-wallpaper Qt6::Test)
+    add_test(NAME lunadash-wallpaper-library COMMAND lunadash-wallpaper-library-test)
+    set_tests_properties(lunadash-wallpaper-library PROPERTIES TIMEOUT 30)
     add_executable(lunadash-audio-spectrum-test tests/media/AudioSpectrumTests.cpp)
     target_link_libraries(lunadash-audio-spectrum-test PRIVATE ludash-audio-spectrum Qt6::Test)
     add_test(NAME lunadash-audio-spectrum COMMAND lunadash-audio-spectrum-test)

@@ -131,6 +131,23 @@ void WaylandCompositor::Impl::updateWindowGlass() {
                        client->mapped && !client->fullscreen &&
                            !client->desktop && !client->utility,
                        windowCorners ? windowCorners->radius(client->sceneTree) : 0});
+  // The settings and control-center clients are layer-shell surfaces, not
+  // xdg toplevels. Give them the same producer-owned, input-transparent blur
+  // underlays; never sample the panel's own text or change its buffer alpha.
+  // Unsupported imports/renderers continue to use the opaque QML fallback.
+  for (const auto *layer : layers) {
+    if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer)
+      continue;
+    const QString name = QString::fromUtf8(layer->surface->namespace_);
+    const int radius = name == "lunadash-settings" ? 28
+        : (name == "lunadash-wallpaper-gallery" ||
+           name == "lunadash-control-center") ? 24 : 0;
+    if (!radius)
+      continue;
+    const auto &state = layer->surface->surface->current;
+    surfaces.append({layer->sceneLayer->tree, {state.width, state.height},
+                     true, radius, 1.0f});
+  }
   const bool animating = q->windowAnimations_ &&
                          q->windowAnimations_->activeCount() > 0;
   windowGlass->update(surfaces, animating);
@@ -163,6 +180,7 @@ void WaylandCompositor::Impl::arrangeLayers() {
 bool WaylandCompositor::Impl::resizePrimaryOutput(const QString &preset,
                                                   QString *error) {
   static const QHash<QString, QSize> sizes{
+      {"800x600", {800, 600}},
       {"1280x720", {1280, 720}},
       {"1440x900", {1440, 900}},
       {"1920x1080", {1920, 1080}},
