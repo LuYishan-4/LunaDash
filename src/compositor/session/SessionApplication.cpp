@@ -12,11 +12,14 @@
 #include <csignal>
 #include <unistd.h>
 
+namespace LunaDash {
 namespace {
 void fatalSignalHandler(int signalNumber) {
   static constexpr char message[] =
       "LunaDash compositor received a fatal signal.\n";
-  ::write(STDERR_FILENO, message, sizeof(message) - 1);
+  const auto written = ::write(STDERR_FILENO, message, sizeof(message) - 1);
+  // Best-effort diagnostic: a failed or partial write must not delay the signal.
+  (void)written;
   ::signal(signalNumber, SIG_DFL);
   ::kill(::getpid(), signalNumber);
 }
@@ -33,7 +36,6 @@ void installFatalSignalDiagnostics() {
 }
 } // namespace
 
-namespace LunaDash {
 int SessionApplication::run(int argc, char **argv) {
   QCoreApplication app(argc, argv);
   installFatalSignalDiagnostics();

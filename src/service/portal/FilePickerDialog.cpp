@@ -11,9 +11,16 @@ public:
   explicit FilePickerFilterModel(QObject *parent)
       : QSortFilterProxyModel(parent) {}
   void apply(QString search, QStringList patterns) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    beginFilterChange();
+#endif
     search_ = std::move(search);
     patterns_ = std::move(patterns);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+#else
     invalidateFilter();
+#endif
   }
 
 protected:

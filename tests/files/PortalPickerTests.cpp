@@ -76,6 +76,15 @@ private slots:
     auto *view = picker.findChild<QTreeView *>("fileView");
     QTRY_COMPARE_WITH_TIMEOUT(view->model()->rowCount(view->rootIndex()), 2,
                               3000);
+    // Re-filter an already populated proxy, including an empty result set.
+    picker.setFilters({{"First track", {"first*.txt"}}}, 0);
+    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 1);
+    QCOMPARE(view->model()->index(0, 0, view->rootIndex()).data().toString(),
+             QString("first track.txt"));
+    picker.setFilters({{"No matches", {"*.missing"}}}, 0);
+    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 0);
+    configureFilePicker(picker, options);
+    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
     for (int row = 0; row < 2; ++row)
       view->selectionModel()->select(
           view->model()->index(row, 0, view->rootIndex()),
