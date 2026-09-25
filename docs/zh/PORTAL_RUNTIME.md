@@ -31,17 +31,54 @@ dmenu 模式必須原樣回傳選中的輸入行；UTF-8 名稱與尾端空白�
 的一部分。刪除空白可能使 xdpw 把使用者已確認的來源判成未知來源。
 取消時不輸出來源；縮圖擷取失敗不應阻止選擇。
 
-## 測試範圍
+## 自動執行的核心測試
 
-Portal runtime integration 工作流程會在 Ubuntu 與目前的 Arch 執行。
-測試包含冷啟動介面資訊、真正的開檔／存檔對話框、Request.Close、透過
-真正 xdg-desktop-portal 前端呼叫剛啟動的後端、讀取系統深淺色，以及實際
-操作來源選擇器的確認與取消。測試不啟用舊 AUTOPICK 捷徑；產物保留
-介面 XML 與前後端日誌。登入腳本另測通用設定衝突、保留明確覆寫與匯流排重用。
+PR 規則禁止修改 .github/workflows，因此回歸測試改由 CTest 註冊，
+不新增 workflow。啟用 BUILD_TESTING 時，既有 Ubuntu 建置會執行
+lunadash-portal-protocol、lunadash-session-launcher，以及原本的
+lunadash-portal-picker。協議測試透過 Qt Test 與 dbus-run-session，
+在私人匯流排啟動另一個真正的後端程序，檢查第一次查詢的函式／訊號型別、
+FileChooser 第 4 版、Settings.Read，以及 OpenFile／SaveFile 取消後
+後端是否仍存活。它不需要 Xvfb 或 Python D-Bus 套件。登入測試另檢查
+匯流排重用、路由衝突與使用者設定保留。
 
-上述對話框測試使用虛擬 X 顯示，不等於已驗證實機的原生 Wayland 焦點、
-Flatpak 應用程式辨識或 NVIDIA／PipeWire 長時間串流。既有 Wayland
-檢查也只驗證擷取協議與來源類型，不能當成已完成 Discord 直播驗收。
+```sh
+cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
+cmake --build build --target lunadash-portal-protocol-test lunadash-portal-picker-test
+ctest --test-dir build --output-on-failure -R '^lunadash-(portal-protocol|portal-picker|session-launcher)$'
+```
+
+## 完整前端與介面整合測試
+
+原有 tests/portal/test_runtime.py 保留不變，另外驗證真正的開檔／存檔
+確認與回傳 URI、透過真正 xdg-desktop-portal 前端呼叫剛啟動的後端、
+公開 Request.Response 與深淺色設定、沒有遞迴啟動前端，以及來源選擇器
+的確認／取消與 UTF-8、空白完整保留。測試不使用 AUTOPICK 捷徑。
+這組擴充測試需明確啟用，不能把預設 CI 通過說成已執行完整介面測試。
+
+先安裝 xdg-desktop-portal、Xvfb、xauth、xdotool 與所選 Python 的
+dbus／gi 套件。Ubuntu 對應 xdg-desktop-portal、xvfb、xauth、xdotool、
+python3-dbus、python3-gi；Arch 對應 xdg-desktop-portal、
+xorg-server-xvfb、xorg-xauth、xdotool、python-dbus、python-gobject。
+接著啟用並執行：
+
+```sh
+cmake -S . -B build -G Ninja -DBUILD_TESTING=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON
+cmake --build build --target lunadash-portal
+ctest --test-dir build --output-on-failure -R '^lunadash-portal-runtime$'
+```
+
+啟用後缺少依賴會直接造成 CMake 設定失敗，不會靜默跳過。包裝腳本建立
+私人 runtime 目錄、顯示與匯流排。前後端日誌與介面 XML 保留在
+build/portal-runtime。
+
+## 驗證範圍
+
+核心測試使用 Qt offscreen，完整介面測試使用虛擬 X 顯示，兩者都不等於
+已驗證實機的原生 Wayland 焦點、Flatpak 應用程式辨識或 NVIDIA／PipeWire
+長時間串流。既有 Wayland 檢查驗證擷取協議與來源類型，不能當成已完成
+Discord 直播驗收。分支 push 通過也不等於 PR 通過，還須確認同一版本的
+PR 規則、儲存庫衛生、C++ 記憶體安全、Qt 生命週期與 CodeQL 檢查。
 
 ## 實機診斷
 

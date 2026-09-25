@@ -20,3 +20,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashExtras.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashTranslations.cmake)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/modules/Tests.cmake)
+
+if(BUILD_TESTING)
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/modules/PortalTests.cmake)
+endif()

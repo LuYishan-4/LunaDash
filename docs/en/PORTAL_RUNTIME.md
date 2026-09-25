@@ -35,20 +35,57 @@ UTF-8 names and trailing spaces belong to the opaque source label. Trimming a
 label can make xdpw reject a legitimate confirmation as an unknown selection.
 Cancellation returns no label. Thumbnail capture failure must not block selection.
 
+## Automated core tests
+
+PR policy forbids changes under .github/workflows, so portal regressions are
+registered in CTest rather than a new workflow. With BUILD_TESTING enabled,
+the existing Ubuntu build runs lunadash-portal-protocol and
+lunadash-session-launcher alongside the existing lunadash-portal-picker test.
+The protocol test uses Qt Test and dbus-run-session, starts a separate real
+backend on a private bus, and checks the first exported method/signal signatures,
+FileChooser version 4, Settings.Read, and OpenFile/SaveFile cancellation while
+the backend remains alive. It needs no Xvfb or Python D-Bus bindings. The launcher
+test checks user-bus reuse, routing conflicts and preservation of user overrides.
+
+```sh
+cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
+cmake --build build --target lunadash-portal-protocol-test lunadash-portal-picker-test
+ctest --test-dir build --output-on-failure -R '^lunadash-(portal-protocol|portal-picker|session-launcher)$'
+```
+
+## Full frontend and UI integration
+
+The unchanged tests/portal/test_runtime.py suite additionally checks real
+OpenFile/SaveFile confirmation and URIs, a freshly started backend behind the
+real xdg-desktop-portal frontend, public Request.Response and color-scheme,
+no recursive frontend activation, and real source-picker confirmation/cancellation
+with lossless UTF-8/whitespace labels. It does not enable AUTOPICK.
+This extended suite is opt-in; do not report it as run by the default CI jobs.
+
+Install xdg-desktop-portal, Xvfb, xauth, xdotool and the selected Python
+interpreter's dbus/gi bindings. Ubuntu packages are xdg-desktop-portal, xvfb,
+xauth, xdotool, python3-dbus and python3-gi. Arch packages are
+xdg-desktop-portal, xorg-server-xvfb, xorg-xauth, xdotool, python-dbus and
+python-gobject. Enable and run the suite with:
+
+```sh
+cmake -S . -B build -G Ninja -DBUILD_TESTING=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON
+cmake --build build --target lunadash-portal
+ctest --test-dir build --output-on-failure -R '^lunadash-portal-runtime$'
+```
+
+Missing dependencies are configuration errors when the option is enabled, not
+silent skips. The wrapper creates a private runtime directory, display and bus.
+Backend/frontend logs and introspection XML remain in build/portal-runtime.
+
 ## Verification boundaries
 
-The Portal runtime integration workflow runs on Ubuntu and current Arch. It
-checks cold-start introspection, actual OpenFile/SaveFile dialogs, Request.Close,
-a freshly started backend behind the real xdg-desktop-portal frontend, the
-public color-scheme setting, and real source-picker confirmation/cancellation.
-The test does not enable the old AUTOPICK shortcut. Diagnostic artifacts include
-the exported XML and backend/frontend logs. The session-launcher test separately
-checks generic configuration conflicts, explicit override preservation and bus reuse.
-
-These tests run on a virtual X display. They do not prove native-Wayland focus,
-Flatpak app identification, or sustained NVIDIA/PipeWire streaming in a physical
-session. The existing Wayland checks also verify capture protocols/source types,
-not a full Discord call. Keep those distinctions when reporting a successful CI.
+Core tests use Qt's offscreen platform; the full UI suite uses a virtual X
+display. Neither proves native-Wayland focus, Flatpak app identification or
+sustained NVIDIA/PipeWire streaming on a physical session. Existing Wayland
+checks verify capture protocols/source types, not a complete Discord call.
+Push success is not PR success: also inspect PR policy, repository hygiene,
+C++ memory-safety, Qt lifetime and CodeQL checks on the current PR revision.
 
 ## Physical-session diagnostics
 
