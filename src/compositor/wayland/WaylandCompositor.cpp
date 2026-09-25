@@ -1814,6 +1814,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                     : method == "appearance-preset-apply" ? applyAppearancePreset(value, &error)
                     : deleteAppearancePreset(value, &error);
     if (!ok) return {{"error", error}};
+    if (method == "appearance-preset-apply")
+      synchronizeApplicationTheme();
     if (d) d->updateNightLight();
     arrange();
   } else if (method == "scratchpad") {
