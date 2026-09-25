@@ -90,7 +90,7 @@ const WindowTemplate &tilingTemplate() {
                                         {"label", "Preferred minimum tile width"},
                                         {"description", "Use a larger tile when a new split would be too narrow. Crowded outputs may use smaller tiles."}}},
       {"minimumTileHeight", QJsonObject{{"type", "integer"},
-                                         {"default", 220},
+                                         {"default", 300},
                                          {"minimum", 1},
                                          {"maximum", 900},
                                          {"label", "Preferred minimum tile height"},

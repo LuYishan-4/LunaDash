@@ -316,15 +316,16 @@ private Q_SLOTS:
       for (const auto &slot : placements) {
         QVERIFY(bounds.contains(slot.geometry));
         QVERIFY(slot.geometry.width() >= 320);
-        QVERIFY(slot.geometry.height() >= 220);
+        QVERIFY(slot.geometry.height() >= 300);
       }
     }
     const auto six = geometries(layout.layout(0, bounds));
-    // The sixth window uses the large right tile instead of halving the
-    // already small upper-left branch into two 226 px wide windows.
+    // The fifth window uses the large right tile instead of halving the
+    // upper-left branch into two 240 px high windows. The sixth then fits
+    // beside it without further reducing the content height.
     QCOMPARE(six[1], QRect(966, 72, 942, 492));
-    QCOMPARE(six[6], QRect(966, 576, 942, 492));
-    QCOMPARE(six[5], QRect(489, 324, 465, 240));
+    QCOMPARE(six[6], QRect(1443, 576, 465, 492));
+    QCOMPARE(six[5], QRect(966, 576, 465, 492));
 
     // On a crowded screen the preference remains a soft bound: every
     // application still has a non-overlapping, on-screen slot.

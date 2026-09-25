@@ -34,7 +34,7 @@ from gi.repository import GLib
 build = Path(sys.argv[1]).resolve()
 evidence = build / "ci-evidence" / "shell-layout"
 evidence.mkdir(parents=True, exist_ok=True)
-for executable in ("quickshell", "grim", "wtype"):
+for executable in ("quickshell", "grim", "wtype", "wl-copy", "wl-paste"):
     assert shutil.which(executable), f"Required runtime tool is missing: {executable}"
 for executable in ("lunadash-compositor", "lunadash-desktop", "lunadashctl", "lunadash-shell-tool"):
     assert (build / executable).is_file(), f"Required build target is missing: {executable}"
@@ -181,6 +181,8 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
     log_path = evidence / "session.log"
     snapshots = []
     ui_actions = []
+    keyboard_only = False
+    keyboard_picker_path = ""
     with log_path.open("w+") as log:
         process = subprocess.Popen(
             [str(build / "lunadash-compositor"), "--socket", socket_name, "--exit-after", "220000"],
@@ -246,7 +248,11 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             raise AssertionError(f"Accessible Settings control is missing: {name} ({kind})")
 
         def press_control(name, description=None):
-            node, details = find_control(name, description=description)
+            control = accessible_control(name, description=description)
+            if control is None:
+                keyboard_press(name, description)
+                return
+            node, details = control
             try:
                 details["scrolledIntoView"] = bool(node.queryComponent().scrollTo(pyatspi.SCROLL_ANYWHERE))
             except Exception:
@@ -267,14 +273,29 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             assert completed.returncode == 0, completed.stderr
 
         def edit_control(name, value):
-            node, details = find_control(name, kind="editable")
-            assert node.queryComponent().grabFocus(), details
+            global keyboard_picker_path
+            control = accessible_control(name, kind="editable")
+            if control is None:
+                keyboard_focus_field(name)
+                details = {"name": name, "input": "Wayland keyboard"}
+            else:
+                node, details = control
+                assert node.queryComponent().grabFocus(), details
             key_input("-M", "ctrl", "-k", "a", "-m", "ctrl", str(value), "-k", "Return")
+            if name == "Image path":
+                keyboard_picker_path = str(value)
             ui_actions.append(details | {"operation": "keyboard-edit", "value": value})
 
         def select_control(name, index):
-            node, details = find_control(name, kind="combo")
-            assert node.queryComponent().grabFocus(), details
+            control = accessible_control(name, kind="combo")
+            if control is None:
+                assert name == "Panel length", name
+                keyboard_margin_anchor()
+                keyboard_tabs(3 if panel_document(request())["style"]["width"] > 0 else 2, backward=True)
+                details = {"name": name, "input": "Wayland keyboard"}
+            else:
+                node, details = control
+                assert node.queryComponent().grabFocus(), details
             key_input("-k", "space")
             # The shipped combo deliberately arms its popup after 140 ms to avoid
             # opening presses accidentally activating a choice.
@@ -285,6 +306,109 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             arguments.extend(("-k", "Return"))
             key_input(*arguments)
             ui_actions.append(details | {"operation": "keyboard-select", "index": index})
+
+        def accessible_control(name, kind="action", description=None):
+            global keyboard_only
+            if keyboard_only:
+                return None
+            try:
+                return find_control(name, kind, description, timeout=2)
+            except AssertionError:
+                # Some shipped Qt/Quickshell combinations publish an application
+                # with no accessible windows. Keep testing its actual controls
+                # through their normal Tab/keyboard path in that environment.
+                keyboard_only = True
+                ui_actions.append({"operation": "keyboard-navigation-fallback",
+                                   "reason": "Qt/Quickshell exposes no usable accessible control"})
+                return None
+
+        def keyboard_tabs(count, backward=False):
+            arguments = ["-M", "shift"] if backward else []
+            arguments += [item for _ in range(count) for item in ("-k", "Tab")]
+            if backward:
+                arguments += ["-m", "shift"]
+            key_input(*arguments)
+
+        def focused_text():
+            clipboard_env = env | {"WAYLAND_DISPLAY": socket_name}
+            clipboard_env.pop("WAYLAND_DEBUG", None)
+            marker = "lunadash-ci-focus-probe"
+            copied = subprocess.run(["wl-copy", "--type", "text/plain", marker],
+                                    env=clipboard_env, text=True, capture_output=True, timeout=5)
+            assert copied.returncode == 0, copied.stderr
+            key_input("-M", "ctrl", "-k", "a", "-k", "c", "-m", "ctrl")
+            time.sleep(0.05)
+            pasted = subprocess.run(["wl-paste", "--no-newline", "--type", "text/plain"],
+                                    env=clipboard_env, text=True, capture_output=True, timeout=5)
+            return pasted.stdout if pasted.returncode == 0 and pasted.stdout != marker else None
+
+        def seek_keyboard_text(expected, label, backward_first=False):
+            # A selected TextField can copy its current value. Buttons, switches
+            # and non-editable combos leave our clipboard marker unchanged. This
+            # anchors navigation to a real field instead of relying on the
+            # window's current focus after an asynchronous Settings save.
+            observed = []
+            directions = ((True, 12), (False, 24)) if backward_first else ((False, 24), (True, 48))
+            for backward, count in directions:
+                for index in range(count):
+                    text = focused_text()
+                    observed.append(text)
+                    if text == expected:
+                        if not any(action["operation"] == "keyboard-field-anchor" for action in ui_actions):
+                            capture("keyboard-settings-field-focus", (1920, 1080))
+                        ui_actions.append({"operation": "keyboard-field-anchor", "name": label,
+                                           "text": text, "backward": backward, "tabs": index})
+                        return
+                    keyboard_tabs(1, backward)
+            (evidence / "keyboard-focus-values.json").write_text(json.dumps(observed, indent=2))
+            raise AssertionError(f"Keyboard navigation could not find {label} with value {expected!r}")
+
+        def keyboard_margin_anchor():
+            # Search in both directions because disabling the page during a
+            # save may remove focus. Margin is an existing, unambiguous field;
+            # copying its text does not submit a changed setting.
+            margin = panel_document(request())["style"].get("margin", 10)
+            seek_keyboard_text(str(margin), "Panel margin", backward_first=True)
+
+        def keyboard_focus_field(name):
+            if name == "Image path":
+                seek_keyboard_text(keyboard_picker_path or env.get("HOME", "/"), name)
+                return
+            keyboard_margin_anchor()
+            if name == "Panel height":
+                keyboard_tabs(1, backward=True)
+            elif name == "Panel width":
+                keyboard_tabs(2, backward=True)
+            else:
+                assert name == "Panel margin", name
+
+        def keyboard_press(name, description):
+            if name == "Use image":
+                seek_keyboard_text(keyboard_picker_path, "Image path")
+                # ImagePicker's path is followed by Go, Cancel and Use image.
+                keyboard_tabs(3)
+            else:
+                keyboard_margin_anchor()
+                forward = {"Centered launcher": 1, "Show CPU and memory": 3,
+                           "Choose launcher image": 9, "Restore LunaDash logo": 10}
+                if name in forward:
+                    keyboard_tabs(forward[name])
+                else:
+                    assert name == "×" and description == "Quick hide settings", (name, description)
+                    custom = panel_document(request())["style"]["width"] > 0
+                    # Above margin: height, optional width, length, edge, close.
+                    keyboard_tabs(5 if custom else 4, backward=True)
+            key_input("-k", "space" if name in ("Centered launcher", "Show CPU and memory") else "Return")
+            ui_actions.append({"operation": "keyboard-activate", "name": name})
+
+        def assert_control_text(name, expected):
+            control = accessible_control(name, kind="editable")
+            if control is None:
+                keyboard_focus_field(name)
+                actual = focused_text()
+            else:
+                actual = control[0].queryText().getText(0, -1)
+            assert actual == expected, (name, actual, expected)
 
         def panel_document(state):
             return state["shellModules"]["document"]["modules"]["panel"]
@@ -311,7 +435,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             boxes = []
             for client in clients:
                 assert client["visible"] and client["contentVisible"], client
-                assert client["width"] >= 320 and client["height"] >= 220, client
+                assert client["width"] >= 320 and client["height"] >= 300, client
                 x, y, width, height = (client[key] for key in ("frameX", "frameY", "frameWidth", "frameHeight"))
                 box = (x, y, x + width, y + height)
                 assert x >= area["x"] and y >= area["y"], (client, area)
@@ -543,8 +667,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             request("open-settings", "appearance")
             wait_for(lambda state: live_layer(log_path, "lunadash-settings") is not None,
                      "Settings reopens with the saved profile")
-            width_field, _ = find_control("Panel width", kind="editable")
-            assert width_field.queryText().getText(0, -1) == "1200", "Saved panel width did not reload in Settings"
+            assert_control_text("Panel width", "1200")
             press_control("Restore LunaDash logo")
             wait_for(lambda state: panel_document(state)["config"]["launcherImage"] == "",
                      "the Settings restore button reinstates the built-in LunaDash logo")

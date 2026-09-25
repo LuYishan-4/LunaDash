@@ -414,7 +414,7 @@ public:
   bool splitFocused = true;
   bool firstWindowOnRight = true;
   int minimumTileWidth = 320;
-  int minimumTileHeight = 220;
+  int minimumTileHeight = 300;
   std::unordered_map<LayoutWorkspaceId, Workspace> workspaces;
 };
 
