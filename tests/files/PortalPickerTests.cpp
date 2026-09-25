@@ -1,6 +1,7 @@
 #include "service/portal/FileChooserOptions.hpp"
 #include "service/portal/FileChooserPortal.hpp"
 #include "service/portal/FilePickerDialog.hpp"
+#include "service/portal/PortalRequest.hpp"
 #include <QApplication>
 #include <QClipboard>
 #include <QFile>
@@ -97,6 +98,13 @@ private slots:
     QCOMPARE(
         qvariant_cast<PortalFileFilter>(result.value("current_filter")).label,
         QString("Text files"));
+  }
+
+  void requestCloseRejectsDialog() {
+    FilePickerDialog picker(FilePickerDialog::Mode::Open, "Open file", {});
+    PortalRequest request(&picker);
+    QTimer::singleShot(0, &request, &PortalRequest::Close);
+    QCOMPARE(picker.exec(), int(QDialog::Rejected));
   }
 
   void invalidPathDoesNotAccept() {
