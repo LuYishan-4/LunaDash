@@ -34,7 +34,7 @@ from gi.repository import GLib
 build = Path(sys.argv[1]).resolve()
 evidence = build / "ci-evidence" / "shell-layout"
 evidence.mkdir(parents=True, exist_ok=True)
-for executable in ("quickshell", "dolphin", "grim", "wtype", "wl-copy", "wl-paste"):
+for executable in ("quickshell", "dolphin", "kitty", "grim", "wtype", "wl-copy", "wl-paste"):
     assert shutil.which(executable), f"Required runtime tool is missing: {executable}"
 for executable in ("lunadash-compositor", "lunadash-desktop", "lunadashctl", "lunadash-shell-tool"):
     assert (build / executable).is_file(), f"Required build target is missing: {executable}"
@@ -180,6 +180,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
     keyboard_only = False
     keyboard_picker_path = ""
     keyboard_keeper = None
+    terminals = []
     with log_path.open("w+") as log:
         process = subprocess.Popen(
             [str(build / "lunadash-compositor"), "--socket", socket_name, "--exit-after", "220000"],
@@ -605,6 +606,37 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                      "contrasting wallpaper for native corner pixel checks")
             time.sleep(0.8)
             corner_baseline = capture("corner-reference-desktop-1920x1080", (1920, 1080))
+            # A terminal child observes its PTY immediately, before any test
+            # wait. Startup output must not be reflowed by a second size at map.
+            # Dolphin exercises a different toolkit in the same generic layout.
+            for count in (1, 3):
+                report = evidence / f"terminal-startup-{count}.json"
+                terminal = subprocess.Popen(
+                    ["kitty", "--config", "NONE", "--title", f"Startup layout {count}",
+                     "-o", "linux_display_server=wayland", "-o", "remember_window_size=no",
+                     "-o", "initial_window_width=180c", "-o", "initial_window_height=50c",
+                     "-o", "confirm_os_window_close=0", "-o", "font_size=11",
+                     "python3", str(Path(__file__).with_name("terminal_startup_probe.py").resolve()),
+                     str(report)], env=env | {"WAYLAND_DISPLAY": socket_name}, stdout=log, stderr=log,
+                )
+                terminals.append(terminal)
+                startup_state = wait_for(lambda state: report.exists() and clients_settled(state, count),
+                                         f"stable initial terminal size with {count} applications")
+                sizes = json.loads(report.read_text())["sizes"]
+                assert len(sizes) == 11 and sizes[0][0] > 0 and sizes[0][1] > 0, sizes
+                assert all(size == sizes[0] for size in sizes), (
+                    "Terminal PTY resized after drawing startup content", sizes)
+                verify_tiles(startup_state)
+                capture(f"terminal-startup-{count}-1920x1080", (1920, 1080))
+                snapshots.append({"scene": f"terminal-startup-{count}", "ptySizes": sizes,
+                                  "state": startup_state})
+                if count == 1:
+                    request("launch-default", "files")
+                    mixed = wait_for(lambda state: clients_settled(state, 2), "Kitty and Dolphin tiles")
+                    verify_tiles(mixed)
+            for client in application_clients(startup_state):
+                request("close", client["id"])
+            wait_for(lambda state: not application_clients(state), "startup verification clients close")
             # Exercise the screenshot's recursive split using actual Qt Wayland
             # clients, then verify that the same clients receive real backdrops.
             request("desktop-size", "1920x1080")
@@ -807,6 +839,14 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             (evidence / "snapshots.json").write_text(json.dumps(snapshots, indent=2))
             (evidence / "ui-actions.json").write_text(json.dumps(ui_actions, indent=2))
             (evidence / "layer-surfaces.json").write_text(json.dumps(layers_from_log(log_path), indent=2))
+            for terminal in terminals:
+                if terminal.poll() is None:
+                    terminal.terminate()
+                try:
+                    terminal.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    terminal.kill()
+                    terminal.wait(timeout=3)
             if keyboard_keeper is not None and keyboard_keeper.poll() is None:
                 keyboard_keeper.terminate()
                 try:

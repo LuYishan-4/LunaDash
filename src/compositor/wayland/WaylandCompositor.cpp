@@ -733,7 +733,7 @@ void WaylandCompositor::arrange() {
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
     const bool managed = windowUsesManagedLayout(*client);
-    if (managed) {
+    if (client->mapped) {
       int initialWidth = 0;
       int initialHeight = 0;
 #if LUDASH_WLR_HAS_XWAYLAND
@@ -756,6 +756,8 @@ void WaylandCompositor::arrange() {
           initialWidth > 0 && initialHeight > 0)
         client->preferredFloatingSize =
             QSize(initialWidth, initialHeight);
+    }
+    if (managed) {
       const QSize preferred =
           windowTemplate_ && windowTemplate_->allowOverlap
               ? client->preferredFloatingSize
@@ -780,7 +782,7 @@ void WaylandCompositor::arrange() {
           client->workspace,
           windowLayout_->snapshot(client->workspace).maximizedWindow);
     const auto maximized = maximizedWindows.value(client->workspace);
-    if (!client->floating)
+    if (!client->floating && (client->mapped || client->layoutPending))
       client->maximized = maximized == static_cast<LayoutWindowId>(client->id);
     bool inMaximizedFamily = client->id == static_cast<int>(maximized);
     auto *parent = client->toplevel ? client->toplevel->parent : nullptr;
@@ -861,22 +863,30 @@ void WaylandCompositor::arrange() {
     }
   }
 
-  const auto placements = windowLayout_->presentation(workspace_, area);
+  // Pending clients need their first size even when a rule sends them to a
+  // different workspace, or an existing fullscreen window covers this one.
+  QList<int> layoutWorkspaces{workspace_};
+  for (const auto &client : clients_)
+    if (client->layoutPending && !layoutWorkspaces.contains(client->workspace))
+      layoutWorkspaces.append(client->workspace);
+  QList<WindowPlacement> placements;
+  for (const int workspace : layoutWorkspaces)
+    placements.append(windowLayout_->presentation(workspace, area));
   if (windowTemplate_->key != pluginManager_->windowTemplateKey()) {
     arrange();
     return;
   }
-  if (!fullscreenClient) {
-    for (const auto &placement : placements) {
-      auto found = std::find_if(
-          clients_.begin(), clients_.end(), [&placement](const auto &client) {
-            return client->id == static_cast<int>(placement.window);
-          });
-      if (found == clients_.end() || (*found)->minimized ||
-          placement.hiddenByMaximize || (*found)->workspace != workspace_)
-        continue;
-      configure(found->get(), placement.geometry);
-    }
+  for (const auto &placement : placements) {
+    auto found = std::find_if(
+        clients_.begin(), clients_.end(), [&placement](const auto &client) {
+          return client->id == static_cast<int>(placement.window);
+        });
+    if (found == clients_.end() || (*found)->minimized ||
+        placement.hiddenByMaximize ||
+        (!(*found)->layoutPending &&
+         (fullscreenClient || (*found)->workspace != workspace_)))
+      continue;
+    configure(found->get(), placement.geometry);
   }
 
   if (windowAnimations_)

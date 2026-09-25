@@ -17,7 +17,7 @@ jobs:
           pacman -Syu --noconfirm --needed base-devel git cmake ninja python python-pillow pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon systemd glib2 \
             qt6-base qt6-declarative qt6-wayland qt6-svg qt6-multimedia \
-            dolphin dbus grim wtype at-spi2-core python-atspi wl-clipboard usbutils \
+            dolphin kitty dbus grim wtype at-spi2-core python-atspi wl-clipboard usbutils \
             noto-fonts noto-fonts-cjk hicolor-icon-theme
           wlroots_package=wlroots0.20
           if ! pacman -Si "$wlroots_package" >/dev/null 2>&1; then
