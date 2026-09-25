@@ -254,39 +254,43 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
       qWarning("XWayland/XWM could not be prepared; X11 clients are unavailable.");
   }
 
-  publishSessionActivationEnvironment();
-
-  if (startShell &&
-      qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
-    const QString agent =
-        QStandardPaths::findExecutable("lunadash-polkit-agent");
-    if (!agent.isEmpty())
-      spawn({}, agent, false);
-  }
-
-  if (startShell &&
-      qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1 &&
-      qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
-    const QString fcitx = QStandardPaths::findExecutable("fcitx5");
-    if (!fcitx.isEmpty())
-      spawn({"--replace"}, fcitx, false);
-  }
-
   QObject::connect(shellModules_, &ShellModules::changed, this,
                    [this] { arrange(); });
 
-  if (startShell)
+  const auto startSessionClients = [this, startShell] {
+    if (!startShell || shuttingDown_ || testStopping_)
+      return;
+
+    if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
+      const QString agent =
+          QStandardPaths::findExecutable("lunadash-polkit-agent");
+      if (!agent.isEmpty())
+        spawn({}, agent, false);
+
+      if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
+        const QString fcitx = QStandardPaths::findExecutable("fcitx5");
+        if (!fcitx.isEmpty())
+          spawn({"--replace"}, fcitx, false);
+      }
+    }
+
     spawn({"--session"}, {}, false);
 
-  if (startShell && setupComplete()) {
-    QTimer::singleShot(1200, this, [this] {
-      if (testStopping_ || shuttingDown_)
-        return;
-      for (const auto &app :
-           desktopPreferences().value("startupApps").toArray())
-        spawn({"--app", app.toString()});
-    });
-  }
+    if (setupComplete()) {
+      QTimer::singleShot(1200, this, [this] {
+        if (testStopping_ || shuttingDown_)
+          return;
+        for (const auto &app :
+             desktopPreferences().value("startupApps").toArray())
+          spawn({"--app", app.toString()});
+      });
+    }
+  };
+
+  // Portal backends are D-Bus activated. Do not start the shell/IME/apps until
+  // the user bus and systemd manager know LunaDash's Wayland/display identity
+  // and the portal frontend has been refreshed with that environment.
+  publishSessionActivationEnvironment(startSessionClients);
 
   qInfo().noquote() << "LunaDash compositor backend: wlroots"
                     << "socket:" << socket << "input: libinput/xkbcommon"
@@ -2002,20 +2006,28 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   return state();
 }
 
-void WaylandCompositor::publishSessionActivationEnvironment() {
-  if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1)
+void WaylandCompositor::publishSessionActivationEnvironment(
+    const std::function<void()> &ready) {
+  if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1) {
+    if (ready)
+      ready();
     return;
+  }
   auto environment = clientEnvironment_;
   if (xwayland_)
     xwayland_->applyEnvironment(environment);
-  publishActivationEnvironment(environment, this,
-                               [this](bool ok, const QString &error) {
-                                 activationEnvironmentPublished_ = ok;
-                                 activationEnvironmentError_ = error;
-                                 if (ok)
-                                   refreshScreencastPortalServices(
-                                       clientEnvironment_, this);
-                               });
+  publishActivationEnvironment(
+      environment, this,
+      [this, ready](bool ok, const QString &error) {
+        activationEnvironmentPublished_ = ok;
+        activationEnvironmentError_ = error;
+        if (!ok) {
+          if (ready)
+            ready();
+          return;
+        }
+        refreshScreencastPortalServices(clientEnvironment_, this, ready);
+      });
 }
 
 QString WaylandCompositor::nextCapturePath() const {
