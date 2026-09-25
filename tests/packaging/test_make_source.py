@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run the actual source packager without dependencies, builds or privileges."""
+import json
 import os
 from pathlib import Path
 import shutil
@@ -7,6 +8,7 @@ import subprocess
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = "ludash-1.0.1a/"
@@ -42,8 +44,15 @@ class SourceArchiveTests(unittest.TestCase):
         self.archive = self.project / "packaging/arch/ludash-1.0.1a.tar.gz"
 
     def git(self, *args):
+        # Git may detach automatic maintenance after add/commit and return
+        # before that worker finishes writing .git. These short-lived fixtures
+        # are deleted immediately, so a worker can race TemporaryDirectory's
+        # cleanup and recreate directories. Disable automatic maintenance only
+        # for fixture commands; never change the developer's Git configuration
+        # or suppress genuine cleanup errors.
         return subprocess.run(
-            ["git", "-C", str(self.project), "-c", "core.hooksPath=/dev/null", *args],
+            ["git", "-C", str(self.project), "-c", "core.hooksPath=/dev/null",
+             "-c", "maintenance.auto=false", "-c", "gc.auto=0", *args],
             check=True, capture_output=True, text=True, timeout=30,
         )
 
@@ -109,6 +118,31 @@ class SourceArchiveTests(unittest.TestCase):
                 archive.extractfile(PREFIX + ".lunadash-revision").read().decode().strip(),
                 self.revision,
             )
+
+    def test_fixture_git_does_not_spawn_automatic_maintenance(self):
+        # Simulate a runner/developer configuration that triggers maintenance
+        # even for this small throwaway repository. Command-scoped options in
+        # git() must override inherited settings before Git starts any worker.
+        trace = self.work / "git-trace.jsonl"
+        with patch.dict(os.environ, {
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_0": "maintenance.auto",
+            "GIT_CONFIG_VALUE_0": "true",
+            "GIT_CONFIG_KEY_1": "gc.auto",
+            "GIT_CONFIG_VALUE_1": "1",
+            "GIT_TRACE2_EVENT": str(trace),
+        }):
+            self.git("-c", "user.name=Packaging Test",
+                     "-c", "user.email=packaging-test@example.invalid",
+                     "-c", "commit.gpgsign=false", "commit", "--allow-empty",
+                     "-qm", "Maintenance isolation regression")
+        events = [json.loads(line) for line in trace.read_text().splitlines()]
+        self.assertTrue(any(event.get("event") == "exit" for event in events))
+        workers = [event.get("argv", []) for event in events
+                   if event.get("event") == "child_start" and
+                   any(arg in ("maintenance", "gc")
+                       for arg in event.get("argv", []))]
+        self.assertEqual(workers, [], "Fixture Git started maintenance workers")
 
     def test_local_edits_are_included_and_mark_revision_dirty(self):
         readme = self.project / "README.md"
