@@ -173,9 +173,11 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
 
         try:
             initial = wait_for(
-                lambda state: state.get("layerSurfaces") == 2
-                    and live_layer(log_path, "lunadash-panel") is not None,
-                "wallpaper and top panel after the startup splash", timeout=25,
+                lambda state: state.get("layerSurfaces") == 3
+                    and all(live_layer(log_path, name) is not None for name in
+                            ("lunadash-wallpaper", "lunadash-panel", "lunadash-window-frames"))
+                    and live_layer(log_path, "lunadash-startup") is None,
+                "wallpaper, panel and window frames after the startup splash", timeout=25,
             )
             assert initial["appearance"]["dockEnabled"] is False, initial["appearance"]
             request("appearance", json.dumps({"animations": False, "overview": False}))
@@ -184,7 +186,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                 wait_for(
                     lambda state: state["display"]["width"] == width
                         and state["display"]["height"] == height
-                        and state["layerSurfaces"] == 2,
+                        and state["layerSurfaces"] == 3,
                     f"desktop resize to {width}x{height}",
                 )
                 time.sleep(0.8)
@@ -192,7 +194,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                 request("appearance", json.dumps({"overview": True}))
                 opened = wait_for(
                     lambda state: state["appearance"]["overview"]
-                        and state["layerSurfaces"] == 3
+                        and state["layerSurfaces"] == 4
                         and live_layer(log_path, "lunadash-control-center") is not None,
                     "control-center popup mapping",
                 )
@@ -215,7 +217,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                 snapshots.append({"resolution": [width, height], "panel": panel,
                                   "controlCenter": popup, "popupBox": box, "state": opened})
                 request("appearance", json.dumps({"overview": False}))
-                wait_for(lambda state: state["layerSurfaces"] == 2, "control-center close")
+                wait_for(lambda state: state["layerSurfaces"] == 3, "control-center close")
             # Exercise the screenshot's recursive split using actual Qt Wayland
             # clients, then verify that the same clients receive real backdrops.
             request("desktop-size", "1920x1080")

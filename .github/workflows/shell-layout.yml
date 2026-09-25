@@ -17,7 +17,7 @@ jobs:
           pacman -Syu --noconfirm --needed base-devel git cmake ninja python python-pillow pkgconf \
             libglvnd mesa wayland wayland-protocols libinput libxkbcommon systemd glib2 \
             qt6-base qt6-declarative qt6-wayland qt6-svg qt6-multimedia \
-            dbus grim noto-fonts noto-fonts-cjk hicolor-icon-theme
+            dbus grim wl-clipboard usbutils noto-fonts noto-fonts-cjk hicolor-icon-theme
           wlroots_package=wlroots0.20
           if ! pacman -Si "$wlroots_package" >/dev/null 2>&1; then
             wlroots_package=wlroots
@@ -36,6 +36,8 @@ jobs:
           cmake --build build-shell-layout --parallel 2 --target \
             ludash-compositor ludash-desktop ludashctl ludash-shell-tool \
             lunadash-scene-backdrop-test lunadash-window-glass-test lunadash-window-layout-test
+          # Mirror the installed helper location when running from the build tree.
+          cp scripts/lunadash-clipboard-history build-shell-layout/lunadash-clipboard-history
       - name: Check backdrop pixels, ownership and recursive window layout
         run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-shell-layout --output-on-failure -R '^lunadash-(scene-backdrop|window-glass|window-layout)$'
       - name: Run the real Wayland shell and capture both desktop sizes
