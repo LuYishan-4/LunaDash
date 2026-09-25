@@ -107,7 +107,7 @@ public:
         wlr_scene_node_set_position(&view->node, -value.surfaceOrigin.x(),
                                     -value.surfaceOrigin.y());
         const auto &band = bands[i];
-        const wlr_box clip{band.x + value.surfaceOrigin.x(),
+        wlr_box clip{band.x + value.surfaceOrigin.x(),
                             band.y + value.surfaceOrigin.y(), band.width, band.height};
         wlr_scene_subsurface_tree_set_clip(&view->node, &clip);
         // Traverse the enabled view itself: its container stays hidden until

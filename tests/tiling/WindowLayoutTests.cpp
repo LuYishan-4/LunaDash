@@ -311,9 +311,9 @@ private Q_SLOTS:
       if (id == 4)
         QVERIFY(layout.focus(2));
       QVERIFY(layout.insert(0, id));
-      const auto slots = layout.layout(0, bounds);
-      verifyNoOverlap(slots);
-      for (const auto &slot : slots) {
+      const auto placements = layout.layout(0, bounds);
+      verifyNoOverlap(placements);
+      for (const auto &slot : placements) {
         QVERIFY(bounds.contains(slot.geometry));
         QVERIFY(slot.geometry.width() >= 320);
         QVERIFY(slot.geometry.height() >= 220);
@@ -330,9 +330,9 @@ private Q_SLOTS:
     // application still has a non-overlapping, on-screen slot.
     for (int id = 7; id <= 20; ++id) {
       QVERIFY(layout.insert(0, id));
-      const auto slots = layout.layout(0, bounds);
-      verifyNoOverlap(slots);
-      for (const auto &slot : slots)
+      const auto placements = layout.layout(0, bounds);
+      verifyNoOverlap(placements);
+      for (const auto &slot : placements)
         QVERIFY(bounds.contains(slot.geometry));
     }
   }
