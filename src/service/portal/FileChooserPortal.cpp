@@ -26,11 +26,15 @@ uint FileChooserPortal::OpenFile(const QDBusObjectPath &handle,
   results.clear();
   PortalRequest request(&picker);
   auto bus = QDBusConnection::sessionBus();
-  if (!bus.registerObject(handle.path(), &request,
-                          QDBusConnection::ExportAllSlots))
+  const bool exposeRequest = calledFromDBus();
+  if (exposeRequest &&
+      (!bus.isConnected() ||
+       !bus.registerObject(handle.path(), &request,
+                           QDBusConnection::ExportAllSlots)))
     return 2;
   const int dialogResult = picker.exec();
-  bus.unregisterObject(handle.path());
+  if (exposeRequest)
+    bus.unregisterObject(handle.path());
   if (dialogResult != QDialog::Accepted)
     return 1;
   results = filePickerResults(picker, options);
@@ -49,11 +53,15 @@ uint FileChooserPortal::SaveFile(const QDBusObjectPath &handle,
   results.clear();
   PortalRequest request(&picker);
   auto bus = QDBusConnection::sessionBus();
-  if (!bus.registerObject(handle.path(), &request,
-                          QDBusConnection::ExportAllSlots))
+  const bool exposeRequest = calledFromDBus();
+  if (exposeRequest &&
+      (!bus.isConnected() ||
+       !bus.registerObject(handle.path(), &request,
+                           QDBusConnection::ExportAllSlots)))
     return 2;
   const int dialogResult = picker.exec();
-  bus.unregisterObject(handle.path());
+  if (exposeRequest)
+    bus.unregisterObject(handle.path());
   if (dialogResult != QDialog::Accepted)
     return 1;
   results = filePickerResults(picker, options);
@@ -77,11 +85,15 @@ uint FileChooserPortal::SaveFiles(const QDBusObjectPath &handle,
   configureFilePicker(picker, folderOptions);
   PortalRequest request(&picker);
   auto bus = QDBusConnection::sessionBus();
-  if (!bus.registerObject(handle.path(), &request,
-                          QDBusConnection::ExportAllSlots))
+  const bool exposeRequest = calledFromDBus();
+  if (exposeRequest &&
+      (!bus.isConnected() ||
+       !bus.registerObject(handle.path(), &request,
+                           QDBusConnection::ExportAllSlots)))
     return 2;
   const int dialogResult = picker.exec();
-  bus.unregisterObject(handle.path());
+  if (exposeRequest)
+    bus.unregisterObject(handle.path());
   if (dialogResult != QDialog::Accepted)
     return 1;
   const QDir directory(picker.selectedPaths().first());
