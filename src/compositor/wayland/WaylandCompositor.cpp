@@ -1838,6 +1838,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", "Expected a JSON object of desktop preferences."}};
     if (!updateDesktopPreferences(document.object(), &error))
       return {{"error", error}};
+    // Publish color-scheme immediately so portal-aware Chromium/Electron/Qt
+    // clients and gsettings-aware GTK applications follow the desktop switch
+    // without waiting for the next shell status poll.
+    synchronizeApplicationTheme();
     applyKeyboardConfiguration();
     for (const auto &key : {"weatherEnabled", "weatherLatitude", "weatherLongitude", "weatherLocation"})
       if (document.object().contains(key)) { weatherStatus_->refresh(); break; }
