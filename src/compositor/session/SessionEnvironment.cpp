@@ -213,9 +213,12 @@ void refreshScreencastPortalServices(
                        frontend->deleteLater();
                        finish();
                      });
-    frontend->start(systemctl,
-                    {QStringLiteral("--user"), QStringLiteral("restart"),
-                     QStringLiteral("xdg-desktop-portal.service")});
+    frontend->start(
+        systemctl,
+        {QStringLiteral("--user"), QStringLiteral("restart"),
+         QStringLiteral("xdg-desktop-portal-lunadash.service"),
+         QStringLiteral("xdg-desktop-portal-gtk.service"),
+         QStringLiteral("xdg-desktop-portal.service")});
     timeout->start();
   };
 
@@ -288,6 +291,8 @@ void refreshScreencastPortalServices(
       systemctl,
       {QStringLiteral("--user"), QStringLiteral("restart"),
        QStringLiteral("xdg-desktop-portal-wlr.service"),
+       QStringLiteral("xdg-desktop-portal-lunadash.service"),
+       QStringLiteral("xdg-desktop-portal-gtk.service"),
        QStringLiteral("xdg-desktop-portal.service")});
 }
 
