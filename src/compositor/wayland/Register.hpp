@@ -27,6 +27,8 @@ public:
     // Keep a short frame tail after a screencopy request is consumed so
     // portal clients have time to queue their next streaming frame.
     int screencopyKeepalive = 0;
+    QTimer *screencopyTimer = nullptr;
+    quint64 frameCallbacks = 0;
     ludash_night_color *nightColor = nullptr;
     int nightTemperature = 6500;
     QString nightError;

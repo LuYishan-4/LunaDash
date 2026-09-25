@@ -291,6 +291,14 @@ void WaylandCompositor::Impl::handleXWaylandConfigure(wl_listener *listener,
     return;
   }
   state->impl->q->arrange();
+  // Explicit ConfigureRequests need a reply even when tiling rejects a size.
+  // Ordinary metadata/layout refreshes do not resend identical configurations.
+  wlr_xwayland_surface_configure(
+      state->surface,
+      static_cast<int16_t>(std::clamp(client->geometry.x(), -32768, 32767)),
+      static_cast<int16_t>(std::clamp(client->geometry.y(), -32768, 32767)),
+      static_cast<uint16_t>(std::clamp(client->geometry.width(), 1, 65535)),
+      static_cast<uint16_t>(std::clamp(client->geometry.height(), 1, 65535)));
 #endif
 }
 

@@ -82,7 +82,8 @@ int DesktopApplication::run(int argc, char **argv) {
     auto *layout = new QVBoxLayout(&window);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(content);
-    window.setWindowTitle("LunaDash · " + id);
+    window.setWindowTitle("LunaDash · " + LunaDash::translate(
+        id == "welcome" ? "Welcome" : "Packages"));
     window.resize(760, 520);
     window.show();
     if (parser.isSet("screenshot"))

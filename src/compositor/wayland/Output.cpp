@@ -40,11 +40,15 @@ QSize WaylandCompositor::Impl::outputSize() const {
 QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
   const QSize size = outputSize();
   QJsonArray nightLight;
-  for (const auto *output : outputs)
+  quint64 frameCallbacks = 0;
+  for (const auto *output : outputs) {
+    frameCallbacks += output->frameCallbacks;
     nightLight.append(QJsonObject{{"output", safeUtf8(output->output->name)},
                                   {"temperature", output->nightTemperature},
                                   {"error", output->nightError}});
+  }
   return {
+      {"frameCallbacks", static_cast<qint64>(frameCallbacks)},
       {"nightLight", nightLight},
       {"width", size.width()},
       {"pixelWidth", primaryOutput ? primaryOutput->width : 0},
@@ -280,6 +284,7 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *state = listenerOwner<OutputState>(listener);
   if (!state || !state->sceneOutput)
     return;
+  ++state->frameCallbacks;
 
   // Sample before commit: a screencopy frame is removed when this output
   // commit satisfies it. The tail bridges the small gap before xdpw queues
@@ -323,17 +328,17 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   // at roughly one display interval instead. wlroots still schedules the
   // first frame for every copy request itself.
   if (capturePending || state->screencopyKeepalive > 0) {
-    auto *impl = state->impl;
-    auto *output = state->output;
-    QTimer::singleShot(16, impl->q, [impl, output] {
-      const bool alive =
-          std::any_of(impl->outputs.cbegin(), impl->outputs.cend(),
-                      [output](const auto *candidate) {
-                        return candidate && candidate->output == output;
-                      });
-      if (alive)
-        wlr_output_schedule_frame(output);
-    });
+    // Coalesce callbacks from capture, client damage and animation into one
+    // wakeup per output. Several frames inside 16 ms must not grow a timer tail.
+    if (!state->screencopyTimer) {
+      state->screencopyTimer = new QTimer(state->impl->q);
+      state->screencopyTimer->setSingleShot(true);
+      state->screencopyTimer->setInterval(16);
+      QObject::connect(state->screencopyTimer, &QTimer::timeout, state->impl->q,
+                       [state] { wlr_output_schedule_frame(state->output); });
+    }
+    if (!state->screencopyTimer->isActive())
+      state->screencopyTimer->start();
   }
 }
 
@@ -354,6 +359,8 @@ void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
   if (!state)
     return;
   auto *self = state->impl;
+  delete state->screencopyTimer;
+  state->screencopyTimer = nullptr;
   if (self->pendingDisplay == state->output)
     self->clearPendingDisplay();
   detachListener(state->frame);

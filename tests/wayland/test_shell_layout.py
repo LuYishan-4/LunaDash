@@ -666,6 +666,24 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             frosted = capture("recursive-windows-frosted-1920x1080", (1920, 1080))
             verify_corners("frosted", frosted, corner_baseline, clients)
             snapshots.append({"scene": "recursive-windows-frosted", "state": glass})
+            # Let capture tails and app startup settle, then observe the real
+            # idle session. The panel keeps its normal polling and clock. A
+            # self-sustaining 60/100 Hz damage loop must fail this regression.
+            time.sleep(2)
+            idle_start = request()
+            started = time.monotonic()
+            idle_samples = []
+            for _ in range(30):
+                time.sleep(1)
+                idle_samples.append(request())
+            elapsed = time.monotonic() - started
+            frame_delta = idle_samples[-1]["display"]["frameCallbacks"] - idle_start["display"]["frameCallbacks"]
+            blur_delta = idle_samples[-1]["blurFrames"] - idle_start["blurFrames"]
+            idle_report = {"seconds": elapsed, "frameCallbacks": frame_delta,
+                           "backdropCaptures": blur_delta, "samples": idle_samples}
+            (evidence / "idle-rendering.json").write_text(json.dumps(idle_report, indent=2))
+            assert frame_delta < elapsed * 20, ("Idle output redraw loop", idle_report)
+            assert blur_delta < elapsed * len(clients) * 10, ("Idle backdrop recapture loop", idle_report)
             request("appearance", json.dumps({"blur": False, "windowOpacity": 100}))
             opaque_state = wait_for(lambda state: not state.get("blurReady") and not state.get("blurFailed"),
                                    "disabled backdrop rendering")
@@ -679,6 +697,19 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             for client_id in opened_ids:
                 request("close", client_id)
             wait_for(lambda state: not application_clients(state), "native verification clients close")
+            welcome = subprocess.Popen(
+                [str(build / "lunadash-desktop"), "--app", "welcome"],
+                env=env | {"WAYLAND_DISPLAY": socket_name, "LUDASH_LANGUAGE": "zh_TW"},
+                stdout=log, stderr=log,
+            )
+            terminals.append(welcome)
+            welcome_state = wait_for(lambda state: clients_settled(state, 1), "Traditional Chinese Welcome")
+            welcome_client = application_clients(welcome_state)[0]
+            assert welcome_client["title"] == "LunaDash · 歡迎", welcome_client
+            capture("welcome-zh-TW-1920x1080", (1920, 1080))
+            snapshots.append({"scene": "welcome-zh-TW", "state": welcome_state})
+            request("close", welcome_client["id"])
+            wait_for(lambda state: not application_clients(state), "Welcome closes")
             # Reproduce the reported two -> three -> switch-back sequence with
             # the real author-style pill row and an external Dolphin window.
             saved_modules = request()["shellModules"]["document"]
@@ -821,6 +852,12 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             for client in application_clients(custom_windows):
                 request("close", client["id"])
             wait_for(lambda state: not application_clients(state), "custom-panel clients close")
+            request("open-settings", "shortcuts")
+            wait_for(lambda state: live_layer(log_path, "lunadash-settings") is not None,
+                     "complete shortcut settings page")
+            time.sleep(0.5)
+            capture("settings-shortcuts-1920x1080", (1920, 1080))
+            snapshots.append({"scene": "settings-shortcuts", "state": request()})
             assert not any(layer["namespace"] == "lunadash-dock" for layer in layers_from_log(log_path)), (
                 "The disabled bottom dock created a layer-shell surface"
             )

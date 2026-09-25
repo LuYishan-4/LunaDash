@@ -83,4 +83,24 @@ ColumnLayout {
             }
         }
     }
+    SettingsComponents.SettingsCard {
+        title: shell.tr("Fixed desktop shortcuts")
+        description: shell.tr("These built-in controls are separate from the configurable shortcuts above.")
+        Repeater {
+            model: [
+                {keys:"Meta", label:"Tap Meta to open the launcher"},
+                {keys:"F12", label:"Toggle fullscreen"},
+                {keys:"Alt+Tab / Alt+Shift+Tab", label:"Window switcher"},
+                {keys:"Alt + drag", label:"Move or rearrange a window"},
+                {keys:"Alt+Shift + drag", label:"Resize a window"}
+            ]
+            RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                Text { Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.Wrap; text: shell.tr(modelData.label); color: Theme.text; font.family: Theme.font }
+                Text { Layout.maximumWidth: 240; wrapMode: Text.Wrap; text: modelData.keys; color: Theme.muted; font.family: Theme.font }
+            }
+        }
+        HelpText { shell: page.shell; message: "In the window switcher, arrow keys select, Enter or releasing Alt confirms, and Escape cancels." }
+    }
 }

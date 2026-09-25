@@ -251,6 +251,40 @@ private Q_SLOTS:
     QCOMPARE(glass_->frames(), quint64{3});
   }
 
+  void offAreaActivityDoesNotInvalidateBackdrops() {
+    auto *activity = wlr_scene_tree_create(&scene_->tree);
+    QVERIFY(activity);
+    auto *indicator = wlr_scene_rect_create(activity, 16, 16, blue);
+    QVERIFY(indicator);
+    wlr_scene_node_set_position(&activity->node, 300, 200);
+    const auto window = addWindow();
+    const QList<WindowGlass::Surface> surfaces{{window.tree, {64, 64}, true}};
+    glass_->update(surfaces, false);
+    QCOMPARE(glass_->frames(), quint64{1});
+    const int allocations = allocator_->calls;
+    const int live = allocator_->liveBuffers;
+    for (int frame = 0; frame < 600; ++frame) {
+      wlr_scene_rect_set_color(indicator, frame % 2 ? red : blue);
+      wlr_scene_node_set_position(&activity->node, 300 + frame % 20, 200);
+      glass_->update(surfaces, false);
+    }
+    QCOMPARE(glass_->frames(), quint64{1});
+    QCOMPARE(allocator_->calls, allocations);
+    QCOMPARE(allocator_->liveBuffers, live);
+    // The filter samples beyond the window edge. Moving activity into that
+    // padding must invalidate, even without overlapping the visible tile.
+    wlr_scene_node_set_position(&activity->node, 66, 10);
+    glass_->update(surfaces, false);
+    QCOMPARE(glass_->frames(), quint64{2});
+    wlr_scene_node_set_position(&activity->node, 300, 200);
+    glass_->update(surfaces, false);
+    QCOMPARE(glass_->frames(), quint64{3});
+    // Removing an unrelated subtree must not invalidate the cache either.
+    wlr_scene_node_destroy(&activity->node);
+    glass_->update(surfaces, false);
+    QCOMPARE(glass_->frames(), quint64{3});
+  }
+
   void animationRetainsAlphaAndDisablingRestoresSteadyState() {
     const auto window = addWindow();
     QVERIFY(window.tree && window.content);

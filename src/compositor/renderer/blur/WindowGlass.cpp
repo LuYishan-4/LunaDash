@@ -226,29 +226,43 @@ public:
   // Return true at the target window: only earlier painter-order nodes belong
   // in its backdrop. Our own sibling underlay is excluded from the cache key.
   bool fingerprint(wlr_scene_node *node, const Entry &entry, Fingerprint &hash,
-                    int depth = 0) {
+                    const QRect &sample, int x = 0, int y = 0, int depth = 0) {
     if (node == &entry.tree->node)
       return true;
     if (!node || !node->enabled || node == &entry.glass->node || depth > 128)
       return false;
-    hash.add(node);
-    hash.add(node->type);
-    hash.add(node->x);
-    hash.add(node->y);
+    x += node->x;
+    y += node->y;
     if (node->type == WLR_SCENE_NODE_TREE) {
       auto *tree = wlr_scene_tree_from_node(node);
       wlr_scene_node *child = nullptr;
       wl_list_for_each(child, &tree->children, link)
-        if (fingerprint(child, entry, hash, depth + 1))
+        if (fingerprint(child, entry, hash, sample, x, y, depth + 1))
           return true;
     } else if (node->type == WLR_SCENE_NODE_RECT) {
       const auto *rect = wlr_scene_rect_from_node(node);
+      if (!sample.intersects(QRect(x, y, rect->width, rect->height)))
+        return false;
+      hash.add(node);
+      hash.add(x);
+      hash.add(y);
       hash.add(rect->width);
       hash.add(rect->height);
       for (const auto color : rect->color)
         hash.add(color);
     } else if (node->type == WLR_SCENE_NODE_BUFFER) {
       auto *buffer = wlr_scene_buffer_from_node(node);
+      if (buffer->opacity <= 0)
+        return false;
+      // Match capture's spatial bounds. Updating an unrelated tiled window or
+      // panel must not invalidate every later window's backdrop. Do not hash
+      // empty containers: only contributing leaves and painter order matter.
+      if (buffer->dst_width > 0 && buffer->dst_height > 0 &&
+          !sample.intersects(QRect(x, y, buffer->dst_width, buffer->dst_height)))
+        return false;
+      hash.add(node);
+      hash.add(x);
+      hash.add(y);
       hash.add(buffer->opacity);
       hash.add(buffer->dst_width);
       hash.add(buffer->dst_height);
@@ -300,14 +314,17 @@ public:
     hash.add(entry.area.height());
     hash.add(radius);
     hash.add(entry.cornerRadius);
-    const bool found = fingerprint(root, entry, hash);
+    const wlr_box area{entry.area.x(), entry.area.y(), entry.area.width(),
+                       entry.area.height()};
+    wlr_box sample{};
+    ludash_scene_backdrop_sample_box(&area, radius, &sample);
+    const bool found = fingerprint(root, entry, hash,
+                                  QRect(sample.x, sample.y, sample.width, sample.height));
     if (!found)
       return;
     if (!entry.attempted || entry.fingerprint != hash.value) {
       entry.attempted = true;
       entry.fingerprint = hash.value;
-      const wlr_box area{entry.area.x(), entry.area.y(), entry.area.width(),
-                         entry.area.height()};
       auto *buffer = ludash_scene_backdrop_render(
           renderer, allocator, root, &entry.tree->node, &entry.glass->node,
           &area, radius);

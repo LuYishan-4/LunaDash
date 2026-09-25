@@ -655,9 +655,15 @@ void WaylandCompositor::configure(ClientWindow *client,
         std::clamp(size.width(), 1, 65535));
     const auto height = static_cast<uint16_t>(
         std::clamp(size.height(), 1, 65535));
-    wlr_xwayland_surface_configure(client->xwayland, x, y, width, height);
-    WlrootsCompat::setXWaylandMaximized(client->xwayland, client->maximized);
-    wlr_xwayland_surface_set_fullscreen(client->xwayland, client->fullscreen);
+    const auto *surface = client->xwayland;
+    if (surface->x != x || surface->y != y || surface->width != width ||
+        surface->height != height)
+      wlr_xwayland_surface_configure(client->xwayland, x, y, width, height);
+    if (surface->maximized_horz != client->maximized ||
+        surface->maximized_vert != client->maximized)
+      WlrootsCompat::setXWaylandMaximized(client->xwayland, client->maximized);
+    if (surface->fullscreen != client->fullscreen)
+      wlr_xwayland_surface_set_fullscreen(client->xwayland, client->fullscreen);
     client->lastSize = size;
     return;
   }

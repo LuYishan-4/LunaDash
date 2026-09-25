@@ -30,6 +30,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
         "LIBGL_ALWAYS_SOFTWARE": "1",
         "QT_FORCE_STDERR_LOGGING": "1",
         "LC_ALL": "C.UTF-8",
+        "LUDASH_LANGUAGE": "en_US",
     }
     for key in (
         "MESA_GL_VERSION_OVERRIDE",
@@ -165,6 +166,13 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
             )
             assert x11_client["bufferWidth"] > 0
             assert x11_client["bufferHeight"] > 0
+            # Static X11 windows must settle instead of feeding unchanged
+            # ConfigureNotify/property events back through arrange forever.
+            time.sleep(1)
+            idle_before = request()["display"]["frameCallbacks"]
+            time.sleep(2)
+            idle_after = request()["display"]["frameCallbacks"]
+            assert idle_after - idle_before < 40, "Idle XWayland redraw loop"
 
             # Clearing focus on an empty workspace must not reinterpret an
             # XWaylandState as an xdg ToplevelState (Spotify regression).
@@ -193,13 +201,22 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                 "WAYLAND_DISPLAY": "ludash-x11-test",
             }
             found = subprocess.run(
-                ["xdotool", "search", "--name", "welcome"],
+                ["xdotool", "search", "--name", "Welcome"],
                 env=xenv,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
                 timeout=4,
             )
             assert found.returncode == 0, "Rootless X11 window is not discoverable"
+            window_id = found.stdout.splitlines()[0]
+            subprocess.run(["xdotool", "windowsize", window_id, "400", "280"],
+                           env=xenv, check=True, timeout=4)
+            time.sleep(0.2)
+            wait_for(lambda value: any(
+                client["id"] == x11_client["id"]
+                and client["contentGeometryWidth"] == client["width"]
+                and client["contentGeometryHeight"] == client["height"]
+                for client in value["clients"]))
 
             xclip = shutil.which("xclip")
             if xclip is None:

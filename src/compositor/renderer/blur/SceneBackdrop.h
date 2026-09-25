@@ -26,6 +26,11 @@ struct wlr_buffer *ludash_scene_backdrop_render(
     struct wlr_scene_node *root, struct wlr_scene_node *stop,
     struct wlr_scene_node *skip, const struct wlr_box *area, int radius);
 
+/* Conservative scene-space bounds sampled by the reduced-resolution blur,
+ * including its filter padding. Used for cache invalidation. */
+void ludash_scene_backdrop_sample_box(const struct wlr_box *area, int radius,
+                                     struct wlr_box *sample);
+
 #ifdef __cplusplus
 }
 }
