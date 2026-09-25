@@ -6,6 +6,8 @@ Page content scrolls vertically with the mouse wheel, touch gestures or the scro
 
 Press **Ctrl+F** anywhere in Settings to focus the header search and select its current text, including while editing a JSON field. This shortcut is inactive while the image picker is open.
 
+The image picker focuses and selects its path field when opened, and Tab stays within the picker. Closing it returns focus to the header search if Settings remains open.
+
 ## Coverage
 
 | Page | Direct LunaDash controls | System or host integration / limits |

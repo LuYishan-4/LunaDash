@@ -95,6 +95,7 @@ ModuleSurface {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 16
+        enabled: !settings.shell.pickerOpen
         spacing: 12
 
         Rectangle {
@@ -369,13 +370,21 @@ ModuleSurface {
         cornerRadius: Theme.radiusHero
         shell: settings.shell
         opened: settings.shell.pickerOpen
-        onClosed: settings.shell.pickerOpen = false
+        onClosed: {
+            settings.shell.pickerOpen = false
+            Qt.callLater(function() {
+                if (settings.opened && !settings.shell.pickerOpen) {
+                    search.forceActiveFocus(Qt.OtherFocusReason)
+                    search.prepareInputMethod()
+                }
+            })
+        }
     }
 
     onOpenedChanged: {
         if (opened) {
             Qt.callLater(function() {
-                if (settings.opened) {
+                if (settings.opened && !settings.shell.pickerOpen) {
                     search.forceActiveFocus(Qt.OtherFocusReason)
                     search.prepareInputMethod()
                 }

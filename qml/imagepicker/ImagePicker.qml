@@ -115,6 +115,13 @@ ExtensionSlot {
         selectedPath = "";
         pathField.text = homePath;
         selectionError = "";
+        Qt.callLater(function() {
+            if (!picker.opened)
+                return
+            pathField.forceActiveFocus(Qt.OtherFocusReason)
+            pathField.selectAll()
+            pathField.prepareInputMethod()
+        })
     }
 
     visible: opened
