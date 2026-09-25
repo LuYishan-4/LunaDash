@@ -119,6 +119,7 @@ public:
     Impl *impl = nullptr;
     wlr_keyboard *keyboard = nullptr;
     bool virtualKeyboard = false;
+    uint32_t lastLockedModifiers = 0;
     QSet<uint32_t> consumedKeys;
     bool metaTapPending = false;
     int metaTapKeycode = -1;
