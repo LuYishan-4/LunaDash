@@ -9,6 +9,11 @@ if [ "$(id -u)" = 0 ]; then echo 'LunaDash must run as a normal login user, not 
 for program in quickshell; do
     command -v "$program" >/dev/null || { echo "Missing session dependency: $program" >&2; exit 1; }
 done
+# A TTY/manual login may omit the address even though PAM already started
+# the systemd user bus. Reuse that bus instead of isolating portal clients.
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+fi
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
     command -v dbus-run-session >/dev/null || {
         echo "Missing session dependency: dbus-run-session" >&2
@@ -35,6 +40,22 @@ mkdir -p -- "$state_dir"
 session_log=$(mktemp "$state_dir/session-XXXXXXXX.log")
 echo "LunaDash session log: $session_log"
 exec >>"$session_log" 2>&1
+# A user-level generic portals.conf from another desktop takes precedence
+# over /usr/share. Seed a LunaDash-only file without modifying that generic
+# file or replacing an explicit user choice. No writes happen in --check.
+portal_config_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}/xdg-desktop-portal
+portal_config="$portal_config_dir/lunadash-portals.conf"
+portal_defaults="$session_bin/../share/xdg-desktop-portal/lunadash-portals.conf"
+if [ ! -r "$portal_defaults" ]; then
+    portal_defaults=/usr/share/xdg-desktop-portal/lunadash-portals.conf
+fi
+if [ ! -e "$portal_config" ] && [ ! -L "$portal_config" ] && [ -r "$portal_defaults" ]; then
+    if mkdir -p -- "$portal_config_dir" && (set -C; cat -- "$portal_defaults" > "$portal_config"); then
+        echo "LunaDash portal configuration: $portal_config"
+    else
+        echo "Warning: could not create desktop-specific portal configuration." >&2
+    fi
+fi
 unset DISPLAY WAYLAND_DISPLAY QT_QUICK_BACKEND LIBGL_ALWAYS_SOFTWARE MESA_GL_VERSION_OVERRIDE MESA_GLSL_VERSION_OVERRIDE
 eglfs_integration=${QT_QPA_EGLFS_INTEGRATION:-eglfs_kms}
 unset QT_QPA_PLATFORM QT_QPA_EGLFS_INTEGRATION

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import xml.etree.ElementTree as ET
 
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
@@ -108,7 +109,21 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
     try:
         backend = launch("backend", [str(BACKEND)])
         wait_for(lambda: bus.name_has_owner(SERVICE), "Backend did not acquire its name")
-        impl = dbus.Interface(bus.get_object(SERVICE, DESKTOP), FILE_IFACE)
+        exported = bus.get_object(SERVICE, DESKTOP, introspect=False)
+        xml = dbus.Interface(exported, "org.freedesktop.DBus.Introspectable").Introspect()
+        (LOGDIR / "backend-introspection.xml").write_text(str(xml), encoding="utf-8")
+        interfaces = {entry.attrib["name"]: entry for entry in ET.fromstring(xml).findall("interface")}
+        file_api = interfaces[FILE_IFACE]
+        for name in ("OpenFile", "SaveFile", "SaveFiles"):
+            method = next(item for item in file_api.findall("method") if item.attrib["name"] == name)
+            inputs = "".join(arg.attrib["type"] for arg in method.findall("arg") if arg.attrib.get("direction", "in") == "in")
+            outputs = "".join(arg.attrib["type"] for arg in method.findall("arg") if arg.attrib.get("direction") == "out")
+            assert inputs == "osssa{sv}" and outputs == "ua{sv}", (name, inputs, outputs)
+        assert int(dbus.Interface(exported, "org.freedesktop.DBus.Properties").Get(FILE_IFACE, "version")) == 4
+        signal = interfaces["org.freedesktop.impl.portal.Settings"].find("signal[@name='SettingChanged']")
+        assert signal is not None and "".join(arg.attrib["type"] for arg in signal.findall("arg")) == "ssv"
+        print("Cold-start introspection: FileChooser v4 signatures and Settings signal exported", flush=True)
+        impl = dbus.Interface(exported, FILE_IFACE)
         # A direct C++ call cannot catch a broken Qt-generated D-Bus signature.
         for mode in ("OpenFile", "SaveFile", "OpenFile"):
             handle = dbus.ObjectPath("/org/freedesktop/portal/desktop/request/test/direct")
@@ -131,7 +146,14 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
         dbus.Interface(bus.get_object(SERVICE, handle), "org.freedesktop.impl.portal.Request").Close()
         response, results = checked_wait(answers, errors)
         assert int(response) == 1 and not results, (response, results)
+        assert backend.poll() is None
         print("Backend Request.Close: returned cancellation, process still alive", flush=True)
+        # Do not let the direct calls warm up the backend before frontend testing.
+        backend.terminate()
+        backend.wait(timeout=3)
+        wait_for(lambda: not bus.name_has_owner(SERVICE), "Backend name was not released")
+        backend = launch("backend-cold-frontend", [str(BACKEND)])
+        wait_for(lambda: bus.name_has_owner(SERVICE), "Cold frontend backend did not start")
 
         # The frontend runs with actual routing files, not a fake success stub.
         definitions = base / "portals"
@@ -171,15 +193,18 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
 
         # Run the real chooser UI, not its old AUTOPICK testing shortcut. The raw
         # output must preserve labels, including meaningful whitespace.
-        raw = "Monitor: HEADLESS-1 Display with trailing space  "
-        for accept in (True, False):
-            chooser_log = (LOGDIR / f"chooser-{accept}.log").open("w+")
+        for index, (raw, accept) in enumerate((
+            ("Monitor: HEADLESS-1 Display with trailing space  ", True),
+            ("Window: editor \u5de5\u4f5c\u5340 (id-1)  ", True),
+            ("Monitor: HEADLESS-1 Display with trailing space  ", False),
+        )):
+            chooser_log = (LOGDIR / f"chooser-{index}.log").open("w+")
             logs.append(chooser_log)
             chooser = subprocess.Popen([str(BACKEND), "--screencast-chooser"],
                                        env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                        stderr=chooser_log, text=True)
             processes.append(chooser)
-            chooser.stdin.write(raw + "\nWindow: Test (id-1)\n")
+            chooser.stdin.write(raw + "\n")
             chooser.stdin.close()
             window = wait_for(lambda: find_window(chooser.pid, "Share your screen"),
                               "Screen chooser UI did not appear")
@@ -192,7 +217,9 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
             output = chooser.stdout.read()
             assert chooser.returncode == 0, chooser.returncode
             assert output == (raw + "\n" if accept else ""), repr(output)
-        print("Screen chooser: real confirmation/cancellation and lossless labels passed", flush=True)
+        print("Screen chooser: real confirmation/cancellation and lossless UTF-8 labels passed", flush=True)
+        for name in ("backend.log", "backend-cold-frontend.log"):
+            assert "Unregistered input type" not in (LOGDIR / name).read_text(), name
     finally:
         for process in reversed(processes):
             if process.poll() is None:
