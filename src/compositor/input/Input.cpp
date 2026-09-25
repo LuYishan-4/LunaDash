@@ -98,6 +98,7 @@ void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
   state->impl = this;
   state->keyboard = keyboard;
   state->virtualKeyboard = isVirtual;
+  state->lastLockedModifiers = keyboard->modifiers.locked;
   attachListener(&keyboard->events.key, state->key, state, handleKeyboardKey);
   attachListener(&keyboard->events.modifiers, state->modifiers, state,
                  handleKeyboardModifiers);
@@ -390,6 +391,15 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
     return;
   auto *self = state->impl;
   wlr_seat_set_keyboard(self->seat, state->keyboard);
+
+  // wlroots updates xkb_state before emitting this modifiers signal. Track the
+  // raw locked mask separately so CapsLock/NumLock transitions remain visible
+  // even while an input-method-v2 keyboard grab is active.
+  const uint32_t locked = state->keyboard->modifiers.locked;
+  const bool lockedChanged =
+      !state->virtualKeyboard && locked != state->lastLockedModifiers;
+  state->lastLockedModifiers = locked;
+
   const bool inputMethodOwnsKeyboard =
       self->activeTextInput && self->activeTextInput->text &&
       self->activeTextInput->text->focused_surface && self->inputMethod &&
@@ -399,6 +409,12 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
     auto modifiers = state->keyboard->modifiers;
     wlr_input_method_keyboard_grab_v2_send_modifiers(
         self->inputMethod->method->keyboard_grab, &modifiers);
+    if (lockedChanged) {
+      // Lock state belongs to the physical keyboard and must also reach the
+      // focused wl_keyboard. Ordinary Shift/Ctrl/Alt remain owned by the IME.
+      wlr_seat_keyboard_send_modifiers(self->seat, &modifiers);
+      ++self->q->modifierResends_;
+    }
   } else {
     wlr_seat_keyboard_notify_modifiers(self->seat, &state->keyboard->modifiers);
   }
