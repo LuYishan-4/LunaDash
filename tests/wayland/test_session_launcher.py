@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import socket
 import sys
 import tempfile
 from pathlib import Path
@@ -17,6 +18,15 @@ with tempfile.TemporaryDirectory(prefix="ludash-login-test-") as directory:
     folder = Path(directory)
     binary = folder / "bin"
     binary.mkdir()
+    defaults = folder / "share/xdg-desktop-portal"
+    defaults.mkdir(parents=True)
+    routing = (root / "data/portal/lunadash-portals.conf").read_text()
+    (defaults / "lunadash-portals.conf").write_text(routing)
+    user_config = folder / "config/xdg-desktop-portal"
+    user_config.mkdir(parents=True)
+    generic = user_config / "portals.conf"
+    generic.write_text("[preferred]\ndefault=kde\n")
+    desktop_config = user_config / "lunadash-portals.conf"
 
     def executable(name, content):
         target = binary / name
@@ -25,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-login-test-") as directory:
 
     executable("ludash-session", (root / "scripts/ludash-session").read_text())
     executable("id", "#!/bin/sh\necho 1000\n")
-    for command in ("quickshell", "konsole", "fish", "pacman"):
+    for command in ("quickshell", "konsole", "fish", "pacman", "makepkg", "sudo"):
         executable(command, "#!/bin/sh\nexit 97\n")
     executable(
         "dbus-run-session",
@@ -47,6 +57,7 @@ os.execvp(sys.argv[2], sys.argv[2:])
     env = os.environ | {
         "PATH": str(binary) + os.pathsep + os.environ["PATH"],
         "XDG_RUNTIME_DIR": directory,
+        "XDG_CONFIG_HOME": str(folder / "config"),
         "XDG_STATE_HOME": str(folder / "state"),
         "TEST_RECORD": str(record),
         "TEST_DBUS_RECORD": str(dbus_record),
@@ -69,6 +80,7 @@ os.execvp(sys.argv[2], sys.argv[2:])
 
     assert run("--check").returncode == 0
     assert not record.exists(), "Preflight launched the compositor"
+    assert not desktop_config.exists(), "Preflight changed portal routing"
     assert run(environment=env | {"XDG_RUNTIME_DIR": ""}).returncode != 0
     assert run(environment=env | {"LUDASH_GRAPHICS": "invalid"}).returncode == 2
     literal = "socket;echo injected"
@@ -88,6 +100,10 @@ os.execvp(sys.argv[2], sys.argv[2:])
     assert launch["env"]["SDL_IM_MODULE"] == "fcitx"
     assert launch["env"]["DBUS_SESSION_BUS_ADDRESS"] == env["DBUS_SESSION_BUS_ADDRESS"]
     assert not dbus_record.exists(), "Existing user D-Bus was replaced"
+    assert desktop_config.read_text() == routing
+    assert generic.read_text() == "[preferred]\ndefault=kde\n"
+    # Explicit LunaDash overrides are user-owned; later logins must preserve them.
+    desktop_config.write_text("[preferred]\ndefault=gtk\n# custom routing\n")
 
     fallback_record = folder / "fallback-launch.json"
     fallback_env = dict(env)
@@ -99,6 +115,7 @@ os.execvp(sys.argv[2], sys.argv[2:])
     assert fallback_launch["args"] == [
         "--fullscreen", "--graphics", "gles", "--socket", "fallback"
     ]
+    assert desktop_config.read_text() == "[preferred]\ndefault=gtk\n# custom routing\n"
     dbus_env = json.loads(dbus_record.read_text())
     for name in ("QT_QPA_PLATFORM", "QT_QPA_EGLFS_INTEGRATION"):
         assert name not in dbus_env, f"{name} leaked into D-Bus daemon environment"
@@ -113,6 +130,15 @@ os.execvp(sys.argv[2], sys.argv[2:])
         assert name not in launch["env"], name
     logs = list((folder / "state/lunadash").glob("session-*.log"))
     assert len(logs) == 2
+    # An available PAM user bus wins over spawning a private dbus-run-session.
+    dbus_record.unlink()
+    with socket.socket(socket.AF_UNIX) as user_bus:
+        user_bus.bind(str(folder / "bus"))
+        result = run("--socket", "pam-bus", environment=fallback_env)
+        assert result.returncode == 0, result.stderr
+        reused = json.loads(fallback_record.read_text())
+        assert reused["env"]["DBUS_SESSION_BUS_ADDRESS"] == f"unix:path={folder / 'bus'}"
+        assert not dbus_record.exists(), "PAM user bus was ignored"
     assert all(log.stat().st_mode & 0o777 == 0o600 for log in logs)
     result = subprocess.run(
         [str(installer), "--dry-run"], env=env, capture_output=True, text=True

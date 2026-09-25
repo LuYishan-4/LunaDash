@@ -10,6 +10,8 @@
 #include <QUrl>
 
 namespace LunaDash {
+uint FileChooserPortal::version() const { return 4; }
+
 uint FileChooserPortal::OpenFile(const QDBusObjectPath &handle,
                                  const QString &, const QString &,
                                  const QString &title,

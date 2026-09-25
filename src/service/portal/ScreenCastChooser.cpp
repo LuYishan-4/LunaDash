@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QStandardPaths>
+#include <QStringConverter>
 #include <QTextStream>
 #include <QVBoxLayout>
 #include <QVariant>
@@ -42,8 +43,11 @@ QString sourceWindowTitle(const QString &source) {
 QStringList readSources() {
   QStringList sources;
   QTextStream input(stdin, QIODevice::ReadOnly);
+  input.setEncoding(QStringConverter::Utf8);
   while (!input.atEnd()) {
-    const QString source = input.readLine().trimmed();
+    // xdpw matches this opaque label byte-for-byte. Whitespace is part of
+    // the monitor/window identity, not formatting to normalize.
+    const QString source = input.readLine();
     if (!source.isEmpty())
       sources.append(source);
   }
@@ -52,6 +56,7 @@ QStringList readSources() {
 
 int printSource(const QString &source) {
   QTextStream output(stdout, QIODevice::WriteOnly);
+  output.setEncoding(QStringConverter::Utf8);
   output << source << Qt::endl;
   output.flush();
   return 0;

@@ -4,13 +4,12 @@
 #include "service/portal/SettingsPortal.hpp"
 #include <QApplication>
 #include <QDBusConnection>
+#include <QDBusError>
+#include <QDBusMetaType>
+#include <QDebug>
 
 namespace LunaDash {
 int Portal::run(int argc, char **argv) {
-  // A portal backend must not query its own frontend while the frontend is
-  // waiting for this service to acquire its bus name.
-  qputenv("QT_QPA_PLATFORMTHEME", "generic");
-  qunsetenv("GTK_USE_PORTAL");
   QApplication app(argc, argv);
   QApplication::setStyle("Fusion");
   app.setQuitOnLastWindowClosed(false);
@@ -18,18 +17,37 @@ int Portal::run(int argc, char **argv) {
   app.setOrganizationName(QStringLiteral("LunaDash"));
   LunaDash::initializeLocalization(app);
 
+  // Register before constructing adaptors or exporting introspection data.
+  // Qt must not omit a slot/signal on the first connection and only discover
+  // its argument type after a caller has already sent a request.
+  qDBusRegisterMetaType<QDBusObjectPath>();
+  qDBusRegisterMetaType<QDBusVariant>();
+  qDBusRegisterMetaType<PortalSettingsMap>();
   auto bus = QDBusConnection::sessionBus();
-  if (!bus.isConnected())
+  if (!bus.isConnected()) {
+    qCritical() << "LunaDash portal: session bus unavailable:" << bus.lastError();
     return 2;
-  if (!bus.registerService(
-          QStringLiteral("org.freedesktop.impl.portal.desktop.lunadash")))
-    return 3;
+  }
 
   FileChooserPortal portal;
   new SettingsPortal(&portal);
-  if (!bus.registerObject(QStringLiteral("/org/freedesktop/portal/desktop"),
-                          &portal, QDBusConnection::ExportAllSlots | QDBusConnection::ExportAdaptors))
+  const QString path = QStringLiteral("/org/freedesktop/portal/desktop");
+  if (!bus.registerObject(path, &portal,
+                          QDBusConnection::ExportAllSlots |
+                              QDBusConnection::ExportAllProperties |
+                              QDBusConnection::ExportAdaptors)) {
+    qCritical() << "LunaDash portal: cannot export interfaces:" << bus.lastError();
     return 4;
+  }
+  // Type=dbus and the frontend treat name acquisition as readiness. Export
+  // the object first, so the first caller cannot observe an empty service.
+  if (!bus.registerService(
+          QStringLiteral("org.freedesktop.impl.portal.desktop.lunadash"))) {
+    qCritical() << "LunaDash portal: cannot own backend name:" << bus.lastError();
+    return 3;
+  }
+  qInfo() << "LunaDash portal ready: FileChooser v4, Settings v2, platform"
+          << app.platformName();
   return app.exec();
 }
 
