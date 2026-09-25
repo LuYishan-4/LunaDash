@@ -37,7 +37,9 @@ case "${LUDASH_GRAPHICS:-gles}" in auto|opengl|gles) ;; *) echo 'LUDASH_GRAPHICS
 umask 077
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/lunadash
 mkdir -p -- "$state_dir"
-session_log=$(mktemp "$state_dir/session-XXXXXXXX.log")
+session_log=$(mktemp "$state_dir/session-XXXXXXXX")
+mv -- "$session_log" "$session_log.log"
+session_log="$session_log.log"
 echo "LunaDash session log: $session_log"
 exec >>"$session_log" 2>&1
 # A user-level generic portals.conf from another desktop takes precedence
