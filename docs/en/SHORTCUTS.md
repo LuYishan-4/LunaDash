@@ -1,6 +1,6 @@
 # Keyboard shortcuts
 
-[繁體中文](../zh/SHORTCUTS.md)
+[Traditional Chinese](../zh/SHORTCUTS.md)
 
 These are the shipped desktop defaults. **Meta / Super** is usually the Windows key. Settings > Keyboard shortcuts shows the current bindings, including custom values and disabled actions; the tables below do not replace saved choices. There are 51 configurable actions (31 commands and 20 workspace bindings). The source is `src/desktop/shortcuts/ShortcutSettings.cpp`.
 
@@ -49,4 +49,4 @@ The following controls are fixed and also listed at the bottom of Settings > Key
 
 Within shell surfaces, application search uses Up/Down to select, Enter to launch and Escape to close. In Orbit's search field, Tab/Shift+Tab cycles search engines and Alt+1…8 activates an item; focused items accept Enter/Space, and Escape goes back. Settings uses Ctrl+F to focus its header search; Escape clears that search, then closes Settings when it is empty. The shortcut recorder uses Enter/Space to begin, Escape to cancel and Backspace to disable while recording. Focused workspace buttons accept Enter/Space. Escape closes the desktop context menu and image picker. Ordinary Tab/Shift+Tab navigation and the shortcuts of external applications remain owned by their respective controls/apps.
 
-The built-in `welcome` tool keeps its stable command ID, but its visible window title and startup selector use the translated **Welcome** label (**歡迎** with Traditional Chinese selected).
+The built-in `welcome` tool keeps its stable command ID, but its visible window title and startup selector use the translated **Welcome** label from the selected language pack.
