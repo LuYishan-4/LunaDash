@@ -183,7 +183,6 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             last_state = {}
             while time.monotonic() < deadline:
                 assert process.poll() is None, f"Compositor exited while waiting for {description}"
-                reject_qml_errors(log_path)
                 try:
                     last_state = request()
                     assert not last_state.get("processFailure"), last_state
@@ -215,7 +214,6 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             last_tree = []
             while time.monotonic() < deadline:
                 assert process.poll() is None, "Compositor exited during settings interaction"
-                reject_qml_errors(log_path)
                 last_tree = []
                 for node, details in accessibility_nodes():
                     last_tree.append(details)
@@ -562,6 +560,12 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             reject_qml_errors(log_path)
             print("Quickshell layout passed: Settings UI saves, custom dark panel, bounded popup, no dock, fitted client buffers, and rounded glass/opaque window screenshots.")
         except BaseException:
+            try:
+                failure_state = request()
+                snapshots.append({"scene": "failure", "state": failure_state})
+                capture("failure", (failure_state["display"]["width"], failure_state["display"]["height"]))
+            except Exception as capture_error:
+                print(f"Could not capture the failed UI state: {capture_error}", file=sys.stderr)
             print(log_path.read_text(errors="replace")[-20000:], file=sys.stderr)
             raise
         finally:
