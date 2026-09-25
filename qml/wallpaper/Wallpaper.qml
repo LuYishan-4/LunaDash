@@ -3,7 +3,7 @@ import "../plugins"
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "../style" as Style
+import "../style"
 
 ModuleSurface {
     id: wallpaper
@@ -21,6 +21,7 @@ ModuleSurface {
     readonly property string stateSource: String(wallpaper.shell.state.wallpaperImage || "")
     readonly property var media: ((shell.state.wallpapers || {}).current || {})
     readonly property bool live: media.type === "video" && !shell.wallpaperOverride.length
+    property bool liveLayerActive: live
     readonly property string desiredSource: wallpaper.shell.wallpaperOverride.length
         ? wallpaper.shell.wallpaperOverride : stateSource
 
@@ -37,14 +38,45 @@ ModuleSurface {
         source: wallpaper.live ? (wallpaper.media.preview || "") : wallpaper.desiredSource
         pixelRatio: wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1
     }
+    onLiveChanged: {
+        if (live) {
+            liveUnload.stop()
+            liveLayerActive = true
+        } else if (liveLayerActive) {
+            if (Theme.animations && Theme.animationDuration > 0)
+                liveUnload.restart()
+            else
+                liveLayerActive = false
+        }
+    }
+
+    Timer {
+        id: liveUnload
+        interval: Math.max(180, Theme.animationDuration)
+        repeat: false
+        onTriggered: if (!wallpaper.live) wallpaper.liveLayerActive = false
+    }
+
     Loader {
         id: liveLoader
         anchors.fill: parent
-        active: wallpaper.live
+        active: wallpaper.liveLayerActive
         source: active ? "LiveWallpaper.qml" : ""
+        opacity: wallpaper.live && status === Loader.Ready && !background.transitioning ? 1 : 0
+        scale: opacity > 0.5 ? 1 : 1.015
+        Behavior on opacity {
+            enabled: Theme.animations && Theme.animationDuration > 0
+            NumberAnimation { duration: Math.max(180, Theme.animationDuration); easing.type: Easing.InOutCubic }
+        }
+        Behavior on scale {
+            enabled: Theme.animations && Theme.animationDuration > 0
+            NumberAnimation { duration: Math.max(180, Theme.animationDuration); easing.type: Easing.OutCubic }
+        }
         onLoaded: {
-            item.source = Qt.binding(() => wallpaper.media.url || "")
-            item.playing = Qt.binding(() => !wallpaper.shell.stopping)
+            item.source = Qt.binding(() => wallpaper.live ? (wallpaper.media.url || "") : "")
+            item.playing = Qt.binding(() => wallpaper.live && !wallpaper.shell.stopping)
+            item.animationsEnabled = Qt.binding(() => Theme.animations)
+            item.transitionDuration = Qt.binding(() => Math.max(180, Theme.animationDuration))
         }
         onStatusChanged: if (status === Loader.Error)
             wallpaper.shell.notify(wallpaper.shell.tr("Live wallpaper"), wallpaper.shell.tr("Install Qt Multimedia to play video wallpapers."), "error", "")
