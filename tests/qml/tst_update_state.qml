@@ -32,7 +32,7 @@ TestCase {
         backendShell.state = {
             appearance: {updateChannel: "dev"},
             sessionActions: {reboot: false},
-            update: {channel: "dev", status: "idle", currentVersion: "1.0.0", currentCommit: "abcdef0123456789", startedAt: 100}
+            update: {channel: "dev", status: "idle", currentVersion: "1.0.1a", currentCommit: "abcdef0123456789", startedAt: 100}
         }
     }
     function setUpdate(values) {

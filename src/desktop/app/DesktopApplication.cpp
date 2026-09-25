@@ -1,16 +1,11 @@
 #include "desktop/app/DesktopApplication.hpp"
 #include "config/BuildConfig.hpp"
 #include "config/localization/Localization.hpp"
-#include "desktop/app/ApplicationCatalog.hpp"
 #include "desktop/app/ApplicationWindow.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/app/WaylandClientShutdown.hpp"
-#include "desktop/console/Console.hpp"
 #include "desktop/filemanager/FileManager.hpp"
-#include "desktop/launcher/Launcher.hpp"
 #include "desktop/package/PackageManager.hpp"
-#include "desktop/plugins/PluginSettings.hpp"
-#include "desktop/system/SystemMonitor.hpp"
 #include "desktop/theme/DesktopTheme.hpp"
 #include "desktop/welcome/Welcome.hpp"
 #include <QProcess>
@@ -48,10 +43,11 @@ int DesktopApplication::run(int argc, char **argv) {
   if (parser.isSet("app")) {
     const auto requested = parser.value("app");
     app.setDesktopFileName("lunadash-app");
-    if (requested == "settings")
+    if (requested == "settings" || requested == "plugins")
       return QProcess::execute(QCoreApplication::applicationDirPath() +
                                    "/lunadashctl",
-                               {"open-settings"});
+                               {"open-settings", requested == "plugins"
+                                                     ? "plugins" : "general"});
     if (requested == "files" && !parser.isSet("builtin")) {
       QString error;
       auto command = LunaDash::defaultApplicationCommand(requested, &error);
@@ -76,16 +72,8 @@ int DesktopApplication::run(int argc, char **argv) {
     const auto id = parser.value("app");
     if (id == "files")
       content = LunaDash::createFileManager();
-    else if (id == "console")
-      content = LunaDash::createConsole();
-    else if (id == "monitor")
-      content = LunaDash::createSystemMonitor();
     else if (id == "packages")
       content = LunaDash::createPackageManager();
-    else if (id == "plugins")
-      content = LunaDash::createPluginSettings();
-    else if (id == "launcher")
-      content = LunaDash::createLauncher();
     else if (id == "welcome")
       content = LunaDash::createWelcome([](const QString &target) {
         QProcess::startDetached(QCoreApplication::applicationFilePath(),

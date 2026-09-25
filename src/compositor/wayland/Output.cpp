@@ -1,6 +1,6 @@
-#include "compositor/animation/SceneWindowAnimations.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/client/ClientWindow.hpp"
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
@@ -11,6 +11,19 @@
 #include <ctime>
 
 namespace LunaDash {
+namespace {
+bool screencopyPendingForOutput(wlr_screencopy_manager_v1 *manager,
+                                wlr_output *output) {
+  if (!manager || !output)
+    return false;
+  wlr_screencopy_frame_v1 *frame = nullptr;
+  wl_list_for_each(frame, &manager->frames, link)
+    if (frame->output == output)
+      return true;
+  return false;
+}
+} // namespace
+
 using Templates::attachListener;
 using Templates::detachListener;
 using Templates::listenerOwner;
@@ -26,7 +39,13 @@ QSize WaylandCompositor::Impl::outputSize() const {
 
 QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
   const QSize size = outputSize();
+  QJsonArray nightLight;
+  for (const auto *output : outputs)
+    nightLight.append(QJsonObject{{"output", safeUtf8(output->output->name)},
+                                  {"temperature", output->nightTemperature},
+                                  {"error", output->nightError}});
   return {
+      {"nightLight", nightLight},
       {"width", size.width()},
       {"pixelWidth", primaryOutput ? primaryOutput->width : 0},
       {"pixelHeight", primaryOutput ? primaryOutput->height : 0},
@@ -69,6 +88,20 @@ void WaylandCompositor::Impl::updateBackground() {
   // Neutral fallback while the shell's startup surface and wallpaper map.
   const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
   wlr_scene_rect_set_color(background, color);
+}
+
+void WaylandCompositor::Impl::updateWindowGlass() {
+  if (!windowGlass)
+    return;
+  QList<WindowGlass::Surface> surfaces;
+  for (const auto &client : q->clients_)
+    if (client->sceneTree)
+      surfaces.append({client->sceneTree, client->geometry.size(),
+                       client->mapped && !client->fullscreen &&
+                           !client->desktop && !client->utility});
+  const bool animating = q->windowAnimations_ &&
+                         q->windowAnimations_->activeCount() > 0;
+  windowGlass->update(surfaces, animating);
 }
 
 void WaylandCompositor::Impl::arrangeLayers() {
@@ -178,6 +211,13 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   }
   wlr_output_state_finish(&pending);
 
+  // Direct KMS recorders capture the primary scanout buffer, but hardware
+  // cursor planes are separate and are not reliably composited by all drivers
+  // (notably NVIDIA). Keep the cursor in the scene-rendered framebuffer on
+  // real login outputs so monitor recording sees exactly what LunaDash shows.
+  if (!self->nested)
+    wlr_output_lock_software_cursors(output, true);
+
   auto *state = new OutputState;
   state->impl = self;
   state->output = output;
@@ -193,6 +233,7 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   attachListener(&output->events.request_state, state->requestState, state,
                  handleOutputRequestState);
   self->outputs.append(state);
+  self->updateNightLight();
 
   if (!self->primaryOutput)
     self->primaryOutput = output;
@@ -206,16 +247,57 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *state = listenerOwner<OutputState>(listener);
   if (!state || !state->sceneOutput)
     return;
-  auto *animations = state->impl->q->windowAnimations_;
+
+  // Sample before commit: a screencopy frame is removed when this output
+  // commit satisfies it. The tail bridges the small gap before xdpw queues
+  // the next PipeWire frame and prevents a one-frame/frozen stream.
+  const bool capturePending =
+      screencopyPendingForOutput(state->impl->screencopy, state->output);
+  if (capturePending)
+    state->screencopyKeepalive = 6;
+  else if (state->screencopyKeepalive > 0)
+    --state->screencopyKeepalive;
+
+  auto *animations = state->impl->q->windowAnimations_.get();
   if (animations)
     animations->advance();
-  if (!wlr_scene_output_commit(state->sceneOutput, nullptr))
+  state->impl->updateWindowGlass();
+  if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
     qWarning("wlroots scene output commit failed.");
+    if (state->nightColor) {
+      ludash_night_color_destroy(state->nightColor);
+      state->nightColor = nullptr;
+      state->nightTemperature = 6500;
+      state->nightError = "The renderer rejected night light; the normal output has been restored.";
+      wlr_output_schedule_frame(state->output);
+    }
+  }
   timespec now{};
   clock_gettime(CLOCK_MONOTONIC, &now);
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
+
   if (animations && animations->activeCount() > 0)
     wlr_output_schedule_frame(state->output);
+
+  // Do not spin a screencopy tail synchronously from the output frame
+  // callback. The headless backend can deliver scheduled frames immediately;
+  // chaining them here starves the Wayland event loop and later screencopy
+  // clients never get far enough to submit their copy request. Pace the tail
+  // at roughly one display interval instead. wlroots still schedules the
+  // first frame for every copy request itself.
+  if (capturePending || state->screencopyKeepalive > 0) {
+    auto *impl = state->impl;
+    auto *output = state->output;
+    QTimer::singleShot(16, impl->q, [impl, output] {
+      const bool alive =
+          std::any_of(impl->outputs.cbegin(), impl->outputs.cend(),
+                      [output](const auto *candidate) {
+                        return candidate && candidate->output == output;
+                      });
+      if (alive)
+        wlr_output_schedule_frame(output);
+    });
+  }
 }
 
 void WaylandCompositor::Impl::handleOutputRequestState(wl_listener *listener,
@@ -243,6 +325,7 @@ void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
   if (self->primaryOutput == state->output)
     self->primaryOutput = nullptr;
   self->outputs.removeAll(state);
+  ludash_night_color_destroy(state->nightColor);
   for (auto *candidate : self->outputs)
     if (candidate && candidate->output) {
       self->primaryOutput = candidate->output;

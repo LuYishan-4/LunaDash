@@ -16,6 +16,7 @@ public:
   bool installTemplate(const QString &id, QString *error);
   void reportError(const QString &id, const QString &error);
   int panelExtent(int fallbackHeight) const;
+  QString panelEdge() const;
   bool panelAtBottom() const;
 signals:
   void changed();

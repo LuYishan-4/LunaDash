@@ -29,6 +29,36 @@ bool boundedText(const QJsonObject &request, const QString &key, QString *value,
   return true;
 }
 
+// nmcli -t escapes ':' as "\:" and '\\' as "\\\\" when escaping is enabled.
+// Splitting on every ':' corrupts any SSID or connection name that contains a
+// colon, so split on unescaped separators and then unescape each field.
+QStringList splitTerse(const QString &line) {
+  QStringList fields;
+  QString current;
+  bool escaped = false;
+  for (const QChar ch : line) {
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch == '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch == ':') {
+      fields.append(current);
+      current.clear();
+      continue;
+    }
+    current += ch;
+  }
+  if (escaped)
+    current += '\\';
+  fields.append(current);
+  return fields;
+}
+
 bool isWifiType(const QString &type) {
   const QString normalized = type.toLower();
   return normalized == "wifi" || normalized == "802-11-wireless" ||
@@ -154,7 +184,7 @@ void NetworkStatus::refreshNmcli() {
   pending_ = true;
   command_->run(
       nmcli_,
-      {"-t", "--escape", "no", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"},
+      {"-t", "--escape", "yes", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"},
       [this](bool ok, const QByteArray &output) {
         pending_ = false;
         QJsonArray devices;
@@ -167,7 +197,7 @@ void NetworkStatus::refreshNmcli() {
         QString primaryType = "disconnected";
 
         for (const auto &line : QString::fromUtf8(output).split('\n')) {
-          const auto fields = line.split(':');
+          const auto fields = splitTerse(line);
           if (fields.size() < 4 || fields[0].isEmpty())
             continue;
           const QString deviceName = fields[0];
@@ -216,14 +246,14 @@ void NetworkStatus::refreshNmcli() {
 
         command_->run(
             nmcli_,
-            {"-t", "--escape", "no", "-f",
+            {"-t", "--escape", "yes", "-f",
              "NAME,UUID,TYPE,DEVICE,STATE,AUTOCONNECT", "connection", "show"},
             [this](bool connectionOk, const QByteArray &connectionOutput) {
               QJsonArray connections;
               if (connectionOk) {
                 for (const auto &line :
                      QString::fromUtf8(connectionOutput).split('\n')) {
-                  const auto fields = line.split(':');
+                  const auto fields = splitTerse(line);
                   if (fields.size() >= 6 && !fields[0].isEmpty())
                     connections.append(
                         QJsonObject{{"name", fields[0]},
@@ -243,7 +273,7 @@ void NetworkStatus::refreshNmcli() {
 
               command_->run(
                   nmcli_,
-                  {"-t", "--escape", "no", "-f",
+                  {"-t", "--escape", "yes", "-f",
                    "IN-USE,SSID,SIGNAL,SECURITY,DEVICE", "device", "wifi",
                    "list"},
                   [this](bool wifiOk, const QByteArray &wifiOutput) {
@@ -251,7 +281,7 @@ void NetworkStatus::refreshNmcli() {
                     if (wifiOk) {
                       for (const auto &line :
                            QString::fromUtf8(wifiOutput).split('\n')) {
-                        const auto fields = line.split(':');
+                        const auto fields = splitTerse(line);
                         if (fields.size() < 5 || fields[1].isEmpty())
                           continue;
                         const QString ssid = fields[1];
@@ -314,19 +344,24 @@ bool NetworkStatus::execute(const QJsonObject &request, QString *error) {
   QString device;
   if (action == "network-reset") {
     return command_->run(
-        nmcli_, {"networking", "off"}, [this](bool, const QByteArray &) {
-          command_->run(nmcli_, {"networking", "on"},
-                        [this](bool, const QByteArray &) { refresh(); });
-        });
+        nmcli_, {"networking", "off"},
+        [this](bool, const QByteArray &) {
+          command_->run(
+              nmcli_, {"networking", "on"},
+              [this](bool, const QByteArray &) { refresh(); }, 15000);
+        },
+        15000);
   }
   if (action == "connection-reconnect" &&
       boundedText(request, "name", &name, 256)) {
-    return command_->run(nmcli_, {"connection", "down", name},
-                         [this, name](bool, const QByteArray &) {
-                           command_->run(
-                               nmcli_, {"connection", "up", name},
-                               [this](bool, const QByteArray &) { refresh(); });
-                         });
+    return command_->run(
+        nmcli_, {"connection", "down", name},
+        [this, name](bool, const QByteArray &) {
+          command_->run(
+              nmcli_, {"connection", "up", name},
+              [this](bool, const QByteArray &) { refresh(); }, 15000);
+        },
+        15000);
   }
   if (action == "wifi-scan") {
     if (!status_.value("hasWifi").toBool()) {
@@ -422,7 +457,11 @@ bool NetworkStatus::execute(const QJsonObject &request, QString *error) {
     return false;
   }
 
+  // Wi-Fi scans, connects and connection up/down routinely take longer than the
+  // default 2.5s CommandRunner timeout; give NetworkManager actions more room
+  // before they are treated as failures.
   return command_->run(nmcli_, args,
-                       [this](bool, const QByteArray &) { refresh(); });
+                       [this](bool, const QByteArray &) { refresh(); },
+                       15000);
 }
 } // namespace LunaDash

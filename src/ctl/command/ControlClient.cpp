@@ -2,6 +2,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalSocket>
@@ -54,12 +55,27 @@ int ControlClient::run(int argc, char **argv) {
            "display-revert|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
            "appearance|setup|finish-setup|configure-network|launch-x11|"
+           "launch-command|launch-with-x11|"
            "open-settings|system-tool|audio|network|power-profile|desktop-size|"
            "reset-preferences|default-apps|launch-default|module-validate|"
-           "module-save|module-template|module-code-trust|module-reset|quit "
+           "module-save|module-template|module-code-trust|module-reset|"
+           "extension-save|extension-error|settings-describe|settings-update|"
+           "window-layout-settings|window-layout-action|quit "
            "[value]\n"
-           "  group-window value: {\"window\":ID,\"target\":ID}\n";
+           "  group-window value: {\"window\":ID,\"target\":ID}\n"
+           "  launch-with-x11 -- program [argument ...]\n";
     return 2;
+  }
+
+  QString value = args.value(2);
+  if (args[1] == "launch-with-x11" && value == "--") {
+    if (args.size() < 4 || args[3].isEmpty()) {
+      QTextStream(stderr) << "Expected a program after --.\n";
+      return 2;
+    }
+    value =
+        QString::fromUtf8(QJsonDocument(QJsonArray::fromStringList(args.mid(3)))
+                              .toJson(QJsonDocument::Compact));
   }
 
   auto path = qEnvironmentVariable("LUNADASH_CONTROL");
@@ -79,7 +95,7 @@ int ControlClient::run(int argc, char **argv) {
   if (!socket.waitForConnected(1500))
     return 1;
   socket.write(
-      QJsonDocument(QJsonObject{{"method", args[1]}, {"value", args.value(2)}})
+      QJsonDocument(QJsonObject{{"method", args[1]}, {"value", value}})
           .toJson(QJsonDocument::Compact) +
       '\n');
   socket.flush();

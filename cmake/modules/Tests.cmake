@@ -11,3 +11,91 @@ if(LUDASH_BUILD_RENDERER_TESTS)
         RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/lunadash/tests
         COMPONENT Tests EXCLUDE_FROM_ALL)
 endif()
+
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
+    add_executable(lunadash-portal-picker-test tests/files/PortalPickerTests.cpp
+        src/service/portal/FileChooserPortal.cpp
+        src/service/portal/FileChooserPortal.hpp
+        src/service/portal/FileChooserOptions.cpp
+        src/service/portal/FileChooserOptions.hpp
+        src/service/portal/FilePickerDialog.cpp
+        src/service/portal/FilePickerDialog.hpp)
+    target_link_libraries(lunadash-portal-picker-test PRIVATE ludash-apps Qt6::Test Qt6::DBus)
+    add_test(NAME lunadash-portal-picker COMMAND lunadash-portal-picker-test)
+    set_tests_properties(lunadash-portal-picker PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+    add_executable(lunadash-audio-spectrum-test tests/media/AudioSpectrumTests.cpp)
+    target_link_libraries(lunadash-audio-spectrum-test PRIVATE ludash-audio-spectrum Qt6::Test)
+    add_test(NAME lunadash-audio-spectrum COMMAND lunadash-audio-spectrum-test)
+    find_package(X11 QUIET)
+    find_package(OpenGL QUIET)
+    if(X11_FOUND AND OpenGL_FOUND)
+        add_executable(lunadash-x11-notification-test tests/wayland/x11_notification_client.c)
+        target_link_libraries(lunadash-x11-notification-test PRIVATE X11::X11 OpenGL::GL)
+    endif()
+    add_executable(lunadash-thumbnail-test tests/renderer/ThumbnailReadbackTests.cpp)
+    target_compile_definitions(lunadash-thumbnail-test PRIVATE WLR_USE_UNSTABLE=1)
+    target_link_libraries(lunadash-thumbnail-test PRIVATE ludash-thumbnail-readback Qt6::Test)
+    add_test(NAME lunadash-thumbnail COMMAND lunadash-thumbnail-test)
+    set_tests_properties(lunadash-thumbnail PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-scene-backdrop-test tests/renderer/SceneBackdropTests.cpp)
+    target_compile_definitions(lunadash-scene-backdrop-test PRIVATE WLR_USE_UNSTABLE=1)
+    target_link_libraries(lunadash-scene-backdrop-test PRIVATE ludash-scene-backdrop Qt6::Test)
+    add_test(NAME lunadash-scene-backdrop COMMAND lunadash-scene-backdrop-test)
+    set_tests_properties(lunadash-scene-backdrop PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-window-glass-test tests/renderer/WindowGlassTests.cpp
+        src/compositor/renderer/blur/WindowGlass.cpp)
+    target_include_directories(lunadash-window-glass-test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+    target_compile_definitions(lunadash-window-glass-test PRIVATE WLR_USE_UNSTABLE=1)
+    target_link_libraries(lunadash-window-glass-test PRIVATE
+        ludash-scene-backdrop Qt6::Test PkgConfig::WAYLAND_SERVER)
+    # WlrootsHeaders.hpp uses the protocol headers generated for the compositor.
+    add_dependencies(lunadash-window-glass-test ludash-wayland)
+    add_test(NAME lunadash-window-glass COMMAND lunadash-window-glass-test)
+    set_tests_properties(lunadash-window-glass PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-media-test tests/media/MediaPlayerTests.cpp)
+    target_link_libraries(lunadash-media-test PRIVATE Qt6::Core Qt6::DBus Qt6::Test)
+    add_dependencies(lunadash-media-test ludash-shell-tool)
+    add_test(NAME lunadash-media COMMAND lunadash-media-test)
+    set_tests_properties(lunadash-media PROPERTIES TIMEOUT 30)
+    add_test(NAME lunadash-clipboard-history COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/session/test_clipboard_history.py)
+    set_tests_properties(lunadash-clipboard-history PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-launch-policy-test tests/session/LaunchPolicyTests.cpp)
+    target_link_libraries(lunadash-launch-policy-test PRIVATE ludash-launch-policy Qt6::Test)
+    add_test(NAME lunadash-launch-policy COMMAND lunadash-launch-policy-test)
+    set_tests_properties(lunadash-launch-policy PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-window-animation-template-test
+        tests/animation/WindowAnimationTemplateTests.cpp)
+    target_include_directories(lunadash-window-animation-template-test PRIVATE src)
+    target_link_libraries(lunadash-window-animation-template-test PRIVATE Qt6::Test)
+    add_test(NAME lunadash-window-animation-template
+        COMMAND lunadash-window-animation-template-test)
+    set_tests_properties(lunadash-window-animation-template PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-settings-test tests/settings/SettingsTests.cpp
+        src/compositor/settings/SettingsApi.cpp)
+    target_link_libraries(lunadash-settings-test PRIVATE ludash-plugins ludash-shell-modules ludash-configuration Qt6::Test)
+    target_compile_definitions(lunadash-settings-test PRIVATE
+        SETTINGS_FIXTURES="${CMAKE_CURRENT_SOURCE_DIR}/tests/settings/contract.json")
+    if(TARGET ludash-fade)
+        add_dependencies(lunadash-settings-test ludash-fade)
+    endif()
+    add_test(NAME lunadash-settings COMMAND lunadash-settings-test)
+    set_tests_properties(lunadash-settings PROPERTIES TIMEOUT 30)
+    add_test(NAME lunadash-settings-schema COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/settings/test_schema.py)
+    add_executable(lunadash-plugin-test tests/plugins/PluginTests.cpp)
+    target_link_libraries(lunadash-plugin-test PRIVATE ludash-plugins Qt6::Test)
+    if(TARGET ludash-fade)
+        add_dependencies(lunadash-plugin-test ludash-fade lunadash-stacking-windows)
+    endif()
+    add_test(NAME lunadash-plugins COMMAND lunadash-plugin-test)
+    set_tests_properties(lunadash-plugins PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-window-layout-test tests/tiling/WindowLayoutTests.cpp)
+    target_link_libraries(lunadash-window-layout-test PRIVATE
+        ludash-tiling ludash-window-rules ludash-shortcut-settings ludash-default-applications Qt6::Test)
+    add_test(NAME lunadash-window-layout COMMAND lunadash-window-layout-test)
+    set_tests_properties(lunadash-window-layout PROPERTIES TIMEOUT 30)
+endif()

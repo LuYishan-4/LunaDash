@@ -25,16 +25,26 @@ QJsonObject defaults() {
   result.insert("closeWindow", "Meta+C");
   result.insert("minimizeWindow", "Meta+M");
   result.insert("closeWindowAlternate", "Meta+Q");
-  result.insert("toggleFloating", "Meta+Space");
-  result.insert("launchTerminal", "Meta+Return");
+  result.insert("launchTerminal", "Meta+T");
+  result.insert("launchTerminalAlternate", "Meta+Return");
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
   result.insert("screenshot", "Meta+Shift+S");
-  for (int workspace = 1; workspace <= 9; ++workspace) {
+  result.insert("launchOrbit", "Meta+A");
+  result.insert("chooseWallpaper", "Meta+W");
+  result.insert("randomWallpaper", "Meta+Ctrl+W");
+  result.insert("toggleEyeCare", "Meta+N");
+  result.insert("toggleScratchpad", "Meta+grave");
+  result.insert("openControlCenter", "Meta+I");
+  result.insert("openClipboard", "Meta+V");
+  result.insert("openPowerMenu", "Meta+X");
+  result.insert("toggleFloating", "Meta+Shift+T");
+  result.insert("toggleFullscreen", "Meta+Shift+F");
+  for (int workspace = 1; workspace <= 10; ++workspace) {
     result.insert(QString("workspace%1").arg(workspace),
-                  QString("Meta+%1").arg(workspace));
+                  QString("Meta+%1").arg(workspace % 10));
     result.insert(QString("moveToWorkspace%1").arg(workspace),
-                  QString("Meta+Shift+%1").arg(workspace));
+                  QString("Meta+Shift+%1").arg(workspace % 10));
   }
   return result;
 }
@@ -117,6 +127,38 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   QSettings settings;
   auto configured =
       QJsonObject::fromVariantMap(settings.value("shortcuts/bindings").toMap());
+
+  // Older settings may reserve Meta+T for a different action. Keep those
+  // assignments; add the terminal defaults only when their keys are free.
+  const auto uses = [&configured](const QString &sequence,
+                                  const QString &except) {
+    for (auto it = configured.begin(); it != configured.end(); ++it)
+      if (it.key() != except && it.value().toString() == sequence)
+        return true;
+    return false;
+  };
+  if (configured.value("launchTerminal").toString() == "Meta+Return" &&
+      !uses("Meta+T", "launchTerminal"))
+    configured["launchTerminal"] = "Meta+T";
+  if (!configured.contains("launchTerminal") &&
+      uses("Meta+T", "launchTerminal"))
+    bindings_["launchTerminal"] = "Disabled";
+  if (!configured.contains("launchTerminalAlternate") &&
+      uses("Meta+Return", "launchTerminalAlternate"))
+    bindings_["launchTerminalAlternate"] = "Disabled";
+  if (!configured.contains("workspace10") && uses("Meta+0", "workspace10"))
+    bindings_["workspace10"] = "Disabled";
+  if (!configured.contains("moveToWorkspace10") &&
+      uses("Meta+Shift+0", "moveToWorkspace10"))
+    bindings_["moveToWorkspace10"] = "Disabled";
+  for (auto it = configured.begin(); it != configured.end(); ++it) {
+    const auto binding = parseShortcut(it.value().toString());
+    if ((binding.symbol == XKB_KEY_Tab ||
+         binding.symbol == XKB_KEY_ISO_Left_Tab) &&
+        (binding.modifiers == ShortcutAlt ||
+         binding.modifiers == (ShortcutAlt | ShortcutShift)))
+      it.value() = "Disabled";
+  }
   // Migrate the previous shipped default without replacing custom bindings
   // or stealing Meta+Shift+S from another explicitly assigned action.
   if (configured.value("screenshot").toString() == "Alt+Shift+F5") {
@@ -127,6 +169,10 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
     if (!used)
       configured["screenshot"] = "Meta+Shift+S";
   }
+  // New defaults never invalidate a user's existing custom bindings.
+  for (auto it = bindings_.begin(); it != bindings_.end(); ++it)
+    if (!configured.contains(it.key()) && uses(it.value().toString(), it.key()))
+      it.value() = "Disabled";
   QString error;
   if (!configured.isEmpty())
     apply(configured, &error);
@@ -159,6 +205,14 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
     if (parsed.canonical.isEmpty()) {
       if (error)
         *error = "Shortcut must be one Meta or Alt key combination.";
+      return false;
+    }
+    if ((parsed.symbol == XKB_KEY_Tab ||
+         parsed.symbol == XKB_KEY_ISO_Left_Tab) &&
+        (parsed.modifiers == ShortcutAlt ||
+         parsed.modifiers == (ShortcutAlt | ShortcutShift))) {
+      if (error)
+        *error = "Alt+Tab is reserved for the window switcher.";
       return false;
     }
     candidate.insert(it.key(), parsed.canonical);

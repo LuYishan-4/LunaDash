@@ -1,0 +1,90 @@
+---
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+const visualTargets = [
+  ["panel","Taskbar/workspaces/tray"],["taskbar-windows","Window list; groups context"],["wallpaper","Desktop wallpaper"],["wallpaper-transition","imageSource/previous/incoming/progress/transitioning"],["launcher","App launcher"],["overview","Dashboard"],["desktop-menu","Desktop menu"],["media","controller/media"],["calendar","Calendar"],["audio","Audio controls"],["network","Network controls"],["devices","Removable devices"],["session","Session controls"],["settings","Settings container; recovery pages stay built in"],["setup","Welcome"],["compatibility","Compatibility launcher"],["clipboard","Clipboard history"],["feedback","Messages"],["notifications","Notifications"],["screenshot","Screenshot feedback"],["workspace-transition","Workspace animation"],["startup","Startup animation"],["window-decoration","Borders; interaction"],["window-switcher","Switcher; interaction"],["tiling-hint","Drop hint"],["blur","Backdrop; image/reveal"],["image-picker","picker/purpose"]
+];
+const settingsTargets = ["settings.general","settings.appearance","settings.windows","settings.shortcuts","settings.display","settings.input","settings.input-method","settings.sound","settings.network","settings.bluetooth","settings.power","settings.applications","settings.privacy","settings.system","settings.devices","settings.about","settings.dashboard"];
+const nativeTargets = [
+  ["window-animation","duration, enterOffset, focusOpacity, exitScale, easing","Complete animation profile; desktop animations disabled still wins."],
+  ["shell-animation","{ duration }","Exactly one duration integer 0..600 ms."],
+  ["window-rules","{ workspace, maximized }","Initial ordinary-window rule; workspace must exist."],
+  ["window-layout","{ windows:[{id,x,y,width,height},...] }","Same non-minimized ids once each, positive sizes, inside work area; overlap only when allowed."]
+];
+---
+<DocsLayout title="Build, register and publish a LunaDash plugin." section="plugins" summary="Plugin SDK 2 separates implementation type from desktop target. Create a package, let the CMake SDK validate/install it, enable it through extension configuration, then optionally submit source to the reviewed LunaDash-Plugins registry.">
+  <nav class="doc-toc"><a href="#model">Model</a><a href="#create">Create</a><a href="#manifest">Manifest</a><a href="#targets">Targets</a><a href="#quickshell">Quickshell</a><a href="#native">Native</a><a href="#opengl">OpenGL</a><a href="#settings">Settings</a><a href="#register">Register</a><a href="#store">Store</a></nav>
+
+  <h2 id="model">Plugin SDK 2 model</h2>
+  <p>A package has one identity and one or more target implementations. <code>type</code> answers how it is implemented; <code>target</code> answers which feature it attaches to. Valid types are <code>quickshell</code>, <code>effect</code> and <code>opengl</code>; <code>data/plugins/targets.json</code> is authoritative for valid pairs.</p>
+  <div class="table-scroll"><table><thead><tr><th>Type</th><th>Runtime</th><th>Use</th></tr></thead><tbody><tr><td><code>quickshell</code></td><td>QML/JS Item</td><td>Panels/pages/widgets/visual slots.</td></tr><tr><td><code>effect</code></td><td>Native C11/C++20 API 2 module</td><td>Layout/rules/animation data hooks.</td></tr><tr><td><code>opengl</code></td><td>Qt Quick ShaderEffect/qsb</td><td>Shader replacement/augmentation in visual slots.</td></tr></tbody></table></div>
+  <p><code>replace</code> replaces the built-in only after the plugin is valid/ready; <code>augment</code> keeps the built-in. Almost every current target is <code>selection: "single"</code>, so only one plugin implementation may be enabled there regardless of mode. <code>desktop-widgets</code> is multi-selection.</p>
+
+  <h2 id="create">Create, build and install</h2>
+  <CodeBlock label="GENERATOR" code={'lunadash-create-plugin --list\nlunadash-create-plugin --type quickshell --target panel \\\\\n  --id org.example.panel --output my-panel\n\n# From a source checkout\npython3 scripts/create-plugin.py --type effect --target window-layout \\\\\n  --id org.example.layout --output my-layout'} />
+  <p>Ids match <code>^[A-Za-z0-9][A-Za-z0-9._-]+$</code>. The generator rejects unsupported type/target pairs and requires a new output directory.</p>
+  <CodeBlock label="CMAKELISTS.TXT" code={'cmake_minimum_required(VERSION 3.21)\nproject(MyLunaDashPlugin LANGUAGES C CXX)\nfind_package(LunaDashPlugin 2 CONFIG REQUIRED)\nlunadash_add_plugin(my_plugin\n  METADATA "metadata.json"\n  # SOURCES Effect.cpp\n  # FILES Helper.qml icon.svg\n)'} />
+  <CodeBlock label="ONE-USER INSTALL" code={'cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX="$HOME/.local"\ncmake --build build\ncmake --install build\nlunadashctl open-settings plugins'} />
+  <p>For an uninstalled LunaDash build use <code>-DLunaDashPlugin_DIR=/absolute/path/to/build/sdk-build</code>. Relocated installed SDKs can use <code>CMAKE_PREFIX_PATH</code>.</p>
+
+  <h2 id="manifest">metadata.json</h2>
+  <CodeBlock label="SINGLE TARGET" code={'{\n "schemaVersion":2,\n "sdk":{"name":"LunaDash","apiVersion":2},\n "id":"org.example.panel","name":"Example panel","version":"1.0.0",\n "author":{"name":"Your name"},"icon":"applications-system","tags":["Panel"],\n "type":"quickshell","target":"panel","mode":"replace","entry":"Main.qml",\n "enabledByDefault":false,\n "settings":{"compact":{"type":"boolean","default":false,"control":"toggle"}}\n}'} />
+  <p>Schema 2 requires <code>sdk.name="LunaDash"</code> and <code>apiVersion=2</code>. id/name/version are required. A local image icon is one leaf png/jpg/jpeg/webp/svg filename inside the package; theme icon names are also valid.</p>
+  <p>A package can declare up to 16 unique implementations with <code>targets</code>. Each target has its own type, target, mode, settings and entry/shaders. Native implementations in one package must share one <code>.so</code> entry.</p>
+  <CodeBlock label="MULTI TARGET" code={'{\n "schemaVersion":2,"sdk":{"name":"LunaDash","apiVersion":2},\n "id":"org.example.desktop-pack","name":"Desktop pack","version":"1.0.0","enabledByDefault":false,\n "targets":[\n  {"id":"panel","type":"quickshell","target":"panel","mode":"replace","entry":"Panel.qml","settings":{}},\n  {"id":"wallpaper","type":"opengl","target":"wallpaper","mode":"augment","shaders":{"vertex":"Effect.vert","fragment":"Effect.frag"},"settings":{}}\n ]\n}'} />
+
+  <h2 id="targets">Registered targets</h2>
+  <h3>Visual quickshell/opengl targets</h3>
+  <div class="table-scroll"><table><thead><tr><th>Target</th><th>Feature/context</th></tr></thead><tbody>{visualTargets.map(([target,purpose]) => <tr><td class="api-method">{target}</td><td>{purpose}</td></tr>)}</tbody></table></div>
+  <p>These expose built-in <code>opacity</code> 0..1 and are single-selection.</p>
+  <h3>Settings pages</h3><p>{settingsTargets.join(", ")}</p>
+  <p>These are single-selection quickshell/opengl slots. <code>settings.modules</code> and <code>settings.plugins</code> remain built-in recovery pages.</p>
+  <h3>desktop-widgets</h3><p><code>desktop-widgets</code> is Quickshell-only, has no built-in settings and is <code>selection: "multiple"</code>.</p>
+  <h3>Native hooks</h3>
+  <div class="table-scroll"><table><thead><tr><th>Target</th><th>Response</th><th>Validation</th></tr></thead><tbody>{nativeTargets.map(([target,response,validation]) => <tr><td class="api-method">{target}</td><td><code>{response}</code></td><td>{validation}</td></tr>)}</tbody></table></div>
+  <p><code>window-animation</code> settings: duration -1..600, enterOffset -100..100, focusOpacity 0..1, exitScale 0.5..1, easing linear/outCubic/outQuint/inOutCubic. <code>shell-animation</code>: duration -1..600. <code>window-layout</code>: gap -1..64.</p>
+
+  <h2 id="quickshell">Quickshell contract</h2>
+  <CodeBlock label="MAIN.QML" code={'import QtQuick\nItem {\n required property var shell\n required property var settings\n required property var context\n readonly property bool pluginReady: width > 0 && height > 0\n Text { anchors.centerIn: parent; text: shell.tr("Workspace") + " " + String((shell.state.workspace ?? 0) + 1) }\n TapHandler { onTapped: shell.command("open-settings", "plugins") }\n}'} />
+  <p>The host injects all three required properties before construction. Every visual context adds <code>target</code>, built-in <code>source</code>, <code>builtinSettings</code>, effective <code>mode</code> and <code>reportError(message)</code>. Do not destroy/re-parent <code>source</code>. Fatal runtime conditions should call <code>context.reportError(...)</code>; built-in fallback stays available.</p>
+  <p>See the <a href="../api/#qml">QML API table</a> for shell helpers.</p>
+
+  <h2 id="native">Native effect contract</h2>
+  <p>The library exports SDK-generated <code>ludash_plugin_entry_v2</code>; authors implement <code>ludash_plugin_process(request,response,capacity)</code>. Return UTF-8 JSON byte length excluding NUL or a negative value. Hooks run synchronously on the compositor thread: never block, retain host pointers, run nested event loops or start lifetime-escaping work.</p>
+  <CodeBlock label="WINDOW-LAYOUT REQUEST" code={'{\n "target":"window-layout","mode":"replace",\n "context":{"workspace":0,"area":{"x":0,"y":40,"width":1920,"height":1040},"newWindows":[23],"windowTemplate":"tiling","allowOverlap":false},\n "builtin":{"windows":[...]},"current":{},"settings":{"gap":12}\n}'} />
+  <p><code>builtin</code> is always available. Replace gets empty <code>current</code>; augment gets the previous valid result. Return a complete object, not a patch. Invalid output preserves the previous valid result and quarantines the instance.</p>
+  <p><code>window-layout</code> output ids exactly match all non-minimized inputs once each, with positive sizes inside <code>area</code>. Overlap is rejected unless allowed. Manifest <code>windowTemplate:"stacking"</code> is legal only on an effect/window-layout replacement and selects the host's persistent freeform interaction policy.</p>
+  <div class="doc-callout"><p><strong>Native effects are in-process.</strong> ABI/receipt checks are compatibility checks, not signing or sandboxing; a crash/hang can take down the compositor.</p></div>
+
+  <h2 id="opengl">OpenGL packages</h2>
+  <CodeBlock label="METADATA" code={'"type":"opengl",\n"target":"wallpaper",\n"mode":"augment",\n"shaders":{"vertex":"Effect.vert","fragment":"Effect.frag"}'} />
+  <p>The SDK runs Qt 6 <code>qsb</code> and installs source plus baked <code>.qsb</code>; runtime requires both stages and both baked outputs. Host uniforms include source, strength, resolution and parameters (parameter0..parameter3), plus Qt's matrix/opacity uniforms. Software rendering leaves the built-in visual. These shaders affect only their Quickshell slot, not arbitrary app buffers or the wlroots framebuffer.</p>
+
+  <h2 id="settings">Plugin settings</h2>
+  <p>Plugin schemas allow only <strong>toggle</strong> boolean, <strong>select</strong> enum-backed scalar, <strong>number</strong> integer/number and bounded <strong>slider</strong>. Third-party plugins cannot expose free-form text/array controls. Each field requires type/default; values are strictly validated.</p>
+  <CodeBlock label="SETTINGS" code={'"settings":{\n "enabledGlow":{"type":"boolean","default":true,"control":"toggle"},\n "quality":{"type":"string","default":"medium","control":"select","enum":["low","medium","high"]},\n "strength":{"type":"number","default":0.5,"control":"slider","minimum":0,"maximum":1},\n "samples":{"type":"integer","default":4,"control":"number","minimum":1,"maximum":16}\n}'} />
+
+  <h2 id="register">Local registration = installation</h2>
+  <p>There is no separate database. A complete SDK-built package is discovered under standard data locations at <code>lunadash/plugins/&lt;id&gt;</code>. With <code>$HOME/.local</code> this is normally <code>~/.local/share/lunadash/plugins/&lt;id&gt;</code>. Development builds also scan executable-adjacent <code>plugins/</code>. The dev branch no longer discovers old <code>lunadash/shell/plugins</code> or <code>ludash/plugins</code>.</p>
+  <CodeBlock label="INSTALLED PACKAGE" code={'~/.local/share/lunadash/plugins/org.example.panel/\n├── metadata.json\n├── .lunadash-sdk.json\n├── Main.qml\n└── icon.svg'} />
+  <p>The SDK generates <code>.lunadash-sdk.json</code>; schema-2 discovery verifies its <code>metadataSha256</code>. Do not copy only source files. Native <code>.so</code> files are staged into a private temp directory before loading and stay loaded while active.</p>
+  <h3>Enable/configure</h3>
+  <p>Use Settings → Plugins or <code>extension-save</code>. The document is <code>$XDG_CONFIG_HOME/LuDash/extensions.json</code>, max 24 KiB, atomically written with owner-only permissions and symlink refusal.</p>
+  <CodeBlock label="SINGLE TARGET" code={'{"schemaVersion":1,"builtins":{},"plugins":{"org.example.panel":{"enabled":true,"mode":"replace","settings":{"compact":true}}}}'} />
+  <CodeBlock label="MULTI TARGET" code={'{\n "schemaVersion":1,"builtins":{},\n "plugins":{"org.example.desktop-pack":{"enabled":true,"targets":{\n  "panel":{"enabled":true,"mode":"replace","settings":{}},\n  "wallpaper":{"enabled":true,"mode":"augment","settings":{}}\n }}}\n}'} />
+  <p>Package enabled gates all multi-target entries, then each target owns enabled/mode/settings. Single-selection targets reject a second enabled plugin. Settings editors should prefer <code>settings-describe</code>/<code>settings-update</code>.</p>
+  <h3>Reload behavior</h3>
+  <p>Discovery refreshes at startup and during plugin/configuration operations; there is no filesystem watcher. Disable a native plugin before replacing its binary, install the new build, then enable/retry. Visual slots retain built-in fallback on load failure.</p>
+
+  <h2 id="store">Publish to LunaDash-Plugins</h2>
+  <p>Local install and Store publication are separate. Community plugins go through <a href="https://github.com/LuYishan-4/LunaDash-Plugins">LunaDash-Plugins</a>, the PR gate and generated catalogue consumed by Settings → Plugins → Store.</p>
+  <CodeBlock label="SUBMISSION LAYOUT" code={'plugins/<id>/\n├── metadata.json\n├── store.json\n├── CMakeLists.txt\n├── LICENSE\n└── source/assets declared by the plugin'} />
+  <p>Directory name exactly matches metadata id. Submit source only: no .so/object/generated .qsb/SDK receipt/archive. Published ids are stable; deprecate instead of rename. Updates bump version. Community/native plugins default disabled.</p>
+  <CodeBlock label="STORE.JSON" code={'{"storeSchemaVersion":1,"license":"GPL-3.0-or-later","repository":"https://github.com/example/org.example.panel","homepage":"https://example.com/plugin"}'} />
+  <p>storeSchemaVersion, license and HTTPS repository are required. Optional: homepage, upstream, screenshots, featured, deprecated, replacement. Plugin PRs do not edit generated <code>index.json</code>.</p>
+  <CodeBlock label="REGISTRY CHECKS" code={'python3 scripts/validate.py\npython3 scripts/check_safety.py\npython3 scripts/build_index.py --check\ncd site\nnpm install\nnpm run check\nnpm run build'} />
+  <p>After merge the registry generates index.json. LunaDash validates ids, target/type pairs, tags and HTTPS URLs, with a bundled fallback. <code>LUNADASH_PLUGIN_CATALOG_URL</code> can point to another HTTPS index or <code>off</code>. Installable entries contain 1–32 HTTPS files with SHA-256 hashes and must include metadata.json plus CMakeLists.txt; downloads are staged/verified/built/installed and never auto-enable native code.</p>
+
+  <h2 id="debug">Debug checklist</h2>
+  <ol><li>Confirm the type/target with <code>lunadash-create-plugin --list</code>.</li><li>Reconfigure/build with LunaDashPlugin 2 after metadata edits.</li><li>Inspect <code>status.extensions.installed</code> for status/error/entry/settings.</li><li>Use <code>context.reportError()</code>, then clear through empty <code>extension-error</code> after fixing.</li><li>Native metadata library name must match the installed file and export SDK-generated <code>ludash_plugin_entry_v2</code>.</li><li>Store failures are in <code>extensions.remote[].installError</code>/<code>installPhase</code>.</li></ol>
+</DocsLayout>

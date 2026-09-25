@@ -1,13 +1,14 @@
 import QtQuick
+import "../plugins"
 import QtQuick.Window
 import Quickshell
 import Quickshell.Wayland
 import "../components"
 import "../style"
 
-PanelWindow {
+PluginPanel {
     id: splash
-    required property var shell
+    extensionTarget: "startup"
     property bool ready: false
     property bool minimumElapsed: false
     property bool firstFrameSeen: false

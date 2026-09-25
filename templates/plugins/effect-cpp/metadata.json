@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 2,
+  "sdk": {
+    "name": "LunaDash",
+    "apiVersion": 2
+  },
+  "id": "org.example.rules",
+  "name": "Application workspace rule",
+  "version": "1.0.1a",
+  "description": "LunaDash plugin template.",
+  "author": "Your name",
+  "type": "effect",
+  "target": "window-rules",
+  "mode": "augment",
+  "enabledByDefault": false,
+  "settings": {
+    "workspace": {
+      "type": "integer",
+      "control": "number",
+      "label": "Workspace",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 9,
+      "step": 1
+    },
+    "maximize": {
+      "type": "boolean",
+      "control": "toggle",
+      "label": "Start maximized",
+      "default": false
+    }
+  },
+  "entry": "librules.so"
+}

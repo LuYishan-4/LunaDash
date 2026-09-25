@@ -7,6 +7,7 @@ import "../style"
 ModuleSurface {
     id: overlay
     moduleId: "feedback"
+    extensionTarget: "screenshot"
     anchors { top: true; right: true; bottom: true; left: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay

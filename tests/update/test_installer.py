@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import pty
 import shutil
 import subprocess
 import sys
@@ -20,14 +21,17 @@ class InstallerTests(unittest.TestCase):
         (self.project / "scripts").mkdir(parents=True)
         (self.project / "packaging/arch").mkdir(parents=True)
         shutil.copy2(ROOT / "scripts/install-session.sh", self.project / "scripts/install-session.sh")
+        shutil.copy2(ROOT / "scripts/setup-guide.sh", self.project / "scripts/setup-guide.sh")
         (self.project / "scripts/make-source.sh").write_text("#!/bin/bash\nexit 0\n")
         (self.project / "scripts/make-source.sh").chmod(0o755)
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        for command in ("bash", "dirname", "mv", "cat"):
+        for command in ("bash", "dirname", "mv", "cat", "tr"):
             (self.bin / command).symlink_to(shutil.which(command))
         self.env = dict(os.environ, PATH=str(self.bin), TEST_EVENTS=str(self.root / "events"),
-                        LUDASH_INSTALL_PROGRESS_FILE=str(self.root / "progress"))
+                        LUDASH_INSTALL_PROGRESS_FILE=str(self.root / "progress"),
+                        HOME=str(self.root / "home"), XDG_CONFIG_HOME=str(self.root / "config"),
+                        XDG_STATE_HOME=str(self.root / "state"))
         for name in ("LUDASH_PREFER_PKEXEC", "LUDASH_UPDATE_MODE", "LUDASH_BUILD_DIR"):
             self.env.pop(name, None)
         agent = self.project / "scripts/lunadash-polkit-agent"
@@ -157,6 +161,50 @@ if "--install" in args:
         result = self.run_installer("--non-interactive")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(any(row[:2] == ["cmake", "--install"] for row in self.events()))
+
+    def test_update_cannot_apply_first_install_choices(self):
+        for options in (("--guided",), ("--author-config",), ("--desktop-profile",),
+                        ("--apps", "basics")):
+            result = self.run_installer("--non-interactive", *options)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(self.events(), [])
+
+    def test_unknown_app_group_fails_before_installation(self):
+        for group in ("unknown", "basics,", ",basics", "basics,,desktop", "basics;touch /tmp/no"):
+            result = self.run_installer("--skip-guide", "--apps", group, graphical=False)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(self.events(), [])
+
+    def test_explicit_guide_requires_a_terminal(self):
+        result = self.run_installer("--guided", graphical=False)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("requires a terminal", result.stderr)
+        self.assertEqual(self.events(), [])
+
+    def test_first_install_dry_run_does_not_write_profiles(self):
+        result = self.run_installer("--dry-run", "--apps", "basics,input", "--desktop-profile",
+                                    "--author-config", graphical=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("fcitx5-chewing", result.stdout)
+        self.assertIn("setup-profile.py", result.stdout)
+        self.assertFalse((self.root / "config").exists())
+        self.assertFalse((self.root / "state").exists())
+        self.assertEqual(self.events(), [])
+
+    def test_guide_cancellation_never_builds_or_installs(self):
+        master, slave = pty.openpty()
+        try:
+            with subprocess.Popen([str(self.bin / "bash"), str(self.project / "scripts/install-session.sh"),
+                                   "--skip-deps", "--guided"], env=self.env, stdin=slave,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
+                os.write(master, b"n\n" * 9)
+                stdout, stderr = process.communicate(timeout=10)
+            self.assertEqual(process.returncode, 0, stdout + stderr)
+            self.assertIn("Setup cancelled before installation", stdout)
+            self.assertEqual(self.events(), [])
+        finally:
+            os.close(master)
+            os.close(slave)
 
 
 if __name__ == "__main__":

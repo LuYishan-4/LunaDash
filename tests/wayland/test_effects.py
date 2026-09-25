@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix='ludash-effects-') as runtime:
                                    env=env, stdout=log, stderr=log)
         try:
             wait_for(lambda state: state['layerSurfaces'] >= 2)
-            child = subprocess.Popen([str(build / 'ludash-desktop'), '--app', 'console'],
+            child = subprocess.Popen([str(build / 'ludash-desktop'), '--app', 'welcome'],
                                      env=env | {'QT_QPA_PLATFORM': 'wayland', 'WAYLAND_DISPLAY': 'ludash-effects'},
                                      stdout=log, stderr=log)
             state = wait_for(lambda state: state['blurReady'] and len(state['clients']) == 1)

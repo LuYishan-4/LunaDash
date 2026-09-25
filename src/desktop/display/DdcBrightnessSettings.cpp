@@ -6,6 +6,16 @@
 #include <QtMath>
 
 namespace LunaDash {
+namespace {
+// Look a device up by id so an async ddcutil callback never indexes a list that
+// a later refresh may have cleared or reordered.
+int deviceIndexOf(const QList<QJsonObject> &devices, const QString &id) {
+  for (int i = 0; i < devices.size(); ++i)
+    if (devices.at(i).value("id").toString() == id)
+      return i;
+  return -1;
+}
+} // namespace
 QJsonArray parseDdcDisplays(const QByteArray &text) {
   QJsonArray result;
   QSet<int> buses;
@@ -145,7 +155,13 @@ void DdcBrightnessSettings::advance() {
           executable_,
           {"setvcp", "10", QString::number(value), "--bus",
            QString::number(device.value("bus").toInt()), "--verify"},
-          [this, index, id, value, maximum](bool ok, const QByteArray &) {
+          [this, id, value, maximum](bool ok, const QByteArray &) {
+            const int index = deviceIndexOf(devices_, id);
+            if (index < 0) {
+              pending_.remove(id);
+              advance();
+              return;
+            }
             auto &updated = devices_[index];
             if (ok)
               updated["percent"] = qRound(value * 100.0 / maximum);
@@ -171,13 +187,19 @@ void DdcBrightnessSettings::advance() {
     }
     const int index = queryIndex_++;
     const auto device = devices_[index];
-    activeId_ = device.value("id").toString();
+    const QString id = device.value("id").toString();
+    activeId_ = id;
     runner_.run(
         executable_,
         {"getvcp", "10", "--brief", "--bus",
          QString::number(device.value("bus").toInt())},
-        [this, index](bool ok, const QByteArray &output) {
+        [this, id](bool ok, const QByteArray &output) {
           const auto value = parseDdcBrightness(output);
+          const int index = deviceIndexOf(devices_, id);
+          if (index < 0) {
+            advance();
+            return;
+          }
           auto &device = devices_[index];
           const bool available = ok && value.value("available").toBool();
           device["available"] = available;

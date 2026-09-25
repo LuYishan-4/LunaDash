@@ -142,7 +142,7 @@ QStringList defaultApplicationCommand(const QString &role, QString *error) {
   if (!result.isEmpty())
     return role == "terminal" ? normalizeKonsoleCommand(result) : result;
   if (role == "terminal")
-    return userKonsoleCommand();
+    return {"kitty"};
   if (role == "files")
     return {};
   if (role == "browser") {

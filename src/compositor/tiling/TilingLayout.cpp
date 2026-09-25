@@ -2,6 +2,7 @@
 #include "compositor/tiling/TilingGeometry.h"
 
 #include <algorithm>
+#include <QJsonArray>
 #include <limits>
 #include <unordered_map>
 #include <utility>
@@ -11,23 +12,40 @@ namespace LunaDash {
 
 namespace {
 constexpr int kMaximumColumns = 4096;
-constexpr std::size_t kMaximumActiveMembers = 4;
+constexpr std::size_t kMaximumActiveMembers = 8;
 
 struct Member {
-  TilingWindowId window = 0;
+  LayoutWindowId window = 0;
   bool minimized = false;
   QRect geometry;
+  int weight = 1000;
+};
+
+struct Split {
+  quint64 column = 0;
+  bool vertical = true;
+  int ratio = 500000;
+  QRect geometry;
+  std::unique_ptr<Split> first;
+  std::unique_ptr<Split> second;
 };
 
 struct Column {
   int width = 0;
   std::vector<Member> members;
+  quint64 id = 0;
+  QRect geometry;
 };
 
 struct Workspace {
   std::vector<Column> columns;
-  TilingWindowId focused = 0;
-  int scrollOffset = 0;
+  LayoutWindowId focused = 0;
+  LayoutWindowId maximized = 0;
+  std::unique_ptr<Split> root;
+  quint64 nextColumn = 1;
+  QRect area{0, 0, 1440, 900};
+  QRect singleGeometry;
+  QSize preferredSize{960, 640};
 };
 
 struct Location {
@@ -36,7 +54,7 @@ struct Location {
   bool found = false;
 };
 
-Location findWindow(const Workspace &workspace, TilingWindowId window) {
+Location findWindow(const Workspace &workspace, LayoutWindowId window) {
   for (std::size_t column = 0; column < workspace.columns.size(); ++column) {
     const auto &members = workspace.columns[column].members;
     for (std::size_t member = 0; member < members.size(); ++member) {
@@ -53,7 +71,7 @@ std::size_t activeCount(const Column &column) {
                     [](const Member &member) { return !member.minimized; }));
 }
 
-TilingWindowId firstActive(const Column &column) {
+LayoutWindowId firstActive(const Column &column) {
   const auto member =
       std::find_if(column.members.begin(), column.members.end(),
                    [](const Member &item) { return !item.minimized; });
@@ -73,15 +91,264 @@ void selectAvailableFocus(Workspace &workspace) {
     }
   }
 }
+Column *columnById(Workspace &workspace, quint64 id) {
+  for (auto &column : workspace.columns)
+    if (column.id == id)
+      return &column;
+  return nullptr;
+}
+
+QSize minimumSize(Workspace &workspace, const Split *node) {
+  if (!node)
+    return {};
+  if (!node->first) {
+    const auto *column = columnById(workspace, node->column);
+    const int count = column ? static_cast<int>(activeCount(*column)) : 0;
+    return count ? QSize(1, count) : QSize();
+  }
+  const auto a = minimumSize(workspace, node->first.get());
+  const auto b = minimumSize(workspace, node->second.get());
+  if (a.isEmpty())
+    return b;
+  if (b.isEmpty())
+    return a;
+  return node->vertical
+             ? QSize(a.width() + b.width(), std::max(a.height(), b.height()))
+             : QSize(std::max(a.width(), b.width()), a.height() + b.height());
+}
+
+bool placeSplits(Workspace &workspace, Split *node, QRect area, int gap) {
+  if (!node)
+    return true;
+  node->geometry = area;
+  if (!node->first) {
+    if (auto *column = columnById(workspace, node->column)) {
+      column->geometry = area;
+      column->width = area.width();
+    }
+    return true;
+  }
+  const auto a = minimumSize(workspace, node->first.get());
+  const auto b = minimumSize(workspace, node->second.get());
+  if (a.isEmpty())
+    return placeSplits(workspace, node->second.get(), area, gap);
+  if (b.isEmpty())
+    return placeSplits(workspace, node->first.get(), area, gap);
+  LuDashRectangle halves[2];
+  if (!ludash_split_rectangle({area.x(), area.y(), area.width(), area.height()},
+                              node->vertical, node->ratio, gap,
+                              node->vertical ? a.width() : a.height(),
+                              node->vertical ? b.width() : b.height(), halves))
+    return false;
+  const auto rect = [](LuDashRectangle r) {
+    return QRect(r.x, r.y, r.width, r.height);
+  };
+  return placeSplits(workspace, node->first.get(), rect(halves[0]), gap) &&
+         placeSplits(workspace, node->second.get(), rect(halves[1]), gap);
+}
+
+void largestLeaf(Workspace &workspace, Split *node, Split *&best,
+                 qint64 &size) {
+  if (!node)
+    return;
+  if (node->first) {
+    largestLeaf(workspace, node->first.get(), best, size);
+    largestLeaf(workspace, node->second.get(), best, size);
+    return;
+  }
+  const auto *column = columnById(workspace, node->column);
+  if (!column || !activeCount(*column))
+    return;
+  const qint64 candidate =
+      qint64(node->geometry.width()) * node->geometry.height();
+  // Equal-sized slots choose the later leaf in visual traversal order.
+  if (candidate >= size) {
+    best = node;
+    size = candidate;
+  }
+}
+
+Split *focusedLeaf(Split *node, quint64 column, bool nextVertical,
+                    bool &vertical) {
+  if (!node)
+    return nullptr;
+  if (!node->first) {
+    if (node->column != column)
+      return nullptr;
+    vertical = nextVertical;
+    return node;
+  }
+  if (auto *leaf = focusedLeaf(node->first.get(), column, !node->vertical,
+                               vertical))
+    return leaf;
+  return focusedLeaf(node->second.get(), column, !node->vertical, vertical);
+}
+
+void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
+                bool firstWindowOnRight) {
+  placeSplits(workspace, workspace.root.get(), workspace.area, gap);
+  const quint64 id = workspace.nextColumn++;
+  Split *target = nullptr;
+  bool vertical = true;
+  if (splitFocused) {
+    const auto focus = findWindow(workspace, workspace.focused);
+    if (focus.found &&
+        !workspace.columns[focus.column].members[focus.member].minimized) {
+      target = focusedLeaf(workspace.root.get(),
+                            workspace.columns[focus.column].id, true, vertical);
+      if (target) {
+        const auto minimum = minimumSize(workspace, target);
+        const int available = vertical ? target->geometry.width()
+                                       : target->geometry.height();
+        const int required = (vertical ? minimum.width() : minimum.height()) + 1;
+        // Avoid subdividing an exhausted pixel-sized leaf when other slots
+        // still have space. The existing tree retains its bounds and ratios.
+        if (available < required)
+          target = nullptr;
+      }
+    }
+  }
+  if (!target) {
+    qint64 size = -1;
+    largestLeaf(workspace, workspace.root.get(), target, size);
+    if (target)
+      vertical = target->geometry.width() >= target->geometry.height();
+  }
+  if (!workspace.root) {
+    workspace.root = std::make_unique<Split>();
+    workspace.root->column = id;
+  } else {
+    // If all windows are minimized, retain their tree for later restoration.
+    if (!target)
+      target = workspace.root.get();
+    const bool firstSplit = target == workspace.root.get() && !target->first;
+    auto original = std::make_unique<Split>(std::move(*target));
+    // The first pair forms a horizontal row; nested focused splits alternate
+    // axes to allow a large side pane with progressively divided neighbors.
+    target->vertical = firstSplit || vertical;
+    target->ratio = 500000;
+    auto added = std::make_unique<Split>();
+    added->column = id;
+    if (firstSplit && firstWindowOnRight) {
+      target->first = std::move(added);
+      target->second = std::move(original);
+    } else {
+      target->first = std::move(original);
+      target->second = std::move(added);
+    }
+    target->column = 0;
+  }
+  workspace.columns.push_back({0, {member}, id, {}});
+}
+
+bool pruneSplit(std::unique_ptr<Split> &node, quint64 id) {
+  if (!node)
+    return false;
+  if (!node->first) {
+    if (node->column != id)
+      return false;
+    node.reset();
+    return true;
+  }
+  const bool removed =
+      pruneSplit(node->first, id) || pruneSplit(node->second, id);
+  if (!node->first || !node->second) {
+    auto remaining =
+        node->first ? std::move(node->first) : std::move(node->second);
+    node = std::move(remaining);
+  }
+  return removed;
+}
+
+void eraseColumn(Workspace &workspace, std::size_t index) {
+  pruneSplit(workspace.root, workspace.columns[index].id);
+  workspace.columns.erase(workspace.columns.begin() +
+                          static_cast<std::ptrdiff_t>(index));
+}
+
+bool splitPath(Split *node, quint64 column, std::vector<Split *> &path) {
+  if (!node)
+    return false;
+  path.push_back(node);
+  if ((!node->first && node->column == column) ||
+      splitPath(node->first.get(), column, path) ||
+      splitPath(node->second.get(), column, path))
+    return true;
+  path.pop_back();
+  return false;
+}
+
+bool resizeSplit(Workspace &workspace, quint64 column, int delta, bool vertical,
+                 int gap) {
+  std::vector<Split *> path;
+  if (!splitPath(workspace.root.get(), column, path))
+    return false;
+  for (int i = static_cast<int>(path.size()) - 2; i >= 0; --i) {
+    auto *node = path[i];
+    if (node->vertical != vertical)
+      continue;
+    const auto a = minimumSize(workspace, node->first.get());
+    const auto b = minimumSize(workspace, node->second.get());
+    if (a.isEmpty() || b.isEmpty())
+      continue;
+    const int length =
+        vertical ? node->geometry.width() : node->geometry.height();
+    const int minA = vertical ? a.width() : a.height();
+    const int minB = vertical ? b.width() : b.height();
+    const int available =
+        length - std::min(gap, std::max(0, length - minA - minB));
+    if (available < minA + minB)
+      return false;
+    const int current = vertical ? node->first->geometry.width()
+                                 : node->first->geometry.height();
+    const int desired = std::clamp(
+        current + (path[i + 1] == node->first.get() ? delta : -delta), minA,
+        available - minB);
+    node->ratio = static_cast<int>((qint64(desired) * 1000000 + available / 2) /
+                                   available);
+    return true;
+  }
+  return false;
+}
+
+bool focusDirection(Workspace &workspace, int dx, int dy) {
+  const auto current = findWindow(workspace, workspace.focused);
+  if (!current.found)
+    return false;
+  const QPoint origin = workspace.columns[current.column]
+                            .members[current.member]
+                            .geometry.center();
+  qint64 best = std::numeric_limits<qint64>::max();
+  LayoutWindowId selected = 0;
+  for (const auto &column : workspace.columns)
+    for (const auto &member : column.members) {
+      if (member.minimized || member.window == workspace.focused ||
+          !member.geometry.isValid())
+        continue;
+      const QPoint offset = member.geometry.center() - origin;
+      const int forward = offset.x() * dx + offset.y() * dy;
+      if (forward <= 0)
+        continue;
+      const qint64 cross = qAbs(offset.x() * dy - offset.y() * dx);
+      const qint64 score = qint64(forward) * forward + cross * cross * 4;
+      if (score < best) {
+        best = score;
+        selected = member.window;
+      }
+    }
+  if (selected)
+    workspace.focused = selected;
+  return selected != 0;
+}
 } // namespace
 
-class ScrollableTilingLayout::Impl {
+class TilingLayout::Impl {
 public:
   Impl(int requestedDefaultWidth, int requestedGap)
       : defaultWidth(std::max(1, requestedDefaultWidth)),
         gap(std::max(0, requestedGap)) {}
 
-  std::pair<TilingWorkspaceId, Workspace *> locate(TilingWindowId window) {
+  std::pair<LayoutWorkspaceId, Workspace *> locate(LayoutWindowId window) {
     for (auto &[id, workspace] : workspaces) {
       if (findWindow(workspace, window).found)
         return {id, &workspace};
@@ -89,8 +356,8 @@ public:
     return {0, nullptr};
   }
 
-  std::pair<TilingWorkspaceId, const Workspace *>
-  locate(TilingWindowId window) const {
+  std::pair<LayoutWorkspaceId, const Workspace *>
+  locate(LayoutWindowId window) const {
     for (const auto &[id, workspace] : workspaces) {
       if (findWindow(workspace, window).found)
         return {id, &workspace};
@@ -100,50 +367,65 @@ public:
 
   int defaultWidth;
   int gap;
-  std::unordered_map<TilingWorkspaceId, Workspace> workspaces;
+  bool splitFocused = true;
+  bool firstWindowOnRight = true;
+  std::unordered_map<LayoutWorkspaceId, Workspace> workspaces;
 };
 
-ScrollableTilingLayout::ScrollableTilingLayout(int defaultWidth, int gap)
-    : d(std::make_unique<Impl>(defaultWidth, gap)) {}
-ScrollableTilingLayout::~ScrollableTilingLayout() = default;
-ScrollableTilingLayout::ScrollableTilingLayout(
-    ScrollableTilingLayout &&) noexcept = default;
-ScrollableTilingLayout &
-ScrollableTilingLayout::operator=(ScrollableTilingLayout &&) noexcept = default;
+TilingLayout::TilingLayout() : d(std::make_unique<Impl>(1120, 12)) {}
+TilingLayout::~TilingLayout() = default;
+TilingLayout::TilingLayout(TilingLayout &&) noexcept = default;
+TilingLayout &TilingLayout::operator=(TilingLayout &&) noexcept = default;
 
-void ScrollableTilingLayout::setGap(int gap) { d->gap = std::max(0, gap); }
+void TilingLayout::configure(const QJsonObject &settings) {
+  d->defaultWidth =
+      std::clamp(settings.value("defaultWidth").toInt(d->defaultWidth), 240,
+                 2400);
+  d->gap = std::clamp(settings.value("gap").toInt(d->gap), 0, 64);
+  const auto splitTarget = settings.value("splitTarget").toString();
+  if (splitTarget == "focused" || splitTarget == "largest")
+    d->splitFocused = splitTarget == "focused";
+  const auto firstWindowSide = settings.value("firstWindowSide").toString();
+  if (firstWindowSide == "right" || firstWindowSide == "left")
+    d->firstWindowOnRight = firstWindowSide == "right";
+}
 
-bool ScrollableTilingLayout::insert(TilingWorkspaceId workspaceId,
-                                    TilingWindowId window, int width) {
-  if (window == 0 || d->locate(window).second)
+bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
+                          QSize preferredSize) {
+  if (!window || d->locate(window).second)
     return false;
   auto &workspace = d->workspaces[workspaceId];
   if (workspace.columns.size() >= kMaximumColumns)
     return false;
-  workspace.columns.push_back(
-      {width > 0 ? width : d->defaultWidth, {{window, false, {}}}});
+  if (workspace.columns.empty())
+    workspace.preferredSize =
+        !preferredSize.isEmpty()
+            ? preferredSize
+            : QSize(d->defaultWidth, std::max(1, d->defaultWidth * 2 / 3));
+  addColumn(workspace, {window, false, {}}, d->gap, d->splitFocused,
+            d->firstWindowOnRight);
   workspace.focused = window;
   return true;
 }
 
-bool ScrollableTilingLayout::remove(TilingWindowId window) {
+bool TilingLayout::remove(LayoutWindowId window) {
   auto [workspaceId, workspace] = d->locate(window);
   if (!workspace)
     return false;
+  if (workspace->maximized == window)
+    workspace->maximized = 0;
   const auto location = findWindow(*workspace, window);
   auto &members = workspace->columns[location.column].members;
   members.erase(members.begin() + static_cast<std::ptrdiff_t>(location.member));
   if (members.empty())
-    workspace->columns.erase(workspace->columns.begin() +
-                             static_cast<std::ptrdiff_t>(location.column));
+    eraseColumn(*workspace, location.column);
   selectAvailableFocus(*workspace);
   if (workspace->columns.empty())
     d->workspaces.erase(workspaceId);
   return true;
 }
 
-bool ScrollableTilingLayout::setMinimized(TilingWindowId window,
-                                          bool minimized) {
+bool TilingLayout::setMinimized(LayoutWindowId window, bool minimized) {
   auto [workspaceId, workspace] = d->locate(window);
   Q_UNUSED(workspaceId);
   if (!workspace)
@@ -156,14 +438,35 @@ bool ScrollableTilingLayout::setMinimized(TilingWindowId window,
   if (!minimized && activeCount(column) >= kMaximumActiveMembers)
     return false;
   member.minimized = minimized;
+  if (minimized && workspace->maximized == window)
+    workspace->maximized = 0;
   if (!minimized)
     workspace->focused = window;
   selectAvailableFocus(*workspace);
   return true;
 }
 
-bool ScrollableTilingLayout::moveToWorkspace(TilingWindowId window,
-                                             TilingWorkspaceId destinationId) {
+bool TilingLayout::setMaximized(LayoutWindowId window, bool maximized) {
+  const auto [workspaceId, workspace] = d->locate(window);
+  Q_UNUSED(workspaceId);
+  if (!workspace)
+    return false;
+  const auto location = findWindow(*workspace, window);
+  if (maximized) {
+    if (workspace->columns[location.column].members[location.member].minimized)
+      return false;
+    if (workspace->maximized != window) {
+      workspace->maximized = window;
+      workspace->focused = window;
+    }
+  } else if (workspace->maximized == window) {
+    workspace->maximized = 0;
+  }
+  return true;
+}
+
+bool TilingLayout::moveToWorkspace(LayoutWindowId window,
+                                   LayoutWorkspaceId destinationId) {
   auto [sourceId, source] = d->locate(window);
   if (!source)
     return false;
@@ -172,16 +475,17 @@ bool ScrollableTilingLayout::moveToWorkspace(TilingWindowId window,
   auto &destination = d->workspaces[destinationId];
   if (destination.columns.size() >= kMaximumColumns)
     return false;
+  if (source->maximized == window)
+    source->maximized = 0;
   const auto location = findWindow(*source, window);
   auto &sourceColumn = source->columns[location.column];
   Member member = sourceColumn.members[location.member];
-  const int width = sourceColumn.width;
   sourceColumn.members.erase(sourceColumn.members.begin() +
                              static_cast<std::ptrdiff_t>(location.member));
   if (sourceColumn.members.empty())
-    source->columns.erase(source->columns.begin() +
-                          static_cast<std::ptrdiff_t>(location.column));
-  destination.columns.push_back({width, {member}});
+    eraseColumn(*source, location.column);
+  addColumn(destination, member, d->gap, d->splitFocused,
+            d->firstWindowOnRight);
   if (!member.minimized)
     destination.focused = window;
   selectAvailableFocus(*source);
@@ -191,7 +495,7 @@ bool ScrollableTilingLayout::moveToWorkspace(TilingWindowId window,
   return true;
 }
 
-bool ScrollableTilingLayout::focus(TilingWindowId window) {
+bool TilingLayout::focus(LayoutWindowId window) {
   auto [workspaceId, workspace] = d->locate(window);
   Q_UNUSED(workspaceId);
   if (!workspace)
@@ -203,113 +507,218 @@ bool ScrollableTilingLayout::focus(TilingWindowId window) {
   return true;
 }
 
-bool ScrollableTilingLayout::focusLeft(TilingWorkspaceId workspaceId) {
-  auto found = d->workspaces.find(workspaceId);
-  if (found == d->workspaces.end())
+bool TilingLayout::focusLeft(LayoutWorkspaceId workspaceId) {
+  const auto found = d->workspaces.find(workspaceId);
+  return found != d->workspaces.end() && focusDirection(found->second, -1, 0);
+}
+
+bool TilingLayout::focusRight(LayoutWorkspaceId workspaceId) {
+  const auto found = d->workspaces.find(workspaceId);
+  return found != d->workspaces.end() && focusDirection(found->second, 1, 0);
+}
+
+bool TilingLayout::focusUp(LayoutWorkspaceId workspaceId) {
+  const auto found = d->workspaces.find(workspaceId);
+  return found != d->workspaces.end() && focusDirection(found->second, 0, -1);
+}
+
+bool TilingLayout::focusDown(LayoutWorkspaceId workspaceId) {
+  const auto found = d->workspaces.find(workspaceId);
+  return found != d->workspaces.end() && focusDirection(found->second, 0, 1);
+}
+
+bool TilingLayout::performAction(const QString &action,
+                                 const QJsonObject &payload) {
+  const auto window =
+      static_cast<LayoutWindowId>(payload.value("window").toInteger());
+  const auto target =
+      static_cast<LayoutWindowId>(payload.value("target").toInteger());
+  const auto workspace =
+      static_cast<LayoutWorkspaceId>(payload.value("workspace").toInteger());
+  const auto areaObject = payload.value("area").toObject();
+  const QRect area(areaObject.value("x").toInt(), areaObject.value("y").toInt(),
+                   areaObject.value("width").toInt(),
+                   areaObject.value("height").toInt());
+
+  if (action == "focus-direction") {
+    const int dx = payload.value("dx").toInt();
+    const int dy = payload.value("dy").toInt();
+    if (dx < 0)
+      return focusLeft(workspace);
+    if (dx > 0)
+      return focusRight(workspace);
+    if (dy < 0)
+      return focusUp(workspace);
+    if (dy > 0)
+      return focusDown(workspace);
     return false;
-  auto &workspace = found->second;
-  const auto current = findWindow(workspace, workspace.focused);
-  if (!current.found)
-    return false;
-  for (std::size_t column = current.column; column-- > 0;) {
-    if (const auto window = firstActive(workspace.columns[column])) {
-      workspace.focused = window;
-      return true;
-    }
   }
+  if (action == "group-direction") {
+    if (!focus(window))
+      return false;
+    const int dx = payload.value("dx").toInt();
+    const int dy = payload.value("dy").toInt();
+    const bool found = dx < 0   ? focusLeft(workspace)
+                       : dx > 0 ? focusRight(workspace)
+                       : dy < 0 ? focusUp(workspace)
+                                : dy > 0 && focusDown(workspace);
+    if (!found)
+      return false;
+    const auto destination = snapshot(workspace).focusedWindow;
+    const bool grouped = groupWith(window, destination);
+    focus(window);
+    return grouped;
+  }
+  if (action == "group-with")
+    return groupWith(window, target);
+  if (action == "expel")
+    return expel(window);
+  if (action == "swap")
+    return swapWindows(window, target);
+  if (action == "insert-beside")
+    return insertBeside(window, target, payload.value("after").toBool());
+  if (action == "reorder")
+    return reorder(window, payload.value("direction").toInt());
+  if (action == "resize-width")
+    return resize(window, payload.value("width").toInt());
+  if (action == "resize-height")
+    return resizeHeight(window, payload.value("height").toInt());
+  if (action == "move-by")
+    return moveSingle(window,
+                      QPoint(payload.value("dx").toInt(),
+                             payload.value("dy").toInt()),
+                      area);
+  if (action == "center")
+    return center(window, area);
   return false;
 }
 
-bool ScrollableTilingLayout::focusRight(TilingWorkspaceId workspaceId) {
-  auto found = d->workspaces.find(workspaceId);
-  if (found == d->workspaces.end())
-    return false;
-  auto &workspace = found->second;
-  const auto current = findWindow(workspace, workspace.focused);
-  if (!current.found)
-    return false;
-  for (std::size_t column = current.column + 1;
-       column < workspace.columns.size(); ++column) {
-    if (const auto window = firstActive(workspace.columns[column])) {
-      workspace.focused = window;
-      return true;
-    }
-  }
-  return false;
+bool TilingLayout::groupWith(LayoutWindowId window, LayoutWindowId target) {
+  return insertBeside(window, target, true);
 }
 
-bool ScrollableTilingLayout::focusUp(TilingWorkspaceId workspaceId) {
-  auto found = d->workspaces.find(workspaceId);
-  if (found == d->workspaces.end())
+bool TilingLayout::swapWindows(LayoutWindowId window, LayoutWindowId target) {
+  auto [workspaceId, workspace] = d->locate(window);
+  Q_UNUSED(workspaceId);
+  if (!workspace || window == target)
     return false;
-  auto &workspace = found->second;
-  const auto current = findWindow(workspace, workspace.focused);
-  if (!current.found)
+  const auto a = findWindow(*workspace, window);
+  const auto b = findWindow(*workspace, target);
+  if (!b.found)
     return false;
-  const auto &members = workspace.columns[current.column].members;
-  for (std::size_t member = current.member; member-- > 0;) {
-    if (!members[member].minimized) {
-      workspace.focused = members[member].window;
-      return true;
-    }
-  }
-  return false;
-}
-
-bool ScrollableTilingLayout::focusDown(TilingWorkspaceId workspaceId) {
-  auto found = d->workspaces.find(workspaceId);
-  if (found == d->workspaces.end())
-    return false;
-  auto &workspace = found->second;
-  const auto current = findWindow(workspace, workspace.focused);
-  if (!current.found)
-    return false;
-  const auto &members = workspace.columns[current.column].members;
-  for (std::size_t member = current.member + 1; member < members.size();
-       ++member) {
-    if (!members[member].minimized) {
-      workspace.focused = members[member].window;
-      return true;
-    }
-  }
-  return false;
-}
-
-bool ScrollableTilingLayout::groupWith(TilingWindowId window,
-                                       TilingWindowId targetWindow) {
-  if (window == targetWindow)
-    return false;
-  auto [sourceId, source] = d->locate(window);
-  auto [targetId, target] = d->locate(targetWindow);
-  if (!source || !target || source != target)
-    return false;
-  Q_UNUSED(sourceId);
-  Q_UNUSED(targetId);
-  auto sourceLocation = findWindow(*source, window);
-  const auto targetLocation = findWindow(*source, targetWindow);
-  if (sourceLocation.column == targetLocation.column)
-    return false;
-  const Member moving =
-      source->columns[sourceLocation.column].members[sourceLocation.member];
-  auto &targetColumn = source->columns[targetLocation.column];
-  if (targetColumn.members.size() >= kMaximumActiveMembers)
-    return false;
-  source->columns[sourceLocation.column].members.erase(
-      source->columns[sourceLocation.column].members.begin() +
-      static_cast<std::ptrdiff_t>(sourceLocation.member));
-  if (source->columns[sourceLocation.column].members.empty()) {
-    source->columns.erase(source->columns.begin() +
-                          static_cast<std::ptrdiff_t>(sourceLocation.column));
-    sourceLocation = findWindow(*source, targetWindow);
-  } else {
-    sourceLocation = targetLocation;
-  }
-  source->columns[sourceLocation.column].members.push_back(moving);
-  source->focused = window;
+  // Slot geometry and weight stay in place; only the window identities move.
+  std::swap(workspace->columns[a.column].members[a.member].window,
+            workspace->columns[b.column].members[b.member].window);
+  std::swap(workspace->columns[a.column].members[a.member].minimized,
+            workspace->columns[b.column].members[b.member].minimized);
+  workspace->focused = window;
   return true;
 }
 
-bool ScrollableTilingLayout::expel(TilingWindowId window) {
+bool TilingLayout::insertBeside(LayoutWindowId window, LayoutWindowId target,
+                                bool after) {
+  auto [workspaceId, workspace] = d->locate(window);
+  Q_UNUSED(workspaceId);
+  if (!workspace || window == target)
+    return false;
+  auto a = findWindow(*workspace, window);
+  auto b = findWindow(*workspace, target);
+  if (!b.found ||
+      (a.column != b.column &&
+       workspace->columns[b.column].members.size() >= kMaximumActiveMembers))
+    return false;
+  const auto moving = workspace->columns[a.column].members[a.member];
+  auto &members = workspace->columns[a.column].members;
+  members.erase(members.begin() + static_cast<std::ptrdiff_t>(a.member));
+  if (members.empty())
+    eraseColumn(*workspace, a.column);
+  b = findWindow(*workspace, target);
+  auto &destination = workspace->columns[b.column].members;
+  destination.insert(destination.begin() + static_cast<std::ptrdiff_t>(
+                                               b.member + (after ? 1 : 0)),
+                     moving);
+  workspace->focused = window;
+  return true;
+}
+
+bool TilingLayout::moveSingle(LayoutWindowId window, QPoint delta, QRect area) {
+  auto [workspaceId, workspace] = d->locate(window);
+  Q_UNUSED(workspaceId);
+  if (!workspace)
+    return false;
+  int count = 0;
+  for (const auto &column : workspace->columns)
+    count += static_cast<int>(activeCount(column));
+  if (count != 1)
+    return false;
+  const auto where = findWindow(*workspace, window);
+  const auto &geometry =
+      workspace->columns[where.column].members[where.member].geometry;
+  if (!area.isValid() || !geometry.isValid())
+    return false;
+  const QPoint position = geometry.topLeft() + delta;
+  workspace->singleGeometry =
+      QRect(QPoint(std::clamp(position.x(), area.left(),
+                              area.x() + area.width() - geometry.width()),
+                   std::clamp(position.y(), area.top(),
+                              area.y() + area.height() - geometry.height())),
+            geometry.size());
+  return true;
+}
+
+bool TilingLayout::resizeHeight(LayoutWindowId window, int height) {
+  auto [workspaceId, workspace] = d->locate(window);
+  Q_UNUSED(workspaceId);
+  if (!workspace)
+    return false;
+  const auto location = findWindow(*workspace, window);
+  auto &members = workspace->columns[location.column].members;
+  int total = 0, count = 0;
+  for (const auto &member : members)
+    if (!member.minimized) {
+      total += member.geometry.height();
+      ++count;
+    }
+  if (count == 1) {
+    int allActive = 0;
+    for (const auto &column : workspace->columns)
+      allActive += static_cast<int>(activeCount(column));
+    if (allActive != 1)
+      return resizeSplit(*workspace, workspace->columns[location.column].id,
+                         height - members[location.member].geometry.height(),
+                         false, d->gap);
+    workspace->singleGeometry.setHeight(
+        std::clamp(height, std::min(48, workspace->area.height()),
+                   workspace->area.height()));
+    return true;
+  }
+  if (count < 2 || total < count)
+    return false;
+  const int minimum = std::min(48, total / count);
+  height = std::clamp(height, minimum, total - minimum * (count - 1));
+  const int remaining = total - height - minimum * (count - 1);
+  qint64 sum = 0;
+  for (const auto &member : members)
+    if (!member.minimized && member.window != window)
+      sum += std::max(1, member.geometry.height() - minimum);
+  qint64 prefix = 0;
+  int used = 0;
+  for (auto &member : members) {
+    if (member.minimized)
+      continue;
+    if (member.window == window) {
+      member.weight = std::max(1, height - 1);
+      continue;
+    }
+    prefix += std::max(1, member.geometry.height() - minimum);
+    const int boundary = static_cast<int>(remaining * prefix / sum);
+    member.weight = std::max(1, minimum + boundary - used - 1);
+    used = boundary;
+  }
+  return true;
+}
+
+bool TilingLayout::expel(LayoutWindowId window) {
   auto [workspaceId, workspace] = d->locate(window);
   Q_UNUSED(workspaceId);
   if (!workspace)
@@ -319,197 +728,183 @@ bool ScrollableTilingLayout::expel(TilingWindowId window) {
       workspace->columns.size() >= kMaximumColumns)
     return false;
   auto &column = workspace->columns[location.column];
-  const int width = column.width;
   const Member member = column.members[location.member];
   column.members.erase(column.members.begin() +
                        static_cast<std::ptrdiff_t>(location.member));
-  workspace->columns.insert(
-      workspace->columns.begin() +
-          static_cast<std::ptrdiff_t>(location.column + 1),
-      {width, {member}});
+  addColumn(*workspace, member, d->gap, d->splitFocused,
+            d->firstWindowOnRight);
   workspace->focused = window;
   return true;
 }
 
-bool ScrollableTilingLayout::reorder(TilingWindowId window, int direction) {
+bool TilingLayout::reorder(LayoutWindowId window, int direction) {
   auto [workspaceId, workspace] = d->locate(window);
   Q_UNUSED(workspaceId);
   if (!workspace || direction == 0)
     return false;
-  const auto location = findWindow(*workspace, window);
-  if (direction < 0) {
-    if (location.column == 0)
-      return false;
-    std::iter_swap(workspace->columns.begin() +
-                       static_cast<std::ptrdiff_t>(location.column),
-                   workspace->columns.begin() +
-                       static_cast<std::ptrdiff_t>(location.column - 1));
-  } else {
-    if (location.column + 1 >= workspace->columns.size())
-      return false;
-    std::iter_swap(workspace->columns.begin() +
-                       static_cast<std::ptrdiff_t>(location.column),
-                   workspace->columns.begin() +
-                       static_cast<std::ptrdiff_t>(location.column + 1));
-  }
+  workspace->focused = window;
+  if (!focusDirection(*workspace, direction < 0 ? -1 : 1, 0))
+    return false;
+  const auto source = findWindow(*workspace, window);
+  const auto target = findWindow(*workspace, workspace->focused);
+  std::swap(workspace->columns[source.column].members,
+            workspace->columns[target.column].members);
+  workspace->focused = window;
   return true;
 }
 
-bool ScrollableTilingLayout::resize(TilingWindowId window, int width) {
+bool TilingLayout::resize(LayoutWindowId window, int width) {
   if (width <= 0)
     return false;
   auto [workspaceId, workspace] = d->locate(window);
   Q_UNUSED(workspaceId);
   if (!workspace)
     return false;
-  workspace->columns[findWindow(*workspace, window).column].width = width;
+  const auto location = findWindow(*workspace, window);
+  auto &column = workspace->columns[location.column];
+  int count = 0;
+  for (const auto &item : workspace->columns)
+    count += static_cast<int>(activeCount(item));
+  if (count == 1) {
+    workspace->singleGeometry.setWidth(std::clamp(
+        width, std::min(48, workspace->area.width()), workspace->area.width()));
+    return true;
+  }
+  return resizeSplit(*workspace, column.id, width - column.geometry.width(),
+                     true, d->gap);
+}
+
+bool TilingLayout::center(LayoutWindowId window, QRect area) {
+  const auto [id, workspace] = d->locate(window);
+  Q_UNUSED(id);
+  if (!workspace || !workspace->singleGeometry.isValid())
+    return false;
+  workspace->singleGeometry.moveCenter(area.center());
   return true;
 }
 
-bool ScrollableTilingLayout::center(TilingWindowId window, QRect area) {
-  auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
-  if (!workspace || area.width() <= 0)
-    return false;
-  const auto target = findWindow(*workspace, window);
-  qint64 left = 0;
-  for (std::size_t i = 0; i < workspace->columns.size(); ++i) {
-    const auto &column = workspace->columns[i];
-    if (activeCount(column) == 0)
-      continue;
-    if (i == target.column) {
-      const qint64 desired = left + column.width / 2 - area.width() / 2;
-      workspace->scrollOffset = static_cast<int>(
-          std::clamp<qint64>(desired, 0, std::numeric_limits<int>::max()));
-      workspace->focused = window;
-      return true;
-    }
-    left += static_cast<qint64>(column.width) + d->gap;
-  }
-  return false;
-}
-
-QList<TilingColumnSnapshot>
-ScrollableTilingLayout::layout(TilingWorkspaceId workspaceId, QRect area) {
+QList<WindowPlacement> TilingLayout::layout(LayoutWorkspaceId workspaceId,
+                                            QRect area) {
   auto found = d->workspaces.find(workspaceId);
   if (found == d->workspaces.end() || !area.isValid())
     return {};
   auto &workspace = found->second;
-  std::vector<int> widths;
-  std::vector<Column *> visible;
+  workspace.area = area;
+  int count = 0;
   for (auto &column : workspace.columns) {
+    count += static_cast<int>(activeCount(column));
+    column.geometry = {};
     for (auto &member : column.members)
       member.geometry = {};
-    if (activeCount(column) != 0) {
-      widths.push_back(column.width);
-      visible.push_back(&column);
-    }
   }
-  std::vector<LuDashRectangle> columns(visible.size());
-  if (!visible.empty() &&
-      ludash_layout_columns({area.x(), area.y(), area.width(), area.height()},
-                            widths.data(), widths.size(), d->gap,
-                            workspace.scrollOffset, columns.data(),
-                            columns.size()) != columns.size())
+  if (count > 1)
+    workspace.singleGeometry = {};
+  if (!placeSplits(workspace, workspace.root.get(), area, d->gap))
     return {};
-  for (std::size_t i = 0; i < visible.size(); ++i) {
-    auto &column = *visible[i];
+  for (auto &column : workspace.columns) {
     std::vector<Member *> active;
+    std::vector<int> weights;
     for (auto &member : column.members)
-      if (!member.minimized)
+      if (!member.minimized) {
         active.push_back(&member);
+        weights.push_back(member.weight);
+      }
+    if (active.empty())
+      continue;
+    if (count == 1) {
+      auto &geometry = workspace.singleGeometry;
+      if (!geometry.isValid()) {
+        QSize size = workspace.preferredSize;
+        if (size.width() > area.width() || size.height() > area.height())
+          size.scale(area.size(), Qt::KeepAspectRatio);
+        geometry = QRect(QPoint(), size);
+        geometry.moveCenter(area.center());
+      }
+      geometry.setSize(geometry.size().boundedTo(area.size()));
+      geometry.moveLeft(std::clamp(geometry.x(), area.left(),
+                                   area.x() + area.width() - geometry.width()));
+      geometry.moveTop(
+          std::clamp(geometry.y(), area.top(),
+                     area.y() + area.height() - geometry.height()));
+      active.front()->geometry = geometry;
+      column.geometry = geometry;
+      column.width = geometry.width();
+      continue;
+    }
+    const auto &rect = column.geometry;
     std::vector<LuDashRectangle> rows(active.size());
-    if (ludash_layout_column_windows(columns[i], active.size(), d->gap,
-                                     rows.data(), rows.size()) != rows.size())
+    if (ludash_layout_weighted_column_windows(
+            {rect.x(), rect.y(), rect.width(), rect.height()}, weights.data(),
+            active.size(), d->gap, rows.data(), rows.size()) != rows.size())
       return {};
-    for (std::size_t row = 0; row < active.size(); ++row)
-      active[row]->geometry =
-          QRect(rows[row].x, rows[row].y, rows[row].width, rows[row].height);
+    for (std::size_t i = 0; i < active.size(); ++i)
+      active[i]->geometry =
+          QRect(rows[i].x, rows[i].y, rows[i].width, rows[i].height);
   }
-  const auto focused = findWindow(workspace, workspace.focused);
-  if (focused.found) {
-    std::size_t focusedVisible = visible.size();
-    for (std::size_t i = 0; i < visible.size(); ++i)
-      if (visible[i] == &workspace.columns[focused.column]) {
-        focusedVisible = i;
-        break;
-      }
-    qint64 desired = workspace.scrollOffset;
-    if (focusedVisible < visible.size()) {
-      if (columns[focusedVisible].width <= area.width()) {
-        // The whole column fits in the strip. Align its left edge with the work
-        // area so every member of a split column stays on screen instead of
-        // scrolling a half-width member into view and hiding its siblings.
-        qint64 prefix = 0;
-        for (std::size_t i = 0; i < focusedVisible; ++i)
-          prefix += static_cast<qint64>(widths[i]) + d->gap;
-        desired = prefix;
-      } else {
-        // Wider than the strip: bring the focused member into view.
-        const auto &geometry =
-            workspace.columns[focused.column].members[focused.member].geometry;
-        if (geometry.left() < area.left())
-          desired = static_cast<qint64>(workspace.scrollOffset) -
-                    (area.left() - geometry.left());
-        else if (geometry.right() > area.right())
-          desired = static_cast<qint64>(workspace.scrollOffset) +
-                    (geometry.right() - area.right());
-      }
+  const auto placements = filterPlacements(workspaceId, area, snapshot(workspaceId).columns);
+  // Store the effective geometry so focus, drag hit testing and previews agree
+  // with the plugin's placement. Tree membership and saved weights stay intact.
+  for (auto &column : workspace.columns) {
+    column.geometry = {};
+    for (auto &member : column.members) {
+      for (const auto &placement : placements)
+        if (placement.window == member.window)
+          member.geometry = placement.geometry;
+      if (!member.minimized)
+        column.geometry = column.geometry.united(member.geometry);
     }
-    desired = std::clamp<qint64>(desired, 0, std::numeric_limits<int>::max());
-    if (desired != workspace.scrollOffset) {
-      workspace.scrollOffset = static_cast<int>(desired);
-      return layout(workspaceId, area);
-    }
+    column.width = column.geometry.width();
   }
   return snapshot(workspaceId).columns;
 }
 
-TilingWorkspaceSnapshot
-ScrollableTilingLayout::snapshot(TilingWorkspaceId workspaceId) const {
-  TilingWorkspaceSnapshot result;
+WorkspaceLayoutSnapshot
+TilingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
+  WorkspaceLayoutSnapshot result;
   result.workspace = workspaceId;
   const auto found = d->workspaces.find(workspaceId);
   if (found == d->workspaces.end())
     return result;
   const auto &workspace = found->second;
-  result.scrollOffset = workspace.scrollOffset;
   result.focusedWindow = workspace.focused;
+  result.maximizedWindow = workspace.maximized;
   for (std::size_t columnIndex = 0; columnIndex < workspace.columns.size();
        ++columnIndex) {
     const auto &column = workspace.columns[columnIndex];
-    QList<TilingWindowId> members;
-    members.reserve(static_cast<qsizetype>(column.members.size()));
+    QJsonArray members;
     for (const auto &member : column.members)
-      members.append(member.window);
+      members.append(static_cast<qint64>(member.window));
     int rowIndex = 0;
     for (const auto &member : column.members) {
       const int row = member.minimized ? -1 : rowIndex++;
-      result.columns.append({member.window, column.width, member.minimized,
-                             member.window == workspace.focused,
-                             member.geometry, static_cast<int>(columnIndex),
-                             row, members});
+      WindowPlacement placement;
+      placement.window = member.window;
+      placement.width = column.width;
+      placement.minimized = member.minimized;
+      placement.focused = member.window == workspace.focused;
+      placement.geometry = member.geometry;
+      placement.metadata = {
+          {"group", static_cast<int>(columnIndex)},
+          {"row", row},
+          {"members", members}};
+      result.columns.append(placement);
     }
   }
   return result;
 }
 
-QList<QRect> tileRectangles(QRect area, int count, double columnRatio,
-                            int gap) {
-  if (count <= 0 || count > kMaximumColumns)
-    return {};
-  std::vector<LuDashRectangle> rectangles(static_cast<std::size_t>(count));
-  const auto size = ludash_tile_rectangles(
-      {area.x(), area.y(), area.width(), area.height()}, rectangles.size(),
-      columnRatio, gap, rectangles.data(), rectangles.size());
-  QList<QRect> result;
-  result.reserve(static_cast<qsizetype>(size));
-  for (std::size_t i = 0; i < size; ++i) {
-    const auto &rectangle = rectangles[i];
-    result.append(
-        QRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height));
+QList<WindowPlacement> TilingLayout::presentation(LayoutWorkspaceId workspaceId,
+                                                  QRect area) {
+  auto placements = layout(workspaceId, area);
+  const auto maximized = snapshot(workspaceId).maximizedWindow;
+  if (maximized) {
+    for (auto &placement : placements) {
+      placement.hiddenByMaximize = placement.window != maximized;
+      if (placement.window == maximized)
+        placement.geometry = area;
+    }
   }
-  return result;
+  return placements;
 }
 
 } // namespace LunaDash

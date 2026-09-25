@@ -10,8 +10,19 @@ ControlServer::ControlServer(
     std::function<QJsonObject(const QJsonObject &)> handler, QObject *parent)
     : QObject(parent), server_(new QLocalServer(this)) {
   server_->setSocketOptions(QLocalServer::UserAccessOption);
-  if (!server_->listen(path))
-    qFatal("Cannot bind LuDash control socket; choose another --socket name.");
+  if (!server_->listen(path)) {
+    // Qt does not delete a socket file left behind by an unclean exit; a stale
+    // file makes listen() fail with EADDRINUSE, which used to abort the whole
+    // compositor and lock the user out. Probe first so a *live* peer is never
+    // unlinked, then drop only a stale file and retry once.
+    QLocalSocket probe;
+    probe.connectToServer(path);
+    const bool livePeer = probe.waitForConnected(100);
+    probe.abort();
+    if (livePeer || !QLocalServer::removeServer(path) ||
+        !server_->listen(path))
+      qFatal("Cannot bind LuDash control socket; choose another --socket name.");
+  }
   connect(server_, &QLocalServer::newConnection, this, [this, handler] {
     while (auto *socket = server_->nextPendingConnection()) {
       socket->setReadBufferSize(65537);

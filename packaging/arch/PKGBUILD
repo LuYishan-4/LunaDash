@@ -1,22 +1,13 @@
 # Local source release: run scripts/make-source.sh first, then makepkg -Cfs.
 pkgname=ludash
-pkgver=1.0.0
-pkgrel=22
+pkgver=1.0.1a
+pkgrel=1
 pkgdesc='C++ and OpenGL Wayland tiling desktop'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'polkit' 'polkit-kde-agent' 'git' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp')
+depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-multimedia' 'ffmpeg' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'dbus' 'kitty' 'fish' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'libpulse' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard' 'networkmanager' 'network-manager-applet' 'wireplumber' 'pavucontrol' 'bluez' 'bluez-utils' 'blueman' 'system-config-printer' 'gnome-disk-utility' 'partitionmanager' 'firewalld' 'seahorse' 'pciutils' 'usbutils' 'udisks2' 'power-profiles-daemon' 'gnome-control-center')
 makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel' 'wayland-protocols')
-optdepends=('networkmanager: Network status and connection management'
-            'nm-connection-editor: Graphical network setup'
-            'wireplumber: Native volume and microphone controls'
-            'pavucontrol: Audio device and routing settings'
-            'power-profiles-daemon: System power profile controls'
-            'blueman: Bluetooth pairing and adapter settings'
-            'system-config-printer: Printer configuration'
-            'gnome-disk-utility: Disk and storage settings'
-            'gnome-control-center: Optional account and date settings'
-            'xfce4-settings: Optional default application editor'
+optdepends=('qt6-shadertools: Build OpenGL shader plugins with the LunaDash SDK'
             'noto-fonts-cjk: CJK interface fonts'
             'mesa: Mesa OpenGL drivers')
 source=("ludash-${pkgver}.tar.gz")
@@ -31,10 +22,15 @@ build() {
 package() {
   DESTDIR="$pkgdir" cmake --install build
   install -Dm644 "ludash-${pkgver}/README.md" "$pkgdir/usr/share/doc/ludash/README.md"
-  install -Dm644 "ludash-${pkgver}/docs/LOGIN_SESSION.md" "$pkgdir/usr/share/doc/ludash/LOGIN_SESSION.md"
-  install -Dm644 "ludash-${pkgver}/docs/ARCHITECTURE.md" "$pkgdir/usr/share/doc/ludash/ARCHITECTURE.md"
-  install -Dm644 "ludash-${pkgver}/docs/GRAPHICS.md" "$pkgdir/usr/share/doc/ludash/GRAPHICS.md"
-  install -Dm644 "ludash-${pkgver}/docs/FILES.md" "$pkgdir/usr/share/doc/ludash/FILES.md"
-  install -Dm644 "ludash-${pkgver}/docs/DISPLAY_AND_STARTUP.md" "$pkgdir/usr/share/doc/ludash/DISPLAY_AND_STARTUP.md"
-  install -Dm644 "ludash-${pkgver}/docs/SCREEN_CAPTURE.md" "$pkgdir/usr/share/doc/ludash/SCREEN_CAPTURE.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/LOGIN_SESSION.md" "$pkgdir/usr/share/doc/ludash/LOGIN_SESSION.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/ARCHITECTURE.md" "$pkgdir/usr/share/doc/ludash/ARCHITECTURE.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/GRAPHICS.md" "$pkgdir/usr/share/doc/ludash/GRAPHICS.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/FILES.md" "$pkgdir/usr/share/doc/ludash/FILES.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/DISPLAY_AND_STARTUP.md" "$pkgdir/usr/share/doc/ludash/DISPLAY_AND_STARTUP.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/SCREEN_CAPTURE.md" "$pkgdir/usr/share/doc/ludash/SCREEN_CAPTURE.md"
+  install -Dm644 "ludash-${pkgver}/docs/en/NYXNIRI_DESKTOP.md" "$pkgdir/usr/share/doc/ludash/NYXNIRI_DESKTOP.md"
+  install -dm755 "$pkgdir/usr/share/doc/ludash/zh"
+  for doc in LOGIN_SESSION ARCHITECTURE GRAPHICS FILES DISPLAY_AND_STARTUP SCREEN_CAPTURE NYXNIRI_DESKTOP; do
+    install -Dm644 "ludash-${pkgver}/docs/zh/${doc}.md" "$pkgdir/usr/share/doc/ludash/zh/${doc}.md"
+  done
 }

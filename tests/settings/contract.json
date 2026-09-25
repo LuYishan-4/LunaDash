@@ -1,0 +1,22 @@
+[
+  {"rule":{"type":"boolean","default":true},"control":"toggle","good":[true,false],"bad":[0,1,"true",null]},
+  {"rule":{"type":"string","default":"ease","enum":["ease","linear"]},"control":"select","good":["ease","linear"],"bad":["other",0]},
+  {"rule":{"type":"integer","control":"select","default":2,"enum":[1,2,4]},"control":"select","good":[1,2,4],"bad":[true,"2",3,1.5]},
+  {"rule":{"type":"integer","control":"number","default":260,"minimum":0,"maximum":600,"step":10},"control":"number","good":[0,260,600,265],"bad":[-1,601,2.5,true,"260"]},
+  {"rule":{"type":"number","default":0.82,"minimum":0,"maximum":1,"step":0.01},"control":"slider","good":[0,0.37,1],"bad":[-0.1,1.01,false,"0.82"]},
+  {"rule":{"type":"integer","control":"number","default":0,"minimum":320,"maximum":3840,"specialValues":[0]},"control":"number","good":[0,320,3840],"bad":[-1,80,4096]},
+  {"rule":{"type":"string","default":"inherit","pattern":"^(inherit|#[0-9a-fA-F]{6})$"},"control":"text","good":["inherit","#aabbcc"],"bad":["red","#xyzzzz"]},
+  {"rule":{"type":"array","control":"select","default":["files"],"maxItems":2,"items":{"type":"string","enum":["files","terminal","settings"]}},"control":"select","good":[[],["files","terminal"]],"bad":[["files","files"],["files","terminal","settings"],["unknown"],"files"]},
+  {"rule":{"type":"number","default":0,"minimum":1,"maximum":2},"valid":false},
+  {"rule":{"type":"integer","default":2,"minimum":4,"maximum":1},"valid":false},
+  {"rule":{"type":"integer","default":2,"step":0},"valid":false},
+  {"rule":{"type":"integer","default":2,"step":0.5},"valid":false},
+  {"rule":{"type":"boolean","default":true,"control":"slider"},"valid":false},
+  {"rule":{"type":"string","default":"x","enum":[]},"valid":false},
+  {"rule":{"type":"string","default":"x","enum":["x","x"]},"valid":false},
+  {"rule":{"type":"number","default":1,"enum":[1,true]},"valid":false},
+  {"rule":{"type":"string","default":"x","pattern":"["},"valid":false},
+  {"rule":{"type":"integer","default":0,"control":"slider"},"valid":false},
+  {"rule":{"type":"boolean","default":true,"readOnly":"yes"},"valid":false},
+  {"rule":{"type":"integer","default":0,"specialValues":[9007199254740992]},"valid":false}
+]

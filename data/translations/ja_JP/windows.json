@@ -1,0 +1,15 @@
+{
+    "Kitty (default)": "Kitty（既定）",
+    "Open terminal alternative": "ターミナルを開く（別のキー）",
+    "Switch windows": "ウィンドウを切り替え",
+    "Release Alt to switch · Esc to cancel": "Alt を離して切り替え · Esc でキャンセル",
+    "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing.": "Alt＋左ドラッグで配置を交換し、上下の端にドロップすると列に挿入します。ウィンドウが 1 個の場合はサイズを変えずに移動します。",
+    "Alt+Tab is reserved for the window switcher.": "Alt＋Tab はウィンドウ切り替え専用です。",
+    "Workspace %1": "ワークスペース %1",
+    "Alt + Tab shows workspaces 1–10 in a two-row overview with window thumbnails. Use Tab, arrow keys or scrolling; release Alt to switch workspace, or press Esc to cancel.": "Alt＋Tab でワークスペース 1–10 を 2 行のサムネイル一覧に表示します。Tab、矢印キー、スクロールで選択し、Alt を離して移動、Esc でキャンセルします。",
+    "Release Alt to switch workspace · Esc to cancel": "Alt を離して移動 · Esc でキャンセル",
+    "The taskbar groups windows by workspace in capsules. The current workspace is brighter; other workspaces are darker. Select a tiled task to maximize it and hide its workspace peers. Click it again or press Super + F to restore the saved tiling layout.": "タスクバーはワークスペースごとのカプセルにウィンドウをまとめます。現在のワークスペースは明るく、他は暗く表示します。タスクを選ぶと最大化し、同じワークスペースの他のウィンドウを隠します。再度クリックするか Super＋F を押すと元のタイル配置に戻ります。",
+    "Windows stay inside one screen. Two windows split left and right; later windows split the largest tile. Groups can hold up to eight vertical rows. Dialogs stay above their parent window.": "ウィンドウは一画面内に収まります。2 個は左右に配置し、それ以降は最大のタイルを分割します。各グループは縦に最大 8 個まで配置でき、ダイアログは親ウィンドウの上に表示されます。",
+    "Shift + Alt + left-drag moves shared tile boundaries or resizes grouped rows. Neighbors share the available space without overlapping or changing order.": "Shift＋Alt＋左ドラッグでタイルの共有境界やグループ内の高さを調整します。隣接するウィンドウは重ならず、順序を保って空間を分け合います。",
+    "Super + 1–9 switches workspaces; Super + 0 selects workspace 10. Add Shift to move a window. Super + H / J / K / L focuses left / down / up / right. Super + F maximizes one window or restores all tiles.": "Super＋1–9 でワークスペースを切り替え、Super＋0 で 10 を選択します。Shift を加えるとウィンドウを移動します。Super＋H／J／K／L で左／下／上／右にフォーカスし、Super＋F で最大化または全タイルを復元します。"
+}

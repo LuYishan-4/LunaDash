@@ -23,7 +23,7 @@ ColumnLayout {
     function buildChoices() {
         const applications = DesktopEntries.applications.values
         const defaultLabel = editor.role === "terminal"
-            ? "Konsole (default)"
+            ? "Kitty (default)"
             : editor.role === "browser"
                 ? "Google Chrome (default)"
                 : "LunaDash default"

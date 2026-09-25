@@ -19,21 +19,23 @@ export const groups: SettingGroup[] = [
     id: "appearance",
     name: "Color, wallpaper & soft blur",
     description:
-      "Choose an accent color and wallpaper image, then tune gaps, panel height, background blur and motion.",
+      "Choose an accent color and wallpaper image, then tune gaps, panel height, background blur and motion. Wallpaper previews and the desktop reveal new images with a circle expanding from the bottom-right corner.",
     details: [
       "Blur starts enabled at radius 18. Lower the radius to reduce GPU work; window opacity ranges from 60% to 100%.",
       "Set animation duration between 0 and 600 ms, or disable animations for reduced motion.",
-      "Built-in Files, plugin windows and LunaDash file dialogs follow the accent and font settings. Konsole retains your selected profile; third-party applications use their own themes.",
+      "Built-in Files, plugin windows and LunaDash file dialogs follow the accent and font settings. Kitty retains your configuration; third-party applications use their own themes.",
     ],
   },
   {
     id: "windows",
     name: "Tiling & workspaces",
     description:
-      "Choose 1–9 workspaces, a default column width from 30% to 70%, and whether new windows start floating.",
+      "Choose 1–10 workspaces and window gaps. Windows stay within one screen: two split left/right, then new windows split the largest tile. Groups support up to eight vertical rows.",
     details: [
-      "Super+1…9 switches workspaces; Super+Shift+1…9 moves the focused window to an existing workspace.",
-      "Super+H/L focuses the left/right column; Super+K/J focuses windows within a column. Super+Space toggles floating, Super+F maximizes or restores, and Super+Q closes the focused window.",
+      "Super+1…9 and Super+0 switch workspaces (0 selects workspace 10); Super+Shift+1…9 moves the focused window to an existing workspace.",
+      "Super+H/L focuses left/right; Super+K/J focuses up/down. Super+F maximizes one window or restores the saved workspace tiling, and Super+Q closes the focused window.",
+      "Alt + left-drag swaps window slots; drop at a top/bottom edge to insert into a column. A single window moves without resizing. Add Shift to resize shared boundaries and redistribute space without overlap.",
+      "The taskbar groups windows into workspace capsules without numeric badges: the current workspace is brighter and the others use a darker tint. Selecting a tiled task animates the workspace change and maximizes it, temporarily hiding its workspace peers. Click the active task again or press Super+F to restore all saved tile sizes and positions. Alt+Tab opens a 2×5 overview of workspaces 1–10 with actual window thumbnails over a blurred background. Release Alt to switch workspace or press Esc to cancel.",
       "Reducing workspace count moves windows from removed workspaces to the last remaining workspace.",
     ],
   },
@@ -55,7 +57,7 @@ export const groups: SettingGroup[] = [
       "Sound controls the default output and microphone through WirePlumber. Power profiles use power-profiles-daemon.",
     details: [
       "Volume is capped at 100%. Unavailable devices and failed commands are shown rather than reported as successful changes.",
-      "Existing network connections are reused. Network configuration opens NetworkManager's editor; passwords remain in that editor.",
+      "Existing network connections are reused. Network configuration opens NetworkManager's editor; passwords remain in that editor. Saved profiles and Wi-Fi names that contain a colon are listed correctly.",
       "Bluetooth, printers, disks, accounts, clock and accessibility pages show available system tools and packages to install.",
       "LunaDash displays application notifications and starts an installed polkit authentication agent. Screen locking and screen-sharing/PipeWire portals remain incomplete.",
     ],
@@ -66,7 +68,7 @@ export const groups: SettingGroup[] = [
     description:
       "Applications and startup lists every installed application for each default role, with the built-in default pinned at the top of the list.",
     details: [
-      "Terminal defaults to Konsole and respects your existing profile, including a configured Flatpak Konsole profile. The login shell and user Fish configuration are not rewritten.",
+      "Terminal defaults to Kitty, opened with Super+T or Super+Return, and respects your existing configuration. The login shell and user Fish configuration are not rewritten.",
       "Files defaults to the LunaDash file manager. Choose icon or details view, browse common locations, filter a folder, and use the compact toolbar.",
       "The browser role controls web links opened by LunaDash and prefers Chrome when available. Default application roles affect LunaDash launchers and shortcuts; file-type associations are configured separately.",
       "Startup selection currently covers built-in tools; general desktop-entry autostart and session restoration are not implemented.",

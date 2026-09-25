@@ -19,7 +19,8 @@ cd LunaDash
 ./scripts/install-session.sh`;
 const shortcuts: Array<[string, string]> = [
   ["Super + Shift + S", "Select a screenshot region (Escape cancels)"],
-  ["Super + Return / E / D", "Default terminal / file manager / launcher"],
+  ["Super + T / Return", "Open Kitty (default terminal)"],
+  ["Super + E / D", "File manager / launcher"],
   ["Super + H / L", "Focus the column to the left / right"],
   ["Super + K / J", "Focus the previous / next member inside the column"],
   ["Super + Shift + H / L", "Merge the focused window into the left / right column"],
@@ -27,12 +28,13 @@ const shortcuts: Array<[string, string]> = [
   ["Super + Ctrl + H / L", "Move the focused column left / right"],
   ["Super + = / -", "Widen / narrow the focused column"],
   ["Super + Shift + C", "Center the focused column"],
-  ["Super + F", "Maximize or restore the window under the pointer"],
+  ["Super + F", "Maximize one window or restore the workspace tiling"],
   ["Super + C / Q", "Close the focused window"],
   ["Super + M", "Minimize the focused window"],
-  ["Super + Space", "Toggle floating for the focused window"],
-  ["Super + 1–9", "Switch workspace"],
-  ["Super + Shift + 1–9", "Move the focused window to a workspace"]
+  ["Alt + Tab", "Preview ten workspaces; release Alt to switch"],
+  ["Alt + left-drag", "Move or swap slots; add Shift to resize"],
+  ["Super + 1–9 / 0", "Switch workspace"],
+  ["Super + Shift + 1–9 / 0", "Move the focused window to a workspace"]
 ];
 ---
 <!doctype html>
@@ -120,7 +122,7 @@ const shortcuts: Array<[string, string]> = [
     <h2>Getting started</h2>
     <p>The first launch shows a welcome message and a link to this website for help. Select <strong>Start desktop</strong> to close it, even when offline. Language, wallpaper, network and other preferences are available in Settings.</p>
     <details class="shortcut-details"><summary>Keyboard shortcuts</summary>
-    <p><strong>Super</strong> is the Meta key. Every binding can be changed or disabled in <strong>Settings → Keyboard shortcuts</strong>.</p>
+    <p><strong>Super</strong> is the Meta key. Alt+Tab is reserved for window selection. Other keyboard bindings can be changed or disabled in <strong>Settings → Keyboard shortcuts</strong>.</p>
     <div class="table-scroll">
       <table class="shortcuts" aria-label="Default keyboard shortcuts">
         <thead><tr><th scope="col">Shortcut</th><th scope="col">Action</th></tr></thead>

@@ -28,9 +28,38 @@ for manifest in sorted(QML.rglob("qmldir")):
         if not (manifest.parent / filename).is_file():
             violations.append(f"{manifest.relative_to(ROOT)}: declared component does not exist: {filename}")
 
+def root_property_lines(text, root_type):
+    lines = text.splitlines()
+    depth = 0
+    active = False
+    result = []
+    quoted = re.compile(r'"(?:\\.|[^"\\])*"')
+    for number, raw in enumerate(lines, 1):
+        code = raw.split("//", 1)[0]
+        code = quoted.sub('""', code)
+        if not active:
+            if re.match(rf"^\s*{re.escape(root_type)}\s*\{{", code):
+                active = True
+                depth = code.count("{") - code.count("}")
+            continue
+        if depth == 1:
+            match = re.match(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:", code)
+            if match:
+                result.append((number, match.group(1)))
+        depth += code.count("{") - code.count("}")
+        if depth <= 0:
+            break
+    return result
+
+
 for path in sorted(QML.rglob("*.qml")):
     text = path.read_text(encoding="utf-8")
     rel = path.relative_to(ROOT)
+    for line, name in root_property_lines(text, "ModuleSurface"):
+        if name == "clip":
+            violations.append(
+                f"{rel}:{line}: ModuleSurface is a layer-shell window and has no clip property; clip an Item/Rectangle/ListView inside it"
+            )
     if CANONICAL not in path.parents:
         for match in raw_controls.finditer(text):
             line = text.count("\n", 0, match.start()) + 1

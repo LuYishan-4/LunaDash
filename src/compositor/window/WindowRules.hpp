@@ -1,20 +1,24 @@
 #pragma once
 
-#include <QSize>
+#include "compositor/layout/WindowLayout.hpp"
+#include "compositor/window/WindowTemplate.hpp"
+
 #include <QString>
 
 namespace LunaDash {
 
-struct InitialWindowPolicy {
-  // Match niri's opening semantics: ordinary windows start tiled at the
-  // configured default column width and are not maximized implicitly.
-  bool maximized = false;
-  bool floating = false;
-  QSize floatingSize;
-};
+struct ClientWindow;
 
-InitialWindowPolicy initialWindowPolicy(const QString &appId,
-                                        const QString &title);
 QString windowIconName(const QString &appId, const QString &title);
+bool windowUsesManagedLayout(const ClientWindow &client);
+bool windowAllowsPointerInteraction(const WindowTemplate &windowTemplate,
+                                    const ClientWindow &client);
+bool windowAllowsClientMoveResize(const WindowTemplate &windowTemplate,
+                                  const ClientWindow &client);
+bool windowActivationTogglesMaximize(const WindowTemplate &windowTemplate,
+                                     const ClientWindow &client);
+bool windowHiddenByMaximize(const WindowTemplate &windowTemplate,
+                            LayoutWindowId maximized, bool inMaximizedFamily,
+                            const ClientWindow &client);
 
 } // namespace LunaDash

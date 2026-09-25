@@ -1,5 +1,4 @@
 <div align="center">
-
 <a href="https://luyishan-4.github.io/LunaDash/"><img src="docs/brand/banner.svg" alt="LunaDash" width="880"></a>
 
 ### A desktop environment.
@@ -27,12 +26,12 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 
 ## LunaDash
 
-- **Everyday essentials, together.** A panel, launcher, dashboard, notifications, settings and file tools are part of the desktop.
-- **A workspace that moves with you.** Scrollable window columns, grouped and floating windows, keyboard controls and window animations.
+- **Everyday essentials, together.** A panel, launcher, card-based dashboard, resizable settings center, notifications and LunaDash-styled file/portal pickers are part of the desktop.
+- **A workspace that moves with you.** Tiles contained within one screen, groups of up to eight windows, Alt dragging, a ten-workspace thumbnail overview and a taskbar spanning all workspaces.
 - **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings.
 - **Go further when you want.** Arrange shell modules, customize Quickshell/QML and use the local control interface for your own workflow.
 
-Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. LunaDash is an active development preview, with Arch Linux as its primary platform.
+Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The current development version is **1.0.1a**. LunaDash is an active development preview, with Arch Linux as its primary platform.
 
 <a id="gallery"></a>
 
@@ -44,7 +43,7 @@ Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. Luna
     <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024259-008.png"><img src="docs/image/LunaDash-20260920-024259-008.png" alt="Choose wallpaper and accent colors in Appearance settings." width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024708-948.png"><img src="docs/image/LunaDash-20260920-024708-948.png" alt="Use the terminal, Discord and Zed in scrollable window columns." width="440"></a></td>
+    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024708-948.png"><img src="docs/image/LunaDash-20260920-024708-948.png" alt="Use the terminal, Discord and Zed in tiled windows." width="440"></a></td>
     <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024455-959.png"><img src="docs/image/LunaDash-20260920-024455-959.png" alt="The calendar panel also supports custom images." width="440"></a></td>
   </tr>
 </table>
@@ -63,34 +62,40 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch shows a welcome message and a help link. Use Settings to choose your language and personalize the desktop.
+The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to choose your language and personalize the desktop.
 
-Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/TESTING_AND_FILES.md) for manual builds and nested sessions.
+Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
 
 ## A few shortcuts
 
 | Shortcut | Action |
 | --- | --- |
 | `Super` + `Return` / `E` / `D` | Terminal / Files / launcher |
-| `Super` + `H` / `L` | Focus the left / right column |
-| `Super` + `K` / `J` | Focus another window in the column |
-| `Super` + `Space` | Toggle floating |
+| `Super` + `T` | Open Kitty (default terminal) |
+| `Super` + `H` / `L` | Focus the window to the left / right |
+| `Super` + `K` / `J` | Focus the window above / below |
+| `Super` + `F` | Maximize one window / restore all workspace tiles |
+| `Alt` + `Tab` | Ten workspace previews; release Alt to switch |
+| `Alt` + drag | Move or swap slots; add Shift to resize |
 | `Super` + `Shift` + `S` | Select a screenshot region |
-| `Super` + `1`–`9` | Switch workspace |
+| `Super` + `1`–`9` / `0` | Switch workspace |
 
-`Super` is the Meta key. Change bindings in **Settings → Keyboard shortcuts**. See [settings](docs/SETTINGS.md) for grouping, resizing and control commands.
+`Super` is the Meta key. Change bindings in **Settings → Keyboard shortcuts**. See [settings](docs/en/SETTINGS.md) for grouping, resizing and control commands.
 
 <a id="documentation"></a>
 
 ## Documentation
 
+[English docs](docs/en/README.md) · [Traditional Chinese docs](docs/zh/README.md)
+
+
 | Start here | Make it yours |
 | --- | --- |
-| [Install and run](docs/LOGIN_SESSION.md) | [Appearance and configuration](docs/CONFIGURATION.md) |
-| [Build and test](docs/TESTING_AND_FILES.md) | [Settings and shortcuts](docs/SETTINGS.md) |
-| [Display, DDC/CI and startup](docs/DISPLAY_AND_STARTUP.md) | [Shell modules](docs/MODULES.md) |
-| [Region screenshots](docs/SCREEN_CAPTURE.md) | [Default apps and Files](docs/DEFAULT_APPS_AND_FILES.md) |
-| [Source architecture](docs/ARCHITECTURE.md) | [Plugin interfaces](docs/PLUGINS.md) |
+| [Install and run](docs/en/LOGIN_SESSION.md) | [Appearance and configuration](docs/en/CONFIGURATION.md) |
+| [Build and test](docs/en/TESTING_AND_FILES.md) | [Settings and shortcuts](docs/en/SETTINGS.md) |
+| [Display, DDC/CI and startup](docs/en/DISPLAY_AND_STARTUP.md) | [Shell modules](docs/en/MODULES.md) |
+| [Region screenshots](docs/en/SCREEN_CAPTURE.md) | [Default apps and Files](docs/en/DEFAULT_APPS_AND_FILES.md) |
+| [Source architecture](docs/en/ARCHITECTURE.md) | [Plugin interfaces](docs/en/PLUGINS.md) |
 
 <a id="contribute"></a>
 
@@ -105,3 +110,7 @@ Send pull requests to **`dev`**. Use a clear title describing the change, and ex
 ---
 
 <p align="center"><img src="docs/brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · This project is still immature. Issue reports and PRs are welcome.<br><a href="LICENSE">GPL-3.0-only</a></p>
+
+### Build your own desktop features
+
+[Plugin SDK 2](docs/en/PLUGINS.md) provides C/C++ hooks, Quickshell components and OpenGL shader templates, with categorized settings and live replacement or augmentation. Start with the [target reference](docs/en/PLUGIN_TARGETS.md) or the disabled-by-default [stacking windows example](examples/plugins/stacking-windows/README.md).

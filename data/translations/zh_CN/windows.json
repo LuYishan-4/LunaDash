@@ -1,0 +1,15 @@
+{
+    "Kitty (default)": "Kitty（默认）",
+    "Open terminal alternative": "打开终端（备用快捷键）",
+    "Switch windows": "切换窗口",
+    "Release Alt to switch · Esc to cancel": "松开 Alt 切换 · Esc 取消",
+    "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing.": "Alt＋鼠标左键拖动可交换窗口格子；拖到顶端或底端边缘可插入同列。只有一个窗口时，Alt 拖动只移动位置。",
+    "Alt+Tab is reserved for the window switcher.": "Alt＋Tab 保留给窗口切换器使用。",
+    "Workspace %1": "工作区 %1",
+    "Alt + Tab shows workspaces 1–10 in a two-row overview with window thumbnails. Use Tab, arrow keys or scrolling; release Alt to switch workspace, or press Esc to cancel.": "Alt＋Tab 以两排十格显示工作区 1–10，包含窗口缩略图。使用 Tab、方向键或滚动选取，松开 Alt 切换工作区，Esc 取消。",
+    "Release Alt to switch workspace · Esc to cancel": "松开 Alt 切换工作区 · Esc 取消",
+    "The taskbar groups windows by workspace in capsules. The current workspace is brighter; other workspaces are darker. Select a tiled task to maximize it and hide its workspace peers. Click it again or press Super + F to restore the saved tiling layout.": "任务栏用胶囊区分各工作区，当前工作区较亮，其他工作区较暗。点击平铺窗口会最大化并暂时隐藏同工作区的其他窗口；再次点击或按 Super＋F，即可恢复原有的平铺排列。",
+    "Windows stay inside one screen. Two windows split left and right; later windows split the largest tile. Groups can hold up to eight vertical rows. Dialogs stay above their parent window.": "窗口限制在单个画面内。两个窗口左右排列，之后的新窗口会分割最大的格子；每组最多可排成 8 行。对话框保持显示于所属窗口上方。",
+    "Shift + Alt + left-drag moves shared tile boundaries or resizes grouped rows. Neighbors share the available space without overlapping or changing order.": "Shift＋Alt＋鼠标左键拖动可调整格子的共用边界或组内的行高。相邻窗口会分配剩余空间，不重叠也不改变顺序。",
+    "Super + 1–9 switches workspaces; Super + 0 selects workspace 10. Add Shift to move a window. Super + H / J / K / L focuses left / down / up / right. Super + F maximizes one window or restores all tiles.": "Super＋1–9 切换工作区，Super＋0 选择工作区 10。加上 Shift 可移动窗口。Super＋H／J／K／L 聚焦左／下／上／右的窗口，Super＋F 最大化单个窗口或还原全部格子。"
+}

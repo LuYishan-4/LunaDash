@@ -1,5 +1,8 @@
 #include "desktop/theme/DesktopTheme.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include "config/appearance/AppearancePalette.hpp"
+#include <QMap>
+#include <QRegularExpression>
 #include <QColor>
 #include <QTimer>
 #include <QWidget>
@@ -26,7 +29,40 @@ QLabel#eyebrow { color: #9ccbfb; font-size: 11px; letter-spacing: 2px; }
 QLabel#heroTitle { font-size: 32px; font-weight: bold; }
 QLabel#heading { font-size: 24px; font-weight: bold; }
 QLabel#description { color: #aab7d1; font-size: 14px; }
-QLineEdit, QPlainTextEdit, QTreeView, QListView { background: #141c31; border: 1px solid #465777; border-radius: 7px; padding: 9px; selection-background-color: #2c3b5c; }
+QWidget#welcomePage { background: #0a0f1d; }
+QFrame#welcomeHero { background: #0f1728; border: 1px solid #52698d; border-radius: 24px; }
+QFrame#welcomeCard { background: #10192c; border: 1px solid #2f4263; border-radius: 18px; min-height: 122px; }
+QFrame#welcomeMark { background: #121f36; border: 1px solid #52698d; border-radius: 28px; }
+QLabel#welcomeEyebrow { color: #9ccbfb; font-size: 10px; font-weight: 600; letter-spacing: 2px; }
+QLabel#welcomeHeroTitle { color: #edf3ff; font-size: 30px; font-weight: 650; }
+QLabel#welcomeHeroDescription { color: #b7c5df; font-size: 13px; }
+QLabel#welcomeValue { color: #edf3ff; font-size: 17px; font-weight: 600; }
+QLabel#welcomeDetail { color: #aab7d1; font-size: 11px; }
+QLabel#welcomeMeta { color: #9fb1d0; font-size: 9px; letter-spacing: 1px; }
+QLabel#welcomeGlyph { color: #9ccbfb; font-size: 72px; }
+QPushButton#welcomeAction { background: #182541; border: 1px solid #334766; border-radius: 12px; }
+QPushButton#welcomeAction:hover { background: #223454; border-color: #607aa2; }
+
+QLineEdit, QPlainTextEdit, QTreeView, QListView { background: #141c31; border: 1px solid #465777; border-radius: 11px; padding: 9px; selection-background-color: #2c3b5c; }
+QLineEdit#portalLocation { background: #10192c; border-radius: 12px; padding: 9px 12px; }
+QLineEdit#portalLocation[invalidPath="true"] { border-color: #f2b8c6; }
+QDialog#screenShareChooser { background: #0b1020; }
+QDialog#portalFileShell { background: transparent; }
+QFrame#portalFileFrame { background: #0b1020; border: 1px solid #52698d; border-radius: 24px; }
+QFrame#portalFileHeader { background: #10192c; border: 1px solid #2f4263; border-radius: 16px; }
+QLabel#portalFileHeading { color: #edf3ff; font-size: 21px; font-weight: 600; }
+QLabel#portalFileCaption { color: #aab7d1; font-size: 11px; }
+QToolButton#portalFileClose { background: transparent; border: 1px solid transparent; border-radius: 10px; color: #dbe6fa; font-size: 18px; }
+QToolButton#portalFileClose:hover { background: #3b2532; border-color: #8e5364; }
+QDialog#portalFileShell QListWidget#filePlaces { background: #10192c; border: 1px solid #2f4263; border-radius: 16px; padding: 8px; }
+QDialog#portalFileShell QPushButton#accent:disabled { background: #263650; color: #8a9bb8; }
+QDialog#portalFileShell QLineEdit { min-height: 22px; }
+QDialog#portalFileShell QSplitter::handle { background: transparent; width: 14px; }
+
+QListWidget#screenShareSources { background: #10192c; border: 1px solid #465777; border-radius: 18px; padding: 12px; outline: none; }
+QListWidget#screenShareSources::item { background: #162036; border: 1px solid #334766; border-radius: 16px; padding: 10px; margin: 3px; }
+QListWidget#screenShareSources::item:hover { background: #202b45; border-color: #607aa2; }
+QListWidget#screenShareSources::item:selected { background: #243755; border-color: #9ccbfb; }
 QTreeView { alternate-background-color: #162036; }
 QTreeView::item { min-height: 30px; }
 QHeaderView::section { background: #1a2440; color: #aab7d1; border: none; padding: 7px; }
@@ -52,7 +88,7 @@ QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #465777; bor
 QCheckBox::indicator:checked { background: #9ccbfb; border-color: #9ccbfb; }
 )";
   const auto preferences = desktopPreferences();
-  const QColor accent(preferences.value("accent").toString());
+  const auto colors = appearancePalette(preferences);
   style += R"(
 QLabel#fileBrand { font-size: 21px; font-weight: 600; }
 QLabel#fileFolderTitle { font-size: 18px; font-weight: 600; }
@@ -120,7 +156,32 @@ QAbstractItemView::item:selected { background: #2c3b5c; color: #edf3ff; }
 )";
   // Match the shell Theme palette, and substitute preferences after all rules
   // so later file-manager and dialog rules cannot restore the default accent.
-  style.replace("#9ccbfb", accent.name());
+  const QMap<QString, QString> roles{
+      {"#9ccbfb", "accent"}, {"#0b1020", "background"}, {"#0a0f1d", "background"},
+      {"#0f1728", "background"}, {"#10192c", "surface"}, {"#141c31", "surface"},
+      {"#162036", "surfaceElevated"}, {"#202b45", "surfaceElevated"},
+      {"#2c3b5c", "surfaceHover"}, {"#1a2440", "surfaceElevated"},
+      {"#edf3ff", "text"}, {"#eef2ff", "text"}, {"#aab7d1", "muted"},
+      {"#b7c5df", "muted"}, {"#9fb1d0", "muted"}, {"#10182a", "accentInk"},
+      {"#465777", "border"}, {"#52698d", "border"}, {"#2f4263", "hairline"},
+      {"#334766", "hairline"}, {"#607aa2", "border"}, {"#e8f0ff", "accent"},
+      {"#f2b8c6", "danger"}};
+  const QRegularExpression colorPattern("#[0-9a-fA-F]{6}");
+  auto matches = colorPattern.globalMatch(style);
+  QString themed;
+  qsizetype offset = 0;
+  while (matches.hasNext()) {
+    const auto match = matches.next();
+    themed += style.mid(offset, match.capturedStart() - offset);
+    const auto role = roles.value(match.captured().toLower());
+    themed += role.isEmpty() ? match.captured() : colors.value(role).toString();
+    offset = match.capturedEnd();
+  }
+  style = themed + style.mid(offset);
+  // The LunaDash portal retains its owned dark header in both theme modes.
+  style += " QFrame#portalFileHeader { background: #191c22; border-color: #353b46; }"
+           " QLabel#portalFileHeading { color: #e2e5ed; }"
+           " QLabel#portalFileCaption { color: #bdc5d3; }";
   auto font = preferences.value("fontFamily").toString();
   font.replace("\\", "\\\\");
   font.replace("'", "\\'");
@@ -131,20 +192,22 @@ QAbstractItemView::item:selected { background: #2c3b5c; color: #edf3ff; }
 void watchDesktopTheme(QWidget *window) {
   const auto applyPalette = [window] {
     QPalette palette = window->palette();
-    palette.setColor(QPalette::Window, QColor("#0b1020"));
-    palette.setColor(QPalette::WindowText, QColor("#edf3ff"));
-    palette.setColor(QPalette::Base, QColor("#141c31"));
-    palette.setColor(QPalette::AlternateBase, QColor("#162036"));
-    palette.setColor(QPalette::Text, QColor("#edf3ff"));
-    palette.setColor(QPalette::Button, QColor("#202b45"));
-    palette.setColor(QPalette::ButtonText, QColor("#edf3ff"));
-    palette.setColor(QPalette::PlaceholderText, QColor("#aab7d1"));
+    const auto colors = appearancePalette(desktopPreferences());
+    const auto color = [&colors](const QString &key) { return QColor(colors.value(key).toString()); };
+    palette.setColor(QPalette::Window, color("background"));
+    palette.setColor(QPalette::WindowText, color("text"));
+    palette.setColor(QPalette::Base, color("surface"));
+    palette.setColor(QPalette::AlternateBase, color("surfaceElevated"));
+    palette.setColor(QPalette::Text, color("text"));
+    palette.setColor(QPalette::Button, color("surfaceElevated"));
+    palette.setColor(QPalette::ButtonText, color("text"));
+    palette.setColor(QPalette::PlaceholderText, color("muted"));
     palette.setColor(QPalette::Highlight,
-                     QColor(desktopPreferences().value("accent").toString()));
-    palette.setColor(QPalette::HighlightedText, QColor("#10182a"));
-    palette.setColor(QPalette::Disabled, QPalette::Text, QColor("#aab7d1"));
+                     color("accent"));
+    palette.setColor(QPalette::HighlightedText, color("accentInk"));
+    palette.setColor(QPalette::Disabled, QPalette::Text, color("muted"));
     palette.setColor(QPalette::Disabled, QPalette::ButtonText,
-                     QColor("#aab7d1"));
+                     color("muted"));
     window->setPalette(palette);
     window->setProperty("ludashAccent", palette.color(QPalette::Highlight));
   };

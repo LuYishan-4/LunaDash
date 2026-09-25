@@ -1,4 +1,5 @@
-#include "compositor/wayland/Runtime.hpp"
+#include "compositor/wayland/Register.hpp"
+#include "compositor/client/ClientWindow.hpp"
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -17,6 +18,25 @@ WaylandCompositor::Impl::sceneForSurface(wlr_surface *surface) const {
   return nullptr;
 }
 
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+wlr_scene_tree *
+WaylandCompositor::Impl::captureSceneForSurface(wlr_surface *surface) const {
+  if (!surface)
+    return nullptr;
+  for (const auto *popup : xdgPopups)
+    if (popup && popup->popup && popup->popup->base &&
+        popup->popup->base->surface == surface)
+      return popup->captureTree;
+  if (auto *client = clientForSurface(surface)) {
+    if (client->x11 || !client->nativeState)
+      return nullptr;
+    auto *state = static_cast<ToplevelState *>(client->nativeState);
+    return state->imageCaptureTree;
+  }
+  return nullptr;
+}
+#endif
+
 void WaylandCompositor::Impl::configureXdgPopup(XdgPopupState *state) {
   auto *popup = state->popup;
   if (!popup->base->initialized || !popup->parent)
@@ -30,6 +50,13 @@ void WaylandCompositor::Impl::configureXdgPopup(XdgPopupState *state) {
     if (!state->sceneTree)
       return;
   }
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+  if (!state->captureTree) {
+    if (auto *captureParent = captureSceneForSurface(popup->parent))
+      state->captureTree =
+          wlr_scene_xdg_surface_create(captureParent, popup->base);
+  }
+#endif
   // Positioner constraints are expressed relative to the root parent, even
   // when this is a submenu of another popup. Allow menus outside the window
   // while keeping their requested flip/slide/resize behavior within the output.

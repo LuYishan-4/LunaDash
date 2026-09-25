@@ -117,7 +117,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                                 "accent": "#c4b5fd",
                                 "gap": 20,
                                 "panelHeight": 36,
-                                "startupApps": ["console"],
+                                "startupApps": ["welcome"],
                                 "fontFamily": "monospace",
                             }
                         ),
@@ -141,7 +141,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                         lambda data: any(client["mapped"] for client in data["clients"])
                     )
                     assert (
-                        state["appearance"]["startupApps"] == ["console"]
+                        state["appearance"]["startupApps"] == ["welcome"]
                         and state["appearance"]["fontFamily"] == "monospace"
                     ), state
                 assert process.wait(timeout=20) == 0, (

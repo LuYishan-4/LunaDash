@@ -27,8 +27,10 @@
 
 ## LunaDash
 
+**1.0.1a**
+
 - **日常功能一应俱全。** 面板、启动器、仪表盘、通知、设置与文件工具都包含在桌面中。
-- **配合你的工作方式。** 支持可滚动的窗口列、窗口分组、浮动窗口、键盘操作和窗口动画。
+- **配合你的工作方式。** 限制在单个画面内的平铺布局，每组最多 8 个窗口；支持 Alt 拖动、十格工作区缩略图总览，任务栏可切换所有工作区的窗口。
 - **把默认设置变成自己的风格。** 在设置中调整壁纸、颜色、间距、快捷键和默认应用程序。
 - **需要时再深入。** 排列 shell 模块、修改 Quickshell/QML，或通过本地控制接口安排工作流程。
 
@@ -44,7 +46,7 @@
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外观设置中选择壁纸与强调色。" width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可滚动的窗口列中使用终端、Discord 和 Zed。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在平铺布局中使用终端、Discord 和 Zed。" width="440"></a></td>
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日历面板也能使用自定义图片。" width="440"></a></td>
   </tr>
 </table>
@@ -63,7 +65,7 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-安装程序会处理发行版依赖、编译 LunaDash 并安装登录会话。完成后注销，在登录管理器中选择 **LunaDash**。首次启动会显示欢迎消息与网站帮助链接。语言及桌面外观可在设置中调整。
+安装程序会处理发行版依赖、编译 LunaDash 并安装登录会话。完成后注销，在登录管理器中选择 **LunaDash**。首次启动会显示 1.0.1a Welcome 卡片、系统信息与快捷操作。语言及桌面外观可在设置中调整。
 
 可先运行 `./scripts/install-session.sh --dry-run` 预览安装步骤。桌面 shell 需要 **Quickshell 0.3+**；若发行版未提供，安装程序会指出缺少的依赖。选项与恢复方法请见[安装指南](../LOGIN_SESSION.md)，手动编译与嵌套会话请见[构建与测试](../TESTING_AND_FILES.md)。
 
@@ -72,11 +74,14 @@ cd LunaDash
 | 快捷键 | 功能 |
 | --- | --- |
 | `Super` + `Return` / `E` / `D` | 终端／文件／启动器 |
-| `Super` + `H` / `L` | 聚焦左／右窗口列 |
-| `Super` + `K` / `J` | 聚焦列内其他窗口 |
-| `Super` + `Space` | 切换浮动模式 |
+| `Super` + `T` | 打开 Kitty（默认终端） |
+| `Super` + `H` / `L` | 聚焦左／右方窗口 |
+| `Super` + `K` / `J` | 聚焦上／下方窗口 |
+| `Super` + `F` | 最大化单个窗口／还原工作区内全部平铺窗口 |
+| `Alt` + `Tab` | 十格工作区缩略图；松开 Alt 切换 |
+| `Alt` + drag | 移动或交换位置；加 Shift 调整大小 |
 | `Super` + `Shift` + `S` | 选取截图区域 |
-| `Super` + `1`–`9` | 切换工作区 |
+| `Super` + `1`–`9` / `0` | 切换工作区 |
 
 `Super` 即 Meta 键。可在 **设置 → 键盘快捷键** 中更改绑定。分组、调整大小与控制命令请见[设置文档](../SETTINGS.md)。
 
@@ -105,3 +110,7 @@ PR 请以 **`dev`** 为目标分支。标题应清楚描述改动，说明用户
 ---
 
 <p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · 项目目前尚不成熟，欢迎报告问题或提交 PR。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
+
+### 打造自己的桌面功能
+
+[Plugin SDK 2](../PLUGINS.md) 提供 C／C++ hook、Quickshell 组件及 OpenGL 着色器模板，可按类别设置并实时替换或并用。从[功能接口参考](../PLUGIN_TARGETS.md)或默认禁用的[堆叠窗口示例](../../examples/plugins/stacking-windows/README.md)开始。

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "compositor/tiling/TilingLayout.hpp"
+#include "compositor/layout/WindowLayout.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
@@ -14,6 +15,8 @@
 
 namespace LunaDash {
 
+class WindowSwitcher;
+struct WindowTemplate;
 class ScreenCapture;
 class BrightnessSettings;
 class DdcBrightnessSettings;
@@ -21,12 +24,12 @@ class ShellModules;
 class AudioSettings;
 class PowerSettings;
 class SystemStatus;
+class WeatherStatus;
 class XWaylandSupport;
 class NetworkStatus;
 class PluginManager;
 class ControlServer;
 class SessionActions;
-class SceneWindowAnimations;
 class ShortcutSettings;
 class UpdateChecker;
 struct ClientWindow;
@@ -39,7 +42,8 @@ public:
 
   QProcess *spawn(const QStringList &arguments, const QString &program = {},
                   bool required = true);
-  bool saveScreenshot(const QString &path);
+  bool saveScreenshot(const QString &path,
+                      const std::function<void(bool)> &finished = {});
   void saveState(const QString &path);
   bool hasProcessFailure() const;
   void closeTestSession(const std::function<void(bool)> &finished);
@@ -48,6 +52,7 @@ private:
   class Impl;
   std::unique_ptr<Impl> d;
 
+  WindowSwitcher *windowSwitcher_ = nullptr;
   ScreenCapture *screenCapture_ = nullptr;
   BrightnessSettings *brightnessSettings_ = nullptr;
   DdcBrightnessSettings *ddcBrightnessSettings_ = nullptr;
@@ -57,8 +62,9 @@ private:
   SessionActions *sessionActions_ = nullptr;
   ShortcutSettings *shortcutSettings_ = nullptr;
   UpdateChecker *updateChecker_ = nullptr;
-  SceneWindowAnimations *windowAnimations_ = nullptr;
+  std::unique_ptr<SceneWindowAnimationTemplate> windowAnimations_;
   SystemStatus *systemStatus_ = nullptr;
+  WeatherStatus *weatherStatus_ = nullptr;
   NetworkStatus *networkStatus_ = nullptr;
   XWaylandSupport *xwayland_ = nullptr;
   PluginManager *pluginManager_ = nullptr;
@@ -68,7 +74,6 @@ private:
   QProcessEnvironment clientEnvironment_;
   std::vector<std::unique_ptr<ClientWindow>> clients_;
   QList<QProcess *> processes_;
-  QSet<qint64> shellProcessIds_;
   ClientWindow *focused_ = nullptr;
 
   int nextWindowId_ = 1;
@@ -76,12 +81,24 @@ private:
   int settingsSerial_ = 0;
   QString settingsPage_ = "general";
   int pickerSerial_ = 0;
-  ScrollableTilingLayout tiling_;
+  int launcherSerial_ = 0;
+  int shellActionSerial_ = 0;
+  QString shellAction_;
+  int scratchpadWindow_ = 0;
+  qint64 scratchpadProcess_ = 0;
+  bool scratchpadPending_ = false;
+  quint64 scratchpadGeneration_ = 0;
+  QString scratchpadError_;
+  bool launcherVisible_ = false;
+  const WindowTemplate *windowTemplate_ = nullptr;
+  std::unique_ptr<WindowLayout> windowLayout_;
   QHash<int, int> resizeOriginalWidths_;
   bool shuttingDown_ = false;
   bool logoutPending_ = false;
   bool testStopping_ = false;
   bool processFailure_ = false;
+  bool shellRestartScheduled_ = false;
+  int shellRestartFailures_ = 0;
   bool shortcutCapture_ = false;
   bool activationEnvironmentPublished_ = false;
   QString activationEnvironmentError_;
@@ -91,23 +108,38 @@ private:
   int keypadKeyForwards_ = 0;
 
   void requestShutdown();
+  void scheduleShellRestart();
   void publishSessionActivationEnvironment();
   void captureScreen();
-  bool launchExternalCommand(QStringList command, QString *error);
+  bool launchExternalCommand(QStringList command, QString *error,
+                             bool x11Helper = false);
   void resendKeyboardModifiers();
+  void setLauncherVisible(bool visible, bool publish = true);
   QString nextCapturePath() const;
   void configure(ClientWindow *client, const QRect &rectangle);
   void arrange();
   QRect workArea() const;
+  QJsonObject currentWindowLayoutSettings() const;
+  bool updateWindowLayoutSettings(const QJsonObject &changes, QString *error);
   QJsonObject state() const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);
+  void raiseWithDialogs(ClientWindow *client);
+  void activateTask(int window);
+  void beginWindowSwitch(int direction);
+  void selectWorkspace(int workspace);
+  void publishWindowLayout();
+  void captureWorkspaceThumbnail(int serial, QList<int> windows);
+  void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
+  void setFullscreen(ClientWindow *client, bool fullscreen);
   void focusNext(int direction);
-  void synchronizeTilingFocus();
+  void synchronizeWindowFocus();
   void updateClientMetadata(ClientWindow *client);
   void removeClient(ClientWindow *client);
   void handleShortcut(const QString &action);
+  bool toggleScratchpad(QString *error);
+  void adoptScratchpad(ClientWindow *client);
   void applyKeyboardConfiguration();
 };
 

@@ -1,3 +1,3 @@
 #pragma once
-#include "core/macros/Feature.hpp"
-#include "core/macros/Version.hpp"
+#include "core/plugins/macros/Feature.hpp"
+#include "core/plugins/macros/Version.hpp"

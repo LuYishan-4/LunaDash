@@ -22,7 +22,7 @@ jobs:
                     libwayland-dev wayland-protocols libwlroots-dev \
                     libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
                     qt6-base-dev qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
-                    xvfb xauth xdotool xwayland python3 wayland-utils
+                    xvfb xauth xdotool xwayland python3 wayland-utils                     wl-clipboard grim
             - name: Reject QtWayland compositor dependencies
               run: python3 tests/wayland/test_no_qtwayland.py
             - name: Build wlroots compositor
@@ -38,6 +38,8 @@ jobs:
               run: ./scripts/test-xdg-lifecycle.sh "$PWD/build-wayland"
             - name: Verify XWayland is on demand
               run: xvfb-run -a python3 tests/wayland/test_xwayland.py build-wayland
+            - name: Exercise accelerated recording notification teardown
+              run: python3 tests/wayland/test_xwayland_notifications.py build-wayland
             - name: Verify wlroots protocol globals
               run: |
                   runtime=$(mktemp -d)
@@ -62,11 +64,41 @@ jobs:
                   cat build-wayland/core-protocol-globals.txt
                   grep -Eq "interface: 'wl_seat',[[:space:]]+version:[[:space:]]+([5-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
                   grep -Eq "interface: 'wl_data_device_manager',[[:space:]]+version:[[:space:]]+([3-9]|[1-9][0-9]+)" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwlr_data_control_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_layer_shell_v1'" build-wayland/core-protocol-globals.txt
+                  grep -q "interface: 'zwlr_foreign_toplevel_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwlr_screencopy_manager_v1'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_text_input_manager_v3'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_input_method_manager_v2'" build-wayland/core-protocol-globals.txt
                   grep -q "interface: 'zwp_virtual_keyboard_manager_v1'" build-wayland/core-protocol-globals.txt
+
+                  # Exercise the data-control path used by clipboard history.
+                  clipboard_value="lunadash-clipboard-$RANDOM-$RANDOM"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     wl-copy --type 'text/plain;charset=utf-8' "$clipboard_value"
+                  pasted="$(XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     timeout 5 wl-paste --no-newline --type 'text/plain;charset=utf-8')"
+                  test "$pasted" = "$clipboard_value"
+
+                  history_log="$PWD/build-wayland/clipboard-history.log"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     "$PWD/scripts/lunadash-clipboard-history" watch >"$history_log" 2>&1 &
+                  history_pid=$!
+                  second_value="lunadash-history-$RANDOM-$RANDOM"
+                  XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                     wl-copy --type 'text/plain;charset=utf-8' "$second_value"
+                  for _ in $(seq 1 50); do
+                    history_json="$(XDG_RUNTIME_DIR="$runtime"                       "$PWD/scripts/lunadash-clipboard-history" list)"
+                    echo "$history_json" | grep -Fq "$second_value" && break
+                    sleep 0.1
+                  done
+                  echo "$history_json" | grep -Fq "$second_value"
+                  kill "$history_pid" 2>/dev/null || true
+                  wait "$history_pid" 2>/dev/null || true
+
+                  # Repeated screencopy requests must keep completing. This
+                  # protects the same output-frame path used by xdpw/Discord.
+                  for i in $(seq 1 8); do
+                    XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-core-protocol                       timeout 5 grim "build-wayland/screencopy-$i.png"
+                    test -s "build-wayland/screencopy-$i.png"
+                  done
+
                   kill "$pid"
                   wait "$pid" || true
             - name: Run wlroots session
@@ -80,8 +112,90 @@ jobs:
                       build-wayland/core-protocol.log
                       build-wayland/xdg-lifecycle.log
                       build-wayland/xwayland.log
+                      build-wayland/xwayland-notifications.log
                       build-wayland/core-protocol-globals.txt
+                      build-wayland/clipboard-history.log
+                      build-wayland/screencopy-*.png
                       build-wayland/wayland.log
                       build-wayland/wayland-state.json
+                  if-no-files-found: ignore
+                  retention-days: 7
+
+
+    modern-window-capture:
+        name: wlroots 0.20 window capture globals
+        runs-on: ubuntu-24.04
+        timeout-minutes: 25
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - name: Build and verify modern capture protocols
+              run: |
+                  docker run --rm \
+                    -v "$PWD:/src" -w /src archlinux:latest \
+                    bash -lc '
+                      set -euo pipefail
+                      pacman -Syu --needed --noconfirm \
+                        base-devel cmake ninja pkgconf git \
+                        mesa libglvnd wayland wayland-protocols wayland-utils \
+                        wlroots0.20 libinput libxkbcommon systemd-libs glib2 \
+                        qt6-base qt6-declarative qt6-wayland pixman \
+                        xdg-desktop-portal-wlr pipewire dbus
+                      xdpw_version=$(pacman -Q xdg-desktop-portal-wlr | cut -d " " -f2)
+                      if (( $(vercmp "$xdpw_version" 0.8.4) < 0 )); then
+                        echo "xdg-desktop-portal-wlr >= 0.8.4 is required for Chromium/Discord multi-frame streaming (found $xdpw_version)" >&2
+                        exit 1
+                      fi
+                      cmake -S . -B build-modern -G Ninja -DCMAKE_BUILD_TYPE=Release
+                      cmake --build build-modern --target lunadash-compositor lunadash-portal --parallel 2
+                      python3 tests/wayland/test_screencast_chooser.py build-modern
+
+                      runtime=$(mktemp -d)
+                      chmod 700 "$runtime"
+                      log="$PWD/build-modern/window-capture.log"
+                      env XDG_RUNTIME_DIR="$runtime" \
+                        WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman \
+                        LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 \
+                        build-modern/lunadash-compositor --socket ludash-window-capture \
+                        --no-shell --exit-after 12000 >"$log" 2>&1 &
+                      pid=$!
+                      trap '"'"'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$runtime"'"'"' EXIT
+                      for _ in $(seq 1 120); do
+                        test -S "$runtime/ludash-window-capture" && break
+                        kill -0 "$pid"
+                        sleep 0.1
+                      done
+                      test -S "$runtime/ludash-window-capture"
+                      XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-window-capture \
+                        wayland-info > build-modern/window-capture-globals.txt
+                      cat "$log"
+                      cat build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'zwlr_foreign_toplevel_manager_v1'"'"'" build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'ext_foreign_toplevel_list_v1'"'"'" build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'ext_image_copy_capture_manager_v1'"'"'" build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'ext_output_image_capture_source_manager_v1'"'"'" build-modern/window-capture-globals.txt
+                      grep -q "interface: '"'"'ext_foreign_toplevel_image_capture_source_manager_v1'"'"'" build-modern/window-capture-globals.txt
+
+                      # Exercise the actual ScreenCast backend used by Discord.
+                      # Require both MONITOR (1) and WINDOW (2) source bits.
+                      XDG_RUNTIME_DIR="$runtime" WAYLAND_DISPLAY=ludash-window-capture \
+                        XDG_CURRENT_DESKTOP=LunaDash XDG_SESSION_TYPE=wayland \
+                        XDPW_CONFIG="$PWD/build-modern/xdg-desktop-portal-wlr-LunaDash" \
+                        dbus-run-session -- ./scripts/test-xdpw-sources.sh "$PWD/build-modern"
+                      kill "$pid"
+                      wait "$pid" || true
+                    '
+            - name: Preserve modern capture diagnostics
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: modern-window-capture-diagnostics
+                  path: |
+                      build-modern/window-capture.log
+                      build-modern/window-capture-globals.txt
+                      build-modern/portal-source-types.txt
+                      build-modern/pipewire.log
+                      build-modern/xdpw.log
                   if-no-files-found: ignore
                   retention-days: 7

@@ -19,19 +19,29 @@ namespace {
 QJsonObject defaults() {
   return {{"accent", "#9ccbfb"},
           {"secondaryAccent", "#41576b"},
+          {"themeMode", "dark"},
+          {"wallpaperColors", true},
+          {"wallpaperDirectory", QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/Wallpapers"},
+          {"eyeCare", false},
+          {"eyeCareTemperature", 4500},
+          {"syncApplicationThemes", false},
+          {"syncFcitxTheme", false},
+          {"weatherEnabled", false},
+          {"weatherLocation", ""},
+          {"weatherLatitude", 0.0},
+          {"weatherLongitude", 0.0},
+          {"dockEnabled", false},
+          {"dockAutoHide", true},
           {"colorPins",
            QJsonArray{"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
           {"gap", 12},
           {"panelHeight", 40},
           {"blur", true},
           {"blurRadius", 18},
-          {"windowOpacity", 96},
+          {"windowOpacity", 90},
           {"animations", true},
           {"animationDuration", 220},
-          {"workspaceCount", 4},
-          {"masterRatio", 50},
-          {"defaultFloating", false},
-          {"altMouseResize", true},
+          {"workspaceCount", 10},
           {"keyboardLayout", "us"},
           {"cursorSize", 24},
           {"fontFamily", "sans-serif"},
@@ -45,115 +55,6 @@ QJsonObject defaults() {
           {"overview", false},
           {"showHostDetails", false},
           {"updateChannel", "stable"}};
-}
-
-QString localized(const QJsonObject &object, const QString &key,
-                  const QString &locale) {
-  return object.value(key + "[" + locale + "]")
-      .toString(object.value(key).toString());
-}
-
-QJsonArray pluginSnapshot() {
-  QStringList roots;
-  roots << QDir(QCoreApplication::applicationDirPath())
-               .absoluteFilePath("../qml/plugins");
-  for (const auto &path :
-       QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
-    roots << path + "/lunadash/shell/plugins";
-    roots << path + "/ludash/plugins";
-  }
-  roots << QCoreApplication::applicationDirPath() + "/plugins";
-
-  const QString locale =
-      QSettings().value("appearance/language", "en_US").toString();
-  QSet<QString> seen;
-  QJsonArray result;
-  for (const auto &root : roots) {
-    const QDir directory(root);
-    for (const auto &folder :
-         directory.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-      QFile file(directory.filePath(folder + "/metadata.json"));
-      if (!file.open(QIODevice::ReadOnly) || file.size() > 65536)
-        continue;
-      QJsonParseError error;
-      const auto document = QJsonDocument::fromJson(file.readAll(), &error);
-      if (error.error != QJsonParseError::NoError || !document.isObject())
-        continue;
-      const auto metadata = document.object();
-      QString id;
-      QString name;
-      QString description;
-      QString version;
-      QString author;
-      QString icon = "applications-system";
-      QString type;
-      QString entry;
-      bool enabledByDefault = false;
-      if (metadata.contains("KPlugin")) {
-        const auto info = metadata.value("KPlugin").toObject();
-        const auto api = metadata.value("LuDash").toObject();
-        id = info.value("Id").toString();
-        name = localized(info, "Name", locale);
-        description = localized(info, "Description", locale);
-        version = info.value("Version").toString();
-        icon = info.value("Icon").toString(icon);
-        if (!info.value("Authors").toArray().isEmpty())
-          author = info.value("Authors")
-                       .toArray()
-                       .first()
-                       .toObject()
-                       .value("Name")
-                       .toString();
-        type = api.value("Type").toString() == "WindowEffect" ? "effect"
-                                                              : "unknown";
-      } else if (metadata.value("schemaVersion").toInt() == 1) {
-        id = metadata.value("id").toString();
-        name = localized(metadata, "name", locale);
-        description = localized(metadata, "description", locale);
-        version = metadata.value("version").toString();
-        icon = metadata.value("icon").toString(icon);
-        type = metadata.value("type").toString().toLower();
-        enabledByDefault = metadata.value("enabledByDefault").toBool(false);
-        const auto authorValue = metadata.value("author");
-        author = authorValue.isObject()
-                     ? authorValue.toObject().value("name").toString()
-                     : authorValue.toString();
-        if (type == "qml") {
-          const QString candidate = QFileInfo(file).absoluteDir().filePath(
-              metadata.value("entry").toString());
-          const QString canonicalRoot =
-              QFileInfo(QFileInfo(file).absolutePath()).canonicalFilePath();
-          const QString canonicalEntry =
-              QFileInfo(candidate).canonicalFilePath();
-          if (!canonicalEntry.isEmpty() &&
-              QFileInfo(canonicalEntry).absolutePath() == canonicalRoot &&
-              canonicalEntry.endsWith(".qml"))
-            entry = QUrl::fromLocalFile(canonicalEntry).toString();
-        }
-      }
-      if (id.isEmpty() || seen.contains(id) || name.isEmpty() ||
-          version.isEmpty() || (type != "qml" && type != "effect"))
-        continue;
-      if (type == "qml" && entry.isEmpty())
-        continue;
-      seen.insert(id);
-      const bool enabled =
-          QSettings()
-              .value("plugins/" + id + "/enabled", enabledByDefault)
-              .toBool();
-      result.append(QJsonObject{{"id", id},
-                                {"name", name},
-                                {"description", description},
-                                {"version", version},
-                                {"author", author},
-                                {"icon", icon},
-                                {"type", type},
-                                {"entry", entry},
-                                {"enabled", enabled},
-                                {"restartRequired", type == "effect"}});
-    }
-  }
-  return result;
 }
 
 bool validProxyText(const QJsonValue &value, bool url) {
@@ -178,6 +79,24 @@ bool validColor(const QJsonValue &value) {
 }
 
 bool valid(const QString &key, const QJsonValue &value) {
+  if (key == "weatherEnabled" || key == "syncFcitxTheme") return value.isBool();
+  if (key == "weatherLocation")
+    return value.isString() && value.toString().size() <= 80 && !value.toString().contains(QChar::Null);
+  if (key == "weatherLatitude" || key == "weatherLongitude") {
+    const auto number = value.toDouble();
+    const auto limit = key == "weatherLatitude" ? 90.0 : 180.0;
+    return value.isDouble() && std::isfinite(number) && number >= -limit && number <= limit;
+  }
+  if (key == "themeMode")
+    return value.isString() && QStringList{"dark", "light", "auto"}.contains(value.toString());
+  if (key == "wallpaperDirectory")
+    return value.isString() && value.toString().size() <= 4096 &&
+           QDir::isAbsolutePath(value.toString()) &&
+           !value.toString().contains(QChar::Null) &&
+           !value.toString().contains('\n');
+  if (key == "wallpaperColors" || key == "eyeCare" ||
+      key == "syncApplicationThemes" || key == "dockEnabled" || key == "dockAutoHide")
+    return value.isBool();
   if (key == "keyboardLayout")
     return value.isString() &&
            QStringList{"us", "gb", "de", "fr", "es", "jp", "tw"}.contains(
@@ -194,12 +113,12 @@ bool valid(const QString &key, const QJsonValue &value) {
   if (key == "proxyBypass")
     return validProxyText(value, false);
   if (key == "startupApps") {
-    if (!value.isArray() || value.toArray().size() > 4)
+    if (!value.isArray() || value.toArray().size() > 3)
       return false;
     QSet<QString> seen;
     for (const auto &app : value.toArray()) {
       if (!app.isString() ||
-          !QStringList{"files", "console", "monitor", "welcome"}.contains(
+          !QStringList{"files", "packages", "welcome"}.contains(
               app.toString()) ||
           seen.contains(app.toString()))
         return false;
@@ -221,8 +140,8 @@ bool valid(const QString &key, const QJsonValue &value) {
     }
     return true;
   }
-  const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 9}},
-                                              {"masterRatio", {30, 70}},
+  const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 10}},
+                                              {"eyeCareTemperature", {2500, 6500}},
                                               {"cursorSize", {16, 64}}};
   if (ranges.contains(key)) {
     const double number = value.toDouble(-1);
@@ -234,8 +153,7 @@ bool valid(const QString &key, const QJsonValue &value) {
   if (key == "accent" || key == "secondaryAccent")
     return validColor(value);
   if (key == "overview" || key == "showHostDetails" || key == "blur" ||
-      key == "animations" || key == "defaultFloating" ||
-      key == "altMouseResize" || key == "clock24Hour" || key == "proxyEnabled")
+      key == "animations" || key == "clock24Hour" || key == "proxyEnabled")
     return value.isBool();
   if (key == "gap" || key == "panelHeight" || key == "blurRadius" ||
       key == "windowOpacity" || key == "animationDuration") {
@@ -286,7 +204,6 @@ QJsonObject desktopPreferences() {
       "wallpaperRevision",
       static_cast<qint64>(
           settings.value("appearance/wallpaperRevision", 0).toULongLong()));
-  result.insert("plugins", pluginSnapshot());
   return result;
 }
 

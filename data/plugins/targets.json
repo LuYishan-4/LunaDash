@@ -1,0 +1,944 @@
+[
+  {
+    "id": "panel",
+    "name": "Taskbar",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "taskbar-windows",
+    "name": "Taskbar windows",
+    "category": "Windows",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "wallpaper",
+    "name": "Wallpaper",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "launcher",
+    "name": "Application launcher",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "overview",
+    "name": "Overview",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "desktop-menu",
+    "name": "Desktop menu",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "media",
+    "name": "Media",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "calendar",
+    "name": "Calendar",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "audio",
+    "name": "Audio controls",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "network",
+    "name": "Network controls",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "devices",
+    "name": "Removable devices",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "session",
+    "name": "Session menu",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings",
+    "name": "Settings window",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "setup",
+    "name": "Welcome",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "compatibility",
+    "name": "Compatibility launcher",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "clipboard",
+    "name": "Clipboard history",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "feedback",
+    "name": "Messages",
+    "category": "Feedback",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "notifications",
+    "name": "Notifications",
+    "category": "Feedback",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "screenshot",
+    "name": "Screenshot feedback",
+    "category": "Feedback",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "workspace-transition",
+    "name": "Workspace transition",
+    "category": "Animation",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "startup",
+    "name": "Startup animation",
+    "category": "Animation",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "window-decoration",
+    "name": "Window borders",
+    "category": "Windows",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "window-switcher",
+    "name": "Window switcher",
+    "category": "Windows",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "tiling-hint",
+    "name": "Drop indicator",
+    "category": "Windows",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "blur",
+    "name": "Switcher blur",
+    "category": "Effects",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "wallpaper-transition",
+    "name": "Wallpaper transition",
+    "category": "Animation",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "desktop-widgets",
+    "name": "Desktop widgets",
+    "category": "Desktop",
+    "types": [
+      "quickshell"
+    ],
+    "settings": {
+      "clockEnabled": {
+        "type": "boolean",
+        "default": false,
+        "label": "Desktop clock",
+        "control": "toggle"
+      },
+      "visualizerEnabled": {
+        "type": "boolean",
+        "default": false,
+        "label": "Desktop audio visualizer",
+        "control": "toggle"
+      },
+      "clockX": {
+        "type": "integer",
+        "default": 3,
+        "minimum": 0,
+        "maximum": 100,
+        "label": "Clock horizontal position",
+        "control": "slider"
+      },
+      "clockY": {
+        "type": "integer",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 100,
+        "label": "Clock vertical position",
+        "control": "slider"
+      }
+    },
+    "selection": "multiple"
+  },
+  {
+    "id": "settings.general",
+    "name": "General settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.appearance",
+    "name": "Appearance settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.windows",
+    "name": "Windows settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.shortcuts",
+    "name": "Shortcuts settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.display",
+    "name": "Display settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.input",
+    "name": "Input settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.input-method",
+    "name": "Input Method settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.sound",
+    "name": "Sound settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.network",
+    "name": "Network settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.bluetooth",
+    "name": "Bluetooth settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.power",
+    "name": "Power settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.applications",
+    "name": "Applications settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.privacy",
+    "name": "Privacy settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.system",
+    "name": "System settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.devices",
+    "name": "Devices settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.about",
+    "name": "About settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "settings.dashboard",
+    "name": "Dashboard settings",
+    "category": "Settings pages",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "window-animation",
+    "name": "Window animation",
+    "category": "Animation",
+    "types": [
+      "effect"
+    ],
+    "settings": {
+      "duration": {
+        "type": "integer",
+        "default": -1,
+        "minimum": -1,
+        "maximum": 600
+      },
+      "enterOffset": {
+        "type": "integer",
+        "default": 12,
+        "minimum": -100,
+        "maximum": 100
+      },
+      "focusOpacity": {
+        "type": "number",
+        "default": 0.82,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "exitScale": {
+        "type": "number",
+        "default": 0.9,
+        "minimum": 0.5,
+        "maximum": 1
+      },
+      "easing": {
+        "type": "string",
+        "default": "outCubic",
+        "enum": [
+          "linear",
+          "outCubic",
+          "outQuint",
+          "inOutCubic"
+        ]
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "window-layout",
+    "name": "Window layout",
+    "category": "Windows",
+    "types": [
+      "effect"
+    ],
+    "settings": {
+      "gap": {
+        "type": "integer",
+        "default": -1,
+        "minimum": -1,
+        "maximum": 64
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "window-rules",
+    "name": "Window rules",
+    "category": "Windows",
+    "types": [
+      "effect"
+    ],
+    "settings": {},
+    "selection": "single"
+  },
+  {
+    "id": "shell-animation",
+    "name": "Shell animation",
+    "category": "Animation",
+    "types": [
+      "effect"
+    ],
+    "settings": {
+      "duration": {
+        "type": "integer",
+        "default": -1,
+        "minimum": -1,
+        "maximum": 600
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "image-picker",
+    "name": "Image picker",
+    "category": "System",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {
+      "opacity": {
+        "type": "number",
+        "default": 1,
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "selection": "single"
+  },
+  {
+    "id": "orbit",
+    "name": "Orbit launcher",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {},
+    "selection": "single"
+  },
+  {
+    "id": "dock",
+    "name": "Dock",
+    "category": "Desktop",
+    "types": [
+      "quickshell",
+      "opengl"
+    ],
+    "settings": {},
+    "selection": "single"
+  }
+]

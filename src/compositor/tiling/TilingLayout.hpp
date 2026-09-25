@@ -1,5 +1,6 @@
 #pragma once
 
+#include "compositor/layout/WindowLayout.hpp"
 #include <QList>
 #include <QRect>
 #include <QtGlobal>
@@ -7,62 +8,51 @@
 
 namespace LunaDash {
 
-using TilingWindowId = quint64;
-using TilingWorkspaceId = quint64;
-
-struct TilingColumnSnapshot {
-  TilingWindowId window = 0;
-  int width = 0;
-  bool minimized = false;
-  bool focused = false;
-  QRect geometry;
-  int columnIndex = -1;
-  int rowIndex = -1;
-  QList<TilingWindowId> columnMembers;
-};
-
-struct TilingWorkspaceSnapshot {
-  TilingWorkspaceId workspace = 0;
-  int scrollOffset = 0;
-  TilingWindowId focusedWindow = 0;
-  QList<TilingColumnSnapshot> columns;
-};
-
-class ScrollableTilingLayout {
+class TilingLayout final : public WindowLayout {
 public:
-  explicit ScrollableTilingLayout(int defaultWidth = 720, int gap = 12);
-  ~ScrollableTilingLayout();
-  ScrollableTilingLayout(ScrollableTilingLayout &&) noexcept;
-  ScrollableTilingLayout &operator=(ScrollableTilingLayout &&) noexcept;
-  ScrollableTilingLayout(const ScrollableTilingLayout &) = delete;
-  ScrollableTilingLayout &operator=(const ScrollableTilingLayout &) = delete;
+  TilingLayout();
+  ~TilingLayout() override;
+  TilingLayout(TilingLayout &&) noexcept;
+  TilingLayout &operator=(TilingLayout &&) noexcept;
+  TilingLayout(const TilingLayout &) = delete;
+  TilingLayout &operator=(const TilingLayout &) = delete;
 
-  void setGap(int gap);
-  bool insert(TilingWorkspaceId workspace, TilingWindowId window,
-              int width = 0);
-  bool remove(TilingWindowId window);
-  bool setMinimized(TilingWindowId window, bool minimized);
-  bool moveToWorkspace(TilingWindowId window, TilingWorkspaceId workspace);
-  bool focus(TilingWindowId window);
-  bool focusLeft(TilingWorkspaceId workspace);
-  bool focusRight(TilingWorkspaceId workspace);
-  bool focusUp(TilingWorkspaceId workspace);
-  bool focusDown(TilingWorkspaceId workspace);
-  bool groupWith(TilingWindowId window, TilingWindowId targetWindow);
-  bool expel(TilingWindowId window);
-  bool reorder(TilingWindowId window, int direction);
-  bool resize(TilingWindowId window, int width);
-  bool center(TilingWindowId window, QRect area);
+  void configure(const QJsonObject &settings) override;
+  bool insert(LayoutWorkspaceId workspace, LayoutWindowId window,
+              QSize preferredSize = {}) override;
+  bool remove(LayoutWindowId window) override;
+  bool setMinimized(LayoutWindowId window, bool minimized) override;
+  bool setMaximized(LayoutWindowId window, bool maximized) override;
+  bool moveToWorkspace(LayoutWindowId window,
+                       LayoutWorkspaceId workspace) override;
+  bool focus(LayoutWindowId window) override;
+  bool performAction(const QString &action,
+                     const QJsonObject &payload) override;
 
-  QList<TilingColumnSnapshot> layout(TilingWorkspaceId workspace, QRect area);
-  TilingWorkspaceSnapshot snapshot(TilingWorkspaceId workspace) const;
+  QList<WindowPlacement> layout(LayoutWorkspaceId workspace,
+                                QRect area) override;
+  // Overlay maximization without changing the saved tile sizes or membership.
+  QList<WindowPlacement> presentation(LayoutWorkspaceId workspace,
+                                      QRect area) override;
+  WorkspaceLayoutSnapshot snapshot(LayoutWorkspaceId workspace) const override;
 
 private:
+  bool focusLeft(LayoutWorkspaceId workspace);
+  bool focusRight(LayoutWorkspaceId workspace);
+  bool focusUp(LayoutWorkspaceId workspace);
+  bool focusDown(LayoutWorkspaceId workspace);
+  bool groupWith(LayoutWindowId window, LayoutWindowId targetWindow);
+  bool expel(LayoutWindowId window);
+  bool swapWindows(LayoutWindowId window, LayoutWindowId target);
+  bool insertBeside(LayoutWindowId window, LayoutWindowId target, bool after);
+  bool resizeHeight(LayoutWindowId window, int height);
+  bool moveSingle(LayoutWindowId window, QPoint delta, QRect area);
+  bool reorder(LayoutWindowId window, int direction);
+  bool resize(LayoutWindowId window, int width);
+  bool center(LayoutWindowId window, QRect area);
+
   class Impl;
   std::unique_ptr<Impl> d;
 };
-
-QList<QRect> tileRectangles(QRect area, int count, double columnRatio = 0.56,
-                            int gap = 12);
 
 } // namespace LunaDash

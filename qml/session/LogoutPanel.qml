@@ -31,7 +31,8 @@ ModuleSurface {
 
         Text {
             Layout.fillWidth: true
-            text: menu.pendingAction === "reboot" ? shell.tr("Restart this computer?")
+            text: menu.pendingAction === "logout" ? shell.tr("Log out of LunaDash?")
+                  : menu.pendingAction === "reboot" ? shell.tr("Restart this computer?")
                   : menu.pendingAction === "poweroff" ? shell.tr("Shut down this computer?")
                   : shell.tr("Session")
             color: moduleForeground
@@ -44,7 +45,7 @@ ModuleSurface {
             visible: menu.pendingAction === ""
             Layout.fillWidth: true
             spacing: 7
-            ShellButton { Layout.fillWidth: true; iconName: "power"; text: shell.tr("Log out"); onClicked: { shell.logoutOpen = false; shell.command("quit", "") } }
+            ShellButton { Layout.fillWidth: true; iconName: "power"; text: shell.tr("Log out"); onClicked: menu.pendingAction = "logout" }
             ShellButton { Layout.fillWidth: true; iconName: "moon"; text: shell.tr("Suspend"); enabled: menu.availability.suspend === true; onClicked: { shell.logoutOpen = false; shell.command("session-action", "suspend") } }
             ShellButton { Layout.fillWidth: true; iconName: "update"; text: shell.tr("Restart"); enabled: menu.availability.reboot === true; onClicked: menu.pendingAction = "reboot" }
             ShellButton { Layout.fillWidth: true; iconName: "power"; destructive: true; text: shell.tr("Shut down"); enabled: menu.availability.poweroff === true; onClicked: menu.pendingAction = "poweroff" }
@@ -67,7 +68,9 @@ ModuleSurface {
             ShellButton { Layout.fillWidth: true; quiet: true; text: shell.tr("Cancel"); onClicked: menu.pendingAction = "" }
             ShellButton {
                 Layout.fillWidth: true
-                text: menu.pendingAction === "reboot" ? shell.tr("Confirm restart") : shell.tr("Confirm shut down")
+                text: menu.pendingAction === "logout" ? shell.tr("Confirm log out")
+                    : menu.pendingAction === "reboot" ? shell.tr("Confirm restart")
+                    : shell.tr("Confirm shut down")
                 active: true
                 iconName: menu.pendingAction === "reboot" ? "update" : "power"
                 destructive: menu.pendingAction === "poweroff"
@@ -75,7 +78,10 @@ ModuleSurface {
                     const action = menu.pendingAction
                     menu.pendingAction = ""
                     shell.logoutOpen = false
-                    shell.command("session-action", action)
+                    if (action === "logout")
+                        shell.command("quit", "confirm")
+                    else
+                        shell.command("session-action", action)
                 }
             }
         }

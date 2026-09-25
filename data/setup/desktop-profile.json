@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "modules": {
+    "panel": {
+      "config": {
+        "centerLauncher": true,
+        "showSystemStats": true,
+        "showActiveTitle": true,
+        "occupiedWorkspacesOnly": true
+      }
+    }
+  }
+}

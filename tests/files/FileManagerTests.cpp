@@ -257,7 +257,15 @@ private Q_SLOTS:
         QTRY_VERIFY(menu.isNull());
         auto* copy = page->findChild<QAction*>("filesAction_copy"); QVERIFY(copy); QVERIFY(copy->isEnabled()); copy->trigger();
         QCOMPARE(QApplication::clipboard()->mimeData()->urls().size(), 2);
-        QVERIFY(page->findChild<QTreeView*>("fileView")->selectionModel() == icons->selectionModel());
+        auto* details = page->findChild<QTreeView*>("fileView"); QVERIFY(details);
+        QVERIFY(details->selectionModel() == icons->selectionModel());
+        auto* sharedSelection = icons->selectionModel();
+        auto* refresh = page->findChild<QAction*>("filesAction_refresh"); QVERIFY(refresh);
+        refresh->trigger();
+        QCOMPARE(icons->model(), model);
+        QCOMPARE(details->model(), model);
+        QCOMPARE(icons->selectionModel(), sharedSelection);
+        QCOMPARE(details->selectionModel(), sharedSelection);
         location->setFocus(); location->selectAll(); QTest::keyClick(location, Qt::Key_C, Qt::ControlModifier);
         QCOMPARE(QApplication::clipboard()->text(), temporary.path());
     }

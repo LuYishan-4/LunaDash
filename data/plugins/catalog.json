@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 1,
+  "format": "lunadash-plugin-index",
+  "plugins": [
+    {
+      "id": "org.lunadash.digitalclock",
+      "name": "Digital Clock",
+      "description": "A configurable desktop digital clock for LunaDash.",
+      "version": "2.0.1",
+      "author": "LuYishan",
+      "icon": "clock",
+      "targets": [
+        {
+          "id": "desktop-widgets",
+          "target": "desktop-widgets",
+          "type": "quickshell",
+          "mode": "augment",
+          "settings": {
+            "position": {
+              "type": "string",
+              "control": "select",
+              "label": "Position",
+              "default": "bottomRight",
+              "enum": [
+                "topLeft",
+                "topRight",
+                "bottomLeft",
+                "bottomRight"
+              ]
+            },
+            "marginX": {
+              "type": "integer",
+              "control": "number",
+              "label": "Horizontal margin",
+              "default": 34,
+              "minimum": 0,
+              "maximum": 240,
+              "step": 1
+            },
+            "marginY": {
+              "type": "integer",
+              "control": "number",
+              "label": "Vertical margin",
+              "default": 34,
+              "minimum": 0,
+              "maximum": 240,
+              "step": 1
+            },
+            "use24Hour": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Use 24-hour time",
+              "default": true
+            },
+            "showSeconds": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show seconds",
+              "default": false
+            },
+            "showDate": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show date",
+              "default": true
+            },
+            "scale": {
+              "type": "number",
+              "control": "slider",
+              "label": "Clock scale",
+              "default": 1.0,
+              "minimum": 0.7,
+              "maximum": 1.5,
+              "step": 0.05
+            },
+            "opacity": {
+              "type": "number",
+              "control": "slider",
+              "label": "Opacity",
+              "default": 1.0,
+              "minimum": 0.3,
+              "maximum": 1.0,
+              "step": 0.05
+            }
+          }
+        }
+      ],
+      "tags": [
+        "Widget",
+        "Clock",
+        "Desktop"
+      ],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.digitalclock",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/",
+      "license": "GPL-3.0-or-later",
+      "repository": "https://github.com/LuYishan-4/LunaDash-Plugins",
+      "featured": true,
+      "deprecated": false,
+      "type": "quickshell",
+      "target": "desktop-widgets",
+      "mode": "augment",
+      "settings": {
+        "position": {
+          "type": "string",
+          "control": "select",
+          "label": "Position",
+          "default": "bottomRight",
+          "enum": [
+            "topLeft",
+            "topRight",
+            "bottomLeft",
+            "bottomRight"
+          ]
+        },
+        "marginX": {
+          "type": "integer",
+          "control": "number",
+          "label": "Horizontal margin",
+          "default": 34,
+          "minimum": 0,
+          "maximum": 240,
+          "step": 1
+        },
+        "marginY": {
+          "type": "integer",
+          "control": "number",
+          "label": "Vertical margin",
+          "default": 34,
+          "minimum": 0,
+          "maximum": 240,
+          "step": 1
+        },
+        "use24Hour": {
+          "type": "boolean",
+          "control": "toggle",
+          "label": "Use 24-hour time",
+          "default": true
+        },
+        "showSeconds": {
+          "type": "boolean",
+          "control": "toggle",
+          "label": "Show seconds",
+          "default": false
+        },
+        "showDate": {
+          "type": "boolean",
+          "control": "toggle",
+          "label": "Show date",
+          "default": true
+        },
+        "scale": {
+          "type": "number",
+          "control": "slider",
+          "label": "Clock scale",
+          "default": 1.0,
+          "minimum": 0.7,
+          "maximum": 1.5,
+          "step": 0.05
+        },
+        "opacity": {
+          "type": "number",
+          "control": "slider",
+          "label": "Opacity",
+          "default": 1.0,
+          "minimum": 0.3,
+          "maximum": 1.0,
+          "step": 0.05
+        }
+      },
+      "homepage": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.digitalclock/",
+      "install": {
+        "mode": "cmake",
+        "files": [
+          {
+            "path": "metadata.json",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/metadata.json",
+            "sha256": "446987b35aaf9e4946cb93a7aaa2b224e06c9b40a7702391d4eac8decf32f350"
+          },
+          {
+            "path": "CMakeLists.txt",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/CMakeLists.txt",
+            "sha256": "513d66b74a9b2675140b04d6774328f1045da0eebab0242ee95d55e55f43eea6"
+          },
+          {
+            "path": "Main.qml",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.digitalclock/Main.qml",
+            "sha256": "ea9b0a92f893e469d9403c4ffbcdcfb8f2d9bf197d8b27dd2ffd71d755d5338c"
+          }
+        ]
+      }
+    },
+    {
+      "id": "org.lunadash.kde-behavior",
+      "name": "KDE Behavior Pack",
+      "description": "KDE-inspired taskbar, window-rule and window-animation behavior packaged as one multi-target LunaDash plugin.",
+      "version": "1.0.0",
+      "author": "LunaDash contributors",
+      "icon": "preferences-desktop",
+      "targets": [
+        {
+          "id": "panel",
+          "target": "panel",
+          "type": "quickshell",
+          "mode": "replace",
+          "settings": {
+            "compact": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Compact task buttons",
+              "default": false
+            },
+            "showLabels": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show window titles",
+              "default": true
+            },
+            "showWorkspaceSwitcher": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Show workspace switcher",
+              "default": true
+            }
+          }
+        },
+        {
+          "id": "window-rules",
+          "target": "window-rules",
+          "type": "effect",
+          "mode": "replace",
+          "settings": {
+            "workspacePolicy": {
+              "type": "string",
+              "control": "select",
+              "label": "New-window workspace policy",
+              "default": "current",
+              "enum": [
+                "current",
+                "first",
+                "remember"
+              ]
+            },
+            "maximizeNewWindows": {
+              "type": "boolean",
+              "control": "toggle",
+              "label": "Maximize new windows",
+              "default": false
+            }
+          }
+        },
+        {
+          "id": "window-animation",
+          "target": "window-animation",
+          "type": "effect",
+          "mode": "replace",
+          "settings": {
+            "duration": {
+              "type": "integer",
+              "control": "number",
+              "label": "Animation duration",
+              "default": 220,
+              "minimum": 0,
+              "maximum": 600,
+              "step": 10
+            },
+            "enterOffset": {
+              "type": "integer",
+              "control": "number",
+              "label": "Opening offset",
+              "default": 8,
+              "minimum": -100,
+              "maximum": 100,
+              "step": 1
+            },
+            "focusOpacity": {
+              "type": "number",
+              "control": "slider",
+              "label": "Unfocused opacity",
+              "default": 0.9,
+              "minimum": 0,
+              "maximum": 1,
+              "step": 0.01
+            },
+            "exitScale": {
+              "type": "number",
+              "control": "slider",
+              "label": "Closing scale",
+              "default": 0.96,
+              "minimum": 0.5,
+              "maximum": 1,
+              "step": 0.01
+            },
+            "easing": {
+              "type": "string",
+              "control": "select",
+              "label": "Easing curve",
+              "default": "outCubic",
+              "enum": [
+                "linear",
+                "outCubic",
+                "outQuint",
+                "inOutCubic"
+              ]
+            }
+          }
+        }
+      ],
+      "tags": [
+        "KDE",
+        "Panel",
+        "Windows",
+        "Animation",
+        "Multi-target"
+      ],
+      "sourceUrl": "https://github.com/LuYishan-4/LunaDash-Plugins/tree/main/plugins/org.lunadash.kde-behavior",
+      "siteUrl": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.kde-behavior/",
+      "license": "GPL-3.0-or-later",
+      "repository": "https://github.com/LuYishan-4/LunaDash-Plugins",
+      "featured": true,
+      "deprecated": false,
+      "homepage": "https://luyishan-4.github.io/LunaDash-Plugins/plugins/org.lunadash.kde-behavior/",
+      "install": {
+        "mode": "cmake",
+        "files": [
+          {
+            "path": "metadata.json",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/metadata.json",
+            "sha256": "f44b895c0a3d91a23e0403e037d8822359de80b9aec3bdef6596f9c2d13a259a"
+          },
+          {
+            "path": "CMakeLists.txt",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/CMakeLists.txt",
+            "sha256": "46d7f4c6423d8a06b18b4d6fa8da43bd1c6d595443046ce3453731fbbf7720b7"
+          },
+          {
+            "path": "Effect.cpp",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/Effect.cpp",
+            "sha256": "4f45ce7b4f377d72e16c26a2aa91d7fffa30e111953a92ef5d674bcd209a1e2e"
+          },
+          {
+            "path": "KdePanel.qml",
+            "url": "https://raw.githubusercontent.com/LuYishan-4/LunaDash-Plugins/main/plugins/org.lunadash.kde-behavior/KdePanel.qml",
+            "sha256": "c28a71593926e0917bd4d03be018a9914e64862af88b235d53d14a3b2649bb95"
+          }
+        ]
+      }
+    }
+  ]
+}

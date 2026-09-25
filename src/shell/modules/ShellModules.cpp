@@ -186,6 +186,7 @@ QJsonObject ShellModules::snapshot() const {
     it.value() = module;
   }
   return {{"document", document_}, {"modules", effective},
+          {"descriptors", shellModuleDescriptors()},
           {"path", path_},         {"codeRoot", codeRoot_},
           {"trusted", trusted},    {"revision", revision_},
           {"status", status_},     {"errors", errors_}};
@@ -201,22 +202,28 @@ int ShellModules::panelExtent(int fallbackHeight) const {
     return 0;
   const auto style = panel.value("style").toObject();
   const int height = style.value("height").toInt();
-  return (height ? height : fallbackHeight) + style.value("margin").toInt() * 2;
+  return qMax(42, height ? height : fallbackHeight) +
+         style.value("margin").toInt() + 6;
 }
-bool ShellModules::panelAtBottom() const {
-  return document_.value("modules")
-             .toObject()
-             .value("panel")
-             .toObject()
-             .value("style")
-             .toObject()
-             .value("edge")
-             .toString() == "bottom";
+QString ShellModules::panelEdge() const {
+  const auto edge =
+      document_.value("modules")
+          .toObject()
+          .value("panel")
+          .toObject()
+          .value("style")
+          .toObject()
+          .value("edge")
+          .toString("top");
+  return QStringList{"top", "bottom", "left", "right"}.contains(edge)
+             ? edge
+             : QStringLiteral("top");
 }
+bool ShellModules::panelAtBottom() const { return panelEdge() == "bottom"; }
 bool ShellModules::installTemplate(const QString &id, QString *error) {
-  if (id != "panel" && id != "overview") {
+  if (!shellModuleDescriptor(id).value("template").toBool()) {
     if (error)
-      *error = "Choose the panel or overview template.";
+      *error = "Selected module has no installable template.";
     return false;
   }
   const auto directory = codeRoot_ + "/" + id;

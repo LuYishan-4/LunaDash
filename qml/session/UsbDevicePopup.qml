@@ -10,6 +10,7 @@ import "../style"
 ModuleSurface {
     id: popup
     moduleId: "feedback"
+    extensionTarget: "devices"
     anchors.top: true
     anchors.right: true
     margins.top: Theme.barHeight + 8

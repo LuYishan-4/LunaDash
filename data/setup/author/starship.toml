@@ -1,0 +1,18 @@
+# Editable prompt inspired by the author's directory/time layout and blue palette.
+format = "[ $directory ](fg:#e2e2e2 bg:#474747)[ $time ](fg:#9bcaff)\n$character"
+add_newline = true
+
+[directory]
+format = "$path"
+truncation_length = 2
+truncate_to_repo = false
+home_symbol = "~"
+
+[time]
+disabled = false
+time_format = "%H:%M"
+format = "$time"
+
+[character]
+success_symbol = "[>](bold #9bcaff) "
+error_symbol = "[>](bold #ffb4ab) "

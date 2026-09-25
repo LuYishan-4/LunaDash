@@ -26,15 +26,15 @@ ColumnLayout {
     }
     SettingsComponents.SettingsCard {
         title: shell.tr("Plugins")
-        description: shell.tr("Manage installed QML plugins and C++ effects. The plugin store is reserved for a future release.")
+        description: shell.tr("Manage installed Quickshell, native and OpenGL plugins and browse the live plugin store.")
         RowLayout {
             Layout.fillWidth: true
             ColumnLayout {
                 Layout.fillWidth: true
-                Text { text: shell.tr("Installed plugins") + ": " + (((shell.state.appearance || {}).plugins || []).length); color: Theme.text; font.family: Theme.font }
-                HelpText { shell: page.shell; message: "QML plugins can update with the shell; C++ effects require a session restart after changing their state." }
+                Text { text: shell.tr("Installed plugins") + ": " + (((shell.state.extensions || {}).installed || []).length); color: Theme.text; font.family: Theme.font }
+                HelpText { shell: page.shell; message: "Plugins reload live between hook calls. Configure them in Settings > Plugins." }
             }
-            ShellButton { text: shell.tr("Open plugin manager"); active: true; onClicked: shell.launch("plugins") }
+            ShellButton { text: shell.tr("Plugin settings"); active: true; onClicked: shell.command("open-settings", "plugins") }
         }
     }
     SettingsComponents.SettingsCard {
@@ -43,7 +43,7 @@ ColumnLayout {
         Flow {
             Layout.fillWidth: true; spacing: 8
             Repeater {
-                model: ["files", "console", "monitor", "welcome"]
+                model: ["files", "packages", "welcome"]
                 ShellButton {
                     required property string modelData
                     text: modelData; active: ((shell.state.appearance || {}).startupApps || []).includes(modelData)

@@ -9,10 +9,37 @@
 #include <QElapsedTimer>
 #include <QTimer>
 #include <algorithm>
+#include <csignal>
+#include <unistd.h>
+
+namespace {
+void fatalSignalHandler(int signalNumber) {
+  static constexpr char message[] =
+      "LunaDash compositor received a fatal signal.\n";
+  ::write(STDERR_FILENO, message, sizeof(message) - 1);
+  ::signal(signalNumber, SIG_DFL);
+  ::kill(::getpid(), signalNumber);
+}
+
+void installFatalSignalDiagnostics() {
+  for (const int signalNumber :
+       {SIGSEGV, SIGABRT, SIGBUS, SIGILL, SIGFPE}) {
+    struct sigaction action {};
+    action.sa_handler = fatalSignalHandler;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = SA_RESETHAND;
+    sigaction(signalNumber, &action, nullptr);
+  }
+}
+} // namespace
 
 namespace LunaDash {
 int SessionApplication::run(int argc, char **argv) {
   QCoreApplication app(argc, argv);
+  installFatalSignalDiagnostics();
+  QObject::connect(&app, &QCoreApplication::aboutToQuit, [] {
+    qInfo("LunaDash compositor event loop is quitting cleanly.");
+  });
   app.setApplicationName("LunaDash");
   app.setOrganizationName("LunaDash");
   app.setApplicationVersion(QString::fromLatin1(BuildConfig::version) + " (" +
@@ -21,7 +48,7 @@ int SessionApplication::run(int argc, char **argv) {
 
   QCommandLineParser parser;
   parser.setApplicationDescription(
-      "LunaDash wlroots Wayland tiling compositor");
+      "LunaDash wlroots Wayland compositor");
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addOption({"graphics",
@@ -77,7 +104,6 @@ int SessionApplication::run(int argc, char **argv) {
       if (!parser.isSet("no-shell"))
         compositor.spawn({"--app", "welcome"});
       compositor.spawn({"--app", "files"});
-      compositor.spawn({"--app", "monitor"});
     });
   }
 
@@ -86,12 +112,17 @@ int SessionApplication::run(int argc, char **argv) {
         std::max(1000, parser.value("exit-after").toInt()), &app, [&] {
           if (parser.isSet("state"))
             compositor.saveState(parser.value("state"));
-          bool ok = true;
-          if (parser.isSet("screenshot"))
-            ok = compositor.saveScreenshot(parser.value("screenshot"));
-          compositor.closeTestSession([&, ok](bool clean) {
-            app.exit(ok && clean && !compositor.hasProcessFailure() ? 0 : 2);
-          });
+          const auto finish = [&app, &compositor](bool ok) {
+            compositor.closeTestSession([&app, &compositor, ok](bool clean) {
+              app.exit(ok && clean && !compositor.hasProcessFailure() ? 0 : 2);
+            });
+          };
+          if (!parser.isSet("screenshot")) {
+            finish(true);
+            return;
+          }
+          if (!compositor.saveScreenshot(parser.value("screenshot"), finish))
+            finish(false);
         });
   }
 

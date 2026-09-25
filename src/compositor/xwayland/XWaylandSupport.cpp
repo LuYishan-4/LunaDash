@@ -1,253 +1,188 @@
 #include "compositor/xwayland/XWaylandSupport.hpp"
-#include <QDataStream>
-#include <QDir>
-#include <QFile>
-#include <QRandomGenerator>
+
+#ifdef __cplusplus
+#define static
+#define class class_
+#define delete delete_
+#define namespace namespace_
+extern "C" {
+#endif
+#include <wayland-server-core.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
+#if __has_include(<wlr/xwayland.h>)
+#include <wlr/xwayland.h>
+#define LUDASH_WLR_HAS_XWAYLAND 1
+#elif __has_include(<wlr/xwayland/xwayland.h>)
+#include <wlr/xwayland/xwayland.h>
+#define LUDASH_WLR_HAS_XWAYLAND 1
+#else
+#define LUDASH_WLR_HAS_XWAYLAND 0
+#endif
+#ifdef __cplusplus
+}
+#undef namespace
+#undef delete
+#undef class
+#undef static
+#endif
+
+#include <QFileInfo>
 #include <QStandardPaths>
-#include <cstring>
-#include <fcntl.h>
-#include <limits>
-#include <signal.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
-#include <unistd.h>
+
 namespace LunaDash {
-namespace {
-bool writeAuthority(const QString &path, const QString &display) {
-  QFile file(path);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::NewOnly))
-    return false;
-  if (!file.setPermissions(QFile::ReadOwner | QFile::WriteOwner))
-    return false;
-  QByteArray cookie(16, Qt::Uninitialized);
-  for (int i = 0; i < 16; i += 4) {
-    const auto value = QRandomGenerator::system()->generate();
-    std::memcpy(cookie.data() + i, &value, 4);
-  }
-  QDataStream stream(&file);
-  stream.setByteOrder(QDataStream::BigEndian);
-  stream << quint16(65535);
-  for (const auto &field : {QByteArray(), display.mid(1).toUtf8(),
-                            QByteArray("MIT-MAGIC-COOKIE-1"), cookie}) {
-    if (field.size() > std::numeric_limits<quint16>::max())
-      return false;
-    const auto length = static_cast<int>(field.size());
-    stream << static_cast<quint16>(length);
-    if (stream.writeRawData(field.constData(), length) != length)
-      return false;
-  }
-  return stream.status() == QDataStream::Ok && file.flush();
-}
-} // namespace
-XWaylandSupport::XWaylandSupport(QObject *parent) : QObject(parent) {
-  server_.setProcessChannelMode(QProcess::ForwardedErrorChannel);
-  connect(&server_, &QProcess::readyReadStandardOutput, this,
-          [this] { server_.readAllStandardOutput(); });
-  connect(&server_, &QProcess::started, this, [this] {
-    groupId_ = server_.processId();
-    if (descriptor_ >= 0) {
-      ::close(descriptor_);
-      descriptor_ = -1;
-    }
-  });
-  connect(&server_, &QProcess::errorOccurred, this,
-          [this](QProcess::ProcessError) {
-            if (!stopping_)
-              error_ = server_.errorString();
-          });
-  connect(&server_, &QProcess::finished, this,
-          [this](int code, QProcess::ExitStatus status) {
-            if (!stopping_ && (code || status != QProcess::NormalExit))
-              error_ = "XWayland compatibility service stopped unexpectedly.";
-            if (groupId_ > 0)
-              ::kill(-static_cast<pid_t>(groupId_), SIGTERM);
-            groupId_ = 0;
-            releaseSocket();
-          });
-}
-XWaylandSupport::~XWaylandSupport() {
+using Templates::attachListener;
+using Templates::detachListener;
+using Templates::listenerOwner;
+
+XWaylandSupport::XWaylandSupport(QObject *parent) : QObject(parent) {}
+
+XWaylandSupport::~XWaylandSupport() { stop(); }
+
+bool XWaylandSupport::start(wl_display *display, wlr_compositor *compositor,
+                            wlr_seat *seat,
+                            const QProcessEnvironment &environment,
+                            NewSurfaceCallback newSurface) {
   stop();
-  if (!server_.waitForFinished(1500) &&
-      server_.state() != QProcess::NotRunning) {
-    if (groupId_ > 0)
-      ::kill(-static_cast<pid_t>(groupId_), SIGKILL);
-    server_.kill();
-    server_.waitForFinished(1000);
-  }
-  const auto remaining = clients_;
-  for (auto *client : remaining)
-    if (client->state() != QProcess::NotRunning) {
-      client->kill();
-      client->waitForFinished(1000);
-    }
-  releaseSocket();
-}
-void XWaylandSupport::releaseSocket() {
-  if (descriptor_ >= 0) {
-    ::close(descriptor_);
-    descriptor_ = -1;
-  }
-  if (!socketPath_.isEmpty()) {
-    QFile::remove(socketPath_);
-    socketPath_.clear();
-  }
-}
-bool XWaylandSupport::start(const QProcessEnvironment &environment,
-                            const QSize &screenSize) {
+  stopping_ = false;
   environment_ = environment;
-  screenSize_ = screenSize;
-  configured_ = true;
-  rootWindowVisible_ = false;
-  const auto executable = QStandardPaths::findExecutable("Xwayland");
-  if (executable.isEmpty()) {
+  newSurface_ = std::move(newSurface);
+  seat_ = seat;
+  error_.clear();
+  xwmReady_ = false;
+
+#if !LUDASH_WLR_HAS_XWAYLAND
+  Q_UNUSED(display)
+  Q_UNUSED(compositor)
+  Q_UNUSED(seat)
+  error_ = "This wlroots build does not provide XWayland support.";
+  return false;
+#else
+  if (!display || !compositor || !seat) {
+    error_ = "The compositor seat is unavailable for XWayland.";
+    return false;
+  }
+  if (QStandardPaths::findExecutable("Xwayland").isEmpty()) {
     error_ = "Install Xwayland for X11 applications.";
     return false;
   }
-  if (!QDir("/tmp/.X11-unix").exists()) {
-    error_ = "The system X11 socket directory is unavailable.";
+
+  // wlroots owns the X server sockets and XWM. Lazy mode reserves DISPLAY now
+  // and starts the Xwayland process only when an X11 client connects.
+  xwayland_ = wlr_xwayland_create(display, compositor, true);
+  if (!xwayland_) {
+    error_ = "wlroots could not create the XWayland/XWM bridge.";
     return false;
   }
-  releaseSocket();
-  display_.clear();
-  error_.clear();
-  stopping_ = false;
-  runtime_ = std::make_unique<QTemporaryDir>(
-      QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) +
-      "/ludash-xwayland-XXXXXX");
-  if (!runtime_->isValid()) {
-    error_ = "Could not create a private XWayland runtime directory.";
-    return false;
-  }
-  for (int number = 100; number < 1000; ++number) {
-    if (QFile::exists(QString("/tmp/.X%1-lock").arg(number)))
-      continue;
-    descriptor_ = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-    if (descriptor_ < 0)
-      break;
-    const auto path = QString("/tmp/.X11-unix/X%1").arg(number);
-    sockaddr_un address{};
-    address.sun_family = AF_UNIX;
-    const auto bytes = path.toLocal8Bit();
-    std::memcpy(address.sun_path, bytes.constData(),
-                static_cast<size_t>(bytes.size()) + 1);
-    if (::bind(descriptor_, reinterpret_cast<sockaddr *>(&address),
-               sizeof(address)) == 0) {
-      socketPath_ = path;
-      if (::chmod(bytes.constData(), 0600) == 0 &&
-          ::listen(descriptor_, 16) == 0) {
-        display_ = ":" + QString::number(number);
-        break;
-      }
-      releaseSocket();
-      break;
-    }
-    ::close(descriptor_);
-    descriptor_ = -1;
-  }
-  if (descriptor_ < 0 || display_.isEmpty()) {
-    error_ = "Could not reserve a private X11 display socket.";
-    return false;
-  }
-  authority_ = runtime_->path() + "/authority";
-  if (!writeAuthority(authority_, display_)) {
-    error_ = "Could not write XWayland authentication.";
-    releaseSocket();
-    return false;
-  }
-  auto serverEnvironment = environment_;
-  serverEnvironment.insert("XAUTHORITY", authority_);
-  serverEnvironment.remove("DISPLAY");
-  serverEnvironment.remove("NOTIFY_SOCKET");
-  server_.setProcessEnvironment(serverEnvironment);
-  const int descriptor = descriptor_;
-  server_.setChildProcessModifier([descriptor] {
-    if (::setsid() < 0 || ::fcntl(descriptor, F_SETFD, 0) < 0)
-      ::_exit(127);
-  });
-  QStringList arguments{display_, "-listenfd", QString::number(descriptor_),
-                        "-auth",  authority_,  "-nolisten",
-                        "tcp"};
-  arguments << "-geometry"
-            << QString("%1x%2")
-                   .arg(qMax(320, screenSize.width()))
-                   .arg(qMax(240, screenSize.height()));
-  server_.setProgram(executable);
-  server_.setArguments(arguments);
+
+  xwayland_->data = this;
+  wlr_xwayland_set_seat(xwayland_, seat_);
+  attachListener(&xwayland_->events.ready, ready_, this, handleReady);
+  attachListener(&xwayland_->events.new_surface, newSurfaceListener_, this,
+                 handleNewSurface);
   return true;
+#endif
 }
+
+void XWaylandSupport::handleReady(wl_listener *listener, void *) {
+  auto *self = listenerOwner<XWaylandSupport>(listener);
+  if (!self || !self->xwayland_)
+    return;
+#if LUDASH_WLR_HAS_XWAYLAND
+  // XWM creates the X11 CLIPBOARD/PRIMARY/DnD bridge on ready. Point it at the
+  // same seat used by wl_data_device and zwlr_data_control so X11 and Wayland
+  // selections become one compositor-owned clipboard domain.
+  wlr_xwayland_set_seat(self->xwayland_, self->seat_);
+#endif
+  self->xwmReady_ = true;
+}
+
+void XWaylandSupport::handleNewSurface(wl_listener *listener, void *data) {
+  auto *self = listenerOwner<XWaylandSupport>(listener);
+  if (!self || !data || !self->newSurface_)
+    return;
+  self->newSurface_(static_cast<wlr_xwayland_surface *>(data));
+}
+
 void XWaylandSupport::stop() {
   if (stopping_)
     return;
   stopping_ = true;
-  for (auto *client : clients_)
-    if (client->state() != QProcess::NotRunning)
-      client->terminate();
-  if (groupId_ > 0)
-    ::kill(-static_cast<pid_t>(groupId_), SIGTERM);
-  else if (server_.state() != QProcess::NotRunning)
-    server_.terminate();
-}
-bool XWaylandSupport::stopped() const {
-  return server_.state() == QProcess::NotRunning;
-}
-bool XWaylandSupport::startServer(QString *error) {
-  if (!configured_) {
-    if (error)
-      *error = "XWayland is disabled or not configured.";
-    return false;
-  }
-  if (stopping_) {
-    if (error)
-      *error = "XWayland is shutting down.";
-    return false;
-  }
-  if (server_.state() == QProcess::Running)
-    return true;
-  // The listening descriptor belongs to the child after startup. Reuse a
-  // running server; reserve a new socket only after it has stopped.
-  if (descriptor_ < 0 && !start(environment_, screenSize_)) {
-    if (error)
-      *error = error_;
-    return false;
-  }
-  error_.clear();
-  if (server_.state() == QProcess::NotRunning) {
-    server_.start();
-    if (!server_.waitForStarted(1000)) {
-      error_ = server_.errorString();
-      if (error)
-        *error = error_;
-      return false;
+  const auto remaining = clients_;
+  for (auto *client : remaining) {
+    if (!client || client->state() == QProcess::NotRunning)
+      continue;
+    client->terminate();
+    if (!client->waitForFinished(800)) {
+      client->kill();
+      client->waitForFinished(500);
     }
   }
+  clients_.clear();
+  detachListener(newSurfaceListener_);
+  detachListener(ready_);
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (xwayland_) {
+    xwayland_->data = nullptr;
+    wlr_xwayland_destroy(xwayland_);
+  }
+#endif
+  xwayland_ = nullptr;
+  seat_ = nullptr;
+  xwmReady_ = false;
+  newSurface_ = {};
+}
+
+bool XWaylandSupport::stopped() const { return xwayland_ == nullptr; }
+
+bool XWaylandSupport::startServer(QString *error) {
+  if (!xwayland_) {
+    if (error)
+      *error = error_.isEmpty() ? "XWayland is unavailable." : error_;
+    return false;
+  }
+  // Lazy wlr_xwayland is intentionally not spawned here. Exporting DISPLAY is
+  // enough: the first X11 connection starts the server and then XWM.
   return true;
 }
-bool XWaylandSupport::isHelperSurface(qint64 processId) const {
-  return !rootWindowVisible_ && processId > 0 &&
-         processId == server_.processId();
-}
+
+bool XWaylandSupport::isHelperSurface(qint64) const { return false; }
+
 QJsonObject XWaylandSupport::snapshot() const {
-  const bool running = !stopping_ && server_.state() == QProcess::Running;
-  return {{"available",
-           !stopping_ && !server_.program().isEmpty() && error_.isEmpty()},
-          {"mode", "rootful-on-demand"},
+  QString display;
+  bool running = false;
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (xwayland_) {
+    display = QString::fromLocal8Bit(xwayland_->display_name
+                                         ? xwayland_->display_name
+                                         : "");
+    running = xwmReady_ || (xwayland_->server && xwayland_->server->pid > 0);
+  }
+#endif
+  return {{"available", xwayland_ != nullptr && error_.isEmpty()},
+          {"mode", "rootless-lazy-xwm"},
           {"running", running},
-          {"rootWindowVisible", running && rootWindowVisible_},
-          {"display", running ? display_ : QString()},
-          {"authority", running ? authority_ : QString()},
+          {"rootWindowVisible", false},
+          {"selectionBridge", xwmReady_},
+          {"display", display},
+          {"authority", QString()},
           {"error", error_}};
 }
-void XWaylandSupport::applyEnvironment(QProcessEnvironment &environment) const {
-  if (server_.state() == QProcess::Running && !display_.isEmpty() &&
-      error_.isEmpty() && !stopping_) {
-    environment.insert("DISPLAY", display_);
-    environment.insert("XAUTHORITY", authority_);
-  } else {
-    environment.remove("DISPLAY");
+
+void XWaylandSupport::applyEnvironment(
+    QProcessEnvironment &environment) const {
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (xwayland_ && xwayland_->display_name && !error_.size()) {
+    environment.insert("DISPLAY",
+                       QString::fromLocal8Bit(xwayland_->display_name));
     environment.remove("XAUTHORITY");
+    return;
   }
+#endif
+  environment.remove("DISPLAY");
+  environment.remove("XAUTHORITY");
 }
+
 bool XWaylandSupport::launch(const QStringList &command, QString *error) {
   if (command.isEmpty() || command.size() > 64) {
     if (error)
@@ -255,14 +190,14 @@ bool XWaylandSupport::launch(const QStringList &command, QString *error) {
     return false;
   }
   const QString executable = QStandardPaths::findExecutable(command.first());
-  if (executable.isEmpty()) {
+  if (executable.isEmpty() && !QFileInfo::exists(command.first())) {
     if (error)
       *error = "Executable not found: " + command.first();
     return false;
   }
   if (!startServer(error))
     return false;
-  rootWindowVisible_ = true;
+
   auto *process = new QProcess(this);
   auto environment = environment_;
   applyEnvironment(environment);
@@ -279,14 +214,8 @@ bool XWaylandSupport::launch(const QStringList &command, QString *error) {
     clients_.removeAll(process);
     process->deleteLater();
   });
-  connect(process, &QProcess::finished, this,
-          [process](int code, QProcess::ExitStatus status) {
-            if (code != 0 || status != QProcess::NormalExit)
-              qWarning().noquote()
-                  << "LunaDash client exited abnormally:" << process->program()
-                  << "code" << code << "status" << status;
-          });
   process->start(executable, command.mid(1));
   return true;
 }
+
 } // namespace LunaDash

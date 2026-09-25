@@ -50,6 +50,7 @@ os.execvp(sys.argv[2], sys.argv[2:])
         "XDG_STATE_HOME": str(folder / "state"),
         "TEST_RECORD": str(record),
         "TEST_DBUS_RECORD": str(dbus_record),
+        "DBUS_SESSION_BUS_ADDRESS": f"unix:path={folder / 'user-bus'}",
         "DISPLAY": ":999",
         "WAYLAND_DISPLAY": "host",
         "LIBGL_ALWAYS_SOFTWARE": "1",
@@ -85,6 +86,19 @@ os.execvp(sys.argv[2], sys.argv[2:])
     assert launch["env"]["QT_IM_MODULES"] == "wayland;fcitx;ibus"
     assert launch["env"]["GTK_IM_MODULE"] == "fcitx"
     assert launch["env"]["SDL_IM_MODULE"] == "fcitx"
+    assert launch["env"]["DBUS_SESSION_BUS_ADDRESS"] == env["DBUS_SESSION_BUS_ADDRESS"]
+    assert not dbus_record.exists(), "Existing user D-Bus was replaced"
+
+    fallback_record = folder / "fallback-launch.json"
+    fallback_env = dict(env)
+    fallback_env.pop("DBUS_SESSION_BUS_ADDRESS", None)
+    fallback_env["TEST_RECORD"] = str(fallback_record)
+    result = run("--socket", "fallback", environment=fallback_env)
+    assert result.returncode == 0, result.stderr
+    fallback_launch = json.loads(fallback_record.read_text())
+    assert fallback_launch["args"] == [
+        "--fullscreen", "--graphics", "gles", "--socket", "fallback"
+    ]
     dbus_env = json.loads(dbus_record.read_text())
     for name in ("QT_QPA_PLATFORM", "QT_QPA_EGLFS_INTEGRATION"):
         assert name not in dbus_env, f"{name} leaked into D-Bus daemon environment"
@@ -98,7 +112,8 @@ os.execvp(sys.argv[2], sys.argv[2:])
     ):
         assert name not in launch["env"], name
     logs = list((folder / "state/lunadash").glob("session-*.log"))
-    assert len(logs) == 1 and logs[0].stat().st_mode & 0o777 == 0o600
+    assert len(logs) == 2
+    assert all(log.stat().st_mode & 0o777 == 0o600 for log in logs)
     result = subprocess.run(
         [str(installer), "--dry-run"], env=env, capture_output=True, text=True
     )

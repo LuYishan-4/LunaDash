@@ -5,69 +5,108 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import "../components"
 import "../style"
+import "../plugins"
 
-Item {
+ExtensionSlot {
     id: picker
-    required property var shell
+    required shell
+    target: "image-picker"
+    context: ({
+            picker: picker,
+            purpose: shell.pickerPurpose
+        })
     property bool opened: false
     property string folder: Quickshell.env("HOME") || "/"
     property string selectedPath: ""
     property real cornerRadius: 24
-    signal closed()
+    signal closed
 
     readonly property string homePath: Quickshell.env("HOME") || "/"
     readonly property bool calendarMode: shell.pickerPurpose === "calendar"
 
     function parentDirectory() {
-        const trimmed = String(folder).replace(/\/+$/, "")
-        const index = trimmed.lastIndexOf("/")
-        return index <= 0 ? "/" : trimmed.slice(0, index)
+        const trimmed = String(folder).replace(/\/+$/, "");
+        const index = trimmed.lastIndexOf("/");
+        return index <= 0 ? "/" : trimmed.slice(0, index);
+    }
+    function normalizedLocalPath(value) {
+        let path = String(value || "").trim()
+        if (path.startsWith("file://"))
+            path = decodeURIComponent(path.slice(7))
+        if (!path.startsWith("/"))
+            return ""
+        return path.replace(/\/{2,}/g, "/")
     }
     function openDirectory(path) {
-        folder = path
+        const normalized = normalizedLocalPath(path)
+        if (!normalized.length)
+            return
+        folder = normalized
         selectedPath = ""
+        pathField.text = normalized
+    }
+    function applyTypedPath() {
+        const normalized = normalizedLocalPath(pathField.text)
+        if (!normalized.length) {
+            pathField.invalid = true
+            return
+        }
+        pathField.invalid = false
+        const lower = normalized.toLowerCase()
+        const imageFile = (calendarMode ? [".png", ".jpg", ".jpeg", ".webp", ".gif"] : [".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".mkv", ".mov", ".m4v"]).some(suffix => lower.endsWith(suffix))
+        if (imageFile) {
+            const slash = normalized.lastIndexOf("/")
+            folder = slash <= 0 ? "/" : normalized.slice(0, slash)
+            selectedPath = normalized
+        } else {
+            openDirectory(normalized)
+        }
     }
     function saveCalendarImage(path) {
-        const document = JSON.parse(JSON.stringify((shell.state.shellModules || {}).document || {schemaVersion:1, modules:{}}))
+        const document = JSON.parse(JSON.stringify((shell.state.shellModules || {}).document || {
+            schemaVersion: 1,
+            modules: {}
+        }));
         if (!document.modules || !document.modules.overview)
-            return false
+            return false;
         if (!document.modules.overview.config)
-            document.modules.overview.config = {}
-        document.modules.overview.config.calendarImage = "file://" + path
-        shell.command("module-save", JSON.stringify(document))
-        return true
+            document.modules.overview.config = {};
+        document.modules.overview.config.calendarImage = "file://" + path;
+        shell.command("module-save", JSON.stringify(document));
+        return true;
     }
     function acceptSelection() {
         if (!selectedPath.length)
-            return
+            return;
         if (calendarMode) {
             if (!saveCalendarImage(selectedPath))
-                return
-            shell.pickerPurpose = "wallpaper"
-            closed()
-            shell.settingsOpen = false
-            shell.calendarOpen = true
-            return
+                return;
+            shell.pickerPurpose = "wallpaper";
+            closed();
+            shell.settingsOpen = false;
+            shell.calendarOpen = true;
+            return;
         }
-        shell.pendingWallpaper = selectedPath
-        shell.pickerPurpose = "wallpaper"
-        closed()
+        shell.pendingWallpaper = selectedPath;
+        shell.pickerPurpose = "wallpaper";
+        closed();
     }
 
     onOpenedChanged: if (opened) {
-        folder = homePath
-        selectedPath = ""
+        folder = homePath;
+        selectedPath = "";
+        pathField.text = homePath;
     }
 
     visible: opened
     focus: opened
     Keys.onEscapePressed: {
-        const returnToCalendar = calendarMode
-        shell.pickerPurpose = "wallpaper"
-        closed()
+        const returnToCalendar = calendarMode;
+        shell.pickerPurpose = "wallpaper";
+        closed();
         if (returnToCalendar) {
-            shell.settingsOpen = false
-            shell.calendarOpen = true
+            shell.settingsOpen = false;
+            shell.calendarOpen = true;
         }
     }
 
@@ -79,7 +118,7 @@ Item {
         showDotAndDotDot: false
         showHidden: false
         sortField: FolderListModel.Name
-        nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"]
+        nameFilters: picker.calendarMode ? ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF"] : ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.gif", "*.mp4", "*.webm", "*.mkv", "*.mov", "*.m4v", "*.PNG", "*.JPG", "*.JPEG", "*.WEBP", "*.GIF", "*.MP4", "*.WEBM", "*.MKV", "*.MOV", "*.M4V"]
     }
 
     Rectangle {
@@ -89,12 +128,12 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                const returnToCalendar = picker.calendarMode
-                picker.shell.pickerPurpose = "wallpaper"
-                picker.closed()
+                const returnToCalendar = picker.calendarMode;
+                picker.shell.pickerPurpose = "wallpaper";
+                picker.closed();
                 if (returnToCalendar) {
-                    picker.shell.settingsOpen = false
-                    picker.shell.calendarOpen = true
+                    picker.shell.settingsOpen = false;
+                    picker.shell.calendarOpen = true;
                 }
             }
         }
@@ -109,8 +148,17 @@ Item {
         border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.38)
         scale: picker.opened ? 1 : 0.96
         opacity: picker.opened ? 1 : 0
-        Behavior on scale { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
-        Behavior on opacity { NumberAnimation { duration: Theme.motion } }
+        Behavior on scale {
+            NumberAnimation {
+                duration: Theme.motion
+                easing.type: Easing.OutCubic
+            }
+        }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.motion
+            }
+        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -119,10 +167,15 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                LineIcon { width: 20; height: 20; name: picker.calendarMode ? "dashboard" : "appearance"; ink: Theme.accent }
+                LineIcon {
+                    width: 20
+                    height: 20
+                    name: picker.calendarMode ? "dashboard" : "appearance"
+                    ink: Theme.accent
+                }
                 Text {
                     Layout.fillWidth: true
-                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : "Choose a wallpaper image")
+                    text: picker.shell.tr(picker.calendarMode ? "Choose a calendar image" : "Choose a wallpaper")
                     color: Theme.text
                     font.family: Theme.font
                     font.pixelSize: 18
@@ -132,12 +185,12 @@ Item {
                     text: "×"
                     Accessible.name: picker.shell.tr("Cancel")
                     onClicked: {
-                        const returnToCalendar = picker.calendarMode
-                        picker.shell.pickerPurpose = "wallpaper"
-                        picker.closed()
+                        const returnToCalendar = picker.calendarMode;
+                        picker.shell.pickerPurpose = "wallpaper";
+                        picker.closed();
                         if (returnToCalendar) {
-                            picker.shell.settingsOpen = false
-                            picker.shell.calendarOpen = true
+                            picker.shell.settingsOpen = false;
+                            picker.shell.calendarOpen = true;
                         }
                     }
                 }
@@ -146,17 +199,32 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                ShellButton { text: picker.shell.tr("Up"); onClicked: picker.openDirectory(picker.parentDirectory()) }
-                ShellButton { text: picker.shell.tr("Home"); onClicked: picker.openDirectory(picker.homePath) }
-                ShellButton { text: picker.shell.tr("Pictures"); onClicked: picker.openDirectory(picker.homePath + "/Pictures") }
-                Text {
+                ShellButton {
+                    text: picker.shell.tr("Up")
+                    onClicked: picker.openDirectory(picker.parentDirectory())
+                }
+                ShellButton {
+                    text: picker.shell.tr("Home")
+                    onClicked: picker.openDirectory(picker.homePath)
+                }
+                ShellButton {
+                    text: picker.shell.tr("Pictures")
+                    onClicked: picker.openDirectory(picker.homePath + "/Pictures")
+                }
+                SoftField {
+                    id: pathField
                     Layout.fillWidth: true
+                    placeholderText: picker.shell.tr("Paste an absolute path or file:// URL")
                     text: picker.folder
-                    color: Theme.muted
-                    font.family: Theme.font
-                    font.pixelSize: 11
-                    elide: Text.ElideLeft
-                    horizontalAlignment: Text.AlignRight
+                    clearButtonEnabled: false
+                    onAccepted: picker.applyTypedPath()
+                    ToolTip.visible: hovered
+                    ToolTip.text: picker.shell.tr("Paste a folder path or the full path of an image")
+                }
+                ShellButton {
+                    text: picker.shell.tr("Go")
+                    active: true
+                    onClicked: picker.applyTypedPath()
                 }
             }
 
@@ -169,7 +237,9 @@ Item {
                 cellWidth: 146
                 cellHeight: 140
                 boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
+                }
                 delegate: Item {
                     required property var model
                     width: grid.cellWidth
@@ -178,9 +248,7 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 5
                         radius: 14
-                        color: picker.selectedPath === model.filePath
-                            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.20)
-                            : tileMouse.containsMouse ? Theme.controlHover : Theme.control
+                        color: picker.selectedPath === model.filePath ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.20) : tileMouse.containsMouse ? Theme.controlHover : Theme.control
                         border.width: picker.selectedPath === model.filePath ? 2 : 1
                         border.color: picker.selectedPath === model.filePath ? Theme.accent : Theme.border
                         clip: true
@@ -195,8 +263,8 @@ Item {
 
                                 Image {
                                     anchors.fill: parent
-                                    visible: !model.fileIsDir
-                                    source: model.fileIsDir ? "" : "file://" + model.filePath
+                                    visible: !model.fileIsDir && !/\.(mp4|webm|mkv|mov|m4v)$/i.test(model.filePath)
+                                    source: visible ? "file://" + model.filePath : ""
                                     sourceSize.width: 320
                                     sourceSize.height: 220
                                     fillMode: Image.PreserveAspectCrop
@@ -205,9 +273,15 @@ Item {
                                 }
                                 Rectangle {
                                     anchors.fill: parent
-                                    visible: model.fileIsDir
+                                    visible: model.fileIsDir || /\.(mp4|webm|mkv|mov|m4v)$/i.test(model.filePath)
                                     color: "transparent"
-                                    LineIcon { anchors.centerIn: parent; width: 34; height: 34; name: "files"; ink: Theme.accent }
+                                    LineIcon {
+                                        anchors.centerIn: parent
+                                        width: 34
+                                        height: 34
+                                        name: "files"
+                                        ink: Theme.accent
+                                    }
                                 }
                             }
 
@@ -233,7 +307,8 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: model.fileIsDir ? picker.openDirectory(model.filePath) : picker.selectedPath = model.filePath
-                        onDoubleClicked: if (!model.fileIsDir) picker.acceptSelection()
+                        onDoubleClicked: if (!model.fileIsDir)
+                            picker.acceptSelection()
                     }
                 }
             }
@@ -250,12 +325,12 @@ Item {
                 ShellButton {
                     text: picker.shell.tr("Cancel")
                     onClicked: {
-                        const returnToCalendar = picker.calendarMode
-                        picker.shell.pickerPurpose = "wallpaper"
-                        picker.closed()
+                        const returnToCalendar = picker.calendarMode;
+                        picker.shell.pickerPurpose = "wallpaper";
+                        picker.closed();
                         if (returnToCalendar) {
-                            picker.shell.settingsOpen = false
-                            picker.shell.calendarOpen = true
+                            picker.shell.settingsOpen = false;
+                            picker.shell.calendarOpen = true;
                         }
                     }
                 }

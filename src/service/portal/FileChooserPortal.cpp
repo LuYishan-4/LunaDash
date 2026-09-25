@@ -1,87 +1,29 @@
 #include "service/portal/FileChooserPortal.hpp"
 #include "config/localization/Localization.hpp"
-#include "desktop/theme/DesktopTheme.hpp"
-
-#include <QApplication>
-#include <QByteArray>
-#include <QDBusConnection>
-#include <QDBusObjectPath>
+#include "service/portal/FileChooserOptions.hpp"
+#include "service/portal/FilePickerDialog.hpp"
 #include <QDir>
-#include <QFile>
-#include <QFileDialog>
 #include <QFileInfo>
-#include <QStandardPaths>
+#include <QSet>
 #include <QUrl>
-#include <QVariantMap>
 
 namespace LunaDash {
-namespace {
-QString optionPath(const QVariantMap &options, const QString &key) {
-  QByteArray bytes = options.value(key).toByteArray();
-  if (!bytes.isEmpty() && bytes.endsWith('\0'))
-    bytes.chop(1);
-  if (!bytes.isEmpty())
-    return QFile::decodeName(bytes);
-  return {};
-}
-
-QString initialDirectory(const QVariantMap &options) {
-  auto path = optionPath(options, QStringLiteral("current_folder"));
-  if (path.isEmpty()) {
-    const auto file = optionPath(options, QStringLiteral("current_file"));
-    if (!file.isEmpty())
-      path = QFileInfo(file).absolutePath();
-  }
-  return path.isEmpty()
-             ? QStandardPaths::writableLocation(QStandardPaths::HomeLocation)
-             : path;
-}
-
-QVariantMap uriResults(const QStringList &paths) {
-  QStringList uris;
-  for (const auto &path : paths) {
-    const QFileInfo info(path);
-    if (info.exists() || QFileInfo(info.absolutePath()).isDir())
-      uris << QUrl::fromLocalFile(info.absoluteFilePath())
-                  .toString(QUrl::FullyEncoded);
-  }
-  return {{QStringLiteral("uris"), uris}};
-}
-
-void styleDialog(QFileDialog &dialog) {
-  dialog.setOption(QFileDialog::DontUseNativeDialog, true);
-  dialog.setOption(QFileDialog::DontResolveSymlinks, false);
-  dialog.resize(880, 580);
-  LunaDash::watchDesktopTheme(&dialog);
-}
-} // namespace
-
 uint FileChooserPortal::OpenFile(const QDBusObjectPath &, const QString &,
                                  const QString &, const QString &title,
                                  const QVariantMap &options,
                                  QVariantMap &results) {
-  QFileDialog dialog(nullptr,
-                     title.isEmpty() ? LunaDash::translate("Open file") : title,
-                     initialDirectory(options));
-  styleDialog(dialog);
-  const bool directory =
-      options.value(QStringLiteral("directory"), false).toBool();
-  const bool multiple =
-      options.value(QStringLiteral("multiple"), false).toBool();
-  dialog.setAcceptMode(QFileDialog::AcceptOpen);
-  dialog.setFileMode(directory ? QFileDialog::Directory
-                               : (multiple ? QFileDialog::ExistingFiles
-                                           : QFileDialog::ExistingFile));
-  if (directory)
-    dialog.setOption(QFileDialog::ShowDirsOnly, true);
-  const auto accept = options.value(QStringLiteral("accept_label")).toString();
-  if (!accept.isEmpty())
-    dialog.setLabelText(QFileDialog::Accept, accept);
-  if (dialog.exec() != QDialog::Accepted) {
-    results.clear();
+  const bool directory = options.value("directory").toBool();
+  FilePickerDialog picker(
+      directory ? FilePickerDialog::Mode::Directory
+                : FilePickerDialog::Mode::Open,
+      title.isEmpty() ? translate(directory ? "Choose folder" : "Open file")
+                      : title,
+      options);
+  configureFilePicker(picker, options);
+  results.clear();
+  if (picker.exec() != QDialog::Accepted)
     return 1;
-  }
-  results = uriResults(dialog.selectedFiles());
+  results = filePickerResults(picker, options);
   return 0;
 }
 
@@ -89,24 +31,14 @@ uint FileChooserPortal::SaveFile(const QDBusObjectPath &, const QString &,
                                  const QString &, const QString &title,
                                  const QVariantMap &options,
                                  QVariantMap &results) {
-  QFileDialog dialog(nullptr,
-                     title.isEmpty() ? LunaDash::translate("Save file") : title,
-                     initialDirectory(options));
-  styleDialog(dialog);
-  dialog.setAcceptMode(QFileDialog::AcceptSave);
-  dialog.setFileMode(QFileDialog::AnyFile);
-  const auto currentName =
-      options.value(QStringLiteral("current_name")).toString();
-  if (!currentName.isEmpty())
-    dialog.selectFile(currentName);
-  const auto accept = options.value(QStringLiteral("accept_label")).toString();
-  if (!accept.isEmpty())
-    dialog.setLabelText(QFileDialog::Accept, accept);
-  if (dialog.exec() != QDialog::Accepted) {
-    results.clear();
+  FilePickerDialog picker(FilePickerDialog::Mode::Save,
+                          title.isEmpty() ? translate("Save file") : title,
+                          options);
+  configureFilePicker(picker, options);
+  results.clear();
+  if (picker.exec() != QDialog::Accepted)
     return 1;
-  }
-  results = uriResults(dialog.selectedFiles());
+  results = filePickerResults(picker, options);
   return 0;
 }
 
@@ -114,28 +46,39 @@ uint FileChooserPortal::SaveFiles(const QDBusObjectPath &, const QString &,
                                   const QString &, const QString &title,
                                   const QVariantMap &options,
                                   QVariantMap &results) {
-  QFileDialog dialog(
-      nullptr, title.isEmpty() ? LunaDash::translate("Choose folder") : title,
-      initialDirectory(options));
-  styleDialog(dialog);
-  dialog.setAcceptMode(QFileDialog::AcceptOpen);
-  dialog.setFileMode(QFileDialog::Directory);
-  dialog.setOption(QFileDialog::ShowDirsOnly, true);
-  if (dialog.exec() != QDialog::Accepted || dialog.selectedFiles().isEmpty()) {
-    results.clear();
+  results.clear();
+  const auto names = portalSaveFileNames(options);
+  if (names.isEmpty())
+    return 2;
+  auto folderOptions = options;
+  folderOptions["multiple"] = false;
+  FilePickerDialog picker(FilePickerDialog::Mode::Directory,
+                          title.isEmpty() ? translate("Choose folder") : title,
+                          folderOptions);
+  configureFilePicker(picker, folderOptions);
+  if (picker.exec() != QDialog::Accepted)
     return 1;
+  const QDir directory(picker.selectedPaths().first());
+  if (!QFileInfo(directory.absolutePath()).isWritable())
+    return 2;
+  QStringList uris;
+  QSet<QString> reserved;
+  for (const auto &name : names) {
+    QString unique = name;
+    int suffix = 1;
+    while (QFileInfo::exists(directory.filePath(unique)) ||
+           reserved.contains(unique)) {
+      const QFileInfo info(name);
+      unique = info.completeBaseName() + QString(" (%1)").arg(suffix++);
+      if (!info.suffix().isEmpty())
+        unique += "." + info.suffix();
+    }
+    reserved.insert(unique);
+    uris.append(QUrl::fromLocalFile(directory.filePath(unique))
+                    .toString(QUrl::FullyEncoded));
   }
-  const QDir directory(dialog.selectedFiles().first());
-  QStringList paths;
-  const auto files = options.value(QStringLiteral("files")).toList();
-  for (const auto &value : files) {
-    QByteArray name = value.toByteArray();
-    if (!name.isEmpty() && name.endsWith('\0'))
-      name.chop(1);
-    if (!name.isEmpty())
-      paths << directory.filePath(QFile::decodeName(name));
-  }
-  results = uriResults(paths);
+  results = filePickerResults(picker, folderOptions);
+  results["uris"] = uris;
   return 0;
 }
 } // namespace LunaDash

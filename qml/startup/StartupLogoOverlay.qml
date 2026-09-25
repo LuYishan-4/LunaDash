@@ -8,6 +8,7 @@ import "../style"
 ModuleSurface {
     id: overlay
     moduleId: "startup"
+    extensionTarget: "startup"
     signal finished()
     anchors { top: true; right: true; bottom: true; left: true }
     exclusionMode: ExclusionMode.Ignore

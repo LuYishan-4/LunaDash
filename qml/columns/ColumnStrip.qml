@@ -1,6 +1,7 @@
 
 import "../modules"
 import QtQuick
+import "WorkspaceTasks.js" as WorkspaceTasks
 import Quickshell
 import Quickshell.Wayland
 import "../style"
@@ -8,26 +9,12 @@ import "../style"
 ModuleSurface {
     id: strip
     moduleId: "columns"
-    readonly property var groups: ((shell.state.tiling || {}).groups || [])
+    readonly property var groups: WorkspaceTasks.groupByWorkspace(
+        (shell.interaction || {}).clients || shell.state.clients || [],
+        (shell.interaction || {}).workspace ?? shell.state.workspace)
     readonly property int stripMargin: Math.max(8, Math.min(strip.moduleMargin, 24))
-
-    function memberCount(group) {
-        return Math.min(4, (group.members || []).length)
-    }
-
-    function cellWidth(group) {
-        const iconWidth = 30
-        const iconSpacing = 4
-        const memberWidth = memberCount(group) * iconWidth + Math.max(0, memberCount(group) - 1) * iconSpacing + 14
-        return Math.max(memberWidth, Math.min(168, Math.max(52, Number(group.width || 0) * 0.18)))
-    }
-
-    function desiredWidth() {
-        let width = 12
-        for (let index = 0; index < groups.length; ++index)
-            width += cellWidth(groups[index]) + (index > 0 ? 5 : 0)
-        return width
-    }
+    function cellWidth(group) { return 12 + group.members.length * Math.max(16, columns.height - 8) + Math.max(0, group.members.length - 1) * 4 }
+    function desiredWidth() { return 12 + groups.reduce((width, group) => width + cellWidth(group) + 8, 0) }
 
     anchors { top: true; left: true }
     margins { top: Theme.barHeight + Math.max(6, Math.min(strip.moduleMargin, 12)); left: strip.stripMargin }
@@ -53,16 +40,15 @@ ModuleSurface {
         anchors.fill: parent
         anchors.margins: 6
         orientation: ListView.Horizontal
-        spacing: 5
+        spacing: 8
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        model: strip.groups
+        model: strip.groups.length
         delegate: ColumnCell {
-            required property var modelData
             required property int index
             shell: strip.shell
-            group: modelData
-            width: strip.cellWidth(modelData)
+            group: strip.groups[index] || ({members: []})
+            width: implicitWidth
             height: columns.height
         }
     }

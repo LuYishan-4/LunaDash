@@ -32,6 +32,8 @@ jobs:
                   ldd build-qt/lunadash-compositor | grep libwlroots
                   ! ldd build-qt/lunadash-compositor | grep -q libQt6WaylandCompositor
                   python3 tests/wayland/test_no_qtwayland.py
+            - name: Verify portal file selection and dialog lifetime
+              run: ctest --test-dir build-qt -R '^lunadash-portal-picker$' --output-on-failure
             - name: Run compositor session
               run: LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-qt" ./scripts/test-wayland.sh
             - name: Verify Qt Wayland client startup
@@ -70,5 +72,6 @@ jobs:
                       build-qt/wayland-state.json
                       build-qt/qt-client-session.log
                       build-qt/qt-client.log
+                      build-qt/portal-picker.png
                   if-no-files-found: ignore
                   retention-days: 7

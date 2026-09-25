@@ -27,8 +27,10 @@
 
 ## LunaDash
 
+**1.0.1a**
+
 - **日常功能一次備齊。** 面板、啟動器、儀表板、通知、設定與檔案工具都包含在桌面中。
-- **配合你的工作方式。** 支援可捲動的視窗欄、視窗分組、浮動視窗、鍵盤操作和視窗動畫。
+- **配合你的工作方式。** 限制在單一畫面內的平鋪布局，每組最多 8 個視窗；支援 Alt 拖曳、十格工作區縮圖總覽，工作列可切換所有工作區的視窗。
 - **把預設變成自己的風格。** 在設定中調整桌布、色彩、間距、快捷鍵和預設應用程式。
 - **需要時再深入。** 排列 shell 模組、修改 Quickshell/QML，或透過本機控制介面安排工作流程。
 
@@ -44,7 +46,7 @@
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024259-008.png"><img src="../image/LunaDash-20260920-024259-008.png" alt="在外觀設定中選擇桌布與強調色。" width="440"></a></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在可捲動的視窗欄中使用終端機、Discord 和 Zed。" width="440"></a></td>
+    <td width="50%" align="center"><a href="../image/LunaDash-20260920-024708-948.png"><img src="../image/LunaDash-20260920-024708-948.png" alt="在平鋪布局中使用終端機、Discord 和 Zed。" width="440"></a></td>
     <td width="50%" align="center"><a href="../image/LunaDash-20260920-024455-959.png"><img src="../image/LunaDash-20260920-024455-959.png" alt="日曆面板也能使用自訂圖片。" width="440"></a></td>
   </tr>
 </table>
@@ -63,22 +65,25 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-安裝程式會處理發行版依賴、編譯 LunaDash 並安裝登入工作階段。完成後登出，在登入管理員中選擇 **LunaDash**。首次啟動會顯示歡迎訊息與網站求助連結。語言及桌面外觀可在設定中調整。
+安裝程式會處理發行版依賴、編譯 LunaDash 並安裝登入工作階段。完成後登出，在登入管理員中選擇 **LunaDash**。首次啟動會顯示 1.0.1a Welcome 卡片、系統資訊與快捷操作。語言及桌面外觀可在設定中調整。
 
-可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面 shell 需要 **Quickshell 0.3+**；若發行版未提供，安裝程式會指出缺少的依賴。選項與復原方式請見[安裝指南](../LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../TESTING_AND_FILES.md)。
+可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面 shell 需要 **Quickshell 0.3+**；若發行版未提供，安裝程式會指出缺少的依賴。選項與復原方式請見[安裝指南](../zh/LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../zh/TESTING_AND_FILES.md)。
 
 ## 常用快捷鍵
 
 | 快捷鍵 | 功能 |
 | --- | --- |
 | `Super` + `Return` / `E` / `D` | 終端機／檔案／啟動器 |
-| `Super` + `H` / `L` | 聚焦左／右視窗欄 |
-| `Super` + `K` / `J` | 聚焦欄內其他視窗 |
-| `Super` + `Space` | 切換浮動模式 |
+| `Super` + `T` | 開啟 Kitty（預設終端機） |
+| `Super` + `H` / `L` | 聚焦左／右方視窗 |
+| `Super` + `K` / `J` | 聚焦上／下方視窗 |
+| `Super` + `F` | 放大單一視窗／還原工作區內全部平鋪視窗 |
+| `Alt` + `Tab` | 十格工作區縮圖；放開 Alt 切換 |
+| `Alt` + drag | 移動或交換位置；加 Shift 調整大小 |
 | `Super` + `Shift` + `S` | 選取截圖範圍 |
-| `Super` + `1`–`9` | 切換工作區 |
+| `Super` + `1`–`9` / `0` | 切換工作區 |
 
-`Super` 即 Meta 鍵。可在 **設定 → 鍵盤快捷鍵** 中更改綁定。分組、調整大小與控制指令請見[設定文件](../SETTINGS.md)。
+`Super` 即 Meta 鍵。可在 **設定 → 鍵盤快捷鍵** 中更改綁定。分組、調整大小與控制指令請見[設定文件](../zh/SETTINGS.md)。
 
 <a id="documentation"></a>
 
@@ -86,11 +91,11 @@ cd LunaDash
 
 | 開始使用 | 個人化 |
 | --- | --- |
-| [安裝與執行](../LOGIN_SESSION.md) | [外觀與組態](../CONFIGURATION.md) |
-| [建置與測試](../TESTING_AND_FILES.md) | [設定與快捷鍵](../SETTINGS.md) |
-| [顯示器、DDC/CI 與啟動](../DISPLAY_AND_STARTUP.md) | [Shell 模組](../MODULES.md) |
-| [範圍截圖](../SCREEN_CAPTURE.md) | [預設應用程式與檔案](../DEFAULT_APPS_AND_FILES.md) |
-| [原始碼架構](../ARCHITECTURE.md) | [外掛介面](../PLUGINS.md) |
+| [安裝與執行](../zh/LOGIN_SESSION.md) | [外觀與組態](../zh/CONFIGURATION.md) |
+| [建置與測試](../zh/TESTING_AND_FILES.md) | [設定與快捷鍵](../zh/SETTINGS.md) |
+| [顯示器、DDC/CI 與啟動](../zh/DISPLAY_AND_STARTUP.md) | [Shell 模組](../zh/MODULES.md) |
+| [範圍截圖](../zh/SCREEN_CAPTURE.md) | [預設應用程式與檔案](../zh/DEFAULT_APPS_AND_FILES.md) |
+| [原始碼架構](../zh/ARCHITECTURE.md) | [外掛介面](../zh/PLUGINS.md) |
 
 <a id="contribute"></a>
 
@@ -105,3 +110,7 @@ PR 請以 **`dev`** 為目標分支。主旨要清楚描述改動，說明使用
 ---
 
 <p align="center"><img src="../brand/icon.svg" alt="" width="32"><br><strong>LunaDash</strong> · 目前該專案還不成熟歡迎回報或發PR。<br><a href="../../LICENSE">GPL-3.0-only</a></p>
+
+### 打造自己的桌面功能
+
+[Plugin SDK 2](../zh/PLUGINS.md) 提供 C／C++ hook、Quickshell 元件及 OpenGL 著色器模板，可依類別設定並即時替換或並用。從[功能介面參考](../zh/PLUGIN_TARGETS.md)或預設停用的[堆疊視窗範例](../../examples/plugins/stacking-windows/README.md)開始。

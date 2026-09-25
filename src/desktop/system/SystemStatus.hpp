@@ -3,6 +3,9 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
+#include <QProcess>
+#include <QString>
+
 namespace LunaDash {
 class SystemStatus final : public QObject {
 public:
@@ -11,8 +14,14 @@ public:
 
 private:
   void refresh();
+  void refreshGpu();
+  void finishGpuQuery(int code, QProcess::ExitStatus status);
+
   QJsonObject data_;
   QJsonArray history_;
+  QJsonArray gpuHistory_;
   LuDashCpuCounters previous_{};
+  QProcess *gpuQuery_ = nullptr;
+  QString nvidiaSmi_;
 };
 } // namespace LunaDash

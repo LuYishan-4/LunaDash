@@ -1,10 +1,11 @@
 #pragma once
 #include <QDBusObjectPath>
+#include <QDBusContext>
 #include <QObject>
 #include <QVariantMap>
 
 namespace LunaDash {
-class FileChooserPortal final : public QObject {
+class FileChooserPortal final : public QObject, public QDBusContext {
   Q_OBJECT
   Q_CLASSINFO("D-Bus Interface", "org.freedesktop.impl.portal.FileChooser")
 public slots:

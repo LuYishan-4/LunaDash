@@ -14,6 +14,8 @@ static struct wl_compositor *g_compositor = NULL;
 static struct wl_shm *g_shm = NULL;
 static struct xdg_wm_base *g_wm_base = NULL;
 static bool g_configured = false;
+static bool g_fullscreen_configured = false;
+static bool g_windowed_configured = false;
 
 static void handle_wm_ping(void *data, struct xdg_wm_base *wm_base,
                            uint32_t serial) {
@@ -75,6 +77,7 @@ static void toplevel_configure(void *data, struct xdg_toplevel *toplevel,
                                struct wl_array *states) {
   (void)data;
   (void)toplevel;
+  bool fullscreen = false;
   uint32_t *state;
   wl_array_for_each(state, states) {
     if ((*state == XDG_TOPLEVEL_STATE_MAXIMIZED ||
@@ -82,6 +85,17 @@ static void toplevel_configure(void *data, struct xdg_toplevel *toplevel,
       fputs("maximized/fullscreen configure has an invalid size\n", stderr);
       abort();
     }
+    if (*state == XDG_TOPLEVEL_STATE_FULLSCREEN)
+      fullscreen = true;
+  }
+  if (fullscreen) {
+    if (width != 1440 || height != 900) {
+      fputs("fullscreen configure did not use the whole output\n", stderr);
+      abort();
+    }
+    g_fullscreen_configured = true;
+  } else if (g_fullscreen_configured) {
+    g_windowed_configured = true;
   }
 }
 static void toplevel_close(void *data, struct xdg_toplevel *toplevel) {
@@ -259,6 +273,20 @@ int main(void) {
   if (wl_display_roundtrip(display) < 0) {
     fputs("compositor disconnected while mapping xdg-toplevel\n", stderr);
     return 6;
+  }
+  if (!g_fullscreen_configured) {
+    fputs("fullscreen request never produced fullscreen state\n", stderr);
+    return 10;
+  }
+
+  xdg_toplevel_unset_fullscreen(toplevel);
+  wl_surface_commit(surface);
+  for (int i = 0; i < 8 && !g_windowed_configured; ++i)
+    if (wl_display_roundtrip(display) < 0)
+      return 11;
+  if (!g_windowed_configured) {
+    fputs("leaving fullscreen never produced a windowed configure\n", stderr);
+    return 12;
   }
 
   struct popup_fixture menu = {0}, submenu = {0};

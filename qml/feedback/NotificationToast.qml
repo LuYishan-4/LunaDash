@@ -9,6 +9,7 @@ import "../style"
 ModuleSurface {
     id: toast
     moduleId: "notification"
+    extensionTarget: "notifications"
     anchors.right: true
     anchors.bottom: true
     margins.right: 22

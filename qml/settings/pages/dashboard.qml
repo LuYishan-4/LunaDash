@@ -46,8 +46,13 @@ ColumnLayout {
 
     SettingsCard {
         title: shell.tr("Dashboard")
-        description: shell.tr("Open the dashboard from the center panel button, then choose which quick controls and cards should appear.")
+        description: shell.tr("Open the control center from the panel or Super+I. Turn off compact mode for the full dashboard.")
 
+        RowLayout {
+            Layout.fillWidth: true
+            Text { Layout.fillWidth: true; text: shell.tr("Compact control center"); color: Theme.text; font.family: Theme.font; wrapMode: Text.Wrap }
+            SoftSwitch { checked: page.config.compactControlCenter ?? true; onToggled: page.updateConfig("compactControlCenter", checked) }
+        }
         RowLayout {
             Layout.fillWidth: true
             Text { wrapMode: Text.Wrap; Layout.minimumWidth: 0; text: shell.tr("Media player"); color: Theme.text; font.family: Theme.font; Layout.fillWidth: true }
@@ -97,19 +102,51 @@ ColumnLayout {
     }
 
     SettingsCard {
-        title: shell.tr("Calendar image")
-        description: shell.tr("The clock opens the calendar. Drop a local image onto the calendar image area to personalize it.")
-        Text { Layout.minimumWidth: 0;
-            Layout.fillWidth: true
-            text: page.config.calendarImage || shell.tr("No custom calendar image")
-            color: Theme.muted
-            font.family: Theme.font
-            wrapMode: Text.WrapAnywhere
+        title: shell.tr("Calendar artwork")
+        description: shell.tr("Click the artwork itself to replace it. There are no separate choose or clear buttons.")
+        interactive: true
+        onActivated: {
+            shell.pickerPurpose = "calendar"
+            shell.pickerOpen = true
         }
-        ShellButton {
-            visible: String(page.config.calendarImage || "").length > 0
-            text: shell.tr("Clear calendar image")
-            onClicked: page.updateConfig("calendarImage", "")
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 132
+            radius: Theme.radiusMedium
+            color: Theme.control
+            border.width: 1
+            border.color: Theme.hairline
+            clip: true
+
+            Image {
+                anchors.fill: parent
+                source: page.config.calendarImage || ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                visible: source.toString().length > 0 && status !== Image.Error
+            }
+            Column {
+                anchors.centerIn: parent
+                spacing: 6
+                visible: !page.config.calendarImage
+                LineIcon { anchors.horizontalCenter: parent.horizontalCenter; width: 30; height: 30; name: "appearance"; ink: Theme.accent }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: shell.tr("Click to choose calendar artwork")
+                    color: Theme.muted
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                }
+            }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    shell.pickerPurpose = "calendar"
+                    shell.pickerOpen = true
+                }
+            }
         }
     }
 }

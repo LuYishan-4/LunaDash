@@ -30,6 +30,7 @@ private:
   QStringList selection() const;
   void navigate(const QString &path, bool remember = true);
   void installModel();
+  void refreshModel();
   void refreshPlaces();
   void updateActions();
   void openSelection(bool chooseApplication = false);

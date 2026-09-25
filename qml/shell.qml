@@ -7,12 +7,15 @@ import "wallpaper"
 import "panel"
 import "overview"
 import "launcher"
+import "dock"
 import "settings"
 import "session"
 import "feedback"
 import "setup"
 import "style"
 import "compatibility"
+import "windows"
+import "plugins"
 
 ShellRoot {
     id: root
@@ -28,14 +31,22 @@ ShellRoot {
     readonly property string desktopExecutable: bin ? bin + "/lunadash-desktop" : "lunadash-desktop"
     readonly property string updaterExecutable: bin ? bin + "/lunadash-update" : "lunadash-update"
     readonly property string shellToolExecutable: bin ? bin + "/lunadash-shell-tool" : "lunadash-shell-tool"
+    readonly property string clipboardExecutable: bin ? bin + "/lunadash-clipboard-history" : "lunadash-clipboard-history"
     readonly property string assetDirectory: Quickshell.env("LUNADASH_ASSET_DIR")
     readonly property url iconSource: assetDirectory ? "file://" + assetDirectory + "/lunadash.png" : ""
     signal commandCompleted(string method, var result)
     property bool stopping: false
     property int lastSettingsSerial: 0
     property int lastPickerSerial: 0
+    property int lastLauncherSerial: 0
+    property int lastInteractionLauncherSerial: 0
     property int dropTarget: 0
+    property int controlCenterTab: 0
+    property bool orbitOpen: false
+    property int lastShellActionSerial: 0
     property bool launcherOpen: false
+    property bool launcherKeyboardActive: false
+    property string launcherOpenSource: "mouse"
     property bool settingsOpen: false
     property bool pickerOpen: false
     property string pickerPurpose: "wallpaper"
@@ -45,6 +56,7 @@ ShellRoot {
     property bool usbPopupOpen: false
     property bool volumePopupOpen: false
     property bool wifiPopupOpen: false
+    property bool clipboardPopupOpen: false
     property var removableDevices: []
     property bool notificationVisible: false
     property bool notificationDetailsExpanded: false
@@ -64,6 +76,22 @@ ShellRoot {
         message: "",
         details: ""
     })
+
+    function applyLauncherSignal(serial, visible) {
+        if (!serial || serial === lastLauncherSerial)
+            return
+        lastLauncherSerial = serial
+        lastInteractionLauncherSerial = serial
+        launcherOpenSource = "keyboard"
+        launcherKeyboardActive = Boolean(visible)
+        launcherOpen = Boolean(visible)
+    }
+
+    function openLauncherFromMouse() {
+        launcherOpenSource = "mouse"
+        launcherKeyboardActive = false
+        launcherOpen = !launcherOpen
+    }
 
     function notify(title, body, kind, details) {
         if (!((state.appearance || {}).notificationsEnabled ?? true)) return
@@ -174,18 +202,41 @@ ShellRoot {
         }
     }
 
-    onLauncherOpenChanged: if (launcherOpen) { settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
-    onSettingsOpenChanged: if (settingsOpen) { launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false } else { pickerOpen = false }
-    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
-    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
-    onVolumePopupOpenChanged: if (volumePopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; wifiPopupOpen = false }
-    onWifiPopupOpenChanged: if (wifiPopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; volumePopupOpen = false }
+    onOrbitOpenChanged: if (orbitOpen) {
+        launcherOpen = false
+        settingsOpen = false
+        calendarOpen = false
+        volumePopupOpen = false
+        wifiPopupOpen = false
+        clipboardPopupOpen = false
+        menuOpen = false
+    }
+    onLauncherOpenChanged: {
+        if (launcherOpen) orbitOpen = false
+        command("launcher-visible", launcherOpen ? "true" : "false")
+        if (launcherOpen) {
+            settingsOpen = false
+            calendarOpen = false
+            usbPopupOpen = false
+            volumePopupOpen = false
+            wifiPopupOpen = false
+            clipboardPopupOpen = false
+        } else {
+            launcherKeyboardActive = false
+        }
+    }
+    onSettingsOpenChanged: if (settingsOpen) { orbitOpen = false; launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false } else { pickerOpen = false }
+    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onVolumePopupOpenChanged: if (volumePopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onWifiPopupOpenChanged: if (wifiPopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; volumePopupOpen = false; clipboardPopupOpen = false }
+    onClipboardPopupOpenChanged: if (clipboardPopupOpen) { calendarOpen = false; launcherOpen = false; settingsOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
 
     property bool menuOpen: false
     property real menuX: 0
     property real menuY: 0
     function openMenu(x, y) { menuX = x; menuY = y; menuOpen = true }
-    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
+    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
     property bool x11Open: false
     readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
     function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
@@ -256,13 +307,24 @@ ShellRoot {
     onStateChanged: {
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; openSettingsPage(state.settingsPage || "general") }
         if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; openSettingsPage("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
+        if ((state.launcherSerial || 0) !== lastLauncherSerial)
+            applyLauncherSignal(state.launcherSerial || 0, state.launcherOpen ?? true)
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
         Theme.clock24Hour = (state.appearance || {}).clock24Hour ?? true
-        Theme.accent = (state.appearance || {}).accent || Theme.defaultAccent
-        Theme.secondaryAccent = (state.appearance || {}).secondaryAccent || Theme.defaultSecondaryAccent
-        Theme.barHeight = state.panelAtBottom ? 0 : (state.panelExtent ?? 40)
+        Theme.palette = state.palette || ({})
+        Theme.eyeCare = (state.appearance || {}).eyeCare ?? false
+        if ((state.shellActionSerial || 0) !== lastShellActionSerial) {
+            lastShellActionSerial = state.shellActionSerial || 0
+            if (state.shellAction === "launchOrbit") orbitOpen = !orbitOpen
+            else if (state.shellAction === "openControlCenter") setAppearance({overview: !overviewOpen})
+            else if (state.shellAction === "openClipboard") clipboardPopupOpen = !clipboardPopupOpen
+            else if (state.shellAction === "openPowerMenu") logoutOpen = !logoutOpen
+        }
+        Theme.panelEdge = state.panelEdge || (state.panelAtBottom ? "bottom" : "top")
+        Theme.panelExtent = state.panelExtent ?? 40
+        Theme.barHeight = Theme.panelTopInset
         Theme.animations = !stopping && ((state.appearance || {}).animations ?? true)
-        Theme.animationDuration = (state.appearance || {}).animationDuration ?? 220
+        Theme.animationDuration = state.shellAnimationDuration ?? (state.appearance || {}).animationDuration ?? 220
         const captureError = String((state.screenCapture || {}).error || "")
         if (captureError.length && captureError !== lastCaptureError)
             notify(tr("Screenshot failed"), tr(captureError), "error", captureError)
@@ -317,6 +379,16 @@ ShellRoot {
     }
 
     Process {
+        id: clipboardWatcher
+        command: [root.clipboardExecutable, "watch"]
+        running: !root.stopping
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim())
+                console.warn("Clipboard watcher:", text.trim())
+        }
+    }
+
+    Process {
         id: languageAction
         command: [root.shellToolExecutable, "language", root.state.language || "en_US"]
         stderr: StdioCollector { onStreamFinished: if (text.trim()) root.notify(root.tr("Language"), text.trim(), "error", text.trim()) }
@@ -365,6 +437,7 @@ ShellRoot {
 
     function launch(id) {
         if (id === "terminal" || id === "files" || id === "browser") { command("launch-default", id); launcherOpen = false; return }
+        if (id === "plugins") { openSettingsPage("plugins"); launcherOpen = false; return }
         if (id === "settings") { settingsOpen = true; launcherOpen = false; return }
         Quickshell.execDetached([desktopExecutable, "--app", id]); launcherOpen = false
     }
@@ -407,12 +480,38 @@ ShellRoot {
         onTriggered: if (!status.running) status.running = true
     }
 
+    property var interaction: ({})
+    FileView {
+        id: interactionFile
+        path: (Quickshell.env("LUNADASH_CONTROL") || Quickshell.env("LUDASH_CONTROL")) + "-interaction.json"
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            try {
+                const next = JSON.parse(text())
+                root.interaction = next
+                const serial = Number(next.launcherSerial || 0)
+                if (serial && serial !== root.lastInteractionLauncherSerial)
+                    root.applyLauncherSignal(serial, next.launcherOpen ?? true)
+            } catch (error) {
+                root.interaction = ({})
+            }
+        }
+    }
+    WindowFrames { shell: root; interaction: root.interaction }
+    WindowSwitcher { shell: root; interaction: root.interaction }
+    TilingDropHint { shell: root; drag: root.interaction.drag || ({}) }
     RemovableDeviceMonitor { shell: root }
     StartupSplash { shell: root; ready: root.stateReady && desktopWallpaper.ready }
     Wallpaper { id: desktopWallpaper; shell: root; opened: !root.stopping }
     TopPanel { shell: root; opened: !root.stopping }
+    readonly property bool compactControlCenter: (((state.shellModules || {}).modules || {}).overview || {}).config?.compactControlCenter ?? true
     LazyLoader {
-        loading: root.overviewOpen
+        loading: root.overviewOpen && root.compactControlCenter
+        ControlCenter { shell: root; opened: !root.stopping && root.overviewOpen }
+    }
+    LazyLoader {
+        loading: root.overviewOpen && !root.compactControlCenter
         Overview { shell: root; opened: !root.stopping && root.overviewOpen }
     }
     LazyLoader {
@@ -428,6 +527,10 @@ ShellRoot {
         AudioPopup { shell: root; opened: !root.stopping && root.volumePopupOpen }
     }
     LazyLoader {
+        loading: root.clipboardPopupOpen
+        ClipboardPopup { shell: root; opened: !root.stopping && root.clipboardPopupOpen }
+    }
+    LazyLoader {
         loading: root.wifiPopupOpen
         WifiPopup { shell: root; opened: !root.stopping && root.wifiPopupOpen }
     }
@@ -435,6 +538,11 @@ ShellRoot {
         loading: root.launcherOpen
         Launcher { shell: root; opened: !root.stopping && root.launcherOpen }
     }
+    LazyLoader {
+        loading: root.orbitOpen
+        OrbitLauncher { shell: root; opened: !root.stopping && root.orbitOpen }
+    }
+    Dock { shell: root; opened: !root.stopping && ((root.state.appearance || {}).dockEnabled ?? false) }
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     LazyLoader {
         id: settingsLoader

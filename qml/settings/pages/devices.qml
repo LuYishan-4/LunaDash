@@ -14,6 +14,8 @@ ColumnLayout {
     property string section: "devices"
     property var hardwareDevices: []
     property var blockDevices: []
+    property string pciProbeText: ""
+    property string usbProbeText: ""
     property string probeError: ""
     property string diskActionMessage: ""
     property string deviceEventsText: ""
@@ -21,10 +23,16 @@ ColumnLayout {
 
     function refreshHardware() {
         probeError = ""
-        if (!deviceProbe.running)
-            deviceProbe.running = true
+        if (!pciProbe.running)
+            pciProbe.running = true
+        if (!usbProbe.running)
+            usbProbe.running = true
         if (!diskProbe.running)
             diskProbe.running = true
+    }
+
+    function rebuildHardware() {
+        parseHardware("__PCI__\n" + pciProbeText + "\n__USB__\n" + usbProbeText)
     }
 
     function parseHardware(text) {
@@ -92,7 +100,7 @@ ColumnLayout {
         ShellButton { text: shell.tr("Device Manager"); active: page.section === "devices"; onClicked: page.section = "devices" }
         ShellButton { text: shell.tr("Disk Management"); active: page.section === "disks"; onClicked: page.section = "disks" }
         Item { Layout.fillWidth: true }
-        ShellButton { iconName:"update"; text:shell.tr("Refresh"); busy:deviceProbe.running||diskProbe.running; onClicked:page.refreshHardware() }
+        ShellButton { iconName:"update"; text:shell.tr("Refresh"); busy:pciProbe.running||usbProbe.running||diskProbe.running; onClicked:page.refreshHardware() }
     }
 
     SettingsComponents.SettingsCard {
@@ -313,9 +321,26 @@ ColumnLayout {
     }
 
     Process {
-        id: deviceProbe
-        command: ["sh", "-c", "printf '__PCI__\\n'; command -v lspci >/dev/null && lspci -mm -k 2>/dev/null; printf '__USB__\\n'; command -v lsusb >/dev/null && lsusb 2>/dev/null"]
-        stdout: StdioCollector { onStreamFinished: page.parseHardware(text) }
+        id: pciProbe
+        command: ["lspci", "-mm", "-k"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                page.pciProbeText = text
+                page.rebuildHardware()
+            }
+        }
+        stderr: StdioCollector { onStreamFinished: if (text.trim()) page.probeError = text.trim() }
+    }
+
+    Process {
+        id: usbProbe
+        command: ["lsusb"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                page.usbProbeText = text
+                page.rebuildHardware()
+            }
+        }
         stderr: StdioCollector { onStreamFinished: if (text.trim()) page.probeError = text.trim() }
     }
 

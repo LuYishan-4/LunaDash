@@ -8,25 +8,22 @@ typedef struct LuDashRectangle {
   int x, y, width, height;
 } LuDashRectangle;
 
-/*
- * Places one full-height window in each horizontal column. Column widths are
- * caller-owned state: adding another width never changes an existing column.
- * Rectangles may be outside area horizontally. On failure output is unchanged.
- */
-size_t ludash_layout_columns(LuDashRectangle area, const int *widths,
-                             size_t count, int gap, int scroll_offset,
-                             LuDashRectangle *output, size_t capacity);
+/* Split a work area into two disjoint rectangles; preserve child minimums.
+ * ratio is in millionths. vertical divides left/right, otherwise top/bottom.
+ * Returns zero without changing output when the area cannot contain both. */
+int ludash_split_rectangle(LuDashRectangle area, int vertical, int ratio,
+                           int gap, int first_minimum, int second_minimum,
+                           LuDashRectangle output[2]);
 
-/* Splits up to four windows into a grid: 1 full, 2 left/right, 3 left + two
- * stacked right, 4 quadrants. */
+/* Up to eight vertical rows. Weights divide height without overlap. */
+size_t ludash_layout_weighted_column_windows(LuDashRectangle column,
+                                             const int *weights, size_t count,
+                                             int gap, LuDashRectangle *output,
+                                             size_t capacity);
 size_t ludash_layout_column_windows(LuDashRectangle column, size_t count,
                                     int gap, LuDashRectangle *output,
                                     size_t capacity);
 
-/* Compatibility helper using one ratio-derived width for every column. */
-size_t ludash_tile_rectangles(LuDashRectangle area, size_t count, double ratio,
-                              int gap, LuDashRectangle *output,
-                              size_t capacity);
 #ifdef __cplusplus
 }
 }

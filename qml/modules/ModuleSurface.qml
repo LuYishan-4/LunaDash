@@ -1,11 +1,22 @@
 import QtQuick
 import "../components"
 import "../style"
+import "../plugins"
+
 AnimatedPanel {
     id: host
     required property string moduleId
     required property var shell
-    default property alias moduleData: builtin.data
+    property string extensionTarget: moduleId
+    property var extensionContext: ({
+            module: host,
+            moduleId: moduleId,
+            style: resolvedStyle,
+            config: specification.config || {},
+            opened: opened
+        })
+    readonly property alias replacementReady: extension.replacementReady
+    default property alias moduleData: extension.builtinData
     readonly property var specification: ((shell.state.shellModules || {}).modules || {})[moduleId] || ({})
     readonly property var moduleStyle: specification.style || ({})
     readonly property int moduleMargin: moduleStyle.margin ?? 12
@@ -14,19 +25,47 @@ AnimatedPanel {
     readonly property color moduleBackground: resolveColor("background", Theme.background)
     readonly property color moduleForeground: resolveColor("foreground", Theme.text)
     readonly property color moduleAccent: resolveColor("accent", Theme.accent)
-    readonly property var resolvedStyle: Object.assign({}, moduleStyle, {background: String(moduleBackground), foreground: String(moduleForeground), accent: String(moduleAccent)})
+    readonly property var resolvedStyle: Object.assign({}, moduleStyle, {
+        background: String(moduleBackground),
+        foreground: String(moduleForeground),
+        accent: String(moduleAccent)
+    })
 
-    CelestialBackdrop {
-        anchors.fill: parent
-        accent: host.moduleAccent
-        strength: 0.9
-        z: -1
+    data: [
+        CelestialBackdrop {
+            anchors.fill: parent
+            accent: host.moduleAccent
+            strength: 0.0
+            visible: false
+            z: -1
+        },
+        ExtensionSlot {
+            id: extension
+            anchors.fill: parent
+            shell: host.shell
+            target: host.extensionTarget
+            context: host.extensionContext
+            legacyPlugin: host.extensionTarget === host.moduleId && (host.specification.custom || {}).source ? {
+                id: "custom." + host.moduleId,
+                schemaVersion: 0,
+                type: "quickshell",
+                mode: "replace",
+                entry: host.specification.custom.source,
+                revision: (host.shell.state.shellModules || {}).revision
+            } : null
+            forceBuiltin: host.moduleId === "settings" && (host.shell.settingsPage === "modules" || host.shell.settingsPage === "plugins")
+        }
+    ]
+    function resolveColor(key, fallback) {
+        const value = moduleStyle[key];
+        return !value || value === "inherit" ? fallback : value;
     }
-
-    Item { id: builtin; anchors.fill: parent }
-    function resolveColor(key, fallback) { const value = moduleStyle[key]; return !value || value === "inherit" ? fallback : value }
-    function moduleWidth(fallback) { return Math.max(1, Math.min(moduleStyle.width || fallback, screen ? screen.width - 2 * moduleMargin : 3840)) }
-    function moduleHeight(fallback) { return Math.max(1, Math.min(moduleStyle.height || fallback, screen ? screen.height - 2 * moduleMargin : 2160)) }
+    function moduleWidth(fallback) {
+        return Math.max(1, Math.min(moduleStyle.width || fallback, screen ? screen.width - 2 * moduleMargin : 3840));
+    }
+    function moduleHeight(fallback) {
+        return Math.max(1, Math.min(moduleStyle.height || fallback, screen ? screen.height - 2 * moduleMargin : 2160));
+    }
     opened: true
     visible: (specification.enabled ?? true) && (opened || reveal > 0)
 }

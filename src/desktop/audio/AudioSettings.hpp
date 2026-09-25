@@ -16,6 +16,7 @@ private:
   CommandRunner outputProbe_, inputProbe_, action_;
   CommandRunner devicesProbe_;
   QString executable_, error_;
+  int refreshCount_ = 0;
   QJsonObject output_, input_;
   QJsonArray outputDevices_;
   void refresh();
