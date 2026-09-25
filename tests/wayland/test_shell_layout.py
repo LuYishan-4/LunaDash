@@ -334,9 +334,12 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             clipboard_env = env | {"WAYLAND_DISPLAY": socket_name}
             clipboard_env.pop("WAYLAND_DEBUG", None)
             marker = "lunadash-ci-focus-probe"
+            # wl-copy forks a selection owner which retains its standard file
+            # descriptors. A PIPE would keep communicate() waiting for EOF
+            # after the successful foreground process has already exited.
             copied = subprocess.run(["wl-copy", "--type", "text/plain", marker],
-                                    env=clipboard_env, text=True, capture_output=True, timeout=5)
-            assert copied.returncode == 0, copied.stderr
+                                    env=clipboard_env, stdout=log, stderr=log, timeout=5)
+            assert copied.returncode == 0, "Could not set the keyboard focus probe clipboard"
             key_input("-M", "ctrl", "-k", "a", "-k", "c", "-m", "ctrl")
             time.sleep(0.05)
             pasted = subprocess.run(["wl-paste", "--no-newline", "--type", "text/plain"],
