@@ -477,7 +477,7 @@
     "settings": {
       "clockEnabled": {
         "type": "boolean",
-        "default": true,
+        "default": false,
         "label": "Desktop clock",
         "control": "toggle"
       },

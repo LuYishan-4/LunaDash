@@ -18,7 +18,7 @@ Item {
     Timer {
         interval: 1000
         repeat: true
-        running: widgets.visible && (widgets.settings.clockEnabled ?? true)
+        running: widgets.visible && (widgets.settings.clockEnabled ?? false)
         triggeredOnStart: true
         onTriggered: {
             widgets.time = Qt.formatDateTime(new Date(), Theme.clock24Hour ? "HH:mm" : "h:mm AP");
@@ -26,7 +26,7 @@ Item {
         }
     }
     ColumnLayout {
-        visible: widgets.settings.clockEnabled ?? true
+        visible: widgets.settings.clockEnabled ?? false
         x: Math.min(Math.max(12, widgets.width * (widgets.settings.clockX ?? 3) / 100), Math.max(12, widgets.width - width - 12))
         y: Theme.panelTopInset + 24 + Math.max(0, (widgets.height - height - Theme.panelTopInset - 48) * (widgets.settings.clockY ?? 0) / 100)
         width: Math.min(520, Math.max(1, widgets.width - 48))

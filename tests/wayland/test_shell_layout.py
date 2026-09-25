@@ -86,6 +86,13 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
     os.chmod(runtime, 0o700)
     for directory in ("config", "cache", "data", "state"):
         (runtime / directory).mkdir()
+    # The Files welcome dialog is independently covered by the Files tests.
+    # Use an initialized, isolated profile so each launch adds one layout tile.
+    files_config = runtime / "config" / "LunaDash"
+    files_config.mkdir()
+    (files_config / "file-associations.json").write_text(json.dumps({
+        "version": 1, "initialized": True, "askOnFirstOpen": True, "associations": {},
+    }))
     socket_name = "lunadash-layout"
     control = runtime / (socket_name + "-control")
     env = os.environ | {
