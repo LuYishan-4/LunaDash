@@ -51,4 +51,4 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/xdg-desktop-portal-wlr-LunaDash
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.freedesktop.impl.portal.desktop.lunadash.service
         DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/services)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/xdg-desktop-portal-lunadash.service
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user)
+        DESTINATION lib/systemd/user)
