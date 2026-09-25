@@ -2,14 +2,17 @@
 #include "config/localization/Localization.hpp"
 #include "service/portal/FileChooserOptions.hpp"
 #include "service/portal/FilePickerDialog.hpp"
+#include "service/portal/PortalRequest.hpp"
+#include <QDBusConnection>
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
 #include <QUrl>
 
 namespace LunaDash {
-uint FileChooserPortal::OpenFile(const QDBusObjectPath &, const QString &,
-                                 const QString &, const QString &title,
+uint FileChooserPortal::OpenFile(const QDBusObjectPath &handle,
+                                 const QString &, const QString &,
+                                 const QString &title,
                                  const QVariantMap &options,
                                  QVariantMap &results) {
   const bool directory = options.value("directory").toBool();
@@ -21,14 +24,22 @@ uint FileChooserPortal::OpenFile(const QDBusObjectPath &, const QString &,
       options);
   configureFilePicker(picker, options);
   results.clear();
-  if (picker.exec() != QDialog::Accepted)
+  PortalRequest request(&picker);
+  auto bus = QDBusConnection::sessionBus();
+  if (!bus.registerObject(handle.path(), &request,
+                          QDBusConnection::ExportAllSlots))
+    return 2;
+  const int dialogResult = picker.exec();
+  bus.unregisterObject(handle.path());
+  if (dialogResult != QDialog::Accepted)
     return 1;
   results = filePickerResults(picker, options);
   return 0;
 }
 
-uint FileChooserPortal::SaveFile(const QDBusObjectPath &, const QString &,
-                                 const QString &, const QString &title,
+uint FileChooserPortal::SaveFile(const QDBusObjectPath &handle,
+                                 const QString &, const QString &,
+                                 const QString &title,
                                  const QVariantMap &options,
                                  QVariantMap &results) {
   FilePickerDialog picker(FilePickerDialog::Mode::Save,
@@ -36,14 +47,22 @@ uint FileChooserPortal::SaveFile(const QDBusObjectPath &, const QString &,
                           options);
   configureFilePicker(picker, options);
   results.clear();
-  if (picker.exec() != QDialog::Accepted)
+  PortalRequest request(&picker);
+  auto bus = QDBusConnection::sessionBus();
+  if (!bus.registerObject(handle.path(), &request,
+                          QDBusConnection::ExportAllSlots))
+    return 2;
+  const int dialogResult = picker.exec();
+  bus.unregisterObject(handle.path());
+  if (dialogResult != QDialog::Accepted)
     return 1;
   results = filePickerResults(picker, options);
   return 0;
 }
 
-uint FileChooserPortal::SaveFiles(const QDBusObjectPath &, const QString &,
-                                  const QString &, const QString &title,
+uint FileChooserPortal::SaveFiles(const QDBusObjectPath &handle,
+                                  const QString &, const QString &,
+                                  const QString &title,
                                   const QVariantMap &options,
                                   QVariantMap &results) {
   results.clear();
@@ -56,7 +75,14 @@ uint FileChooserPortal::SaveFiles(const QDBusObjectPath &, const QString &,
                           title.isEmpty() ? translate("Choose folder") : title,
                           folderOptions);
   configureFilePicker(picker, folderOptions);
-  if (picker.exec() != QDialog::Accepted)
+  PortalRequest request(&picker);
+  auto bus = QDBusConnection::sessionBus();
+  if (!bus.registerObject(handle.path(), &request,
+                          QDBusConnection::ExportAllSlots))
+    return 2;
+  const int dialogResult = picker.exec();
+  bus.unregisterObject(handle.path());
+  if (dialogResult != QDialog::Accepted)
     return 1;
   const QDir directory(picker.selectedPaths().first());
   if (!QFileInfo(directory.absolutePath()).isWritable())
