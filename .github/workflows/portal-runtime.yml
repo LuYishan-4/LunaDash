@@ -1,0 +1,41 @@
+name: Portal runtime integration
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: portal-runtime-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  dialogs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install build and real portal test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ pkg-config libgl-dev \
+            libwayland-dev wayland-protocols libwlroots-dev libinput-dev \
+            libxkbcommon-dev libudev-dev libglib2.0-dev qt6-base-dev \
+            qt6-declarative-dev qt6-wayland libqt6opengl6-dev \
+            xdg-desktop-portal dbus-x11 xvfb xauth xdotool python3-dbus python3-gi
+      - name: Build the actual portal backend
+        run: |
+          cmake -S . -B build-portal -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build-portal --target lunadash-portal --parallel 2
+      - name: Exercise cross-process dialogs and portal responses
+        run: |
+          runtime=$(mktemp -d)
+          trap 'rm -rf "$runtime"' EXIT
+          chmod 700 "$runtime"
+          XDG_RUNTIME_DIR="$runtime" xvfb-run -a -s '-screen 0 1440x1000x24' \
+            dbus-run-session -- python3 tests/portal/test_runtime.py build-portal
+      - name: Preserve backend and frontend diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-runtime-diagnostics
+          path: build-portal/portal-runtime/
+          if-no-files-found: ignore
