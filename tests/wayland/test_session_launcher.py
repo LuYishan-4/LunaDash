@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-login-test-") as directory:
 
     executable("ludash-session", (root / "scripts/ludash-session").read_text())
     executable("id", "#!/bin/sh\necho 1000\n")
-    for command in ("quickshell", "konsole", "fish", "pacman"):
+    for command in ("quickshell", "konsole", "fish", "pacman", "makepkg", "sudo"):
         executable(command, "#!/bin/sh\nexit 97\n")
     executable(
         "dbus-run-session",

@@ -93,6 +93,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
         "QT_QPA_PLATFORMTHEME": "xdgdesktopportal", "GTK_USE_PORTAL": "1",
         "QT_IM_MODULE": "compose", "QT_IM_MODULES": "compose",
         "LUDASH_LANGUAGE": "en_US",
+        "QT_LOGGING_TO_CONSOLE": "1",
     }
     env.pop("LUNADASH_SCREENCAST_CHOOSER_AUTOPICK", None)
     fixture = base / "picked file.txt"
@@ -148,6 +149,9 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
         assert int(response) == 1 and not results, (response, results)
         assert backend.poll() is None
         print("Backend Request.Close: returned cancellation, process still alive", flush=True)
+        assert not bus.name_has_owner("org.freedesktop.portal.Desktop"), (
+            "The backend recursively activated the public portal before test setup"
+        )
         # Do not let the direct calls warm up the backend before frontend testing.
         backend.terminate()
         backend.wait(timeout=3)
@@ -168,9 +172,14 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
             "/usr/libexec/xdg-desktop-portal", "/usr/lib/xdg-desktop-portal")
             if Path(p).is_file()), None)
         assert frontend_binary, "xdg-desktop-portal is required"
-        frontend = launch("frontend", [frontend_binary, "--verbose"])
+        frontend = launch("frontend", [frontend_binary, "--replace", "--verbose"])
         wait_for(lambda: bus.name_has_owner("org.freedesktop.portal.Desktop"),
                  "Frontend did not start", 20)
+        owner = bus.get_name_owner("org.freedesktop.portal.Desktop")
+        owner_pid = dbus.Interface(bus.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus"),
+                                   "org.freedesktop.DBus").GetConnectionUnixProcessID(owner)
+        assert int(owner_pid) == frontend.pid, ("Unexpected frontend owner", owner_pid)
+        assert frontend.poll() is None
         replies = {}
         bus.add_signal_receiver(lambda code, result, path: replies.update({path: (code, result)}),
                                 "Response", REQUEST_IFACE, path_keyword="path")
