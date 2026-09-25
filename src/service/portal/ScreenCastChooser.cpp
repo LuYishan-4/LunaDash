@@ -137,7 +137,10 @@ int runScreenCastChooser(int argc, char **argv) {
   int qtArgc = 1;
   char *qtArgv[] = {argv[0], nullptr};
   QApplication app(qtArgc, qtArgv);
-  app.setApplicationName(QStringLiteral("LunaDash Screen Share"));
+  // Share the compositor's QSettings namespace so the chooser follows the
+  // current LunaDash light/dark mode, palette and animation preference.
+  app.setApplicationName(QStringLiteral("LunaDash"));
+  app.setApplicationDisplayName(QStringLiteral("LunaDash Screen Share"));
   app.setOrganizationName(QStringLiteral("LunaDash"));
   QApplication::setStyle("Fusion");
 
