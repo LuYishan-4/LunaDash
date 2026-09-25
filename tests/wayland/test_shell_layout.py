@@ -346,33 +346,38 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                                     env=clipboard_env, text=True, capture_output=True, timeout=5)
             return pasted.stdout if pasted.returncode == 0 and pasted.stdout != marker else None
 
-        def seek_keyboard_text(expected, label, backward_first=False):
+        def seek_keyboard_text(expected, label, limit=24):
             # A selected TextField can copy its current value. Buttons, switches
             # and non-editable combos leave our clipboard marker unchanged. This
             # anchors navigation to a real field instead of relying on the
             # window's current focus after an asynchronous Settings save.
             observed = []
-            directions = ((True, 12), (False, 24)) if backward_first else ((False, 24), (True, 48))
-            for backward, count in directions:
-                for index in range(count):
-                    text = focused_text()
-                    observed.append(text)
-                    if text == expected:
-                        if not any(action["operation"] == "keyboard-field-anchor" for action in ui_actions):
-                            capture("keyboard-settings-field-focus", (1920, 1080))
-                        ui_actions.append({"operation": "keyboard-field-anchor", "name": label,
-                                           "text": text, "backward": backward, "tabs": index})
-                        return
-                    keyboard_tabs(1, backward)
+            for index in range(limit):
+                text = focused_text()
+                observed.append(text)
+                if text == expected:
+                    if not any(action["operation"] == "keyboard-field-anchor" for action in ui_actions):
+                        capture("keyboard-settings-field-focus", (1920, 1080))
+                    ui_actions.append({"operation": "keyboard-field-anchor", "name": label,
+                                       "text": text, "tabs": index})
+                    return
+                if text is not None and ("\n" in text or "\t" in text):
+                    # A multiline editor accepts Tab as text. Do not mutate a
+                    # different setting when the intended focus path is wrong.
+                    break
+                keyboard_tabs(1)
             (evidence / "keyboard-focus-values.json").write_text(json.dumps(observed, indent=2))
             raise AssertionError(f"Keyboard navigation could not find {label} with value {expected!r}")
 
         def keyboard_margin_anchor():
-            # Search in both directions because disabling the page during a
-            # save may remove focus. Margin is an existing, unambiguous field;
-            # copying its text does not submit a changed setting.
+            # Settings exposes the normal Find shortcut to focus its search
+            # field. Reacquire that fixed starting point after each async save,
+            # then stay within the first panel controls instead of wrapping to
+            # unrelated multiline configuration editors at the end of the page.
+            key_input("-M", "ctrl", "-k", "f", "-m", "ctrl")
+            time.sleep(0.05)
             margin = panel_document(request())["style"].get("margin", 10)
-            seek_keyboard_text(str(margin), "Panel margin", backward_first=True)
+            seek_keyboard_text(str(margin), "Panel margin", limit=12)
 
         def keyboard_focus_field(name):
             if name == "Image path":

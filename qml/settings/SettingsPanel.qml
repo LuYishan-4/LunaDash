@@ -140,6 +140,16 @@ ModuleSurface {
                     leftPadding: 36
                     placeholderText: shell.tr("Search settings")
                     Accessible.name: placeholderText
+                    Shortcut {
+                        sequence: StandardKey.Find
+                        context: Qt.WindowShortcut
+                        enabled: settings.opened && !settings.shell.pickerOpen
+                        onActivated: {
+                            search.forceActiveFocus(Qt.ShortcutFocusReason)
+                            search.selectAll()
+                            search.prepareInputMethod()
+                        }
+                    }
                     LineIcon {
                         name: "search"
                         width: 17

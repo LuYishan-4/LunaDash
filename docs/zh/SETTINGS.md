@@ -6,6 +6,8 @@
 
 Plugin 與 Shell module 都在同一個 Settings surface 中；Plugins 頁負責 enable/disable、replace/augment mode、分類 options 與 advanced JSON。Plugins 與 Shell modules 兩個 recovery 頁面本身不能被 plugin replacement 拿掉。
 
+在設定視窗的任何位置（包含 JSON 編輯欄）按 **Ctrl+F**，即可移至頂端搜尋欄並選取目前文字；圖片選擇器開啟時，此快捷鍵暫停作用。
+
 ## 目前設定範圍
 
 | 頁面 | LunaDash 直接控制 | 外部整合／限制 |

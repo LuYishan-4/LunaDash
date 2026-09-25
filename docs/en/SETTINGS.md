@@ -4,6 +4,8 @@ Right-click the wallpaper, use the panel entry, choose Settings in the launcher,
 
 Page content scrolls vertically with the mouse wheel, touch gestures or the scrollbar, including plugin replacements and expanded JSON editors. Changing pages resets the scroll position. The Plugins sidebar page owns plugin enable/disable, composition mode, categorized options and advanced JSON; launcher/dashboard plugin shortcuts and `lunadash-desktop --app plugins` open that same page.
 
+Press **Ctrl+F** anywhere in Settings to focus the header search and select its current text, including while editing a JSON field. This shortcut is inactive while the image picker is open.
+
 ## Coverage
 
 | Page | Direct LunaDash controls | System or host integration / limits |

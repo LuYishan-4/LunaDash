@@ -102,7 +102,6 @@ ComboBox {
         implicitHeight: Math.min(menuList.contentHeight + 12, 320)
         padding: 6
         modal: false
-        focus: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         onOpened: {
@@ -111,7 +110,6 @@ ComboBox {
             Qt.callLater(function() {
                 if (control.currentIndex >= 0)
                     menuList.positionViewAtIndex(control.currentIndex, ListView.Contain)
-                menuList.forceActiveFocus()
             })
         }
         onClosed: {
@@ -131,7 +129,7 @@ ComboBox {
             clip: true
             implicitHeight: contentHeight
             model: control.delegateModel
-            currentIndex: -1
+            currentIndex: control.highlightedIndex
             boundsBehavior: Flickable.StopAtBounds
             flickDeceleration: 7000
             maximumFlickVelocity: 4200
