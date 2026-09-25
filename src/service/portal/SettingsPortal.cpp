@@ -29,15 +29,15 @@ void SettingsPortal::refresh() {
 }
 PortalSettingsMap SettingsPortal::ReadAll(const QStringList &namespaces) {
   refresh();
+  if (namespaces.isEmpty() || namespaces.contains(QString()))
+    return {{"org.freedesktop.appearance", values_}};
   for (const auto &filter : namespaces) {
     if (filter == "org.freedesktop.appearance" ||
         (filter.endsWith('*') && QStringLiteral("org.freedesktop.appearance")
                                      .startsWith(filter.chopped(1))))
       return {{"org.freedesktop.appearance", values_}};
   }
-  return namespaces.isEmpty()
-             ? PortalSettingsMap{{"org.freedesktop.appearance", values_}}
-             : PortalSettingsMap{};
+  return {};
 }
 QDBusVariant SettingsPortal::Read(const QString &nameSpace,
                                   const QString &key) {
