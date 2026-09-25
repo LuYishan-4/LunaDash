@@ -18,6 +18,8 @@ if(BUILD_TESTING)
     add_executable(lunadash-portal-picker-test tests/files/PortalPickerTests.cpp
         src/service/portal/FileChooserPortal.cpp
         src/service/portal/FileChooserPortal.hpp
+        src/service/portal/PortalRequest.cpp
+        src/service/portal/PortalRequest.hpp
         src/service/portal/FileChooserOptions.cpp
         src/service/portal/FileChooserOptions.hpp
         src/service/portal/FileIcons.cpp
