@@ -420,6 +420,9 @@ private Q_SLOTS:
   }
   void eightRowsAndOverflow() {
     TilingLayout layout;
+    // Keep the dense reference tree for this grouping-capacity regression.
+    // Preferred split sizes have separate insertion coverage above.
+    layout.configure({{"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
     for (int i = 1; i <= 9; ++i)
       QVERIFY(layout.insert(0, i));
     auto placements = layout.layout(0, area);
