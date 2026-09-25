@@ -123,7 +123,7 @@ case "$manager" in
             wlroots-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            pulseaudio-utils fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
+            pulseaudio-utils dbus-daemon fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
         ;;
     zypper)
         run "${elevate[@]}" zypper --non-interactive install \
