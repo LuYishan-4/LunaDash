@@ -93,6 +93,8 @@ QProcessEnvironment createClientEnvironment(const QString &socketName,
   environment.insert("XDG_SESSION_TYPE", "wayland");
   environment.insert("XDG_CURRENT_DESKTOP", "LunaDash");
   environment.insert("XDG_SESSION_DESKTOP", "LunaDash");
+  environment.insert("GTK_USE_PORTAL", "1");
+  environment.insert("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
   environment.insert("LUNADASH_CHROMIUM_WAYLAND", "1");
   environment.insert("ELECTRON_OZONE_PLATFORM_HINT", "wayland");
   environment.insert("XMODIFIERS", "@im=fcitx");
@@ -299,6 +301,8 @@ void publishActivationEnvironment(
       QStringLiteral("XDG_SESSION_TYPE"),
       QStringLiteral("XDG_CURRENT_DESKTOP"),
       QStringLiteral("XDG_SESSION_DESKTOP"),
+      QStringLiteral("GTK_USE_PORTAL"),
+      QStringLiteral("QT_QPA_PLATFORMTHEME"),
       QStringLiteral("LUNADASH_CONTROL"),
       QStringLiteral("LUDASH_CONTROL"),
       QStringLiteral("QT_QPA_PLATFORM"),
