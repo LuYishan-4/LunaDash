@@ -109,7 +109,8 @@ private:
 
   void requestShutdown();
   void scheduleShellRestart();
-  void publishSessionActivationEnvironment();
+  void publishSessionActivationEnvironment(
+      const std::function<void()> &ready = {});
   void captureScreen();
   bool launchExternalCommand(QStringList command, QString *error,
                              bool x11Helper = false);
