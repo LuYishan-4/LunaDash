@@ -239,20 +239,6 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
               symbols[i] == XKB_KEY_Super_L ||
               symbols[i] == XKB_KEY_Super_R;
 
-  // A launcher opened with the mouse must not steal normal application input.
-  // If keyboard focus is already on an application, the first printable key
-  // dismisses the launcher and is still forwarded to that application.
-  if (!state->virtualKeyboard &&
-      event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-      self->q->launcherVisible_ &&
-      self->clientForSurface(self->seat->keyboard_state.focused_surface)) {
-    bool printable = false;
-    for (int i = 0; i < count; ++i)
-      printable = printable || xkb_keysym_to_utf32(symbols[i]) >= 0x20;
-    if (printable)
-      self->q->setLauncherVisible(false);
-  }
-
   // Reserve a quick press-and-release of Meta for the shell launcher without
   // breaking the existing Meta+key compositor shortcuts. The modifier event is
   // still delivered through wl_keyboard.modifiers, so an unbound Meta combo
@@ -322,6 +308,10 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
           !(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_LOGO))) {
         self->q->beginWindowSwitch(modifiers & WLR_MODIFIER_SHIFT ? -1 : 1);
         handled = true;
+      } else if (tab && (modifiers & WLR_MODIFIER_LOGO) &&
+                 !(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT))) {
+        self->q->beginWindowSwitch(modifiers & WLR_MODIFIER_SHIFT ? -1 : 1, true);
+        handled = true;
       } else if (self->q->windowSwitcher_->active()) {
         if (symbol == XKB_KEY_Escape)
           self->q->finishWindowSwitch(false);
@@ -330,9 +320,12 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
         else if (symbol == XKB_KEY_Left || symbol == XKB_KEY_Right)
           self->q->windowSwitcher_->step(symbol == XKB_KEY_Left ? -1 : 1);
         else if (symbol == XKB_KEY_Up || symbol == XKB_KEY_Down)
-          self->q->windowSwitcher_->step(symbol == XKB_KEY_Up ? -5 : 5);
+          self->q->windowSwitcher_->step(
+              (symbol == XKB_KEY_Up ? -1 : 1) *
+              (self->q->windowSwitcher_->scope() == WindowSwitcher::Scope::Workspaces ? 5 : 1));
         handled = symbol != XKB_KEY_Alt_L && symbol != XKB_KEY_Alt_R &&
-                  symbol != XKB_KEY_Shift_L && symbol != XKB_KEY_Shift_R;
+                  symbol != XKB_KEY_Shift_L && symbol != XKB_KEY_Shift_R &&
+                  !metaKey;
       }
     }
   }
@@ -419,7 +412,9 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
     wlr_seat_keyboard_notify_modifiers(self->seat, &state->keyboard->modifiers);
   }
   if (!state->virtualKeyboard && self->q->windowSwitcher_->active() &&
-      !(wlr_keyboard_get_modifiers(state->keyboard) & WLR_MODIFIER_ALT))
+      !(wlr_keyboard_get_modifiers(state->keyboard) &
+        (self->q->windowSwitcher_->scope() == WindowSwitcher::Scope::Workspaces
+             ? WLR_MODIFIER_LOGO : WLR_MODIFIER_ALT)))
     self->q->finishWindowSwitch(true);
   if (state->virtualKeyboard)
     self->restorePreferredKeyboard();
@@ -500,6 +495,35 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
       return;
   }
   const bool grabbed = wlr_seat_pointer_has_grab(self->seat);
+  if (!grabbed && event->button == BTN_LEFT &&
+      event->state == static_cast<decltype(event->state)>(WL_POINTER_BUTTON_STATE_PRESSED)) {
+    double sx = 0, sy = 0;
+    auto *surface = self->surfaceAt(self->cursor->x, self->cursor->y, &sx, &sy);
+    auto *root = surface ? wlr_surface_get_root_surface(surface) : nullptr;
+    bool shellSurface = false;
+    for (int depth = 0; root && depth < 16 && !shellSurface; ++depth) {
+      for (const auto *layer : self->layers) {
+        if (layer->surface && layer->surface->surface == root &&
+            layer->surface->current.layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP) {
+          shellSurface = true;
+          break;
+        }
+      }
+      if (shellSurface)
+        break;
+      wlr_surface *parent = nullptr;
+      for (const auto *popup : self->xdgPopups)
+        if (popup->popup && popup->popup->base->surface == root) {
+          parent = popup->popup->parent;
+          break;
+        }
+      if (!parent || parent == root)
+        break;
+      root = wlr_surface_get_root_surface(parent);
+    }
+    if (!shellSurface)
+      self->q->windowSwitcher_->dismissPopups();
+  }
   if (!grabbed && event->state == WL_POINTER_BUTTON_STATE_PRESSED &&
       self->beginWindowPointer(event->button))
     return;

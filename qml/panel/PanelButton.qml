@@ -59,7 +59,7 @@ PanelSegment {
         acceptedButtons: Qt.NoButton
         onWheel: wheel => button.scrolled(wheel.angleDelta.y)
     }
-    ToolTip.visible: hover.hovered && toolTip.length > 0
-    ToolTip.delay: 450
-    ToolTip.text: toolTip
+
+
+
 }

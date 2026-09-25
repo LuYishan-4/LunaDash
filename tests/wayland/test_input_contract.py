@@ -20,20 +20,23 @@ assert "activeTextInput" in guard
 assert "focused_surface" in guard
 assert "keyboard_grab" in guard
 
-# Mouse-open launcher must leave the application keyboard owner untouched.
-assert "opened && shell.launcherKeyboardActive" in launcher
-assert "WlrKeyboardFocus.Exclusive" in launcher
-assert 'launcherOpenSource === "keyboard"' in launcher
+# Either activation source owns the search field while the launcher is open.
+assert "WlrLayershell.keyboardFocus: opened" in launcher
+assert "WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None" in launcher
+assert 'launcherOpenSource === "keyboard"' not in launcher
+assert "Component.onCompleted: if (opened)" in launcher
+assert "launcher.focusSearch(false)" in launcher
 
 # Bare Meta is a compositor toggle, not an always-open command.
 assert 'setLauncherVisible(!launcherVisible_)' in compositor
 assert 'handleShortcut("launchLauncher")' in input_cpp
 
-# If an app already owns keyboard focus, its first printable key dismisses the
-# launcher but is not marked handled/returned before normal key forwarding.
-close_at = input_cpp.index("self->q->setLauncherVisible(false)")
-forward_at = input_cpp.index("wlr_seat_keyboard_notify_key", close_at)
-assert forward_at > close_at
+# Never redirect the launcher's first typed key to a previously focused app.
+assert "const bool openLauncher = state->metaTapPending" in input_cpp
+assert "self->q->setLauncherVisible(false)" not in input_cpp
+assert "WindowSwitcher::Scope::Workspaces" in input_cpp
+assert "WLR_MODIFIER_LOGO : WLR_MODIFIER_ALT" in input_cpp
+assert "windowSwitcher_->dismissPopups()" in input_cpp
 
 # Shell interaction state carries both serial and desired visibility so a
 # second Meta tap closes the launcher immediately.

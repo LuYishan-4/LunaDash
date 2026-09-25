@@ -133,7 +133,7 @@ FilePickerDialog::FilePickerDialog(Mode mode, const QString &title,
   headerLayout->addLayout(titles, 1);
   auto *maximize = new QToolButton(header);
   maximize->setText(QStringLiteral("□"));
-  maximize->setToolTip(translate("Maximize or restore"));
+  maximize->setAccessibleName(translate("Maximize or restore"));
   connect(maximize, &QToolButton::clicked, this, [this] {
     if (isMaximized())
       showNormal();
@@ -143,7 +143,7 @@ FilePickerDialog::FilePickerDialog(Mode mode, const QString &title,
   auto *close = new QToolButton(header);
   close->setObjectName("portalFileClose");
   close->setText(QStringLiteral("×"));
-  close->setToolTip(translate("Cancel"));
+  close->setAccessibleName(translate("Cancel"));
   connect(close, &QToolButton::clicked, this, &QDialog::reject);
   headerLayout->addWidget(maximize);
   headerLayout->addWidget(close);
@@ -153,7 +153,7 @@ FilePickerDialog::FilePickerDialog(Mode mode, const QString &title,
     auto *button = new QPushButton(fileIcon(icon), {}, frame);
     button->setProperty("fileTool", true);
     button->setAccessibleName(label);
-    button->setToolTip(label);
+    button->setAccessibleName(label);
     button->setFixedSize(38, 38);
     button->setIconSize({20, 20});
     button->setAutoDefault(false);
@@ -196,7 +196,7 @@ FilePickerDialog::FilePickerDialog(Mode mode, const QString &title,
       return;
     auto *item = new QListWidgetItem(fileIcon(icon), name, places);
     item->setData(Qt::UserRole, path);
-    item->setToolTip(path);
+
   };
   place(QDir::homePath(), translate("Home"), FileIcon::Home);
   place(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation),

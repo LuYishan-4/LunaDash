@@ -7,8 +7,10 @@ import "../style"
 
 PluginPanel {
     id: panel
-    extensionTarget: "window-switcher"
-    extensionContext: ({interaction: interaction})
+    extensionTarget: interaction.scope === "windows" ? "window-switcher" : "workspace-switcher"
+    extensionContext: ({interaction: interaction, colors: Theme.palette,
+        accent: Theme.accent, background: Theme.surfaceStrong, foreground: Theme.text,
+        muted: Theme.muted, fontFamily: Theme.font})
     required property var interaction
     readonly property bool opened: Boolean(interaction.active && interaction.ready) && !shell.stopping
     property real reveal: opened ? 1 : 0
@@ -26,7 +28,7 @@ PluginPanel {
         Image {
             id: background
             anchors.fill: parent
-            source: panel.interaction.background || panel.shell.state.wallpaperImage || ""
+            source: panel.interaction.background || panel.shell.state.wallpaperMedia?.poster || (panel.shell.state.wallpaperMedia?.type === "video" ? "" : panel.shell.state.wallpaperImage) || ""
             fillMode: Image.PreserveAspectCrop
             visible: false
             cache: false
@@ -47,15 +49,24 @@ PluginPanel {
         }
         Rectangle { anchors.fill: parent; color: Theme.background; opacity: 0.18 }
         MouseArea { anchors.fill: parent; onClicked: panel.shell.command("switch-cancel", "") }
-        SwitcherContent {
+        Loader {
+            sourceComponent: panel.interaction.scope === "windows" ? windowTemplate : workspaceTemplate
             anchors.horizontalCenter: parent.horizontalCenter
             y: Math.min(Math.max(64, parent.height * 0.12), parent.height - height - 20)
             width: Math.max(240, parent.width - Math.min(96, parent.width * 0.08))
-            height: Math.min(parent.height - 80, (width - 10) * 0.225 + 10)
-            shell: panel.shell
-            selection: panel.interaction
+            height: panel.interaction.scope === "windows"
+                ? Math.min(parent.height - 80, 380)
+                : Math.min(parent.height - 80, (width - 10) * 0.225 + 10)
             scale: 0.98 + 0.02 * panel.reveal
             transform: Translate { y: -10 * (1 - panel.reveal) }
         }
+    }
+    Component {
+        id: workspaceTemplate
+        SwitcherContent { shell: panel.shell; selection: panel.interaction }
+    }
+    Component {
+        id: windowTemplate
+        WindowPreviewContent { shell: panel.shell; selection: panel.interaction }
     }
 }

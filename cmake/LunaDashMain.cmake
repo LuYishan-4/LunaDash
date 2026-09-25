@@ -92,7 +92,7 @@ target_link_libraries(ludash-input-settings PUBLIC Qt6::Core)
 add_library(ludash-shell-modules src/shell/launcher/OrbitSettings.cpp src/shell/modules/ShellModules.hpp src/shell/modules/ShellModuleSchema.cpp src/shell/modules/ShellModules.cpp)
 target_include_directories(ludash-shell-modules PUBLIC src)
 target_link_libraries(ludash-shell-modules PUBLIC Qt6::Core)
-qt_add_resources(ludash-shell-modules module_templates PREFIX /LuDash FILES data/modules/registry.json data/modules/templates/panel/Main.qml data/modules/templates/overview/Main.qml)
+qt_add_resources(ludash-shell-modules module_templates PREFIX /LuDash FILES data/modules/registry.json)
 qt_add_resources(ludash-shell-modules orbit_defaults PREFIX /LunaDash/launcher
     BASE data/launcher FILES data/launcher/orbit.json)
 add_library(ludash-theme-sync src/desktop/theme/ThemeSync.cpp

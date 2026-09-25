@@ -1654,8 +1654,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     pluginManager_->reportError(object.value("id").toString(),
                                 object.value("error").toString());
   } else if (method == "module-validate" || method == "module-save" ||
-             method == "module-reset" || method == "module-code-trust" ||
-             method == "module-template") {
+             method == "module-reset") {
     QString error;
     bool ok = false;
     if (method == "module-validate")
@@ -1664,10 +1663,6 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       ok = shellModules_->apply(value.toUtf8(), &error);
     else if (method == "module-reset")
       ok = shellModules_->reset(&error);
-    else if (method == "module-template")
-      ok = shellModules_->installTemplate(value, &error);
-    else if (value == "true" || value == "false")
-      ok = shellModules_->setCodeTrusted(value == "true", &error);
     if (!ok)
       return {{"error", error.isEmpty() ? "Invalid module command." : error}};
   } else if (method == "module-error") {

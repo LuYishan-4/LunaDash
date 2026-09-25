@@ -8,7 +8,6 @@ Item {
     required property string target
     property var context: ({})
     property bool forceBuiltin: false
-    property var legacyPlugin: null
     default property alias builtinData: builtin.data
     readonly property alias builtinItem: builtin
     property var descriptors: []
@@ -36,8 +35,6 @@ Item {
     }
     function synchronize() {
         const selected = candidates.slice();
-        if (!forceBuiltin && legacyPlugin && !selected.some(entry => entry.mode === "replace"))
-            selected.push(legacyPlugin);
         const next = selected.sort((a, b) => a.mode === b.mode ? a.id.localeCompare(b.id) : a.mode === "replace" ? -1 : 1);
         const key = JSON.stringify(next);
         if (key === fingerprint)
@@ -55,7 +52,6 @@ Item {
         }
         return height;
     }
-    onLegacyPluginChanged: synchronize()
     onCandidatesChanged: synchronize()
     Component.onCompleted: synchronize()
 
@@ -96,10 +92,6 @@ Item {
                         const properties = {
                             shell: slot.shell
                         };
-                        if (instance.modelData.schemaVersion === 0) {
-                            properties.style = slot.context.style;
-                            properties.moduleId = slot.context.moduleId;
-                        }
                         if (instance.modelData.schemaVersion === 2) {
                             properties.settings = instance.modelData.settings || {};
                             properties.context = Qt.binding(() => instance.pluginContext);

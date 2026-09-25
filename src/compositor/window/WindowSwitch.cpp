@@ -58,6 +58,9 @@ void WaylandCompositor::selectWorkspace(int workspace) {
     if (!updateDesktopPreferences({{"workspaceCount", workspace + 1}}, &error))
       return;
   }
+  if (workspace != workspace_ && windowSwitcher_->active() &&
+      windowSwitcher_->scope() == WindowSwitcher::Scope::Windows)
+    windowSwitcher_->finish(false);
   workspace_ = workspace;
   arrange();
   synchronizeWindowFocus();
@@ -84,16 +87,35 @@ void WaylandCompositor::activateTask(int window) {
     return;
   }
 }
-void WaylandCompositor::beginWindowSwitch(int direction) {
+void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
+  const auto scope = workspaces ? WindowSwitcher::Scope::Workspaces
+                               : WindowSwitcher::Scope::Windows;
+  if (windowSwitcher_->active() && windowSwitcher_->scope() != scope)
+    finishWindowSwitch(false);
   if (windowSwitcher_->active()) {
     windowSwitcher_->step(direction);
     return;
   }
   if (d->pointerWindow)
     d->finishWindowPointer(false);
-  QJsonArray workspaces;
+  QJsonArray choices;
   QList<int> capture;
   const auto area = workArea();
+  if (!workspaces) {
+    publishWindowLayout();
+    choices = WindowSwitcher::windowsForWorkspace(
+        windowSwitcher_->snapshot().value("clients").toArray(), workspace_);
+    for (const auto &choice : choices)
+      capture.append(choice.toObject().value("id").toInt());
+    if (windowSwitcher_->begin(choices, focused_ ? focused_->id : 0,
+                                direction, clientEnvironment_, scope)) {
+      const int serial = windowSwitcher_->serial();
+      QTimer::singleShot(0, this, [this, serial, capture] {
+        captureWorkspaceThumbnail(serial, capture);
+      });
+    }
+    return;
+  }
   for (int workspace = 0; workspace < 10; ++workspace) {
     QJsonArray windows;
     QRect bounds = area;
@@ -129,13 +151,13 @@ void WaylandCompositor::beginWindowSwitch(int direction) {
       window["y"] = window.value("y").toInt() + area.y() - bounds.y();
       windows[i] = window;
     }
-    workspaces.append(QJsonObject{{"id", workspace + 1},
+    choices.append(QJsonObject{{"id", workspace + 1},
                                   {"windows", windows},
                                   {"width", bounds.width()},
                                   {"height", bounds.height()}});
   }
-  windowSwitcher_->begin(workspaces, workspace_ + 1, direction,
-                         clientEnvironment_);
+  windowSwitcher_->begin(choices, workspace_ + 1, direction,
+                         clientEnvironment_, scope);
   const int serial = windowSwitcher_->serial();
   QTimer::singleShot(0, this, [this, serial, capture] {
     captureWorkspaceThumbnail(serial, capture);
@@ -188,8 +210,29 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
       QtConcurrent::run([image, path] { return image.save(path, "PNG"); }));
 }
 void WaylandCompositor::finishWindowSwitch(bool accept) {
+  const auto scope = windowSwitcher_->scope();
   const int target = windowSwitcher_->finish(accept);
-  if (target)
+  if (!target)
+    return;
+  if (scope == WindowSwitcher::Scope::Workspaces) {
     selectWorkspace(target - 1);
+    return;
+  }
+  // Alt+Tab focuses, never toggles maximization like a taskbar activation.
+  for (const auto &client : clients_) {
+    if (client->id != target || !client->mapped || client->utility ||
+        client->desktop || client->workspace != workspace_)
+      continue;
+    client->minimized = false;
+#if LUDASH_WLR_HAS_XWAYLAND
+    if (client->x11 && client->xwayland)
+      wlr_xwayland_surface_set_minimized(client->xwayland, false);
+#endif
+    windowLayout_->setMinimized(target, false);
+    windowLayout_->focus(target);
+    arrange();
+    focus(client.get());
+    return;
+  }
 }
 } // namespace LunaDash

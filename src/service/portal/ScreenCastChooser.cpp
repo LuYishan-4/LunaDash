@@ -196,7 +196,7 @@ int runScreenCastChooser(int argc, char **argv) {
     if (!preview.isNull())
       item->setIcon(QIcon(preview));
     item->setTextAlignment(Qt::AlignHCenter | Qt::AlignBottom);
-    item->setToolTip(displayLabel(source));
+
   }
   list->setCurrentRow(0);
   layout->addWidget(list, 1);

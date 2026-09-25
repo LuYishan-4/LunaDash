@@ -7,7 +7,6 @@
       "type": "panel",
       "category": "Shell",
       "recovery": false,
-      "template": true,
       "sections": {
         "module": {},
         "style": {
@@ -16,7 +15,9 @@
             "default": 0,
             "minimum": 320,
             "maximum": 3840,
-            "specialValues": [0],
+            "specialValues": [
+              0
+            ],
             "label": "Panel width",
             "description": "0 fills the edge. On a vertical panel this controls its length.",
             "control": "number"
@@ -169,8 +170,7 @@
             "label": "Transition duration",
             "control": "slider"
           }
-        },
-        "custom": {}
+        }
       }
     },
     {
@@ -179,7 +179,6 @@
       "type": "background",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {
@@ -200,8 +199,7 @@
             "control": "slider"
           }
         },
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -210,7 +208,6 @@
       "type": "launcher",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
@@ -251,8 +248,7 @@
             "label": "Orbit",
             "control": "toggle"
           }
-        },
-        "custom": {}
+        }
       }
     },
     {
@@ -261,7 +257,6 @@
       "type": "dashboard",
       "category": "Shell",
       "recovery": false,
-      "template": true,
       "sections": {
         "module": {},
         "style": {},
@@ -314,8 +309,7 @@
             "label": "Compact control center",
             "control": "toggle"
           }
-        },
-        "custom": {}
+        }
       }
     },
     {
@@ -324,7 +318,6 @@
       "type": "settings",
       "category": "Shell",
       "recovery": true,
-      "template": false,
       "sections": {
         "module": {
           "enabled": {
@@ -365,8 +358,7 @@
             "description": "0 follows the module default."
           }
         },
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -375,7 +367,6 @@
       "type": "setup",
       "category": "Shell",
       "recovery": true,
-      "template": false,
       "sections": {
         "module": {
           "enabled": {
@@ -404,8 +395,7 @@
             "description": "0 follows the module default."
           }
         },
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -414,12 +404,10 @@
       "type": "session",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -428,7 +416,6 @@
       "type": "feedback",
       "category": "Shell",
       "recovery": true,
-      "template": false,
       "sections": {
         "module": {
           "enabled": {
@@ -444,8 +431,7 @@
           }
         },
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -454,12 +440,10 @@
       "type": "launcher",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -468,12 +452,10 @@
       "type": "launcher",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -482,7 +464,6 @@
       "type": "panel",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
@@ -507,8 +488,7 @@
             "label": "Pinned applications",
             "control": "select"
           }
-        },
-        "custom": {}
+        }
       }
     }
   ],
@@ -621,22 +601,6 @@
         "maximum": 3840,
         "minimum": 0,
         "type": "integer"
-      }
-    },
-    "custom": {
-      "enabled": {
-        "control": "toggle",
-        "default": false,
-        "label": "Use custom QML",
-        "type": "boolean"
-      },
-      "entry": {
-        "control": "text",
-        "default": "",
-        "description": "Relative module/Main.qml path; trusted code runs with your user permissions.",
-        "label": "Custom entry",
-        "pattern": "^(|[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.qml)$",
-        "type": "string"
       }
     }
   }

@@ -156,7 +156,9 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
     if ((binding.symbol == XKB_KEY_Tab ||
          binding.symbol == XKB_KEY_ISO_Left_Tab) &&
         (binding.modifiers == ShortcutAlt ||
-         binding.modifiers == (ShortcutAlt | ShortcutShift)))
+         binding.modifiers == (ShortcutAlt | ShortcutShift) ||
+         binding.modifiers == ShortcutMeta ||
+         binding.modifiers == (ShortcutMeta | ShortcutShift)))
       it.value() = "Disabled";
   }
   // Migrate the previous shipped default without replacing custom bindings
@@ -210,9 +212,11 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
     if ((parsed.symbol == XKB_KEY_Tab ||
          parsed.symbol == XKB_KEY_ISO_Left_Tab) &&
         (parsed.modifiers == ShortcutAlt ||
-         parsed.modifiers == (ShortcutAlt | ShortcutShift))) {
+         parsed.modifiers == (ShortcutAlt | ShortcutShift) ||
+         parsed.modifiers == ShortcutMeta ||
+         parsed.modifiers == (ShortcutMeta | ShortcutShift))) {
       if (error)
-        *error = "Alt+Tab is reserved for the window switcher.";
+        *error = "Alt+Tab and Super+Tab are reserved for window and workspace switching.";
       return false;
     }
     candidate.insert(it.key(), parsed.canonical);

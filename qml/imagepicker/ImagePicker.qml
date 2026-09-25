@@ -245,8 +245,8 @@ ExtensionSlot {
                     clearButtonEnabled: false
                     Accessible.name: picker.shell.tr("Image path")
                     onAccepted: picker.applyTypedPath()
-                    ToolTip.visible: hovered
-                    ToolTip.text: picker.shell.tr("Paste a folder path or the full path of an image")
+
+
                 }
                 ShellButton {
                     text: picker.shell.tr("Go")

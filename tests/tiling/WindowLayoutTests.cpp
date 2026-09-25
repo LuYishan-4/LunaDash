@@ -594,6 +594,37 @@ private Q_SLOTS:
                                                    4, output, 9),
              size_t(0));
   }
+  void windowSelectionScopeAndLifetime() {
+    QJsonArray clients;
+    for (int i = 1; i <= 6; ++i)
+      clients.append(QJsonObject{{"id", i}, {"mapped", i != 5},
+          {"workspace", i == 4 ? 1 : 0}, {"utility", i == 6},
+          {"desktop", i == 3}, {"minimized", i == 2}});
+    const auto windows = WindowSwitcher::windowsForWorkspace(clients, 0);
+    QCOMPARE(windows.size(), 2); // Includes minimized peers, no other workspace.
+    WindowSwitcher switcher;
+    QProcessEnvironment environment;
+    QVERIFY(switcher.begin(windows, 1, 1, environment, WindowSwitcher::Scope::Windows));
+    QCOMPARE(switcher.snapshot().value("scope").toString(), QString("windows"));
+    QVERIFY(switcher.snapshot().value("workspaces").toArray().isEmpty());
+    QCOMPARE(switcher.snapshot().value("windows").toArray().size(), 2);
+    QCOMPARE(switcher.finish(true), 2);
+    QVERIFY(switcher.begin(windows, 1, -1, environment, WindowSwitcher::Scope::Windows));
+    switcher.remove(1);
+    QCOMPARE(switcher.snapshot().value("index").toInt(), 0);
+    QCOMPARE(switcher.finish(true), 2);
+    switcher.begin(windows, 1, 1, environment, WindowSwitcher::Scope::Windows);
+    switcher.remove(2);
+    switcher.remove(1);
+    QVERIFY(!switcher.active());
+    QCOMPARE(switcher.finish(true), 0);
+    switcher.dismissPopups();
+    QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 1);
+    switcher.dismissPopups();
+    QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 2);
+    QVERIFY(!switcher.begin({}, 0, 1, environment, WindowSwitcher::Scope::Windows));
+    QTest::qWait(40);
+  }
   void selectionLifecycle() {
     QTemporaryDir runtime;
     WindowSwitcher switcher;
@@ -684,6 +715,9 @@ private Q_SLOTS:
              QString("launchTerminalAlternate"));
     QString error;
     QVERIFY(!settings.apply({{"closeWindow", "Alt+Tab"}}, &error));
+    QVERIFY(!settings.apply({{"closeWindow", "Meta+Tab"}}, &error));
+    QVERIFY(!settings.apply({{"closeWindow", "Meta+Shift+Tab"}}, &error));
+    QVERIFY(!settings.apply({{"closeWindow", "Alt+Shift+Tab"}}, &error));
     QSettings().setValue("shortcuts/bindings",
                          QJsonObject{{"launchTerminal", "Meta+Return"},
                                      {"closeWindow", "Meta+T"},

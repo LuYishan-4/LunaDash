@@ -127,7 +127,7 @@ private:
   void focus(ClientWindow *client);
   void raiseWithDialogs(ClientWindow *client);
   void activateTask(int window);
-  void beginWindowSwitch(int direction);
+  void beginWindowSwitch(int direction, bool workspaces = false);
   void selectWorkspace(int workspace);
   void publishWindowLayout();
   void captureWorkspaceThumbnail(int serial, QList<int> windows);

@@ -308,8 +308,7 @@ ModuleSurface {
             label: Math.round(panel.stats.cpuPercent || 0) + "%  " + Number(panel.stats.memoryUsed || 0).toFixed(1) + " GiB"
             toolTip: shell.tr("System monitor")
             onClicked: {
-                shell.controlCenterTab = 3;
-                shell.setAppearance({overview: true});
+                shell.toggleControlCenter(3);
             }
         }
         Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
@@ -402,7 +401,7 @@ ModuleSurface {
                 iconName: panel.networkState.ethernetConnected ? "ethernet" : panel.networkState.connected ? "network" : "network-off"
                 toolTip: panel.networkLabel()
                 selected: shell.wifiPopupOpen
-                onClicked: shell.wifiPopupOpen = !shell.wifiPopupOpen
+                onClicked: shell.togglePopup("network")
             }
             PanelButton {
                 visible: panel.width > 640
@@ -411,7 +410,7 @@ ModuleSurface {
                 label: panel.width > 1000 ? Math.round((((shell.state.audio || {}).output || {}).volume) || 0) + "%" : ""
                 toolTip: shell.tr("Volume")
                 selected: shell.volumePopupOpen
-                onClicked: shell.volumePopupOpen = !shell.volumePopupOpen
+                onClicked: shell.togglePopup("audio")
                 onScrolled: delta => {
                     const current = Number((((shell.state.audio || {}).output || {}).volume) || 0)
                     shell.command("audio", JSON.stringify({device: "output", volume: Math.max(0, Math.min(100, current + (delta > 0 ? 5 : -5)))}))
@@ -423,14 +422,14 @@ ModuleSurface {
                 iconName: "copy"
                 toolTip: shell.tr("Clipboard")
                 selected: shell.clipboardPopupOpen
-                onClicked: shell.clipboardPopupOpen = !shell.clipboardPopupOpen
+                onClicked: shell.togglePopup("clipboard")
             }
             PanelButton {
                 visible: panel.usbStorage.length > 0 && panel.width > 1100
                 moduleHost: panel
                 iconName: "usb"
                 toolTip: shell.tr("USB devices")
-                onClicked: shell.usbPopupOpen = !shell.usbPopupOpen
+                onClicked: shell.togglePopup("devices")
             }
             PanelButton {
                 visible: panel.width > 1200 && (panel.stats.batteryPercent ?? -1) >= 0
@@ -438,14 +437,14 @@ ModuleSurface {
                 iconName: "power"
                 label: panel.stats.batteryPercent + "%"
                 toolTip: shell.tr("Battery")
-                onClicked: shell.openSettingsPage("power")
+                onClicked: shell.toggleSettingsPage("power")
             }
             PanelButton {
                 moduleHost: panel
                 iconName: "general"
                 toolTip: shell.tr("Control center")
                 selected: shell.overviewOpen
-                onClicked: { shell.controlCenterTab = 0; shell.setAppearance({overview: !shell.overviewOpen}) }
+                onClicked: shell.toggleControlCenter(0)
             }
         }
     }
@@ -463,7 +462,7 @@ ModuleSurface {
         label: time + (panel.centeredClock ? "  " + date : "")
         toolTip: shell.tr("Calendar")
         selected: shell.calendarOpen
-        onClicked: shell.calendarOpen = !shell.calendarOpen
+        onClicked: shell.togglePopup("calendar")
         Timer {
             interval: 1000
             repeat: true
@@ -487,7 +486,8 @@ ModuleSurface {
         height: panel.capsuleHeight
         iconName: "session"
         toolTip: shell.tr("Session controls")
-        onClicked: shell.logoutOpen = true
+        selected: shell.logoutOpen
+        onClicked: shell.togglePopup("session")
     }
     ColumnLayout {
         id: verticalContent
@@ -670,7 +670,7 @@ ModuleSurface {
             iconName: panel.networkState.ethernetConnected ? "ethernet" : panel.networkState.connected ? "network" : "network-off"
             toolTip: panel.networkLabel()
             selected: shell.wifiPopupOpen
-            onClicked: shell.wifiPopupOpen = !shell.wifiPopupOpen
+            onClicked: shell.togglePopup("network")
         }
         PanelButton {
             visible: verticalContent.height > 440
@@ -683,7 +683,7 @@ ModuleSurface {
             iconName: "sound"
             toolTip: shell.tr("Volume")
             selected: shell.volumePopupOpen
-            onClicked: shell.volumePopupOpen = !shell.volumePopupOpen
+            onClicked: shell.togglePopup("audio")
         }
         PanelButton {
             moduleHost: panel
@@ -695,7 +695,7 @@ ModuleSurface {
             iconName: "general"
             toolTip: shell.tr("Control center")
             selected: shell.overviewOpen
-            onClicked: { shell.controlCenterTab = 0; shell.setAppearance({overview: !shell.overviewOpen}) }
+            onClicked: shell.toggleControlCenter(0)
         }
         PanelButton {
             id: verticalClock
@@ -708,7 +708,7 @@ ModuleSurface {
             label: panel.thickness < 64 ? time.replace(":", "\n") : time
             toolTip: shell.tr("Calendar") + " " + time
             selected: shell.calendarOpen
-            onClicked: shell.calendarOpen = !shell.calendarOpen
+            onClicked: shell.togglePopup("calendar")
             Timer {
                 interval: 1000
                 repeat: true
@@ -726,7 +726,8 @@ ModuleSurface {
             Layout.minimumHeight: 0
             iconName: "session"
             toolTip: shell.tr("Session controls")
-            onClicked: shell.logoutOpen = true
+            selected: shell.logoutOpen
+        onClicked: shell.togglePopup("session")
         }
     }
 }

@@ -25,14 +25,12 @@ ColumnLayout {
         (!configurableOnly || Object.keys(item.schema || {}).length > 0) &&
         [item.id, item.name, item.type, item.category].join(" ").toLowerCase().includes(searchText.toLowerCase()))
     readonly property var current: visibleTargets.find(item => item.id === selectedId) || visibleTargets[0] || ({})
-    readonly property string moduleId: String(current.id || "").startsWith("module:") ? current.id.split(":")[1] : ""
-    readonly property var moduleDescriptor: (state.descriptors || []).find(item => item.id === moduleId) || ({})
     spacing: 16
 
     PageTitle { shell: page.shell; title: "Modular settings" }
     HelpText {
         shell: page.shell
-        message: "Filter settings by implementation type or category. Effects use the same controls as shell modules; their options do not require custom QML."
+        message: "Filter settings by implementation type or category. Effects and shell modules share the same controls; visual extensions use SDK 2 plugin templates."
     }
     SettingsCard {
         title: page.shell.tr("Filter settings")
@@ -85,25 +83,6 @@ ColumnLayout {
             shell: page.shell
             targetId: page.current.id || ""
         }
-    }
-    SettingsCard {
-        visible: page.moduleId.length > 0
-        title: page.shell.tr("Custom module code")
-        HelpText {
-            shell: page.shell
-            message: "Custom QML runs with your user permissions. Allow only trusted code. Disabling custom code keeps the built-in modules available."
-        }
-        SoftSwitch {
-            text: page.shell.tr("Allow custom QML")
-            checked: Boolean(page.state.trusted)
-            onToggled: page.shell.command("module-code-trust", checked ? "true" : "false")
-        }
-        ShellButton {
-            visible: Boolean(page.moduleDescriptor.template)
-            text: page.shell.tr("Install module template")
-            onClicked: page.shell.command("module-template", page.moduleId)
-        }
-        HelpText { shell: page.shell; message: page.state.codeRoot || "" }
     }
     RowLayout {
         Layout.fillWidth: true

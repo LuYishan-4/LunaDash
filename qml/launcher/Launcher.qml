@@ -19,10 +19,8 @@ ModuleSurface {
     implicitHeight: animatedHeight
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    // Never retain keyboard ownership while the launcher is collapsed. Keeping
-    // Exclusive set on a one-pixel hidden surface makes it compete with normal
-    // applications for keyboard focus.
-    WlrLayershell.keyboardFocus: opened && shell.launcherKeyboardActive
+    // Own keyboard input while expanded; release it completely on close.
+    WlrLayershell.keyboardFocus: opened
         ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     WlrLayershell.namespace: "lunadash-launcher"
     color: "transparent"
@@ -204,15 +202,11 @@ ModuleSurface {
         }
         Text { visible: applications.count === 0; Layout.alignment: Qt.AlignHCenter; text: shell.tr("No applications found"); color: Theme.muted; font.family: Theme.font }
     }
+    Component.onCompleted: if (opened) Qt.callLater(function() { launcher.focusSearch(false) })
     onOpenedChanged: {
         if (opened) {
             search.clear()
-            if (shell.launcherOpenSource === "keyboard")
-                Qt.callLater(function() { launcher.focusSearch(false) })
-            else {
-                search.focus = false
-                applications.focus = false
-            }
+            Qt.callLater(function() { launcher.focusSearch(false) })
         } else {
             shell.launcherKeyboardActive = false
             search.focus = false
