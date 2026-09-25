@@ -1,4 +1,4 @@
-#include "desktop/filemanager/FileIcons.hpp"
+#include "service/portal/FileIcons.hpp"
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmapCache>

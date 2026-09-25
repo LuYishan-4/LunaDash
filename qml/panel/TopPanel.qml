@@ -62,6 +62,7 @@ ModuleSurface {
     readonly property real capsuleTint: Math.max(0, Math.min(100, panelConfig.capsuleTint ?? 12)) / 100.0
     readonly property int capsuleHeight: Math.max(16, Math.min(thickness - 8, (vertical ? height : width) / 8))
     readonly property int capsuleGap: 8
+    readonly property int launcherExtent: Math.max(20, thickness - 2)
     readonly property bool centerLauncher: panelConfig.centerLauncher ?? true
     readonly property bool centeredLauncher: centerLauncher && width >= 700
     readonly property bool centeredClock: !centerLauncher && width >= 700
@@ -72,18 +73,9 @@ ModuleSurface {
     readonly property int currentWorkspace: Number((shell.interaction || {}).workspace ?? shell.state.workspace ?? 0)
     readonly property var clients: (shell.interaction || {}).clients || shell.state.clients || []
     readonly property var activeClient: clients.find(client => client.focused && client.mapped && !client.desktop && !client.utility) || ({})
-    readonly property var workspaceIds: {
-        const count = Math.max((shell.state.appearance || {}).workspaceCount || 10, currentWorkspace + 1)
-        if (!occupiedWorkspacesOnly)
-            return Array.from({length: count}, (_, index) => index)
-        const occupied = new Set(groups.map(group => group.workspace))
-        occupied.add(currentWorkspace)
-        // Keep one empty destination available without changing workspace capacity.
-        for (let index = 0; index < count; ++index) {
-            if (!occupied.has(index)) { occupied.add(index); break }
-        }
-        return Array.from(occupied).sort((a, b) => a - b)
-    }
+    readonly property var workspaceIds: WorkspaceTasks.visibleWorkspaces(
+        clients, currentWorkspace, (shell.state.appearance || {}).workspaceCount || 10,
+        occupiedWorkspacesOnly)
     readonly property var networkState: shell.state.network || ({})
 
     readonly property var groups: WorkspaceTasks.groupByWorkspace(
@@ -208,23 +200,27 @@ ModuleSurface {
                 boundsBehavior: Flickable.StopAtBounds
                 model: panel.workspaceIds
                 onModelChanged: Qt.callLater(() => workspaceControls.positionViewAtIndex(panel.workspaceIds.indexOf(panel.currentWorkspace), ListView.Contain))
-                delegate: Rectangle {
+                delegate: Item {
                     id: workspacePill
                     required property int modelData
                     readonly property bool active: panel.currentWorkspace === modelData
                     width: active ? panel.workspaceActiveWidth : panel.workspaceInactiveWidth
-                    height: panel.workspacePills ? Math.min(panel.workspacePillHeight, workspaceControls.height) : workspaceControls.height
-                    y: (workspaceControls.height - height) / 2
-                    radius: height / 2
-                    color: active ? moduleAccent : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b, 0.18)
+                    height: workspaceControls.height
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: shell.tr("Workspace") + " " + (modelData + 1)
                     Accessible.onPressAction: shell.command("workspace", modelData)
                     Keys.onReturnPressed: shell.command("workspace", modelData)
                     Keys.onSpacePressed: shell.command("workspace", modelData)
-                    border.width: activeFocus ? 1 : 0
-                    border.color: Theme.focusRing
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: panel.workspacePills ? Math.min(panel.workspacePillHeight, parent.height) : parent.height
+                        radius: height / 2
+                        color: workspacePill.active ? moduleAccent : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b, 0.18)
+                        border.width: workspacePill.activeFocus ? 1 : 0
+                        border.color: Theme.focusRing
+                    }
                     Text {
                         anchors.fill: parent
                         text: panel.workspacePills ? "" : String(workspacePill.modelData + 1)
@@ -325,13 +321,13 @@ ModuleSurface {
         moduleHost: panel
         x: panel.centeredLauncher ? (panel.width - width) / 2 : 4
         y: (panel.height - height) / 2
-        width: panel.capsuleHeight
-        height: panel.capsuleHeight
-        toolTip: shell.tr("Applications")
+        width: panel.launcherExtent
+        height: panel.launcherExtent
+        Accessible.name: shell.tr("Applications")
         onClicked: shell.openLauncherFromMouse()
         LauncherMark {
             anchors.centerIn: parent
-            width: parent.width * 0.82
+            width: parent.width * 0.94
             height: width
             source: panel.launcherImage
             accent: panel.launcherAccent
@@ -504,15 +500,15 @@ ModuleSurface {
         PanelButton {
             moduleHost: panel
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: panel.capsuleHeight
-            Layout.preferredHeight: panel.capsuleHeight
+            Layout.preferredWidth: Math.min(panel.launcherExtent, verticalContent.width)
+            Layout.preferredHeight: Math.min(panel.launcherExtent, verticalContent.width)
             Layout.minimumWidth: 0
             Layout.minimumHeight: 0
-            toolTip: shell.tr("Applications")
+            Accessible.name: shell.tr("Applications")
             onClicked: shell.openLauncherFromMouse()
             LauncherMark {
                 anchors.centerIn: parent
-                width: parent.width * 0.82
+                width: parent.width * 0.94
                 height: width
                 source: panel.launcherImage
                 accent: panel.launcherAccent

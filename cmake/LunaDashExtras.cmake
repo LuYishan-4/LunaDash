@@ -18,6 +18,8 @@ add_executable(lunadash-portal src/service/portal/Main.cpp
     src/service/portal/FileChooserPortal.hpp
     src/service/portal/FileChooserOptions.cpp
     src/service/portal/FileChooserOptions.hpp
+    src/service/portal/FileIcons.cpp
+    src/service/portal/FileIcons.hpp
     src/service/portal/FilePickerDialog.cpp
     src/service/portal/FilePickerDialog.hpp
     src/service/portal/ScreenCastChooser.cpp

@@ -646,6 +646,27 @@ private Q_SLOTS:
     QTest::qWait(
         50); // Reap only our failed captures; no compositor is started.
   }
+  void externalFileManagerDefaults() {
+    QTemporaryDir config;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, config.path());
+    QSettings().clear();
+    QCOMPARE(defaultApplicationCommand("files", nullptr),
+             (QStringList{"dolphin", "--new-window"}));
+    // Keep a user's explicit argv intact, including spaces and shell characters.
+    const QStringList custom{"custom-file-manager", "--profile",
+                             "Work $HOME; notes"};
+    QSettings().setValue("defaultApps/files", custom);
+    QCOMPARE(defaultApplicationCommand("files", nullptr), custom);
+    QString error;
+    for (const auto &launcher :
+         {"ludash-desktop", "lunadash-desktop", "ludashctl", "lunadashctl"})
+      QVERIFY(!setDefaultApplications(
+          {{"files", QJsonArray{launcher, "--app", "files"}}}, &error));
+    QVERIFY(setDefaultApplications({{"files", QJsonArray{}}}, &error));
+    QCOMPARE(defaultApplicationCommand("files", nullptr),
+             (QStringList{"dolphin", "--new-window"}));
+  }
   void terminalAndShortcutMigration() {
     QTemporaryDir config;
     QSettings::setDefaultFormat(QSettings::IniFormat);

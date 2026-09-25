@@ -52,7 +52,7 @@ LunaDash 仍是開發預覽版。安裝器會註冊真正的 Wayland login sessi
   --desktop-profile --author-config
 ```
 
-可選群組包含 `basics`（XDG、壓縮、傳輸工具及金鑰圈）、`desktop`（Chromium、Thunar 與檔案整合）、`media`（MPV、看圖與縮圖）、`office`（LibreOffice 與繁中語言包）、`development`（Fish、Starship、Fastfetch、搜尋及終端機工具）和 `input`（Fcitx5 中文輸入法、CJK 與 JetBrains Mono 字型）。`--apps none` 不加裝選用群組。除非使用 `--skip-deps`，主體相依套件仍會安裝。選用軟體群組目前以 Arch 已設定的 pacman 來源為目標；其他發行版保留原本主體安裝流程，也能使用配置範本，額外程式則由使用者安裝對應套件。安裝器不會安裝 AUR helper 或新增套件來源。
+可選群組包含 `basics`（XDG、壓縮、傳輸工具及金鑰圈）、`desktop`（Chromium、Ark 與 Dolphin 的 KIO extras）、`media`（MPV、看圖與縮圖）、`office`（LibreOffice 與繁中語言包）、`development`（Fish、Starship、Fastfetch、搜尋及終端機工具）和 `input`（Fcitx5 中文輸入法、CJK 與 JetBrains Mono 字型）。`--apps none` 不加裝選用群組。除非使用 `--skip-deps`，主體相依套件仍會安裝。選用軟體群組目前以 Arch 已設定的 pacman 來源為目標；其他發行版保留原本主體安裝流程，也能使用配置範本，額外程式則由使用者安裝對應套件。安裝器不會安裝 AUR helper 或新增套件來源。
 
 配置組織與可攜外觀參考作者提供的 2026-09-24 設定快照及 [NyxNiri](https://github.com/ech678/NyxNiri)。LunaDash 沿用自己的 compositor、Quickshell UI 與設定 schema；不匯入參考包的 Niri／Noctalia 工作階段、個人身分、系統設定、硬體規則或瀏覽器狀態。Kitty 範本採用參考字型、留白、透明度及複製貼上快捷鍵；Fish、Starship 和 Fastfetch 提供可編輯初始設定，不變更帳號預設 shell。安裝時不會執行作者設定包內的還原程式。
 
@@ -170,3 +170,5 @@ journalctl -b -u sddm.service
 不要用 root 啟動桌面，也不要把 GPU/input device node 改成所有人可寫。
 
 舊 `ludash-compositor`、`ludash-desktop`、`ludashctl`、`ludash-session` 與 `ludash.desktop` 仍保留相容 alias；新整合請使用 `lunadash-*` 名稱。
+
+Dolphin 是主體執行相依套件，即使未選擇任何選用軟體群組仍會安裝，取代已移除的內建檔案管理器。

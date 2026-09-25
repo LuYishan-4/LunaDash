@@ -4,7 +4,6 @@
 #include "desktop/app/ApplicationWindow.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/app/WaylandClientShutdown.hpp"
-#include "desktop/filemanager/FileManager.hpp"
 #include "desktop/package/PackageManager.hpp"
 #include "desktop/theme/DesktopTheme.hpp"
 #include "desktop/welcome/Welcome.hpp"
@@ -30,14 +29,12 @@ int DesktopApplication::run(int argc, char **argv) {
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addOption(
-      {"app", "Open a built-in application as a native Wayland window.", "id"});
+      {"app", "Open a desktop tool or the configured file manager.", "id"});
   parser.addOption({"screenshot",
                     "Save a screenshot and exit (for UI verification).",
                     "path"});
   parser.addOption(
-      {"builtin",
-       "Open the built-in file manager, ignoring the default application."});
-  parser.addOption({"path", "Folder to open in Files.", "folder"});
+      {"path", "Folder to open in the configured file manager.", "folder"});
   parser.process(app);
 
   if (parser.isSet("app")) {
@@ -48,19 +45,18 @@ int DesktopApplication::run(int argc, char **argv) {
                                    "/lunadashctl",
                                {"open-settings", requested == "plugins"
                                                      ? "plugins" : "general"});
-    if (requested == "files" && !parser.isSet("builtin")) {
+    if (requested == "files") {
       QString error;
       auto command = LunaDash::defaultApplicationCommand(requested, &error);
-      if (!error.isEmpty()) {
-        qCritical().noquote() << error;
+      if (!error.isEmpty() || command.isEmpty()) {
+        qCritical().noquote()
+            << (error.isEmpty() ? "No file manager is configured." : error);
         return 2;
       }
-      if (!command.isEmpty()) {
-        const auto program = command.takeFirst();
-        if (requested == "files" && parser.isSet("path"))
-          command << QFileInfo(parser.value("path")).absoluteFilePath();
-        return QProcess::execute(program, command);
-      }
+      const auto program = command.takeFirst();
+      if (parser.isSet("path"))
+        command << QFileInfo(parser.value("path")).absoluteFilePath();
+      return QProcess::execute(program, command);
     }
     LunaDash::ApplicationWindow window;
     window.setAttribute(Qt::WA_TranslucentBackground);
@@ -70,9 +66,7 @@ int DesktopApplication::run(int argc, char **argv) {
     LunaDash::watchDesktopTheme(&window);
     QWidget *content = nullptr;
     const auto id = parser.value("app");
-    if (id == "files")
-      content = LunaDash::createFileManager();
-    else if (id == "packages")
+    if (id == "packages")
       content = LunaDash::createPackageManager();
     else if (id == "welcome")
       content = LunaDash::createWelcome([](const QString &target) {
@@ -88,13 +82,8 @@ int DesktopApplication::run(int argc, char **argv) {
     auto *layout = new QVBoxLayout(&window);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(content);
-    if (id == "files" && parser.isSet("path")) {
-      auto *location = content->findChild<QLineEdit *>("fileLocation");
-      location->setText(QFileInfo(parser.value("path")).absoluteFilePath());
-      QMetaObject::invokeMethod(location, "returnPressed");
-    }
     window.setWindowTitle("LunaDash · " + id);
-    window.resize(id == "files" ? 1040 : 760, id == "files" ? 680 : 520);
+    window.resize(760, 520);
     window.show();
     if (parser.isSet("screenshot"))
       QTimer::singleShot(1200, &window, [&] {

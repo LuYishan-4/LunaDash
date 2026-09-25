@@ -190,8 +190,6 @@
   "Default terminal": "默认终端",
   "Default file manager": "默认文件管理器",
   "Use LunaDash default": "使用 LunaDash 默认值",
-  "LunaDash default": "LunaDash 默认值",
-  "Using the built-in default.": "正在使用内置默认值。",
   "New file": "新建文件",
   "New folder": "新建文件夹",
   "File name": "文件名",
@@ -283,7 +281,6 @@
   "Update failed": "更新失败",
   "Rollback previous update": "回滚上一次更新",
   "LunaDash rollback": "LunaDash 回滚",
-  "Plugins": "插件",
   "Installed plugins": "已安装插件",
   "Open plugin manager": "打开插件管理器",
   "Plugin store is not supported yet": "暂不支持插件商店",
@@ -342,5 +339,7 @@
   "Validate JSON": "验证 JSON",
   "Save JSON": "保存 JSON",
   "Available": "可用",
-  "Unavailable": "不可用"
+  "Unavailable": "不可用",
+  "Dolphin (default)": "Dolphin（默认）",
+  "Using the default application.": "正在使用默认应用程序。"
 }

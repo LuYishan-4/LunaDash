@@ -23,7 +23,7 @@ export const groups: SettingGroup[] = [
     details: [
       "Blur starts enabled at radius 18. Lower the radius to reduce GPU work; window opacity ranges from 60% to 100%.",
       "Set animation duration between 0 and 600 ms, or disable animations for reduced motion.",
-      "Built-in Files, plugin windows and LunaDash file dialogs follow the accent and font settings. Kitty retains your configuration; third-party applications use their own themes.",
+      "Plugin windows and LunaDash file dialogs follow the accent and font settings. Kitty retains your configuration; third-party applications use their own themes.",
     ],
   },
   {
@@ -66,10 +66,10 @@ export const groups: SettingGroup[] = [
     id: "applications",
     name: "Default applications & startup",
     description:
-      "Applications and startup lists every installed application for each default role, with the built-in default pinned at the top of the list.",
+      "Applications and startup lists every installed application for each default role, with the role default pinned at the top of the list.",
     details: [
       "Terminal defaults to Kitty, opened with Super+T or Super+Return, and respects your existing configuration. The login shell and user Fish configuration are not rewritten.",
-      "Files defaults to the LunaDash file manager. Choose icon or details view, browse common locations, filter a folder, and use the compact toolbar.",
+      "Files defaults to Dolphin. Select another installed file manager in Settings; the LunaDash file picker and screen/window sharing chooser remain available.",
       "The browser role controls web links opened by LunaDash and prefers Chrome when available. Default application roles affect LunaDash launchers and shortcuts; file-type associations are configured separately.",
       "Startup selection currently covers built-in tools; general desktop-entry autostart and session restoration are not implemented.",
     ],

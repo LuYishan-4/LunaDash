@@ -20,6 +20,8 @@ if(BUILD_TESTING)
         src/service/portal/FileChooserPortal.hpp
         src/service/portal/FileChooserOptions.cpp
         src/service/portal/FileChooserOptions.hpp
+        src/service/portal/FileIcons.cpp
+        src/service/portal/FileIcons.hpp
         src/service/portal/FilePickerDialog.cpp
         src/service/portal/FilePickerDialog.hpp)
     target_link_libraries(lunadash-portal-picker-test PRIVATE ludash-apps Qt6::Test Qt6::DBus)

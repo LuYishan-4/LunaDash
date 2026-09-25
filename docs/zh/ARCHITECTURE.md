@@ -27,7 +27,7 @@ src/
   config/            preferences、翻譯、plugin catalog
   core/              共用 contract、listener 與 C plugin API
   ctl/               lunadashctl
-  desktop/           Files、設定、系統／音訊／網路等桌面服務
+  desktop/           預設程式、設定、系統／音訊／網路等桌面服務
   service/portal/    FileChooser portal
   shell/             shell module runtime 與媒體 helper
 ```
@@ -95,3 +95,5 @@ CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless composi
 面板工作區篩選只是顯示選項，不變更 compositor 的工作區配置。置中啟動器、視窗標題及 CPU／記憶體資訊使用既有 shell 狀態。作者風格配置維持使用 LunaDash 原有 JSON／設定介面供使用者編輯，不引入 Niri 設定解析器、替代 compositor 或第二套桌面 shell。首次安裝引導擴充原有安裝腳本並選擇性匯入應用程式設定，compositor 設定仍歸 LunaDash 管理。
 
 設定、快捷鍵、相依套件及驗證界線請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)；可選的首次安裝流程請參閱[工作階段安裝](LOGIN_SESSION.md)。
+
+檔案管理器啟動透過外部 files 角色解析，預設為 Dolphin。退役的 `desktop/filemanager`、`desktop/fileoperations` 實作與建置目標已移除。Portal 選擇器與圖示歸屬 `service/portal`；Shell 圖片選擇器及螢幕分享選擇器各自保留。

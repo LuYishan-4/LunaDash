@@ -4,7 +4,7 @@ Finish code, packaging and documentation changes before building. Arch Linux is 
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GIO. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
+The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -16,7 +16,7 @@ python3 tests/security/test_source_language.py
 python3 scripts/ci/check_qml_actions.py
 python3 scripts/ci/check_qml_style.py
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DLUDASH_BUILD_FILES_TESTS=ON -DLUDASH_BUILD_RENDERER_TESTS=ON
+  -DLUDASH_BUILD_RENDERER_TESTS=ON
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
@@ -65,7 +65,7 @@ This builds packages without installing them. The archive must include `examples
 
 | Workflow | Configured coverage |
 | --- | --- |
-| Main Ubuntu build | Full C/C++ build, file regressions and source architecture |
+| Main Ubuntu build | Full C/C++ build, portal picker regressions and source architecture |
 | Main Qt loading | Native Qt client modules against a wlroots session |
 | Main Wayland loading | Protocol globals, xdg lifecycle, headless session, on-demand XWayland |
 | Main OpenGL loading | Shader inventory, renderer failure/lifetime tests, staged-install software GL and headless session |
@@ -90,7 +90,7 @@ The source-build matrix does not verify physical hardware. Void/Gentoo have inst
 | `src/compositor/renderer/opengl` | GL dispatch/resources/passes and embedded shaders |
 | `src/config` | Preferences, localization, process helper and plugin metadata |
 | `src/core` | Shared lifecycle concepts, listener template and compile definitions |
-| `src/desktop` | Applications, browser policy, files, audio, network, power and system services |
+| `src/desktop` | Applications, external default-app policy, audio, network, power and system services |
 | `src/service/portal` | D-Bus startup and native file chooser implementation |
 | `src/shell` | Generic QML module schema/runtime and media helper |
 | `src/ctl` | Bounded local control client |

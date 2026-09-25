@@ -6,7 +6,7 @@ Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後�
 
 ## 建置與靜態檢查
 
-需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Qt 6.4+（Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、GL headers 與 GIO。Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
+需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Qt 6.4+（Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、GL headers 與 GLib。Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -19,7 +19,7 @@ python3 scripts/ci/check_qml_actions.py
 python3 scripts/ci/check_qml_style.py
 
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DLUDASH_BUILD_FILES_TESTS=ON -DLUDASH_BUILD_RENDERER_TESTS=ON
+  -DLUDASH_BUILD_RENDERER_TESTS=ON
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
@@ -68,7 +68,7 @@ Source archive 必須含 `examples/` 與 `templates/`，不然 installed plugin 
 
 | 類別 | 內容 |
 | --- | --- |
-| Ubuntu build | C/C++、Files、architecture |
+| Ubuntu build | C/C++、portal 選擇器、architecture |
 | Qt loading | Qt client modules 對 wlroots |
 | Wayland | protocol、xdg lifecycle、headless、XWayland |
 | OpenGL | shaders、renderer lifetime、software GL、staged install |
@@ -97,7 +97,7 @@ Void/Gentoo 有 installer path，但 CI breadth 較小。
 | `src/compositor/renderer/opengl` | GL resources/shaders |
 | `src/config` | preference/localization/plugin metadata |
 | `src/core` | contracts/listeners/plugin C API |
-| `src/desktop` | apps/files/audio/network/power/system |
+| `src/desktop` | apps/default-apps/audio/network/power/system |
 | `src/service/portal` | FileChooser portal |
 | `src/shell` | modules/media |
 | `src/ctl` | control client |

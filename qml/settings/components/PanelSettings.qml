@@ -150,7 +150,7 @@ SettingsCard {
         }
         HelpText {
             shell: controls.shell
-            message: "Show occupied workspaces, the current workspace and one empty workspace. All configured workspaces remain available."
+            message: "Show at least two workspaces and one spare after the last occupied workspace. All configured workspaces remain available."
         }
         Repeater {
             model: [

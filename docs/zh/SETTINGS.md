@@ -93,3 +93,5 @@ Settings 可在預設大小與最大化間切換；搜尋框在頂部 header，�
 ## NyxNiri 桌面整合、Orbit 與動態桌布
 
 新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。
+
+預設程式中的空白命令陣列使用 Kitty、Dolphin 及偵測到的預設瀏覽器。檔案捷徑預設執行 `dolphin --new-window`；可在 Applications and startup 改選其他已安裝程式。FileChooser 與螢幕／視窗分享選擇器保持獨立。

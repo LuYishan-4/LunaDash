@@ -19,7 +19,7 @@ setup_ask() {
 setup_packages() {
     case "$1" in
         basics) printf '%s\n' xdg-utils xdg-user-dirs unzip zip rsync jq playerctl gnome-keyring ;;
-        desktop) printf '%s\n' chromium thunar thunar-archive-plugin file-roller gvfs gvfs-mtp gvfs-smb ;;
+        desktop) printf '%s\n' chromium ark kio-extras ;;
         media) printf '%s\n' mpv imv ffmpegthumbnailer ;;
         office) printf '%s\n' libreoffice-fresh libreoffice-fresh-zh-tw ;;
         development) printf '%s\n' git fish starship fastfetch eza fzf zoxide tmux btop ;;
@@ -60,7 +60,7 @@ EOF
             for group in basics desktop media office development input; do
                 case "$group" in
                     basics) summary='Basic utilities: archives, file transfer, clipboard helpers and keyring';;
-                    desktop) summary='Everyday apps: Chromium, Thunar, archive manager and removable/network files';;
+                    desktop) summary='Everyday apps: Chromium, Ark and Dolphin network file support';;
                     media) summary='Media tools: MPV, image viewer and video thumbnails';;
                     office) summary='Office suite: LibreOffice with Traditional Chinese language support';;
                     development) summary='Terminal tools: Fish, Starship, Fastfetch, fuzzy search, tmux and btop';;

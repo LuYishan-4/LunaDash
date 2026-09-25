@@ -1,6 +1,6 @@
 #include "service/portal/FilePickerDialog.hpp"
 #include "config/localization/Localization.hpp"
-#include "desktop/filemanager/FileIcons.hpp"
+#include "service/portal/FileIcons.hpp"
 #include "desktop/theme/DesktopTheme.hpp"
 #include <QtWidgets>
 #include <utility>

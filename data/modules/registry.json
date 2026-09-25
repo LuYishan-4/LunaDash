@@ -102,7 +102,7 @@
             "type": "boolean",
             "default": true,
             "label": "Compact workspace list",
-            "description": "Show occupied workspaces, the current workspace and one empty workspace. All configured workspaces remain available.",
+            "description": "Show at least two workspaces and one spare after the last occupied workspace. All configured workspaces remain available.",
             "control": "toggle"
           },
           "backgroundVisible": {

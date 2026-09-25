@@ -34,7 +34,7 @@ from gi.repository import GLib
 build = Path(sys.argv[1]).resolve()
 evidence = build / "ci-evidence" / "shell-layout"
 evidence.mkdir(parents=True, exist_ok=True)
-for executable in ("quickshell", "grim", "wtype", "wl-copy", "wl-paste"):
+for executable in ("quickshell", "dolphin", "grim", "wtype", "wl-copy", "wl-paste"):
     assert shutil.which(executable), f"Required runtime tool is missing: {executable}"
 for executable in ("lunadash-compositor", "lunadash-desktop", "lunadashctl", "lunadash-shell-tool"):
     assert (build / executable).is_file(), f"Required build target is missing: {executable}"
@@ -124,13 +124,9 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
     os.chmod(runtime, 0o700)
     for directory in ("config", "cache", "data", "state"):
         (runtime / directory).mkdir()
-    # The Files welcome dialog is independently covered by the Files tests.
-    # Use an initialized, isolated profile so each launch adds one layout tile.
-    files_config = runtime / "config" / "LunaDash"
-    files_config.mkdir()
-    (files_config / "file-associations.json").write_text(json.dumps({
-        "version": 1, "initialized": True, "askOnFirstOpen": True, "associations": {},
-    }))
+    # Use Dolphin's normal new-window path with an isolated, empty session.
+    (runtime / "config" / "dolphinrc").write_text(
+        "[General]\nRememberOpenedTabs=false\n")
     socket_name = "lunadash-layout"
     control = runtime / (socket_name + "-control")
     env = os.environ | {
@@ -422,6 +418,25 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
         def panel_document(state):
             return state["shellModules"]["document"]["modules"]["panel"]
 
+        def capture_workspace_pills(name, count, active):
+            time.sleep(0.5)
+            screenshot = capture(name, (1920, 1080)).convert("L")
+            layer = live_layer(log_path, "lunadash-panel")
+            top, _, _, left = layer["set_margin"]
+            center_y = top + layer["configure"][-1] // 2
+            # Inset row + list padding; these are the normal shipped panel metrics.
+            x = left + 4 + 8
+            for index in range(count):
+                width = 34 if index == active else 16
+                center_x = x + width // 2
+                middle = screenshot.getpixel((center_x, center_y))
+                above = screenshot.getpixel((center_x, center_y - 7))
+                below = screenshot.getpixel((center_x, center_y + 7))
+                assert middle > max(above, below) + 12, (
+                    "Workspace pill missing or vertically displaced", name, index,
+                    center_x, center_y, middle, above, below)
+                x += width + 4
+
         def application_clients(state):
             return [client for client in state["clients"] if client["mapped"]
                     and not client.get("desktop") and not client.get("utility")]
@@ -612,6 +627,32 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             for client_id in opened_ids:
                 request("close", client_id)
             wait_for(lambda state: not application_clients(state), "native verification clients close")
+            # Reproduce the reported two -> three -> switch-back sequence with
+            # the real author-style pill row and an external Dolphin window.
+            saved_modules = request()["shellModules"]["document"]
+            pill_modules = json.loads(json.dumps(saved_modules))
+            pill_modules["modules"]["panel"]["config"].update({
+                "workspacePills": True, "workspaceActiveWidth": 34,
+                "workspaceInactiveWidth": 16, "workspacePillHeight": 8,
+                "occupiedWorkspacesOnly": True,
+            })
+            assert "error" not in request("module-save", json.dumps(pill_modules))
+            capture_workspace_pills("workspaces-initial-two", 2, 0)
+            request("workspace", 1)
+            wait_for(lambda state: state["workspace"] == 1, "visit empty second workspace")
+            capture_workspace_pills("workspaces-empty-second", 2, 1)
+            assert "error" not in request("launch-default", "files")
+            workspace_state = wait_for(lambda state: clients_settled(state, 1), "Dolphin on workspace 2")
+            workspace_client = application_clients(workspace_state)[0]
+            assert "dolphin" in workspace_client["appId"].lower(), workspace_client
+            capture_workspace_pills("workspaces-second-occupied", 3, 1)
+            request("workspace", 0)
+            wait_for(lambda state: state["workspace"] == 0, "return to first workspace")
+            capture_workspace_pills("workspaces-third-retained", 3, 0)
+            snapshots.append({"scene": "workspace-spare-retained", "state": request()})
+            request("close", workspace_client["id"])
+            wait_for(lambda state: not application_clients(state), "workspace test window closes")
+            assert "error" not in request("module-save", json.dumps(saved_modules))
             request("wallpaper-default")
             wait_for(lambda state: str(corner_wallpaper_path) not in state["wallpaperImage"],
                      "restore the shipped wallpaper before Settings screenshots")

@@ -4,6 +4,28 @@ import "../../qml/columns/WorkspaceTasks.js" as WorkspaceTasks
 
 TestCase {
     name: "WorkspaceTasks"
+    function test_spare_workspace_survives_switching_back() {
+        compare(WorkspaceTasks.visibleWorkspaces([], 0, 10, true), [0, 1])
+        compare(WorkspaceTasks.visibleWorkspaces([], 1, 10, true), [0, 1])
+        const clients = [{workspace: 0, mapped: true},
+                         {workspace: 1, mapped: true, visible: false, minimized: true}]
+        compare(WorkspaceTasks.visibleWorkspaces(clients, 1, 10, true), [0, 1, 2])
+        compare(WorkspaceTasks.visibleWorkspaces(clients, 0, 10, true), [0, 1, 2])
+        compare(WorkspaceTasks.visibleWorkspaces(clients, 2, 10, true), [0, 1, 2])
+        clients.pop()
+        compare(WorkspaceTasks.visibleWorkspaces(clients, 0, 10, true), [0, 1])
+    }
+    function test_workspace_gaps_and_limits() {
+        const clients = [{workspace: 3, mapped: true},
+                         {workspace: 8, mapped: false},
+                         {workspace: 7, mapped: true, utility: true},
+                         {workspace: 6, mapped: true, desktop: true}]
+        compare(WorkspaceTasks.visibleWorkspaces(clients, 0, 10, true), [0, 1, 2, 3, 4])
+        compare(WorkspaceTasks.visibleWorkspaces(clients, 0, 4, true), [0, 1, 2, 3])
+        compare(WorkspaceTasks.visibleWorkspaces([], 0, 1, true), [0])
+        compare(WorkspaceTasks.visibleWorkspaces([], 3, 5, true), [0, 1, 2, 3])
+        compare(WorkspaceTasks.visibleWorkspaces([], 0, 4, false), [0, 1, 2, 3])
+    }
     function test_groups_all_windows_and_keeps_hidden_tasks() {
         const clients = []
         for (let id = 1; id <= 12; ++id)

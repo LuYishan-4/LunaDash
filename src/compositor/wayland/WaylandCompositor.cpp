@@ -1673,14 +1673,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     auto command = defaultApplicationCommand(value, &error);
     if (!error.isEmpty())
       return {{"error", error}};
-    if (command.isEmpty()) {
-      if (value == "browser")
-        return {{"error", "No browser is available."}};
-      spawn({"--app", value, "--builtin"});
-    } else {
-      if (!launchExternalCommand(command, &error))
-        return {{"error", error}};
-    }
+    if (command.isEmpty())
+      return {{"error", "No application is configured for this role."}};
+    if (!launchExternalCommand(command, &error))
+      return {{"error", error}};
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);
     if (command.isEmpty())

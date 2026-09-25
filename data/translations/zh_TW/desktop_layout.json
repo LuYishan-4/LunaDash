@@ -32,7 +32,6 @@
   "Show CPU and memory": "顯示 CPU 與記憶體",
   "Show active window title": "顯示目前視窗標題",
   "Compact workspace list": "精簡工作區清單",
-  "Show occupied workspaces, the current workspace and one empty workspace. All configured workspaces remain available.": "顯示使用中的工作區、目前工作區與一個空白工作區。所有已設定的工作區仍可使用。",
   "Panel layout": "面板布局",
   "Choose the panel contents. The centered launcher places the clock beside the status controls.": "選擇面板內容。啟動器置中時，時鐘會放在狀態控制旁。",
   "More panel options": "更多面板選項",
@@ -46,5 +45,6 @@
   "right": "右側",
   "left": "左側",
   "New windows split the focused tile by default, alternating left/right and top/bottom. The first window stays on the right. Choose largest or change the first window side above; existing tiles keep their arrangement. Groups support up to eight rows, and dialogs stay above their parent.": "新視窗預設分割目前焦點區塊，交替使用左右與上下方向，第一個視窗保留在右側。可在上方改用最大區塊或調整第一個視窗位置；既有布局不會重排。群組最多支援八列，對話框維持在母視窗上方。",
-  "Frosted glass applies behind Wayland and XWayland application windows. Lower window opacity to reveal it in opaque apps. Fullscreen and eye care stay opaque.": "毛玻璃會套用於 Wayland 與 XWayland 應用程式視窗後方。降低視窗不透明度即可讓不透明程式顯示此效果；全螢幕與護眼模式維持不透明。"
+  "Frosted glass applies behind Wayland and XWayland application windows. Lower window opacity to reveal it in opaque apps. Fullscreen and eye care stay opaque.": "毛玻璃會套用於 Wayland 與 XWayland 應用程式視窗後方。降低視窗不透明度即可讓不透明程式顯示此效果；全螢幕與護眼模式維持不透明。",
+  "Show at least two workspaces and one spare after the last occupied workspace. All configured workspaces remain available.": "至少顯示兩個工作區，並在最後一個使用中的工作區後保留一個備用工作區。所有已設定的工作區仍可使用。"
 }
