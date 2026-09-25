@@ -2,7 +2,7 @@
 
 [English](../en/WINDOW_LAYOUT_TEMPLATES.md) · [繁中索引](README.md)
 
-`src/compositor/layout/WindowLayout.hpp` 是 compositor 與 layout implementation 之間的共用 contract；`LayoutTemplates.cpp` 註冊模式並建立 implementation。Compositor 只依賴 `WindowLayout`，不直接綁死 `TilingLayout`。
+`src/compositor/layout/WindowLayout.hpp` 是 compositor 與 layout implementation 之間的共用 contract；`src/compositor/window/WindowTemplate.cpp` 註冊模式、設定及建立 implementation 的 factory。Compositor 只依賴 `WindowLayout`，不直接綁死 `TilingLayout`。
 
 | Template | 狀態 | Implementation |
 | --- | --- | --- |
@@ -10,6 +10,25 @@
 | `stacking` | 透過 plugin | `src/compositor/layout/FreeformLayout.cpp`；persistent overlapping rectangles |
 
 啟用有效的 native stacking replacement 時，host 會把目前 window inventory 與 focus 狀態 live migration 到 stacking；停用時回到 tiling。
+
+## 焦點分割配置
+
+預設排列沿用現有 bounded split tree。前兩個視窗左右分割，第一個視窗保留在右側；之後的新視窗分割目前焦點所在的格子，各層交替使用上下及左右分割。開啟程式前先聚焦某個格子，即可指定分割區域；其餘分支保持原有幾何配置。焦點格子空間不足時，改為分割目前最大的有效格子。群組視窗仍排列在原有 leaf 裡，群組、共享邊界縮放、最小化／還原及最大化／還原繼續使用同一模板。
+
+要建立六視窗參考圖的排列：先開啟三個視窗，再聚焦左上方視窗，接著開啟三個視窗。第一個視窗維持右半部完整高度，左下格子保持原狀，左上分支則逐層細分。單純變更焦點不會重新排列格子。
+
+設定 > 視窗與工作區 > 視窗配置提供：
+
+| 設定 | 預設 | 行為 |
+| --- | --- | --- |
+| `splitTarget` | `focused` | 以交替方向分割目前焦點格子；`largest` 則選取最大格子並沿較長的尺寸分割。 |
+| `firstWindowSide` | `right` | 首次左右分割時，原有視窗保留在右側；選擇 `left` 則放在左側。 |
+| `gap` | 繼承桌面間距，初始為 12 | 相鄰格子的間距。 |
+| `defaultWidth` | 1120 | 單一視窗未提供偏好尺寸時採用的初始寬度。 |
+
+首對視窗固定使用左右排列。分割策略與首個視窗方向的修改會套用到之後的新視窗、移入工作區及移出群組操作，既有排列保持不變；已明確儲存的設定優先。這些欄位由原有 `layout:tiling` 設定目標驗證並儲存在 `windowLayout/tiling/` 設定鍵下，不新增設定檔、Niri 解析器或配置 backend。選擇 `largest` 及 `left` 可在一般橫向螢幕恢復先前的插入策略。
+
+原有 layout CI target 已補上參考排列、策略切換、目的工作區焦點、最小化恢復、小尺寸邊界及最大化／還原的 regression。依使用者要求，本機未建置或執行測試；CI 結果及真實工作階段視覺驗證須分別記錄。
 
 ## 新增 layout mode
 

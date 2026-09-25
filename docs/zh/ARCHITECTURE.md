@@ -60,6 +60,8 @@ Plugin metadata discovery 在 `src/config/plugins/`，因此設定 UI 可以檢�
 
 活動中的 compositor 由 wlroots 擁有 renderer、allocator 與 scene。一般 `--graphics auto` 讓 wlroots 選擇；`opengl`/ `gles` 目前都會要求 wlroots GLES2 renderer；headless CI 明確使用 pixman。
 
+應用程式毛玻璃沿用這條 scene 繪圖路徑。`renderer/blur/WindowGlass` 在受管理視窗 tree 下方維護不接收輸入的同層背景節點；`SceneBackdrop.c` 只擷取堆疊順序較低的 scene 內容，再透過 wlroots render pass 模糊。用戶端 buffer 保持清晰並畫在其上。輸出提交前更新背景快取，暫時動畫透明度仍由既有動畫程式控制。內容 commit revision 及 scene 幾何變動會更新快取；只有 frame callback 的 commit 及視窗自身的背景節點不會觸發更新。Scene 銷毀 listener 會在 renderer 結束前釋放保留的 buffer。沿用現有外觀偏好設定，全螢幕、utility 及桌面視窗不套用此效果。
+
 另外保留一套 Qt render-element library 於 `src/compositor/renderer/`。所有專案自有 raw OpenGL 都在 `renderer/opengl/`；`GLDispatch.c` 負責 function loading，`Shader`、`Program`、`Texture`、`Framebuffer` 以 RAII 管資源。這套 Qt GL library 有獨立測試，但**目前不是 wlroots scene 的主 renderer**。
 
 內建 shader 明確列在 CMake 中並嵌入 `:/LunaDash/renderer/shaders/`，安裝後不依賴 source checkout。SDK 2 的 OpenGL plugin 是另一條 Quickshell visual-slot 路徑，不能任意改 application buffer 或 wlroots output framebuffer。
@@ -88,4 +90,8 @@ CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless composi
 
 ## NyxNiri 桌面整合、Orbit 與動態桌布
 
-新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。
+參照布局沿用 `panel`、`overview`、`launcher` 與 `dock` 模組。`qml/panel/` 負責面板顯示、`qml/overview/` 負責控制中心；`qml/settings/pages/appearance.qml` 與通用模組編輯器修改同一份面板設定。`data/modules/registry.json` 宣告經驗證的欄位及預設值，`src/shell/modules/` 管理正規化、儲存及檔案監看，`src/config/desktop/` 繼續管理 Dock 顯示等桌面偏好。底部 Dock 預設關閉，已有的明確偏好保持有效。
+
+面板工作區篩選只是顯示選項，不變更 compositor 的工作區配置。置中啟動器、視窗標題及 CPU／記憶體資訊使用既有 shell 狀態。作者風格配置維持使用 LunaDash 原有 JSON／設定介面供使用者編輯，不引入 Niri 設定解析器、替代 compositor 或第二套桌面 shell。首次安裝引導擴充原有安裝腳本並選擇性匯入應用程式設定，compositor 設定仍歸 LunaDash 管理。
+
+設定、快捷鍵、相依套件及驗證界線請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)；可選的首次安裝流程請參閱[工作階段安裝](LOGIN_SESSION.md)。

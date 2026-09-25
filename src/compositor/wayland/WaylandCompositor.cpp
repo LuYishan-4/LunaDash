@@ -692,6 +692,16 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   const auto preferences = desktopPreferences();
+  if (d->windowGlass) {
+    const bool eyeCare = preferences.value("eyeCare").toBool();
+    const bool changed = d->windowGlass->configure(
+        preferences.value("blur").toBool() && !eyeCare,
+        preferences.value("blurRadius").toInt(),
+        eyeCare ? 1.0f : preferences.value("windowOpacity").toInt(90) / 100.0f);
+    if (changed)
+      for (const auto *output : d->outputs)
+        wlr_output_schedule_frame(output->output);
+  }
   const auto templateKey = pluginManager_->windowTemplateKey();
   const auto &selectedTemplate = windowTemplateForKey(templateKey);
   const bool templateChanged =
@@ -1420,9 +1430,11 @@ QJsonObject WaylandCompositor::state() const {
                    {"backend", "wlroots"},
                    {"qtInput", false},
                    {"inputMethodBridge", d ? d->inputBridgeReady() : false}}},
-      {"blurReady", false},
-      {"blurFailed", false},
-      {"blurFrames", 0},
+      {"blurReady", d && d->windowGlass && d->windowGlass->ready()},
+      {"blurFailed", d && d->windowGlass && d->windowGlass->failed()},
+      {"blurFrames", static_cast<qint64>(d && d->windowGlass
+                                            ? d->windowGlass->frames() : 0)},
+      {"blurError", d && d->windowGlass ? d->windowGlass->error() : QString()},
       {"activeAnimations",
        windowAnimations_ ? windowAnimations_->activeCount() : 0},
       {"xwayland", xwaylandState},

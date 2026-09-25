@@ -1,0 +1,21 @@
+{
+  "Centered launcher": "ランチャーを中央に配置",
+  "Show CPU and memory": "CPU とメモリを表示",
+  "Show active window title": "アクティブなウィンドウのタイトルを表示",
+  "Compact workspace list": "ワークスペース一覧をコンパクトに表示",
+  "Show occupied workspaces, the current workspace and one empty workspace. All configured workspaces remain available.": "使用中と現在のワークスペース、および空のワークスペースを 1 つ表示します。設定したすべてのワークスペースを引き続き利用できます。",
+  "Panel layout": "パネルの配置",
+  "Choose the panel contents. The centered launcher places the clock beside the status controls.": "パネルの内容を選択します。ランチャーを中央に配置すると、時計はステータスコントロールの横に表示されます。",
+  "More panel options": "その他のパネル設定",
+  "Quiet notifications": "通知をミュート",
+  "Split new windows into": "新しいウィンドウの分割先",
+  "Focused divides the active tile and alternates split direction. Largest divides the largest tile.": "focused はアクティブな領域を縦横交互に分割し、largest は最も大きい領域を分割します。",
+  "First window side": "最初のウィンドウの位置",
+  "Keep the first window on this side when a second window opens. Changes apply to future splits.": "2 つ目のウィンドウを開いたとき、最初のウィンドウをこの側に保持します。変更は今後の分割に適用されます。",
+  "focused": "フォーカス中の領域",
+  "largest": "最大の領域",
+  "right": "右",
+  "left": "左",
+  "New windows split the focused tile by default, alternating left/right and top/bottom. The first window stays on the right. Choose largest or change the first window side above; existing tiles keep their arrangement. Groups support up to eight rows, and dialogs stay above their parent.": "新しいウィンドウは既定でフォーカス中の領域を左右・上下交互に分割します。最初のウィンドウは右側に残ります。上で largest または最初のウィンドウの位置を変更できます。既存の配置は保持されます。グループは最大 8 行に対応し、ダイアログは親ウィンドウの上に表示されます。",
+  "Frosted glass applies behind Wayland and XWayland application windows. Lower window opacity to reveal it in opaque apps. Fullscreen and eye care stay opaque.": "Wayland と XWayland のアプリウィンドウの背後にぼかしを適用します。不透明なアプリではウィンドウの不透明度を下げると効果が見えます。全画面とアイケアでは不透明になります。"
+}

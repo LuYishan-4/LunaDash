@@ -542,7 +542,7 @@ ShellRoot {
         loading: root.orbitOpen
         OrbitLauncher { shell: root; opened: !root.stopping && root.orbitOpen }
     }
-    Dock { shell: root; opened: !root.stopping && ((root.state.appearance || {}).dockEnabled ?? true) }
+    Dock { shell: root; opened: !root.stopping && ((root.state.appearance || {}).dockEnabled ?? false) }
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     LazyLoader {
         id: settingsLoader

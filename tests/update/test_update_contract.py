@@ -28,4 +28,5 @@ assert "google-chrome-stable" in browser
 assert "Browser::defaultCommand" in defaults
 assert "function openUrl(url)" in shell
 subprocess.run([sys.executable, str(root / "tests/update/test_installer.py")], check=True)
+subprocess.run([sys.executable, str(root / "tests/update/test_setup_profile.py")], check=True)
 print("update/default-browser contract passed")

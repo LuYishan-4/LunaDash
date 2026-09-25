@@ -114,6 +114,10 @@ private Q_SLOTS:
     QVERIFY(templates[1].allowOverlap);
     QVERIFY(templates[0].layoutSettingsSchema.contains("gap"));
     QVERIFY(templates[0].layoutSettingsSchema.contains("defaultWidth"));
+    QCOMPARE(templates[0].layoutSettingsDefaults.value("splitTarget").toString(),
+             QString("focused"));
+    QCOMPARE(templates[0].layoutSettingsDefaults.value("firstWindowSide").toString(),
+             QString("right"));
     QVERIFY(templates[0].layoutActions.contains("group-direction"));
     QVERIFY(templates[0].layoutActions.contains("insert-beside"));
     QVERIFY(!templates[1].layoutActions.contains("group-direction"));
@@ -122,6 +126,13 @@ private Q_SLOTS:
         templates[0], {{"gap", 8}, {"defaultWidth", 1000}}, &settingError));
     QVERIFY(!validateWindowLayoutSettings(templates[0], {{"gap", 999}},
                                           &settingError));
+    QVERIFY(validateWindowLayoutSettings(
+        templates[0], {{"splitTarget", "largest"}, {"firstWindowSide", "left"}},
+        &settingError));
+    QVERIFY(!validateWindowLayoutSettings(
+        templates[0], {{"splitTarget", "unknown"}}, &settingError));
+    QVERIFY(!validateWindowLayoutSettings(
+        templates[0], {{"firstWindowSide", "top"}}, &settingError));
     layout->configure(templates[0].layoutSettingsDefaults);
     QVERIFY(!performWindowLayoutAction(*layout, templates[0], "missing"));
     QVERIFY(layout->insert(0, 1));
@@ -168,7 +179,8 @@ private Q_SLOTS:
   }
   void fixedSplitsStayOnScreen() {
     TilingLayout layout;
-      layout.configure({{"defaultWidth", 960}, {"gap", 6}});
+    layout.configure({{"defaultWidth", 960}, {"gap", 6},
+                      {"splitTarget", "largest"}, {"firstWindowSide", "left"}});
     QVERIFY(layout.insert(0, 1, QSize(900, 600)));
     QCOMPARE(layout.layout(0, area).first().geometry.size(), QSize(900, 600));
     QVERIFY(layout.insert(0, 2));
@@ -201,6 +213,95 @@ private Q_SLOTS:
     QCOMPARE(geometries(layout.layout(0, area)), beforeMinimize);
     QVERIFY(layout.remove(3));
     QCOMPARE(geometries(layout.layout(0, area))[2].height(), area.height());
+  }
+  void focusedSplitsPreserveMainPane() {
+    TilingLayout layout;
+    layout.configure({{"gap", 8}});
+    const QRect bounds(16, 48, 1608, 1000);
+    QVERIFY(layout.insert(0, 1));
+    layout.layout(0, bounds);
+    QVERIFY(layout.insert(0, 2));
+    const auto pair = geometries(layout.layout(0, bounds));
+    QCOMPARE(pair[1], QRect(824, 48, 800, 1000));
+    QCOMPARE(pair[2], QRect(16, 48, 800, 1000));
+
+    QVERIFY(layout.insert(0, 3));
+    const auto three = geometries(layout.layout(0, bounds));
+    QCOMPARE(three[1], pair[1]);
+    QCOMPARE(three[3], QRect(16, 552, 800, 496));
+    QVERIFY(layout.focus(2));
+    QCOMPARE(geometries(layout.layout(0, bounds)), three);
+    QVERIFY(layout.insert(0, 4));
+    layout.layout(0, bounds);
+    QVERIFY(layout.insert(0, 5));
+    const auto five = geometries(layout.layout(0, bounds));
+    QVERIFY(layout.insert(0, 6));
+    const auto placements = layout.layout(0, bounds);
+    const auto six = geometries(placements);
+    QCOMPARE(six.size(), 6);
+    QCOMPARE(six[1], pair[1]);
+    QCOMPARE(six[2], QRect(16, 48, 396, 496));
+    QCOMPARE(six[3], three[3]);
+    QCOMPARE(six[4], QRect(420, 48, 396, 244));
+    QCOMPARE(six[5], QRect(420, 300, 194, 244));
+    QCOMPARE(six[6], QRect(622, 300, 194, 244));
+    verifyNoOverlap(placements);
+    for (const auto &slot : placements)
+      QVERIFY(bounds.contains(slot.geometry));
+
+    QVERIFY(layout.setMaximized(6, true));
+    QCOMPARE(geometries(layout.presentation(0, bounds))[6], bounds);
+    QVERIFY(layout.setMaximized(6, false));
+    QCOMPARE(geometries(layout.presentation(0, bounds)), six);
+    QVERIFY(layout.setMinimized(4, true));
+    verifyNoOverlap(layout.layout(0, bounds));
+    QVERIFY(layout.setMinimized(4, false));
+    QCOMPARE(geometries(layout.layout(0, bounds)), six);
+    QVERIFY(layout.remove(6));
+    QCOMPARE(geometries(layout.layout(0, bounds)), five);
+
+    // A live policy edit only affects later insertions, never saved slots.
+    layout.configure({{"splitTarget", "largest"}, {"firstWindowSide", "left"}});
+    QCOMPARE(geometries(layout.layout(0, bounds)), five);
+    QVERIFY(layout.insert(0, 7));
+    const auto changed = geometries(layout.layout(0, bounds));
+    QCOMPARE(changed[2], five[2]);
+    QCOMPARE(changed[3], five[3]);
+    QCOMPARE(changed[4], five[4]);
+    QCOMPARE(changed[5], five[5]);
+    QCOMPARE(changed[1], QRect(824, 48, 800, 496));
+    QCOMPARE(changed[7], QRect(824, 552, 800, 496));
+  }
+  void focusedSplitUsesDestinationFocus() {
+    TilingLayout layout;
+    layout.configure({{"gap", 8}, {"firstWindowSide", "left"}});
+    const QRect bounds(16, 48, 1608, 1000);
+    QVERIFY(layout.insert(0, 1));
+    layout.layout(0, bounds);
+    QVERIFY(layout.insert(0, 2));
+    const auto pair = geometries(layout.layout(0, bounds));
+    QCOMPARE(pair[1], QRect(16, 48, 800, 1000));
+    QCOMPARE(pair[2], QRect(824, 48, 800, 1000));
+    QVERIFY(layout.focus(1));
+    QVERIFY(layout.insert(1, 10));
+    QVERIFY(layout.moveToWorkspace(10, 0));
+    const auto moved = geometries(layout.layout(0, bounds));
+    QCOMPARE(moved[2], pair[2]);
+    QCOMPARE(moved[1], QRect(16, 48, 800, 496));
+    QCOMPARE(moved[10], QRect(16, 552, 800, 496));
+    QCOMPARE(layout.snapshot(1).columns.size(), 0);
+    QCOMPARE(layout.snapshot(0).focusedWindow, LayoutWindowId(10));
+
+    for (const auto id : {1, 2, 10})
+      QVERIFY(layout.setMinimized(id, true));
+    QVERIFY(layout.insert(0, 11));
+    for (const auto id : {1, 2, 10})
+      QVERIFY(layout.setMinimized(id, false));
+    const auto restored = layout.layout(0, bounds);
+    QCOMPARE(restored.size(), 4);
+    verifyNoOverlap(restored);
+    for (const auto &slot : restored)
+      QVERIFY(bounds.contains(slot.geometry));
   }
   void manyWindowsAndOutputChanges() {
     for (const QRect bounds :

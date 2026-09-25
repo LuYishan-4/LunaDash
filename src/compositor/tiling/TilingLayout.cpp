@@ -168,12 +168,52 @@ void largestLeaf(Workspace &workspace, Split *node, Split *&best,
   }
 }
 
-void addColumn(Workspace &workspace, Member member, int gap) {
+Split *focusedLeaf(Split *node, quint64 column, bool nextVertical,
+                    bool &vertical) {
+  if (!node)
+    return nullptr;
+  if (!node->first) {
+    if (node->column != column)
+      return nullptr;
+    vertical = nextVertical;
+    return node;
+  }
+  if (auto *leaf = focusedLeaf(node->first.get(), column, !node->vertical,
+                               vertical))
+    return leaf;
+  return focusedLeaf(node->second.get(), column, !node->vertical, vertical);
+}
+
+void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
+                bool firstWindowOnRight) {
   placeSplits(workspace, workspace.root.get(), workspace.area, gap);
   const quint64 id = workspace.nextColumn++;
   Split *target = nullptr;
-  qint64 size = -1;
-  largestLeaf(workspace, workspace.root.get(), target, size);
+  bool vertical = true;
+  if (splitFocused) {
+    const auto focus = findWindow(workspace, workspace.focused);
+    if (focus.found &&
+        !workspace.columns[focus.column].members[focus.member].minimized) {
+      target = focusedLeaf(workspace.root.get(),
+                            workspace.columns[focus.column].id, true, vertical);
+      if (target) {
+        const auto minimum = minimumSize(workspace, target);
+        const int available = vertical ? target->geometry.width()
+                                       : target->geometry.height();
+        const int required = (vertical ? minimum.width() : minimum.height()) + 1;
+        // Avoid subdividing an exhausted pixel-sized leaf when other slots
+        // still have space. The existing tree retains its bounds and ratios.
+        if (available < required)
+          target = nullptr;
+      }
+    }
+  }
+  if (!target) {
+    qint64 size = -1;
+    largestLeaf(workspace, workspace.root.get(), target, size);
+    if (target)
+      vertical = target->geometry.width() >= target->geometry.height();
+  }
   if (!workspace.root) {
     workspace.root = std::make_unique<Split>();
     workspace.root->column = id;
@@ -181,13 +221,21 @@ void addColumn(Workspace &workspace, Member member, int gap) {
     // If all windows are minimized, retain their tree for later restoration.
     if (!target)
       target = workspace.root.get();
+    const bool firstSplit = target == workspace.root.get() && !target->first;
     auto original = std::make_unique<Split>(std::move(*target));
-    target->vertical =
-        original->geometry.width() >= original->geometry.height();
+    // The first pair forms a horizontal row; nested focused splits alternate
+    // axes to allow a large side pane with progressively divided neighbors.
+    target->vertical = firstSplit || vertical;
     target->ratio = 500000;
-    target->first = std::move(original);
-    target->second = std::make_unique<Split>();
-    target->second->column = id;
+    auto added = std::make_unique<Split>();
+    added->column = id;
+    if (firstSplit && firstWindowOnRight) {
+      target->first = std::move(added);
+      target->second = std::move(original);
+    } else {
+      target->first = std::move(original);
+      target->second = std::move(added);
+    }
     target->column = 0;
   }
   workspace.columns.push_back({0, {member}, id, {}});
@@ -319,6 +367,8 @@ public:
 
   int defaultWidth;
   int gap;
+  bool splitFocused = true;
+  bool firstWindowOnRight = true;
   std::unordered_map<LayoutWorkspaceId, Workspace> workspaces;
 };
 
@@ -332,6 +382,12 @@ void TilingLayout::configure(const QJsonObject &settings) {
       std::clamp(settings.value("defaultWidth").toInt(d->defaultWidth), 240,
                  2400);
   d->gap = std::clamp(settings.value("gap").toInt(d->gap), 0, 64);
+  const auto splitTarget = settings.value("splitTarget").toString();
+  if (splitTarget == "focused" || splitTarget == "largest")
+    d->splitFocused = splitTarget == "focused";
+  const auto firstWindowSide = settings.value("firstWindowSide").toString();
+  if (firstWindowSide == "right" || firstWindowSide == "left")
+    d->firstWindowOnRight = firstWindowSide == "right";
 }
 
 bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
@@ -346,7 +402,8 @@ bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
         !preferredSize.isEmpty()
             ? preferredSize
             : QSize(d->defaultWidth, std::max(1, d->defaultWidth * 2 / 3));
-  addColumn(workspace, {window, false, {}}, d->gap);
+  addColumn(workspace, {window, false, {}}, d->gap, d->splitFocused,
+            d->firstWindowOnRight);
   workspace.focused = window;
   return true;
 }
@@ -427,7 +484,8 @@ bool TilingLayout::moveToWorkspace(LayoutWindowId window,
                              static_cast<std::ptrdiff_t>(location.member));
   if (sourceColumn.members.empty())
     eraseColumn(*source, location.column);
-  addColumn(destination, member, d->gap);
+  addColumn(destination, member, d->gap, d->splitFocused,
+            d->firstWindowOnRight);
   if (!member.minimized)
     destination.focused = window;
   selectAvailableFocus(*source);
@@ -673,7 +731,8 @@ bool TilingLayout::expel(LayoutWindowId window) {
   const Member member = column.members[location.member];
   column.members.erase(column.members.begin() +
                        static_cast<std::ptrdiff_t>(location.member));
-  addColumn(*workspace, member, d->gap);
+  addColumn(*workspace, member, d->gap, d->splitFocused,
+            d->firstWindowOnRight);
   workspace->focused = window;
   return true;
 }

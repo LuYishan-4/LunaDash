@@ -9,6 +9,7 @@ extern "C" {
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/pixman.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/version.h>
 }
 #undef static
 
@@ -19,6 +20,9 @@ struct ImageBuffer {
   QByteArray pixels;
 };
 void destroyImage(wlr_buffer *buffer) {
+#if WLR_VERSION_MINOR >= 19
+  wlr_buffer_finish(buffer);
+#endif
   delete reinterpret_cast<ImageBuffer *>(buffer);
 }
 bool accessImage(wlr_buffer *buffer, uint32_t, void **data, uint32_t *format,

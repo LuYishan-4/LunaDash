@@ -3,7 +3,8 @@
   "modules": {
     "panel": {
       "enabled": true,
-      "style": { "width": 1200, "height": 48, "margin": 10, "radius": 24, "background": "#ee18202b", "foreground": "inherit", "accent": "inherit", "fontSize": 13, "edge": "bottom" },
+      "style": { "width": 0, "height": 0, "margin": 10, "radius": 18, "background": "inherit", "foreground": "inherit", "accent": "inherit", "fontSize": 13, "edge": "top" },
+      "config": { "centerLauncher": true, "showSystemStats": true, "showActiveTitle": true, "occupiedWorkspacesOnly": true, "backgroundVisible": false, "contrastShells": true, "workspacePills": false },
       "custom": { "enabled": false, "entry": "panel/Main.qml" }
     }
   }

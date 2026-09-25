@@ -32,6 +32,7 @@ Item {
         weather: "M8.5 18 H18 A4 4 0 0 0 18 10 A5.5 5.5 0 0 0 7.6 8.2 A4.2 4.2 0 0 0 8.5 18 M5 5 L3.5 3.5 M5 11 H2 M9 3 V1",
         cloud: "M7 18 H18 A4 4 0 0 0 18 10 A5.5 5.5 0 0 0 7.6 8.2 A4.2 4.2 0 0 0 7 18",
         bluetooth: "M8 7 L17 16 L12 21 V3 L17 8 L8 17",
+        session: "M12 2 V12 M6 5 A9 9 0 1 0 18 5",
         power: "M4 6 H19 V18 H4 Z M22 10 V14 M12 8 L9 13 H14 L11 17",
         applications: "M4 4 H20 V20 H4 Z M4 9 H20 M8 6.5 H8.1 M12 13 L9 17 M13 17 H17",
         privacy: "M12 3 L20 6 V12 Q20 18 12 22 Q4 18 4 12 V6 Z M8 12 L11 15 L16 9",

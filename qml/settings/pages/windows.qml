@@ -20,7 +20,7 @@ ColumnLayout {
             targetId: "layout:" + String(page.layoutApi.template || "tiling")
         }
     }
-    HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "Windows stay inside one screen. Two windows split left and right; later windows split the largest tile. Groups can hold up to eight vertical rows. Dialogs stay above their parent window." }
+    HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "New windows split the focused tile by default, alternating left/right and top/bottom. The first window stays on the right. Choose largest or change the first window side above; existing tiles keep their arrangement. Groups support up to eight rows, and dialogs stay above their parent." }
     HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing." }
     HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "Shift + Alt + left-drag moves shared tile boundaries or resizes grouped rows. Neighbors share the available space without overlapping or changing order." }
     HelpText { shell: page.shell; message: "The taskbar groups windows by workspace in capsules. The current workspace is brighter; other workspaces are darker. Select a tiled task to maximize it and hide its workspace peers. Click it again or press Super + F to restore the saved tiling layout." }

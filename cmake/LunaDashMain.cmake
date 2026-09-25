@@ -204,7 +204,15 @@ add_library(ludash-night-color src/compositor/renderer/color/NightColor.c)
 target_include_directories(ludash-night-color PUBLIC src)
 target_compile_definitions(ludash-night-color PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-night-color PUBLIC PkgConfig::WLROOTS m)
+add_library(ludash-scene-backdrop
+    src/compositor/renderer/blur/SceneBackdrop.h
+    src/compositor/renderer/blur/SceneBackdrop.c)
+target_include_directories(ludash-scene-backdrop PUBLIC src)
+target_compile_definitions(ludash-scene-backdrop PRIVATE WLR_USE_UNSTABLE=1)
+target_link_libraries(ludash-scene-backdrop PUBLIC PkgConfig::WLROOTS m)
 add_library(ludash-wayland
+    src/compositor/renderer/blur/WindowGlass.hpp
+    src/compositor/renderer/blur/WindowGlass.cpp
     src/compositor/wayland/NightLight.cpp
     src/compositor/window/Scratchpad.cpp
     src/compositor/wayland/WaylandCompositor.cpp
@@ -257,6 +265,7 @@ target_link_libraries(ludash-wayland
         ludash-window-rules
         ludash-thumbnail-readback
         ludash-night-color
+        ludash-scene-backdrop
         ludash-theme-sync
         ludash-weather
         Qt6::Concurrent

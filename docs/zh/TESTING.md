@@ -18,3 +18,7 @@ build-once/wayland-state.json
 ```
 
 這個 helper **目前不會自動截圖**。Release 前仍要用真實 session 檢查 Chrome/Zed、physical input、wallpaper/animation、portal、XWayland、Fcitx 與登入/登出行為。
+
+
+`Arch Quickshell desktop layout` workflow 在 headless Wayland compositor 上啟動實際 shell，上傳 1920×1080 與 1280×720 桌面／控制中心 PNG、協定日誌與 JSON 狀態，檢查視窗界線、QML 執行錯誤及預設停用的底部 Dock。這些是軟體工作階段產物，不能取代實體 GPU／登入截圖。本次修改依要求禁止本地建置與測試，驗證只在 CI 執行。
+同一個 job 也會開啟六個 Qt Wayland 檔案管理器視窗，檢查遞迴分割仍保留右側主視窗，切換實際模糊並上傳毛玻璃／不透明截圖。

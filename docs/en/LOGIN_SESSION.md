@@ -47,6 +47,25 @@ If none of the recognized package managers is present, `install-dependencies.sh`
 
 The installer never runs the desktop as root, stops the current desktop, reboots the computer, changes the default shell or modifies network services. `sudo` or `doas` is used only for package/system installation.
 
+## First-install guide and personal settings
+
+A new installation started from a terminal opens a guide before installing anything. It presents the LunaDash core, optional Arch app groups, the editable top-panel profile and portable author-inspired terminal settings, then summarizes the choices for confirmation. The guide detects an existing `lunadash-compositor`/`ludash-compositor` or completed setup record. Use `--guided` to open it again, or `--skip-guide` to keep the direct installation path. Ordinary dry runs and background updates never open it; `--non-interactive` rejects first-install choices.
+
+```sh
+./scripts/install-session.sh --guided
+# Explicit choices also work without the guide; normal package authorization remains.
+./scripts/install-session.sh --skip-guide --apps basics,desktop,input \
+  --desktop-profile --author-config
+```
+
+Optional groups are `basics` (XDG/archive/transfer helpers and keyring), `desktop` (Chromium, Thunar and file integration), `media` (MPV, image viewer and thumbnails), `office` (LibreOffice with Traditional Chinese support), `development` (Fish, Starship, Fastfetch, search and terminal tools), and `input` (Chinese Fcitx5 engines, CJK and JetBrains Mono fonts). `--apps none` installs no optional group. Core dependencies remain mandatory unless `--skip-deps` is selected. Optional bundles currently target Arch's configured pacman repositories; other distributions retain the core installer and may use the profiles with manually installed equivalent apps. The installer does not bootstrap an AUR helper or add repositories.
+
+The author's supplied 2026-09-24 configuration snapshot and [NyxNiri](https://github.com/ech678/NyxNiri) informed the organization and portable styling. LunaDash uses its existing compositor, Quickshell UI and settings schema. The guide does not import the reference Niri/Noctalia session, personal identity, system configuration, hardware rules or browser state. Kitty uses the reference font, padding, opacity and convenient copy/paste shortcuts; Fish, Starship and Fastfetch provide editable starter settings without changing the account's login shell. No reference installer is executed.
+
+`--desktop-profile` creates `${XDG_CONFIG_HOME:-$HOME/.config}/LuDash/shell-modules.json` only when absent. The floating top panel has compact workspace pills, active application information, CPU/memory, a centered launcher and right-side controls. The bottom dock is disabled by default and can be enabled in Settings. Panel fields remain editable in Settings or the existing module JSON; unspecified fields follow the built-in template. Existing desktop profiles and saved preferences take precedence.
+
+`--author-config` creates only missing app groups. Existing files and symbolic links are preserved, and examples are available under `${XDG_CONFIG_HOME:-$HOME/.config}/LuDash/setup-examples/` for comparison. Back up existing settings before manually merging examples. Kitty loads `__custom__.conf` last; Fish loads `__custom__.fish` last. Starship and Fastfetch use their normal editable configuration files. Setup rejects symbolic-link parent directories before writing and supports absolute XDG paths containing spaces. The first completed setup record, including created-file hashes, is stored under `${XDG_STATE_HOME:-$HOME/.local/state}/lunadash/setup/complete.json`; it is not an automatic rollback tool. Details and package-group sources are in [first-install templates](../../data/setup/README.md).
+
 ## Display manager and SDDM
 
 If you already have an enabled display manager, keep it. Before logging out, run:

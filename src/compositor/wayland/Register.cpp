@@ -119,6 +119,8 @@ bool WaylandCompositor::Impl::initialize() {
   overlayLayer = wlr_scene_tree_create(&scene->tree);
   const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
   background = wlr_scene_rect_create(backgroundLayer, 1440, 900, color);
+  windowGlass = std::make_unique<WindowGlass>(renderer, allocator,
+                                             &scene->tree.node);
 
   xdgShell = wlr_xdg_shell_create(display, 3);
   layerShell = wlr_layer_shell_v1_create(display, 4);
@@ -280,6 +282,9 @@ void WaylandCompositor::Impl::shutdown() {
     waylandNotifier = nullptr;
   }
 
+  // Underlays retain renderer buffers and listeners on client scene nodes.
+  // Release them while both the scene and renderer are still alive.
+  windowGlass.reset();
   wl_display_destroy_clients(display);
 
   detachListener(newOutput);

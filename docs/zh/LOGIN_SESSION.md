@@ -41,6 +41,25 @@ LunaDash 仍是開發預覽版。安裝器會註冊真正的 Wayland login sessi
 
 除了 Arch package path，其餘目前屬直接 CMake system install。腳本不會以 root 執行桌面、不會自動重啟電腦、不改預設 shell，也不會替你更換網路服務；只有 package/system install 階段才要求 sudo/doas/pkexec。
 
+## 首次安裝引導與個人設定
+
+從終端機進行全新安裝時，安裝器會先開啟引導，依序說明 LunaDash 主體、可選的 Arch 軟體群組、可編輯的頂部面板配置，以及參考作者設定製作的終端機範本，最後列出選項再確認。它會透過已安裝的 `lunadash-compositor`／`ludash-compositor` 或完成紀錄判斷是否已安裝。`--guided` 可重新開啟引導，`--skip-guide` 保留直接安裝流程。一般 `--dry-run` 與背景更新不會開啟引導；`--non-interactive` 不接受首次設定選項。
+
+```sh
+./scripts/install-session.sh --guided
+# 也可直接指定選項；仍會保留套件管理器確認與系統授權。
+./scripts/install-session.sh --skip-guide --apps basics,desktop,input \
+  --desktop-profile --author-config
+```
+
+可選群組包含 `basics`（XDG、壓縮、傳輸工具及金鑰圈）、`desktop`（Chromium、Thunar 與檔案整合）、`media`（MPV、看圖與縮圖）、`office`（LibreOffice 與繁中語言包）、`development`（Fish、Starship、Fastfetch、搜尋及終端機工具）和 `input`（Fcitx5 中文輸入法、CJK 與 JetBrains Mono 字型）。`--apps none` 不加裝選用群組。除非使用 `--skip-deps`，主體相依套件仍會安裝。選用軟體群組目前以 Arch 已設定的 pacman 來源為目標；其他發行版保留原本主體安裝流程，也能使用配置範本，額外程式則由使用者安裝對應套件。安裝器不會安裝 AUR helper 或新增套件來源。
+
+配置組織與可攜外觀參考作者提供的 2026-09-24 設定快照及 [NyxNiri](https://github.com/ech678/NyxNiri)。LunaDash 沿用自己的 compositor、Quickshell UI 與設定 schema；不匯入參考包的 Niri／Noctalia 工作階段、個人身分、系統設定、硬體規則或瀏覽器狀態。Kitty 範本採用參考字型、留白、透明度及複製貼上快捷鍵；Fish、Starship 和 Fastfetch 提供可編輯初始設定，不變更帳號預設 shell。安裝時不會執行作者設定包內的還原程式。
+
+`--desktop-profile` 只在檔案不存在時建立 `${XDG_CONFIG_HOME:-$HOME/.config}/LuDash/shell-modules.json`。預設浮動頂部面板包含精簡工作區、目前應用程式、CPU／記憶體、置中啟動器與右側控制項。底部 Dock 預設關閉，可在 Settings 重新開啟。面板可透過 Settings 或既有 module JSON 調整，未指定欄位沿用內建範本；現有桌面配置與已儲存偏好仍優先。
+
+`--author-config` 只建立整組尚不存在的應用程式設定。既有檔案及符號連結都會保留，範例另放在 `${XDG_CONFIG_HOME:-$HOME/.config}/LuDash/setup-examples/` 供比較；手動合併前請先備份原設定。Kitty 最後載入 `__custom__.conf`，Fish 最後載入 `__custom__.fish`；Starship 與 Fastfetch 使用各自可直接編輯的設定檔。寫入前會拒絕父目錄為符號連結的路徑，並支援含空白的絕對 XDG 路徑。首次完成紀錄與新增檔案雜湊會保存在 `${XDG_STATE_HOME:-$HOME/.local/state}/lunadash/setup/complete.json`；這是紀錄而非自動回復工具。完整範本與群組來源見[首次安裝範本說明](../../data/setup/README.md)。
+
 ## Display manager / SDDM
 
 如果已經有登入管理器，保留它即可。登出前：

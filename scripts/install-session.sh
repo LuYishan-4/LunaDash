@@ -11,6 +11,13 @@ non_interactive=false
 [[ ${LUDASH_UPDATE_MODE:-0} == 1 ]] && non_interactive=true
 build_dir=${LUDASH_BUILD_DIR:-"$project_dir/build-install"}
 progress_file=${LUDASH_INSTALL_PROGRESS_FILE:-}
+guide_mode=auto
+setup_apps=''
+setup_author=false
+setup_desktop=false
+setup_requested=false
+# Keep first-install choices separate from the established update/build path.
+source "$project_dir/scripts/setup-guide.sh"
 
 report_progress() {
     local progress=$1 stage=$2 message=$3
@@ -22,7 +29,9 @@ report_progress() {
 
 usage() {
     cat <<'EOF'
-Usage: ./scripts/install-session.sh [--enable-sddm] [--autologin USER] [--skip-deps] [--non-interactive] [--dry-run]
+Usage: ./scripts/install-session.sh [--guided|--skip-guide] [--apps GROUPS]
+       [--author-config] [--desktop-profile] [--enable-sddm] [--autologin USER]
+       [--skip-deps] [--non-interactive] [--dry-run]
 
 Supported installation paths:
   Arch Linux / derivatives      makepkg + pacman package installation
@@ -35,6 +44,16 @@ Supported installation paths:
   Other Linux distributions     existing toolchain + standard CMake install
 
 Options:
+  --guided       Show the first-install guide again (requires a terminal).
+                  Opens automatically for a new interactive installation.
+  --skip-guide   Keep the direct core installation path without questions.
+  --apps GROUPS  Optional Arch packages; comma-separated basics, desktop, media,
+                  office, development, input, or none. See data/setup/README.md.
+  --author-config
+                  Seed editable, portable Kitty/Fish/Starship/Fastfetch templates
+                  inspired by the author's settings. Existing files are preserved.
+  --desktop-profile
+                  Seed the LunaDash top-panel profile only if no profile exists.
   --enable-sddm   Install/enable SDDM on systemd systems; never restart a desktop.
   --autologin USER
                   Opt into passwordless SDDM login for this user on boot.
@@ -61,6 +80,16 @@ while (($#)); do
             shift
             ;;
         --skip-deps) skip_deps=true ;;
+        --guided) guide_mode=always ;;
+        --skip-guide) guide_mode=never ;;
+        --apps)
+            (($# >= 2)) && [[ -n $2 ]] || { usage >&2; exit 2; }
+            setup_apps=$2
+            setup_requested=true
+            shift
+            ;;
+        --author-config) setup_author=true; setup_requested=true ;;
+        --desktop-profile) setup_desktop=true; setup_requested=true ;;
         --non-interactive) non_interactive=true ;;
         --dry-run) dry_run=true ;;
         --help|-h) usage; exit 0 ;;
@@ -71,6 +100,10 @@ done
 
 if $non_interactive && { ! $skip_deps || $enable_sddm || [[ -n $autologin ]]; }; then
     echo 'Non-interactive updates require --skip-deps and cannot configure the display manager.' >&2
+    exit 2
+fi
+if $non_interactive && { [[ $guide_mode == always ]] || $setup_requested; }; then
+    echo 'First-install choices are unavailable during non-interactive updates.' >&2
     exit 2
 fi
 
@@ -105,6 +138,9 @@ elif command -v apk >/dev/null 2>&1; then package_manager='apk'
 elif command -v xbps-install >/dev/null 2>&1; then package_manager='xbps'
 elif command -v emerge >/dev/null 2>&1; then package_manager='emerge'
 fi
+
+setup_choose
+setup_validate
 
 if [[ -n $autologin ]]; then
     if ! $enable_sddm; then
@@ -196,6 +232,8 @@ if ! $skip_deps; then
     run "${deps[@]}"
 fi
 
+setup_install_apps
+
 if [[ $package_manager == pacman ]]; then
     command -v makepkg >/dev/null 2>&1 || { echo 'makepkg is required on Arch Linux.' >&2; exit 1; }
     report_progress 42 package "Preparing the Arch Linux package source."
@@ -267,6 +305,8 @@ if [[ -n $autologin ]]; then
         run "${elevate[@]}" sh -c 'set -C; umask 022; cat "$1" > /etc/sddm.conf.d/90-ludash-autologin.conf' sh "$config"
     fi
 fi
+
+setup_write_profile
 
 if $dry_run; then
     echo "Dry run complete for installation path: $package_manager"

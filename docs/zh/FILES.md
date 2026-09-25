@@ -69,6 +69,10 @@ Operation 非同步；開始後 navigation 不會改該 operation 已捕捉的 d
 
 跨 filesystem move 目前不會自動 copy-then-delete，而是失敗並保留 source。Permissions/mtime 會盡量保留，但 ownership、ACL、xattr 不承諾。Permanent delete、archive editor、recursive size、remote mount 尚未實作。
 
+## 檔案選擇器外觀
+
+內建外掛與 portal 檔案選擇器沿用 shell 配色、圓角控制項、字型與強調色，已開啟視窗也會跟隨外觀設定更新。Qt Widgets 內部仍使用不透明表面；一般應用程式視窗可透過合成器的視窗不透明度與毛玻璃設定顯示模糊背景。Qt Widgets 內部不重製 QML 動畫效果。未使用 LunaDash portal 的外部應用程式仍採用自己的檔案選擇器主題。
+
 ## 測試
 
 ```sh

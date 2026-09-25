@@ -53,6 +53,31 @@
           }
         },
         "config": {
+          "centerLauncher": {
+            "type": "boolean",
+            "default": true,
+            "label": "Centered launcher",
+            "control": "toggle"
+          },
+          "showSystemStats": {
+            "type": "boolean",
+            "default": true,
+            "label": "Show CPU and memory",
+            "control": "toggle"
+          },
+          "showActiveTitle": {
+            "type": "boolean",
+            "default": true,
+            "label": "Show active window title",
+            "control": "toggle"
+          },
+          "occupiedWorkspacesOnly": {
+            "type": "boolean",
+            "default": true,
+            "label": "Compact workspace list",
+            "description": "Show occupied workspaces, the current workspace and one empty workspace. All configured workspaces remain available.",
+            "control": "toggle"
+          },
           "backgroundVisible": {
             "type": "boolean",
             "default": false,

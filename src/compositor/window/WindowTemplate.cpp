@@ -82,7 +82,19 @@ const WindowTemplate &tilingTemplate() {
                                     {"default", 1120},
                                     {"minimum", 240},
                                     {"maximum", 2400},
-                                    {"label", "Default window width"}}}};
+                                    {"label", "Default window width"}}},
+      {"splitTarget", QJsonObject{{"type", "string"},
+                                   {"default", "focused"},
+                                   {"enum", QJsonArray{"focused", "largest"}},
+                                   {"label", "Split new windows into"},
+                                   {"description", "Focused divides the active tile and alternates split direction. Largest divides the largest tile."},
+                                   {"control", "select"}}},
+      {"firstWindowSide", QJsonObject{{"type", "string"},
+                                       {"default", "right"},
+                                       {"enum", QJsonArray{"right", "left"}},
+                                       {"label", "First window side"},
+                                       {"description", "Keep the first window on this side when a second window opens. Changes apply to future splits."},
+                                       {"control", "select"}}}};
   static const auto actions = tilingActions();
   static const WindowTemplate value{
       "tiling", &createTilingLayout, false, false, true, schema,

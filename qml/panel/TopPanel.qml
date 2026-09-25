@@ -3,13 +3,13 @@ import "../plugins"
 import QtQuick
 import "../columns/WorkspaceTasks.js" as WorkspaceTasks
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtQuick.Window
 import Quickshell
 import Quickshell.Services.SystemTray
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "../columns"
-import "../overview"
 import "../components"
 import "../style"
 
@@ -31,10 +31,10 @@ ModuleSurface {
         right: edge === "right" || (!vertical && !requestedLength)
     }
     margins {
-        top: edge === "top" ? moduleMargin + 4 : moduleMargin
-        bottom: edge === "bottom" ? moduleMargin + 4 : moduleMargin
-        left: edge === "left" ? moduleMargin + 4 : moduleMargin
-        right: edge === "right" ? moduleMargin + 4 : moduleMargin
+        top: moduleMargin
+        bottom: moduleMargin
+        left: moduleMargin
+        right: moduleMargin
     }
 
     implicitWidth: vertical
@@ -45,7 +45,7 @@ ModuleSurface {
         ? Math.max(1, Math.min(requestedLength || (screen ? screen.height : 900),
                               screen ? screen.height - 2 * moduleMargin : 2160))
         : thickness
-    exclusiveZone: (vertical ? implicitWidth : implicitHeight) + moduleMargin + 6
+    exclusiveZone: (vertical ? implicitWidth : implicitHeight) + 6
     color: "transparent"
     WlrLayershell.namespace: "lunadash-panel"
 
@@ -57,9 +57,28 @@ ModuleSurface {
     readonly property int workspaceInactiveWidth: panelConfig.workspaceInactiveWidth ?? 16
     readonly property int workspaceActiveWidth: panelConfig.workspaceActiveWidth ?? 34
     readonly property int workspacePillHeight: panelConfig.workspacePillHeight ?? 8
-    readonly property real shellOpacity: (panelConfig.shellOpacity ?? 26) / 100.0
+    readonly property real shellOpacity: Math.max(0, Math.min(60, panelConfig.shellOpacity ?? 20)) / 100.0
     readonly property int capsuleHeight: Math.max(30, implicitHeight - 8)
     readonly property int capsuleGap: 8
+    readonly property bool centerLauncher: panelConfig.centerLauncher ?? true
+    readonly property bool showSystemStats: panelConfig.showSystemStats ?? true
+    readonly property bool showActiveTitle: panelConfig.showActiveTitle ?? true
+    readonly property bool occupiedWorkspacesOnly: panelConfig.occupiedWorkspacesOnly ?? true
+    readonly property int currentWorkspace: Number((shell.interaction || {}).workspace ?? shell.state.workspace ?? 0)
+    readonly property var clients: (shell.interaction || {}).clients || shell.state.clients || []
+    readonly property var activeClient: clients.find(client => client.focused && client.mapped && !client.desktop && !client.utility) || ({})
+    readonly property var workspaceIds: {
+        const count = Math.max((shell.state.appearance || {}).workspaceCount || 10, currentWorkspace + 1)
+        if (!occupiedWorkspacesOnly)
+            return Array.from({length: count}, (_, index) => index)
+        const occupied = new Set(groups.map(group => group.workspace))
+        occupied.add(currentWorkspace)
+        // Keep one empty destination available without changing workspace capacity.
+        for (let index = 0; index < count; ++index) {
+            if (!occupied.has(index)) { occupied.add(index); break }
+        }
+        return Array.from(occupied).sort((a, b) => a - b)
+    }
     readonly property var networkState: shell.state.network || ({})
 
     readonly property var groups: WorkspaceTasks.groupByWorkspace(
@@ -100,11 +119,17 @@ ModuleSurface {
 
     function capsuleColor(tintAmount, alpha) {
         const t = Math.max(0, Math.min(1, tintAmount))
+        // Preserve the established surface at the registry's default (20),
+        // while the existing 0–60 control spans transparent through opaque.
+        const baseOpacity = Math.min(alpha, 0.84)
+        const opacity = shellOpacity <= 0.20
+            ? baseOpacity * shellOpacity / 0.20
+            : baseOpacity + (1 - baseOpacity) * (shellOpacity - 0.20) / 0.40
         return Qt.rgba(
             moduleBackground.r * (1 - t) + Theme.secondaryAccent.r * t,
             moduleBackground.g * (1 - t) + Theme.secondaryAccent.g * t,
             moduleBackground.b * (1 - t) + Theme.secondaryAccent.b * t,
-            Theme.eyeCare ? 1 : Math.min(alpha, 0.84)
+            Theme.eyeCare ? 1 : opacity
         )
     }
     function capsuleBorder(alpha) {
@@ -146,399 +171,289 @@ ModuleSurface {
         border.color: panel.capsuleBorder(0.22)
     }
 
-    Item {
-        id: workspaceShell
+    RowLayout {
+        id: leftContent
         visible: !panel.vertical
-        anchors { left: centerShell.right; leftMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
+        x: panel.centerLauncher ? 8 : centerShell.x + centerShell.width + panel.capsuleGap
+        y: (panel.height - panel.capsuleHeight) / 2
+        width: Math.max(0, (panel.centerLauncher ? centerShell.x : clockShell.x) - x - panel.capsuleGap)
         height: panel.capsuleHeight
-        width: Math.min(workspaceControls.implicitWidth + 18, Math.max(0, clockShell.x - centerShell.width - panel.capsuleGap * 3))
-        clip: true
+        spacing: panel.capsuleGap
+
         Rectangle {
-            anchors.fill: parent
-            visible: panel.contrastShells
+            id: workspaceShell
+            Layout.preferredWidth: Math.min(workspaceControls.contentWidth + 16, leftContent.width * 0.48)
+            Layout.minimumWidth: 0
+            Layout.fillHeight: true
             radius: height / 2
-            color: panel.capsuleColor(0.72, 0.94)
-            border.width: 1
+            color: panel.contrastShells ? panel.capsuleColor(0.72, 0.94) : "transparent"
+            border.width: panel.contrastShells ? 1 : 0
             border.color: panel.capsuleBorder(0.40)
-        }
-        Row {
-            id: workspaceControls
-            anchors.centerIn: parent
-            spacing: 6
-            Repeater {
-                model: Math.max((shell.state.appearance || {}).workspaceCount || 10, Number((shell.interaction || {}).workspace || 0) + 1)
-                Item {
+            ListView {
+                id: workspaceControls
+                anchors.fill: parent
+                anchors.margins: 8
+                orientation: ListView.Horizontal
+                spacing: 4
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: panel.workspaceIds
+                onModelChanged: Qt.callLater(() => workspaceControls.positionViewAtIndex(panel.workspaceIds.indexOf(panel.currentWorkspace), ListView.Contain))
+                delegate: Rectangle {
                     id: workspacePill
-                    required property int index
-                    readonly property bool active: Number((shell.interaction || {}).workspace ?? shell.state.workspace) === index
-                    width: panel.workspacePills ? (active ? panel.workspaceActiveWidth : panel.workspaceInactiveWidth) : 22
-                    height: workspaceShell.height
+                    required property int modelData
+                    readonly property bool active: panel.currentWorkspace === modelData
+                    width: active ? panel.workspaceActiveWidth : panel.workspaceInactiveWidth
+                    height: panel.workspacePills ? Math.min(panel.workspacePillHeight, workspaceControls.height) : workspaceControls.height
+                    y: (workspaceControls.height - height) / 2
+                    radius: height / 2
+                    color: active ? moduleAccent : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b, 0.18)
+                    activeFocusOnTab: true
                     Accessible.role: Accessible.Button
-                    Accessible.name: shell.tr("Workspace") + " " + (index + 1)
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: parent.width
-                        height: panel.workspacePills ? panel.workspacePillHeight : 18
-                        radius: height / 2
-                        color: workspacePill.active
-                            ? moduleAccent
-                            : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b,
-                                      workspaceMouse.containsMouse ? 0.30 : 0.14)
-                        border.width: workspacePill.active ? 0 : 1
-                        border.color: panel.capsuleBorder(0.30)
-                        scale: workspaceMouse.pressed ? 0.90 : workspaceMouse.containsMouse ? 1.06 : 1.0
-                        Text {
-                            visible: !panel.workspacePills
-                            anchors.centerIn: parent
-                            text: String(workspacePill.index + 1)
-                            color: workspacePill.active ? Theme.accentInk : Theme.text
-                            font.family: Theme.font
-                            font.pixelSize: 10
-                            font.weight: Font.DemiBold
-                        }
-                        Behavior on width { NumberAnimation { duration: Math.max(150, Theme.motion); easing.type: Easing.OutCubic } }
-                        Behavior on color { ColorAnimation { duration: Theme.motion } }
-                        Behavior on scale { NumberAnimation { duration: Math.max(100, Theme.motion); easing.type: Easing.OutCubic } }
+                    Accessible.name: shell.tr("Workspace") + " " + (modelData + 1)
+                    Keys.onReturnPressed: shell.command("workspace", modelData)
+                    Keys.onSpacePressed: shell.command("workspace", modelData)
+                    border.width: activeFocus ? 1 : 0
+                    border.color: Theme.focusRing
+                    Text {
+                        anchors.fill: parent
+                        text: panel.workspacePills ? "" : String(workspacePill.modelData + 1)
+                        color: workspacePill.active ? Theme.accentInk : Theme.text
+                        font.family: Theme.font
+                        font.pixelSize: 10
+                        font.weight: Font.DemiBold
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
                     }
                     MouseArea {
-                        id: workspaceMouse
                         anchors.fill: parent
-                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: shell.command("workspace", workspacePill.index)
+                        onClicked: shell.command("workspace", workspacePill.modelData)
                     }
                 }
             }
-            Rectangle { width: 1; height: 16; anchors.verticalCenter: parent.verticalCenter; color: panel.capsuleBorder(0.24) }
-            PanelSegment {
-                moduleHost: panel
-                text: "◈"
-                implicitWidth: 26
-                fill: "transparent"
-                border.width: 0
-                ink: Theme.danger
-                Accessible.name: shell.tr("Control center")
-                onClicked: { shell.controlCenterTab = 0; shell.setAppearance({overview: !shell.overviewOpen}) }
-            }
         }
-    }
 
-    Item {
-        id: taskShell
-        visible: !panel.vertical && columnTasks.count > 0
-        anchors { left: workspaceShell.right; leftMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
-        height: panel.capsuleHeight
-        width: Math.min(columnTasks.contentWidth + 8, Math.max(0, clockShell.x - x - panel.capsuleGap))
-        ExtensionSlot {
-            anchors.fill: parent
-            shell: panel.shell
-            target: "taskbar-windows"
-            context: ({groups: panel.groups})
-        ListView {
-            id: columnTasks
-            anchors.fill: parent
-            anchors.margins: 4
-            orientation: ListView.Horizontal
-            spacing: 8
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
-            model: panel.groups.length
-            visible: count > 0
-            Behavior on contentX {
-                enabled: !columnTasks.flicking && !columnTasks.moving
-                NumberAnimation { duration: Math.max(120, Theme.motion); easing.type: Easing.OutCubic }
-            }
-            delegate: ColumnCell {
-                required property int index
+        Item {
+            id: taskShell
+            visible: panel.groups.length > 0
+            Layout.preferredWidth: Math.min(columnTasks.contentWidth + 8, leftContent.width * 0.32)
+            Layout.minimumWidth: 0
+            Layout.fillHeight: true
+            ExtensionSlot {
+                anchors.fill: parent
                 shell: panel.shell
-                group: panel.groups[index] || ({})
-                height: columnTasks.height
-                width: implicitWidth
+                target: "taskbar-windows"
+                context: ({groups: panel.groups})
+                ListView {
+                    id: columnTasks
+                    anchors.fill: parent
+                    anchors.margins: 2
+                    orientation: ListView.Horizontal
+                    spacing: 4
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: panel.groups.length
+                    delegate: ColumnCell {
+                        required property int index
+                        shell: panel.shell
+                        group: panel.groups[index] || ({})
+                        height: columnTasks.height
+                        width: implicitWidth
+                    }
+                }
             }
         }
+
+        Rectangle {
+            visible: panel.showActiveTitle && panel.width > 900 && Boolean(panel.activeClient.title)
+            Layout.fillWidth: true
+            Layout.maximumWidth: 260
+            Layout.minimumWidth: 0
+            Layout.fillHeight: true
+            radius: height / 2
+            color: panel.capsuleColor(0.85, 0.94)
+            border.width: 1
+            border.color: Theme.hairline
+            Text {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                text: panel.activeClient.title || ""
+                textFormat: Text.PlainText
+                color: moduleAccent
+                font.family: Theme.font
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+
+        PanelButton {
+            visible: panel.showSystemStats && panel.width > 1100
+            moduleHost: panel
+            Layout.preferredWidth: 132
+            Layout.fillHeight: true
+            iconName: "monitor"
+            label: Math.round(panel.stats.cpuPercent || 0) + "%  " + Number(panel.stats.memoryUsed || 0).toFixed(1) + " GiB"
+            toolTip: shell.tr("System monitor")
+            onClicked: {
+                shell.controlCenterTab = 3;
+                shell.setAppearance({overview: true});
+            }
+        }
+        Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
     }
 
-    }
-
-    Item {
+    PanelButton {
         id: centerShell
         visible: !panel.vertical
-        anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
-        width: 80
+        moduleHost: panel
+        x: panel.centerLauncher ? (panel.width - width) / 2 : 8
+        y: (panel.height - height) / 2
+        width: panel.capsuleHeight
         height: panel.capsuleHeight
-        Rectangle { anchors.fill: parent; radius: height / 2; color: Theme.surfaceGlass; border.width: 1; border.color: Theme.hairline }
-        Row {
-            anchors.centerIn: parent
-            spacing: 2
-            PanelSegment { moduleHost: panel; text: "⌕"; implicitWidth: 32; fill: "transparent"; border.width: 0; Accessible.name: shell.tr("Applications"); onClicked: shell.openLauncherFromMouse() }
-            PanelSegment { moduleHost: panel; text: "◎"; implicitWidth: 32; fill: "transparent"; border.width: 0; Accessible.name: shell.tr("Orbit launcher"); onClicked: shell.orbitOpen = !shell.orbitOpen }
-        }
+        iconName: "apps"
+        toolTip: shell.tr("Applications")
+        onClicked: shell.openLauncherFromMouse()
     }
 
     Item {
         id: statusShell
         visible: !panel.vertical
-        anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+        anchors.right: panel.centerLauncher ? clockShell.left : sessionButton.left
+        anchors.rightMargin: panel.capsuleGap
+        anchors.verticalCenter: parent.verticalCenter
         height: panel.capsuleHeight
-        width: statusControls.implicitWidth + 14
-        Rectangle {
-            anchors.fill: parent
-            visible: panel.contrastShells
-            radius: height / 2
-            color: panel.capsuleColor(0.76, 0.94)
-            border.width: 1
-            border.color: panel.capsuleBorder(0.34)
-        }
+        width: Math.max(0, Math.min(statusControls.implicitWidth,
+            (panel.centerLauncher ? clockShell.x : sessionButton.x) - panel.capsuleGap
+            - (panel.centerLauncher ? centerShell.x + centerShell.width : clockShell.x + clockShell.width) - panel.capsuleGap))
+        clip: true
         Row {
             id: statusControls
-            anchors.centerIn: parent
-            height: parent.height
-            spacing: 3
-            Repeater {
-                model: SystemTray.items
-                delegate: Item {
-                    id: trayDelegate
-                    required property var modelData
-                    readonly property var item: modelData
-                    visible: item.status !== Status.Passive
-                    width: visible ? Math.min(28, panel.height - 8) : 0
-                    height: Math.min(28, panel.height - 8)
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: height / 2
-                        color: trayMouse.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24) : "transparent"
-                    }
-                    readonly property string iconSource: panel.trayImage(item)
-                    readonly property string glyph: panel.trayGlyph(item)
-                    Image {
-                        id: trayIcon
-                        anchors.centerIn: parent
-                        width: Math.max(10, Math.min(18, parent.width - 4))
-                        height: width
-                        source: trayDelegate.iconSource
-                        sourceSize.width: Math.max(1, Math.round(width * Screen.devicePixelRatio))
-                        sourceSize.height: Math.max(1, Math.round(height * Screen.devicePixelRatio))
-                        fillMode: Image.PreserveAspectFit
-                        smooth: true
-                        mipmap: true
-                        visible: trayDelegate.iconSource.length > 0 && status === Image.Ready
-                    }
-                    LineIcon { anchors.centerIn: parent; width: 17; height: 17; visible: !trayIcon.visible; name: trayDelegate.glyph; ink: Theme.text }
-                    MouseArea {
-                        id: trayMouse
-                        anchors.fill: parent
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: mouse => {
-                            if (mouse.button === Qt.LeftButton) trayDelegate.item.activate()
-                            else trayDelegate.item.secondaryActivate()
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 5
+            // Tray inventory is bounded independently so system controls remain reachable.
+            Flickable {
+                visible: panel.width > 900
+                width: visible ? Math.min(150, trayRow.implicitWidth) : 0
+                height: panel.capsuleHeight
+                contentWidth: trayRow.implicitWidth
+                contentHeight: height
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+                Row {
+                    id: trayRow
+                    spacing: 3
+                    Repeater {
+                        model: SystemTray.items
+                        delegate: PanelButton {
+                            id: trayDelegate
+                            required property var modelData
+                            moduleHost: panel
+                            visible: modelData.status !== Status.Passive
+                            width: visible ? panel.capsuleHeight : 0
+                            height: panel.capsuleHeight
+                            iconName: trayImage.status === Image.Ready ? "" : panel.trayGlyph(modelData)
+                            toolTip: modelData.tooltipTitle || modelData.title || modelData.id
+                            onClicked: modelData.activate()
+                            Image {
+                                id: trayImage
+                                anchors.centerIn: parent
+                                width: 18
+                                height: 18
+                                source: panel.trayImage(trayDelegate.modelData)
+                                sourceSize.width: Math.max(1, Math.round(width * Screen.devicePixelRatio))
+                                sourceSize.height: Math.max(1, Math.round(height * Screen.devicePixelRatio))
+                                fillMode: Image.PreserveAspectFit
+                                visible: status === Image.Ready
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.RightButton | Qt.MiddleButton
+                                onClicked: trayDelegate.modelData.secondaryActivate()
+                                onWheel: wheel => trayDelegate.modelData.scroll(wheel.angleDelta.y || wheel.angleDelta.x, wheel.angleDelta.x !== 0)
+                            }
                         }
-                        onWheel: wheel => trayDelegate.item.scroll(wheel.angleDelta.y || wheel.angleDelta.x, wheel.angleDelta.x !== 0)
-                    }
-                    ToolTip.visible: trayMouse.containsMouse
-                    ToolTip.delay: 450
-                    ToolTip.text: item.tooltipTitle || item.title || item.id
-                }
-            }
-
-            Item {
-                id: clipboardIndicator
-                width: 30
-                height: 28
-                scale: clipboardMouse.pressed ? 0.92
-                    : clipboardMouse.containsMouse || shell.clipboardPopupOpen ? 1.07 : 1
-                Accessible.role: Accessible.Button
-                Accessible.name: shell.tr("Clipboard")
-                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-                Rectangle {
-                    anchors.fill: parent
-                    radius: height / 2
-                    color: clipboardMouse.containsMouse || shell.clipboardPopupOpen
-                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                        : "transparent"
-                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
-                }
-                LineIcon {
-                    anchors.centerIn: parent
-                    width: 17
-                    height: 17
-                    name: "copy"
-                    ink: shell.clipboardPopupOpen ? Theme.accent : Theme.text
-                }
-                MouseArea {
-                    id: clipboardMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: shell.clipboardPopupOpen = !shell.clipboardPopupOpen
-                }
-                ToolTip.visible: clipboardMouse.containsMouse
-                ToolTip.delay: 450
-                ToolTip.text: shell.tr("Clipboard")
-            }
-
-            Item {
-                id: usbIndicator
-                visible: panel.usbStorage.length > 0
-                width: visible ? 30 : 0
-                height: 28
-                Accessible.role: Accessible.Button
-                Accessible.name: shell.tr("USB devices")
-                Rectangle {
-                    anchors.fill: parent
-                    radius: height / 2
-                    color: usbMouse.containsMouse || shell.usbPopupOpen
-                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
-                        : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.08)
-                }
-                LineIcon { anchors.centerIn: parent; width: 17; height: 17; name: "usb"; ink: Theme.accent }
-                Rectangle {
-                    visible: panel.usbStorage.length > 1
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    width: 12; height: 12; radius: 6; color: Theme.accent
-                    Text { anchors.centerIn: parent; text: String(Math.min(9, panel.usbStorage.length)); color: Theme.background; font.family: Theme.font; font.pixelSize: 8; font.weight: Font.Bold }
-                }
-                MouseArea { id: usbMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: shell.usbPopupOpen = !shell.usbPopupOpen }
-                ToolTip.visible: usbMouse.containsMouse
-                ToolTip.delay: 450
-                ToolTip.text: shell.tr("USB devices")
-            }
-
-            Item {
-                visible: panel.width > 710
-                width: visible ? 30 : 0
-                height: 28
-                scale: volumeMouse.pressed ? 0.92 : volumeMouse.containsMouse || shell.volumePopupOpen ? 1.07 : 1
-                Accessible.role: Accessible.Button
-                Accessible.name: shell.tr("Volume")
-                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-                Rectangle {
-                    anchors.fill: parent
-                    radius: height / 2
-                    color: volumeMouse.containsMouse || shell.volumePopupOpen
-                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                        : "transparent"
-                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
-                }
-                LineIcon {
-                    anchors.centerIn: parent
-                    width: 17
-                    height: 17
-                    name: "sound"
-                    ink: ((shell.state.audio || {}).output || {}).muted ? Theme.muted : Theme.text
-                }
-                MouseArea {
-                    id: volumeMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: shell.volumePopupOpen = !shell.volumePopupOpen
-                    onWheel: wheel => {
-                        const current = Number((((shell.state.audio || {}).output || {}).volume) || 0)
-                        const next = Math.max(0, Math.min(100, current + (wheel.angleDelta.y > 0 ? 5 : -5)))
-                        shell.command("audio", JSON.stringify({device:"output", volume:next}))
                     }
                 }
-                ToolTip.visible: volumeMouse.containsMouse
-                ToolTip.delay: 450
-                ToolTip.text: shell.tr("Volume") + " " + Math.round((((shell.state.audio || {}).output || {}).volume) || 0) + "%"
             }
-
-            Item {
-                visible: true
-                width: 30
-                height: 28
-                scale: networkMouse.pressed ? 0.92 : networkMouse.containsMouse || shell.wifiPopupOpen ? 1.07 : 1
-                Accessible.role: Accessible.Button
-                Accessible.name: panel.networkLabel()
-                Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
-                Rectangle {
-                    anchors.fill: parent
-                    radius: height / 2
-                    color: networkMouse.containsMouse || shell.wifiPopupOpen
-                        ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                        : panel.networkState.connected
-                            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.07)
-                            : Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.06)
-                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
-                }
-                LineIcon {
-                    anchors.centerIn: parent
-                    width: 17
-                    height: 17
-                    name: panel.networkState.ethernetConnected
-                        ? "ethernet"
-                        : panel.networkState.connected
-                            ? "network"
-                            : "network-off"
-                    ink: panel.networkState.connected ? Theme.accent : Theme.muted
-                }
-                MouseArea {
-                    id: networkMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: shell.wifiPopupOpen = !shell.wifiPopupOpen
-                }
-                ToolTip.visible: networkMouse.containsMouse
-                ToolTip.delay: 450
-                ToolTip.text: panel.networkLabel()
-            }
-
-            PanelSegment {
+            PanelButton {
+                visible: panel.width > 760
                 moduleHost: panel
-                visible: panel.width > 900 && (panel.stats.batteryPercent ?? -1) >= 0
-                text: panel.stats.batteryPercent + "%"
-                implicitWidth: visible ? 48 : 0
-                fill: "transparent"
-                border.width: 0
-                Accessible.name: shell.tr("Battery")
+                iconName: panel.networkState.ethernetConnected ? "ethernet" : panel.networkState.connected ? "network" : "network-off"
+                toolTip: panel.networkLabel()
+                selected: shell.wifiPopupOpen
+                onClicked: shell.wifiPopupOpen = !shell.wifiPopupOpen
+            }
+            PanelButton {
+                visible: panel.width > 640
+                moduleHost: panel
+                iconName: "sound"
+                label: panel.width > 1000 ? Math.round((((shell.state.audio || {}).output || {}).volume) || 0) + "%" : ""
+                toolTip: shell.tr("Volume")
+                selected: shell.volumePopupOpen
+                onClicked: shell.volumePopupOpen = !shell.volumePopupOpen
+                onScrolled: delta => {
+                    const current = Number((((shell.state.audio || {}).output || {}).volume) || 0)
+                    shell.command("audio", JSON.stringify({device: "output", volume: Math.max(0, Math.min(100, current + (delta > 0 ? 5 : -5)))}))
+                }
+            }
+            PanelButton {
+                visible: panel.width > 1000
+                moduleHost: panel
+                iconName: "copy"
+                toolTip: shell.tr("Clipboard")
+                selected: shell.clipboardPopupOpen
+                onClicked: shell.clipboardPopupOpen = !shell.clipboardPopupOpen
+            }
+            PanelButton {
+                visible: panel.usbStorage.length > 0 && panel.width > 1100
+                moduleHost: panel
+                iconName: "usb"
+                toolTip: shell.tr("USB devices")
+                onClicked: shell.usbPopupOpen = !shell.usbPopupOpen
+            }
+            PanelButton {
+                visible: panel.width > 1200 && (panel.stats.batteryPercent ?? -1) >= 0
+                moduleHost: panel
+                iconName: "power"
+                label: panel.stats.batteryPercent + "%"
+                toolTip: shell.tr("Battery")
                 onClicked: shell.openSettingsPage("power")
+            }
+            PanelButton {
+                moduleHost: panel
+                iconName: "general"
+                toolTip: shell.tr("Control center")
+                selected: shell.overviewOpen
+                onClicked: { shell.controlCenterTab = 0; shell.setAppearance({overview: !shell.overviewOpen}) }
             }
         }
     }
 
-    Item {
+    PanelButton {
         id: clockShell
         visible: !panel.vertical
-        anchors.centerIn: parent
+        moduleHost: panel
+        x: panel.centerLauncher ? sessionButton.x - width - panel.capsuleGap : (panel.width - width) / 2
+        y: (panel.height - height) / 2
+        width: panel.centerLauncher ? (Theme.clock24Hour ? 70 : 98) : 150
         height: panel.capsuleHeight
-        width: panel.width > 1120 ? 156 : 78
-        scale: clockMouse.pressed ? 0.97 : clockMouse.containsMouse || shell.calendarOpen ? 1.012 : 1
-        Behavior on width { NumberAnimation { duration: Theme.motion; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }
         property string time: ""
         property string date: ""
-        Accessible.role: Accessible.Button
-        Accessible.name: shell.tr("Calendar")
-        Rectangle {
-            anchors.fill: parent
-            visible: panel.contrastShells
-            radius: height / 2
-            color: clockMouse.containsMouse || shell.calendarOpen
-                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
-                : panel.capsuleColor(0.72, 0.95)
-            border.width: 1
-            border.color: clockMouse.containsMouse || shell.calendarOpen
-                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.38)
-                : panel.capsuleBorder(0.38)
-            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
-            Behavior on border.color { ColorAnimation { duration: Theme.motionFast } }
-        }
-        Row {
-            anchors.centerIn: parent
-            spacing: 7
-            Text { text: clockShell.time; color: moduleForeground; font.family: Theme.font; font.pixelSize: 12; font.weight: Font.DemiBold }
-            Rectangle { visible: panel.width > 1120; width: 1; height: 14; anchors.verticalCenter: parent.verticalCenter; color: panel.capsuleBorder(0.24) }
-            Text { visible: panel.width > 1120; text: clockShell.date; color: Theme.muted; font.family: Theme.font; font.pixelSize: 11 }
-        }
-        MouseArea { id: clockMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: shell.calendarOpen = !shell.calendarOpen }
+        label: time + (panel.centerLauncher ? "" : "  " + date)
+        toolTip: shell.tr("Calendar")
+        selected: shell.calendarOpen
+        onClicked: shell.calendarOpen = !shell.calendarOpen
         Timer {
             interval: 1000
             repeat: true
-            running: true
+            running: !panel.vertical
             triggeredOnStart: true
             onTriggered: {
                 const now = new Date()
@@ -547,18 +462,18 @@ ModuleSurface {
             }
         }
     }
-    MediaController { id: panelMedia; shell: panel.shell; polling: panel.visible && !panel.vertical }
-    Rectangle {
-        visible: !panel.vertical && panelMedia.media.available && width > 100
-        anchors { right: statusShell.left; rightMargin: panel.capsuleGap; verticalCenter: parent.verticalCenter }
-        width: Math.min(220, Math.max(0, statusShell.x - clockShell.x - clockShell.width - panel.capsuleGap * 2))
+    PanelButton {
+        id: sessionButton
+        visible: !panel.vertical
+        moduleHost: panel
+        anchors.right: parent.right
+        anchors.rightMargin: 8
+        anchors.verticalCenter: parent.verticalCenter
+        width: panel.capsuleHeight
         height: panel.capsuleHeight
-        radius: height / 2
-        color: Theme.surfaceGlass
-        border.width: 1
-        border.color: Theme.hairline
-        Text { anchors.fill: parent; anchors.margins: 10; text: panelMedia.media.title || shell.tr("Media"); color: Theme.text; font.family: Theme.font; font.pixelSize: 11; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
-        MouseArea { anchors.fill: parent; onClicked: { shell.controlCenterTab = 1; shell.setAppearance({overview: !shell.overviewOpen}) } }
+        iconName: "session"
+        toolTip: shell.tr("Session controls")
+        onClicked: shell.logoutOpen = true
     }
     Item {
         id: verticalContent
@@ -610,12 +525,10 @@ ModuleSurface {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 3
             Repeater {
-                model: Math.max((shell.state.appearance || {}).workspaceCount || 10,
-                                Number((shell.interaction || {}).workspace || 0) + 1)
+                model: panel.workspaceIds
                 delegate: Rectangle {
-                    required property int index
-                    readonly property bool active:
-                        Number((shell.interaction || {}).workspace ?? shell.state.workspace) === index
+                    required property int modelData
+                    readonly property bool active: panel.currentWorkspace === modelData
                     width: Math.max(24, verticalContent.width - 10)
                     height: active ? 26 : 20
                     radius: 8
@@ -624,7 +537,7 @@ ModuleSurface {
                                             moduleForeground.b, 0.12)
                     Text {
                         anchors.centerIn: parent
-                        text: String(parent.index + 1)
+                        text: String(parent.modelData + 1)
                         color: parent.active ? Theme.accentInk : moduleForeground
                         font.family: Theme.font
                         font.pixelSize: 10
@@ -633,7 +546,7 @@ ModuleSurface {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: shell.command("workspace", parent.index)
+                        onClicked: shell.command("workspace", parent.modelData)
                     }
                 }
             }

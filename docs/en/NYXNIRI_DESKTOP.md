@@ -6,7 +6,11 @@ This integration follows [ech678/NyxNiri](https://github.com/ech678/NyxNiri) at 
 
 ## Desktop and controls
 
-New profiles use inset capsules, numbered workspaces, a centered clock and a media capsule. The compact control center opens on the right with controls, media, audio and system pages. Settings > Dashboard can select the larger dashboard. Settings keeps its shared header and search. Dock pins come from the `dock` module configuration; running tasks use the existing activation behavior. Auto-hide leaves an 8 px reveal strip while the current workspace has visible applications.
+New profiles follow the supplied reference screenshots: an inset top panel with numbered workspaces, running applications, the active window title and CPU/memory readings on the left; a centered launcher; and status controls and the clock on the right. The workspace list shows occupied workspaces, the active workspace and one spare empty workspace. This changes only the panel display; all configured workspaces and their shortcuts remain available. The compact control center opens on the right with controls, media, audio and system pages. Settings > Dashboard can select the larger dashboard. Settings keeps its shared header and search.
+
+The bottom shortcut dock is disabled by default. Settings > Appearance > Show dock can enable it explicitly; existing saved dock preferences are preserved. If enabled, dock pins come from the `dock` module configuration and running tasks use the existing activation behavior. Auto-hide leaves an 8 px reveal strip while the current workspace has visible applications.
+
+The default window arrangement keeps the first window in the right half and divides the focused tile for later windows, alternating split axes. This creates the reference's large right pane and recursively divided left panes through the existing bounded tiling template. Settings > Windows and workspaces lets users change the split target and initial side; see [window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
 
 The `orbit` and `dock` modules use the existing module schema and extension slots. `desktop-widgets` remains a multiple-selection extension target inside the wallpaper Background layer. Its built-in settings control the clock position and optional playback audio rings. Rings use the existing output-monitor spectrum helper, not microphone input. Weather is off initially: enabling it sends the entered coordinates, rounded to three decimal places, to [Open-Meteo](https://open-meteo.com/en/docs) at startup, on location changes and every 15 minutes. Failed requests show unavailable data. No location lookup runs automatically.
 
@@ -25,6 +29,25 @@ The `orbit` and `dock` modules use the existing module schema and extension slot
 
 Super+T and Super+Return retain the configured terminal role. New defaults yield to existing custom shortcut assignments. The scratchpad tracks the launched terminal process and its descendants, hides without closing, and follows the current workspace when shown. A terminal configured to forward every launch into an existing server may need an argument that creates a separate process. Launch failures and the 15-second adoption timeout appear in `scratchpad.error` in the control status. Floating windows support Alt+drag and Alt+Shift+drag; client-initiated move/resize still requires a valid input serial.
 
+## Editable desktop configuration
+
+Settings > Appearance > Panel layout controls the centered launcher, active window title, CPU/memory readings and compact workspace list. Turning off the centered launcher restores the launcher on the left and the clock in the center. Settings > Shell modules exposes the remaining validated panel fields, including dimensions, edge, colors, capsule contrast and workspace indicators. These controls use the existing module registry and save through the existing settings backend.
+
+The corresponding file is `$XDG_CONFIG_HOME/LuDash/shell-modules.json`, normally `~/.config/LuDash/shell-modules.json`. Edit the existing document's `modules.panel.config` object to customize it:
+
+```json
+{
+  "centerLauncher": true,
+  "showSystemStats": true,
+  "showActiveTitle": true,
+  "occupiedWorkspacesOnly": true
+}
+```
+
+This is a fragment, not a replacement for the whole file. Omitted fields receive registry defaults when a document is saved, so preserve the surrounding module settings. External edits are watched and invalid values leave the last valid configuration active. `data/modules/templates/shell-modules.json` provides a minimal example of the default top-panel layout. Other appearance controls, including dock visibility, remain desktop preferences; application roles, shortcuts, Orbit and plugins retain their existing configuration owners. This offers an editable author-style setup using LunaDash's supported JSON and settings interfaces. It does not parse Niri KDL or import another compositor's runtime.
+
+For the first-install wizard, optional applications, tools and author application-profile import, see [session installation](LOGIN_SESSION.md). The installer preserves existing user files; imported application settings remain editable in their owning applications.
+
 ## Orbit configuration
 
 Settings > Appearance includes the JSON editor, also stored at `$XDG_CONFIG_HOME/lunadash/orbit.json` (default `~/.config/lunadash/orbit.json`). The shipped template is `data/launcher/orbit.json`. It defines apps, nested folders, web links and configurable web/AI search destinations. Tab/Shift+Tab changes engines, Alt+1–8 activates an item, and Escape returns to the parent or closes Orbit. Search launches the configured URL with an encoded query; this is a browser shortcut, not a built-in AI client.
@@ -37,7 +60,7 @@ The wallpaper library searches the configured absolute directory and one categor
 
 Wallpaper colors derive a tonal palette from a small image/poster sample. This is LunaDash's palette algorithm, not Noctalia's exact Material HCT implementation. Light, dark and automatic modes share it across QML and native desktop dialogs. Automatic mode uses light colors from 07:00 to 19:00 local time. Disabling wallpaper colors allows manual accent settings.
 
-Eye care makes shell surfaces opaque and applies a configurable 2500–6500 K output transform. wlroots 0.20 uses a scene color transform; older supported versions use output gamma ramps when the backend supports them. Unsupported outputs report an error rather than claiming the transform succeeded. Existing compositor limitations for client blur remain; this feature does not add a general blur pass. Appearance presets save validated visual settings under `lunadash/presets`; they do not capture application data, external files or the video itself.
+Eye care makes shell surfaces opaque and applies a configurable 2500–6500 K output transform. wlroots 0.20 uses a scene color transform; older supported versions use output gamma ramps when the backend supports them. Unsupported outputs report an error rather than claiming the transform succeeded. Ordinary Wayland and XWayland windows now share the compositor backdrop blur path; see [Visual effects](EFFECTS.md) for opacity controls and verification limits. Appearance presets save validated visual settings under `lunadash/presets`; they do not capture application data, external files or the video itself.
 
 The Settings portal publishes color scheme, contrast and reduced-motion hints. Optional application-theme synchronization writes LunaDash-owned GTK 3/4 CSS and Kitty color files, adds includes, sets GTK's dark preference and requests the GNOME color-scheme hint where available. Kitty picks up generated colors on reload/restart; browser support depends on its portal integration. Optional Fcitx synchronization renders the bundled Mellow templates and selects that theme through classicui. Each modified pre-existing CSS, Kitty or Fcitx configuration receives a first-use `.lunadash-backup`. Turning synchronization off stops further updates; it does not restore those external files automatically. To undo integration, remove the LunaDash include or restore the backup, and select your previous GTK/Fcitx theme. Keep personal additions in separate includes.
 
@@ -47,6 +70,6 @@ The Mellow templates derive from NyxMellow and retain the upstream GPL-3.0 licen
 
 Arch runtime packaging includes `qt6-multimedia` and `ffmpeg` for live wallpapers, alongside the existing Quickshell, Qt Wayland, wlroots, Fcitx and PulseAudio/PipeWire tools. Qt Multimedia is loaded only when a video is selected, so the native build does not require its development headers. On other distributions install the Qt 6 Multimedia **QML module**, a functioning multimedia backend/codecs, and FFmpeg using that distribution's packages (Debian/Ubuntu commonly `qml6-module-qtmultimedia`; Fedora `qt6-qtmultimedia`). Static wallpaper operation does not require video codecs. Weather uses Qt Network, already a build dependency. Portable CMake and compatibility branches are not evidence of verification on every distribution or GPU.
 
-This is a development integration, not complete NyxNiri parity. Niri-specific tabbed columns, cross-output navigation and glow presets; Noctalia's greeter/secure lock protocols; the upstream Python installer, whole-application preset/deployment/rollback system; Fish/Starship/Zed/fastfetch profiles; and downloadable wallpaper packs remain outside this implementation. LunaDash's existing tiling/stacking templates, updater, session controls and external application roles remain in use. Native plugins stay disabled by default and are not sandboxed.
+This is a development integration, not complete NyxNiri parity. Niri-specific tabbed columns, cross-output navigation and glow presets; Noctalia's greeter/secure lock protocols; the upstream whole-application preset/deployment/rollback system; and downloadable wallpaper packs remain outside this implementation. Optional author application-profile import is handled by LunaDash's installer, independently of its compositor. LunaDash's existing tiling/stacking templates, updater, session controls and external application roles remain in use. Native plugins stay disabled by default and are not sandboxed.
 
-For this change, local verification is restricted to compilation and static source/QML/translation audits. No LunaDash session, runtime integration test or real-session screenshot is produced locally. Existing CI is left unchanged; its results must be reported separately from local compilation and from visual verification.
+For this layout and installation change, the user requested no local tests or builds, including local source/QML/translation audits. Verification is deferred to the configured CI workflows after pushing; workflow configuration alone does not establish a passing result. No real-session screenshot has been produced for this change, so final visual verification remains outstanding.

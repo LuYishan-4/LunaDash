@@ -8,7 +8,15 @@ ColumnLayout {
     required property var shell
     property var preferences: shell.state.appearance || ({})
     spacing: 10
-    Text { text: shell.tr("Glass and motion"); color: Theme.accent; font.pixelSize: 16; font.weight: Font.Medium }
+    Text { text: shell.tr("Visual effects"); color: Theme.accent; font.pixelSize: 16; font.weight: Font.Medium }
+    Text {
+        text: shell.tr("Frosted glass applies behind Wayland and XWayland application windows. Lower window opacity to reveal it in opaque apps. Fullscreen and eye care stay opaque.")
+        color: Theme.muted
+        wrapMode: Text.WordWrap
+        Layout.fillWidth: true
+        font.family: Theme.font
+        font.pixelSize: 11
+    }
     GridLayout {
         Layout.fillWidth: true
         columns: effects.width < 500 ? 1 : 2
@@ -18,7 +26,7 @@ ColumnLayout {
     Repeater {
         model: [
             { key: "blurRadius", label: "Blur strength", minimum: 0, maximum: 32, step: 2, fallback: 18, suffix: " px" },
-            { key: "windowOpacity", label: "Window opacity", minimum: 60, maximum: 100, step: 2, fallback: 96, suffix: "%" },
+            { key: "windowOpacity", label: "Window opacity", minimum: 60, maximum: 100, step: 2, fallback: 90, suffix: "%" },
             { key: "animationDuration", label: "Animation duration", minimum: 0, maximum: 600, step: 20, fallback: 220, suffix: " ms" }
         ]
         ColumnLayout {

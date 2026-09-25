@@ -90,6 +90,20 @@ void WaylandCompositor::Impl::updateBackground() {
   wlr_scene_rect_set_color(background, color);
 }
 
+void WaylandCompositor::Impl::updateWindowGlass() {
+  if (!windowGlass)
+    return;
+  QList<WindowGlass::Surface> surfaces;
+  for (const auto &client : q->clients_)
+    if (client->sceneTree)
+      surfaces.append({client->sceneTree, client->geometry.size(),
+                       client->mapped && !client->fullscreen &&
+                           !client->desktop && !client->utility});
+  const bool animating = q->windowAnimations_ &&
+                         q->windowAnimations_->activeCount() > 0;
+  windowGlass->update(surfaces, animating);
+}
+
 void WaylandCompositor::Impl::arrangeLayers() {
   const QSize size = outputSize();
   wlr_box full{0, 0, size.width(), size.height()};
@@ -247,6 +261,7 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *animations = state->impl->q->windowAnimations_.get();
   if (animations)
     animations->advance();
+  state->impl->updateWindowGlass();
   if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
     qWarning("wlroots scene output commit failed.");
     if (state->nightColor) {

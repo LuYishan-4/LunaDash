@@ -2,6 +2,7 @@
 
 // Private wlroots runtime state. Public callers use WaylandCompositor.hpp.
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/renderer/blur/WindowGlass.hpp"
 #include "compositor/renderer/color/NightColor.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
@@ -160,6 +161,7 @@ public:
   wlr_allocator *allocator = nullptr;
   wlr_output_layout *outputLayout = nullptr;
   wlr_scene *scene = nullptr;
+  std::unique_ptr<WindowGlass> windowGlass;
   wlr_scene_output_layout *sceneLayout = nullptr;
   wlr_scene_tree *backgroundLayer = nullptr;
   wlr_scene_tree *bottomLayer = nullptr;
@@ -276,6 +278,7 @@ public:
   bool inputBridgeReady() const;
 
   void updateBackground();
+  void updateWindowGlass();
   void updateNightLight();
 
   void arrangeLayers();
