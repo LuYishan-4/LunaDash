@@ -32,6 +32,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Build compositor and shell helpers
+        id: build_shell
         run: |
           cmake -S . -B build-shell-layout -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build-shell-layout --parallel 2 --target \
@@ -43,6 +44,7 @@ jobs:
       - name: Check backdrop pixels, rounded geometry, ownership and recursive window layout
         run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-shell-layout --output-on-failure -R '^lunadash-(scene-backdrop|window-glass|window-layout|corner-geometry)$'
       - name: Exercise Settings through accessibility and real Wayland keyboard input
+        if: ${{ !cancelled() && steps.build_shell.outcome == 'success' }}
         run: timeout 300 dbus-run-session -- python3 tests/wayland/test_shell_layout.py build-shell-layout
       - name: Preserve desktop screenshots and runtime diagnostics
         if: always()
