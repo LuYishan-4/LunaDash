@@ -419,7 +419,9 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             return state["shellModules"]["document"]["modules"]["panel"]
 
         def capture_workspace_pills(name, count, active):
-            time.sleep(0.5)
+            # Module config uses the shell's 1.2 s status poll; workspace focus
+            # itself arrives sooner over the separate interaction channel.
+            time.sleep(1.6)
             screenshot = capture(name, (1920, 1080)).convert("L")
             layer = live_layer(log_path, "lunadash-panel")
             top, _, _, left = layer["set_margin"]
@@ -436,6 +438,24 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                     "Workspace pill missing or vertically displaced", name, index,
                     center_x, center_y, middle, above, below)
                 x += width + 4
+
+        def capture_palette_change(name, previous, brighten):
+            # An external IPC acknowledgement is not a presented QML frame.
+            # Keep the pixel contract, allowing the normal shell status poll
+            # to deliver the palette before capturing its evidence.
+            deadline = time.monotonic() + 8
+            previous_crop = previous.crop(panel_box).convert("L")
+            threshold = previous_crop.width * previous_crop.height * 0.08
+            changed = 0
+            while time.monotonic() < deadline:
+                current = capture(name, (1920, 1080))
+                crop = current.crop(panel_box).convert("L")
+                difference = ImageChops.subtract(crop, previous_crop) if brighten else ImageChops.subtract(previous_crop, crop)
+                changed = difference.point(lambda value: 255 if value > 12 else 0).histogram()[255]
+                if changed > threshold:
+                    return current, changed
+                time.sleep(0.35)
+            raise AssertionError(f"Panel palette did not render: {name}, {changed} changed pixels; expected > {threshold}")
 
         def application_clients(state):
             return [client for client in state["clients"] if client["mapped"]
@@ -753,17 +773,10 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             assert changed_logo_pixels > 150, "The saved custom image did not visibly replace the centered LunaDash logo"
             request("appearance", json.dumps({"themeMode": "light"}))
             wait_for(lambda state: state["palette"]["dark"] is False, "light panel reference palette")
-            time.sleep(0.5)
-            light_panel = capture("custom-panel-light-1920x1080", (1920, 1080))
+            light_panel, _ = capture_palette_change("custom-panel-light-1920x1080", restored_logo_image, True)
             request("appearance", json.dumps({"themeMode": "dark"}))
             dark_state = wait_for(lambda state: state["palette"]["dark"] is True, "dark panel palette")
-            time.sleep(0.5)
-            dark_panel = capture("custom-panel-dark-1920x1080", (1920, 1080))
-            light_crop = light_panel.crop(panel_box).convert("L")
-            dark_crop = dark_panel.crop(panel_box).convert("L")
-            darker = ImageChops.subtract(light_crop, dark_crop)
-            darkened = darker.point(lambda value: 255 if value > 12 else 0).histogram()[255]
-            assert darkened > 1200 * 48 * 0.08, "Dark panel capsules stayed bright after the palette changed"
+            dark_panel, darkened = capture_palette_change("custom-panel-dark-1920x1080", light_panel, False)
             snapshots.append({"scene": "custom-panel-dark", "panel": custom_panel,
                               "panelBox": panel_box, "darkenedPixels": darkened, "state": dark_state})
             for count in (1, 2):
