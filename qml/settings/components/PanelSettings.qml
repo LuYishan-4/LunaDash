@@ -96,6 +96,7 @@ SettingsCard {
                     wrapMode: Text.Wrap
                 }
                 SoftField {
+                    property bool userEdited: false
                     Layout.preferredWidth: 92
                     text: String(dimensionRow.modelData.key === "height"
                         ? controls.panelStyle.height || (controls.shell.state.appearance || {}).panelHeight || 40
@@ -104,7 +105,13 @@ SettingsCard {
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: IntValidator { bottom: dimensionRow.modelData.minimum; top: dimensionRow.modelData.maximum }
                     Accessible.name: controls.shell.tr(dimensionRow.modelData.label)
-                    onEditingFinished: if (acceptableInput) controls.update("style", dimensionRow.modelData.key, Number(text))
+                    onTextEdited: userEdited = true
+                    onEditingFinished: {
+                        const commit = userEdited && acceptableInput
+                        userEdited = false
+                        if (commit)
+                            controls.update("style", dimensionRow.modelData.key, Number(text))
+                    }
                 }
                 Text { text: "px"; color: Theme.muted; font.family: Theme.font }
             }
@@ -163,13 +170,20 @@ SettingsCard {
                     wrapMode: Text.Wrap
                 }
                 SoftField {
+                    property bool userEdited: false
                     Layout.preferredWidth: 92
                     text: String(controls.panelConfig[colorRow.modelData.key] ?? colorRow.modelData.fallback)
                     clearButtonEnabled: false
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: IntValidator { bottom: 0; top: colorRow.modelData.maximum }
                     Accessible.name: controls.shell.tr(colorRow.modelData.label)
-                    onEditingFinished: if (acceptableInput) controls.update("config", colorRow.modelData.key, Number(text))
+                    onTextEdited: userEdited = true
+                    onEditingFinished: {
+                        const commit = userEdited && acceptableInput
+                        userEdited = false
+                        if (commit)
+                            controls.update("config", colorRow.modelData.key, Number(text))
+                    }
                 }
                 Text { text: "0–" + colorRow.modelData.maximum; color: Theme.muted; font.family: Theme.font }
             }

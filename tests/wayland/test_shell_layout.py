@@ -183,6 +183,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
     ui_actions = []
     keyboard_only = False
     keyboard_picker_path = ""
+    keyboard_keeper = None
     with log_path.open("w+") as log:
         process = subprocess.Popen(
             [str(build / "lunadash-compositor"), "--socket", socket_name, "--exit-after", "220000"],
@@ -490,6 +491,15 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                     and live_layer(log_path, "lunadash-startup") is None,
                 "wallpaper, panel and window frames after the startup splash", timeout=25,
             )
+            # A headless backend has no physical keyboard. Keep one standard
+            # virtual keyboard connected while short-lived wtype commands send
+            # input, so remapping a layer always has a keyboard for focus.
+            keyboard_env = env | {"WAYLAND_DISPLAY": socket_name}
+            keyboard_env.pop("WAYLAND_DEBUG", None)
+            keyboard_keeper = subprocess.Popen(["wtype", "-s", "220000"], env=keyboard_env,
+                                                stdout=log, stderr=log)
+            time.sleep(0.2)
+            assert keyboard_keeper.poll() is None, "The headless session's virtual keyboard did not start"
             assert initial["appearance"]["dockEnabled"] is False, initial["appearance"]
             request("appearance", json.dumps({"animations": False, "overview": False}))
             for width, height in ((1920, 1080), (1280, 720)):
@@ -606,9 +616,13 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             wait_for(lambda state: live_layer(log_path, "lunadash-settings") is not None,
                      "Appearance settings mapping")
             time.sleep(0.5)
+            inherited_height = panel_document(request())["style"]["height"]
             press_control("Show CPU and memory")
-            wait_for(lambda state: panel_document(state)["config"]["showSystemStats"] is False,
-                     "the actual Settings switch saves the panel config")
+            switched = wait_for(lambda state: panel_document(state)["config"]["showSystemStats"] is False,
+                                "the actual Settings switch saves the panel config")
+            assert panel_document(switched)["style"]["height"] == inherited_height, (
+                "Keyboard navigation must not replace an inherited panel height"
+            )
             press_control("Show CPU and memory")
             wait_for(lambda state: panel_document(state)["config"]["showSystemStats"] is True,
                      "the panel switch can be enabled again")
@@ -731,6 +745,13 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
             (evidence / "snapshots.json").write_text(json.dumps(snapshots, indent=2))
             (evidence / "ui-actions.json").write_text(json.dumps(ui_actions, indent=2))
             (evidence / "layer-surfaces.json").write_text(json.dumps(layers_from_log(log_path), indent=2))
+            if keyboard_keeper is not None and keyboard_keeper.poll() is None:
+                keyboard_keeper.terminate()
+                try:
+                    keyboard_keeper.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    keyboard_keeper.kill()
+                    keyboard_keeper.wait(timeout=3)
             # Quickshell and its helpers belong to this isolated process group;
             # also stop them if a compositor startup error left children alive.
             try:
