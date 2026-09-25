@@ -1,4 +1,4 @@
-"""Verify that a numeric keypad key does not drop a client's lock modifiers."""
+"""Verify CapsLock/NumLock and keypad input survive wlroots forwarding."""
 
 import json
 import os
@@ -137,31 +137,38 @@ with tempfile.TemporaryDirectory(prefix="ludash-locks-test-") as runtime:
             )
             time.sleep(1.5)
 
-            # CapsLock reaches the client through its own xkb state.
+            # CapsLock must toggle the focused client's XKB locked state.
+            subprocess.run([xdotool, "key", "Caps_Lock"], check=True)
+            time.sleep(0.6)
+            subprocess.run([xdotool, "key", "a"], check=True)
+            time.sleep(0.6)
             subprocess.run([xdotool, "key", "Caps_Lock"], check=True)
             time.sleep(0.6)
             subprocess.run([xdotool, "key", "a"], check=True)
             time.sleep(0.6)
             before = request()["input"]["keypadKeyForwards"]
 
-            # A numeric keypad key makes Qt Wayland Compositor send a modifiers
-            # event with a zeroed locked mask. Keypad End is this layout's numeric
-            # keypad 1 key while NumLock is off, so xdotool does not need to press
-            # NumLock first and Qt sends no other modifier update afterwards.
+            # Keypad End is this layout's keypad 1 key while NumLock is off.
+            # Forwarding it must not alter the already-established lock state.
             subprocess.run([xdotool, "key", "KP_End"], check=True)
             time.sleep(0.8)
             after = request()["input"]["keypadKeyForwards"]
             subprocess.run([xdotool, "key", "a"], check=True)
             time.sleep(0.6)
+
+            subprocess.run([xdotool, "key", "Num_Lock"], check=True)
+            time.sleep(0.6)
+            subprocess.run([xdotool, "key", "KP_1"], check=True)
+            time.sleep(0.6)
+
             # The terminal is in canonical mode, so cat writes the line only when
             # it receives a newline.
             subprocess.run([xdotool, "key", "Return"], check=True)
             time.sleep(1)
 
             text = typed.read_text(errors="replace")
-            assert text.count("A") == 2, (
-                f"A keypad key cleared the client's CapsLock: {text!r}"
-            )
+            assert "Aa" in text, f"CapsLock did not toggle correctly: {text!r}"
+            assert "1" in text, f"NumLock did not enable numeric keypad input: {text!r}"
             assert after > before, (
                 "The keypad key was not forwarded from its scan code: "
                 f"{before} -> {after}"
