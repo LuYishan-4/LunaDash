@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QHash>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QSettings>
@@ -56,8 +57,13 @@ bool isSupportedLanguage(const QString &language) {
 
 QJsonObject languageDictionary(const QString &language) {
   const QString locale = normalizedLocale(language);
-  if (!isSupportedLanguage(locale) || locale == QStringLiteral("en_US"))
+  static QHash<QString, QJsonObject> cache;
+  if (const auto cached = cache.constFind(locale); cached != cache.cend())
+    return cached.value();
+  if (!isSupportedLanguage(locale) || locale == QStringLiteral("en_US")) {
+    cache.insert(locale, {});
     return {};
+  }
 
   QStringList paths;
   const QString rootCatalog =
@@ -88,12 +94,14 @@ QJsonObject languageDictionary(const QString &language) {
       if (!it.value().isString() || it.value().toString().isEmpty())
         continue;
       if (messages.contains(it.key())) {
-        qWarning() << "Duplicate translation key:" << path << it.key();
+        if (messages.value(it.key()) != it.value())
+          qWarning() << "Conflicting translation key:" << path << it.key();
         continue;
       }
       messages.insert(it.key(), it.value());
     }
   }
+  cache.insert(locale, messages);
   return messages;
 }
 
