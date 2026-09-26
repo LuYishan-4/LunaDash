@@ -1257,14 +1257,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
-  else if (action == "toggleFloating" && focused_) {
-    focused_->floating = !focused_->floating;
-    focused_->maximized = false;
-    focused_->manualGeometry = {};
-    arrange();
-    focus(focused_);
-    return;
-  } else if (action == "toggleScratchpad") {
+  else if (action == "toggleScratchpad") {
     QString error;
     toggleScratchpad(&error);
     if (!error.isEmpty()) scratchpadError_ = error;
