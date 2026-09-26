@@ -121,7 +121,8 @@ NetworkStatus::NetworkStatus(QObject *parent)
   // events drive the expensive nmcli detail refresh instead of spawning
   // bluetoothctl + nmcli chains every five seconds while the desktop is idle.
   QDBusConnection::systemBus().connect(
-      QStringLiteral("org.freedesktop.NetworkManager"), QString(),
+      QStringLiteral("org.freedesktop.NetworkManager"),
+      QStringLiteral("/org/freedesktop/NetworkManager"),
       QStringLiteral("org.freedesktop.DBus.Properties"),
       QStringLiteral("PropertiesChanged"), this, SLOT(scheduleRefresh()));
 
