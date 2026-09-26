@@ -12,12 +12,25 @@ shell = (root / "qml/shell.qml").read_text(encoding="utf-8")
 
 # An input-method keyboard grab is valid only while an enabled text-input-v3
 # client actually owns focus. Otherwise QML layer-shell TextFields need the
-# original wl_keyboard events through the seat.
-assert "const bool inputMethodOwnsKeyboard" in input_cpp
-guard = input_cpp[input_cpp.index("const bool inputMethodOwnsKeyboard") :]
+# original wl_keyboard events through the seat. The bridge predicate is shared
+# with virtual-keyboard routing, so verify the ownership inputs where the
+# predicate is defined instead of requiring them to be duplicated below.
+key_handler = input_cpp[input_cpp.index(
+    "void WaylandCompositor::Impl::handleKeyboardKey"
+):input_cpp.index(
+    "void WaylandCompositor::Impl::handleKeyboardModifiers"
+)]
+assert "const bool inputMethodBridgeActive" in key_handler
+bridge = key_handler[key_handler.index("const bool inputMethodBridgeActive") :]
+bridge = bridge[: bridge.index("const bool inputMethodVirtual")]
+assert "activeTextInput" in bridge
+assert "focused_surface" in bridge
+assert "keyboard_grab" in bridge
+assert "const bool inputMethodOwnsKeyboard" in key_handler
+guard = key_handler[key_handler.index("const bool inputMethodOwnsKeyboard") :]
 guard = guard[: guard.index("wlr_seat_keyboard_notify_key") + 64]
-assert "activeTextInput" in guard
-assert "focused_surface" in guard
+assert "inputMethodBridgeActive" in guard
+assert "!inputMethodVirtual" in guard
 assert "keyboard_grab" in guard
 
 # Either activation source owns the search field while the launcher is open.
