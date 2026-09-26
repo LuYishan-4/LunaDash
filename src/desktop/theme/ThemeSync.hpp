@@ -3,5 +3,6 @@
 #include <QString>
 
 namespace LunaDash {
-QJsonObject synchronizeApplicationTheme();
+QJsonObject synchronizeApplicationTheme(const QJsonObject &preferences,
+                                        const QJsonObject &palette);
 } // namespace LunaDash
