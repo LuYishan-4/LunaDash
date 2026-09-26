@@ -47,9 +47,10 @@ assert 'command("launcher-visible", launcherOpen ? "true" : "false")' in shell
 print("Input ownership contract passed: QML typing, app typing and Meta launcher toggle.")
 
 
-# Virtual keyboards (for example an input method or hotkey helper) must never
-# become the seat's lock-state owner. Their zero locked mask must not clear the
-# physical keyboard's CapsLock/NumLock state.
+# Virtual keyboards (for example Fcitx virtual-keyboard-v1 forwarding) must
+# never become the seat's physical modifier owner. While the input-method grab
+# is active, synchronize the complete physical modifier snapshot before a
+# forwarded virtual key so Ctrl/Shift/Alt as well as CapsLock/NumLock survive.
 virtual_modifier = input_cpp[input_cpp.index(
     "A virtual keyboard is an event source"
 ):]
@@ -57,7 +58,9 @@ virtual_modifier = virtual_modifier[: virtual_modifier.index(
     "// wlroots updates xkb_state"
 )]
 assert "restorePreferredKeyboard()" in virtual_modifier
-assert "modifiers.locked = physical->modifiers.locked" in virtual_modifier
+assert "inputMethodBridgeActive" in virtual_modifier
+assert "&physical->modifiers" in virtual_modifier
+assert "modifiers.locked = physical->modifiers.locked" not in virtual_modifier
 # The physical set_keyboard call follows the virtual branch. The virtual path
 # must return before execution can reach it.
 assert virtual_modifier.index("return;") < virtual_modifier.index(
@@ -67,3 +70,4 @@ key_owner = input_cpp[input_cpp.index("auto *keyboard = state->keyboard;"):]
 key_owner = key_owner[: key_owner.index("const uint32_t keycode")]
 assert "if (state->virtualKeyboard)" in key_owner
 assert "restorePreferredKeyboard()" in key_owner
+assert "&physical->modifiers" in key_owner
