@@ -38,7 +38,7 @@ void refreshKeyboardLeds(wlr_keyboard *keyboard) {
     return;
   uint32_t leds = 0;
   for (size_t index = 0; index < WLR_LED_COUNT; ++index) {
-    if (keyboard->led_indexes[index] != XKB_KEYMAP_INVALID_LED &&
+    if (keyboard->led_indexes[index] != XKB_LED_INVALID &&
         xkb_state_led_index_is_active(keyboard->xkb_state,
                                       keyboard->led_indexes[index]))
       leds |= 1u << index;
