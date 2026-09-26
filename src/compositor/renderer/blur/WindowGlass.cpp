@@ -4,6 +4,7 @@
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 
+#include <QElapsedTimer>
 #include <QRect>
 #include <algorithm>
 #include <unordered_map>
@@ -36,6 +37,8 @@ public:
   struct SurfaceWatch {
     wlr_surface *surface = nullptr;
     quint64 revision = 0;
+    bool rapid = false;
+    QElapsedTimer commitClock;
     Templates::WaylandSlot<SurfaceWatch> commit;
     Templates::WaylandSlot<SurfaceWatch> destroy;
 
@@ -50,8 +53,12 @@ public:
                 WLR_SURFACE_STATE_VIEWPORT | WLR_SURFACE_STATE_OFFSET;
             // Callback-only commits do not change pixels. Counting them would
             // let our own scene damage sustain an idle frame/blur loop.
-            if (watch->surface->current.committed & content)
+            if (watch->surface->current.committed & content) {
+              watch->rapid =
+                  watch->commitClock.isValid() && watch->commitClock.elapsed() < 40;
+              watch->commitClock.restart();
               ++watch->revision;
+            }
           });
       Templates::attachListener(
           &surface->events.destroy, destroy, this,
@@ -81,6 +88,8 @@ public:
     quint64 fingerprint = 0;
     quint64 revision = 0;
     bool attempted = false;
+    bool rapidBackdrop = false;
+    QElapsedTimer captureClock;
     QString error;
 
     explicit Entry(wlr_scene_tree *value) : tree(value) {
@@ -109,6 +118,8 @@ public:
         wlr_buffer_unlock(backing);
       backing = nullptr;
       attempted = false;
+      rapidBackdrop = false;
+      captureClock.invalidate();
     }
     bool createGlass() {
       if (glass)
@@ -130,6 +141,8 @@ public:
               wlr_buffer_unlock(entry->backing);
             entry->backing = nullptr;
             entry->attempted = false;
+            entry->rapidBackdrop = false;
+            entry->captureClock.invalidate();
           });
       return true;
     }
@@ -216,17 +229,18 @@ public:
     watches.clear();
   }
 
-  quint64 surfaceRevision(wlr_surface *surface) {
+  SurfaceWatch *surfaceWatch(wlr_surface *surface) {
     auto &watch = watches[surface];
     if (!watch || watch->surface != surface)
       watch = std::make_unique<SurfaceWatch>(surface);
-    return watch->revision;
+    return watch.get();
   }
 
   // Return true at the target window: only earlier painter-order nodes belong
   // in its backdrop. Our own sibling underlay is excluded from the cache key.
   bool fingerprint(wlr_scene_node *node, const Entry &entry, Fingerprint &hash,
-                    const QRect &sample, int x = 0, int y = 0, int depth = 0) {
+                    const QRect &sample, bool &rapidSource,
+                    int x = 0, int y = 0, int depth = 0) {
     if (node == &entry.tree->node)
       return true;
     if (!node || !node->enabled || node == &entry.glass->node || depth > 128)
@@ -237,7 +251,8 @@ public:
       auto *tree = wlr_scene_tree_from_node(node);
       wlr_scene_node *child = nullptr;
       wl_list_for_each(child, &tree->children, link)
-        if (fingerprint(child, entry, hash, sample, x, y, depth + 1))
+        if (fingerprint(child, entry, hash, sample, rapidSource,
+                        x, y, depth + 1))
           return true;
     } else if (node->type == WLR_SCENE_NODE_RECT) {
       const auto *rect = wlr_scene_rect_from_node(node);
@@ -273,7 +288,9 @@ public:
       hash.add(buffer->transform);
       if (auto *surface = wlr_scene_surface_try_from_buffer(buffer)) {
         hash.add(surface->surface->buffer);
-        hash.add(surfaceRevision(surface->surface));
+        auto *watch = surfaceWatch(surface->surface);
+        hash.add(watch->revision);
+        rapidSource = rapidSource || watch->rapid;
       } else {
         // Keep lower glass stable after scene texture upload releases its
         // buffer pointer. A successful lower capture increments its revision.
@@ -306,7 +323,18 @@ public:
       collect(child, ordered, depth + 1);
   }
 
-  void capture(Entry &entry) {
+  void capture(Entry &entry, bool animationsActive) {
+    const bool available = entry.backing && entry.error.isEmpty();
+    if (available && entry.attempted &&
+        (animationsActive ||
+         (entry.rapidBackdrop && entry.captureClock.isValid() &&
+          entry.captureClock.elapsed() < 50))) {
+      if (!entry.glass->node.enabled)
+        wlr_scene_node_set_enabled(&entry.glass->node, true);
+      ready = true;
+      return;
+    }
+
     Fingerprint hash;
     hash.add(entry.area.x());
     hash.add(entry.area.y());
@@ -318,10 +346,20 @@ public:
                        entry.area.height()};
     wlr_box sample{};
     ludash_scene_backdrop_sample_box(&area, radius, &sample);
-    const bool found = fingerprint(root, entry, hash,
-                                  QRect(sample.x, sample.y, sample.width, sample.height));
+    bool rapidSource = false;
+    const bool found = fingerprint(
+        root, entry, hash,
+        QRect(sample.x, sample.y, sample.width, sample.height), rapidSource);
     if (!found)
       return;
+    if (available && rapidSource && entry.captureClock.isValid() &&
+        entry.captureClock.elapsed() < 50) {
+      entry.rapidBackdrop = true;
+      if (!entry.glass->node.enabled)
+        wlr_scene_node_set_enabled(&entry.glass->node, true);
+      ready = true;
+      return;
+    }
     if (!entry.attempted || entry.fingerprint != hash.value) {
       entry.attempted = true;
       entry.fingerprint = hash.value;
@@ -339,14 +377,16 @@ public:
         ++entry.revision;
         ++frames;
         entry.error.clear();
+        entry.rapidBackdrop = rapidSource;
+        entry.captureClock.restart();
       } else {
         entry.error = "The renderer could not create a window backdrop.";
       }
     }
-    const bool available = entry.backing && entry.error.isEmpty();
-    if (entry.glass->node.enabled != available)
-      wlr_scene_node_set_enabled(&entry.glass->node, available);
-    ready = ready || available;
+    const bool nowAvailable = entry.backing && entry.error.isEmpty();
+    if (entry.glass->node.enabled != nowAvailable)
+      wlr_scene_node_set_enabled(&entry.glass->node, nowAvailable);
+    ready = ready || nowAvailable;
     if (!entry.error.isEmpty()) {
       failed = true;
       error = entry.error;
@@ -429,7 +469,7 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
   d->collect(d->root, ordered);
   for (auto *entry : ordered)
     if (entry->glass)
-      d->capture(*entry);
+      d->capture(*entry, animationsActive);
 }
 
 bool WindowGlass::ready() const { return d->ready; }
