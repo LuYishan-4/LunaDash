@@ -22,7 +22,7 @@
 
 Release impact 寫在 PR body；公開 release notes 由 GitHub Releases 產生。
 
-CI 依成本拆分：policy/repository hygiene 會廣泛執行；source/QML、Qt lifetime、clang-tidy、CodeQL 等會依變更路徑決定是否需要執行。被 path filter 跳過的 job 不能宣稱「測試通過」。
+CI 目前保留廣義主流程：Main build and integration、跨發行版建置、網站，以及 PR policy/style/security。單一小功能不再各自維護 workflow；其 regression 應併入 maintained test suite 或 release 實機驗證。被 path filter 跳過的 job 不能宣稱「測試通過」。
 
 ## Release notes
 
