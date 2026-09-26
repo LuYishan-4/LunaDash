@@ -13,6 +13,11 @@ PluginPanel {
         muted: Theme.muted, fontFamily: Theme.font})
     required property var interaction
     readonly property bool opened: Boolean(interaction.active && interaction.ready) && !shell.stopping
+    readonly property var wallpaperMedia: ((shell.state.wallpapers || {}).current || {})
+    function staticWallpaperSource() {
+        const source = String(shell.state.wallpaperImage || "")
+        return /\.(mp4|webm|mkv|mov|m4v)(?:$|\?)/i.test(source) ? "" : source
+    }
     property real reveal: opened ? 1 : 0
     visible: opened || reveal > 0
     anchors { top: true; bottom: true; left: true; right: true }
@@ -28,7 +33,7 @@ PluginPanel {
         Image {
             id: background
             anchors.fill: parent
-            source: panel.interaction.background || panel.shell.state.wallpaperMedia?.poster || (panel.shell.state.wallpaperMedia?.type === "video" ? "" : panel.shell.state.wallpaperImage) || ""
+            source: panel.interaction.background || panel.wallpaperMedia.preview || panel.staticWallpaperSource()
             fillMode: Image.PreserveAspectCrop
             visible: false
             cache: false
