@@ -50,7 +50,9 @@ ShellRoot {
     property bool launcherKeyboardActive: false
     property string launcherOpenSource: "mouse"
     property bool settingsOpen: false
+    property bool settingsSurfaceLoaded: false
     property bool wallpaperGalleryOpen: false
+    property bool wallpaperGalleryLoaded: false
     readonly property alias wallpaperActions: wallpaperController
     WallpaperActions {
         id: wallpaperController
@@ -231,10 +233,36 @@ ShellRoot {
         command("launcher-visible", launcherOpen ? "true" : "false")
     }
     onSettingsOpenChanged: {
-        if (settingsOpen) dismissPopups("settings")
-        else pickerOpen = false
+        if (settingsOpen) {
+            settingsUnload.stop()
+            settingsSurfaceLoaded = true
+            dismissPopups("settings")
+        } else {
+            pickerOpen = false
+            settingsUnload.restart()
+        }
     }
-    onWallpaperGalleryOpenChanged: if (wallpaperGalleryOpen) dismissPopups("wallpaper")
+    onWallpaperGalleryOpenChanged: {
+        if (wallpaperGalleryOpen) {
+            wallpaperGalleryUnload.stop()
+            wallpaperGalleryLoaded = true
+            dismissPopups("wallpaper")
+        } else {
+            wallpaperGalleryUnload.restart()
+        }
+    }
+    Timer {
+        id: settingsUnload
+        interval: Math.max(80, Theme.motionFast + 40)
+        repeat: false
+        onTriggered: if (!root.settingsOpen) root.settingsSurfaceLoaded = false
+    }
+    Timer {
+        id: wallpaperGalleryUnload
+        interval: Math.max(80, Theme.motionFast + 40)
+        repeat: false
+        onTriggered: if (!root.wallpaperGalleryOpen) root.wallpaperGalleryLoaded = false
+    }
     onCalendarOpenChanged: if (calendarOpen) dismissPopups("calendar")
     onUsbPopupOpenChanged: if (usbPopupOpen) dismissPopups("devices")
     onVolumePopupOpenChanged: if (volumePopupOpen) dismissPopups("audio")
@@ -581,8 +609,8 @@ ShellRoot {
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     LazyLoader {
         id: settingsLoader
-        activeAsync: root.settingsOpen || (active && item && item.reveal > 0)
-        onActiveChanged: if (active) item.showCategory(root.settingsPage)
+        loading: root.settingsSurfaceLoaded
+        onActiveChanged: if (active && item) item.showCategory(root.settingsPage)
         SettingsPanel {
             shell: root
             opened: !root.stopping && root.settingsOpen
@@ -591,7 +619,7 @@ ShellRoot {
     }
     LazyLoader {
         id: wallpaperGalleryLoader
-        activeAsync: root.wallpaperGalleryOpen || (active && item && item.reveal > 0)
+        loading: root.wallpaperGalleryLoaded
         WallpaperGallery { shell: root; opened: !root.stopping && root.wallpaperGalleryOpen }
     }
     SetupWizard { shell: root; opened: !root.stopping && root.state.setupComplete === false && !root.setupPaused }
