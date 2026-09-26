@@ -24,9 +24,7 @@ QJsonObject defaults() {
   result.insert("maximizeWindow", "Meta+F");
   result.insert("closeWindow", "Meta+C");
   result.insert("minimizeWindow", "Meta+M");
-  result.insert("closeWindowAlternate", "Meta+Q");
   result.insert("launchTerminal", "Meta+T");
-  result.insert("launchTerminalAlternate", "Meta+Return");
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
   result.insert("screenshot", "Meta+Shift+S");
@@ -156,9 +154,6 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   if (!configured.contains("launchTerminal") &&
       uses("Meta+T", "launchTerminal"))
     bindings_["launchTerminal"] = "Disabled";
-  if (!configured.contains("launchTerminalAlternate") &&
-      uses("Meta+Return", "launchTerminalAlternate"))
-    bindings_["launchTerminalAlternate"] = "Disabled";
   if (!configured.contains("workspace10") && uses("Meta+0", "workspace10"))
     bindings_["workspace10"] = "Disabled";
   if (!configured.contains("moveToWorkspace10") &&
