@@ -207,6 +207,7 @@ public:
   Templates::WaylandSlot<Impl> rootDestroy;
   std::unordered_map<wlr_scene_tree *, std::unique_ptr<Entry>> entries;
   std::unordered_map<wlr_surface *, std::unique_ptr<SurfaceWatch>> watches;
+  std::unordered_map<wlr_scene_tree *, float> steadyOpacity;
   bool enabled = true;
   quint64 sceneRevision = 1;
   int radius = 18;
@@ -227,6 +228,7 @@ public:
             Templates::detachListener(self->rootDestroy);
             self->entries.clear();
             self->watches.clear();
+            self->steadyOpacity.clear();
             self->root = nullptr;
           });
   }
@@ -234,6 +236,7 @@ public:
     Templates::detachListener(rootDestroy);
     entries.clear();
     watches.clear();
+    steadyOpacity.clear();
   }
 
   SurfaceWatch *surfaceWatch(wlr_surface *surface) {
@@ -441,18 +444,28 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
   if (!d->root)
     return;
   std::unordered_set<wlr_scene_tree *> active;
+  std::unordered_set<wlr_scene_tree *> opacityActive;
   for (const auto &surface : surfaces) {
     auto *tree = surface.tree;
     if (!tree)
       continue;
-    // Animation owns its temporary alpha and records this steady-state alpha
-    // as its baseline. Never replace an in-progress fade with a preference.
-    if (!animationsActive) {
-      float opacity = surface.enabled
+    opacityActive.insert(tree);
+    // Animation owns temporary alpha. Cache the steady-state value so a
+    // 100/144 Hz output does not traverse every browser/Electron subsurface
+    // on every frame when opacity has not changed.
+    if (animationsActive) {
+      d->steadyOpacity.erase(tree);
+    } else {
+      const float opacity = surface.enabled
           ? (surface.opacity >= 0.0f ? std::clamp(surface.opacity, 0.0f, 1.0f)
                                      : d->opacity)
           : 1.0f;
-      wlr_scene_node_for_each_buffer(&tree->node, setWindowOpacity, &opacity);
+      const auto applied = d->steadyOpacity.find(tree);
+      if (applied == d->steadyOpacity.end() || applied->second != opacity) {
+        float value = opacity;
+        wlr_scene_node_for_each_buffer(&tree->node, setWindowOpacity, &value);
+        d->steadyOpacity[tree] = opacity;
+      }
     }
     int x = 0, y = 0;
     if (!d->enabled || d->radius == 0 || !surface.enabled ||
@@ -495,6 +508,9 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
   }
   std::erase_if(d->entries, [&active](const auto &item) {
     return !active.contains(item.first) || !item.second->tree;
+  });
+  std::erase_if(d->steadyOpacity, [&opacityActive](const auto &item) {
+    return !opacityActive.contains(item.first);
   });
   std::erase_if(d->watches, [](const auto &item) {
     return !item.second->surface;
