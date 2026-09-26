@@ -29,6 +29,7 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
     q->arrange();
   }
   pointerLast = QPointF(cursor->x, cursor->y);
+  pointerStartGeometry = client->geometry;
   pointerPublishClock.invalidate();
   pointerTarget = 0;
   pointerEdge = 0;
@@ -41,12 +42,25 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
 
 bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
                                                    uint32_t serial,
-                                                   uint32_t edges) {
-  if (!client || !q->windowTemplate_ ||
-      !windowAllowsClientMoveResize(*q->windowTemplate_, *client) ||
-      pointerWindow || !client->wlSurface ||
-      !wlr_seat_validate_pointer_grab_serial(seat, client->wlSurface, serial))
+                                                   uint32_t edges,
+                                                   bool validateSerial) {
+  if (!client || !q->windowTemplate_ || pointerWindow || !client->wlSurface)
     return false;
+  // A normal titlebar move is useful in both tiling and stacking: in tiling it
+  // chooses another slot to swap with, while stacking follows the pointer and
+  // swaps on drop. Resizing still obeys the active template capability.
+  if (edges == 0) {
+    if (!windowAllowsPointerInteraction(*q->windowTemplate_, *client))
+      return false;
+  } else if (!windowAllowsClientMoveResize(*q->windowTemplate_, *client)) {
+    return false;
+  }
+  if (validateSerial) {
+    if (!wlr_seat_validate_pointer_grab_serial(seat, client->wlSurface, serial))
+      return false;
+  } else if (!seat->pointer_state.grab_button) {
+    return false;
+  }
   // xdg-shell edges are top=1, bottom=2, left=4, right=8.
   if ((edges & ~15u) || (edges & 3u) == 3u || (edges & 12u) == 12u)
     return false;
@@ -61,6 +75,7 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   pointerResizeEdges = edges;
   pointerResize = edges != 0;
   pointerLast = QPointF(cursor->x, cursor->y);
+  pointerStartGeometry = client->geometry;
   pointerPublishClock.invalidate();
   pointerTarget = pointerEdge = 0;
   client->manualResize = true;
@@ -130,6 +145,35 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     return true;
   }
   const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
+  const auto updateSwapTarget = [this, &snapshot, &current] {
+    pointerTarget = 0;
+    pointerEdge = 0;
+    QJsonObject hint;
+    for (int index = snapshot.columns.size() - 1; index >= 0; --index) {
+      const auto &slot = snapshot.columns[index];
+      if (slot.window == static_cast<LayoutWindowId>(pointerWindow) ||
+          slot.minimized || !slot.geometry.contains(current.toPoint()))
+        continue;
+      pointerTarget = static_cast<int>(slot.window);
+      // Direct titlebar dragging means exchange. Modifier-assisted dragging
+      // keeps the older top/bottom insertion gesture for grouped tiling.
+      if (!pointerClientGrab) {
+        const int edge = std::min(24, slot.geometry.height() / 4);
+        pointerEdge =
+            current.y() < slot.geometry.top() + edge       ? -1
+            : current.y() > slot.geometry.bottom() - edge ? 1
+                                                           : 0;
+      }
+      hint = {{"target", pointerTarget},
+              {"edge", pointerEdge},
+              {"x", slot.geometry.x()},
+              {"y", slot.geometry.y()},
+              {"width", slot.geometry.width()},
+              {"height", slot.geometry.height()}};
+      break;
+    }
+    q->windowSwitcher_->setDrag(hint);
+  };
   const bool freeform =
       q->windowTemplate_ && q->windowTemplate_->allowOverlap &&
       q->windowTemplate_->clientMoveResize;
@@ -224,35 +268,24 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
                               {"y", area.y()},
                               {"width", area.width()},
                               {"height", area.height()}}}});
-    if (freeform && configureDragged())
+    if (freeform && configureDragged()) {
+      if (pointerClientGrab)
+        updateSwapTarget();
+      else
+        q->windowSwitcher_->setDrag({});
       publishGeometry();
-    else
+    } else {
       q->arrange();
+    }
     return true;
   }
-  pointerTarget = 0;
-  QJsonObject hint;
-  for (const auto &slot : snapshot.columns) {
-    if (slot.window == static_cast<LayoutWindowId>(pointerWindow) ||
-        slot.minimized || !slot.geometry.contains(current.toPoint()))
-      continue;
-    pointerTarget = static_cast<int>(slot.window);
-    const int edge = std::min(24, slot.geometry.height() / 4);
-    pointerEdge = current.y() < slot.geometry.top() + edge      ? -1
-                  : current.y() > slot.geometry.bottom() - edge ? 1
-                                                                : 0;
-    hint = {
-        {"target", pointerTarget},        {"edge", pointerEdge},
-        {"x", slot.geometry.x()},         {"y", slot.geometry.y()},
-        {"width", slot.geometry.width()}, {"height", slot.geometry.height()}};
-    break;
-  }
-  q->windowSwitcher_->setDrag(hint);
+  updateSwapTarget();
   return true;
 }
 
 void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
   const int moving = pointerWindow, target = pointerTarget, edge = pointerEdge;
+  const bool directMove = pointerClientGrab;
   pointerTarget = pointerEdge = 0;
   for (const auto &client : q->clients_)
     if (client->id == moving) {
@@ -261,7 +294,30 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
         wlr_xdg_toplevel_set_resizing(client->toplevel, false);
     }
   if (apply && !pointerResize && target && q->windowTemplate_) {
-    if (edge)
+    if (directMove && q->windowTemplate_->allowOverlap &&
+        pointerStartGeometry.isValid()) {
+      const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
+      const auto current = std::find_if(
+          snapshot.columns.cbegin(), snapshot.columns.cend(),
+          [moving](const auto &slot) {
+            return slot.window == static_cast<LayoutWindowId>(moving);
+          });
+      if (current != snapshot.columns.cend()) {
+        const auto area = q->workArea();
+        const QPoint delta =
+            pointerStartGeometry.topLeft() - current->geometry.topLeft();
+        performWindowLayoutAction(
+            *q->windowLayout_, *q->windowTemplate_, "move-by",
+            {{"window", moving},
+             {"dx", delta.x()},
+             {"dy", delta.y()},
+             {"area", QJsonObject{{"x", area.x()},
+                                  {"y", area.y()},
+                                  {"width", area.width()},
+                                  {"height", area.height()}}}});
+      }
+    }
+    if (edge && !directMove)
       performWindowLayoutAction(
           *q->windowLayout_, *q->windowTemplate_, "insert-beside",
           {{"window", moving}, {"target", target}, {"after", edge > 0}});
@@ -271,6 +327,7 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
   }
   pointerResize = pointerClientGrab = false;
   pointerButton = pointerResizeEdges = 0;
+  pointerStartGeometry = {};
   pointerPublishClock.invalidate();
   q->windowSwitcher_->setDrag({});
   // Release the interactive geometry override before arranging. Dropped,
