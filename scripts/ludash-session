@@ -74,6 +74,12 @@ export SDL_IM_MODULE=fcitx
 export GTK_USE_PORTAL=1
 export QT_QPA_PLATFORMTHEME=xdgdesktopportal
 export QSG_RHI_BACKEND=opengl
+# Qt Multimedia's FFmpeg backend can use CUDA decoding on NVIDIA. A 4K60 live
+# wallpaper is otherwise capable of consuming a large CPU budget before the
+# compositor even starts blending it. Respect every explicit user override.
+if [ -z "${QT_FFMPEG_DECODING_HW_DEVICE_TYPES+x}" ] && [ -d /sys/module/nvidia ]; then
+    export QT_FFMPEG_DECODING_HW_DEVICE_TYPES=cuda
+fi
 # Once the compositor owns its Wayland socket it publishes WAYLAND_DISPLAY and
 # the LunaDash desktop identity to D-Bus activation and the systemd user
 # manager, so portal services start in this compositor session.
