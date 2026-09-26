@@ -21,7 +21,7 @@ ColumnLayout {
         }
     }
     HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "New windows split the focused tile by default, alternating left/right and top/bottom. The first window stays on the right. Choose largest or change the first window side above; existing tiles keep their arrangement. Groups support up to eight rows, and dialogs stay above their parent." }
-    HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "Alt + left-drag swaps window slots. Drop near the top or bottom edge to insert into a column. With only one window, Alt dragging moves it without resizing." }
+    HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "Drag a window titlebar onto another window to exchange their slots with the normal layout animation. Alt + left-drag remains available for compositor-driven dragging; dropping near the top or bottom edge inserts into a column." }
     HelpText { visible: !Boolean(page.layoutApi.allowOverlap); shell: page.shell; message: "Shift + Alt + left-drag moves shared tile boundaries or resizes grouped rows. Neighbors share the available space without overlapping or changing order." }
     HelpText { shell: page.shell; message: "The taskbar groups windows by workspace in capsules. The current workspace is brighter; other workspaces are darker. Select a tiled task to maximize it and hide its workspace peers. Click it again or press Super + F to restore the saved tiling layout." }
     HelpText { shell: page.shell; message: "Alt + Tab shows workspaces 1–10 in a two-row overview with window thumbnails. Use Tab, arrow keys or scrolling; release Alt to switch workspace, or press Esc to cancel." }
