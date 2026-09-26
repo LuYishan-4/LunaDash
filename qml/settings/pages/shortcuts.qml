@@ -38,7 +38,6 @@ ColumnLayout {
             {id:"randomWallpaper", name:"Random wallpaper"},
             {id:"toggleEyeCare", name:"Eye care"},
             {id:"toggleScratchpad", name:"Scratchpad"},
-            {id:"toggleFloating", name:"Toggle floating window"},
             {id:"toggleFullscreen", name:"Toggle fullscreen"},
             {id:"openControlCenter", name:"Control center"},
             {id:"openClipboard", name:"Clipboard"},
