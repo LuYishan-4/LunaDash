@@ -332,9 +332,12 @@ public:
 
   void capture(Entry &entry, bool animationsActive) {
     const qint64 rapidIntervalMs = entries.size() >= 4 ? 100 : 66;
+    constexpr qint64 staticValidationMs = 100;
     const bool available = entry.backing && entry.error.isEmpty();
     if (available && entry.attempted && !animationsActive &&
-        !entry.rapidBackdrop && entry.sceneRevision == sceneRevision) {
+        !entry.rapidBackdrop && entry.sceneRevision == sceneRevision &&
+        entry.captureClock.isValid() &&
+        entry.captureClock.elapsed() < staticValidationMs) {
       if (!entry.glass->node.enabled)
         wlr_scene_node_set_enabled(&entry.glass->node, true);
       ready = true;
@@ -398,6 +401,11 @@ public:
       } else {
         entry.error = "The renderer could not create a window backdrop.";
       }
+    } else {
+      // Nothing changed. Bound the next full scene walk instead of repeating
+      // the same fingerprint on every high-refresh output frame.
+      entry.rapidBackdrop = rapidSource;
+      entry.captureClock.restart();
     }
     const bool nowAvailable = entry.backing && entry.error.isEmpty();
     if (entry.glass->node.enabled != nowAvailable)
