@@ -1247,13 +1247,12 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     setMaximized(focused_, !focused_->maximized);
   } else if (action == "toggleFullscreen" && focused_) {
     setFullscreen(focused_, !focused_->fullscreen);
-  } else if ((action == "closeWindow" || action == "closeWindowAlternate") &&
-             focused_)
+  } else if (action == "closeWindow" && focused_)
     closeClient(focused_);
   else if (action == "minimizeWindow" && focused_) {
     focused_->minimized = true;
     windowLayout_->setMinimized(focused_->id, true);
-  } else if (action == "launchTerminal" || action == "launchTerminalAlternate")
+  } else if (action == "launchTerminal")
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
