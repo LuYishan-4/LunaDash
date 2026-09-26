@@ -8,6 +8,7 @@
 #include <QSet>
 #include <QStandardPaths>
 #include <QUrl>
+#include <limits>
 
 int qInitResources_orbit_defaults();
 namespace LunaDash {
@@ -18,12 +19,17 @@ QString path() {
          "/lunadash/orbit.json";
 }
 QJsonObject defaults() {
-  ::qInitResources_orbit_defaults();
-  QFile file(":/LunaDash/launcher/orbit.json");
-  if (!file.open(QIODevice::ReadOnly))
-    qFatal("Missing embedded Orbit configuration");
-  return QJsonDocument::fromJson(file.readAll()).object();
+  static const QJsonObject value = [] {
+    ::qInitResources_orbit_defaults();
+    QFile file(":/LunaDash/launcher/orbit.json");
+    if (!file.open(QIODevice::ReadOnly))
+      qFatal("Missing embedded Orbit configuration");
+    return QJsonDocument::fromJson(file.readAll()).object();
+  }();
+  return value;
 }
+
+quint64 orbitRevision = 0;
 bool shortText(const QJsonValue &value, int maximum = 128) {
   return value.isString() && !value.toString().isEmpty() &&
          value.toString().size() <= maximum &&
@@ -124,16 +130,34 @@ bool validate(const QByteArray &text, QJsonObject *object, QString *error) {
 }
 } // namespace
 QJsonObject orbitSettings() {
+  static QJsonObject cache;
+  static qint64 cachedModified = -2;
+  static qint64 cachedSize = -2;
+  static quint64 cachedRevision = std::numeric_limits<quint64>::max();
+
+  const QString settingsPath = path();
+  const QFileInfo info(settingsPath);
+  const qint64 modified =
+      info.exists() ? info.lastModified().toMSecsSinceEpoch() : -1;
+  const qint64 size = info.exists() ? info.size() : -1;
+  if (cachedRevision == orbitRevision && cachedModified == modified &&
+      cachedSize == size)
+    return cache;
+
   QJsonObject document = defaults();
   QString error;
-  QFile file(path());
+  QFile file(settingsPath);
   if (file.exists()) {
     if (!file.open(QIODevice::ReadOnly))
       error = file.errorString();
     else
       validate(file.read(32769), &document, &error);
   }
-  return {{"document", document}, {"path", path()}, {"error", error}};
+  cache = {{"document", document}, {"path", settingsPath}, {"error", error}};
+  cachedModified = modified;
+  cachedSize = size;
+  cachedRevision = orbitRevision;
+  return cache;
 }
 bool saveOrbitSettings(const QByteArray &text, QString *error) {
   QJsonObject document;
@@ -148,6 +172,7 @@ bool saveOrbitSettings(const QByteArray &text, QString *error) {
       *error = file.errorString();
     return false;
   }
+  ++orbitRevision;
   return true;
 }
 bool resetOrbitSettings(QString *error) {
