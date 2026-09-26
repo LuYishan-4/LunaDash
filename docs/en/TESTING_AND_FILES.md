@@ -65,17 +65,14 @@ This builds packages without installing them. The archive must include `examples
 
 | Workflow | Configured coverage |
 | --- | --- |
-| Main Ubuntu build | Full C/C++ build, portal picker regressions and source architecture |
-| Main Qt loading | Native Qt client modules against a wlroots session |
-| Main Wayland loading | Protocol globals, xdg lifecycle, headless session, on-demand XWayland |
-| Main OpenGL loading | Shader inventory, renderer failure/lifetime tests, staged-install software GL and headless session |
-| Main startup checks | Invalid CLI options and wlroots renderer fallback |
-| Main website build | Astro checking/build and local link/asset tests |
-| Source style / QML reviews | Architecture, English source, shell checks, QML syntax/design/actions |
+| Main build and integration | One Ubuntu build covering maintained CTest, source contracts, QML parsing/tests, renderer checks, startup failure handling, Wayland/XWayland lifecycle and software OpenGL relocation |
 | Linux distribution builds | Arch, Debian 13, Fedora 45, openSUSE Tumbleweed and Alpine Edge source builds |
-| PR analysis and hygiene | Path-scoped clang-tidy, CodeQL, Qt lifetime and repository policy |
+| Main website build | Astro checking/build and local link/asset tests |
+| PR source style | Architecture, English source, shell syntax/ShellCheck and QML design-system usage |
+| PR analysis and hygiene | Policy, repository hygiene, path-scoped clang-tidy, CodeQL and Qt lifetime analysis |
+| Website Pages deployment | Builds and publishes the release website from main |
 
-The source-build matrix does not verify physical hardware. Void/Gentoo have installer paths, without the same configured CI breadth. The main gate historically aggregates five runtime/build workflows; inspect all runs for the exact commit, including website, architecture/QML and distro jobs. A skipped/manual-only workflow is not a successful execution. See [security checks](SECURITY_CHECKS.md) and [release process](RELEASE_PROCESS.md).
+Feature-specific workflows are intentionally not maintained. Individual UI interactions and one-off desktop regressions belong in the maintained test suite or release-session verification rather than owning a separate required workflow. The source-build matrix does not verify physical hardware. Void/Gentoo have installer paths without the same configured CI breadth. Inspect completed runs for the exact commit; a skipped/manual-only workflow is not a successful execution. See [security checks](SECURITY_CHECKS.md) and [release process](RELEASE_PROCESS.md).
 
 ## Source map
 
