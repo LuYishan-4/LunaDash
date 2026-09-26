@@ -41,14 +41,28 @@ QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
   const QSize size = outputSize();
   QJsonArray nightLight;
   quint64 frameCallbacks = 0;
+  quint64 slowFrames = 0;
+  qint64 lastFrameWorkUsec = 0;
+  qint64 maxFrameWorkUsec = 0;
   for (const auto *output : outputs) {
     frameCallbacks += output->frameCallbacks;
+    slowFrames += output->slowFrames;
+    lastFrameWorkUsec = std::max(lastFrameWorkUsec, output->lastFrameWorkUsec);
+    maxFrameWorkUsec = std::max(maxFrameWorkUsec, output->maxFrameWorkUsec);
     nightLight.append(QJsonObject{{"output", safeUtf8(output->output->name)},
                                   {"temperature", output->nightTemperature},
                                   {"error", output->nightError}});
   }
   return {
       {"frameCallbacks", static_cast<qint64>(frameCallbacks)},
+      {"frameWorkMs", static_cast<double>(lastFrameWorkUsec) / 1000.0},
+      {"maxFrameWorkMs", static_cast<double>(maxFrameWorkUsec) / 1000.0},
+      {"slowFrames", static_cast<qint64>(slowFrames)},
+      {"eventLoop",
+       QJsonObject{{"dispatchCalls", static_cast<qint64>(dispatchCalls)},
+                   {"lastDispatchMs", static_cast<double>(lastDispatchUsec) / 1000.0},
+                   {"maxDispatchMs", static_cast<double>(maxDispatchUsec) / 1000.0},
+                   {"slowDispatches", static_cast<qint64>(slowDispatches)}}},
       {"nightLight", nightLight},
       {"width", size.width()},
       {"pixelWidth", primaryOutput ? primaryOutput->width : 0},
@@ -327,7 +341,6 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
 
   auto *animations = state->impl->q->windowAnimations_.get();
   const bool wasAnimating = animations && animations->activeCount() > 0;
-  state->impl->updateWindowCorners();
   if (animations)
     animations->advance();
   const bool stillAnimating = animations && animations->activeCount() > 0;
@@ -374,6 +387,18 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
     if (!state->screencopyTimer->isActive())
       state->screencopyTimer->start();
   }
+
+  timespec finished{};
+  clock_gettime(CLOCK_MONOTONIC, &finished);
+  const quint64 finishedNs =
+      static_cast<quint64>(finished.tv_sec) * 1000000000ULL +
+      static_cast<quint64>(finished.tv_nsec);
+  state->lastFrameWorkUsec =
+      static_cast<qint64>((finishedNs - nowNs) / 1000ULL);
+  state->maxFrameWorkUsec =
+      std::max(state->maxFrameWorkUsec, state->lastFrameWorkUsec);
+  if (state->lastFrameWorkUsec >= 8000)
+    ++state->slowFrames;
 }
 
 void WaylandCompositor::Impl::handleOutputRequestState(wl_listener *listener,
