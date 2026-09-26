@@ -1920,9 +1920,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", "No network configuration utility is installed."}};
     spawn(arguments, program, false);
   } else if (method == "choose-wallpaper") {
-    // Super+W is a standalone wallpaper-gallery toggle. Do not open Settings
-    // first: doing so dismisses an already-open gallery and makes the same
-    // shortcut immediately reopen it instead of closing it.
+    // Super+W is a standalone wallpaper-gallery toggle. Refresh discovery only
+    // when the user opens the gallery; background status polls reuse the cache
+    // and never rescan a large Pictures/Wallpapers tree on a timer.
+    QString refreshError;
+    if (!refreshWallpaperLibrary(&refreshError))
+      return {{"error", refreshError}};
     pickerSerial_ = (pickerSerial_ + 1) % 1000000;
   } else if (method == "wallpaper-image") {
     QString error;
