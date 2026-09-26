@@ -29,6 +29,7 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
     q->arrange();
   }
   pointerLast = QPointF(cursor->x, cursor->y);
+  pointerPublishClock.invalidate();
   pointerTarget = 0;
   pointerEdge = 0;
   client->manualResize = true;
@@ -60,6 +61,7 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   pointerResizeEdges = edges;
   pointerResize = edges != 0;
   pointerLast = QPointF(cursor->x, cursor->y);
+  pointerPublishClock.invalidate();
   pointerTarget = pointerEdge = 0;
   client->manualResize = true;
   if (client->toplevel)
@@ -80,6 +82,30 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     return true;
   }
   auto *client = found->get();
+  const auto publishGeometry = [this] {
+    if (!pointerPublishClock.isValid() || pointerPublishClock.elapsed() >= 33) {
+      q->publishWindowLayout();
+      pointerPublishClock.restart();
+    }
+  };
+  const auto configureDragged = [this, client]() {
+    const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
+    for (const auto &slot : snapshot.columns) {
+      bool ownsWindow = slot.window == static_cast<LayoutWindowId>(client->id);
+      if (!ownsWindow) {
+        for (const auto &member : slot.metadata.value("members").toArray())
+          if (member.toInteger() == client->id) {
+            ownsWindow = true;
+            break;
+          }
+      }
+      if (!ownsWindow)
+        continue;
+      q->configure(client, slot.geometry);
+      return true;
+    }
+    return false;
+  };
   const QPointF current(cursor->x, cursor->y);
   const QPoint delta = (current - pointerLast).toPoint();
   pointerLast = current;
@@ -99,7 +125,8 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     geometry.moveTop(std::clamp(geometry.y(), area.top(), area.bottom() - geometry.height() + 1));
     client->manualGeometry = geometry;
     client->preferredFloatingSize = geometry.size();
-    q->arrange();
+    q->configure(client, geometry);
+    publishGeometry();
     return true;
   }
   const auto snapshot = q->windowLayout_->snapshot(q->workspace_);
@@ -151,7 +178,10 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
          {"dx", std::max(0, shift.x())},
          {"dy", std::max(0, shift.y())},
          {"area", areaJson}});
-    q->arrange();
+    if (!configureDragged())
+      q->arrange();
+    else
+      publishGeometry();
     return true;
   }
   if (pointerResize) {
@@ -194,7 +224,10 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
                               {"y", area.y()},
                               {"width", area.width()},
                               {"height", area.height()}}}});
-    q->arrange();
+    if (freeform && configureDragged())
+      publishGeometry();
+    else
+      q->arrange();
     return true;
   }
   pointerTarget = 0;
@@ -238,6 +271,7 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
   }
   pointerResize = pointerClientGrab = false;
   pointerButton = pointerResizeEdges = 0;
+  pointerPublishClock.invalidate();
   q->windowSwitcher_->setDrag({});
   // Release the interactive geometry override before arranging. Dropped,
   // swapped and regrouped windows then use the normal layout transition.
