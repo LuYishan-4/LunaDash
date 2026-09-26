@@ -173,6 +173,13 @@ with tempfile.TemporaryDirectory(prefix="ludash-locks-test-") as runtime:
                 "The keypad key was not forwarded from its scan code: "
                 f"{before} -> {after}"
             )
+
+            # Ctrl must remain a real client modifier. On an empty canonical
+            # terminal line Ctrl+D produces EOF; if Ctrl is lost, a literal d
+            # is typed and the terminal remains open.
+            subprocess.run([xdotool, "key", "ctrl+d"], check=True)
+            terminal.wait(timeout=5)
+
             exit_code = process.wait(timeout=35)
             assert exit_code >= 0, f"The session was signalled: {exit_code}"
         except BaseException:
