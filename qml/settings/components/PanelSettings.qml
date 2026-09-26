@@ -6,6 +6,7 @@ import "../../style"
 SettingsCard {
     id: controls
     required property var shell
+    readonly property alias firstFocusItem: edgeSelector
     readonly property var targets: (shell.state.settingsApi || {}).targets || []
     readonly property var styleTarget: targets.find(item => item.id === "module:panel:style") || ({})
     readonly property var configTarget: targets.find(item => item.id === "module:panel:config") || ({})
@@ -49,6 +50,7 @@ SettingsCard {
                 font.family: Theme.font
             }
             StyledComboBox {
+                id: edgeSelector
                 Layout.preferredWidth: 180
                 translationContext: controls.shell
                 model: ["Top", "Bottom", "Left", "Right"]
