@@ -33,6 +33,19 @@ bool keypadSymbol(xkb_keysym_t symbol) {
   return symbol >= XKB_KEY_KP_Space && symbol <= XKB_KEY_KP_Equal;
 }
 
+void refreshKeyboardLeds(wlr_keyboard *keyboard) {
+  if (!keyboard || !keyboard->xkb_state)
+    return;
+  uint32_t leds = 0;
+  for (size_t index = 0; index < WLR_LED_COUNT; ++index) {
+    if (keyboard->led_indexes[index] != XKB_KEYMAP_INVALID_LED &&
+        xkb_state_led_index_is_active(keyboard->xkb_state,
+                                      keyboard->led_indexes[index]))
+      leds |= 1u << index;
+  }
+  wlr_keyboard_led_update(keyboard, leds);
+}
+
 bool copyKeyboardState(wlr_keyboard *target, const wlr_keyboard *source) {
   if (!target || !source || !target->xkb_state || !source->xkb_state ||
       !target->keymap || !source->keymap ||
@@ -50,15 +63,51 @@ bool copyKeyboardState(wlr_keyboard *target, const wlr_keyboard *source) {
       xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LOCKED);
   target->modifiers.group =
       xkb_state_serialize_layout(target->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+  refreshKeyboardLeds(target);
+  return true;
+}
 
-  uint32_t leds = 0;
-  for (size_t index = 0; index < WLR_LED_COUNT; ++index) {
-    if (target->led_indexes[index] != XKB_KEYMAP_INVALID_LED &&
-        xkb_state_led_index_is_active(target->xkb_state,
-                                      target->led_indexes[index]))
-      leds |= 1u << index;
+bool copyKeyboardLocks(wlr_keyboard *target, const wlr_keyboard *source) {
+  if (!target || !source || !target->xkb_state || !source->xkb_state ||
+      !target->keymap || !source->keymap)
+    return false;
+
+  xkb_mod_mask_t locked = target->modifiers.locked;
+  bool mapped = false;
+  for (const char *name : {XKB_MOD_NAME_CAPS, XKB_MOD_NAME_NUM}) {
+    const xkb_mod_index_t sourceIndex =
+        xkb_keymap_mod_get_index(source->keymap, name);
+    const xkb_mod_index_t targetIndex =
+        xkb_keymap_mod_get_index(target->keymap, name);
+    if (sourceIndex == XKB_MOD_INVALID || targetIndex == XKB_MOD_INVALID)
+      continue;
+    mapped = true;
+    const xkb_mod_mask_t sourceBit = xkb_mod_mask_t{1} << sourceIndex;
+    const xkb_mod_mask_t targetBit = xkb_mod_mask_t{1} << targetIndex;
+    if (source->modifiers.locked & sourceBit)
+      locked |= targetBit;
+    else
+      locked &= ~targetBit;
   }
-  wlr_keyboard_led_update(target, leds);
+
+  if (!mapped) {
+    if (!wlr_keyboard_keymaps_match(target->keymap, source->keymap))
+      return false;
+    locked = source->modifiers.locked;
+  }
+
+  xkb_state_update_mask(target->xkb_state, target->modifiers.depressed,
+                        target->modifiers.latched, locked, 0, 0,
+                        target->modifiers.group);
+  target->modifiers.depressed =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_DEPRESSED);
+  target->modifiers.latched =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LATCHED);
+  target->modifiers.locked =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LOCKED);
+  target->modifiers.group =
+      xkb_state_serialize_layout(target->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+  refreshKeyboardLeds(target);
   return true;
 }
 
@@ -276,6 +325,18 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
       self->inputMethod->method->keyboard_grab;
   const bool inputMethodVirtual =
       self->inputMethodVirtualKeyboard(state);
+
+  if (state->virtualKeyboard && !inputMethodVirtual) {
+    // Generic virtual keyboards such as GPU Screen Recorder may be recreated
+    // repeatedly and begin with an empty locked mask. The physical keyboard is
+    // the persistent lock-state owner: inherit CapsLock/NumLock before wlroots
+    // processes this virtual key, then the modifiers callback writes the
+    // resulting state back after the key has toggled it.
+    if (auto *physical = self->preferredKeyboard();
+        physical && physical != keyboard)
+      copyKeyboardLocks(keyboard, physical);
+  }
+
   if (inputMethodVirtual) {
     // The IME's own virtual keyboard is the return path from its hardware
     // keyboard grab. Keep the seat on the physical keymap and preserve the
@@ -484,9 +545,14 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
   // raw locked mask separately so CapsLock/NumLock transitions remain visible
   // even while an input-method-v2 keyboard grab is active.
   const uint32_t locked = state->keyboard->modifiers.locked;
-  const bool lockedChanged =
-      !state->virtualKeyboard && locked != state->lastLockedModifiers;
+  const bool lockedChanged = locked != state->lastLockedModifiers;
   state->lastLockedModifiers = locked;
+
+  if (state->virtualKeyboard && !inputMethodVirtual) {
+    if (auto *physical = self->preferredKeyboard();
+        physical && physical != state->keyboard)
+      copyKeyboardLocks(physical, state->keyboard);
+  }
 
   const bool inputMethodOwnsKeyboard =
       inputMethodBridgeActive && !inputMethodVirtual;
@@ -532,8 +598,10 @@ void WaylandCompositor::Impl::handleKeyboardDestroy(wl_listener *listener,
   auto *current = self->seat ? wlr_seat_get_keyboard(self->seat) : nullptr;
   auto *physical = state->virtualKeyboard ? self->preferredKeyboard() : nullptr;
   if (state->virtualKeyboard && current == state->keyboard && physical &&
-      physical != state->keyboard)
-    copyKeyboardState(physical, state->keyboard);
+      physical != state->keyboard) {
+    if (!copyKeyboardState(physical, state->keyboard))
+      copyKeyboardLocks(physical, state->keyboard);
+  }
 
   detachListener(state->key);
   detachListener(state->modifiers);
