@@ -1813,8 +1813,11 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                     : method == "appearance-preset-apply" ? applyAppearancePreset(value, &error)
                     : deleteAppearancePreset(value, &error);
     if (!ok) return {{"error", error}};
-    if (method == "appearance-preset-apply")
-      synchronizeApplicationTheme();
+    if (method == "appearance-preset-apply") {
+      const auto updatedPreferences = desktopPreferences();
+      synchronizeApplicationTheme(
+          updatedPreferences, appearancePalette(updatedPreferences));
+    }
     if (d) d->updateNightLight();
     arrange();
   } else if (method == "scratchpad") {
@@ -1842,7 +1845,9 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     // Publish color-scheme immediately so portal-aware Chromium/Electron/Qt
     // clients and gsettings-aware GTK applications follow the desktop switch
     // without waiting for the next shell status poll.
-    synchronizeApplicationTheme();
+    const auto updatedPreferences = desktopPreferences();
+    synchronizeApplicationTheme(
+        updatedPreferences, appearancePalette(updatedPreferences));
     applyKeyboardConfiguration();
     for (const auto &key : {"weatherEnabled", "weatherLatitude", "weatherLongitude", "weatherLocation"})
       if (document.object().contains(key)) { weatherStatus_->refresh(); break; }
