@@ -84,6 +84,8 @@ assert "modifiers.locked = physical->modifiers.locked" not in modifiers_handler
 assert "return;" in virtual_modifier
 key_owner = input_cpp[input_cpp.index("auto *keyboard = state->keyboard;"):]
 key_owner = key_owner[: key_owner.index("const uint32_t keycode")]
-assert "if (state->virtualKeyboard)" in key_owner
+assert "if (state->virtualKeyboard && !inputMethodVirtual)" in key_owner
+assert "copyKeyboardLocks(keyboard, physical)" in key_owner
+assert "if (inputMethodVirtual)" in key_owner
 assert "restorePreferredKeyboard()" in key_owner
 assert "&physical->modifiers" in key_owner
