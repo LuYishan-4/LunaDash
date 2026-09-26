@@ -33,9 +33,9 @@ export const groups: SettingGroup[] = [
       "Choose 1–10 workspaces and window gaps. Windows stay within one screen: two split left/right, then new windows split the largest tile. Groups support up to eight vertical rows.",
     details: [
       "Super+1…9 and Super+0 switch workspaces (0 selects workspace 10); Super+Shift+1…9 moves the focused window to an existing workspace.",
-      "Super+H/L focuses left/right; Super+K/J focuses up/down. Super+F maximizes one window or restores the saved workspace tiling, and Super+Q closes the focused window.",
+      "Super+H/L focuses left/right; Super+K/J focuses up/down. Super+F maximizes one window or restores the saved workspace tiling, and Super+C closes the focused window.",
       "Alt + left-drag swaps window slots; drop at a top/bottom edge to insert into a column. A single window moves without resizing. Add Shift to resize shared boundaries and redistribute space without overlap.",
-      "The taskbar groups windows into workspace capsules without numeric badges: the current workspace is brighter and the others use a darker tint. Selecting a tiled task animates the workspace change and maximizes it, temporarily hiding its workspace peers. Click the active task again or press Super+F to restore all saved tile sizes and positions. Alt+Tab opens a 2×5 overview of workspaces 1–10 with actual window thumbnails over a blurred background. Release Alt to switch workspace or press Esc to cancel.",
+      "The taskbar groups windows into workspace capsules without numeric badges: the current workspace is brighter and the others use a darker tint. Selecting a tiled task animates the workspace change and maximizes it, temporarily hiding its workspace peers. Click the active task again or press Super+F to restore all saved tile sizes and positions. Alt+Tab previews windows in the current workspace. Super+Tab opens the workspace overview. Release Alt or Super to confirm the matching switcher, or press Esc to cancel.",
       "Reducing workspace count moves windows from removed workspaces to the last remaining workspace.",
     ],
   },
@@ -68,7 +68,7 @@ export const groups: SettingGroup[] = [
     description:
       "Applications and startup lists every installed application for each default role, with the role default pinned at the top of the list.",
     details: [
-      "Terminal defaults to Kitty, opened with Super+T or Super+Return, and respects your existing configuration. The login shell and user Fish configuration are not rewritten.",
+      "Terminal defaults to Kitty, opened with Super+T, and respects your existing configuration. The login shell and user Fish configuration are not rewritten.",
       "Files defaults to Dolphin. Select another installed file manager in Settings; the LunaDash file picker and screen/window sharing chooser remain available.",
       "The browser role controls web links opened by LunaDash and prefers Chrome when available. Default application roles affect LunaDash launchers and shortcuts; file-type associations are configured separately.",
       "Startup selection currently covers built-in tools; general desktop-entry autostart and session restoration are not implemented.",
