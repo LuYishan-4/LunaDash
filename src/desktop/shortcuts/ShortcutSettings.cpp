@@ -38,7 +38,6 @@ QJsonObject defaults() {
   result.insert("openControlCenter", "Meta+I");
   result.insert("openClipboard", "Meta+V");
   result.insert("openPowerMenu", "Meta+X");
-  result.insert("toggleFloating", "Meta+Shift+T");
   result.insert("toggleFullscreen", "Meta+Shift+F");
   for (int workspace = 1; workspace <= 10; ++workspace) {
     result.insert(QString("workspace%1").arg(workspace),
