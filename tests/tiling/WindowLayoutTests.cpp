@@ -728,6 +728,21 @@ private Q_SLOTS:
              QString("closeWindow"));
     QCOMPARE(migrated.actionFor(XKB_KEY_Return, ShortcutMeta),
              QString("launchTerminal"));
+
+    // Removed shortcut IDs from older releases must not stay in the persistent
+    // settings map or reappear in Settings. Valid custom bindings survive.
+    QSettings().setValue(
+        "shortcuts/bindings",
+        QJsonObject{{"removedLegacyAction", "Meta+Y"},
+                    {"closeWindow", "Meta+T"}}
+            .toVariantMap());
+    ShortcutSettings cleaned;
+    const auto saved = QJsonObject::fromVariantMap(
+        QSettings().value("shortcuts/bindings").toMap());
+    QVERIFY(!saved.contains("removedLegacyAction"));
+    QCOMPARE(saved.value("closeWindow").toString(), QString("Meta+T"));
+    QCOMPARE(cleaned.actionFor(XKB_KEY_t, ShortcutMeta),
+             QString("closeWindow"));
   }
 };
 } // namespace LunaDash
