@@ -695,12 +695,15 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   const auto preferences = desktopPreferences();
+  d->eyeCareActive = preferences.value("eyeCare").toBool();
+  d->steadyWindowOpacity = d->eyeCareActive
+      ? 1.0f
+      : preferences.value("windowOpacity").toInt(90) / 100.0f;
   if (d->windowGlass) {
-    const bool eyeCare = preferences.value("eyeCare").toBool();
     const bool changed = d->windowGlass->configure(
-        preferences.value("blur").toBool() && !eyeCare,
+        preferences.value("blur").toBool() && !d->eyeCareActive,
         preferences.value("blurRadius").toInt(),
-        eyeCare ? 1.0f : preferences.value("windowOpacity").toInt(90) / 100.0f);
+        d->steadyWindowOpacity);
     if (changed)
       for (const auto *output : d->outputs)
         wlr_output_schedule_frame(output->output);
