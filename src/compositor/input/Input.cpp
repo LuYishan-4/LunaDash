@@ -223,7 +223,10 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
     return;
   auto *self = state->impl;
   auto *keyboard = state->keyboard;
-  wlr_seat_set_keyboard(self->seat, keyboard);
+  if (state->virtualKeyboard)
+    self->restorePreferredKeyboard();
+  else
+    wlr_seat_set_keyboard(self->seat, keyboard);
 
   const uint32_t keycode = event->keycode + 8;
   const xkb_keysym_t *symbols = nullptr;
@@ -383,6 +386,22 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
   if (!state || !state->keyboard)
     return;
   auto *self = state->impl;
+
+  // A virtual keyboard is an event source, not the owner of physical lock
+  // state. Selecting it with wlr_seat_set_keyboard() would immediately send
+  // its modifier snapshot (often locked=0) to the focused client and clear
+  // CapsLock/NumLock. Keep the physical keyboard selected and merge only its
+  // locked mask into virtual modifier notifications.
+  if (state->virtualKeyboard) {
+    self->restorePreferredKeyboard();
+    auto modifiers = state->keyboard->modifiers;
+    if (auto *physical = self->preferredKeyboard();
+        physical && physical != state->keyboard)
+      modifiers.locked = physical->modifiers.locked;
+    wlr_seat_keyboard_notify_modifiers(self->seat, &modifiers);
+    return;
+  }
+
   wlr_seat_set_keyboard(self->seat, state->keyboard);
 
   // wlroots updates xkb_state before emitting this modifiers signal. Track the
