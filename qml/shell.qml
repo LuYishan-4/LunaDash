@@ -531,7 +531,7 @@ ShellRoot {
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
     Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running && !wallpaperController.busy) Qt.quit() }
     Timer {
-        interval: updateAction.running ? 350 : 1200
+        interval: updateAction.running ? 500 : 3000
         running: true
         repeat: true
         triggeredOnStart: true
