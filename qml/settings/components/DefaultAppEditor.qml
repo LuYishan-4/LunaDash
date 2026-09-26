@@ -107,9 +107,12 @@ ColumnLayout {
 
     Component.onCompleted: editor.buildChoices()
     Timer {
-        interval: 500
+        // DesktopEntries already updates its model when applications change.
+        // This is only a compatibility fallback while this settings page is
+        // visible, not a 2 Hz permanent shell poll.
+        interval: 3000
         repeat: true
-        running: true
+        running: editor.visible
         onTriggered: {
             if (editor.knownApplicationCount !== DesktopEntries.applications.values.length)
                 editor.buildChoices()
