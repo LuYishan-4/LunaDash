@@ -21,6 +21,13 @@ ModuleSurface {
     readonly property var audio: shell.state.audio || ({})
     readonly property var weather: shell.state.weather || ({})
     readonly property var updateInfo: shell.state.update || ({})
+    readonly property var wallpaperMedia: ((shell.state.wallpapers || {}).current || {})
+    readonly property string wallpaperPreview: {
+        if (wallpaperMedia.preview)
+            return String(wallpaperMedia.preview)
+        const source = String(shell.state.wallpaperImage || "")
+        return /\.(mp4|webm|mkv|mov|m4v)(?:$|\?)/i.test(source) ? "" : source
+    }
     readonly property var clients: (shell.state.clients || [])
         .filter(client => client.mapped && !client.desktop)
     readonly property string versionText: updateInfo.currentVersion || "1.0.1a"
@@ -264,7 +271,7 @@ ModuleSurface {
 
                         Image {
                             anchors.fill: parent
-                            source: shell.state.wallpaperImage || ""
+                            source: dashboard.wallpaperPreview
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             sourceSize: Qt.size(900, 420)
