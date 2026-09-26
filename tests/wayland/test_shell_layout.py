@@ -401,9 +401,10 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-layout-") as temporary:
                     keyboard_tabs(forward[name])
                 else:
                     assert name == "×" and description == "Quick hide settings", (name, description)
-                    custom = panel_document(request())["style"]["width"] > 0
-                    # Above margin: height, optional width, length, edge, close.
-                    keyboard_tabs(5 if custom else 4, backward=True)
+                    # Header navigation is deterministic: Find focuses search,
+                    # then Tab reaches maximize and close before page controls.
+                    key_input("-M", "ctrl", "-k", "f", "-m", "ctrl")
+                    keyboard_tabs(2)
             key_input("-k", "space" if name in ("Centered launcher", "Show CPU and memory") else "Return")
             ui_actions.append({"operation": "keyboard-activate", "name": name})
 
