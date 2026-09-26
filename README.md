@@ -22,7 +22,7 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 
 </div>
 
-[English](README.md) · [繁體中文](docs/readme/README.zh-TW.md) · [简体中文](docs/readme/README.zh-CN.md) · [日本語](docs/readme/README.ja.md)
+[English](README.md) · [Traditional Chinese](docs/readme/README.zh-TW.md) · [Simplified Chinese](docs/readme/README.zh-CN.md) · [Japanese](docs/readme/README.ja.md)
 
 ## LunaDash
 
@@ -57,7 +57,7 @@ Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The 
 On Arch Linux, the guided installer offers Traditional Chinese / English,
 optional applications and a separate system-locale choice. Review the script
 before executing downloaded code. See the [English guide](docs/en/GUIDED_INSTALL.md)
-or [繁體中文指南](docs/zh/GUIDED_INSTALL.md).
+or the [Traditional Chinese guide](docs/zh/GUIDED_INSTALL.md).
 
 ```bash
 curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/LuYishan-4/LunaDash/dev/install.sh | bash
