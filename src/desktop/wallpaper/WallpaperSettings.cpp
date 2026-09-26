@@ -96,8 +96,11 @@ QJsonObject wallpaperEntry(const QString &path, const QString &current,
                            bool bundled) {
   const bool video = wallpaperIsVideo(path);
   const QString poster = video ? wallpaperPoster(path) : path;
+  const QString playback = video ? wallpaperPlaybackPath(path) : path;
   return QJsonObject{{"path", path},
-                     {"url", QUrl::fromLocalFile(path).toString()},
+                     {"url", playback.isEmpty()
+                                 ? QString()
+                                 : QUrl::fromLocalFile(playback).toString()},
                      {"preview", QFileInfo::exists(poster) ? QUrl::fromLocalFile(poster).toString() : QString{}},
                      {"name", QFileInfo(path).completeBaseName()},
                      {"category", bundled ? QStringLiteral("Bundled") : QFileInfo(path).dir().dirName()},
