@@ -1430,6 +1430,15 @@ QJsonObject WaylandCompositor::state() const {
   xwaylandState["utilitySurfaces"] = xwaylandUtilities;
   const auto language = selectedLanguage();
   const auto translations = languageDictionary(language);
+  auto *physicalKeyboard = d ? d->preferredKeyboard() : nullptr;
+  const auto lockEnabled = [physicalKeyboard](const char *name) {
+    if (!physicalKeyboard || !physicalKeyboard->keymap)
+      return false;
+    const auto index =
+        xkb_keymap_mod_get_index(physicalKeyboard->keymap, name);
+    return index != XKB_MOD_INVALID &&
+           (physicalKeyboard->modifiers.locked & (xkb_mod_mask_t{1} << index));
+  };
   return {
       {"settingsApi", QJsonObject{{"version", 1},
           {"targets", settingsApiTargets(extensions, moduleState, layoutTarget)}}},
@@ -1478,6 +1487,12 @@ QJsonObject WaylandCompositor::state() const {
                    {"repeatDelay", keyboardRepeatDelay()},
                    {"modifierResends", modifierResends_},
                    {"keypadKeyForwards", keypadKeyForwards_},
+                   {"lockedModifiers",
+                    static_cast<qint64>(physicalKeyboard
+                                            ? physicalKeyboard->modifiers.locked
+                                            : 0)},
+                   {"capsLock", lockEnabled(XKB_MOD_NAME_CAPS)},
+                   {"numLock", lockEnabled(XKB_MOD_NAME_NUM)},
                    {"seatProtocolVersion",
                     WlrootsCompat::expectedSeatProtocolVersion()},
                    {"dataDeviceProtocolVersion", 3},
