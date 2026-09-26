@@ -98,10 +98,7 @@ void WaylandCompositor::Impl::updateWindowCorners() {
   if (!windowCorners)
     return;
   QList<WindowCorners::Surface> surfaces;
-  const auto preferences = desktopPreferences();
-  const float opacity = preferences.value("eyeCare").toBool()
-                            ? 1.0f
-                            : preferences.value("windowOpacity").toInt(90) / 100.0f;
+  const float opacity = eyeCareActive ? 1.0f : steadyWindowOpacity;
   for (const auto &client : q->clients_) {
     if (!client->sceneTree)
       continue;
@@ -266,16 +263,19 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   }
   wlr_output_state_finish(&pending);
 
-  // Direct KMS recorders capture the primary scanout buffer, but hardware
-  // cursor planes are separate and are not reliably composited by all drivers
-  // (notably NVIDIA). Keep the cursor in the scene-rendered framebuffer on
-  // real login outputs so monitor recording sees exactly what LunaDash shows.
-  if (!self->nested)
-    wlr_output_lock_software_cursors(output, true);
-
   auto *state = new OutputState;
   state->impl = self;
   state->output = output;
+  // Hardware cursor planes avoid a full scene composition on every mouse
+  // movement. Screencopy temporarily switches to software cursors so portal
+  // streams still receive the pointer. Direct-KMS recorders can opt into the
+  // old always-composited behavior with LUDASH_SOFTWARE_CURSOR=1.
+  state->forceSoftwareCursor =
+      !self->nested && qEnvironmentVariableIntValue("LUDASH_SOFTWARE_CURSOR") == 1;
+  if (state->forceSoftwareCursor) {
+    wlr_output_lock_software_cursors(output, true);
+    state->softwareCursorLocked = true;
+  }
   auto *layoutOutput = wlr_output_layout_add_auto(self->outputLayout, output);
   state->sceneOutput = wlr_scene_output_create(self->scene, output);
   if (layoutOutput && state->sceneOutput)
@@ -303,6 +303,10 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   if (!state || !state->sceneOutput)
     return;
   ++state->frameCallbacks;
+  timespec now{};
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  const quint64 nowNs = static_cast<quint64>(now.tv_sec) * 1000000000ULL +
+                        static_cast<quint64>(now.tv_nsec);
 
   // Sample before commit: a screencopy frame is removed when this output
   // commit satisfies it. The tail bridges the small gap before xdpw queues
@@ -314,13 +318,27 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   else if (state->screencopyKeepalive > 0)
     --state->screencopyKeepalive;
 
+  const bool needsSoftwareCursor =
+      state->forceSoftwareCursor || capturePending || state->screencopyKeepalive > 0;
+  if (needsSoftwareCursor != state->softwareCursorLocked) {
+    wlr_output_lock_software_cursors(state->output, needsSoftwareCursor);
+    state->softwareCursorLocked = needsSoftwareCursor;
+  }
+
   auto *animations = state->impl->q->windowAnimations_.get();
   const bool wasAnimating = animations && animations->activeCount() > 0;
   state->impl->updateWindowCorners();
   if (animations)
     animations->advance();
-  if (wasAnimating)
+  const bool stillAnimating = animations && animations->activeCount() > 0;
+  if (wasAnimating &&
+      (!stillAnimating || state->lastAnimationPublishNs == 0 ||
+       nowNs - state->lastAnimationPublishNs >= 33000000ULL)) {
     state->impl->q->publishWindowLayout();
+    state->lastAnimationPublishNs = stillAnimating ? nowNs : 0;
+  } else if (!wasAnimating) {
+    state->lastAnimationPublishNs = 0;
+  }
   state->impl->updateWindowGlass();
   if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
     qWarning("wlroots scene output commit failed.");
@@ -332,8 +350,6 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
       wlr_output_schedule_frame(state->output);
     }
   }
-  timespec now{};
-  clock_gettime(CLOCK_MONOTONIC, &now);
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
 
   if (animations && animations->activeCount() > 0)
