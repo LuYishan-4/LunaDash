@@ -35,6 +35,7 @@ void setWindowOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
 class WindowGlass::Impl {
 public:
   struct SurfaceWatch {
+    Impl *owner = nullptr;
     wlr_surface *surface = nullptr;
     quint64 revision = 0;
     bool rapid = false;
@@ -42,7 +43,8 @@ public:
     Templates::WaylandSlot<SurfaceWatch> commit;
     Templates::WaylandSlot<SurfaceWatch> destroy;
 
-    explicit SurfaceWatch(wlr_surface *value) : surface(value) {
+    SurfaceWatch(Impl *ownerValue, wlr_surface *value)
+        : owner(ownerValue), surface(value) {
       Templates::attachListener(
           &surface->events.commit, commit, this,
           [](wl_listener *listener, void *) {
@@ -58,6 +60,7 @@ public:
                   watch->commitClock.isValid() && watch->commitClock.elapsed() < 40;
               watch->commitClock.restart();
               ++watch->revision;
+              ++watch->owner->sceneRevision;
             }
           });
       Templates::attachListener(
@@ -87,6 +90,7 @@ public:
     int cornerRadius = -1;
     quint64 fingerprint = 0;
     quint64 revision = 0;
+    quint64 sceneRevision = 0;
     bool attempted = false;
     bool rapidBackdrop = false;
     QElapsedTimer captureClock;
@@ -118,6 +122,7 @@ public:
         wlr_buffer_unlock(backing);
       backing = nullptr;
       attempted = false;
+      sceneRevision = 0;
       rapidBackdrop = false;
       captureClock.invalidate();
     }
@@ -141,6 +146,7 @@ public:
               wlr_buffer_unlock(entry->backing);
             entry->backing = nullptr;
             entry->attempted = false;
+            entry->sceneRevision = 0;
             entry->rapidBackdrop = false;
             entry->captureClock.invalidate();
           });
@@ -202,6 +208,7 @@ public:
   std::unordered_map<wlr_scene_tree *, std::unique_ptr<Entry>> entries;
   std::unordered_map<wlr_surface *, std::unique_ptr<SurfaceWatch>> watches;
   bool enabled = true;
+  quint64 sceneRevision = 1;
   int radius = 18;
   float opacity = 0.96f;
   bool ready = false;
@@ -232,7 +239,7 @@ public:
   SurfaceWatch *surfaceWatch(wlr_surface *surface) {
     auto &watch = watches[surface];
     if (!watch || watch->surface != surface)
-      watch = std::make_unique<SurfaceWatch>(surface);
+      watch = std::make_unique<SurfaceWatch>(this, surface);
     return watch.get();
   }
 
@@ -326,6 +333,13 @@ public:
   void capture(Entry &entry, bool animationsActive) {
     const qint64 rapidIntervalMs = entries.size() >= 4 ? 100 : 66;
     const bool available = entry.backing && entry.error.isEmpty();
+    if (available && entry.attempted && !animationsActive &&
+        !entry.rapidBackdrop && entry.sceneRevision == sceneRevision) {
+      if (!entry.glass->node.enabled)
+        wlr_scene_node_set_enabled(&entry.glass->node, true);
+      ready = true;
+      return;
+    }
     if (available && entry.attempted &&
         (animationsActive ||
          (entry.rapidBackdrop && entry.captureClock.isValid() &&
@@ -353,6 +367,7 @@ public:
         QRect(sample.x, sample.y, sample.width, sample.height), rapidSource);
     if (!found)
       return;
+    entry.sceneRevision = sceneRevision;
     if (available && rapidSource && entry.captureClock.isValid() &&
         entry.captureClock.elapsed() < rapidIntervalMs) {
       entry.rapidBackdrop = true;
@@ -447,14 +462,28 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
       d->error = "The renderer could not allocate a window backdrop node.";
       continue;
     }
-    if (entry->glass->node.parent != tree->node.parent)
+    bool sceneChanged = false;
+    if (entry->glass->node.parent != tree->node.parent) {
       wlr_scene_node_reparent(&entry->glass->node, tree->node.parent);
-    if (tree->node.link.prev != &entry->glass->node.link)
+      sceneChanged = true;
+    }
+    if (tree->node.link.prev != &entry->glass->node.link) {
       wlr_scene_node_place_below(&entry->glass->node, &tree->node);
+      sceneChanged = true;
+    }
     if (entry->glass->node.x != tree->node.x ||
-        entry->glass->node.y != tree->node.y)
+        entry->glass->node.y != tree->node.y) {
       wlr_scene_node_set_position(&entry->glass->node, tree->node.x, tree->node.y);
-    entry->area = QRect(QPoint(x, y), surface.size);
+      sceneChanged = true;
+    }
+    const QRect nextArea(QPoint(x, y), surface.size);
+    if (entry->area != nextArea) {
+      entry->area = nextArea;
+      entry->attempted = false;
+      sceneChanged = true;
+    }
+    if (sceneChanged)
+      ++d->sceneRevision;
   }
   std::erase_if(d->entries, [&active](const auto &item) {
     return !active.contains(item.first) || !item.second->tree;
