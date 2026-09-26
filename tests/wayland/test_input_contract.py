@@ -60,25 +60,28 @@ assert 'command("launcher-visible", launcherOpen ? "true" : "false")' in shell
 print("Input ownership contract passed: QML typing, app typing and Meta launcher toggle.")
 
 
-# Virtual keyboards (for example Fcitx virtual-keyboard-v1 forwarding) must
-# never become the seat's physical modifier owner. While the input-method grab
-# is active, synchronize the complete physical modifier snapshot before a
+# The input method's own virtual keyboard is a return path and must never
+# become the seat's physical modifier owner. While the input-method grab is
+# active, synchronize the complete physical modifier snapshot before a
 # forwarded virtual key so Ctrl/Shift/Alt as well as CapsLock/NumLock survive.
-virtual_modifier = input_cpp[input_cpp.index(
-    "A virtual keyboard is an event source"
-):]
-virtual_modifier = virtual_modifier[: virtual_modifier.index(
-    "// wlroots updates xkb_state"
+modifiers_handler = input_cpp[input_cpp.index(
+    "void WaylandCompositor::Impl::handleKeyboardModifiers"
+):input_cpp.index(
+    "void WaylandCompositor::Impl::handleKeyboardDestroy"
+)]
+assert "const bool inputMethodVirtual" in modifiers_handler
+virtual_modifier = modifiers_handler[modifiers_handler.index(
+    "if (inputMethodVirtual)"
+):modifiers_handler.index(
+    "wlr_seat_set_keyboard(self->seat, state->keyboard)"
 )]
 assert "restorePreferredKeyboard()" in virtual_modifier
-assert "inputMethodBridgeActive" in virtual_modifier
+assert "inputMethodBridgeActive" in modifiers_handler
 assert "&physical->modifiers" in virtual_modifier
-assert "modifiers.locked = physical->modifiers.locked" not in virtual_modifier
-# The physical set_keyboard call follows the virtual branch. The virtual path
+assert "modifiers.locked = physical->modifiers.locked" not in modifiers_handler
+# The physical set_keyboard call follows the IME virtual branch. That branch
 # must return before execution can reach it.
-assert virtual_modifier.index("return;") < virtual_modifier.index(
-    "wlr_seat_set_keyboard(self->seat, state->keyboard)"
-)
+assert "return;" in virtual_modifier
 key_owner = input_cpp[input_cpp.index("auto *keyboard = state->keyboard;"):]
 key_owner = key_owner[: key_owner.index("const uint32_t keycode")]
 assert "if (state->virtualKeyboard)" in key_owner
