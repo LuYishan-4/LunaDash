@@ -198,6 +198,7 @@ private Q_SLOTS:
     glass_->update(surfaces, false);
     QCOMPARE(allocator_->calls, allocations);
     wlr_scene_rect_set_color(background_, blue);
+    QTest::qWait(110);
     glass_->update(surfaces, false);
     QCOMPARE(glass_->frames(), quint64{2});
     QVERIFY(allocator_->calls > allocations);
@@ -274,13 +275,16 @@ private Q_SLOTS:
     // The filter samples beyond the window edge. Moving activity into that
     // padding must invalidate, even without overlapping the visible tile.
     wlr_scene_node_set_position(&activity->node, 66, 10);
+    QTest::qWait(110);
     glass_->update(surfaces, false);
     QCOMPARE(glass_->frames(), quint64{2});
     wlr_scene_node_set_position(&activity->node, 300, 200);
+    QTest::qWait(110);
     glass_->update(surfaces, false);
     QCOMPARE(glass_->frames(), quint64{3});
     // Removing an unrelated subtree must not invalidate the cache either.
     wlr_scene_node_destroy(&activity->node);
+    QTest::qWait(110);
     glass_->update(surfaces, false);
     QCOMPARE(glass_->frames(), quint64{3});
   }
