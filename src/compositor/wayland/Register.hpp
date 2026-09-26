@@ -33,6 +33,9 @@ public:
     bool forceSoftwareCursor = false;
     quint64 lastAnimationPublishNs = 0;
     quint64 frameCallbacks = 0;
+    quint64 slowFrames = 0;
+    qint64 lastFrameWorkUsec = 0;
+    qint64 maxFrameWorkUsec = 0;
     ludash_night_color *nightColor = nullptr;
     int nightTemperature = 6500;
     QString nightError;
@@ -55,6 +58,8 @@ public:
     // GPU Screen Recorder UI to discover the active/focused toplevel.
     wlr_foreign_toplevel_handle_v1 *legacyForeignHandle = nullptr;
 #endif
+    bool hasSurfaceGeometry = false;
+    wlr_box lastSurfaceGeometry{};
     Slot<ToplevelState> map;
     Slot<ToplevelState> unmap;
     Slot<ToplevelState> commit;
@@ -190,6 +195,10 @@ public:
   QRect usableArea{0, 0, 1440, 900};
   bool eyeCareActive = false;
   float steadyWindowOpacity = 0.90f;
+  quint64 dispatchCalls = 0;
+  quint64 slowDispatches = 0;
+  qint64 lastDispatchUsec = 0;
+  qint64 maxDispatchUsec = 0;
 
   wlr_xdg_shell *xdgShell = nullptr;
   wlr_layer_shell_v1 *layerShell = nullptr;
