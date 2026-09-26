@@ -3,15 +3,41 @@
 #include "config/desktop/DesktopPreferences.hpp"
 #include "service/portal/FileChooserPortal.hpp"
 #include <QDBusMetaType>
+#include <QFileInfo>
+#include <QSettings>
 #include <QTimer>
 
 namespace LunaDash {
 SettingsPortal::SettingsPortal(QObject *parent) : QDBusAbstractAdaptor(parent) {
   qDBusRegisterMetaType<PortalSettingsMap>();
+
+  settingsPath_ = QSettings().fileName();
+  debounce_.setSingleShot(true);
+  debounce_.setInterval(100);
+  connect(&debounce_, &QTimer::timeout, this, [this] {
+    watchSettings();
+    refresh();
+  });
+  const auto changed = [this](const QString &) { debounce_.start(); };
+  connect(&watcher_, &QFileSystemWatcher::fileChanged, this, changed);
+  connect(&watcher_, &QFileSystemWatcher::directoryChanged, this, changed);
+  watchSettings();
   refresh();
-  auto *timer = new QTimer(this);
-  connect(timer, &QTimer::timeout, this, &SettingsPortal::refresh);
-  timer->start(1000);
+
+  auto *fallback = new QTimer(this);
+  fallback->setInterval(30000);
+  connect(fallback, &QTimer::timeout, this, &SettingsPortal::refresh);
+  fallback->start();
+}
+
+void SettingsPortal::watchSettings() {
+  const QFileInfo file(settingsPath_);
+  const QString directory = file.absolutePath();
+  if (QFileInfo::exists(directory) &&
+      !watcher_.directories().contains(directory))
+    watcher_.addPath(directory);
+  if (file.exists() && !watcher_.files().contains(settingsPath_))
+    watcher_.addPath(settingsPath_);
 }
 uint SettingsPortal::version() const { return 2; }
 void SettingsPortal::refresh() {
