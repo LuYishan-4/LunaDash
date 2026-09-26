@@ -355,12 +355,33 @@ void WaylandCompositor::Impl::handleToplevelCommit(wl_listener *listener,
   if (!state || !state->client || !state->client->surface ||
       !state->client->toplevel)
     return;
-  if (!state->client->surface->initial_commit)
-    return;
+  wlr_box geometry{};
+#if WLR_VERSION_MINOR >= 19
+  geometry = state->client->surface->geometry;
+#else
+  wlr_xdg_surface_get_geometry(state->client->surface, &geometry);
+#endif
+  const bool geometryChanged =
+      !state->hasSurfaceGeometry ||
+      state->lastSurfaceGeometry.x != geometry.x ||
+      state->lastSurfaceGeometry.y != geometry.y ||
+      state->lastSurfaceGeometry.width != geometry.width ||
+      state->lastSurfaceGeometry.height != geometry.height;
+  state->lastSurfaceGeometry = geometry;
+  state->hasSurfaceGeometry = true;
 
-  // Requests such as set_maximized can arrive before the first surface
-  // commit. Apply them only after wlroots marks the role initialized.
-  state->impl->configureInitialToplevel(state->client);
+  if (state->client->surface->initial_commit) {
+    // Requests such as set_maximized can arrive before the first surface
+    // commit. Apply them only after wlroots marks the role initialized.
+    state->impl->configureInitialToplevel(state->client);
+    return;
+  }
+
+  // Content-only commits (video, browser animation, terminal cursor) do not
+  // change clipping geometry. Rebuild rounded views only when the xdg surface
+  // geometry itself changes.
+  if (geometryChanged && state->client->mapped)
+    state->impl->updateWindowCorners();
 }
 
 void WaylandCompositor::Impl::handleToplevelMetadata(wl_listener *listener,
