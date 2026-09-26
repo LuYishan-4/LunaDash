@@ -1410,6 +1410,7 @@ QJsonObject WaylandCompositor::state() const {
   }
 
   auto preferences = desktopPreferences();
+  const auto palette = appearancePalette(preferences);
   const auto extensions = pluginManager_->snapshot();
   preferences["plugins"] = extensions.value("installed");
   const auto layoutSettings = currentWindowLayoutSettings();
@@ -1494,8 +1495,8 @@ QJsonObject WaylandCompositor::state() const {
       {"brightness", brightnessSettings_->snapshot()},
       {"ddcBrightness", ddcBrightnessSettings_->snapshot()},
       {"appearance", preferences},
-      {"palette", appearancePalette(preferences)},
-      {"applicationTheme", synchronizeApplicationTheme()},
+      {"palette", palette},
+      {"applicationTheme", synchronizeApplicationTheme(preferences, palette)},
       {"appearancePresets", appearancePresets()},
       {"orbit", orbitSettings()},
       {"wallpapers", wallpaperSnapshot()},
