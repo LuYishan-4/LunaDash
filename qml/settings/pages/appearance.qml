@@ -11,10 +11,11 @@ import "../../style"
 ColumnLayout {
     id: page
     required property var shell
+    readonly property alias firstFocusItem: panelSettings.firstFocusItem
     spacing: 16
 
     PageTitle { shell: page.shell; title: "Appearance" }
-    PanelSettings { shell: page.shell }
+    PanelSettings { id: panelSettings; shell: page.shell }
     WallpaperLibrary { shell: page.shell; Layout.fillWidth: true }
     ThemeControls { shell: page.shell; Layout.fillWidth: true }
     WidgetControls { shell: page.shell; Layout.fillWidth: true }
