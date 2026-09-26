@@ -21,6 +21,13 @@ ModuleSurface {
     readonly property string stateSource: String(wallpaper.shell.state.wallpaperImage || "")
     readonly property var media: ((shell.state.wallpapers || {}).current || {})
     readonly property bool live: media.type === "video" && !shell.wallpaperOverride.length
+    readonly property bool coveredByFullscreen: {
+        const clients = (shell.interaction || {}).clients || shell.state.clients || []
+        const workspace = Number((shell.interaction || {}).workspace ?? shell.state.workspace ?? 0)
+        return clients.some(client => client.mapped && !client.minimized &&
+            !client.desktop && !client.utility && client.fullscreen &&
+            Number(client.workspace) === workspace)
+    }
     property bool liveLayerActive: live
     readonly property string desiredSource: wallpaper.shell.wallpaperOverride.length
         ? wallpaper.shell.wallpaperOverride : stateSource
@@ -74,7 +81,8 @@ ModuleSurface {
         }
         onLoaded: {
             item.source = Qt.binding(() => wallpaper.live ? (wallpaper.media.url || "") : "")
-            item.playing = Qt.binding(() => wallpaper.live && !wallpaper.shell.stopping)
+            item.playing = Qt.binding(() => wallpaper.live &&
+                !wallpaper.coveredByFullscreen && !wallpaper.shell.stopping)
             item.animationsEnabled = Qt.binding(() => Theme.animations)
             item.transitionDuration = Qt.binding(() => Math.max(180, Theme.animationDuration))
         }
