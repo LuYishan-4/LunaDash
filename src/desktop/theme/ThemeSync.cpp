@@ -78,11 +78,10 @@ void setColorScheme(bool dark) {
 }
 } // namespace
 
-QJsonObject synchronizeApplicationTheme() {
+QJsonObject synchronizeApplicationTheme(const QJsonObject &preferences,
+                                        const QJsonObject &palette) {
   static QByteArray previous;
   static QJsonObject result;
-  const auto preferences = desktopPreferences();
-  const auto palette = appearancePalette(preferences);
   const bool enabled = preferences.value("syncApplicationThemes").toBool();
   const bool fcitx = preferences.value("syncFcitxTheme").toBool();
   const auto fingerprint =
