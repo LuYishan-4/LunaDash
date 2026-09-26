@@ -126,6 +126,16 @@ case "$manager" in
             pulseaudio-utils dbus-daemon fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
         ;;
     zypper)
+        # GitHub-hosted openSUSE containers occasionally ship the official
+        # download.opensuse.org repositories with plain HTTP, which is rejected
+        # by some CI egress proxies. Upgrade only that official host to HTTPS.
+        for repo_file in /etc/zypp/repos.d/*.repo; do
+            [[ -f $repo_file ]] || continue
+            if grep -q 'http://download\.opensuse\.org/' "$repo_file"; then
+                run "${elevate[@]}" sed -i                     's#http://download\.opensuse\.org/#https://download.opensuse.org/#g'                     "$repo_file"
+            fi
+        done
+        run "${elevate[@]}" zypper --non-interactive refresh
         run "${elevate[@]}" zypper --non-interactive install \
             gcc gcc-c++ cmake ninja git python3 pkg-config \
             Mesa-libGL-devel wayland-devel wayland-protocols-devel libinput-devel \
