@@ -62,3 +62,16 @@ assert '"layoutMode was removed; use windowTemplate"' in validator
 assert 'allowed_controls = {"toggle", "select", "number", "slider"}' in validator
 
 print("Window/plugin architecture contract passed: no legacy modes or hardcoded base actions.")
+
+
+# Client titlebar move requests are accepted for ordinary tiled windows and
+# exchange slots on drop. The modifier-assisted path remains a fallback.
+pointer = (root / "src/compositor/window/WindowPointer.cpp").read_text(
+    encoding="utf-8"
+)
+assert "if (edges == 0)" in pointer
+assert "windowAllowsPointerInteraction" in pointer
+assert "pointerStartGeometry = client->geometry" in pointer
+assert "const bool directMove = pointerClientGrab" in pointer
+assert '"swap"' in pointer
+assert "pointerStartGeometry.topLeft()" in pointer
