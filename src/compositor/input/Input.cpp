@@ -54,10 +54,25 @@ void WaylandCompositor::Impl::restorePreferredKeyboard() {
     wlr_seat_set_keyboard(seat, keyboard);
 }
 
+bool WaylandCompositor::Impl::inputMethodVirtualKeyboard(
+    const KeyboardState *state) const {
+  if (!state || !state->virtualKeyboard || !state->ownerClient ||
+      !inputMethod || !inputMethod->method || !inputMethod->method->resource)
+    return false;
+  return state->ownerClient ==
+         wl_resource_get_client(inputMethod->method->resource);
+}
+
 void WaylandCompositor::Impl::focusSurface(wlr_surface *surface) {
   if (!surface)
     return;
-  wlr_keyboard *keyboard = preferredKeyboard();
+  // Keep a non-IME virtual keyboard as the active seat source while it owns
+  // the hardware stream (GPU Screen Recorder, remote-control tools, key
+  // remappers, etc.). Falling back to the physical keyboard here reintroduces
+  // stale Ctrl/Caps/Num state whenever such a client changes focus.
+  wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+  if (!keyboard)
+    keyboard = preferredKeyboard();
   if (!keyboard)
     return;
   wlr_seat_set_keyboard(seat, keyboard);
@@ -85,7 +100,8 @@ void WaylandCompositor::Impl::updateSeatCapabilities() {
 }
 
 void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
-                                          bool isVirtual) {
+                                          bool isVirtual,
+                                          wl_client *ownerClient) {
   if (!keyboard)
     return;
   if (!isVirtual) {
@@ -97,6 +113,7 @@ void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
   auto *state = new KeyboardState;
   state->impl = this;
   state->keyboard = keyboard;
+  state->ownerClient = ownerClient;
   state->virtualKeyboard = isVirtual;
   state->lastLockedModifiers = keyboard->modifiers.locked;
   attachListener(&keyboard->events.key, state->key, state, handleKeyboardKey);
@@ -228,12 +245,13 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
       self->activeTextInput->text->focused_surface && self->inputMethod &&
       self->inputMethod->method &&
       self->inputMethod->method->keyboard_grab;
-  if (state->virtualKeyboard) {
+  const bool inputMethodVirtual =
+      self->inputMethodVirtualKeyboard(state);
+  if (inputMethodVirtual) {
+    // The IME's own virtual keyboard is the return path from its hardware
+    // keyboard grab. Keep the seat on the physical keymap and preserve the
+    // physical lock/modifier state which Fcitx expects.
     self->restorePreferredKeyboard();
-    // Fcitx forwards grabbed physical keys through virtual-keyboard-v1. Keep
-    // the seat on the physical keymap and synchronize its full modifier state
-    // before the forwarded key. Otherwise Ctrl/Shift/Alt disappear and a
-    // virtual locked=0 snapshot can also clear CapsLock/NumLock.
     if (inputMethodBridgeActive) {
       if (auto *physical = self->preferredKeyboard();
           physical && physical != keyboard)
@@ -241,6 +259,9 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
                                            &physical->modifiers);
     }
   } else {
+    // Generic virtual keyboards are real input sources. GPU Screen Recorder
+    // grabs the evdev keyboard and re-emits it through virtual-keyboard-v1;
+    // forcing the stale physical keyboard here loses Ctrl and lock state.
     wlr_seat_set_keyboard(self->seat, keyboard);
   }
 
@@ -379,20 +400,19 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
     state->consumedKeys.remove(event->keycode);
 
   const bool inputMethodOwnsKeyboard =
-      self->activeTextInput && self->activeTextInput->text &&
-      self->activeTextInput->text->focused_surface && self->inputMethod &&
-      self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+      inputMethodBridgeActive && !inputMethodVirtual;
   if (inputMethodOwnsKeyboard) {
+    auto *grab = self->inputMethod->method->keyboard_grab;
+    if (grab->keyboard != keyboard)
+      wlr_input_method_keyboard_grab_v2_set_keyboard(grab, keyboard);
     wlr_input_method_keyboard_grab_v2_send_key(
-        self->inputMethod->method->keyboard_grab, event->time_msec,
-        event->keycode, event->state);
+        grab, event->time_msec, event->keycode, event->state);
     return;
   }
 
   wlr_seat_keyboard_notify_key(self->seat, event->time_msec, event->keycode,
                                event->state);
-  if (state->virtualKeyboard)
+  if (inputMethodVirtual)
     self->restorePreferredKeyboard();
 }
 
@@ -403,17 +423,19 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
     return;
   auto *self = state->impl;
 
-  // A virtual keyboard is an event source, not the owner of the physical
-  // modifier state while an input-method grab is forwarding hardware keys.
-  // Use the physical keyboard's complete depressed/latched/locked/group state,
-  // not only its lock mask: Ctrl/Shift/Alt must survive the Fcitx bridge too.
-  if (state->virtualKeyboard) {
+  const bool inputMethodBridgeActive =
+      self->activeTextInput && self->activeTextInput->text &&
+      self->activeTextInput->text->focused_surface && self->inputMethod &&
+      self->inputMethod->method &&
+      self->inputMethod->method->keyboard_grab;
+  const bool inputMethodVirtual =
+      self->inputMethodVirtualKeyboard(state);
+
+  // Only the input method's own virtual keyboard is a return path. Other
+  // virtual keyboards (notably gsr-ui virtual keyboard) replace a grabbed
+  // hardware stream and must keep their own depressed/latched/locked state.
+  if (inputMethodVirtual) {
     self->restorePreferredKeyboard();
-    const bool inputMethodBridgeActive =
-        self->activeTextInput && self->activeTextInput->text &&
-        self->activeTextInput->text->focused_surface && self->inputMethod &&
-        self->inputMethod->method &&
-        self->inputMethod->method->keyboard_grab;
     if (inputMethodBridgeActive) {
       if (auto *physical = self->preferredKeyboard();
           physical && physical != state->keyboard) {
@@ -438,14 +460,14 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
   state->lastLockedModifiers = locked;
 
   const bool inputMethodOwnsKeyboard =
-      self->activeTextInput && self->activeTextInput->text &&
-      self->activeTextInput->text->focused_surface && self->inputMethod &&
-      self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+      inputMethodBridgeActive && !inputMethodVirtual;
   if (inputMethodOwnsKeyboard) {
     auto modifiers = state->keyboard->modifiers;
+    auto *grab = self->inputMethod->method->keyboard_grab;
+    if (grab->keyboard != state->keyboard)
+      wlr_input_method_keyboard_grab_v2_set_keyboard(grab, state->keyboard);
     wlr_input_method_keyboard_grab_v2_send_modifiers(
-        self->inputMethod->method->keyboard_grab, &modifiers);
+        grab, &modifiers);
     if (lockedChanged) {
       // Lock state belongs to the physical keyboard and must also reach the
       // focused wl_keyboard. Ordinary Shift/Ctrl/Alt remain owned by the IME.
@@ -460,7 +482,7 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
         (self->q->windowSwitcher_->scope() == WindowSwitcher::Scope::Workspaces
              ? WLR_MODIFIER_LOGO : WLR_MODIFIER_ALT)))
     self->q->finishWindowSwitch(true);
-  if (state->virtualKeyboard)
+  if (inputMethodVirtual)
     self->restorePreferredKeyboard();
 }
 
@@ -717,8 +739,15 @@ void WaylandCompositor::Impl::handleInputMethodGrab(wl_listener *listener,
   auto *grab = static_cast<wlr_input_method_keyboard_grab_v2 *>(data);
   if (!state || !grab)
     return;
-  if (auto *keyboard = state->impl->preferredKeyboard())
+  auto *self = state->impl;
+  if (auto *keyboard = self->preferredKeyboard()) {
     wlr_input_method_keyboard_grab_v2_set_keyboard(grab, keyboard);
+    auto modifiers = keyboard->modifiers;
+    wlr_input_method_keyboard_grab_v2_send_modifiers(grab, &modifiers);
+    wlr_seat_set_keyboard(self->seat, keyboard);
+    wlr_seat_keyboard_send_modifiers(self->seat, &modifiers);
+    ++self->q->modifierResends_;
+  }
 }
 
 void WaylandCompositor::Impl::handleInputMethodDestroy(wl_listener *listener,
@@ -734,6 +763,11 @@ void WaylandCompositor::Impl::handleInputMethodDestroy(wl_listener *listener,
   if (self->inputMethod == state)
     self->inputMethod = nullptr;
   delete state;
+  if (auto *keyboard = self->preferredKeyboard()) {
+    wlr_seat_set_keyboard(self->seat, keyboard);
+    wlr_seat_keyboard_notify_modifiers(self->seat, &keyboard->modifiers);
+    ++self->q->modifierResends_;
+  }
 }
 
 void WaylandCompositor::Impl::handleNewTextInput(wl_listener *listener,
@@ -804,7 +838,10 @@ void WaylandCompositor::Impl::handleNewVirtualKeyboard(wl_listener *listener,
   auto *self = listenerOwner<Impl>(listener);
   auto *keyboard = static_cast<wlr_virtual_keyboard_v1 *>(data);
   if (self && keyboard)
-    self->addKeyboard(&keyboard->keyboard, true);
+    self->addKeyboard(&keyboard->keyboard, true,
+                      keyboard->resource
+                          ? wl_resource_get_client(keyboard->resource)
+                          : nullptr);
 }
 wlr_surface *WaylandCompositor::Impl::surfaceAt(double lx, double ly,
                                                 double *sx, double *sy) const {
