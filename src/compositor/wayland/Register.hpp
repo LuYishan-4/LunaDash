@@ -28,6 +28,9 @@ public:
     // portal clients have time to queue their next streaming frame.
     int screencopyKeepalive = 0;
     QTimer *screencopyTimer = nullptr;
+    bool softwareCursorLocked = false;
+    bool forceSoftwareCursor = false;
+    quint64 lastAnimationPublishNs = 0;
     quint64 frameCallbacks = 0;
     ludash_night_color *nightColor = nullptr;
     int nightTemperature = 6500;
@@ -184,6 +187,8 @@ public:
   QTimer *displayRevertTimer = nullptr;
   QString displayError;
   QRect usableArea{0, 0, 1440, 900};
+  bool eyeCareActive = false;
+  float steadyWindowOpacity = 0.90f;
 
   wlr_xdg_shell *xdgShell = nullptr;
   wlr_layer_shell_v1 *layerShell = nullptr;
