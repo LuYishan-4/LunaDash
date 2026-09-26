@@ -127,6 +127,7 @@ public:
   struct KeyboardState {
     Impl *impl = nullptr;
     wlr_keyboard *keyboard = nullptr;
+    wl_client *ownerClient = nullptr;
     bool virtualKeyboard = false;
     uint32_t lastLockedModifiers = 0;
     QSet<uint32_t> consumedKeys;
@@ -336,7 +337,10 @@ public:
 
   void updateSeatCapabilities();
 
-  void addKeyboard(wlr_keyboard *keyboard, bool isVirtual);
+  void addKeyboard(wlr_keyboard *keyboard, bool isVirtual,
+                   wl_client *ownerClient = nullptr);
+
+  bool inputMethodVirtualKeyboard(const KeyboardState *state) const;
 
   void applyKeyboardConfig();
 
