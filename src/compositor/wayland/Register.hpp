@@ -247,10 +247,11 @@ public:
   uint32_t pointerButton = 0;
   bool orbitPointerConsumed = false;
   QPointF pointerLast;
+  QRect pointerStartGeometry;
   QElapsedTimer pointerPublishClock;
   bool beginWindowPointer(uint32_t button);
   bool beginClientWindowPointer(ClientWindow *client, uint32_t serial,
-                                uint32_t edges);
+                                uint32_t edges, bool validateSerial = true);
   bool updateWindowPointer();
   void finishWindowPointer(bool apply);
 
