@@ -1491,8 +1491,8 @@ QJsonObject WaylandCompositor::state() const {
                     static_cast<qint64>(physicalKeyboard
                                             ? physicalKeyboard->modifiers.locked
                                             : 0)},
-                   {"capsLock", lockEnabled(XKB_MOD_NAME_CAPS)},
-                   {"numLock", lockEnabled(XKB_MOD_NAME_NUM)},
+                   {"capsLock", lockEnabled("Lock")},
+                   {"numLock", lockEnabled("NumLock")},
                    {"seatProtocolVersion",
                     WlrootsCompat::expectedSeatProtocolVersion()},
                    {"dataDeviceProtocolVersion", 3},
