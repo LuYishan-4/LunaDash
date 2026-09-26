@@ -90,7 +90,12 @@ QString wallpaperPlaybackPath(const QString &path) {
   if (!wallpaperIsVideo(path))
     return path;
   const QString proxy = wallpaperCacheStem(path) + "-1080p30.mp4";
-  return QFileInfo::exists(proxy) ? proxy : QString{};
+  if (QFileInfo::exists(proxy))
+    return proxy;
+  // While the one-time proxy is being built, keep the heavy source off the
+  // Qt Quick render loop. If optimization is unavailable or failed, fall back
+  // to the original file instead of disabling live wallpaper entirely.
+  return optimization && optimizationPath == path ? QString{} : path;
 }
 
 QJsonObject wallpaperMediaStatus() {
