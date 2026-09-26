@@ -1420,6 +1420,8 @@ QJsonObject WaylandCompositor::state() const {
   const auto moduleState = shellModules_->snapshot();
   auto xwaylandState = xwayland_ ? xwayland_->snapshot() : QJsonObject{};
   xwaylandState["utilitySurfaces"] = xwaylandUtilities;
+  const auto language = selectedLanguage();
+  const auto translations = languageDictionary(language);
   return {
       {"settingsApi", QJsonObject{{"version", 1},
           {"targets", settingsApiTargets(extensions, moduleState, layoutTarget)}}},
@@ -1521,8 +1523,8 @@ QJsonObject WaylandCompositor::state() const {
            {"groups", tilingGroups}}},
       {"layerSurfaces", d ? d->mappedLayerCount() : 0},
       {"xdgPopupCount", d ? d->xdgPopups.size() : 0},
-      {"language", selectedLanguage()},
-      {"translations", languageDictionary(selectedLanguage())},
+      {"language", language},
+      {"translations", translations},
       {"wallpaper", QSettings().value("appearance/wallpaper", 0).toInt()},
       {"shutdown", testStopping_},
       {"graphicsApi", "wlroots"},
