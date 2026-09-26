@@ -1,34 +1,106 @@
-name: Main Ubuntu build
+name: Main build and integration
 on: [push, pull_request, merge_group, workflow_dispatch]
 permissions:
-    contents: read
+  contents: read
 concurrency:
-    group: main-build-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: true
+  group: main-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-    build:
-        name: Ubuntu 24.04 C/C++ build
-        runs-on: ubuntu-24.04
-        timeout-minutes: 25
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  persist-credentials: false
-            - name: Install dependencies
-              run: |
-                  sudo apt-get update
-                  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                    cmake g++ git ninja-build pkg-config \
-                    libgl-dev libwayland-dev wayland-protocols libwlroots-dev \
-                    libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
-                    qt6-base-dev qt6-declarative-dev qt6-wayland \
-                    libqt6opengl6-dev shared-mime-info
-            - name: Build
-              run: cmake -S . -B build-main -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-main --parallel 2
-            - name: Test file operations and compositor architecture
-              run: |
-                  QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure
-                  python3 scripts/check-source-layout.py
-                  python3 tests/architecture/test_source_layout.py
-                  python3 tests/wayland/test_no_qtwayland.py
-                  python3 tests/renderer/test_render_architecture.py
+  build:
+    name: Ubuntu build, contracts and runtime integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            cmake g++ git ninja-build pkg-config python3 \
+            libgl-dev libgl1-mesa-dri libwayland-dev wayland-protocols libwlroots-dev \
+            libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
+            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools qt6-wayland \
+            libqt6opengl6-dev libqt6svg6 \
+            qml6-module-qttest qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-window qml6-module-qtquick-templates \
+            qml6-module-qtquick-shapes qml6-module-qtqml-workerscript \
+            xvfb xauth xdotool xwayland wayland-utils wl-clipboard grim shared-mime-info
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build-main -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLUDASH_BUILD_RENDERER_TESTS=ON
+          cmake --build build-main --parallel 2
+
+      - name: Run maintained CTest suite
+        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure
+
+      - name: Validate source and public contracts
+        run: |
+          python3 scripts/check-source-layout.py
+          python3 tests/architecture/test_source_layout.py
+          python3 tests/architecture/test_window_template_contract.py
+          python3 tests/renderer/test_render_architecture.py
+          python3 tests/renderer/test_shader_extensions.py
+          python3 tests/renderer/test_shader_diagnostics.py
+          python3 tests/wayland/test_no_qtwayland.py
+          python3 tests/wayland/test_graphics_protocol_contract.py
+          python3 tests/wayland/test_input_contract.py
+          python3 tests/settings/test_schema.py
+          python3 scripts/ci/check_qml_actions.py
+          python3 scripts/ci/check_qml_style.py
+          bash -n install.sh
+          python3 tests/installer/test_install.py
+          python3 tests/packaging/test_make_source.py
+
+      - name: Parse and test QML
+        run: |
+          qmlformat_bin="$(command -v qmlformat6 || command -v qmlformat || true)"
+          if [ -z "$qmlformat_bin" ] && [ -x /usr/lib/qt6/bin/qmlformat ]; then
+            qmlformat_bin=/usr/lib/qt6/bin/qmlformat
+          fi
+          test -n "$qmlformat_bin"
+          while IFS= read -r -d '' file; do
+            "$qmlformat_bin" "$file" >/dev/null
+          done < <(find qml -type f -name '*.qml' -print0)
+          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+            QML_XHR_ALLOW_FILE_READ=1 /usr/lib/qt6/bin/qmltestrunner -input tests/qml
+
+      - name: Verify compositor linkage and startup
+        run: |
+          ldd build-main/lunadash-compositor | grep -E 'libwlroots|libwayland-server'
+          ! ldd build-main/lunadash-compositor | grep -q libQt6WaylandCompositor
+          python3 tests/renderer/test_startup_failure.py build-main/lunadash-compositor
+
+      - name: Exercise core Wayland and XWayland runtime
+        run: |
+          ./scripts/test-xdg-lifecycle.sh "$PWD/build-main"
+          xvfb-run -a python3 tests/wayland/test_xwayland.py build-main
+          python3 tests/wayland/test_xwayland_notifications.py build-main
+          LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-main" ./scripts/test-wayland.sh
+
+      - name: Verify relocated software OpenGL renderer
+        run: |
+          cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Tests
+          cd "$RUNNER_TEMP"
+          QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
+            "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
+
+      - name: Preserve runtime diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-runtime-diagnostics
+          path: |
+            build-main/wayland.log
+            build-main/wayland-state.json
+            build-main/xdg-lifecycle.log
+            build-main/xwayland.log
+            build-main/xwayland-notifications.log
+          if-no-files-found: ignore
+          retention-days: 7
