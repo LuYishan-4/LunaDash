@@ -159,6 +159,8 @@ ModuleSurface {
                             search.prepareInputMethod()
                         }
                     }
+                    KeyNavigation.tab: maximizeButton
+                    KeyNavigation.backtab: closeButton
                     LineIcon {
                         name: "search"
                         width: 17
@@ -216,17 +218,23 @@ ModuleSurface {
                 }
 
                 ShellButton {
+                    id: maximizeButton
                     text: settings.maximized ? "◱" : "□"
                     quiet: true
                     toolTip: shell.tr(settings.maximized
                         ? "Restore settings size" : "Maximize settings")
+                    KeyNavigation.tab: closeButton
+                    KeyNavigation.backtab: search
                     onClicked: settings.maximized = !settings.maximized
                 }
 
                 ShellButton {
+                    id: closeButton
                     text: "×"
                     quiet: true
                     toolTip: shell.tr("Quick hide settings")
+                    KeyNavigation.tab: pageView.firstFocusItem || search
+                    KeyNavigation.backtab: maximizeButton
                     onClicked: shell.settingsOpen = false
                 }
             }
@@ -367,6 +375,7 @@ ModuleSurface {
                 clip: true
 
                 SettingsPageView {
+                    id: pageView
                     anchors.fill: parent
                     anchors.margins: settings.compact ? 12 : 22
                     shell: settings.shell
