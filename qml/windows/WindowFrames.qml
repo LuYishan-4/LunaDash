@@ -34,6 +34,23 @@ PluginPanel {
                 : Qt.rgba(Theme.border.r, Theme.border.g, Theme.border.b, 0.72)
             border.width: client.focused ? 2 : 1
 
+            Behavior on x {
+                enabled: Theme.animations
+                NumberAnimation { duration: 48; easing.type: Easing.Linear }
+            }
+            Behavior on y {
+                enabled: Theme.animations
+                NumberAnimation { duration: 48; easing.type: Easing.Linear }
+            }
+            Behavior on width {
+                enabled: Theme.animations
+                NumberAnimation { duration: 48; easing.type: Easing.Linear }
+            }
+            Behavior on height {
+                enabled: Theme.animations
+                NumberAnimation { duration: 48; easing.type: Easing.Linear }
+            }
+
             Rectangle {
                 visible: parent.client.focused
                 anchors.fill: parent
