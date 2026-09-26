@@ -31,6 +31,9 @@ ModuleSurface {
     property bool liveLayerActive: live
     readonly property string desiredSource: wallpaper.shell.wallpaperOverride.length
         ? wallpaper.shell.wallpaperOverride : stateSource
+    readonly property bool desiredSourceIsVideo:
+        media.type === "video" ||
+        /\.(mp4|webm|mkv|mov|m4v)(?:$|\?)/i.test(String(desiredSource))
 
     Rectangle {
         anchors.fill: parent
@@ -42,7 +45,9 @@ ModuleSurface {
         id: background
         shell: wallpaper.shell
         anchors.fill: parent
-        source: wallpaper.live ? (wallpaper.media.preview || "") : wallpaper.desiredSource
+        source: wallpaper.live
+            ? (wallpaper.media.preview || "")
+            : (wallpaper.desiredSourceIsVideo ? "" : wallpaper.desiredSource)
         pixelRatio: wallpaper.screen ? wallpaper.screen.devicePixelRatio : 1
     }
     onLiveChanged: {
