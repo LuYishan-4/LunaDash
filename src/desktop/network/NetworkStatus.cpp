@@ -105,10 +105,36 @@ NetworkStatus::NetworkStatus(QObject *parent)
   bluetoothctl_ = QStandardPaths::findExecutable("bluetoothctl");
   command_ = new CommandRunner(this);
   bluetoothCommand_ = new CommandRunner(this);
-  auto *timer = new QTimer(this);
-  connect(timer, &QTimer::timeout, this, &NetworkStatus::refresh);
-  timer->start(5000);
+
+  eventRefresh_ = new QTimer(this);
+  eventRefresh_->setSingleShot(true);
+  eventRefresh_->setInterval(350);
+  connect(eventRefresh_, &QTimer::timeout, this, [this] {
+    if (pending_ || command_->busy() || bluetoothCommand_->busy()) {
+      eventRefresh_->start(500);
+      return;
+    }
+    refresh();
+  });
+
+  // NetworkManager already publishes property changes over D-Bus. Let those
+  // events drive the expensive nmcli detail refresh instead of spawning
+  // bluetoothctl + nmcli chains every five seconds while the desktop is idle.
+  QDBusConnection::systemBus().connect(
+      QStringLiteral("org.freedesktop.NetworkManager"), QString(),
+      QStringLiteral("org.freedesktop.DBus.Properties"),
+      QStringLiteral("PropertiesChanged"), this, SLOT(scheduleRefresh()));
+
+  auto *fallback = new QTimer(this);
+  fallback->setInterval(30000);
+  connect(fallback, &QTimer::timeout, this, &NetworkStatus::refresh);
+  fallback->start();
   refresh();
+}
+
+void NetworkStatus::scheduleRefresh() {
+  if (eventRefresh_)
+    eventRefresh_->start();
 }
 
 QJsonObject NetworkStatus::snapshot() const { return status_; }
