@@ -324,11 +324,12 @@ public:
   }
 
   void capture(Entry &entry, bool animationsActive) {
+    const qint64 rapidIntervalMs = entries.size() >= 4 ? 100 : 66;
     const bool available = entry.backing && entry.error.isEmpty();
     if (available && entry.attempted &&
         (animationsActive ||
          (entry.rapidBackdrop && entry.captureClock.isValid() &&
-          entry.captureClock.elapsed() < 50))) {
+          entry.captureClock.elapsed() < rapidIntervalMs))) {
       if (!entry.glass->node.enabled)
         wlr_scene_node_set_enabled(&entry.glass->node, true);
       ready = true;
@@ -353,7 +354,7 @@ public:
     if (!found)
       return;
     if (available && rapidSource && entry.captureClock.isValid() &&
-        entry.captureClock.elapsed() < 50) {
+        entry.captureClock.elapsed() < rapidIntervalMs) {
       entry.rapidBackdrop = true;
       if (!entry.glass->node.enabled)
         wlr_scene_node_set_enabled(&entry.glass->node, true);
