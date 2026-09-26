@@ -558,6 +558,28 @@ private Q_SLOTS:
         QVERIFY(slot.minimized);
     }
   }
+  void freeformSwapExchangesWindowSlots() {
+    const auto &stacking = windowTemplateForKey("stacking");
+    auto layout = createWindowLayout(stacking);
+    QVERIFY(layout);
+    QVERIFY(layout->insert(0, 1, QSize(420, 320)));
+    QVERIFY(layout->insert(0, 2, QSize(420, 320)));
+    layout->presentation(0, area);
+    QVERIFY(performWindowLayoutAction(
+        *layout, stacking, "move-by",
+        {{"window", 1}, {"dx", -180}, {"dy", 0}, {"area", areaJson(area)}}));
+    QVERIFY(performWindowLayoutAction(
+        *layout, stacking, "move-by",
+        {{"window", 2}, {"dx", 180}, {"dy", 0}, {"area", areaJson(area)}}));
+    const auto before = geometries(layout->presentation(0, area));
+    QVERIFY(before.value(1) != before.value(2));
+    QVERIFY(performWindowLayoutAction(
+        *layout, stacking, "swap", {{"window", 1}, {"target", 2}}));
+    const auto after = geometries(layout->presentation(0, area));
+    QCOMPARE(after.value(1), before.value(2));
+    QCOMPARE(after.value(2), before.value(1));
+  }
+
   void geometryBounds() {
     LuDashRectangle halves[2];
     for (const int vertical : {0, 1}) {
@@ -728,6 +750,9 @@ private Q_SLOTS:
              QString("closeWindow"));
     QCOMPARE(migrated.actionFor(XKB_KEY_Return, ShortcutMeta),
              QString("launchTerminal"));
+    QVERIFY(!QJsonObject::fromVariantMap(
+                 QSettings().value("shortcuts/bindings").toMap())
+                 .contains("toggleFloating"));
 
     // Removed shortcut IDs from older releases must not stay in the persistent
     // settings map or reappear in Settings. Valid custom bindings survive.
