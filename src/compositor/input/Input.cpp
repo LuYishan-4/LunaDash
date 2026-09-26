@@ -223,10 +223,26 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
     return;
   auto *self = state->impl;
   auto *keyboard = state->keyboard;
-  if (state->virtualKeyboard)
+  const bool inputMethodBridgeActive =
+      self->activeTextInput && self->activeTextInput->text &&
+      self->activeTextInput->text->focused_surface && self->inputMethod &&
+      self->inputMethod->method &&
+      self->inputMethod->method->keyboard_grab;
+  if (state->virtualKeyboard) {
     self->restorePreferredKeyboard();
-  else
+    // Fcitx forwards grabbed physical keys through virtual-keyboard-v1. Keep
+    // the seat on the physical keymap and synchronize its full modifier state
+    // before the forwarded key. Otherwise Ctrl/Shift/Alt disappear and a
+    // virtual locked=0 snapshot can also clear CapsLock/NumLock.
+    if (inputMethodBridgeActive) {
+      if (auto *physical = self->preferredKeyboard();
+          physical && physical != keyboard)
+        wlr_seat_keyboard_notify_modifiers(self->seat,
+                                           &physical->modifiers);
+    }
+  } else {
     wlr_seat_set_keyboard(self->seat, keyboard);
+  }
 
   const uint32_t keycode = event->keycode + 8;
   const xkb_keysym_t *symbols = nullptr;
@@ -387,18 +403,27 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
     return;
   auto *self = state->impl;
 
-  // A virtual keyboard is an event source, not the owner of physical lock
-  // state. Selecting it with wlr_seat_set_keyboard() would immediately send
-  // its modifier snapshot (often locked=0) to the focused client and clear
-  // CapsLock/NumLock. Keep the physical keyboard selected and merge only its
-  // locked mask into virtual modifier notifications.
+  // A virtual keyboard is an event source, not the owner of the physical
+  // modifier state while an input-method grab is forwarding hardware keys.
+  // Use the physical keyboard's complete depressed/latched/locked/group state,
+  // not only its lock mask: Ctrl/Shift/Alt must survive the Fcitx bridge too.
   if (state->virtualKeyboard) {
     self->restorePreferredKeyboard();
-    auto modifiers = state->keyboard->modifiers;
-    if (auto *physical = self->preferredKeyboard();
-        physical && physical != state->keyboard)
-      modifiers.locked = physical->modifiers.locked;
-    wlr_seat_keyboard_notify_modifiers(self->seat, &modifiers);
+    const bool inputMethodBridgeActive =
+        self->activeTextInput && self->activeTextInput->text &&
+        self->activeTextInput->text->focused_surface && self->inputMethod &&
+        self->inputMethod->method &&
+        self->inputMethod->method->keyboard_grab;
+    if (inputMethodBridgeActive) {
+      if (auto *physical = self->preferredKeyboard();
+          physical && physical != state->keyboard) {
+        wlr_seat_keyboard_notify_modifiers(self->seat,
+                                           &physical->modifiers);
+        return;
+      }
+    }
+    wlr_seat_keyboard_notify_modifiers(self->seat,
+                                       &state->keyboard->modifiers);
     return;
   }
 
