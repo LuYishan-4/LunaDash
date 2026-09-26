@@ -58,7 +58,11 @@ virtual_modifier = virtual_modifier[: virtual_modifier.index(
 )]
 assert "restorePreferredKeyboard()" in virtual_modifier
 assert "modifiers.locked = physical->modifiers.locked" in virtual_modifier
-assert "wlr_seat_set_keyboard(self->seat, state->keyboard)" not in virtual_modifier
+# The physical set_keyboard call follows the virtual branch. The virtual path
+# must return before execution can reach it.
+assert virtual_modifier.index("return;") < virtual_modifier.index(
+    "wlr_seat_set_keyboard(self->seat, state->keyboard)"
+)
 key_owner = input_cpp[input_cpp.index("auto *keyboard = state->keyboard;"):]
 key_owner = key_owner[: key_owner.index("const uint32_t keycode")]
 assert "if (state->virtualKeyboard)" in key_owner
