@@ -48,7 +48,9 @@ ColumnLayout {
             result.push({id:"workspace" + workspace, name:"Switch to workspace %1", workspace:workspace})
             result.push({id:"moveToWorkspace" + workspace, name:"Move window to workspace %1", workspace:workspace})
         }
-        return result
+        const available = shell.state.shortcuts || ({})
+        return result.filter(action =>
+            Object.prototype.hasOwnProperty.call(available, action.id))
     }
     function actionLabel(action) {
         const label = shell.tr(action.name)
@@ -91,7 +93,8 @@ ColumnLayout {
                 {keys:"Meta", label:"Tap Meta to open the launcher"},
                 {keys:"F12", label:"Toggle fullscreen"},
                 {keys:"Alt+Tab / Alt+Shift+Tab", label:"Window switcher"},
-                {keys:"Alt + drag", label:"Move or rearrange a window"},
+                {keys:"Super+Tab / Super+Shift+Tab", label:"Workspace switcher"},
+                {keys:"Drag titlebar", label:"Drag a window onto another to swap them"},
                 {keys:"Alt+Shift + drag", label:"Resize a window"}
             ]
             RowLayout {
@@ -101,6 +104,6 @@ ColumnLayout {
                 Text { Layout.maximumWidth: 240; wrapMode: Text.Wrap; text: modelData.keys; color: Theme.muted; font.family: Theme.font }
             }
         }
-        HelpText { shell: page.shell; message: "In the window switcher, arrow keys select, Enter or releasing Alt confirms, and Escape cancels." }
+        HelpText { shell: page.shell; message: "Window and workspace switchers accept arrow keys; Enter or releasing Alt/Super confirms, and Escape cancels." }
     }
 }
