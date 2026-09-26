@@ -429,6 +429,14 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       return nullptr;
     }
     environment.insert("LUNADASH_WALLPAPER", wallpaperImageUrl());
+    // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
+    // only for the LunaDash shell on NVIDIA hosts and only when the user did
+    // not choose a backend explicitly. Unsupported systems still use Qt's
+    // normal software fallback.
+    if (environment.value("QT_FFMPEG_DECODING_HW_DEVICE_TYPES").isEmpty() &&
+        (QFileInfo::exists("/sys/module/nvidia") ||
+         QFileInfo::exists("/proc/driver/nvidia/version")))
+      environment.insert("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", "cuda");
     // The shell draws its own theme. A blocking portal Settings query here
     // would prevent even the startup splash from reaching its first frame.
     environment.insert("QT_QPA_PLATFORMTHEME", "generic");
