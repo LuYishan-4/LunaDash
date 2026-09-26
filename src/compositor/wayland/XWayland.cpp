@@ -306,11 +306,15 @@ void WaylandCompositor::Impl::handleXWaylandMove(wl_listener *listener,
                                                   void *) {
 #if LUDASH_WLR_HAS_XWAYLAND
   auto *state = listenerOwner<XWaylandState>(listener);
-  if (state && state->client) {
-    state->client->floating = true;
-    state->client->manualGeometry = state->client->geometry;
-    state->impl->q->arrange();
-  }
+  if (!state || !state->client)
+    return;
+  if (state->impl->beginClientWindowPointer(state->client, 0, 0, false))
+    return;
+  // A move request without an active pointer grab cannot be made into an
+  // interactive exchange. Preserve the legacy fallback for such clients.
+  state->client->floating = true;
+  state->client->manualGeometry = state->client->geometry;
+  state->impl->q->arrange();
 #endif
 }
 
