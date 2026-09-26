@@ -45,3 +45,21 @@ assert "launcherOpen = Boolean(visible)" in shell
 assert 'command("launcher-visible", launcherOpen ? "true" : "false")' in shell
 
 print("Input ownership contract passed: QML typing, app typing and Meta launcher toggle.")
+
+
+# Virtual keyboards (for example an input method or hotkey helper) must never
+# become the seat's lock-state owner. Their zero locked mask must not clear the
+# physical keyboard's CapsLock/NumLock state.
+virtual_modifier = input_cpp[input_cpp.index(
+    "A virtual keyboard is an event source"
+):]
+virtual_modifier = virtual_modifier[: virtual_modifier.index(
+    "// wlroots updates xkb_state"
+)]
+assert "restorePreferredKeyboard()" in virtual_modifier
+assert "modifiers.locked = physical->modifiers.locked" in virtual_modifier
+assert "wlr_seat_set_keyboard(self->seat, state->keyboard)" not in virtual_modifier
+key_owner = input_cpp[input_cpp.index("auto *keyboard = state->keyboard;"):]
+key_owner = key_owner[: key_owner.index("const uint32_t keycode")]
+assert "if (state->virtualKeyboard)" in key_owner
+assert "restorePreferredKeyboard()" in key_owner
