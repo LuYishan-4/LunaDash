@@ -7,6 +7,7 @@
 #include "compositor/renderer/color/NightColor.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
+#include <QElapsedTimer>
 #include <QJsonArray>
 #include <QList>
 #include <QPointF>
@@ -237,6 +238,7 @@ public:
   uint32_t pointerButton = 0;
   bool orbitPointerConsumed = false;
   QPointF pointerLast;
+  QElapsedTimer pointerPublishClock;
   bool beginWindowPointer(uint32_t button);
   bool beginClientWindowPointer(ClientWindow *client, uint32_t serial,
                                 uint32_t edges);
