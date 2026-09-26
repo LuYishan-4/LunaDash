@@ -2,11 +2,11 @@
 
 Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of every installed desktop application that the launcher can also find, with a role default pinned at the top (`Kitty (default)` for the terminal, `Dolphin (default)` for files). `[]` selects the role default. Examples are `["kitty"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
 
-Super+Return and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadash-desktop --app files` also respects the preference and forwards to Dolphin by default. `--path /absolute/folder` appends the folder as one argument. The former built-in manager and its `--builtin` option have been removed. These choices apply to LunaDash launchers, not system-wide MIME associations or every third-party application's embedded terminal.
+Super+T and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadash-desktop --app files` also respects the preference and forwards to Dolphin by default. `--path /absolute/folder` appends the folder as one argument. The former built-in manager and its `--builtin` option have been removed. These choices apply to LunaDash launchers, not system-wide MIME associations or every third-party application's embedded terminal.
 
 ## Terminal and Fish
 
-The default terminal is **Kitty**, opened with `Meta+T` or `Meta+Return`. LunaDash leaves Kitty configuration and the login shell unchanged. Non-empty user commands remain supported; explicitly selecting Konsole continues to use its configured profile.
+The default terminal is **Kitty**, opened with `Meta+T`. LunaDash leaves Kitty configuration and the login shell unchanged. Non-empty user commands remain supported; explicitly selecting Konsole continues to use its configured profile.
 
 The retired Command Console is no longer a built-in application. Interactive commands use the configured terminal role.
 
