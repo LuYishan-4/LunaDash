@@ -33,6 +33,35 @@ bool keypadSymbol(xkb_keysym_t symbol) {
   return symbol >= XKB_KEY_KP_Space && symbol <= XKB_KEY_KP_Equal;
 }
 
+bool copyKeyboardState(wlr_keyboard *target, const wlr_keyboard *source) {
+  if (!target || !source || !target->xkb_state || !source->xkb_state ||
+      !target->keymap || !source->keymap ||
+      !wlr_keyboard_keymaps_match(target->keymap, source->keymap))
+    return false;
+
+  xkb_state_update_mask(target->xkb_state, source->modifiers.depressed,
+                        source->modifiers.latched, source->modifiers.locked,
+                        0, 0, source->modifiers.group);
+  target->modifiers.depressed =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_DEPRESSED);
+  target->modifiers.latched =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LATCHED);
+  target->modifiers.locked =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LOCKED);
+  target->modifiers.group =
+      xkb_state_serialize_layout(target->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+
+  uint32_t leds = 0;
+  for (size_t index = 0; index < WLR_LED_COUNT; ++index) {
+    if (target->led_indexes[index] != XKB_KEYMAP_INVALID_LED &&
+        xkb_state_led_index_is_active(target->xkb_state,
+                                      target->led_indexes[index]))
+      leds |= 1u << index;
+  }
+  wlr_keyboard_led_update(target, leds);
+  return true;
+}
+
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
   if (updateWindowPointer())
@@ -494,12 +523,31 @@ void WaylandCompositor::Impl::handleKeyboardDestroy(wl_listener *listener,
   auto *self = state->impl;
   if (!state->virtualKeyboard)
     self->q->finishWindowSwitch(false);
+
+  // A hotkey/remapping application may own the physical evdev stream for its
+  // whole lifetime. When its generic virtual keyboard disappears, carry its
+  // final state back to the matching physical keymap before selecting it
+  // again. This clears a Ctrl released through the virtual stream and keeps
+  // CapsLock/NumLock in sync across recorder restarts.
+  auto *current = self->seat ? wlr_seat_get_keyboard(self->seat) : nullptr;
+  auto *physical = state->virtualKeyboard ? self->preferredKeyboard() : nullptr;
+  if (state->virtualKeyboard && current == state->keyboard && physical &&
+      physical != state->keyboard)
+    copyKeyboardState(physical, state->keyboard);
+
   detachListener(state->key);
   detachListener(state->modifiers);
   detachListener(state->destroy);
   self->keyboards.removeAll(state);
   delete state;
-  self->restorePreferredKeyboard();
+
+  if (physical) {
+    wlr_seat_set_keyboard(self->seat, physical);
+    wlr_seat_keyboard_notify_modifiers(self->seat, &physical->modifiers);
+    ++self->q->modifierResends_;
+  } else {
+    self->restorePreferredKeyboard();
+  }
   self->updateSeatCapabilities();
 }
 
