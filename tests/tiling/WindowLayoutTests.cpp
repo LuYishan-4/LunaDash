@@ -733,8 +733,7 @@ private Q_SLOTS:
              QString("launchTerminal"));
     QCOMPARE(settings.actionFor(XKB_KEY_0, ShortcutMeta),
              QString("workspace10"));
-    QCOMPARE(settings.actionFor(XKB_KEY_Return, ShortcutMeta),
-             QString("launchTerminalAlternate"));
+    QCOMPARE(settings.actionFor(XKB_KEY_Return, ShortcutMeta), QString());
     QString error;
     QVERIFY(!settings.apply({{"closeWindow", "Alt+Tab"}}, &error));
     QVERIFY(!settings.apply({{"closeWindow", "Meta+Tab"}}, &error));
@@ -759,12 +758,16 @@ private Q_SLOTS:
     QSettings().setValue(
         "shortcuts/bindings",
         QJsonObject{{"removedLegacyAction", "Meta+Y"},
+                    {"closeWindowAlternate", "Meta+Q"},
+                    {"launchTerminalAlternate", "Meta+Return"},
                     {"closeWindow", "Meta+T"}}
             .toVariantMap());
     ShortcutSettings cleaned;
     const auto saved = QJsonObject::fromVariantMap(
         QSettings().value("shortcuts/bindings").toMap());
     QVERIFY(!saved.contains("removedLegacyAction"));
+    QVERIFY(!saved.contains("closeWindowAlternate"));
+    QVERIFY(!saved.contains("launchTerminalAlternate"));
     QCOMPARE(saved.value("closeWindow").toString(), QString("Meta+T"));
     QCOMPARE(cleaned.actionFor(XKB_KEY_t, ShortcutMeta),
              QString("closeWindow"));
