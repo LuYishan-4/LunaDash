@@ -1,5 +1,6 @@
 #include "config/appearance/AppearancePresets.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -7,6 +8,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <limits>
 
 namespace LunaDash {
 namespace {
@@ -24,6 +26,8 @@ bool validName(const QString &name, QString *error) {
     *error = "Preset names use 1–48 letters, digits, underscores or hyphens.";
   return false;
 }
+quint64 presetRevision = 0;
+
 QStringList keys() {
   return {"accent",
           "secondaryAccent",
@@ -44,6 +48,17 @@ QStringList keys() {
 }
 } // namespace
 QJsonArray appearancePresets() {
+  static QJsonArray cache;
+  static qint64 cachedModified = -2;
+  static quint64 cachedRevision = std::numeric_limits<quint64>::max();
+
+  const QFileInfo directoryInfo(directory());
+  const qint64 modified = directoryInfo.exists()
+      ? directoryInfo.lastModified().toMSecsSinceEpoch()
+      : -1;
+  if (cachedRevision == presetRevision && cachedModified == modified)
+    return cache;
+
   QJsonArray result;
   const auto entries =
       QDir(directory())
@@ -55,7 +70,10 @@ QJsonArray appearancePresets() {
     if (validName(file.completeBaseName(), nullptr))
       result.append(QJsonObject{{"name", file.completeBaseName()}});
   }
-  return result;
+  cache = result;
+  cachedModified = modified;
+  cachedRevision = presetRevision;
+  return cache;
 }
 bool saveAppearancePreset(const QString &name, QString *error) {
   if (!validName(name, error))
@@ -81,6 +99,7 @@ bool saveAppearancePreset(const QString &name, QString *error) {
       *error = file.errorString();
     return false;
   }
+  ++presetRevision;
   return true;
 }
 bool applyAppearancePreset(const QString &name, QString *error) {
@@ -114,8 +133,10 @@ bool deleteAppearancePreset(const QString &name, QString *error) {
   if (!validName(name, error))
     return false;
   QFile file(directory() + "/" + name + ".json");
-  if (file.remove())
+  if (file.remove()) {
+    ++presetRevision;
     return true;
+  }
   if (error)
     *error = file.errorString();
   return false;
