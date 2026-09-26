@@ -24,7 +24,7 @@ PR CI is split by cost:
 - **Qt lifetime**, **Clang-Tidy**, and **CodeQL** run only when C/C++ or build-system code changes.
 - **Website build** runs for PRs targeting `dev` because every PR must include a `site/` update.
 
-The main required-check gate is reserved for `main`/merge-queue validation instead of polling source-analysis workflows that may legitimately be skipped by path filters.
+Main validation is consolidated into the broad `Main build and integration` workflow plus the distribution, website and PR security/policy workflows. Small features do not own separate required workflows; maintained regressions run inside the broad suite or during release-session verification.
 
 ## Release notes
 
