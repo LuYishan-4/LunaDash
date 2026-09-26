@@ -4,7 +4,6 @@
 
 #include <QDir>
 #include <QDirIterator>
-#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QJsonObject>
@@ -47,10 +46,11 @@ QString activeWallpaperPath(QSettings &settings) {
 }
 
 QStringList wallpaperHistory(QSettings &settings) {
-  QStringList source =
+  const QStringList stored =
       settings.value("appearance/wallpaperHistory").toStringList();
-  if (source.isEmpty())
-    source = settings.value("desktop/wallpaperHistory").toStringList();
+  const QStringList legacy =
+      settings.value("desktop/wallpaperHistory").toStringList();
+  const QStringList source = stored.isEmpty() ? legacy : stored;
 
   QStringList history;
   for (const auto &entry : source) {
@@ -61,8 +61,14 @@ QStringList wallpaperHistory(QSettings &settings) {
       break;
   }
 
-  settings.setValue("appearance/wallpaperHistory", history);
-  settings.remove("desktop/wallpaperHistory");
+  const bool migrate = !legacy.isEmpty();
+  const bool changed = history != stored;
+  if (changed)
+    settings.setValue("appearance/wallpaperHistory", history);
+  if (migrate)
+    settings.remove("desktop/wallpaperHistory");
+  if (changed || migrate)
+    settings.sync();
   return history;
 }
 
@@ -137,8 +143,11 @@ QJsonArray wallpaperLibrarySnapshot() {
   for (const auto &entry : favorites) {
     if (++favoriteCount > kWallpaperFavoriteLimit) break;
     const QString path = canonicalExistingFile(entry);
-    if (path.isEmpty() || (!wallpaperIsVideo(path) && !QImageReader(path).canRead()) ||
-        path == current || path == bundled || history.contains(path))
+    const auto suffix = QFileInfo(path).suffix().toLower();
+    const bool supported = wallpaperIsVideo(path) ||
+        QStringList{"png", "jpg", "jpeg", "webp", "gif", "bmp"}.contains(suffix);
+    if (path.isEmpty() || !supported || path == current || path == bundled ||
+        history.contains(path))
       continue;
     result.append(wallpaperEntry(path, current, false));
   }
@@ -146,12 +155,13 @@ QJsonArray wallpaperLibrarySnapshot() {
   // one level below the user-selected library; symlinks are not traversed.
   static QString cachedDirectory;
   static QStringList library;
-  static QElapsedTimer age;
   static QString cachedRevision;
+  static bool initialized = false;
   const QString libraryRevision = settings.value("appearance/wallpaperLibraryRefresh").toString();
   const auto directory = desktopPreferences().value("wallpaperDirectory").toString();
-  if (directory != cachedDirectory || cachedRevision != libraryRevision ||
-      !age.isValid() || age.elapsed() > 5000) {
+  if (!initialized || directory != cachedDirectory ||
+      cachedRevision != libraryRevision) {
+    initialized = true;
     cachedRevision = libraryRevision;
     cachedDirectory = directory;
     library.clear();
@@ -174,13 +184,11 @@ QJsonArray wallpaperLibrarySnapshot() {
         addDirectory(categories.next());
     }
     library.sort(Qt::CaseInsensitive);
-    age.restart();
   }
   for (const auto &path : library) {
     if (path != bundled && path != current && !history.contains(path) && !favorites.contains(path))
       result.append(wallpaperEntry(path, current, false));
   }
-  settings.sync();
   return result;
 }
 
