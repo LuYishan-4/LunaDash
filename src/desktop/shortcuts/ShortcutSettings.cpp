@@ -127,6 +127,20 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   QSettings settings;
   auto configured =
       QJsonObject::fromVariantMap(settings.value("shortcuts/bindings").toMap());
+  const auto knownActions = defaults();
+  bool removedObsolete = false;
+  for (const auto &key : configured.keys())
+    if (!knownActions.contains(key)) {
+      configured.remove(key);
+      removedObsolete = true;
+    }
+  if (removedObsolete) {
+    if (configured.isEmpty())
+      settings.remove("shortcuts/bindings");
+    else
+      settings.setValue("shortcuts/bindings", configured.toVariantMap());
+    settings.sync();
+  }
 
   // Older settings may reserve Meta+T for a different action. Keep those
   // assignments; add the terminal defaults only when their keys are free.
