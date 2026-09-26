@@ -115,16 +115,69 @@ Item {
         command: ["pw-play", "/usr/share/sounds/freedesktop/stereo/device-added.oga"]
     }
 
-    Timer {
-        interval: 1200
-        repeat: true
-        running: true
-        triggeredOnStart: true
-        onTriggered: {
-            if (!storageProbe.running)
-                storageProbe.running = true
-            if (!usbProbe.running)
-                usbProbe.running = true
+    property bool probePending: false
+    property bool udevMonitorHealthy: true
+
+    function refreshDevices() {
+        if (storageProbe.running || usbProbe.running) {
+            probePending = true
+            return
         }
+        probePending = false
+        storageProbe.running = true
+        usbProbe.running = true
+    }
+
+    Process {
+        id: udevMonitor
+        command: ["udevadm", "monitor", "--udev", "--property"]
+        running: monitor.udevMonitorHealthy
+        stdout: SplitParser {
+            onRead: data => {
+                if (String(data).trim().length)
+                    deviceDebounce.restart()
+            }
+        }
+        onExited: {
+            // Minimal containers may not have a running udev daemon. Keep a
+            // low-frequency fallback instead of spawning lsblk+lsusb every
+            // 1.2 seconds forever.
+            monitor.udevMonitorHealthy = false
+            fallbackTimer.start()
+        }
+    }
+
+    Timer {
+        id: deviceDebounce
+        interval: 280
+        repeat: false
+        onTriggered: monitor.refreshDevices()
+    }
+
+    Timer {
+        id: fallbackTimer
+        interval: 15000
+        repeat: true
+        running: !monitor.udevMonitorHealthy
+        onTriggered: monitor.refreshDevices()
+    }
+
+    Connections {
+        target: storageProbe
+        function onRunningChanged() {
+            if (!storageProbe.running && !usbProbe.running && monitor.probePending)
+                deviceDebounce.restart()
+        }
+    }
+    Connections {
+        target: usbProbe
+        function onRunningChanged() {
+            if (!storageProbe.running && !usbProbe.running && monitor.probePending)
+                deviceDebounce.restart()
+        }
+    }
+
+    Component.onCompleted: {
+        monitor.refreshDevices()
     }
 }
