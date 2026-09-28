@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "sdk": {
+    "name": "LunaDash",
+    "apiVersion": 2
+  },
+  "id": "org.example.plugin-transition",
+  "name": "Plugin activation curtain",
+  "version": "1.0.1a",
+  "description": "Replace the full-screen transition while the host owns timing and input.",
+  "author": "Your name",
+  "type": "quickshell",
+  "target": "plugin-transition",
+  "mode": "replace",
+  "enabledByDefault": false,
+  "settings": {
+    "opacity": {
+      "type": "number",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 1,
+      "label": "Opacity",
+      "control": "slider"
+    }
+  },
+  "entry": "Main.qml"
+}

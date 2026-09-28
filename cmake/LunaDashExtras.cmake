@@ -16,8 +16,12 @@ add_executable(lunadash-portal src/service/portal/Main.cpp
     src/service/portal/SettingsPortal.hpp
     src/service/portal/FileChooserPortal.cpp
     src/service/portal/FileChooserPortal.hpp
+    src/service/portal/PortalRequest.cpp
+    src/service/portal/PortalRequest.hpp
     src/service/portal/FileChooserOptions.cpp
     src/service/portal/FileChooserOptions.hpp
+    src/service/portal/FileIcons.cpp
+    src/service/portal/FileIcons.hpp
     src/service/portal/FilePickerDialog.cpp
     src/service/portal/FilePickerDialog.hpp
     src/service/portal/ScreenCastChooser.cpp
@@ -28,6 +32,10 @@ set_target_properties(lunadash-portal PROPERTIES OUTPUT_NAME xdg-desktop-portal-
 configure_file(
     data/portal/org.freedesktop.impl.portal.desktop.lunadash.service.in
     org.freedesktop.impl.portal.desktop.lunadash.service
+    @ONLY)
+configure_file(
+    data/portal/xdg-desktop-portal-lunadash.service.in
+    xdg-desktop-portal-lunadash.service
     @ONLY)
 configure_file(
     data/portal/xdg-desktop-portal-wlr/LunaDash.in
@@ -42,3 +50,5 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/xdg-desktop-portal-wlr-LunaDash
         RENAME LunaDash)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.freedesktop.impl.portal.desktop.lunadash.service
         DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/services)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/xdg-desktop-portal-lunadash.service
+        DESTINATION lib/systemd/user)

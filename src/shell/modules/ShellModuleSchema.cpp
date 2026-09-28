@@ -76,7 +76,7 @@ QJsonObject defaultModuleDocument() {
     const auto descriptor = entry.toObject();
     const auto sections = descriptor.value("sections").toObject();
     auto module = Settings::defaults(sections.value("module").toObject());
-    for (const auto &section : {"style", "config", "custom"})
+    for (const auto &section : {"style", "config"})
       module[section] = Settings::defaults(sections.value(section).toObject());
     modules[descriptor.value("id").toString()] = module;
   }
@@ -111,7 +111,7 @@ bool validateModuleDocument(const QByteArray &text, QJsonObject *normalized,
         return false;
       module["enabled"] = source.value("enabled");
     }
-    for (const auto &section : {"style", "config", "custom"}) {
+    for (const auto &section : {"style", "config"}) {
       if (!source.contains(section))
         continue;
       if (!source.value(section).isObject())
@@ -129,9 +129,8 @@ bool validateModuleDocument(const QByteArray &text, QJsonObject *normalized,
     if (config.contains("workspaceActiveWidth") &&
         config.value("workspaceActiveWidth").toInt() < config.value("workspaceInactiveWidth").toInt())
       return fail(error, "Active workspace pill must be at least as wide as an inactive pill.");
-    const auto custom = module.value("custom").toObject();
-    if (custom.value("enabled").toBool() && custom.value("entry").toString().isEmpty())
-      return fail(error, "Enabled custom modules require a relative module/Main.qml entry.");
+    // Accept the old field only for migration. It is not exposed in the
+    // schema or copied into the normalized document and can never be loaded.
     modules[it.key()] = module;
   }
   result["modules"] = modules;

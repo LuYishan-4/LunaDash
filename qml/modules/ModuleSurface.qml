@@ -45,14 +45,6 @@ AnimatedPanel {
             shell: host.shell
             target: host.extensionTarget
             context: host.extensionContext
-            legacyPlugin: host.extensionTarget === host.moduleId && (host.specification.custom || {}).source ? {
-                id: "custom." + host.moduleId,
-                schemaVersion: 0,
-                type: "quickshell",
-                mode: "replace",
-                entry: host.specification.custom.source,
-                revision: (host.shell.state.shellModules || {}).revision
-            } : null
             forceBuiltin: host.moduleId === "settings" && (host.shell.settingsPage === "modules" || host.shell.settingsPage === "plugins")
         }
     ]

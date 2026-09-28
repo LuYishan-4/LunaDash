@@ -7,10 +7,21 @@
       "type": "panel",
       "category": "Shell",
       "recovery": false,
-      "template": true,
       "sections": {
         "module": {},
         "style": {
+          "width": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 320,
+            "maximum": 3840,
+            "specialValues": [
+              0
+            ],
+            "label": "Panel width",
+            "description": "0 fills the edge. On a vertical panel this controls its length.",
+            "control": "number"
+          },
           "height": {
             "type": "integer",
             "default": 0,
@@ -53,6 +64,23 @@
           }
         },
         "config": {
+          "launcherImage": {
+            "type": "string",
+            "default": "",
+            "label": "Launcher image",
+            "control": "text",
+            "pattern": "^(|file:///[^\\r\\n]+\\.(?i:png|jpe?g|webp|gif|svg))$",
+            "description": "Local image URL; leave empty for the LunaDash logo."
+          },
+          "capsuleTint": {
+            "type": "integer",
+            "default": 12,
+            "minimum": 0,
+            "maximum": 100,
+            "label": "Capsule tint",
+            "description": "Mix the secondary color into the panel background. Lower values keep capsules dark.",
+            "control": "slider"
+          },
           "centerLauncher": {
             "type": "boolean",
             "default": true,
@@ -75,7 +103,7 @@
             "type": "boolean",
             "default": true,
             "label": "Compact workspace list",
-            "description": "Show occupied workspaces, the current workspace and one empty workspace. All configured workspaces remain available.",
+            "description": "Show at least two workspaces and one spare after the last occupied workspace. All configured workspaces remain available.",
             "control": "toggle"
           },
           "backgroundVisible": {
@@ -142,8 +170,7 @@
             "label": "Transition duration",
             "control": "slider"
           }
-        },
-        "custom": {}
+        }
       }
     },
     {
@@ -152,7 +179,6 @@
       "type": "background",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {
@@ -173,8 +199,7 @@
             "control": "slider"
           }
         },
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -183,7 +208,6 @@
       "type": "launcher",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
@@ -224,8 +248,7 @@
             "label": "Orbit",
             "control": "toggle"
           }
-        },
-        "custom": {}
+        }
       }
     },
     {
@@ -234,7 +257,6 @@
       "type": "dashboard",
       "category": "Shell",
       "recovery": false,
-      "template": true,
       "sections": {
         "module": {},
         "style": {},
@@ -287,8 +309,7 @@
             "label": "Compact control center",
             "control": "toggle"
           }
-        },
-        "custom": {}
+        }
       }
     },
     {
@@ -297,7 +318,6 @@
       "type": "settings",
       "category": "Shell",
       "recovery": true,
-      "template": false,
       "sections": {
         "module": {
           "enabled": {
@@ -338,8 +358,7 @@
             "description": "0 follows the module default."
           }
         },
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -348,7 +367,6 @@
       "type": "setup",
       "category": "Shell",
       "recovery": true,
-      "template": false,
       "sections": {
         "module": {
           "enabled": {
@@ -377,8 +395,7 @@
             "description": "0 follows the module default."
           }
         },
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -387,12 +404,10 @@
       "type": "session",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -401,7 +416,6 @@
       "type": "feedback",
       "category": "Shell",
       "recovery": true,
-      "template": false,
       "sections": {
         "module": {
           "enabled": {
@@ -417,8 +431,7 @@
           }
         },
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -427,12 +440,10 @@
       "type": "launcher",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -441,12 +452,10 @@
       "type": "launcher",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
-        "config": {},
-        "custom": {}
+        "config": {}
       }
     },
     {
@@ -455,7 +464,6 @@
       "type": "panel",
       "category": "Shell",
       "recovery": false,
-      "template": false,
       "sections": {
         "module": {},
         "style": {},
@@ -480,8 +488,7 @@
             "label": "Pinned applications",
             "control": "select"
           }
-        },
-        "custom": {}
+        }
       }
     }
   ],
@@ -594,22 +601,6 @@
         "maximum": 3840,
         "minimum": 0,
         "type": "integer"
-      }
-    },
-    "custom": {
-      "enabled": {
-        "control": "toggle",
-        "default": false,
-        "label": "Use custom QML",
-        "type": "boolean"
-      },
-      "entry": {
-        "control": "text",
-        "default": "",
-        "description": "Relative module/Main.qml path; trusted code runs with your user permissions.",
-        "label": "Custom entry",
-        "pattern": "^(|[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.qml)$",
-        "type": "string"
       }
     }
   }

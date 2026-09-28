@@ -91,6 +91,8 @@ bool directoryClaimsPluginId(const QString &directory, const QString &id) {
 }
 } // namespace
 PluginManager::PluginManager(QObject *parent) : QObject(parent) {
+  connect(this, &PluginManager::changed, this,
+          [this] { snapshotDirty_ = true; });
   QFile bundled(":/LunaDash/plugins/catalog.json");
   if (bundled.open(QIODevice::ReadOnly)) {
     QString error;
@@ -272,6 +274,7 @@ void PluginManager::refreshStore() {
 
   storeLoading_ = true;
   storeError_.clear();
+  snapshotDirty_ = true;
   QNetworkRequest request(url);
   request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);
@@ -813,6 +816,9 @@ void PluginManager::refresh() {
   emit changed();
 }
 QJsonObject PluginManager::snapshot() {
+  if (!snapshotDirty_)
+    return snapshotCache_;
+
   QJsonArray installed;
   QSet<QString> replacements;
   QHash<QString, QJsonObject> storeItems;
@@ -908,15 +914,17 @@ QJsonObject PluginManager::snapshot() {
     item["installError"] = storeInstallErrors_.value(id);
     remote.append(item);
   }
-  return {{"installed", installed},
-          {"remote", remote},
-          {"targets", targets},
-          {"document", document},
-          {"path", extensionConfigurationPath()},
-          {"error", configError},
-          {"storeSupported", true},
-          {"storeLoading", storeLoading_},
-          {"storeError", storeError_}};
+  snapshotCache_ = {{"installed", installed},
+                    {"remote", remote},
+                    {"targets", targets},
+                    {"document", document},
+                    {"path", extensionConfigurationPath()},
+                    {"error", configError},
+                    {"storeSupported", true},
+                    {"storeLoading", storeLoading_},
+                    {"storeError", storeError_}};
+  snapshotDirty_ = false;
+  return snapshotCache_;
 }
 bool PluginManager::setEnabled(const QString &id, bool enabled,
                                QString *error) {

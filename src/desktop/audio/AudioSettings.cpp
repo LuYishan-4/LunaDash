@@ -66,7 +66,7 @@ QStringList audioCommand(const QJsonObject &change) {
 AudioSettings::AudioSettings(QObject *parent) : QObject(parent) {
   executable_ = QStandardPaths::findExecutable("wpctl");
   auto *timer = new QTimer(this);
-  timer->setInterval(1000);
+  timer->setInterval(2500);
   connect(timer, &QTimer::timeout, this, &AudioSettings::refresh);
   timer->start();
   refresh();
@@ -84,7 +84,7 @@ void AudioSettings::refresh() {
                     input_ = ok ? parseAudioVolume(text)
                                 : QJsonObject{{"available", false}};
                   });
-  if ((refreshCount_++ % 5) == 0)
+  if ((refreshCount_++ % 4) == 0)
     devicesProbe_.run(
         executable_, {"status"}, [this](bool ok, const QByteArray &text) {
           outputDevices_ = ok ? parseAudioDevices(text) : QJsonArray{};

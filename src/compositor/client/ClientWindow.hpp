@@ -18,6 +18,7 @@ struct ClientWindow {
   wlr_xwayland_surface *xwayland = nullptr;
   wlr_surface *wlSurface = nullptr;
   wlr_scene_tree *sceneTree = nullptr;
+  wlr_scene_tree *sceneContent = nullptr;
   void *nativeState = nullptr;
   int workspace = 0;
   int id = 0;
@@ -26,6 +27,9 @@ struct ClientWindow {
   bool x11 = false;
   bool desktop = false;
   bool mapped = false;
+  // Reserve a tiled slot after the initial commit, before the first buffer.
+  // Visibility and input focus still require mapped to be true.
+  bool layoutPending = false;
   bool minimized = false;
   bool maximized = false;
   // True fullscreen occupies the entire output. It is separate from maximized,

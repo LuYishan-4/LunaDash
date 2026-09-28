@@ -44,7 +44,7 @@ ModuleSurface {
                 iconName: "apps"
                 toolTip: shell.tr("Orbit launcher")
                 Accessible.name: toolTip
-                onClicked: shell.orbitOpen = !shell.orbitOpen
+                onClicked: shell.togglePopup("orbit")
             }
             Repeater {
                 model: dock.pins
@@ -53,7 +53,7 @@ ModuleSurface {
                     iconName: modelData === "files" ? "files" : modelData === "terminal" ? "terminal" : "search"
                     toolTip: shell.tr(modelData === "files" ? "Files" : modelData === "terminal" ? "Terminal" : "Browser")
                     Accessible.name: toolTip
-                    onClicked: shell.launch(modelData)
+                    onClicked: modelData === "settings" ? shell.toggleSettingsPage("general") : shell.launch(modelData)
                 }
             }
             Rectangle {
@@ -110,8 +110,8 @@ ModuleSurface {
                         hoverEnabled: true
                         onClicked: shell.command("activate-window", modelData.id)
                     }
-                    ToolTip.visible: taskHover.containsMouse
-                    ToolTip.text: modelData.title || modelData.appId || ""
+
+
                 }
             }
         }

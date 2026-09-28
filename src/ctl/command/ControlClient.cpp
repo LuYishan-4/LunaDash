@@ -58,7 +58,7 @@ int ControlClient::run(int argc, char **argv) {
            "launch-command|launch-with-x11|"
            "open-settings|system-tool|audio|network|power-profile|desktop-size|"
            "reset-preferences|default-apps|launch-default|module-validate|"
-           "module-save|module-template|module-code-trust|module-reset|"
+           "module-save|module-reset|"
            "extension-save|extension-error|settings-describe|settings-update|"
            "window-layout-settings|window-layout-action|quit "
            "[value]\n"

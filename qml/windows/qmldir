@@ -1,4 +1,5 @@
 WindowSwitcher 1.0 WindowSwitcher.qml
 SwitcherContent 1.0 SwitcherContent.qml
+WindowPreviewContent 1.0 WindowPreviewContent.qml
 TilingDropHint 1.0 TilingDropHint.qml
 WindowFrames 1.0 WindowFrames.qml

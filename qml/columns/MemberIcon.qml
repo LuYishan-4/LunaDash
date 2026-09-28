@@ -63,7 +63,7 @@ Item {
         }
         onCanceled: pressedWindow = 0
     }
-    ToolTip.visible: memberMouse.containsMouse
-    ToolTip.delay: 450
-    ToolTip.text: memberIcon.member.title || memberIcon.member.appId || memberIcon.shell.tr("Application window")
+
+
+
 }

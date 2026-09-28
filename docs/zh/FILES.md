@@ -1,84 +1,17 @@
-# Files 與檔案關聯
+# 檔案管理與 Dolphin
 
-[English](../en/FILES.md) · [繁中索引](README.md)
+LunaDash 預設使用 **Dolphin**。安裝腳本與 Arch 套件將 `dolphin` 列為主體執行相依套件，選用 desktop 群組另外提供 Chromium、Ark 與 KIO extras。其他發行版成功建置不代表已驗證該平台的 Dolphin 整合。
 
-LunaDash Files 是原生 Qt 介面。UI、interaction、association 與 file operation 分別放在 `src/desktop/filemanager/`、`src/desktop/fileoperations/`。
+Super+E、檔案捷徑及 `lunadashctl launch-default files` 都使用 files 角色。空白命令陣列會執行 `dolphin --new-window`，在目前工作區開啟新視窗。Settings > Applications and startup 可以改選其他已安裝程式，原有的明確選擇仍有效。`lunadash-desktop --app files --path /absolute/folder` 會將資料夾當作單一引數傳遞，不經 shell。
 
-## 第一次開檔與 Open with
+舊的原生檔案管理器、專用關聯設定介面、GIO 啟動器及複製／移動／垃圾桶引擎已從原始碼和建置目標移除，沒有內建備援管理器。瀏覽、檔案操作與程式偏好由 Dolphin 處理；檔案類型關聯請使用 Dolphin 或系統 MIME 設定。舊 LunaDash 關聯設定檔保留在原處，但不再讀取或匯入，詳見[遷移說明](FILE_ASSOCIATION_MIGRATION.md)。
 
-第一次遇到尚未看過的 file type 時，Files 預設會詢問是否選 application。雙擊文件或選同類多個檔案後使用 **Open with…**，chooser 會優先顯示 recommended/system-default handler，並可搜尋或顯示全部 installed applications。
+## 保留的選擇器
 
-**Always use this application** 未勾選時只開一次；已儲存 handler 如果後來移除，會重新詢問而不是靜默失敗。Directory 永遠留在 Files。Desktop entry / binary 由明確選定的 installed handler 啟動，filename 以 argument 傳入，**不把路徑拼成 shell command**。
+LunaDash portal FileChooser 保留無邊框深色標題列、手動本機路徑、篩選、多選、儲存確認與有尺寸限制的預覽。圖示實作歸屬 `src/service/portal/`，不再依賴檔案管理器程式。螢幕／視窗分享選擇器與 Settings 圖片選擇器也保留。路徑驗證不經 shell，詳見[預設程式及選擇器](DEFAULT_APPS_AND_FILES.md)。
 
-規則原子寫入：
+Portal 跟隨 LunaDash 配色；Dolphin 自行管理程式主題。Compositor 的視窗不透明度與毛玻璃設定如同其他一般應用程式套用，原有全螢幕及護眼模式例外保持有效。
 
-```text
-$XDG_CONFIG_HOME/LunaDash/file-associations.json
-```
+## CI 涵蓋範圍
 
-一般為 `~/.config/LunaDash/file-associations.json`。例：
-
-```json
-{
-  "version": 1,
-  "initialized": true,
-  "askOnFirstOpen": true,
-  "associations": {
-    "ext:txt": {
-      "desktopId": "org.example.Editor.desktop",
-      "mimeType": "text/plain"
-    }
-  }
-}
-```
-
-Extension 不分大小寫，compound extension 取最長 match；無 extension 用 `mime:<type>`。Files 自己的 extension rule 不會自動改 system MIME default。只有使用者明確勾 **Also make it the system default** 時才透過 GIO 寫 system association。
-
-## 選取、選單與快捷鍵
-
-Icon/details view 共用 selection。右鍵已選項會保留 multi-selection；右鍵未選項只 target 那列；右鍵空白 target current directory。
-
-主要快捷鍵：
-
-- `Ctrl+C/X/V/A`：copy/cut/paste/select all
-- `Ctrl+Shift+C`：copy paths
-- `F2`：rename
-- `Delete`：Trash（有確認）
-- `Enter`：open
-- `Alt+Enter`：properties
-- `Ctrl+N`：new Files window
-- `Ctrl+Shift+N`：new folder
-- `Ctrl+Alt+T`：terminal here
-- `Alt+Left/Right/Up`、`Ctrl+L`、`F5`：navigation/address/refresh
-
-Clipboard 使用 local file URI 與 KDE/GNOME cut marker，不是 Files 私有 clipboard。
-
-## Copy / move / drag-drop
-
-將 local file 拖到 directory 預設 copy，按 Shift 可要求 move。Remote URL 不會假裝成 local file。
-
-Copy 支援 directory、hidden entry、symlink（不 follow link）。先寫 temporary destination，再用 Linux `renameat2(RENAME_NOREPLACE)`，避免 incomplete copy 覆蓋既有目標。會拒絕：
-
-- 已存在 target
-- duplicate target name
-- copy 到自己
-- 同時選 directory 與其 descendant
-- FIFO/device node 等特殊檔
-
-Operation 非同步；開始後 navigation 不會改該 operation 已捕捉的 destination。沒有跨多 entry 的全域 undo/transaction，因此若中途錯誤，前面的 entry 可能已完成。
-
-跨 filesystem move 目前不會自動 copy-then-delete，而是失敗並保留 source。Permissions/mtime 會盡量保留，但 ownership、ACL、xattr 不承諾。Permanent delete、archive editor、recursive size、remote mount 尚未實作。
-
-## 檔案選擇器外觀
-
-內建外掛與 portal 檔案選擇器沿用 shell 配色、圓角控制項、字型與強調色，已開啟視窗也會跟隨外觀設定更新。Qt Widgets 內部仍使用不透明表面；一般應用程式視窗可透過合成器的視窗不透明度與毛玻璃設定顯示模糊背景。Qt Widgets 內部不重製 QML 動畫效果。未使用 LunaDash portal 的外部應用程式仍採用自己的檔案選擇器主題。
-
-## 測試
-
-```sh
-cmake -S . -B build -DLUDASH_BUILD_FILES_TESTS=ON
-cmake --build build --parallel 2
-QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure -R '^lunadash-files$'
-```
-
-測試使用隔離 XDG config/desktop entries，覆蓋 association、corrupt-config preservation、first-use prompt、clipboard、directory/symlink、no-overwrite、recursion、special-file rejection、same-filesystem move 與含 shell metacharacter 的 launch arguments。
+原生 Qt 測試涵蓋預設角色、明確自訂命令及保留的 portal 選檔行為。Arch Quickshell workflow 啟動真正的 Dolphin 視窗，檢查工作區切換、可用區域、遞迴平鋪及圓角／毛玻璃像素，並上傳軟體 Wayland 工作階段截圖。實體 GPU 與登入工作階段外觀仍需另外確認。

@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QSocketNotifier>
 #include <QTimer>
+#include <algorithm>
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -121,6 +122,8 @@ bool WaylandCompositor::Impl::initialize() {
   background = wlr_scene_rect_create(backgroundLayer, 1440, 900, color);
   windowGlass = std::make_unique<WindowGlass>(renderer, allocator,
                                              &scene->tree.node);
+
+  windowCorners = std::make_unique<WindowCorners>();
 
   xdgShell = wlr_xdg_shell_create(display, 3);
   layerShell = wlr_layer_shell_v1_create(display, 4);
@@ -262,6 +265,8 @@ bool WaylandCompositor::Impl::fail(const char *message) {
 void WaylandCompositor::Impl::dispatch() {
   if (!eventLoop)
     return;
+  QElapsedTimer elapsed;
+  elapsed.start();
   if (wl_event_loop_dispatch(eventLoop, 0) < 0) {
     q->processFailure_ = true;
     qCritical("LunaDash wlroots event dispatch failed.");
@@ -270,6 +275,11 @@ void WaylandCompositor::Impl::dispatch() {
   }
   if (display)
     wl_display_flush_clients(display);
+  ++dispatchCalls;
+  lastDispatchUsec = elapsed.nsecsElapsed() / 1000;
+  maxDispatchUsec = std::max(maxDispatchUsec, lastDispatchUsec);
+  if (lastDispatchUsec >= 8000)
+    ++slowDispatches;
 }
 
 void WaylandCompositor::Impl::shutdown() {
@@ -285,6 +295,7 @@ void WaylandCompositor::Impl::shutdown() {
   // Underlays retain renderer buffers and listeners on client scene nodes.
   // Release them while both the scene and renderer are still alive.
   windowGlass.reset();
+  windowCorners.reset();
   wl_display_destroy_clients(display);
 
   detachListener(newOutput);
@@ -331,6 +342,7 @@ void WaylandCompositor::Impl::shutdown() {
     detachListener(state->associate);
     detachListener(state->dissociate);
     detachListener(state->sceneDestroy);
+    detachListener(state->sceneContentDestroy);
     detachListener(state->map);
     detachListener(state->unmap);
     detachListener(state->destroy);

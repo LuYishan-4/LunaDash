@@ -40,6 +40,7 @@ Rectangle {
     Accessible.role: Accessible.Button
     Accessible.name: text
     Accessible.description: toolTip
+    Accessible.onPressAction: if (enabled && !busy) clicked()
 
     Keys.onReturnPressed: if (enabled && !busy) clicked()
     Keys.onEnterPressed: if (enabled && !busy) clicked()
@@ -132,9 +133,8 @@ Rectangle {
         onClicked: root.clicked()
     }
 
-    ToolTip.visible: root.toolTip.length > 0 && mouse.containsMouse
-    ToolTip.delay: 500
-    ToolTip.text: root.toolTip
+
+
 
     Behavior on color { ColorAnimation { duration: Theme.motionFast } }
     Behavior on scale { NumberAnimation { duration: Theme.motionFast; easing.type: Easing.OutCubic } }

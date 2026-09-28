@@ -1,0 +1,12 @@
+{
+  "Windows in this workspace": "目前工作區的視窗",
+  "Tab / Shift+Tab to select · Release Alt to focus · Esc to cancel": "Tab／Shift+Tab 選擇 · 放開 Alt 切換視窗 · Esc 取消",
+  "Workspace switcher": "工作區切換器",
+  "Plugin activation transition": "插件啟用／停用轉場",
+  "Transition duration": "轉場時間",
+  "Window switcher": "視窗切換器",
+  "Minimized": "已最小化",
+  "Alt+Tab and Super+Tab are reserved for window and workspace switching.": "Alt+Tab 與 Super+Tab 保留給視窗與工作區切換。",
+  "Built-in modules restored. Legacy files were preserved.": "已還原內建模組，舊版檔案已保留。",
+  "Filter settings by implementation type or category. Effects and shell modules share the same controls; visual extensions use SDK 2 plugin templates.": "依實作類型或分類篩選設定。效果與桌面模組共用設定控制項，介面擴充使用 SDK 2 插件模板。"
+}

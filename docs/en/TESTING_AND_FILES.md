@@ -4,7 +4,7 @@ Finish code, packaging and documentation changes before building. Arch Linux is 
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GIO. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
+The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -16,7 +16,7 @@ python3 tests/security/test_source_language.py
 python3 scripts/ci/check_qml_actions.py
 python3 scripts/ci/check_qml_style.py
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DLUDASH_BUILD_FILES_TESTS=ON -DLUDASH_BUILD_RENDERER_TESTS=ON
+  -DLUDASH_BUILD_RENDERER_TESTS=ON
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
@@ -65,17 +65,14 @@ This builds packages without installing them. The archive must include `examples
 
 | Workflow | Configured coverage |
 | --- | --- |
-| Main Ubuntu build | Full C/C++ build, file regressions and source architecture |
-| Main Qt loading | Native Qt client modules against a wlroots session |
-| Main Wayland loading | Protocol globals, xdg lifecycle, headless session, on-demand XWayland |
-| Main OpenGL loading | Shader inventory, renderer failure/lifetime tests, staged-install software GL and headless session |
-| Main startup checks | Invalid CLI options and wlroots renderer fallback |
-| Main website build | Astro checking/build and local link/asset tests |
-| Source style / QML reviews | Architecture, English source, shell checks, QML syntax/design/actions |
+| Main build and integration | One Ubuntu build covering maintained CTest, source contracts, QML parsing/tests, renderer checks, startup failure handling, Wayland/XWayland lifecycle and software OpenGL relocation |
 | Linux distribution builds | Arch, Debian 13, Fedora 45, openSUSE Tumbleweed and Alpine Edge source builds |
-| PR analysis and hygiene | Path-scoped clang-tidy, CodeQL, Qt lifetime and repository policy |
+| Main website build | Astro checking/build and local link/asset tests |
+| PR source style | Architecture, English source, shell syntax/ShellCheck and QML design-system usage |
+| PR analysis and hygiene | Policy, repository hygiene, path-scoped clang-tidy, CodeQL and Qt lifetime analysis |
+| Website Pages deployment | Builds and publishes the release website from main |
 
-The source-build matrix does not verify physical hardware. Void/Gentoo have installer paths, without the same configured CI breadth. The main gate historically aggregates five runtime/build workflows; inspect all runs for the exact commit, including website, architecture/QML and distro jobs. A skipped/manual-only workflow is not a successful execution. See [security checks](SECURITY_CHECKS.md) and [release process](RELEASE_PROCESS.md).
+Feature-specific workflows are intentionally not maintained. Individual UI interactions and one-off desktop regressions belong in the maintained test suite or release-session verification rather than owning a separate required workflow. The source-build matrix does not verify physical hardware. Void/Gentoo have installer paths without the same configured CI breadth. Inspect completed runs for the exact commit; a skipped/manual-only workflow is not a successful execution. See [security checks](SECURITY_CHECKS.md) and [release process](RELEASE_PROCESS.md).
 
 ## Source map
 
@@ -90,7 +87,7 @@ The source-build matrix does not verify physical hardware. Void/Gentoo have inst
 | `src/compositor/renderer/opengl` | GL dispatch/resources/passes and embedded shaders |
 | `src/config` | Preferences, localization, process helper and plugin metadata |
 | `src/core` | Shared lifecycle concepts, listener template and compile definitions |
-| `src/desktop` | Applications, browser policy, files, audio, network, power and system services |
+| `src/desktop` | Applications, external default-app policy, audio, network, power and system services |
 | `src/service/portal` | D-Bus startup and native file chooser implementation |
 | `src/shell` | Generic QML module schema/runtime and media helper |
 | `src/ctl` | Bounded local control client |

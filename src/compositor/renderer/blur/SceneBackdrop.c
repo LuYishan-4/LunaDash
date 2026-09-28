@@ -222,6 +222,22 @@ static bool ludash_backdrop_blur(struct wlr_renderer *renderer,
   return ok;
 }
 
+void ludash_scene_backdrop_sample_box(const struct wlr_box *area, int radius,
+                                     struct wlr_box *sample) {
+  *sample = *area;
+  if (area->width < 1 || area->height < 1)
+    return;
+  const double scale = fmax(4.0, fmax((double)area->width / (LUDASH_BACKDROP_SIZE - 20),
+                                    (double)area->height / (LUDASH_BACKDROP_SIZE - 20)));
+  // Rounding the capture dimensions only increases its scale factors, so
+  // radius + three reduced pixels safely bounds ceil(radius * scale) + 2.
+  const int padding = (int)ceil(radius + 3.0 * scale);
+  sample->x -= padding;
+  sample->y -= padding;
+  sample->width += 2 * padding;
+  sample->height += 2 * padding;
+}
+
 struct wlr_buffer *ludash_scene_backdrop_render(
     struct wlr_renderer *renderer, struct wlr_allocator *allocator,
     struct wlr_scene_node *root, struct wlr_scene_node *stop,

@@ -17,7 +17,10 @@ endif()
 # Physical input is owned by wlroots. LunaDash does not open a second
 # libinput context and does not route compositor input through Qt.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashExtras.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashFiles.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashTranslations.cmake)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/modules/Tests.cmake)
+
+if(BUILD_TESTING)
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/modules/PortalTests.cmake)
+endif()

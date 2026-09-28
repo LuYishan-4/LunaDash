@@ -109,28 +109,6 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 10
         Text {
-            text: shell.tr("Panel height")
-            color: Theme.text
-            font.family: Theme.font
-            Layout.fillWidth: true
-            Layout.minimumWidth: 0
-            wrapMode: Text.Wrap
-        }
-        SoftField {
-            Layout.preferredWidth: 92
-            text: String(controls.appearance.panelHeight ?? 40)
-            inputMethodHints: Qt.ImhDigitsOnly
-            validator: IntValidator { bottom: 32; top: 56 }
-            onAccepted: controls.numericField("panelHeight", text, 32, 56)
-            onEditingFinished: if (acceptableInput) controls.numericField("panelHeight", text, 32, 56)
-        }
-        Text { text: "px"; color: Theme.muted; font.family: Theme.font }
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: 10
-        Text {
             text: shell.tr("Animation duration")
             color: Theme.text
             font.family: Theme.font

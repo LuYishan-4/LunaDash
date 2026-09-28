@@ -13,6 +13,3 @@ qt_add_resources(ludash-localization desktop_translations
     BASE ${CMAKE_CURRENT_LIST_DIR}/..
     FILES ${ludash_feature_catalogs}
 )
-if(TARGET ludash-file-operations)
-    target_link_libraries(ludash-file-operations PUBLIC ludash-localization)
-endif()

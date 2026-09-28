@@ -26,7 +26,7 @@ ColumnLayout {
             ? "Kitty (default)"
             : editor.role === "browser"
                 ? "Google Chrome (default)"
-                : "LunaDash default"
+                : "Dolphin (default)"
         const entries = []
         const seen = {}
         for (const entry of applications) {
@@ -91,7 +91,7 @@ ColumnLayout {
         visible: true
         text: editor.stored.length > 0
             ? editor.shell.tr("Command: ") + editor.describe(editor.stored)
-            : editor.shell.tr("Using the built-in default.")
+            : editor.shell.tr("Using the default application.")
         color: Theme.muted; font.pixelSize: 11; font.family: Theme.font; elide: Text.ElideRight
     }
 
@@ -107,9 +107,12 @@ ColumnLayout {
 
     Component.onCompleted: editor.buildChoices()
     Timer {
-        interval: 500
+        // DesktopEntries already updates its model when applications change.
+        // This is only a compatibility fallback while this settings page is
+        // visible, not a 2 Hz permanent shell poll.
+        interval: 3000
         repeat: true
-        running: true
+        running: editor.visible
         onTriggered: {
             if (editor.knownApplicationCount !== DesktopEntries.applications.values.length)
                 editor.buildChoices()

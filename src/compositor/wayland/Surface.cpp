@@ -117,17 +117,48 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
   if (!client || !client->surface || !client->toplevel ||
       !client->surface->initialized)
     return;
-  const bool fullscreen = client->toplevel->requested.fullscreen;
-  const bool maximized = client->toplevel->requested.maximized;
-  client->fullscreen = fullscreen;
-  const QSize size = fullscreen ? outputSize() : q->workArea().size();
-  wlr_xdg_toplevel_set_size(
-      client->toplevel, fullscreen || maximized ? std::max(1, size.width()) : 0,
-      fullscreen || maximized ? std::max(1, size.height()) : 0);
-  if (maximized)
-    wlr_xdg_toplevel_set_maximized(client->toplevel, true);
-  if (fullscreen)
-    wlr_xdg_toplevel_set_fullscreen(client->toplevel, true);
+  q->updateClientMetadata(client);
+  q->arrange();
+  client->fullscreen = client->toplevel->requested.fullscreen;
+  client->maximized = client->toplevel->requested.maximized;
+  if (!client->initialRuleApplied && !client->utility && !client->floating) {
+    const auto rule = initialWindowRule(
+        *q->pluginManager_,
+        {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
+        client->workspace, client->maximized,
+        desktopPreferences().value("workspaceCount").toInt());
+    client->workspace = rule.value("workspace").toInt();
+    client->maximized = rule.value("maximized").toBool();
+  }
+  client->initialRuleApplied = true;
+  client->lastSize = {};
+  client->layoutPending = q->windowTemplate_ &&
+                          !q->windowTemplate_->allowOverlap &&
+                          !client->floating && !client->utility &&
+                          !client->fullscreen && !client->maximized;
+  if (client->layoutPending) {
+    // Use the real template membership, including other pending windows, so
+    // mapping the first buffer cannot insert the window a second time. A 0x0
+    // configure followed by tiling at map time reflows startup terminal output
+    // and needlessly rebuilds other clients' freshly drawn layouts.
+    for (const auto &peer : q->clients_)
+      if (peer.get() != client && peer->workspace == client->workspace &&
+          !peer->floating && peer->maximized)
+        q->setMaximized(peer.get(), false);
+    q->arrange();
+    if (client->lastSize.isValid())
+      return;
+  } else {
+    // A pre-map maximize/fullscreen request can replace a reserved tile.
+    q->arrange();
+  }
+  const QSize size = client->fullscreen ? outputSize() : q->workArea().size();
+  const bool constrained = client->fullscreen || client->maximized;
+  wlr_xdg_toplevel_set_size(client->toplevel,
+                            constrained ? std::max(1, size.width()) : 0,
+                            constrained ? std::max(1, size.height()) : 0);
+  wlr_xdg_toplevel_set_maximized(client->toplevel, client->maximized);
+  wlr_xdg_toplevel_set_fullscreen(client->toplevel, client->fullscreen);
 }
 
 void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
@@ -141,9 +172,14 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
   client->toplevel = toplevel;
   client->wlSurface = surface->surface;
   client->workspace = q->workspace_;
-  client->sceneTree = wlr_scene_xdg_surface_create(normalLayer, surface);
+  client->sceneTree = wlr_scene_tree_create(normalLayer);
   if (!client->sceneTree)
     return;
+  client->sceneContent = wlr_scene_xdg_surface_create(client->sceneTree, surface);
+  if (!client->sceneContent) {
+    wlr_scene_node_destroy(&client->sceneTree->node);
+    return;
+  }
 
   client->sceneTree->node.data = client.get();
   surface->data = client->sceneTree;
@@ -160,6 +196,14 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
   state->impl = this;
   state->client = current;
   current->nativeState = state;
+  attachListener(
+      &current->sceneContent->node.events.destroy, state->sceneContentDestroy,
+      state, [](wl_listener *listener, void *) {
+        auto *state = listenerOwner<ToplevelState>(listener);
+        detachListener(state->sceneContentDestroy);
+        if (state->client)
+          state->client->sceneContent = nullptr;
+      });
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   // Window capture gets a private scene so the stream does not inherit
   // workspace transforms, tiling clips or visibility of the desktop scene.
@@ -246,6 +290,7 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
     return;
   auto *client = state->client;
   client->mapped = true;
+  client->layoutPending = false;
   state->impl->q->updateClientMetadata(client);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   // Only mapped windows belong in the portal's selectable toplevel list.
@@ -254,18 +299,6 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   createLegacyForeignToplevel(state);
 #endif
-  if (!client->initialRuleApplied && !client->utility && !client->floating) {
-    const auto rule =
-        initialWindowRule(*state->impl->q->pluginManager_,
-                          {{"appId", client->appId},
-                           {"title", client->title},
-                           {"id", client->id}},
-                          client->workspace, client->maximized,
-                          desktopPreferences().value("workspaceCount").toInt());
-    client->workspace = rule.value("workspace").toInt();
-    client->maximized = rule.value("maximized").toBool();
-  }
-  client->initialRuleApplied = true;
   // A new ordinary window joins the visible layout instead of inheriting zoom.
   if (state->impl->q->windowTemplate_ &&
       !state->impl->q->windowTemplate_->allowOverlap && !client->floating &&
@@ -303,6 +336,9 @@ void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,
   destroyLegacyForeignToplevel(state);
 #endif
   state->client->mapped = false;
+  state->client->layoutPending = false;
+  state->client->initialRuleApplied = false;
+  state->client->preferredFloatingSize = {};
   state->impl->q->windowSwitcher_->remove(state->client->id);
   if (state->impl->pointerWindow == state->client->id)
     state->impl->finishWindowPointer(false);
@@ -319,12 +355,33 @@ void WaylandCompositor::Impl::handleToplevelCommit(wl_listener *listener,
   if (!state || !state->client || !state->client->surface ||
       !state->client->toplevel)
     return;
-  if (!state->client->surface->initial_commit)
-    return;
+  wlr_box geometry{};
+#if WLR_VERSION_MINOR >= 19
+  geometry = state->client->surface->geometry;
+#else
+  wlr_xdg_surface_get_geometry(state->client->surface, &geometry);
+#endif
+  const bool geometryChanged =
+      !state->hasSurfaceGeometry ||
+      state->lastSurfaceGeometry.x != geometry.x ||
+      state->lastSurfaceGeometry.y != geometry.y ||
+      state->lastSurfaceGeometry.width != geometry.width ||
+      state->lastSurfaceGeometry.height != geometry.height;
+  state->lastSurfaceGeometry = geometry;
+  state->hasSurfaceGeometry = true;
 
-  // Requests such as set_maximized can arrive before the first surface
-  // commit. Apply them only after wlroots marks the role initialized.
-  state->impl->configureInitialToplevel(state->client);
+  if (state->client->surface->initial_commit) {
+    // Requests such as set_maximized can arrive before the first surface
+    // commit. Apply them only after wlroots marks the role initialized.
+    state->impl->configureInitialToplevel(state->client);
+    return;
+  }
+
+  // Content-only commits (video, browser animation, terminal cursor) do not
+  // change clipping geometry. Rebuild rounded views only when the xdg surface
+  // geometry itself changes.
+  if (geometryChanged && state->client->mapped)
+    state->impl->updateWindowCorners();
 }
 
 void WaylandCompositor::Impl::handleToplevelMetadata(wl_listener *listener,
@@ -373,6 +430,10 @@ void WaylandCompositor::Impl::handleToplevelMaximize(wl_listener *listener,
   if (!state || !state->client || !state->client->surface ||
       !state->client->surface->initialized)
     return;
+  if (!state->client->mapped) {
+    state->impl->configureInitialToplevel(state->client);
+    return;
+  }
   state->impl->q->setMaximized(state->client,
                                state->client->toplevel->requested.maximized);
   state->impl->q->arrange();
@@ -386,6 +447,10 @@ void WaylandCompositor::Impl::handleToplevelFullscreen(wl_listener *listener,
   if (!state || !state->client || !state->client->surface ||
       !state->client->surface->initialized)
     return;
+  if (!state->client->mapped) {
+    state->impl->configureInitialToplevel(state->client);
+    return;
+  }
   const bool fullscreen = state->client->toplevel->requested.fullscreen;
   state->impl->q->setFullscreen(state->client, fullscreen);
 }
@@ -418,6 +483,7 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   detachListener(state->unmap);
   detachListener(state->commit);
   detachListener(state->destroy);
+  detachListener(state->sceneContentDestroy);
   detachListener(state->setTitle);
   detachListener(state->setAppId);
   detachListener(state->setParent);
@@ -441,6 +507,12 @@ void WaylandCompositor::Impl::handleToplevelDestroy(wl_listener *listener,
   }
 #endif
   client->nativeState = nullptr;
+  if (client->sceneTree)
+    wlr_scene_node_destroy(&client->sceneTree->node);
+  client->sceneTree = nullptr;
+  client->sceneContent = nullptr;
+  if (client->surface)
+    client->surface->data = nullptr;
   self->q->removeClient(client);
   delete state;
 }

@@ -41,6 +41,8 @@ private:
   QNetworkAccessManager *storeNetwork_ = nullptr;
   bool storeLoading_ = false;
   bool inHook_ = false;
+  bool snapshotDirty_ = true;
+  QJsonObject snapshotCache_;
 
   void refreshStore();
   bool applyStoreCatalog(const QByteArray &bytes, QString *error);

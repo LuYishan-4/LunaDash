@@ -9,6 +9,9 @@ ScrollView {
     property string category: "general"
     property url pageSource: Qt.resolvedUrl("pages/" + category + ".qml")
     readonly property alias pageItem: pageLoader.item
+    readonly property var firstFocusItem:
+        pageLoader.item && pageLoader.item.firstFocusItem
+            ? pageLoader.item.firstFocusItem : null
     readonly property bool ready: pageLoader.status === Loader.Ready
     property bool initialized: false
     clip: true

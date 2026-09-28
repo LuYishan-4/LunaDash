@@ -92,7 +92,7 @@ target_link_libraries(ludash-input-settings PUBLIC Qt6::Core)
 add_library(ludash-shell-modules src/shell/launcher/OrbitSettings.cpp src/shell/modules/ShellModules.hpp src/shell/modules/ShellModuleSchema.cpp src/shell/modules/ShellModules.cpp)
 target_include_directories(ludash-shell-modules PUBLIC src)
 target_link_libraries(ludash-shell-modules PUBLIC Qt6::Core)
-qt_add_resources(ludash-shell-modules module_templates PREFIX /LuDash FILES data/modules/registry.json data/modules/templates/panel/Main.qml data/modules/templates/overview/Main.qml)
+qt_add_resources(ludash-shell-modules module_templates PREFIX /LuDash FILES data/modules/registry.json)
 qt_add_resources(ludash-shell-modules orbit_defaults PREFIX /LunaDash/launcher
     BASE data/launcher FILES data/launcher/orbit.json)
 add_library(ludash-theme-sync src/desktop/theme/ThemeSync.cpp
@@ -159,12 +159,9 @@ target_link_libraries(ludash-plugins PUBLIC ludash-plugin-catalog ludash-tiling 
 add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp src/desktop/browser/Browser.cpp)
 target_include_directories(ludash-default-applications PUBLIC src)
 target_link_libraries(ludash-default-applications PUBLIC ludash-configuration Qt6::Core)
-add_library(ludash-file-operations src/desktop/fileoperations/FileOperations.cpp)
-target_include_directories(ludash-file-operations PUBLIC src)
-target_link_libraries(ludash-file-operations PUBLIC Qt6::Core)
-add_library(ludash-apps src/desktop/theme/DesktopTheme.cpp src/desktop/app/ApplicationWindow.cpp src/desktop/filemanager/FileManager.cpp src/desktop/filemanager/FileIcons.cpp src/desktop/filemanager/FileIconDelegate.cpp src/desktop/welcome/Welcome.cpp src/desktop/package/PackageManager.cpp)
+add_library(ludash-apps src/desktop/theme/DesktopTheme.cpp src/desktop/app/ApplicationWindow.cpp src/desktop/welcome/Welcome.cpp src/desktop/package/PackageManager.cpp)
 target_include_directories(ludash-apps PUBLIC src)
-target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-file-operations Qt6::Concurrent ludash-system-metrics ludash-localization ludash-wallpaper Qt6::Widgets)
+target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-system-metrics ludash-localization ludash-wallpaper Qt6::Widgets)
 target_compile_options(ludash-apps PRIVATE -Wall -Wextra -Wpedantic)
 # wlroots public layer-shell headers include the scanner-generated
 # protocol declaration. Some distributions do not install that generated
@@ -210,7 +207,14 @@ add_library(ludash-scene-backdrop
 target_include_directories(ludash-scene-backdrop PUBLIC src)
 target_compile_definitions(ludash-scene-backdrop PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-scene-backdrop PUBLIC PkgConfig::WLROOTS m)
+add_library(ludash-corner-geometry
+    src/compositor/renderer/clip/CornerGeometry.h
+    src/compositor/renderer/clip/CornerGeometry.c)
+target_include_directories(ludash-corner-geometry PUBLIC src)
+target_link_libraries(ludash-corner-geometry PUBLIC m)
 add_library(ludash-wayland
+    src/compositor/renderer/clip/WindowCorners.hpp
+    src/compositor/renderer/clip/WindowCorners.cpp
     src/compositor/renderer/blur/WindowGlass.hpp
     src/compositor/renderer/blur/WindowGlass.cpp
     src/compositor/wayland/NightLight.cpp
@@ -266,6 +270,7 @@ target_link_libraries(ludash-wayland
         ludash-thumbnail-readback
         ludash-night-color
         ludash-scene-backdrop
+        ludash-corner-geometry
         ludash-theme-sync
         ludash-weather
         Qt6::Concurrent

@@ -7,7 +7,7 @@ ColumnLayout {
     id: form
     required property var shell
     required property string targetId
-    readonly property var target: ((shell.state.settingsApi || {}).targets || [])
+    readonly property var target: ((shell?.state?.settingsApi || {}).targets || [])
         .find(item => item.id === targetId) || ({})
     property var draft: ({})
     property string loadedRevision: ""
@@ -15,23 +15,30 @@ ColumnLayout {
     property bool saving: false
     property string pendingTarget: ""
     property string message: ""
-    readonly property bool stale: dirty && loadedRevision !== String(target.revision || "")
+    property bool initialized: false
+    readonly property bool stale: dirty && loadedRevision !== String((target || {}).revision || "")
     spacing: 10
 
     function reload() {
-        draft = JSON.parse(JSON.stringify(target.values || {}))
-        loadedRevision = String(target.revision || "")
+        const selected = target || {}
+        draft = JSON.parse(JSON.stringify(selected.values || {}))
+        loadedRevision = String(selected.revision || "")
         dirty = false
         message = ""
     }
-    onTargetChanged: if (!dirty && !saving) reload()
-    onTargetIdChanged: reload()
-    Component.onCompleted: reload()
+    onTargetChanged: if (initialized && !dirty && !saving) reload()
+    // Required properties are assigned before dependent bindings have settled.
+    // A target switch must also wait for the descriptor for the new ID.
+    onTargetIdChanged: if (initialized) Qt.callLater(form.reload)
+    Component.onCompleted: {
+        initialized = true
+        reload()
+    }
 
     SchemaOptions {
         Layout.fillWidth: true
         shell: form.shell
-        schema: form.target.schema || ({})
+        schema: (form.target || {}).schema || ({})
         values: form.draft
         enabled: !form.saving
         onEdited: (key, value) => {
@@ -47,7 +54,7 @@ ColumnLayout {
         message: "Settings changed. Reload before applying this edit."
     }
     RowLayout {
-        visible: Object.keys(form.target.schema || {}).length > 0
+        visible: Object.keys((form.target || {}).schema || {}).length > 0
         Layout.fillWidth: true
         ShellButton {
             text: form.shell.tr("Apply settings")
@@ -71,7 +78,7 @@ ColumnLayout {
             enabled: !form.saving
             onClicked: {
                 const next = Object.assign({}, form.draft)
-                const schema = form.target.schema || {}
+                const schema = (form.target || {}).schema || {}
                 Object.keys(schema).forEach(key => {
                     if (!schema[key].readOnly) next[key] = schema[key].default
                 })

@@ -20,7 +20,8 @@ QString windowIconName(const QString &appId, const QString &title) {
 }
 
 bool windowUsesManagedLayout(const ClientWindow &client) {
-  return client.mapped && !client.floating && !client.utility;
+  return (client.mapped || client.layoutPending) && !client.floating &&
+         !client.utility;
 }
 
 bool windowAllowsPointerInteraction(const WindowTemplate &,

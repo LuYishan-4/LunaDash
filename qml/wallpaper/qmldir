@@ -5,3 +5,6 @@ Wallpaper 1.0 Wallpaper.qml
 WallpaperLibrary 1.0 WallpaperLibrary.qml
 WallpaperTransition 1.0 WallpaperTransition.qml
 DesktopWidgets 1.0 DesktopWidgets.qml
+
+WallpaperGallery 1.0 WallpaperGallery.qml
+WallpaperActions 1.0 WallpaperActions.qml

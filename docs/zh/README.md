@@ -14,6 +14,8 @@
 
 ## 桌面功能
 
+- [完整快捷鍵清單](SHORTCUTS.md)
+
 - [首次啟動與設定](CONFIGURATION.md)
 - [顯示器控制與啟動流程](DISPLAY_AND_STARTUP.md)
 - [視窗操作](WINDOWS.md)

@@ -2,6 +2,13 @@
 #include "compositor/wayland/wlroots/WlrootsSceneHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 
+extern "C" {
+#include <wlr/version.h>
+#if WLR_VERSION_MINOR >= 19
+#include <wlr/types/wlr_linux_drm_syncobj_v1.h>
+#endif
+}
+
 #include <QEasingCurve>
 #include <QElapsedTimer>
 #include <algorithm>
@@ -37,10 +44,27 @@ struct SnapshotBuildContext {
   wlr_scene_tree *parent;
   QPoint origin;
   QList<SnapshotBuffer> *buffers;
+  bool synchronizedSource = false;
 };
 
 void cloneBuffer(wlr_scene_buffer *buffer, int sx, int sy, void *data) {
   auto *context = static_cast<SnapshotBuildContext *>(data);
+  if (context->synchronizedSource)
+    return;
+#if WLR_VERSION_MINOR >= 19
+  if (auto *surface = wlr_scene_surface_try_from_buffer(buffer)) {
+    const auto *sync =
+        wlr_linux_drm_syncobj_v1_get_surface_state(surface->surface);
+    if (sync && sync->acquire_timeline) {
+      // A detached preview outlives the surface commit. Copying only its
+      // acquire wait would not hold the client's release point pending.
+      // Keep live scene animation, but decline the optional snapshot until
+      // it can own commit releases throughout every preview render pass.
+      context->synchronizedSource = true;
+      return;
+    }
+  }
+#endif
   if (!buffer->buffer)
     return;
   auto *copy = wlr_scene_buffer_create(context->parent, buffer->buffer);
@@ -289,7 +313,7 @@ SceneAnimationBackend::SnapshotState *SceneAnimationBackend::createSnapshot(
   state->parentOrigin = {parentX, parentY};
   SnapshotBuildContext context{tree, QPoint(sourceX, sourceY), &state->buffers};
   wlr_scene_node_for_each_buffer(&source->node, cloneBuffer, &context);
-  if (state->buffers.isEmpty()) {
+  if (context.synchronizedSource || state->buffers.isEmpty()) {
     wlr_scene_node_destroy(&tree->node);
     delete state;
     return nullptr;

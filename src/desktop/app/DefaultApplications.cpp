@@ -86,7 +86,9 @@ bool validCommand(const QJsonValue &value) {
   const auto program = arguments.first().toString();
   return !program.isEmpty() && !program.startsWith('-') &&
          QFileInfo(program).fileName() != "ludash-desktop" &&
-         QFileInfo(program).fileName() != "ludashctl";
+         QFileInfo(program).fileName() != "ludashctl" &&
+         QFileInfo(program).fileName() != "lunadash-desktop" &&
+         QFileInfo(program).fileName() != "lunadashctl";
 }
 } // namespace
 QJsonObject defaultApplications() {
@@ -144,7 +146,7 @@ QStringList defaultApplicationCommand(const QString &role, QString *error) {
   if (role == "terminal")
     return {"kitty"};
   if (role == "files")
-    return {};
+    return {"dolphin", "--new-window"};
   if (role == "browser") {
     const auto browser = Browser::defaultCommand();
     if (browser.isEmpty() && error)

@@ -7,6 +7,7 @@ QtObject {
         {page:"general", pageName:"General", name:"Notifications", keywords:"desktop notification crash alerts toast details"},
         {page:"general", pageName:"General", name:"Reset desktop preferences", keywords:"restore defaults reset"},
         {page:"appearance", pageName:"Appearance", name:"Wallpaper", keywords:"background image video live library category search random accent color font panel height"},
+        {page:"appearance", pageName:"Appearance", name:"Panel layout", keywords:"taskbar panel edge length width height margin workspace title CPU memory opacity tint launcher logo image"},
         {page:"appearance", pageName:"Appearance", name:"Visual effects", keywords:"animation blur opacity duration effects"},
         {page:"appearance", pageName:"Appearance", name:"Colors and comfort", keywords:"light dark automatic theme material wallpaper palette eye care night temperature GTK Kitty dock presets"},
         {page:"appearance", pageName:"Appearance", name:"Orbit launcher", keywords:"radial apps folders links AI search engines JSON custom scratchpad"},

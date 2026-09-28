@@ -1,5 +1,6 @@
 #include "compositor/renderer/blur/WindowGlass.hpp"
 #include <QByteArray>
+#include <QVector>
 #include <QtTest>
 #include <cstring>
 #include <drm_fourcc.h>
@@ -91,15 +92,27 @@ struct Window {
   wlr_scene_buffer *content = nullptr;
 };
 
-wlr_scene_buffer *underlay(wlr_scene_tree *tree) {
+wlr_scene_tree *underlay(wlr_scene_tree *tree) {
   if (!tree->node.parent ||
       tree->node.link.prev == &tree->node.parent->children)
     return nullptr;
   wlr_scene_node *previous = nullptr;
   previous = wl_container_of(tree->node.link.prev, previous, link);
-  return previous->type == WLR_SCENE_NODE_BUFFER
-             ? wlr_scene_buffer_from_node(previous)
-             : nullptr;
+  if (previous->type != WLR_SCENE_NODE_TREE)
+    return nullptr;
+  auto *candidate = wlr_scene_tree_from_node(previous);
+  if (wl_list_empty(&candidate->children))
+    return nullptr;
+  wlr_scene_node *child = nullptr;
+  wl_list_for_each(child, &candidate->children, link) {
+    if (child->type != WLR_SCENE_NODE_BUFFER)
+      return nullptr;
+    auto *part = wlr_scene_buffer_from_node(child);
+    double x = 0, y = 0;
+    if (!part->point_accepts_input || part->point_accepts_input(part, &x, &y))
+      return nullptr;
+  }
+  return candidate;
 }
 
 int childCount(wlr_scene_tree *tree) {
@@ -185,6 +198,7 @@ private Q_SLOTS:
     glass_->update(surfaces, false);
     QCOMPARE(allocator_->calls, allocations);
     wlr_scene_rect_set_color(background_, blue);
+    QTest::qWait(110);
     glass_->update(surfaces, false);
     QCOMPARE(glass_->frames(), quint64{2});
     QVERIFY(allocator_->calls > allocations);
@@ -207,9 +221,71 @@ private Q_SLOTS:
     QCOMPARE(backdrop->node.y, 16);
     glass_->update({{window.tree, {96, 80}, true}}, false);
     QCOMPARE(glass_->frames(), quint64{3});
-    QCOMPARE(backdrop->dst_width, 96);
-    QCOMPARE(backdrop->dst_height, 80);
+    QVERIFY(childCount(backdrop) > 1);
+    QVector<int> coveredWidth(80, 0);
+    int bottom = 0;
+    wlr_scene_node *child = nullptr;
+    wl_list_for_each(child, &backdrop->children, link) {
+      QCOMPARE(child->type, WLR_SCENE_NODE_BUFFER);
+      auto *part = wlr_scene_buffer_from_node(child);
+      QVERIFY(part->buffer);
+      QVERIFY(child->x >= 0 && child->y >= 0);
+      QVERIFY(part->dst_width > 0 && part->dst_height > 0);
+      QVERIFY(child->x + part->dst_width <= 96);
+      QVERIFY(child->y + part->dst_height <= 80);
+      QCOMPARE(child->y, bottom);
+      bottom = child->y + part->dst_height;
+      QCOMPARE(part->src_box.x, double(child->x) * part->buffer->width / 96);
+      QCOMPARE(part->src_box.y, double(child->y) * part->buffer->height / 80);
+      QCOMPARE(part->src_box.width,
+               double(part->dst_width) * part->buffer->width / 96);
+      QCOMPARE(part->src_box.height,
+               double(part->dst_height) * part->buffer->height / 80);
+      for (int row = child->y; row < bottom; ++row)
+        coveredWidth[row] += part->dst_width;
+    }
+    QCOMPARE(bottom, 80);
+    QVERIFY(coveredWidth.front() > 0 && coveredWidth.front() < 96);
+    QCOMPARE(coveredWidth.front(), coveredWidth.back());
+    QCOMPARE(coveredWidth[40], 96);
     glass_->update({{window.tree, {96, 80}, true}}, false);
+    QCOMPARE(glass_->frames(), quint64{3});
+  }
+
+  void offAreaActivityDoesNotInvalidateBackdrops() {
+    auto *activity = wlr_scene_tree_create(&scene_->tree);
+    QVERIFY(activity);
+    auto *indicator = wlr_scene_rect_create(activity, 16, 16, blue);
+    QVERIFY(indicator);
+    wlr_scene_node_set_position(&activity->node, 300, 200);
+    const auto window = addWindow();
+    const QList<WindowGlass::Surface> surfaces{{window.tree, {64, 64}, true}};
+    glass_->update(surfaces, false);
+    QCOMPARE(glass_->frames(), quint64{1});
+    const int allocations = allocator_->calls;
+    const int live = allocator_->liveBuffers;
+    for (int frame = 0; frame < 600; ++frame) {
+      wlr_scene_rect_set_color(indicator, frame % 2 ? red : blue);
+      wlr_scene_node_set_position(&activity->node, 300 + frame % 20, 200);
+      glass_->update(surfaces, false);
+    }
+    QCOMPARE(glass_->frames(), quint64{1});
+    QCOMPARE(allocator_->calls, allocations);
+    QCOMPARE(allocator_->liveBuffers, live);
+    // The filter samples beyond the window edge. Moving activity into that
+    // padding must invalidate, even without overlapping the visible tile.
+    wlr_scene_node_set_position(&activity->node, 66, 10);
+    QTest::qWait(110);
+    glass_->update(surfaces, false);
+    QCOMPARE(glass_->frames(), quint64{2});
+    wlr_scene_node_set_position(&activity->node, 300, 200);
+    QTest::qWait(110);
+    glass_->update(surfaces, false);
+    QCOMPARE(glass_->frames(), quint64{3});
+    // Removing an unrelated subtree must not invalidate the cache either.
+    wlr_scene_node_destroy(&activity->node);
+    QTest::qWait(110);
+    glass_->update(surfaces, false);
     QCOMPARE(glass_->frames(), quint64{3});
   }
 
@@ -238,6 +314,35 @@ private Q_SLOTS:
     QVERIFY(!glass_->ready());
     QVERIFY(!underlay(window.tree));
     QCOMPARE(window.content->opacity, 1.0f);
+  }
+
+  void shellSurfaceKeepsItsOwnAlphaAndLayerGeometry() {
+    const auto app = addWindow();
+    auto *overlay = wlr_scene_tree_create(&scene_->tree);
+    const auto panel = addWindow();
+    wlr_scene_node_reparent(&panel.tree->node, overlay);
+    wlr_scene_node_set_position(&panel.tree->node, 40, 24);
+    QList<WindowGlass::Surface> targets{
+        {app.tree, {64, 64}, true}, {panel.tree, {64, 64}, true, 24, 1.0f}};
+    glass_->update(targets, false);
+    QVERIFY2(glass_->ready(), qPrintable(glass_->error()));
+    QCOMPARE(app.content->opacity, 0.8f);
+    QCOMPARE(panel.content->opacity, 1.0f);
+    auto *backdrop = underlay(panel.tree);
+    QVERIFY(backdrop);
+    QCOMPARE(backdrop->node.parent, overlay);
+    // Maximize/restore follows the layer's geometry without recreating content.
+    targets[1].size = {240, 180};
+    glass_->update(targets, false);
+    QCOMPARE(panel.content->opacity, 1.0f);
+    QCOMPARE(underlay(panel.tree), backdrop);
+    wlr_scene_node_set_enabled(&panel.tree->node, false);
+    glass_->update(targets, false);
+    QVERIFY(!underlay(panel.tree));
+    wlr_scene_node_destroy(&overlay->node);
+    targets.removeLast();
+    glass_->update(targets, false);
+    QCOMPARE(app.content->opacity, 0.8f);
   }
 
   void invisibleAndExcludedWindowsHaveNoBackdrop() {
@@ -326,9 +431,14 @@ private Q_SLOTS:
     QVERIFY(window.tree && window.content);
     glass_->update({{window.tree, {64, 64}, true}}, false);
     auto *backdrop = underlay(window.tree);
-    QVERIFY(backdrop && backdrop->point_accepts_input);
-    double x = 16, y = 16;
-    QVERIFY(!backdrop->point_accepts_input(backdrop, &x, &y));
+    QVERIFY(backdrop);
+    wlr_scene_node *child = nullptr;
+    wl_list_for_each(child, &backdrop->children, link) {
+      auto *part = wlr_scene_buffer_from_node(child);
+      QVERIFY(part->point_accepts_input);
+      double x = 0, y = 0;
+      QVERIFY(!part->point_accepts_input(part, &x, &y));
+    }
     double localX = 0, localY = 0;
     QCOMPARE(wlr_scene_node_at(&scene_->tree.node, 16, 16, &localX, &localY),
              &window.content->node);

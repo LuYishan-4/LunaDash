@@ -11,12 +11,17 @@ namespace LunaDash {
 // Owns one selection session and its private, event-driven shell feedback file.
 class WindowSwitcher final : public QObject {
 public:
+  enum class Scope { Windows, Workspaces };
   explicit WindowSwitcher(QObject *parent = nullptr);
   ~WindowSwitcher() override;
   void setChannelPath(const QString &path);
   bool begin(const QJsonArray &windows, int focused, int direction,
-             const QProcessEnvironment &environment);
+             const QProcessEnvironment &environment,
+             Scope scope = Scope::Workspaces);
+  static QJsonArray windowsForWorkspace(const QJsonArray &clients, int workspace);
   bool active() const;
+  Scope scope() const;
+  void dismissPopups();
   void step(int direction);
   bool select(int window);
   int finish(bool accept);
@@ -33,6 +38,8 @@ private:
   QString channelPath_;
   QByteArray lastPublished_;
   QJsonArray workspaces_;
+  Scope scope_ = Scope::Workspaces;
+  int dismissSerial_ = 0;
   QJsonObject drag_;
   QJsonArray clients_;
   int workspace_ = 0;

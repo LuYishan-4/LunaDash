@@ -7,7 +7,7 @@ The optional Arch package groups are defined in `scripts/setup-guide.sh`:
 | Group | Purpose |
 | --- | --- |
 | `basics` | XDG tools, archives, rsync, jq, media control and keyring |
-| `desktop` | Chromium, Thunar, archive manager, removable/network file support |
+| `desktop` | Chromium, Ark and Dolphin network file support |
 | `media` | MPV, image viewer and video thumbnails |
 | `office` | LibreOffice and its Traditional Chinese language pack |
 | `development` | Fish, Starship, Fastfetch, eza, fzf, zoxide, tmux and btop |

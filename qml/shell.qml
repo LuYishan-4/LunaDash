@@ -16,6 +16,7 @@ import "style"
 import "compatibility"
 import "windows"
 import "plugins"
+import "components/PopupPolicy.js" as PopupPolicy
 
 ShellRoot {
     id: root
@@ -40,6 +41,7 @@ ShellRoot {
     property int lastPickerSerial: 0
     property int lastLauncherSerial: 0
     property int lastInteractionLauncherSerial: 0
+    property int lastDismissSerial: 0
     property int dropTarget: 0
     property int controlCenterTab: 0
     property bool orbitOpen: false
@@ -48,6 +50,15 @@ ShellRoot {
     property bool launcherKeyboardActive: false
     property string launcherOpenSource: "mouse"
     property bool settingsOpen: false
+    property bool settingsSurfaceLoaded: false
+    property bool wallpaperGalleryOpen: false
+    property bool wallpaperGalleryLoaded: false
+    readonly property alias wallpaperActions: wallpaperController
+    WallpaperActions {
+        id: wallpaperController
+        shell: root
+        onUpdated: if (!status.running) status.running = true
+    }
     property bool pickerOpen: false
     property string pickerPurpose: "wallpaper"
     property string pendingWallpaper: ""
@@ -89,8 +100,8 @@ ShellRoot {
 
     function openLauncherFromMouse() {
         launcherOpenSource = "mouse"
-        launcherKeyboardActive = false
-        launcherOpen = !launcherOpen
+        launcherKeyboardActive = !launcherOpen
+        togglePopup("launcher")
     }
 
     function notify(title, body, kind, details) {
@@ -202,44 +213,80 @@ ShellRoot {
         }
     }
 
-    onOrbitOpenChanged: if (orbitOpen) {
-        launcherOpen = false
-        settingsOpen = false
-        calendarOpen = false
-        volumePopupOpen = false
-        wifiPopupOpen = false
-        clipboardPopupOpen = false
-        menuOpen = false
-    }
-    onLauncherOpenChanged: {
-        if (launcherOpen) orbitOpen = false
-        command("launcher-visible", launcherOpen ? "true" : "false")
-        if (launcherOpen) {
+    function dismissPopups(except = "") { PopupPolicy.dismiss(root, except) }
+    function togglePopup(name) { PopupPolicy.toggle(root, name) }
+    function toggleSettingsPage(page) {
+        if (settingsOpen && settingsPage === page)
             settingsOpen = false
-            calendarOpen = false
-            usbPopupOpen = false
-            volumePopupOpen = false
-            wifiPopupOpen = false
-            clipboardPopupOpen = false
+        else
+            openSettingsPage(page)
+    }
+    function toggleControlCenter(tab) {
+        const close = overviewOpen && controlCenterTab === tab
+        controlCenterTab = tab
+        setAppearance({overview: !close})
+    }
+    onOrbitOpenChanged: if (orbitOpen) dismissPopups("orbit")
+    onLauncherOpenChanged: {
+        launcherKeyboardActive = launcherOpen
+        if (launcherOpen) dismissPopups("launcher")
+        command("launcher-visible", launcherOpen ? "true" : "false")
+    }
+    onSettingsOpenChanged: {
+        if (settingsOpen) {
+            settingsUnload.stop()
+            settingsSurfaceLoaded = true
+            dismissPopups("settings")
         } else {
-            launcherKeyboardActive = false
+            pickerOpen = false
+            settingsUnload.restart()
         }
     }
-    onSettingsOpenChanged: if (settingsOpen) { orbitOpen = false; launcherOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false } else { pickerOpen = false }
-    onCalendarOpenChanged: if (calendarOpen) { usbPopupOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
-    onUsbPopupOpenChanged: if (usbPopupOpen) { calendarOpen = false; launcherOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
-    onVolumePopupOpenChanged: if (volumePopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
-    onWifiPopupOpenChanged: if (wifiPopupOpen) { calendarOpen = false; launcherOpen = false; usbPopupOpen = false; volumePopupOpen = false; clipboardPopupOpen = false }
-    onClipboardPopupOpenChanged: if (clipboardPopupOpen) { calendarOpen = false; launcherOpen = false; settingsOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false }
+    onWallpaperGalleryOpenChanged: {
+        if (wallpaperGalleryOpen) {
+            wallpaperGalleryUnload.stop()
+            wallpaperGalleryLoaded = true
+            dismissPopups("wallpaper")
+        } else {
+            wallpaperGalleryUnload.restart()
+        }
+    }
+    Timer {
+        id: settingsUnload
+        interval: Math.max(80, Theme.motionFast + 40)
+        repeat: false
+        onTriggered: if (!root.settingsOpen) root.settingsSurfaceLoaded = false
+    }
+    Timer {
+        id: wallpaperGalleryUnload
+        interval: Math.max(80, Theme.motionFast + 40)
+        repeat: false
+        onTriggered: if (!root.wallpaperGalleryOpen) root.wallpaperGalleryLoaded = false
+    }
+    onCalendarOpenChanged: if (calendarOpen) dismissPopups("calendar")
+    onUsbPopupOpenChanged: if (usbPopupOpen) dismissPopups("devices")
+    onVolumePopupOpenChanged: if (volumePopupOpen) dismissPopups("audio")
+    onWifiPopupOpenChanged: if (wifiPopupOpen) dismissPopups("network")
+    onClipboardPopupOpenChanged: if (clipboardPopupOpen) dismissPopups("clipboard")
+    onLogoutOpenChanged: if (logoutOpen) dismissPopups("session")
+    onX11OpenChanged: if (x11Open) dismissPopups("compatibility")
+    onOverviewOpenChanged: if (overviewOpen) dismissPopups("overview")
 
     property bool menuOpen: false
     property real menuX: 0
     property real menuY: 0
     function openMenu(x, y) { menuX = x; menuY = y; menuOpen = true }
-    onMenuOpenChanged: if (menuOpen) { launcherOpen = false; settingsOpen = false; calendarOpen = false; usbPopupOpen = false; volumePopupOpen = false; wifiPopupOpen = false; clipboardPopupOpen = false }
+    onMenuOpenChanged: if (menuOpen) dismissPopups("menu")
     property bool x11Open: false
-    readonly property bool overviewOpen: (state.appearance || {}).overview ?? false
-    function setAppearance(changes) { command("appearance", JSON.stringify(changes)) }
+    property bool overviewOpen: false
+    property var pendingOverview: null
+    function setAppearance(changes) {
+        if (changes.overview !== undefined) {
+            pendingOverview = Boolean(changes.overview)
+            overviewOpen = pendingOverview
+        }
+        command("appearance", JSON.stringify(changes))
+    }
 
     function syncPersistentUpdateInstall(result) {
         const persistent = (((result || {}).update || {}).install || null)
@@ -277,6 +324,8 @@ ShellRoot {
     }
 
     function applyPolledState(result) {
+        if (root.stateReady)
+            pluginTransition.observe(root.state.extensions || {}, result.extensions || {})
         root.stateReady = true;
         // The compositor reads the updater's progress.json directly. Synchronize
         // install state before filtering high-frequency system metrics so About
@@ -305,8 +354,16 @@ ShellRoot {
         settingsOpen = true
     }
     onStateChanged: {
+        const incomingOverview = Boolean((state.appearance || {}).overview ?? false)
+        if (pendingOverview === null || incomingOverview === pendingOverview) {
+            pendingOverview = null
+            overviewOpen = incomingOverview
+        }
         if ((state.settingsSerial || 0) !== lastSettingsSerial) { lastSettingsSerial = state.settingsSerial; openSettingsPage(state.settingsPage || "general") }
-        if ((state.pickerSerial || 0) !== lastPickerSerial) { lastPickerSerial = state.pickerSerial || 0; openSettingsPage("appearance"); pickerPurpose = "wallpaper"; settingsOpen = true; pickerOpen = true }
+        if ((state.pickerSerial || 0) !== lastPickerSerial) {
+            lastPickerSerial = state.pickerSerial || 0
+            togglePopup("wallpaper")
+        }
         if ((state.launcherSerial || 0) !== lastLauncherSerial)
             applyLauncherSignal(state.launcherSerial || 0, state.launcherOpen ?? true)
         Theme.font = (state.appearance || {}).fontFamily || "sans-serif"
@@ -359,6 +416,7 @@ ShellRoot {
                     const result = JSON.parse(text)
                     const method = action.command[1]
                     if (result.error) {
+                        if (method === "appearance") root.pendingOverview = null
                         if (method === "wallpaper-image" || method === "wallpaper-default")
                             root.wallpaperOverride = ""
                         root.errorMessage = root.tr(result.error)
@@ -471,8 +529,10 @@ ShellRoot {
     }
 
     Timer { id: notificationTimer; interval: 6500; onTriggered: root.clearNotification(false) }
-    Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running) Qt.quit() }
+    Timer { id: shutdownTimer; interval: 100; repeat: true; onTriggered: if (root.state.layerSurfaces === 0 && !status.running && !action.running && !updateAction.running && !wallpaperController.busy) Qt.quit() }
     Timer {
+        // Keep external lunadashctl changes responsive. Expensive backend
+        // snapshots are cached/debounced instead of slowing this propagation.
         interval: updateAction.running ? 350 : 1200
         running: true
         repeat: true
@@ -490,6 +550,11 @@ ShellRoot {
             try {
                 const next = JSON.parse(text())
                 root.interaction = next
+                const dismissed = Number(next.dismissSerial || 0)
+                if (dismissed !== root.lastDismissSerial) {
+                    root.lastDismissSerial = dismissed
+                    root.dismissPopups()
+                }
                 const serial = Number(next.launcherSerial || 0)
                 if (serial && serial !== root.lastInteractionLauncherSerial)
                     root.applyLauncherSignal(serial, next.launcherOpen ?? true)
@@ -546,13 +611,18 @@ ShellRoot {
     DesktopMenu { shell: root; opened: !root.stopping && root.menuOpen; anchorX: root.menuX; anchorY: root.menuY }
     LazyLoader {
         id: settingsLoader
-        loading: root.settingsOpen
-        onActiveChanged: if (active) item.showCategory(root.settingsPage)
+        loading: root.settingsSurfaceLoaded
+        onActiveChanged: if (active && item) item.showCategory(root.settingsPage)
         SettingsPanel {
             shell: root
             opened: !root.stopping && root.settingsOpen
             onCategoryChanged: if (settingsLoader.active) root.settingsPage = category
         }
+    }
+    LazyLoader {
+        id: wallpaperGalleryLoader
+        loading: root.wallpaperGalleryLoaded
+        WallpaperGallery { shell: root; opened: !root.stopping && root.wallpaperGalleryOpen }
     }
     SetupWizard { shell: root; opened: !root.stopping && root.state.setupComplete === false && !root.setupPaused }
     LazyLoader {
@@ -567,4 +637,5 @@ ShellRoot {
     NotificationToast { shell: root; opened: !root.stopping && root.notificationVisible }
     ScreenshotFeedback { shell: root; opened: !root.stopping }
     WorkspaceTransition { shell: root; opened: !root.stopping }
+    PluginTransition { id: pluginTransition; shell: root }
 }

@@ -26,10 +26,8 @@ ColumnLayout {
             {id:"narrowColumn", name:"Narrow column"},
             {id:"maximizeWindow", name:"Maximize or restore window"},
             {id:"closeWindow", name:"Close window"},
-            {id:"closeWindowAlternate", name:"Close window alternative"},
             {id:"minimizeWindow", name:"Minimize window"},
             {id:"launchTerminal", name:"Open terminal"},
-            {id:"launchTerminalAlternate", name:"Open terminal alternative"},
             {id:"launchFiles", name:"Open files"},
             {id:"launchLauncher", name:"Open launcher"},
             {id:"screenshot", name:"Take a screenshot"},
@@ -38,7 +36,6 @@ ColumnLayout {
             {id:"randomWallpaper", name:"Random wallpaper"},
             {id:"toggleEyeCare", name:"Eye care"},
             {id:"toggleScratchpad", name:"Scratchpad"},
-            {id:"toggleFloating", name:"Toggle floating window"},
             {id:"toggleFullscreen", name:"Toggle fullscreen"},
             {id:"openControlCenter", name:"Control center"},
             {id:"openClipboard", name:"Clipboard"},
@@ -48,7 +45,9 @@ ColumnLayout {
             result.push({id:"workspace" + workspace, name:"Switch to workspace %1", workspace:workspace})
             result.push({id:"moveToWorkspace" + workspace, name:"Move window to workspace %1", workspace:workspace})
         }
-        return result
+        const available = shell.state.shortcuts || ({})
+        return result.filter(action =>
+            Object.prototype.hasOwnProperty.call(available, action.id))
     }
     function actionLabel(action) {
         const label = shell.tr(action.name)
@@ -82,5 +81,26 @@ ColumnLayout {
                 }
             }
         }
+    }
+    SettingsComponents.SettingsCard {
+        title: shell.tr("Fixed desktop shortcuts")
+        description: shell.tr("These built-in controls are separate from the configurable shortcuts above.")
+        Repeater {
+            model: [
+                {keys:"Meta", label:"Tap Meta to open the launcher"},
+                {keys:"F12", label:"Toggle fullscreen"},
+                {keys:"Alt+Tab / Alt+Shift+Tab", label:"Window switcher"},
+                {keys:"Super+Tab / Super+Shift+Tab", label:"Workspace switcher"},
+                {keys:"Drag titlebar", label:"Drag a window onto another to swap them"},
+                {keys:"Alt+Shift + drag", label:"Resize a window"}
+            ]
+            RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                Text { Layout.fillWidth: true; Layout.minimumWidth: 0; wrapMode: Text.Wrap; text: shell.tr(modelData.label); color: Theme.text; font.family: Theme.font }
+                Text { Layout.maximumWidth: 240; wrapMode: Text.Wrap; text: modelData.keys; color: Theme.muted; font.family: Theme.font }
+            }
+        }
+        HelpText { shell: page.shell; message: "Window and workspace switchers accept arrow keys; Enter or releasing Alt/Super confirms, and Escape cancels." }
     }
 }

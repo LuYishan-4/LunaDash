@@ -1,7 +1,9 @@
 #pragma once
 #include <QDBusAbstractAdaptor>
 #include <QDBusVariant>
+#include <QFileSystemWatcher>
 #include <QMap>
+#include <QTimer>
 #include <QVariantMap>
 
 namespace LunaDash {
@@ -22,7 +24,11 @@ signals:
 
 private:
   QVariantMap values_;
+  QFileSystemWatcher watcher_;
+  QTimer debounce_;
+  QString settingsPath_;
   void refresh();
+  void watchSettings();
 };
 } // namespace LunaDash
 Q_DECLARE_METATYPE(LunaDash::PortalSettingsMap)

@@ -12,6 +12,8 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 `effects.activeAnimations` 會回報活動 transition。關閉動畫或 duration=0 可作 reduced motion。Close 不會繞過 application 本身的 save/cancel dialog。
 
+在 wlroots 0.19 以上版本，使用 explicit sync 的視窗保留一般 live scene 動畫，但不建立獨立的縮放或關閉 snapshot。Snapshot 必須在後續每一幀保有來源 commit 的 release 同步資源；只複製 acquire wait 並不足夠。在這項資源管理完成前，會略過可選的預覽效果。
+
 ## 應用程式毛玻璃
 
 既有 wlroots scene 現在會在一般 Wayland 與 XWayland 應用程式視窗後方繪製模糊背景。效果依視窗角色套用，不使用應用程式白名單，因此原生、GTK、Qt、Electron 與 XWayland 視窗走相同路徑。應用程式文字與控制項在模糊背景上方合成，本身不會被模糊。不透明程式必須將「視窗不透明度」降至 100% 以下才會看見背景；新設定檔預設 90%，既有使用者儲存值仍優先。
@@ -31,3 +33,15 @@ Quickshell 自己也會動畫 shell surface 與 wallpaper transition。GPU 效�
 ## NyxNiri 桌面整合、Orbit 與動態桌布
 
 新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。
+
+## 靜置繪製
+
+毛玻璃快取只追蹤與視窗模糊取樣範圍相交的下層場景內容；不相干視窗、面板或空容器的變更，不再使後續所有視窗重新擷取。相依範圍保留模糊濾鏡的外圍取樣，確保邊緣正確更新。螢幕擷取的持續刷新，每個輸出最多保留一個等待中的計時器；布局更新也不再重送相同的 XWayland 幾何、最大化及全螢幕狀態。應用程式明確提出的 X11 配置要求仍會收到回覆。
+
+`display.frameCallbacks` 是輸出畫面回呼累計次數；應比較靜置期間的差值及 `blurFrames`，不要將累計值視為 FPS。CI 觀察六個 Dolphin 視窗的 30 秒靜置軟體工作階段，記錄兩項計數，並檢查範圍外場景更新不會重新配置模糊 buffer、結束時會釋放 buffer。這可偵測重繪回授循環，但不代表已驗證 NVIDIA 或其他實體 GPU 效能。
+
+## 視窗圓角
+
+一般應用程式內容與模糊底層共同裁切為 16 像素圓角矩形。既有 wlroots scene 使用 C11 圓角輔助產生的不重疊水平 surface 區段，client buffer 繼續使用 wlroots 原本的同步及輸入座標。彈出視窗保留自己的 scene tree，全螢幕維持直角。這會裁切包含不透明 client 裝飾在內的實際像素，而不只是畫出圓角外框。邊緣使用邏輯像素覆蓋，不另建多重取樣 renderer。
+
+Shell 外框透過既有互動通道，使用 compositor 動畫後端目前的 frame 幾何與圓角半徑，不再另外執行可能落後於原生視窗的幾何動畫。狀態也提供 `workArea`、`frameX/Y/Width/Height`、`contentGeometryWidth/Height` 及 `cornerRadius` 供診斷。

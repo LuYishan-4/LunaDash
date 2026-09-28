@@ -137,6 +137,143 @@ static struct wl_buffer *create_buffer(int width, int height) {
   return buffer;
 }
 
+struct size_fixture {
+  struct wl_surface *surface;
+  struct xdg_surface *xdg;
+  struct xdg_toplevel *toplevel;
+  struct wl_buffer *buffer;
+  bool configured;
+  bool stable;
+  int width, height;
+};
+
+static void size_configure(void *data, struct xdg_toplevel *toplevel,
+                           int32_t width, int32_t height,
+                           struct wl_array *states) {
+  (void)toplevel;
+  (void)states;
+  struct size_fixture *fixture = data;
+  if (fixture->stable &&
+      (width != fixture->width || height != fixture->height)) {
+    fprintf(stderr, "mapping resized startup content from %dx%d to %dx%d\n",
+            fixture->width, fixture->height, width, height);
+    abort();
+  }
+  fixture->width = width;
+  fixture->height = height;
+}
+static const struct xdg_toplevel_listener size_listener = {
+    .configure = size_configure, .close = toplevel_close,
+};
+
+static void roundtrips(struct wl_display *display) {
+  for (int i = 0; i < 4; ++i)
+    if (wl_display_roundtrip(display) < 0)
+      abort();
+}
+
+static void configure_size_fixture(struct wl_display *display,
+                                   struct size_fixture *fixture,
+                                   struct xdg_toplevel *parent) {
+  fixture->surface = wl_compositor_create_surface(g_compositor);
+  fixture->xdg = xdg_wm_base_get_xdg_surface(g_wm_base, fixture->surface);
+  xdg_surface_add_listener(fixture->xdg, &xdg_surface_listener,
+                           &fixture->configured);
+  fixture->toplevel = xdg_surface_get_toplevel(fixture->xdg);
+  xdg_toplevel_add_listener(fixture->toplevel, &size_listener, fixture);
+  // Deliberately omit app_id: sizing must not depend on application rules.
+  if (parent)
+    xdg_toplevel_set_parent(fixture->toplevel, parent);
+  wl_surface_commit(fixture->surface);
+  roundtrips(display);
+  if (!fixture->configured ||
+      (!parent && (fixture->width <= 0 || fixture->height <= 0))) {
+    fputs("ordinary window did not receive a usable initial size\n", stderr);
+    abort();
+  }
+}
+
+static void map_size_fixture(struct wl_display *display,
+                             struct size_fixture *fixture) {
+  fixture->stable = true;
+  fixture->buffer = create_buffer(fixture->width, fixture->height);
+  if (!fixture->buffer)
+    abort();
+  xdg_surface_set_window_geometry(fixture->xdg, 0, 0,
+                                  fixture->width, fixture->height);
+  wl_surface_attach(fixture->surface, fixture->buffer, 0, 0);
+  wl_surface_damage(fixture->surface, 0, 0, fixture->width, fixture->height);
+  wl_surface_commit(fixture->surface);
+  roundtrips(display);
+}
+
+static void destroy_size_fixture(struct wl_display *display,
+                                 struct size_fixture *fixture) {
+  xdg_toplevel_destroy(fixture->toplevel);
+  xdg_surface_destroy(fixture->xdg);
+  wl_surface_destroy(fixture->surface);
+  if (fixture->buffer)
+    wl_buffer_destroy(fixture->buffer);
+  roundtrips(display);
+}
+
+static void check_initial_sizes(struct wl_display *display) {
+  struct size_fixture abandoned = {0};
+  configure_size_fixture(display, &abandoned, NULL);
+  const int lone_width = abandoned.width, lone_height = abandoned.height;
+  destroy_size_fixture(display, &abandoned);
+
+  struct size_fixture windows[6] = {0};
+  for (int i = 0; i < 6; ++i) {
+    if (i > 0)
+      windows[i - 1].stable = false; // Adding a window legitimately splits peers.
+    configure_size_fixture(display, &windows[i], NULL);
+    if (i == 0 && (windows[i].width != lone_width ||
+                   windows[i].height != lone_height)) {
+      fputs("abandoned initial configure left a phantom tile\n", stderr);
+      abort();
+    }
+    map_size_fixture(display, &windows[i]);
+  }
+  windows[5].stable = false;
+  for (int i = 5; i >= 0; --i)
+    destroy_size_fixture(display, &windows[i]);
+
+  // Two initialized clients can map in reverse order without reinsertion.
+  struct size_fixture first = {0}, second = {0};
+  configure_size_fixture(display, &first, NULL);
+  configure_size_fixture(display, &second, NULL);
+  map_size_fixture(display, &second);
+  map_size_fixture(display, &first);
+  first.stable = second.stable = false;
+  destroy_size_fixture(display, &second);
+
+  // Null-buffer unmap must discard membership and negotiate afresh on remap.
+  wl_surface_attach(first.surface, NULL, 0, 0);
+  wl_surface_commit(first.surface);
+  roundtrips(display);
+  wl_buffer_destroy(first.buffer);
+  first.buffer = NULL;
+  first.configured = false;
+  wl_surface_commit(first.surface);
+  roundtrips(display);
+  if (!first.configured || first.width != lone_width ||
+      first.height != lone_height)
+    abort();
+  map_size_fixture(display, &first);
+
+  // A dialog's own preferred size must survive mapping, without tiling it or
+  // replacing its dimensions with the generic 720x500 fallback.
+  struct size_fixture dialog = {0};
+  configure_size_fixture(display, &dialog, first.toplevel);
+  dialog.width = 430;
+  dialog.height = 270;
+  map_size_fixture(display, &dialog);
+  destroy_size_fixture(display, &dialog);
+  destroy_size_fixture(display, &first);
+  puts("Generic initial sizes: six tiles, cancellation, reverse map, remap and dialog passed");
+}
+
 struct popup_fixture {
   struct wl_surface *surface;
   struct xdg_surface *xdg;
@@ -312,6 +449,7 @@ int main(void) {
   }
 
   wl_buffer_destroy(buffer);
+  check_initial_sizes(display);
   xdg_wm_base_destroy(g_wm_base);
   wl_shm_destroy(g_shm);
   wl_compositor_destroy(g_compositor);

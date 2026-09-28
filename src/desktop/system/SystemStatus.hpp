@@ -23,5 +23,6 @@ private:
   LuDashCpuCounters previous_{};
   QProcess *gpuQuery_ = nullptr;
   QString nvidiaSmi_;
+  int refreshCount_ = 0;
 };
 } // namespace LunaDash

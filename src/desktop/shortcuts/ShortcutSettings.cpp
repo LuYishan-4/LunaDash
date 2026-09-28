@@ -24,9 +24,7 @@ QJsonObject defaults() {
   result.insert("maximizeWindow", "Meta+F");
   result.insert("closeWindow", "Meta+C");
   result.insert("minimizeWindow", "Meta+M");
-  result.insert("closeWindowAlternate", "Meta+Q");
   result.insert("launchTerminal", "Meta+T");
-  result.insert("launchTerminalAlternate", "Meta+Return");
   result.insert("launchFiles", "Meta+E");
   result.insert("launchLauncher", "Meta+D");
   result.insert("screenshot", "Meta+Shift+S");
@@ -38,7 +36,6 @@ QJsonObject defaults() {
   result.insert("openControlCenter", "Meta+I");
   result.insert("openClipboard", "Meta+V");
   result.insert("openPowerMenu", "Meta+X");
-  result.insert("toggleFloating", "Meta+Shift+T");
   result.insert("toggleFullscreen", "Meta+Shift+F");
   for (int workspace = 1; workspace <= 10; ++workspace) {
     result.insert(QString("workspace%1").arg(workspace),
@@ -127,6 +124,20 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   QSettings settings;
   auto configured =
       QJsonObject::fromVariantMap(settings.value("shortcuts/bindings").toMap());
+  const auto knownActions = defaults();
+  bool removedObsolete = false;
+  for (const auto &key : configured.keys())
+    if (!knownActions.contains(key)) {
+      configured.remove(key);
+      removedObsolete = true;
+    }
+  if (removedObsolete) {
+    if (configured.isEmpty())
+      settings.remove("shortcuts/bindings");
+    else
+      settings.setValue("shortcuts/bindings", configured.toVariantMap());
+    settings.sync();
+  }
 
   // Older settings may reserve Meta+T for a different action. Keep those
   // assignments; add the terminal defaults only when their keys are free.
@@ -143,9 +154,6 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   if (!configured.contains("launchTerminal") &&
       uses("Meta+T", "launchTerminal"))
     bindings_["launchTerminal"] = "Disabled";
-  if (!configured.contains("launchTerminalAlternate") &&
-      uses("Meta+Return", "launchTerminalAlternate"))
-    bindings_["launchTerminalAlternate"] = "Disabled";
   if (!configured.contains("workspace10") && uses("Meta+0", "workspace10"))
     bindings_["workspace10"] = "Disabled";
   if (!configured.contains("moveToWorkspace10") &&
@@ -156,7 +164,9 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
     if ((binding.symbol == XKB_KEY_Tab ||
          binding.symbol == XKB_KEY_ISO_Left_Tab) &&
         (binding.modifiers == ShortcutAlt ||
-         binding.modifiers == (ShortcutAlt | ShortcutShift)))
+         binding.modifiers == (ShortcutAlt | ShortcutShift) ||
+         binding.modifiers == ShortcutMeta ||
+         binding.modifiers == (ShortcutMeta | ShortcutShift)))
       it.value() = "Disabled";
   }
   // Migrate the previous shipped default without replacing custom bindings
@@ -210,9 +220,11 @@ bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
     if ((parsed.symbol == XKB_KEY_Tab ||
          parsed.symbol == XKB_KEY_ISO_Left_Tab) &&
         (parsed.modifiers == ShortcutAlt ||
-         parsed.modifiers == (ShortcutAlt | ShortcutShift))) {
+         parsed.modifiers == (ShortcutAlt | ShortcutShift) ||
+         parsed.modifiers == ShortcutMeta ||
+         parsed.modifiers == (ShortcutMeta | ShortcutShift))) {
       if (error)
-        *error = "Alt+Tab is reserved for the window switcher.";
+        *error = "Alt+Tab and Super+Tab are reserved for window and workspace switching.";
       return false;
     }
     candidate.insert(it.key(), parsed.canonical);

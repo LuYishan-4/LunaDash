@@ -216,7 +216,7 @@ private Q_SLOTS:
   }
   void focusedSplitsPreserveMainPane() {
     TilingLayout layout;
-    layout.configure({{"gap", 8}});
+    layout.configure({{"gap", 8}, {"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
     const QRect bounds(16, 48, 1608, 1000);
     QVERIFY(layout.insert(0, 1));
     layout.layout(0, bounds);
@@ -303,6 +303,40 @@ private Q_SLOTS:
     for (const auto &slot : restored)
       QVERIFY(bounds.contains(slot.geometry));
   }
+  void focusedSplitsPreferReadableTiles() {
+    TilingLayout layout;
+    layout.configure({{"gap", 12}});
+    const QRect bounds(12, 72, 1896, 996);
+    for (int id = 1; id <= 6; ++id) {
+      if (id == 4)
+        QVERIFY(layout.focus(2));
+      QVERIFY(layout.insert(0, id));
+      const auto placements = layout.layout(0, bounds);
+      verifyNoOverlap(placements);
+      for (const auto &slot : placements) {
+        QVERIFY(bounds.contains(slot.geometry));
+        QVERIFY(slot.geometry.width() >= 320);
+        QVERIFY(slot.geometry.height() >= 300);
+      }
+    }
+    const auto six = geometries(layout.layout(0, bounds));
+    // The fifth window uses the large right tile instead of halving the
+    // upper-left branch into two 240 px high windows. The sixth then fits
+    // beside it without further reducing the content height.
+    QCOMPARE(six[1], QRect(966, 72, 942, 492));
+    QCOMPARE(six[6], QRect(1443, 576, 465, 492));
+    QCOMPARE(six[5], QRect(966, 576, 465, 492));
+
+    // On a crowded screen the preference remains a soft bound: every
+    // application still has a non-overlapping, on-screen slot.
+    for (int id = 7; id <= 20; ++id) {
+      QVERIFY(layout.insert(0, id));
+      const auto placements = layout.layout(0, bounds);
+      verifyNoOverlap(placements);
+      for (const auto &slot : placements)
+        QVERIFY(bounds.contains(slot.geometry));
+    }
+  }
   void manyWindowsAndOutputChanges() {
     for (const QRect bounds :
          {area, QRect(-800, 20, 800, 1200), QRect(0, 0, 320, 240)}) {
@@ -387,6 +421,9 @@ private Q_SLOTS:
   }
   void eightRowsAndOverflow() {
     TilingLayout layout;
+    // Keep the dense reference tree for this grouping-capacity regression.
+    // Preferred split sizes have separate insertion coverage above.
+    layout.configure({{"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
     for (int i = 1; i <= 9; ++i)
       QVERIFY(layout.insert(0, i));
     auto placements = layout.layout(0, area);
@@ -521,6 +558,28 @@ private Q_SLOTS:
         QVERIFY(slot.minimized);
     }
   }
+  void freeformSwapExchangesWindowSlots() {
+    const auto &stacking = windowTemplateForKey("stacking");
+    auto layout = createWindowLayout(stacking);
+    QVERIFY(layout);
+    QVERIFY(layout->insert(0, 1, QSize(420, 320)));
+    QVERIFY(layout->insert(0, 2, QSize(420, 320)));
+    layout->presentation(0, area);
+    QVERIFY(performWindowLayoutAction(
+        *layout, stacking, "move-by",
+        {{"window", 1}, {"dx", -180}, {"dy", 0}, {"area", areaJson(area)}}));
+    QVERIFY(performWindowLayoutAction(
+        *layout, stacking, "move-by",
+        {{"window", 2}, {"dx", 180}, {"dy", 0}, {"area", areaJson(area)}}));
+    const auto before = geometries(layout->presentation(0, area));
+    QVERIFY(before.value(1) != before.value(2));
+    QVERIFY(performWindowLayoutAction(
+        *layout, stacking, "swap", {{"window", 1}, {"target", 2}}));
+    const auto after = geometries(layout->presentation(0, area));
+    QCOMPARE(after.value(1), before.value(2));
+    QCOMPARE(after.value(2), before.value(1));
+  }
+
   void geometryBounds() {
     LuDashRectangle halves[2];
     for (const int vertical : {0, 1}) {
@@ -556,6 +615,37 @@ private Q_SLOTS:
     QCOMPARE(ludash_layout_weighted_column_windows({0, 0, 100, 100}, invalid, 2,
                                                    4, output, 9),
              size_t(0));
+  }
+  void windowSelectionScopeAndLifetime() {
+    QJsonArray clients;
+    for (int i = 1; i <= 6; ++i)
+      clients.append(QJsonObject{{"id", i}, {"mapped", i != 5},
+          {"workspace", i == 4 ? 1 : 0}, {"utility", i == 6},
+          {"desktop", i == 3}, {"minimized", i == 2}});
+    const auto windows = WindowSwitcher::windowsForWorkspace(clients, 0);
+    QCOMPARE(windows.size(), 2); // Includes minimized peers, no other workspace.
+    WindowSwitcher switcher;
+    QProcessEnvironment environment;
+    QVERIFY(switcher.begin(windows, 1, 1, environment, WindowSwitcher::Scope::Windows));
+    QCOMPARE(switcher.snapshot().value("scope").toString(), QString("windows"));
+    QVERIFY(switcher.snapshot().value("workspaces").toArray().isEmpty());
+    QCOMPARE(switcher.snapshot().value("windows").toArray().size(), 2);
+    QCOMPARE(switcher.finish(true), 2);
+    QVERIFY(switcher.begin(windows, 1, -1, environment, WindowSwitcher::Scope::Windows));
+    switcher.remove(1);
+    QCOMPARE(switcher.snapshot().value("index").toInt(), 0);
+    QCOMPARE(switcher.finish(true), 2);
+    switcher.begin(windows, 1, 1, environment, WindowSwitcher::Scope::Windows);
+    switcher.remove(2);
+    switcher.remove(1);
+    QVERIFY(!switcher.active());
+    QCOMPARE(switcher.finish(true), 0);
+    switcher.dismissPopups();
+    QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 1);
+    switcher.dismissPopups();
+    QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 2);
+    QVERIFY(!switcher.begin({}, 0, 1, environment, WindowSwitcher::Scope::Windows));
+    QTest::qWait(40);
   }
   void selectionLifecycle() {
     QTemporaryDir runtime;
@@ -609,6 +699,27 @@ private Q_SLOTS:
     QTest::qWait(
         50); // Reap only our failed captures; no compositor is started.
   }
+  void externalFileManagerDefaults() {
+    QTemporaryDir config;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, config.path());
+    QSettings().clear();
+    QCOMPARE(defaultApplicationCommand("files", nullptr),
+             (QStringList{"dolphin", "--new-window"}));
+    // Keep a user's explicit argv intact, including spaces and shell characters.
+    const QStringList custom{"custom-file-manager", "--profile",
+                             "Work $HOME; notes"};
+    QSettings().setValue("defaultApps/files", custom);
+    QCOMPARE(defaultApplicationCommand("files", nullptr), custom);
+    QString error;
+    for (const auto &launcher :
+         {"ludash-desktop", "lunadash-desktop", "ludashctl", "lunadashctl"})
+      QVERIFY(!setDefaultApplications(
+          {{"files", QJsonArray{launcher, "--app", "files"}}}, &error));
+    QVERIFY(setDefaultApplications({{"files", QJsonArray{}}}, &error));
+    QCOMPARE(defaultApplicationCommand("files", nullptr),
+             (QStringList{"dolphin", "--new-window"}));
+  }
   void terminalAndShortcutMigration() {
     QTemporaryDir config;
     QSettings::setDefaultFormat(QSettings::IniFormat);
@@ -622,10 +733,12 @@ private Q_SLOTS:
              QString("launchTerminal"));
     QCOMPARE(settings.actionFor(XKB_KEY_0, ShortcutMeta),
              QString("workspace10"));
-    QCOMPARE(settings.actionFor(XKB_KEY_Return, ShortcutMeta),
-             QString("launchTerminalAlternate"));
+    QCOMPARE(settings.actionFor(XKB_KEY_Return, ShortcutMeta), QString());
     QString error;
     QVERIFY(!settings.apply({{"closeWindow", "Alt+Tab"}}, &error));
+    QVERIFY(!settings.apply({{"closeWindow", "Meta+Tab"}}, &error));
+    QVERIFY(!settings.apply({{"closeWindow", "Meta+Shift+Tab"}}, &error));
+    QVERIFY(!settings.apply({{"closeWindow", "Alt+Shift+Tab"}}, &error));
     QSettings().setValue("shortcuts/bindings",
                          QJsonObject{{"launchTerminal", "Meta+Return"},
                                      {"closeWindow", "Meta+T"},
@@ -636,6 +749,28 @@ private Q_SLOTS:
              QString("closeWindow"));
     QCOMPARE(migrated.actionFor(XKB_KEY_Return, ShortcutMeta),
              QString("launchTerminal"));
+    QVERIFY(!QJsonObject::fromVariantMap(
+                 QSettings().value("shortcuts/bindings").toMap())
+                 .contains("toggleFloating"));
+
+    // Removed shortcut IDs from older releases must not stay in the persistent
+    // settings map or reappear in Settings. Valid custom bindings survive.
+    QSettings().setValue(
+        "shortcuts/bindings",
+        QJsonObject{{"removedLegacyAction", "Meta+Y"},
+                    {"closeWindowAlternate", "Meta+Q"},
+                    {"launchTerminalAlternate", "Meta+Return"},
+                    {"closeWindow", "Meta+T"}}
+            .toVariantMap());
+    ShortcutSettings cleaned;
+    const auto saved = QJsonObject::fromVariantMap(
+        QSettings().value("shortcuts/bindings").toMap());
+    QVERIFY(!saved.contains("removedLegacyAction"));
+    QVERIFY(!saved.contains("closeWindowAlternate"));
+    QVERIFY(!saved.contains("launchTerminalAlternate"));
+    QCOMPARE(saved.value("closeWindow").toString(), QString("Meta+T"));
+    QCOMPARE(cleaned.actionFor(XKB_KEY_t, ShortcutMeta),
+             QString("closeWindow"));
   }
 };
 } // namespace LunaDash

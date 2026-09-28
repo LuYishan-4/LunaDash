@@ -14,18 +14,29 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_test(NAME lunadash-installer COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/installer/test_install.py)
+    set_tests_properties(lunadash-installer PROPERTIES TIMEOUT 90)
     find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
     add_executable(lunadash-portal-picker-test tests/files/PortalPickerTests.cpp
         src/service/portal/FileChooserPortal.cpp
         src/service/portal/FileChooserPortal.hpp
+        src/service/portal/PortalRequest.cpp
+        src/service/portal/PortalRequest.hpp
         src/service/portal/FileChooserOptions.cpp
         src/service/portal/FileChooserOptions.hpp
+        src/service/portal/FileIcons.cpp
+        src/service/portal/FileIcons.hpp
         src/service/portal/FilePickerDialog.cpp
         src/service/portal/FilePickerDialog.hpp)
     target_link_libraries(lunadash-portal-picker-test PRIVATE ludash-apps Qt6::Test Qt6::DBus)
     add_test(NAME lunadash-portal-picker COMMAND lunadash-portal-picker-test)
     set_tests_properties(lunadash-portal-picker PROPERTIES
         ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 30)
+    add_executable(lunadash-wallpaper-library-test tests/wallpaper/WallpaperLibraryTests.cpp)
+    target_link_libraries(lunadash-wallpaper-library-test PRIVATE ludash-wallpaper Qt6::Test)
+    add_test(NAME lunadash-wallpaper-library COMMAND lunadash-wallpaper-library-test)
+    set_tests_properties(lunadash-wallpaper-library PROPERTIES TIMEOUT 30)
     add_executable(lunadash-audio-spectrum-test tests/media/AudioSpectrumTests.cpp)
     target_link_libraries(lunadash-audio-spectrum-test PRIVATE ludash-audio-spectrum Qt6::Test)
     add_test(NAME lunadash-audio-spectrum COMMAND lunadash-audio-spectrum-test)
@@ -50,11 +61,15 @@ if(BUILD_TESTING)
     target_include_directories(lunadash-window-glass-test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_definitions(lunadash-window-glass-test PRIVATE WLR_USE_UNSTABLE=1)
     target_link_libraries(lunadash-window-glass-test PRIVATE
-        ludash-scene-backdrop Qt6::Test PkgConfig::WAYLAND_SERVER)
+        ludash-scene-backdrop ludash-corner-geometry Qt6::Test PkgConfig::WAYLAND_SERVER)
     # WlrootsHeaders.hpp uses the protocol headers generated for the compositor.
     add_dependencies(lunadash-window-glass-test ludash-wayland)
     add_test(NAME lunadash-window-glass COMMAND lunadash-window-glass-test)
     set_tests_properties(lunadash-window-glass PROPERTIES TIMEOUT 30)
+    add_executable(lunadash-corner-geometry-test tests/renderer/CornerGeometryTests.cpp)
+    target_link_libraries(lunadash-corner-geometry-test PRIVATE ludash-corner-geometry Qt6::Test)
+    add_test(NAME lunadash-corner-geometry COMMAND lunadash-corner-geometry-test)
+    set_tests_properties(lunadash-corner-geometry PROPERTIES TIMEOUT 30)
     add_executable(lunadash-media-test tests/media/MediaPlayerTests.cpp)
     target_link_libraries(lunadash-media-test PRIVATE Qt6::Core Qt6::DBus Qt6::Test)
     add_dependencies(lunadash-media-test ludash-shell-tool)

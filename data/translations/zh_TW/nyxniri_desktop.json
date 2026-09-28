@@ -160,5 +160,11 @@
   "Clock horizontal position": "時鐘水平位置",
   "Clock vertical position": "時鐘垂直位置",
   "Dock": "Dock",
-  "Pinned applications": "固定的應用程式"
+  "Pinned applications": "固定的應用程式",
+  "Fixed desktop shortcuts": "固定桌面快捷鍵",
+  "These built-in controls are separate from the configurable shortcuts above.": "以下為固定操作，與上方可自訂的快捷鍵分開列出。",
+  "Tap Meta to open the launcher": "輕按 Meta 開啟應用程式啟動器",
+  "Move or rearrange a window": "移動視窗或調整排列",
+  "Resize a window": "調整視窗大小",
+  "In the window switcher, arrow keys select, Enter or releasing Alt confirms, and Escape cancels.": "視窗切換器內：方向鍵選擇，Enter 或放開 Alt 確認，Escape 取消。"
 }

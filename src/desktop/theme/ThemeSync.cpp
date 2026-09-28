@@ -78,11 +78,10 @@ void setColorScheme(bool dark) {
 }
 } // namespace
 
-QJsonObject synchronizeApplicationTheme() {
+QJsonObject synchronizeApplicationTheme(const QJsonObject &preferences,
+                                        const QJsonObject &palette) {
   static QByteArray previous;
   static QJsonObject result;
-  const auto preferences = desktopPreferences();
-  const auto palette = appearancePalette(preferences);
   const bool enabled = preferences.value("syncApplicationThemes").toBool();
   const bool fcitx = preferences.value("syncFcitxTheme").toBool();
   const auto fingerprint =
@@ -98,6 +97,13 @@ QJsonObject synchronizeApplicationTheme() {
   QString fcitxError;
   if (fcitx && !synchronizeFcitxTheme(palette, &fcitxError))
     result["error"] = fcitxError;
+
+  // The desktop light/dark preference is a system preference, not an
+  // application-theme override. Publish it even when optional GTK/Kitty theme
+  // file synchronization is disabled so native GTK applications and other
+  // consumers of org.gnome.desktop.interface follow LunaDash as well.
+  setColorScheme(palette.value("dark").toBool());
+
   if (!enabled)
     return result;
   const auto color = [&palette](const QString &key) {
@@ -146,8 +152,6 @@ QJsonObject synchronizeApplicationTheme() {
   if (error.isEmpty() && QFileInfo::exists(kittyConfig))
     includeOnce(kittyConfig, QByteArray("include ../lunadash/theme/kitty.conf"),
                 &error);
-  if (error.isEmpty())
-    setColorScheme(palette.value("dark").toBool());
   result["error"] = error.isEmpty() ? fcitxError : error;
   return result;
 }

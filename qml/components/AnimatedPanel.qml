@@ -5,7 +5,9 @@ import "../style"
 PanelWindow {
     id: panel
     property bool opened: false
-    property real reveal: opened ? 1 : 0
+    property bool animationReady: false
+    property real reveal: animationReady && opened ? 1 : 0
+    Component.onCompleted: animationReady = true
     property real entranceOffset: 14
 
     visible: opened || reveal > 0

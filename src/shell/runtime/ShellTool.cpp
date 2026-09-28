@@ -1,4 +1,5 @@
 #include "shell/runtime/ShellTool.hpp"
+#include "desktop/wallpaper/WallpaperActions.hpp"
 #include "shell/media/MediaPlayer.hpp"
 #include "shell/audio/AudioSpectrum.hpp"
 #include <QCoreApplication>
@@ -29,7 +30,7 @@ int ShellTool::run(int argc, char **argv) {
   const QStringList arguments = app.arguments();
   if (arguments.size() < 2)
     return printJson(
-        {{"error", "Expected media-status, media-action, audio-spectrum, or language."}});
+        {{"error", "Expected media-status, media-action, audio-spectrum, wallpaper, or language."}});
 
   if (arguments[1] == "audio-spectrum")
     return runAudioSpectrum();
@@ -44,6 +45,9 @@ int ShellTool::run(int argc, char **argv) {
                                  arguments.value(4), arguments.value(5),
                                  arguments.value(6)));
   }
+
+  if (arguments[1] == "wallpaper")
+    return printJson(wallpaperAction(arguments.mid(2)));
 
   if (arguments[1] == "language") {
     if (arguments.size() != 3)

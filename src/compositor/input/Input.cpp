@@ -33,6 +33,84 @@ bool keypadSymbol(xkb_keysym_t symbol) {
   return symbol >= XKB_KEY_KP_Space && symbol <= XKB_KEY_KP_Equal;
 }
 
+void refreshKeyboardLeds(wlr_keyboard *keyboard) {
+  if (!keyboard || !keyboard->xkb_state)
+    return;
+  uint32_t leds = 0;
+  for (size_t index = 0; index < WLR_LED_COUNT; ++index) {
+    if (keyboard->led_indexes[index] != XKB_LED_INVALID &&
+        xkb_state_led_index_is_active(keyboard->xkb_state,
+                                      keyboard->led_indexes[index]))
+      leds |= 1u << index;
+  }
+  wlr_keyboard_led_update(keyboard, leds);
+}
+
+bool copyKeyboardState(wlr_keyboard *target, const wlr_keyboard *source) {
+  if (!target || !source || !target->xkb_state || !source->xkb_state ||
+      !target->keymap || !source->keymap ||
+      !wlr_keyboard_keymaps_match(target->keymap, source->keymap))
+    return false;
+
+  xkb_state_update_mask(target->xkb_state, source->modifiers.depressed,
+                        source->modifiers.latched, source->modifiers.locked,
+                        0, 0, source->modifiers.group);
+  target->modifiers.depressed =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_DEPRESSED);
+  target->modifiers.latched =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LATCHED);
+  target->modifiers.locked =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LOCKED);
+  target->modifiers.group =
+      xkb_state_serialize_layout(target->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+  refreshKeyboardLeds(target);
+  return true;
+}
+
+bool copyKeyboardLocks(wlr_keyboard *target, const wlr_keyboard *source) {
+  if (!target || !source || !target->xkb_state || !source->xkb_state ||
+      !target->keymap || !source->keymap)
+    return false;
+
+  xkb_mod_mask_t locked = target->modifiers.locked;
+  bool mapped = false;
+  for (const char *name : {XKB_MOD_NAME_CAPS, XKB_MOD_NAME_NUM}) {
+    const xkb_mod_index_t sourceIndex =
+        xkb_keymap_mod_get_index(source->keymap, name);
+    const xkb_mod_index_t targetIndex =
+        xkb_keymap_mod_get_index(target->keymap, name);
+    if (sourceIndex == XKB_MOD_INVALID || targetIndex == XKB_MOD_INVALID)
+      continue;
+    mapped = true;
+    const xkb_mod_mask_t sourceBit = xkb_mod_mask_t{1} << sourceIndex;
+    const xkb_mod_mask_t targetBit = xkb_mod_mask_t{1} << targetIndex;
+    if (source->modifiers.locked & sourceBit)
+      locked |= targetBit;
+    else
+      locked &= ~targetBit;
+  }
+
+  if (!mapped) {
+    if (!wlr_keyboard_keymaps_match(target->keymap, source->keymap))
+      return false;
+    locked = source->modifiers.locked;
+  }
+
+  xkb_state_update_mask(target->xkb_state, target->modifiers.depressed,
+                        target->modifiers.latched, locked, 0, 0,
+                        target->modifiers.group);
+  target->modifiers.depressed =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_DEPRESSED);
+  target->modifiers.latched =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LATCHED);
+  target->modifiers.locked =
+      xkb_state_serialize_mods(target->xkb_state, XKB_STATE_MODS_LOCKED);
+  target->modifiers.group =
+      xkb_state_serialize_layout(target->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+  refreshKeyboardLeds(target);
+  return true;
+}
+
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
   if (updateWindowPointer())
@@ -54,10 +132,25 @@ void WaylandCompositor::Impl::restorePreferredKeyboard() {
     wlr_seat_set_keyboard(seat, keyboard);
 }
 
+bool WaylandCompositor::Impl::inputMethodVirtualKeyboard(
+    const KeyboardState *state) const {
+  if (!state || !state->virtualKeyboard || !state->ownerClient ||
+      !inputMethod || !inputMethod->method || !inputMethod->method->resource)
+    return false;
+  return state->ownerClient ==
+         wl_resource_get_client(inputMethod->method->resource);
+}
+
 void WaylandCompositor::Impl::focusSurface(wlr_surface *surface) {
   if (!surface)
     return;
-  wlr_keyboard *keyboard = preferredKeyboard();
+  // Keep a non-IME virtual keyboard as the active seat source while it owns
+  // the hardware stream (GPU Screen Recorder, remote-control tools, key
+  // remappers, etc.). Falling back to the physical keyboard here reintroduces
+  // stale Ctrl/Caps/Num state whenever such a client changes focus.
+  wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+  if (!keyboard)
+    keyboard = preferredKeyboard();
   if (!keyboard)
     return;
   wlr_seat_set_keyboard(seat, keyboard);
@@ -85,7 +178,8 @@ void WaylandCompositor::Impl::updateSeatCapabilities() {
 }
 
 void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
-                                          bool isVirtual) {
+                                          bool isVirtual,
+                                          wl_client *ownerClient) {
   if (!keyboard)
     return;
   if (!isVirtual) {
@@ -97,7 +191,9 @@ void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
   auto *state = new KeyboardState;
   state->impl = this;
   state->keyboard = keyboard;
+  state->ownerClient = ownerClient;
   state->virtualKeyboard = isVirtual;
+  state->lastLockedModifiers = keyboard->modifiers.locked;
   attachListener(&keyboard->events.key, state->key, state, handleKeyboardKey);
   attachListener(&keyboard->events.modifiers, state->modifiers, state,
                  handleKeyboardModifiers);
@@ -222,7 +318,42 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
     return;
   auto *self = state->impl;
   auto *keyboard = state->keyboard;
-  wlr_seat_set_keyboard(self->seat, keyboard);
+  const bool inputMethodBridgeActive =
+      self->activeTextInput && self->activeTextInput->text &&
+      self->activeTextInput->text->focused_surface && self->inputMethod &&
+      self->inputMethod->method &&
+      self->inputMethod->method->keyboard_grab;
+  const bool inputMethodVirtual =
+      self->inputMethodVirtualKeyboard(state);
+
+  if (state->virtualKeyboard && !inputMethodVirtual) {
+    // Generic virtual keyboards such as GPU Screen Recorder may be recreated
+    // repeatedly and begin with an empty locked mask. The physical keyboard is
+    // the persistent lock-state owner: inherit CapsLock/NumLock before wlroots
+    // processes this virtual key, then the modifiers callback writes the
+    // resulting state back after the key has toggled it.
+    if (auto *physical = self->preferredKeyboard();
+        physical && physical != keyboard)
+      copyKeyboardLocks(keyboard, physical);
+  }
+
+  if (inputMethodVirtual) {
+    // The IME's own virtual keyboard is the return path from its hardware
+    // keyboard grab. Keep the seat on the physical keymap and preserve the
+    // physical lock/modifier state which Fcitx expects.
+    self->restorePreferredKeyboard();
+    if (inputMethodBridgeActive) {
+      if (auto *physical = self->preferredKeyboard();
+          physical && physical != keyboard)
+        wlr_seat_keyboard_notify_modifiers(self->seat,
+                                           &physical->modifiers);
+    }
+  } else {
+    // Generic virtual keyboards are real input sources. GPU Screen Recorder
+    // grabs the evdev keyboard and re-emits it through virtual-keyboard-v1;
+    // forcing the stale physical keyboard here loses Ctrl and lock state.
+    wlr_seat_set_keyboard(self->seat, keyboard);
+  }
 
   const uint32_t keycode = event->keycode + 8;
   const xkb_keysym_t *symbols = nullptr;
@@ -237,20 +368,6 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
               symbols[i] == XKB_KEY_Meta_R ||
               symbols[i] == XKB_KEY_Super_L ||
               symbols[i] == XKB_KEY_Super_R;
-
-  // A launcher opened with the mouse must not steal normal application input.
-  // If keyboard focus is already on an application, the first printable key
-  // dismisses the launcher and is still forwarded to that application.
-  if (!state->virtualKeyboard &&
-      event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-      self->q->launcherVisible_ &&
-      self->clientForSurface(self->seat->keyboard_state.focused_surface)) {
-    bool printable = false;
-    for (int i = 0; i < count; ++i)
-      printable = printable || xkb_keysym_to_utf32(symbols[i]) >= 0x20;
-    if (printable)
-      self->q->setLauncherVisible(false);
-  }
 
   // Reserve a quick press-and-release of Meta for the shell launcher without
   // breaking the existing Meta+key compositor shortcuts. The modifier event is
@@ -321,6 +438,10 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
           !(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_LOGO))) {
         self->q->beginWindowSwitch(modifiers & WLR_MODIFIER_SHIFT ? -1 : 1);
         handled = true;
+      } else if (tab && (modifiers & WLR_MODIFIER_LOGO) &&
+                 !(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT))) {
+        self->q->beginWindowSwitch(modifiers & WLR_MODIFIER_SHIFT ? -1 : 1, true);
+        handled = true;
       } else if (self->q->windowSwitcher_->active()) {
         if (symbol == XKB_KEY_Escape)
           self->q->finishWindowSwitch(false);
@@ -329,9 +450,12 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
         else if (symbol == XKB_KEY_Left || symbol == XKB_KEY_Right)
           self->q->windowSwitcher_->step(symbol == XKB_KEY_Left ? -1 : 1);
         else if (symbol == XKB_KEY_Up || symbol == XKB_KEY_Down)
-          self->q->windowSwitcher_->step(symbol == XKB_KEY_Up ? -5 : 5);
+          self->q->windowSwitcher_->step(
+              (symbol == XKB_KEY_Up ? -1 : 1) *
+              (self->q->windowSwitcher_->scope() == WindowSwitcher::Scope::Workspaces ? 5 : 1));
         handled = symbol != XKB_KEY_Alt_L && symbol != XKB_KEY_Alt_R &&
-                  symbol != XKB_KEY_Shift_L && symbol != XKB_KEY_Shift_R;
+                  symbol != XKB_KEY_Shift_L && symbol != XKB_KEY_Shift_R &&
+                  !metaKey;
       }
     }
   }
@@ -366,20 +490,19 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
     state->consumedKeys.remove(event->keycode);
 
   const bool inputMethodOwnsKeyboard =
-      self->activeTextInput && self->activeTextInput->text &&
-      self->activeTextInput->text->focused_surface && self->inputMethod &&
-      self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+      inputMethodBridgeActive && !inputMethodVirtual;
   if (inputMethodOwnsKeyboard) {
+    auto *grab = self->inputMethod->method->keyboard_grab;
+    if (grab->keyboard != keyboard)
+      wlr_input_method_keyboard_grab_v2_set_keyboard(grab, keyboard);
     wlr_input_method_keyboard_grab_v2_send_key(
-        self->inputMethod->method->keyboard_grab, event->time_msec,
-        event->keycode, event->state);
+        grab, event->time_msec, event->keycode, event->state);
     return;
   }
 
   wlr_seat_keyboard_notify_key(self->seat, event->time_msec, event->keycode,
                                event->state);
-  if (state->virtualKeyboard)
+  if (inputMethodVirtual)
     self->restorePreferredKeyboard();
 }
 
@@ -389,23 +512,72 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
   if (!state || !state->keyboard)
     return;
   auto *self = state->impl;
-  wlr_seat_set_keyboard(self->seat, state->keyboard);
-  const bool inputMethodOwnsKeyboard =
+
+  const bool inputMethodBridgeActive =
       self->activeTextInput && self->activeTextInput->text &&
       self->activeTextInput->text->focused_surface && self->inputMethod &&
       self->inputMethod->method &&
-      self->inputMethod->method->keyboard_grab && !state->virtualKeyboard;
+      self->inputMethod->method->keyboard_grab;
+  const bool inputMethodVirtual =
+      self->inputMethodVirtualKeyboard(state);
+
+  // Only the input method's own virtual keyboard is a return path. Other
+  // virtual keyboards (notably gsr-ui virtual keyboard) replace a grabbed
+  // hardware stream and must keep their own depressed/latched/locked state.
+  if (inputMethodVirtual) {
+    self->restorePreferredKeyboard();
+    if (inputMethodBridgeActive) {
+      if (auto *physical = self->preferredKeyboard();
+          physical && physical != state->keyboard) {
+        wlr_seat_keyboard_notify_modifiers(self->seat,
+                                           &physical->modifiers);
+        return;
+      }
+    }
+    wlr_seat_keyboard_notify_modifiers(self->seat,
+                                       &state->keyboard->modifiers);
+    return;
+  }
+
+  wlr_seat_set_keyboard(self->seat, state->keyboard);
+
+  // wlroots updates xkb_state before emitting this modifiers signal. Track the
+  // raw locked mask separately so CapsLock/NumLock transitions remain visible
+  // even while an input-method-v2 keyboard grab is active.
+  const uint32_t locked = state->keyboard->modifiers.locked;
+  const bool lockedChanged = locked != state->lastLockedModifiers;
+  state->lastLockedModifiers = locked;
+
+  if (state->virtualKeyboard && !inputMethodVirtual) {
+    if (auto *physical = self->preferredKeyboard();
+        physical && physical != state->keyboard)
+      copyKeyboardLocks(physical, state->keyboard);
+  }
+
+  const bool inputMethodOwnsKeyboard =
+      inputMethodBridgeActive && !inputMethodVirtual;
   if (inputMethodOwnsKeyboard) {
     auto modifiers = state->keyboard->modifiers;
+    auto *grab = self->inputMethod->method->keyboard_grab;
+    if (grab->keyboard != state->keyboard)
+      wlr_input_method_keyboard_grab_v2_set_keyboard(grab, state->keyboard);
     wlr_input_method_keyboard_grab_v2_send_modifiers(
-        self->inputMethod->method->keyboard_grab, &modifiers);
+        grab, &modifiers);
+    if (lockedChanged) {
+      // Lock state belongs to the physical keyboard and must also reach the
+      // focused wl_keyboard. Ordinary Shift/Ctrl/Alt remain owned by the IME.
+      wlr_seat_keyboard_send_modifiers(self->seat, &modifiers);
+      ++self->q->modifierResends_;
+    }
   } else {
     wlr_seat_keyboard_notify_modifiers(self->seat, &state->keyboard->modifiers);
   }
   if (!state->virtualKeyboard && self->q->windowSwitcher_->active() &&
-      !(wlr_keyboard_get_modifiers(state->keyboard) & WLR_MODIFIER_ALT))
+      !(wlr_keyboard_get_modifiers(state->keyboard) &
+        (self->q->windowSwitcher_->scope() == WindowSwitcher::Scope::Workspaces
+             ? WLR_MODIFIER_LOGO : WLR_MODIFIER_ALT)))
     self->q->finishWindowSwitch(true);
-  if (state->virtualKeyboard)
+  if (inputMethodVirtual)
     self->restorePreferredKeyboard();
 }
 
@@ -417,12 +589,33 @@ void WaylandCompositor::Impl::handleKeyboardDestroy(wl_listener *listener,
   auto *self = state->impl;
   if (!state->virtualKeyboard)
     self->q->finishWindowSwitch(false);
+
+  // A hotkey/remapping application may own the physical evdev stream for its
+  // whole lifetime. When its generic virtual keyboard disappears, carry its
+  // final state back to the matching physical keymap before selecting it
+  // again. This clears a Ctrl released through the virtual stream and keeps
+  // CapsLock/NumLock in sync across recorder restarts.
+  auto *current = self->seat ? wlr_seat_get_keyboard(self->seat) : nullptr;
+  auto *physical = state->virtualKeyboard ? self->preferredKeyboard() : nullptr;
+  if (state->virtualKeyboard && current == state->keyboard && physical &&
+      physical != state->keyboard) {
+    if (!copyKeyboardState(physical, state->keyboard))
+      copyKeyboardLocks(physical, state->keyboard);
+  }
+
   detachListener(state->key);
   detachListener(state->modifiers);
   detachListener(state->destroy);
   self->keyboards.removeAll(state);
   delete state;
-  self->restorePreferredKeyboard();
+
+  if (physical) {
+    wlr_seat_set_keyboard(self->seat, physical);
+    wlr_seat_keyboard_notify_modifiers(self->seat, &physical->modifiers);
+    ++self->q->modifierResends_;
+  } else {
+    self->restorePreferredKeyboard();
+  }
   self->updateSeatCapabilities();
 }
 
@@ -484,6 +677,35 @@ void WaylandCompositor::Impl::handleCursorButton(wl_listener *listener,
       return;
   }
   const bool grabbed = wlr_seat_pointer_has_grab(self->seat);
+  if (!grabbed && event->button == BTN_LEFT &&
+      event->state == static_cast<decltype(event->state)>(WL_POINTER_BUTTON_STATE_PRESSED)) {
+    double sx = 0, sy = 0;
+    auto *surface = self->surfaceAt(self->cursor->x, self->cursor->y, &sx, &sy);
+    auto *root = surface ? wlr_surface_get_root_surface(surface) : nullptr;
+    bool shellSurface = false;
+    for (int depth = 0; root && depth < 16 && !shellSurface; ++depth) {
+      for (const auto *layer : self->layers) {
+        if (layer->surface && layer->surface->surface == root &&
+            layer->surface->current.layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP) {
+          shellSurface = true;
+          break;
+        }
+      }
+      if (shellSurface)
+        break;
+      wlr_surface *parent = nullptr;
+      for (const auto *popup : self->xdgPopups)
+        if (popup->popup && popup->popup->base->surface == root) {
+          parent = popup->popup->parent;
+          break;
+        }
+      if (!parent || parent == root)
+        break;
+      root = wlr_surface_get_root_surface(parent);
+    }
+    if (!shellSurface)
+      self->q->windowSwitcher_->dismissPopups();
+  }
   if (!grabbed && event->state == WL_POINTER_BUTTON_STATE_PRESSED &&
       self->beginWindowPointer(event->button))
     return;
@@ -633,8 +855,15 @@ void WaylandCompositor::Impl::handleInputMethodGrab(wl_listener *listener,
   auto *grab = static_cast<wlr_input_method_keyboard_grab_v2 *>(data);
   if (!state || !grab)
     return;
-  if (auto *keyboard = state->impl->preferredKeyboard())
+  auto *self = state->impl;
+  if (auto *keyboard = self->preferredKeyboard()) {
     wlr_input_method_keyboard_grab_v2_set_keyboard(grab, keyboard);
+    auto modifiers = keyboard->modifiers;
+    wlr_input_method_keyboard_grab_v2_send_modifiers(grab, &modifiers);
+    wlr_seat_set_keyboard(self->seat, keyboard);
+    wlr_seat_keyboard_send_modifiers(self->seat, &modifiers);
+    ++self->q->modifierResends_;
+  }
 }
 
 void WaylandCompositor::Impl::handleInputMethodDestroy(wl_listener *listener,
@@ -650,6 +879,11 @@ void WaylandCompositor::Impl::handleInputMethodDestroy(wl_listener *listener,
   if (self->inputMethod == state)
     self->inputMethod = nullptr;
   delete state;
+  if (auto *keyboard = self->preferredKeyboard()) {
+    wlr_seat_set_keyboard(self->seat, keyboard);
+    wlr_seat_keyboard_notify_modifiers(self->seat, &keyboard->modifiers);
+    ++self->q->modifierResends_;
+  }
 }
 
 void WaylandCompositor::Impl::handleNewTextInput(wl_listener *listener,
@@ -720,7 +954,10 @@ void WaylandCompositor::Impl::handleNewVirtualKeyboard(wl_listener *listener,
   auto *self = listenerOwner<Impl>(listener);
   auto *keyboard = static_cast<wlr_virtual_keyboard_v1 *>(data);
   if (self && keyboard)
-    self->addKeyboard(&keyboard->keyboard, true);
+    self->addKeyboard(&keyboard->keyboard, true,
+                      keyboard->resource
+                          ? wl_resource_get_client(keyboard->resource)
+                          : nullptr);
 }
 wlr_surface *WaylandCompositor::Impl::surfaceAt(double lx, double ly,
                                                 double *sx, double *sy) const {

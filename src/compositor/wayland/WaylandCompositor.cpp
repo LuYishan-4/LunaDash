@@ -254,39 +254,43 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
       qWarning("XWayland/XWM could not be prepared; X11 clients are unavailable.");
   }
 
-  publishSessionActivationEnvironment();
-
-  if (startShell &&
-      qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
-    const QString agent =
-        QStandardPaths::findExecutable("lunadash-polkit-agent");
-    if (!agent.isEmpty())
-      spawn({}, agent, false);
-  }
-
-  if (startShell &&
-      qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1 &&
-      qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
-    const QString fcitx = QStandardPaths::findExecutable("fcitx5");
-    if (!fcitx.isEmpty())
-      spawn({"--replace"}, fcitx, false);
-  }
-
   QObject::connect(shellModules_, &ShellModules::changed, this,
                    [this] { arrange(); });
 
-  if (startShell)
+  const auto startSessionClients = [this, startShell] {
+    if (!startShell || shuttingDown_ || testStopping_)
+      return;
+
+    if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
+      const QString agent =
+          QStandardPaths::findExecutable("lunadash-polkit-agent");
+      if (!agent.isEmpty())
+        spawn({}, agent, false);
+
+      if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
+        const QString fcitx = QStandardPaths::findExecutable("fcitx5");
+        if (!fcitx.isEmpty())
+          spawn({"--replace"}, fcitx, false);
+      }
+    }
+
     spawn({"--session"}, {}, false);
 
-  if (startShell && setupComplete()) {
-    QTimer::singleShot(1200, this, [this] {
-      if (testStopping_ || shuttingDown_)
-        return;
-      for (const auto &app :
-           desktopPreferences().value("startupApps").toArray())
-        spawn({"--app", app.toString()});
-    });
-  }
+    if (setupComplete()) {
+      QTimer::singleShot(1200, this, [this] {
+        if (testStopping_ || shuttingDown_)
+          return;
+        for (const auto &app :
+             desktopPreferences().value("startupApps").toArray())
+          spawn({"--app", app.toString()});
+      });
+    }
+  };
+
+  // Portal backends are D-Bus activated. Do not start the shell/IME/apps until
+  // the user bus and systemd manager know LunaDash's Wayland/display identity
+  // and the portal frontend has been refreshed with that environment.
+  publishSessionActivationEnvironment(startSessionClients);
 
   qInfo().noquote() << "LunaDash compositor backend: wlroots"
                     << "socket:" << socket << "input: libinput/xkbcommon"
@@ -425,6 +429,14 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       return nullptr;
     }
     environment.insert("LUNADASH_WALLPAPER", wallpaperImageUrl());
+    // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
+    // only for the LunaDash shell on NVIDIA hosts and only when the user did
+    // not choose a backend explicitly. Unsupported systems still use Qt's
+    // normal software fallback.
+    if (environment.value("QT_FFMPEG_DECODING_HW_DEVICE_TYPES").isEmpty() &&
+        (QFileInfo::exists("/sys/module/nvidia") ||
+         QFileInfo::exists("/proc/driver/nvidia/version")))
+      environment.insert("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", "cuda");
     // The shell draws its own theme. A blocking portal Settings query here
     // would prevent even the startup splash from reaching its first frame.
     environment.insert("QT_QPA_PLATFORMTHEME", "generic");
@@ -655,9 +667,15 @@ void WaylandCompositor::configure(ClientWindow *client,
         std::clamp(size.width(), 1, 65535));
     const auto height = static_cast<uint16_t>(
         std::clamp(size.height(), 1, 65535));
-    wlr_xwayland_surface_configure(client->xwayland, x, y, width, height);
-    WlrootsCompat::setXWaylandMaximized(client->xwayland, client->maximized);
-    wlr_xwayland_surface_set_fullscreen(client->xwayland, client->fullscreen);
+    const auto *surface = client->xwayland;
+    if (surface->x != x || surface->y != y || surface->width != width ||
+        surface->height != height)
+      wlr_xwayland_surface_configure(client->xwayland, x, y, width, height);
+    if (surface->maximized_horz != client->maximized ||
+        surface->maximized_vert != client->maximized)
+      WlrootsCompat::setXWaylandMaximized(client->xwayland, client->maximized);
+    if (surface->fullscreen != client->fullscreen)
+      wlr_xwayland_surface_set_fullscreen(client->xwayland, client->fullscreen);
     client->lastSize = size;
     return;
   }
@@ -670,16 +688,9 @@ void WaylandCompositor::configure(ClientWindow *client,
   wlr_xdg_surface_get_geometry(client->surface, &geometry);
 #endif
   wlr_box clip{geometry.x, geometry.y, rectangle.width(), rectangle.height()};
-  wlr_scene_node *child;
-  wl_list_for_each(child, &client->sceneTree->children, link) {
-    const bool popup = std::any_of(
-        d->xdgPopups.begin(), d->xdgPopups.end(), [child](const auto *state) {
-          return state->sceneTree && &state->sceneTree->node == child;
-        });
-    if (!popup)
-      wlr_scene_subsurface_tree_set_clip(child,
-                                         client->floating ? nullptr : &clip);
-  }
+  if (client->sceneContent)
+    wlr_scene_subsurface_tree_set_clip(&client->sceneContent->node,
+                                       client->floating ? nullptr : &clip);
   if (client->lastSize != size) {
     client->lastSize = size;
     wlr_xdg_toplevel_set_size(client->toplevel, size.width(), size.height());
@@ -692,12 +703,15 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   const auto preferences = desktopPreferences();
+  d->eyeCareActive = preferences.value("eyeCare").toBool();
+  d->steadyWindowOpacity = d->eyeCareActive
+      ? 1.0f
+      : preferences.value("windowOpacity").toInt(90) / 100.0f;
   if (d->windowGlass) {
-    const bool eyeCare = preferences.value("eyeCare").toBool();
     const bool changed = d->windowGlass->configure(
-        preferences.value("blur").toBool() && !eyeCare,
+        preferences.value("blur").toBool() && !d->eyeCareActive,
         preferences.value("blurRadius").toInt(),
-        eyeCare ? 1.0f : preferences.value("windowOpacity").toInt(90) / 100.0f);
+        d->steadyWindowOpacity);
     if (changed)
       for (const auto *output : d->outputs)
         wlr_output_schedule_frame(output->output);
@@ -740,7 +754,7 @@ void WaylandCompositor::arrange() {
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
     const bool managed = windowUsesManagedLayout(*client);
-    if (managed) {
+    if (client->mapped) {
       int initialWidth = 0;
       int initialHeight = 0;
 #if LUDASH_WLR_HAS_XWAYLAND
@@ -763,6 +777,8 @@ void WaylandCompositor::arrange() {
           initialWidth > 0 && initialHeight > 0)
         client->preferredFloatingSize =
             QSize(initialWidth, initialHeight);
+    }
+    if (managed) {
       const QSize preferred =
           windowTemplate_ && windowTemplate_->allowOverlap
               ? client->preferredFloatingSize
@@ -787,7 +803,7 @@ void WaylandCompositor::arrange() {
           client->workspace,
           windowLayout_->snapshot(client->workspace).maximizedWindow);
     const auto maximized = maximizedWindows.value(client->workspace);
-    if (!client->floating)
+    if (!client->floating && (client->mapped || client->layoutPending))
       client->maximized = maximized == static_cast<LayoutWindowId>(client->id);
     bool inMaximizedFamily = client->id == static_cast<int>(maximized);
     auto *parent = client->toplevel ? client->toplevel->parent : nullptr;
@@ -868,22 +884,30 @@ void WaylandCompositor::arrange() {
     }
   }
 
-  const auto placements = windowLayout_->presentation(workspace_, area);
+  // Pending clients need their first size even when a rule sends them to a
+  // different workspace, or an existing fullscreen window covers this one.
+  QList<int> layoutWorkspaces{workspace_};
+  for (const auto &client : clients_)
+    if (client->layoutPending && !layoutWorkspaces.contains(client->workspace))
+      layoutWorkspaces.append(client->workspace);
+  QList<WindowPlacement> placements;
+  for (const int workspace : layoutWorkspaces)
+    placements.append(windowLayout_->presentation(workspace, area));
   if (windowTemplate_->key != pluginManager_->windowTemplateKey()) {
     arrange();
     return;
   }
-  if (!fullscreenClient) {
-    for (const auto &placement : placements) {
-      auto found = std::find_if(
-          clients_.begin(), clients_.end(), [&placement](const auto &client) {
-            return client->id == static_cast<int>(placement.window);
-          });
-      if (found == clients_.end() || (*found)->minimized ||
-          placement.hiddenByMaximize || (*found)->workspace != workspace_)
-        continue;
-      configure(found->get(), placement.geometry);
-    }
+  for (const auto &placement : placements) {
+    auto found = std::find_if(
+        clients_.begin(), clients_.end(), [&placement](const auto &client) {
+          return client->id == static_cast<int>(placement.window);
+        });
+    if (found == clients_.end() || (*found)->minimized ||
+        placement.hiddenByMaximize ||
+        (!(*found)->layoutPending &&
+         (fullscreenClient || (*found)->workspace != workspace_)))
+      continue;
+    configure(found->get(), placement.geometry);
   }
 
   if (windowAnimations_)
@@ -895,6 +919,7 @@ void WaylandCompositor::arrange() {
     raiseWithDialogs(focused_);
 
   d->updateBackground();
+  d->updateWindowCorners();
   publishWindowLayout();
 }
 
@@ -1222,24 +1247,16 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     setMaximized(focused_, !focused_->maximized);
   } else if (action == "toggleFullscreen" && focused_) {
     setFullscreen(focused_, !focused_->fullscreen);
-  } else if ((action == "closeWindow" || action == "closeWindowAlternate") &&
-             focused_)
+  } else if (action == "closeWindow" && focused_)
     closeClient(focused_);
   else if (action == "minimizeWindow" && focused_) {
     focused_->minimized = true;
     windowLayout_->setMinimized(focused_->id, true);
-  } else if (action == "launchTerminal" || action == "launchTerminalAlternate")
+  } else if (action == "launchTerminal")
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
-  else if (action == "toggleFloating" && focused_) {
-    focused_->floating = !focused_->floating;
-    focused_->maximized = false;
-    focused_->manualGeometry = {};
-    arrange();
-    focus(focused_);
-    return;
-  } else if (action == "toggleScratchpad") {
+  else if (action == "toggleScratchpad") {
     QString error;
     toggleScratchpad(&error);
     if (!error.isEmpty()) scratchpadError_ = error;
@@ -1288,7 +1305,30 @@ QJsonObject WaylandCompositor::state() const {
       bufferWidth = client->wlSurface->current.width;
       bufferHeight = client->wlSurface->current.height;
     }
+    wlr_box contentGeometry{};
+    if (client->surface) {
+#if WLR_VERSION_MINOR >= 19
+      contentGeometry = client->surface->geometry;
+#else
+      wlr_xdg_surface_get_geometry(client->surface, &contentGeometry);
+#endif
+    }
+    const QRect frame = windowAnimations_
+                            ? windowAnimations_->backend().visualGeometry(
+                                  client->sceneTree, client->geometry)
+                            : client->geometry;
     entries.append(QJsonObject{
+        {"contentX", contentGeometry.x},
+        {"contentY", contentGeometry.y},
+        {"contentGeometryWidth", client->surface ? contentGeometry.width : bufferWidth},
+        {"contentGeometryHeight", client->surface ? contentGeometry.height : bufferHeight},
+        {"frameX", frame.x()},
+        {"frameY", frame.y()},
+        {"frameWidth", frame.width()},
+        {"frameHeight", frame.height()},
+        {"cornerRadius", d && d->windowCorners
+                             ? d->windowCorners->radius(client->sceneTree) : 0},
+        {"floating", client->floating},
         {"contentWidth", bufferWidth},
         {"contentHeight", bufferHeight},
         {"contentVisible",
@@ -1370,6 +1410,7 @@ QJsonObject WaylandCompositor::state() const {
   }
 
   auto preferences = desktopPreferences();
+  const auto palette = appearancePalette(preferences);
   const auto extensions = pluginManager_->snapshot();
   preferences["plugins"] = extensions.value("installed");
   const auto layoutSettings = currentWindowLayoutSettings();
@@ -1379,6 +1420,17 @@ QJsonObject WaylandCompositor::state() const {
   const auto moduleState = shellModules_->snapshot();
   auto xwaylandState = xwayland_ ? xwayland_->snapshot() : QJsonObject{};
   xwaylandState["utilitySurfaces"] = xwaylandUtilities;
+  const auto language = selectedLanguage();
+  const auto translations = languageDictionary(language);
+  auto *physicalKeyboard = d ? d->preferredKeyboard() : nullptr;
+  const auto lockEnabled = [physicalKeyboard](const char *name) {
+    if (!physicalKeyboard || !physicalKeyboard->keymap)
+      return false;
+    const auto index =
+        xkb_keymap_mod_get_index(physicalKeyboard->keymap, name);
+    return index != XKB_MOD_INVALID &&
+           (physicalKeyboard->modifiers.locked & (xkb_mod_mask_t{1} << index));
+  };
   return {
       {"settingsApi", QJsonObject{{"version", 1},
           {"targets", settingsApiTargets(extensions, moduleState, layoutTarget)}}},
@@ -1404,6 +1456,9 @@ QJsonObject WaylandCompositor::state() const {
                               preferences.value("animationDuration").toInt())},
       {"panelExtent",
        shellModules_->panelExtent(preferences.value("panelHeight").toInt())},
+      {"workArea", QJsonObject{{"x", workArea().x()}, {"y", workArea().y()},
+                                {"width", workArea().width()},
+                                {"height", workArea().height()}}},
       {"panelEdge", shellModules_->panelEdge()},
       {"panelAtBottom", shellModules_->panelAtBottom()},
       {"audio", audioSettings_->snapshot()},
@@ -1424,6 +1479,12 @@ QJsonObject WaylandCompositor::state() const {
                    {"repeatDelay", keyboardRepeatDelay()},
                    {"modifierResends", modifierResends_},
                    {"keypadKeyForwards", keypadKeyForwards_},
+                   {"lockedModifiers",
+                    static_cast<qint64>(physicalKeyboard
+                                            ? physicalKeyboard->modifiers.locked
+                                            : 0)},
+                   {"capsLock", lockEnabled("Lock")},
+                   {"numLock", lockEnabled("NumLock")},
                    {"seatProtocolVersion",
                     WlrootsCompat::expectedSeatProtocolVersion()},
                    {"dataDeviceProtocolVersion", 3},
@@ -1451,8 +1512,8 @@ QJsonObject WaylandCompositor::state() const {
       {"brightness", brightnessSettings_->snapshot()},
       {"ddcBrightness", ddcBrightnessSettings_->snapshot()},
       {"appearance", preferences},
-      {"palette", appearancePalette(preferences)},
-      {"applicationTheme", synchronizeApplicationTheme()},
+      {"palette", palette},
+      {"applicationTheme", synchronizeApplicationTheme(preferences, palette)},
       {"appearancePresets", appearancePresets()},
       {"orbit", orbitSettings()},
       {"wallpapers", wallpaperSnapshot()},
@@ -1477,8 +1538,8 @@ QJsonObject WaylandCompositor::state() const {
            {"groups", tilingGroups}}},
       {"layerSurfaces", d ? d->mappedLayerCount() : 0},
       {"xdgPopupCount", d ? d->xdgPopups.size() : 0},
-      {"language", selectedLanguage()},
-      {"translations", languageDictionary(selectedLanguage())},
+      {"language", language},
+      {"translations", translations},
       {"wallpaper", QSettings().value("appearance/wallpaper", 0).toInt()},
       {"shutdown", testStopping_},
       {"graphicsApi", "wlroots"},
@@ -1614,8 +1675,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     pluginManager_->reportError(object.value("id").toString(),
                                 object.value("error").toString());
   } else if (method == "module-validate" || method == "module-save" ||
-             method == "module-reset" || method == "module-code-trust" ||
-             method == "module-template") {
+             method == "module-reset") {
     QString error;
     bool ok = false;
     if (method == "module-validate")
@@ -1624,10 +1684,6 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       ok = shellModules_->apply(value.toUtf8(), &error);
     else if (method == "module-reset")
       ok = shellModules_->reset(&error);
-    else if (method == "module-template")
-      ok = shellModules_->installTemplate(value, &error);
-    else if (value == "true" || value == "false")
-      ok = shellModules_->setCodeTrusted(value == "true", &error);
     if (!ok)
       return {{"error", error.isEmpty() ? "Invalid module command." : error}};
   } else if (method == "module-error") {
@@ -1653,14 +1709,10 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     auto command = defaultApplicationCommand(value, &error);
     if (!error.isEmpty())
       return {{"error", error}};
-    if (command.isEmpty()) {
-      if (value == "browser")
-        return {{"error", "No browser is available."}};
-      spawn({"--app", value, "--builtin"});
-    } else {
-      if (!launchExternalCommand(command, &error))
-        return {{"error", error}};
-    }
+    if (command.isEmpty())
+      return {{"error", "No application is configured for this role."}};
+    if (!launchExternalCommand(command, &error))
+      return {{"error", error}};
   } else if (method == "system-tool") {
     auto command = systemSettingsCommand(value);
     if (command.isEmpty())
@@ -1778,6 +1830,11 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                     : method == "appearance-preset-apply" ? applyAppearancePreset(value, &error)
                     : deleteAppearancePreset(value, &error);
     if (!ok) return {{"error", error}};
+    if (method == "appearance-preset-apply") {
+      const auto updatedPreferences = desktopPreferences();
+      synchronizeApplicationTheme(
+          updatedPreferences, appearancePalette(updatedPreferences));
+    }
     if (d) d->updateNightLight();
     arrange();
   } else if (method == "scratchpad") {
@@ -1802,6 +1859,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", "Expected a JSON object of desktop preferences."}};
     if (!updateDesktopPreferences(document.object(), &error))
       return {{"error", error}};
+    // Publish color-scheme immediately so portal-aware Chromium/Electron/Qt
+    // clients and gsettings-aware GTK applications follow the desktop switch
+    // without waiting for the next shell status poll.
+    const auto updatedPreferences = desktopPreferences();
+    synchronizeApplicationTheme(
+        updatedPreferences, appearancePalette(updatedPreferences));
     applyKeyboardConfiguration();
     for (const auto &key : {"weatherEnabled", "weatherLatitude", "weatherLongitude", "weatherLocation"})
       if (document.object().contains(key)) { weatherStatus_->refresh(); break; }
@@ -1880,8 +1943,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", "No network configuration utility is installed."}};
     spawn(arguments, program, false);
   } else if (method == "choose-wallpaper") {
-    settingsPage_ = "appearance";
-    settingsSerial_ = (settingsSerial_ + 1) % 1000000;
+    // Super+W is a standalone wallpaper-gallery toggle. Refresh discovery only
+    // when the user opens the gallery; background status polls reuse the cache
+    // and never rescan a large Pictures/Wallpapers tree on a timer.
+    QString refreshError;
+    if (!refreshWallpaperLibrary(&refreshError))
+      return {{"error", refreshError}};
     pickerSerial_ = (pickerSerial_ + 1) % 1000000;
   } else if (method == "wallpaper-image") {
     QString error;
@@ -1970,20 +2037,28 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   return state();
 }
 
-void WaylandCompositor::publishSessionActivationEnvironment() {
-  if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1)
+void WaylandCompositor::publishSessionActivationEnvironment(
+    const std::function<void()> &ready) {
+  if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1) {
+    if (ready)
+      ready();
     return;
+  }
   auto environment = clientEnvironment_;
   if (xwayland_)
     xwayland_->applyEnvironment(environment);
-  publishActivationEnvironment(environment, this,
-                               [this](bool ok, const QString &error) {
-                                 activationEnvironmentPublished_ = ok;
-                                 activationEnvironmentError_ = error;
-                                 if (ok)
-                                   refreshScreencastPortalServices(
-                                       clientEnvironment_, this);
-                               });
+  publishActivationEnvironment(
+      environment, this,
+      [this, ready](bool ok, const QString &error) {
+        activationEnvironmentPublished_ = ok;
+        activationEnvironmentError_ = error;
+        if (!ok) {
+          if (ready)
+            ready();
+          return;
+        }
+        refreshScreencastPortalServices(clientEnvironment_, this, ready);
+      });
 }
 
 QString WaylandCompositor::nextCapturePath() const {

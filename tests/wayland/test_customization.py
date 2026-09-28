@@ -1,4 +1,4 @@
-"""Verify module fallback, real default apps and live Files colors in isolation."""
+"""Verify module fallback, external default applications in isolation."""
 
 import json
 import os
@@ -173,17 +173,11 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
             )
             subprocess.run(["xdotool", "key", "Return"], check=True)
             time.sleep(1)
-            before = ImageGrab.grab().convert("RGB")
             request("appearance", '{"accent":"#dfa5bd"}')
             time.sleep(1.6)
             after = ImageGrab.grab().convert("RGB")
             after.save(build / "files-preview.png")
-            # Compare inside the app, excluding its compositor frame.
-            x, y, w, h = (int(client[k]) for k in ("x", "y", "width", "height"))
-            crop = (x + 20, y + 60, x + w - 20, y + h - 20)
-            assert before.crop(crop).tobytes() != after.crop(crop).tobytes(), (
-                "Files did not recolor"
-            )
+            assert "dolphin" in client.get("appId", "").lower(), client
             request("close", client["id"])
             wait_for(lambda s: not s["clients"])
             known = {c["id"] for c in request()["clients"]}
@@ -225,7 +219,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
             ):
                 time.sleep(0.1)
             assert marker.exists() and marker.read_text().strip(), (
-                "Interactive Konsole did not execute the command"
+                "Interactive terminal did not execute the command"
             )
             subprocess.run(["xdotool", "type", "--clearmodifiers", "exit"], check=True)
             subprocess.run(["xdotool", "key", "Return"], check=True)
@@ -234,7 +228,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
                 "Customization session did not close cleanly"
             )
             print(
-                "Customization passed: JSON validation, template replacement, error fallback, reset, live Files palette and interactive Konsole."
+                "Customization passed: JSON validation, template replacement, error fallback, reset, external Dolphin and interactive terminal."
             )
         except BaseException:
             ImageGrab.grab().save(build / "customization-failure.png")

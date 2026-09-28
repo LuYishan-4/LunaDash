@@ -1,6 +1,7 @@
 #include "service/portal/FileChooserOptions.hpp"
 #include "service/portal/FileChooserPortal.hpp"
 #include "service/portal/FilePickerDialog.hpp"
+#include "service/portal/PortalRequest.hpp"
 #include <QApplication>
 #include <QClipboard>
 #include <QFile>
@@ -76,6 +77,15 @@ private slots:
     auto *view = picker.findChild<QTreeView *>("fileView");
     QTRY_COMPARE_WITH_TIMEOUT(view->model()->rowCount(view->rootIndex()), 2,
                               3000);
+    // Re-filter an already populated proxy, including an empty result set.
+    picker.setFilters({{"First track", {"first*.txt"}}}, 0);
+    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 1);
+    QCOMPARE(view->model()->index(0, 0, view->rootIndex()).data().toString(),
+             QString("first track.txt"));
+    picker.setFilters({{"No matches", {"*.missing"}}}, 0);
+    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 0);
+    configureFilePicker(picker, options);
+    QTRY_COMPARE(view->model()->rowCount(view->rootIndex()), 2);
     for (int row = 0; row < 2; ++row)
       view->selectionModel()->select(
           view->model()->index(row, 0, view->rootIndex()),
@@ -88,6 +98,13 @@ private slots:
     QCOMPARE(
         qvariant_cast<PortalFileFilter>(result.value("current_filter")).label,
         QString("Text files"));
+  }
+
+  void requestCloseRejectsDialog() {
+    FilePickerDialog picker(FilePickerDialog::Mode::Open, "Open file", {});
+    PortalRequest request(&picker);
+    QTimer::singleShot(0, &request, &PortalRequest::Close);
+    QCOMPARE(picker.exec(), int(QDialog::Rejected));
   }
 
   void invalidPathDoesNotAccept() {

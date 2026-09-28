@@ -1,5 +1,7 @@
 # LunaDash documentation — English
 
+- [Complete keyboard shortcuts](SHORTCUTS.md)
+
 [Traditional Chinese](../zh/README.md) · [Documentation index](../README.md)
 
 - [NyxNiri-inspired desktop, Orbit and live wallpapers](NYXNIRI_DESKTOP.md)

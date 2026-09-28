@@ -19,6 +19,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QStandardPaths>
+#include <QStringConverter>
 #include <QTextStream>
 #include <QVBoxLayout>
 #include <QVariant>
@@ -42,8 +43,11 @@ QString sourceWindowTitle(const QString &source) {
 QStringList readSources() {
   QStringList sources;
   QTextStream input(stdin, QIODevice::ReadOnly);
+  input.setEncoding(QStringConverter::Utf8);
   while (!input.atEnd()) {
-    const QString source = input.readLine().trimmed();
+    // xdpw matches this opaque label byte-for-byte. Whitespace is part of
+    // the monitor/window identity, not formatting to normalize.
+    const QString source = input.readLine();
     if (!source.isEmpty())
       sources.append(source);
   }
@@ -52,6 +56,7 @@ QStringList readSources() {
 
 int printSource(const QString &source) {
   QTextStream output(stdout, QIODevice::WriteOnly);
+  output.setEncoding(QStringConverter::Utf8);
   output << source << Qt::endl;
   output.flush();
   return 0;
@@ -137,7 +142,10 @@ int runScreenCastChooser(int argc, char **argv) {
   int qtArgc = 1;
   char *qtArgv[] = {argv[0], nullptr};
   QApplication app(qtArgc, qtArgv);
-  app.setApplicationName(QStringLiteral("LunaDash Screen Share"));
+  // Share the compositor's QSettings namespace so the chooser follows the
+  // current LunaDash light/dark mode, palette and animation preference.
+  app.setApplicationName(QStringLiteral("LunaDash"));
+  app.setApplicationDisplayName(QStringLiteral("LunaDash Screen Share"));
   app.setOrganizationName(QStringLiteral("LunaDash"));
   QApplication::setStyle("Fusion");
 
@@ -188,7 +196,7 @@ int runScreenCastChooser(int argc, char **argv) {
     if (!preview.isNull())
       item->setIcon(QIcon(preview));
     item->setTextAlignment(Qt::AlignHCenter | Qt::AlignBottom);
-    item->setToolTip(displayLabel(source));
+
   }
   list->setCurrentRow(0);
   layout->addWidget(list, 1);

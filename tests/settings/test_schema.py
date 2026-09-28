@@ -47,17 +47,15 @@ class SettingsSchemaTests(unittest.TestCase):
             self.assertNotIn(module['id'], ids)
             ids.add(module['id'])
             self.assertTrue(module['type'])
-            self.assertEqual(set(module['sections']), {'module','style','config','custom'})
+            self.assertEqual(set(module['sections']), {'module','style','config'})
             for schema in module['sections'].values():
                 validate_schema(schema)
             if module['recovery']:
                 rule = module['sections']['module']['enabled']
                 self.assertTrue(rule['readOnly'])
                 self.assertFalse(valid_value(rule, False))
-            custom = module['sections']['custom']['entry']
-            self.assertTrue(valid_value(custom, module['id'] + '/Main.qml'))
-            self.assertFalse(valid_value(custom, '../Main.qml'))
-            self.assertFalse(valid_value(custom, '/tmp/Main.qml'))
+            self.assertNotIn('custom', module['sections'])
+            self.assertNotIn('template', module)
         self.assertEqual(len(ids), 11)
         self.assertTrue({'orbit', 'dock'}.issubset(ids))
 

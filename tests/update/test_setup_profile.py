@@ -82,7 +82,8 @@ class SetupProfileTests(unittest.TestCase):
         self.assertEqual(kitty.stat().st_mode & 0o777, 0o600)
         self.assertTrue(kitty.read_text().rstrip().endswith("include __custom__.conf"))
         sources = "\n".join(path.read_text() for path in (ROOT / "data/setup/author").rglob("*") if path.is_file())
-        self.assertNotIn("/home/luyishan", sources)
+        self.assertNotRegex(sources, r"/(?:home|Users)/[^/\s]+")
+        self.assertNotRegex(sources, r"(?i)[A-Z]:\\Users\\[^\\\s]+")
         self.assertNotIn("noctalia.conf", sources)
         self.assertNotIn("nyxniri", sources.lower())
 

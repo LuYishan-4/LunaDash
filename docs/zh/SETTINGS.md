@@ -6,6 +6,10 @@
 
 Plugin 與 Shell module 都在同一個 Settings surface 中；Plugins 頁負責 enable/disable、replace/augment mode、分類 options 與 advanced JSON。Plugins 與 Shell modules 兩個 recovery 頁面本身不能被 plugin replacement 拿掉。
 
+在設定視窗的任何位置（包含 JSON 編輯欄）按 **Ctrl+F**，即可移至頂端搜尋欄並選取目前文字；圖片選擇器開啟時，此快捷鍵暫停作用。
+
+圖片選擇器開啟時會自動聚焦並選取路徑欄，Tab 只會切換選擇器內的控制項；關閉後，若設定視窗仍開啟，焦點會回到頂端搜尋欄。
+
 ## 目前設定範圍
 
 | 頁面 | LunaDash 直接控制 | 外部整合／限制 |
@@ -89,3 +93,5 @@ Settings 可在預設大小與最大化間切換；搜尋框在頂部 header，�
 ## NyxNiri 桌面整合、Orbit 與動態桌布
 
 新增模組、色盤與 portal 服務、快捷鍵、相依套件及驗證界線，請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)。
+
+預設程式中的空白命令陣列使用 Kitty、Dolphin 及偵測到的預設瀏覽器。檔案捷徑預設執行 `dolphin --new-window`；可在 Applications and startup 改選其他已安裝程式。FileChooser 與螢幕／視窗分享選擇器保持獨立。

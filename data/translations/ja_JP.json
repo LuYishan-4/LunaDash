@@ -190,8 +190,6 @@
   "Default terminal": "既定のターミナル",
   "Default file manager": "既定のファイルマネージャー",
   "Use LunaDash default": "LunaDash の既定値を使う",
-  "LunaDash default": "LunaDash の既定値",
-  "Using the built-in default.": "組み込みの既定値を使用しています。",
   "New file": "新しいファイル",
   "New folder": "新しいフォルダー",
   "File name": "ファイル名",
@@ -341,5 +339,7 @@
   "Validate JSON": "JSON を検証",
   "Save JSON": "JSON を保存",
   "Available": "利用可能",
-  "Unavailable": "利用不可"
+  "Unavailable": "利用不可",
+  "Dolphin (default)": "Dolphin（既定）",
+  "Using the default application.": "既定のアプリケーションを使用しています。"
 }

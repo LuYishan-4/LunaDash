@@ -21,7 +21,7 @@ ModuleSurface {
         ? moduleStyle.edge : "top"
     readonly property bool vertical: edge === "left" || edge === "right"
     readonly property int thickness: Math.max(
-        42, moduleStyle.height || (shell.state.appearance || {}).panelHeight || 40)
+        24, moduleStyle.height || (shell.state.appearance || {}).panelHeight || 40)
     readonly property int requestedLength: moduleStyle.width || 0
 
     anchors {
@@ -45,7 +45,8 @@ ModuleSurface {
         ? Math.max(1, Math.min(requestedLength || (screen ? screen.height : 900),
                               screen ? screen.height - 2 * moduleMargin : 2160))
         : thickness
-    exclusiveZone: (vertical ? implicitWidth : implicitHeight) + 6
+    // Layer-shell adds the anchored edge margin to this reservation.
+    exclusiveZone: thickness + moduleMargin
     color: "transparent"
     WlrLayershell.namespace: "lunadash-panel"
 
@@ -58,27 +59,23 @@ ModuleSurface {
     readonly property int workspaceActiveWidth: panelConfig.workspaceActiveWidth ?? 34
     readonly property int workspacePillHeight: panelConfig.workspacePillHeight ?? 8
     readonly property real shellOpacity: Math.max(0, Math.min(60, panelConfig.shellOpacity ?? 20)) / 100.0
-    readonly property int capsuleHeight: Math.max(30, implicitHeight - 8)
+    readonly property real capsuleTint: Math.max(0, Math.min(100, panelConfig.capsuleTint ?? 12)) / 100.0
+    readonly property int capsuleHeight: Math.max(16, Math.min(thickness - 8, (vertical ? height : width) / 8))
     readonly property int capsuleGap: 8
+    readonly property int launcherExtent: Math.max(20, thickness - 2)
     readonly property bool centerLauncher: panelConfig.centerLauncher ?? true
+    readonly property bool centeredLauncher: centerLauncher && width >= 700
+    readonly property bool centeredClock: !centerLauncher && width >= 700
+    readonly property string launcherImage: panelConfig.launcherImage || ""
     readonly property bool showSystemStats: panelConfig.showSystemStats ?? true
     readonly property bool showActiveTitle: panelConfig.showActiveTitle ?? true
     readonly property bool occupiedWorkspacesOnly: panelConfig.occupiedWorkspacesOnly ?? true
     readonly property int currentWorkspace: Number((shell.interaction || {}).workspace ?? shell.state.workspace ?? 0)
     readonly property var clients: (shell.interaction || {}).clients || shell.state.clients || []
     readonly property var activeClient: clients.find(client => client.focused && client.mapped && !client.desktop && !client.utility) || ({})
-    readonly property var workspaceIds: {
-        const count = Math.max((shell.state.appearance || {}).workspaceCount || 10, currentWorkspace + 1)
-        if (!occupiedWorkspacesOnly)
-            return Array.from({length: count}, (_, index) => index)
-        const occupied = new Set(groups.map(group => group.workspace))
-        occupied.add(currentWorkspace)
-        // Keep one empty destination available without changing workspace capacity.
-        for (let index = 0; index < count; ++index) {
-            if (!occupied.has(index)) { occupied.add(index); break }
-        }
-        return Array.from(occupied).sort((a, b) => a - b)
-    }
+    readonly property var workspaceIds: WorkspaceTasks.visibleWorkspaces(
+        clients, currentWorkspace, (shell.state.appearance || {}).workspaceCount || 10,
+        occupiedWorkspacesOnly)
     readonly property var networkState: shell.state.network || ({})
 
     readonly property var groups: WorkspaceTasks.groupByWorkspace(
@@ -118,7 +115,7 @@ ModuleSurface {
     })
 
     function capsuleColor(tintAmount, alpha) {
-        const t = Math.max(0, Math.min(1, tintAmount))
+        const t = Math.max(0, Math.min(1, tintAmount)) * capsuleTint
         // Preserve the established surface at the registry's default (20),
         // while the existing 0–60 control spans transparent through opaque.
         const baseOpacity = Math.min(alpha, 0.84)
@@ -165,7 +162,7 @@ ModuleSurface {
     Rectangle {
         anchors.fill: parent
         visible: panel.backgroundVisible
-        radius: height / 2
+        radius: Math.min(width, height) / 2
         color: panel.capsuleColor(0.20, 0.58)
         border.width: 1
         border.color: panel.capsuleBorder(0.22)
@@ -174,15 +171,16 @@ ModuleSurface {
     RowLayout {
         id: leftContent
         visible: !panel.vertical
-        x: panel.centerLauncher ? 8 : centerShell.x + centerShell.width + panel.capsuleGap
+        x: panel.centeredLauncher ? 4 : centerShell.x + centerShell.width + panel.capsuleGap
         y: (panel.height - panel.capsuleHeight) / 2
-        width: Math.max(0, (panel.centerLauncher ? centerShell.x : clockShell.x) - x - panel.capsuleGap)
+        width: Math.max(0, (panel.centeredLauncher ? centerShell.x : panel.centeredClock ? clockShell.x : statusShell.x) - x - panel.capsuleGap)
         height: panel.capsuleHeight
         spacing: panel.capsuleGap
+        clip: true
 
         Rectangle {
             id: workspaceShell
-            Layout.preferredWidth: Math.min(workspaceControls.contentWidth + 16, leftContent.width * 0.48)
+            Layout.preferredWidth: Math.min(workspaceControls.contentWidth + 16, leftContent.width * (taskShell.visible ? 0.60 : 1))
             Layout.minimumWidth: 0
             Layout.fillHeight: true
             radius: height / 2
@@ -192,29 +190,37 @@ ModuleSurface {
             ListView {
                 id: workspaceControls
                 anchors.fill: parent
-                anchors.margins: 8
+                anchors.leftMargin: Math.min(8, parent.width / 4)
+                anchors.rightMargin: Math.min(8, parent.width / 4)
+                anchors.topMargin: Math.min(8, panel.capsuleHeight / 5)
+                anchors.bottomMargin: Math.min(8, panel.capsuleHeight / 5)
                 orientation: ListView.Horizontal
                 spacing: 4
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
                 model: panel.workspaceIds
                 onModelChanged: Qt.callLater(() => workspaceControls.positionViewAtIndex(panel.workspaceIds.indexOf(panel.currentWorkspace), ListView.Contain))
-                delegate: Rectangle {
+                delegate: Item {
                     id: workspacePill
                     required property int modelData
                     readonly property bool active: panel.currentWorkspace === modelData
                     width: active ? panel.workspaceActiveWidth : panel.workspaceInactiveWidth
-                    height: panel.workspacePills ? Math.min(panel.workspacePillHeight, workspaceControls.height) : workspaceControls.height
-                    y: (workspaceControls.height - height) / 2
-                    radius: height / 2
-                    color: active ? moduleAccent : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b, 0.18)
+                    height: workspaceControls.height
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: shell.tr("Workspace") + " " + (modelData + 1)
+                    Accessible.onPressAction: shell.command("workspace", modelData)
                     Keys.onReturnPressed: shell.command("workspace", modelData)
                     Keys.onSpacePressed: shell.command("workspace", modelData)
-                    border.width: activeFocus ? 1 : 0
-                    border.color: Theme.focusRing
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: panel.workspacePills ? Math.min(panel.workspacePillHeight, parent.height) : parent.height
+                        radius: height / 2
+                        color: workspacePill.active ? moduleAccent : Qt.rgba(moduleForeground.r, moduleForeground.g, moduleForeground.b, 0.18)
+                        border.width: workspacePill.activeFocus ? 1 : 0
+                        border.color: Theme.focusRing
+                    }
                     Text {
                         anchors.fill: parent
                         text: panel.workspacePills ? "" : String(workspacePill.modelData + 1)
@@ -237,7 +243,7 @@ ModuleSurface {
 
         Item {
             id: taskShell
-            visible: panel.groups.length > 0
+            visible: panel.groups.length > 0 && leftContent.width >= 110
             Layout.preferredWidth: Math.min(columnTasks.contentWidth + 8, leftContent.width * 0.32)
             Layout.minimumWidth: 0
             Layout.fillHeight: true
@@ -261,6 +267,8 @@ ModuleSurface {
                         group: panel.groups[index] || ({})
                         height: columnTasks.height
                         width: implicitWidth
+                        color: panel.contrastShells ? panel.capsuleColor(0.72, group.active ? 0.94 : 0.74) : "transparent"
+                        border.width: panel.contrastShells ? 1 : 0
                     }
                 }
             }
@@ -273,8 +281,8 @@ ModuleSurface {
             Layout.minimumWidth: 0
             Layout.fillHeight: true
             radius: height / 2
-            color: panel.capsuleColor(0.85, 0.94)
-            border.width: 1
+            color: panel.contrastShells ? panel.capsuleColor(0.85, 0.94) : "transparent"
+            border.width: panel.contrastShells ? 1 : 0
             border.color: Theme.hairline
             Text {
                 anchors.fill: parent
@@ -300,8 +308,7 @@ ModuleSurface {
             label: Math.round(panel.stats.cpuPercent || 0) + "%  " + Number(panel.stats.memoryUsed || 0).toFixed(1) + " GiB"
             toolTip: shell.tr("System monitor")
             onClicked: {
-                shell.controlCenterTab = 3;
-                shell.setAppearance({overview: true});
+                shell.toggleControlCenter(3);
             }
         }
         Item { Layout.fillWidth: true; Layout.minimumWidth: 0 }
@@ -311,25 +318,31 @@ ModuleSurface {
         id: centerShell
         visible: !panel.vertical
         moduleHost: panel
-        x: panel.centerLauncher ? (panel.width - width) / 2 : 8
+        x: panel.centeredLauncher ? (panel.width - width) / 2 : 4
         y: (panel.height - height) / 2
-        width: panel.capsuleHeight
-        height: panel.capsuleHeight
-        iconName: "apps"
-        toolTip: shell.tr("Applications")
+        width: panel.launcherExtent
+        height: panel.launcherExtent
+        Accessible.name: shell.tr("Applications")
         onClicked: shell.openLauncherFromMouse()
+        LauncherMark {
+            anchors.centerIn: parent
+            width: parent.width * 0.94
+            height: width
+            source: panel.launcherImage
+            accent: panel.launcherAccent
+        }
     }
 
     Item {
         id: statusShell
         visible: !panel.vertical
-        anchors.right: panel.centerLauncher ? clockShell.left : sessionButton.left
+        anchors.right: panel.centeredClock ? sessionButton.left : clockShell.left
         anchors.rightMargin: panel.capsuleGap
         anchors.verticalCenter: parent.verticalCenter
         height: panel.capsuleHeight
         width: Math.max(0, Math.min(statusControls.implicitWidth,
-            (panel.centerLauncher ? clockShell.x : sessionButton.x) - panel.capsuleGap
-            - (panel.centerLauncher ? centerShell.x + centerShell.width : clockShell.x + clockShell.width) - panel.capsuleGap))
+            (panel.centeredClock ? sessionButton.x : clockShell.x) - panel.capsuleGap
+            - (panel.centeredClock ? clockShell.x + clockShell.width : centerShell.x + centerShell.width) - panel.capsuleGap))
         clip: true
         Row {
             id: statusControls
@@ -388,7 +401,7 @@ ModuleSurface {
                 iconName: panel.networkState.ethernetConnected ? "ethernet" : panel.networkState.connected ? "network" : "network-off"
                 toolTip: panel.networkLabel()
                 selected: shell.wifiPopupOpen
-                onClicked: shell.wifiPopupOpen = !shell.wifiPopupOpen
+                onClicked: shell.togglePopup("network")
             }
             PanelButton {
                 visible: panel.width > 640
@@ -397,7 +410,7 @@ ModuleSurface {
                 label: panel.width > 1000 ? Math.round((((shell.state.audio || {}).output || {}).volume) || 0) + "%" : ""
                 toolTip: shell.tr("Volume")
                 selected: shell.volumePopupOpen
-                onClicked: shell.volumePopupOpen = !shell.volumePopupOpen
+                onClicked: shell.togglePopup("audio")
                 onScrolled: delta => {
                     const current = Number((((shell.state.audio || {}).output || {}).volume) || 0)
                     shell.command("audio", JSON.stringify({device: "output", volume: Math.max(0, Math.min(100, current + (delta > 0 ? 5 : -5)))}))
@@ -409,14 +422,14 @@ ModuleSurface {
                 iconName: "copy"
                 toolTip: shell.tr("Clipboard")
                 selected: shell.clipboardPopupOpen
-                onClicked: shell.clipboardPopupOpen = !shell.clipboardPopupOpen
+                onClicked: shell.togglePopup("clipboard")
             }
             PanelButton {
                 visible: panel.usbStorage.length > 0 && panel.width > 1100
                 moduleHost: panel
                 iconName: "usb"
                 toolTip: shell.tr("USB devices")
-                onClicked: shell.usbPopupOpen = !shell.usbPopupOpen
+                onClicked: shell.togglePopup("devices")
             }
             PanelButton {
                 visible: panel.width > 1200 && (panel.stats.batteryPercent ?? -1) >= 0
@@ -424,14 +437,14 @@ ModuleSurface {
                 iconName: "power"
                 label: panel.stats.batteryPercent + "%"
                 toolTip: shell.tr("Battery")
-                onClicked: shell.openSettingsPage("power")
+                onClicked: shell.toggleSettingsPage("power")
             }
             PanelButton {
                 moduleHost: panel
                 iconName: "general"
                 toolTip: shell.tr("Control center")
                 selected: shell.overviewOpen
-                onClicked: { shell.controlCenterTab = 0; shell.setAppearance({overview: !shell.overviewOpen}) }
+                onClicked: shell.toggleControlCenter(0)
             }
         }
     }
@@ -440,16 +453,16 @@ ModuleSurface {
         id: clockShell
         visible: !panel.vertical
         moduleHost: panel
-        x: panel.centerLauncher ? sessionButton.x - width - panel.capsuleGap : (panel.width - width) / 2
+        x: panel.centeredClock ? (panel.width - width) / 2 : sessionButton.x - width - panel.capsuleGap
         y: (panel.height - height) / 2
-        width: panel.centerLauncher ? (Theme.clock24Hour ? 70 : 98) : 150
+        width: panel.centeredClock ? 150 : (Theme.clock24Hour ? 70 : 98)
         height: panel.capsuleHeight
         property string time: ""
         property string date: ""
-        label: time + (panel.centerLauncher ? "" : "  " + date)
+        label: time + (panel.centeredClock ? "  " + date : "")
         toolTip: shell.tr("Calendar")
         selected: shell.calendarOpen
-        onClicked: shell.calendarOpen = !shell.calendarOpen
+        onClicked: shell.togglePopup("calendar")
         Timer {
             interval: 1000
             repeat: true
@@ -467,99 +480,91 @@ ModuleSurface {
         visible: !panel.vertical
         moduleHost: panel
         anchors.right: parent.right
-        anchors.rightMargin: 8
+        anchors.rightMargin: 4
         anchors.verticalCenter: parent.verticalCenter
         width: panel.capsuleHeight
         height: panel.capsuleHeight
         iconName: "session"
         toolTip: shell.tr("Session controls")
-        onClicked: shell.logoutOpen = true
+        selected: shell.logoutOpen
+        onClicked: shell.togglePopup("session")
     }
-    Item {
+    ColumnLayout {
         id: verticalContent
         visible: panel.vertical
         anchors.fill: parent
-        anchors.margins: 5
+        anchors.margins: 4
+        spacing: 6
+        clip: true
 
-        Rectangle {
-            anchors.fill: parent
-            visible: panel.backgroundVisible
-            radius: Math.min(width, 20)
-            color: panel.capsuleColor(0.20, 0.58)
-            border.width: 1
-            border.color: panel.capsuleBorder(0.22)
-        }
-
-        Rectangle {
-            id: verticalLauncher
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.max(30, parent.width - 6)
-            height: width
-            radius: width / 2
-            color: Qt.rgba(panel.launcherAccent.r, panel.launcherAccent.g,
-                           panel.launcherAccent.b, shell.launcherOpen ? 0.34 : 0.20)
-            border.width: 1
-            border.color: panel.launcherAccent
-            LunaDashLogo {
+        PanelButton {
+            moduleHost: panel
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: Math.min(panel.launcherExtent, verticalContent.width)
+            Layout.preferredHeight: Math.min(panel.launcherExtent, verticalContent.width)
+            Layout.minimumWidth: 0
+            Layout.minimumHeight: 0
+            Accessible.name: shell.tr("Applications")
+            onClicked: shell.openLauncherFromMouse()
+            LauncherMark {
                 anchors.centerIn: parent
-                width: parent.width * 0.72
+                width: parent.width * 0.94
                 height: width
-                animated: false
-                primaryColor: panel.launcherAccent
-                secondaryColor: Qt.lighter(panel.launcherAccent, 1.22)
-                inkColor: Theme.text
-            }
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: shell.openLauncherFromMouse()
+                source: panel.launcherImage
+                accent: panel.launcherAccent
             }
         }
 
-        Column {
+        ListView {
             id: verticalWorkspaces
-            anchors.top: verticalLauncher.bottom
-            anchors.topMargin: 7
-            anchors.horizontalCenter: parent.horizontalCenter
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(contentHeight, Math.max(30, verticalContent.height * 0.24))
+            Layout.minimumHeight: 0
+            clip: true
             spacing: 3
-            Repeater {
-                model: panel.workspaceIds
-                delegate: Rectangle {
-                    required property int modelData
-                    readonly property bool active: panel.currentWorkspace === modelData
-                    width: Math.max(24, verticalContent.width - 10)
-                    height: active ? 26 : 20
-                    radius: 8
-                    color: active ? moduleAccent
-                                  : Qt.rgba(moduleForeground.r, moduleForeground.g,
-                                            moduleForeground.b, 0.12)
-                    Text {
-                        anchors.centerIn: parent
-                        text: String(parent.modelData + 1)
-                        color: parent.active ? Theme.accentInk : moduleForeground
-                        font.family: Theme.font
-                        font.pixelSize: 10
-                        font.weight: parent.active ? Font.Bold : Font.Normal
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: shell.command("workspace", parent.modelData)
-                    }
+            boundsBehavior: Flickable.StopAtBounds
+            model: panel.workspaceIds
+            onModelChanged: Qt.callLater(() => verticalWorkspaces.positionViewAtIndex(panel.workspaceIds.indexOf(panel.currentWorkspace), ListView.Contain))
+            delegate: Rectangle {
+                id: verticalWorkspace
+                required property int modelData
+                readonly property bool active: panel.currentWorkspace === modelData
+                width: verticalWorkspaces.width
+                height: 24
+                radius: Math.min(width, height) / 2
+                color: active ? moduleAccent : panel.contrastShells ? panel.capsuleColor(0.72, 0.94) : "transparent"
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: shell.tr("Workspace") + " " + (modelData + 1)
+                Accessible.onPressAction: shell.command("workspace", modelData)
+                Keys.onReturnPressed: shell.command("workspace", modelData)
+                Keys.onSpacePressed: shell.command("workspace", modelData)
+                border.width: activeFocus ? 1 : 0
+                border.color: Theme.focusRing
+                Text {
+                    anchors.fill: parent
+                    text: panel.workspacePills ? "" : String(verticalWorkspace.modelData + 1)
+                    color: verticalWorkspace.active ? Theme.accentInk : moduleForeground
+                    font.family: Theme.font
+                    font.pixelSize: 10
+                    font.weight: verticalWorkspace.active ? Font.Bold : Font.Normal
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: shell.command("workspace", verticalWorkspace.modelData)
                 }
             }
         }
 
         ListView {
             id: verticalTasks
-            anchors.top: verticalWorkspaces.bottom
-            anchors.topMargin: 7
-            anchors.bottom: verticalStatus.top
-            anchors.bottomMargin: 7
-            anchors.left: parent.left
-            anchors.right: parent.right
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 0
             orientation: ListView.Vertical
             spacing: 4
             clip: true
@@ -571,17 +576,19 @@ ModuleSurface {
                 readonly property var group: panel.groups[index] || ({})
                 readonly property var members: group.members || []
                 width: verticalTasks.width
-                height: Math.max(34, width)
-                radius: 10
-                color: group.active
-                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                    : Qt.rgba(Theme.surfaceOpaque.r, Theme.surfaceOpaque.g,
-                              Theme.surfaceOpaque.b, 0.62)
-                border.width: 1
+                height: Math.max(24, Math.min(44, width))
+                radius: Math.min(width, height) / 2
+                color: panel.contrastShells ? panel.capsuleColor(0.72, 0.94) : "transparent"
+                border.width: panel.contrastShells ? 1 : 0
                 border.color: group.active ? Theme.accent : panel.capsuleBorder(0.22)
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: shell.command("workspace", verticalTask.group.workspace)
+                }
                 MemberIcon {
                     anchors.centerIn: parent
-                    width: Math.max(20, Math.min(30, parent.width - 8))
+                    width: Math.max(12, Math.min(30, parent.width - 8))
                     height: width
                     shell: panel.shell
                     member: verticalTask.members.length ? verticalTask.members[0] : ({})
@@ -606,106 +613,121 @@ ModuleSurface {
             }
         }
 
-        Column {
-            id: verticalStatus
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 4
-
-            Repeater {
-                model: SystemTray.items
-                delegate: Item {
-                    required property var modelData
-                    readonly property var item: modelData
-                    visible: item.status !== Status.Passive
-                    width: visible ? Math.max(26, verticalContent.width - 12) : 0
-                    height: visible ? 28 : 0
-                    readonly property string iconSource: panel.trayImage(item)
-                    Image {
-                        id: verticalTrayIcon
-                        anchors.centerIn: parent
-                        width: 18
-                        height: 18
-                        source: parent.iconSource
-                        fillMode: Image.PreserveAspectFit
-                        visible: parent.iconSource.length > 0 && status === Image.Ready
+        Flickable {
+            visible: verticalContent.height > 480 && verticalTray.implicitHeight > 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(80, verticalTray.implicitHeight)
+            Layout.minimumHeight: 0
+            contentWidth: width
+            contentHeight: verticalTray.implicitHeight
+            flickableDirection: Flickable.VerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
+            Column {
+                id: verticalTray
+                width: parent.width
+                spacing: 4
+                Repeater {
+                    model: SystemTray.items
+                    delegate: PanelButton {
+                        id: verticalTrayButton
+                        required property var modelData
+                        moduleHost: panel
+                        visible: modelData.status !== Status.Passive
+                        width: Math.min(verticalTray.width, panel.capsuleHeight)
+                        height: panel.capsuleHeight
+                        x: (verticalTray.width - width) / 2
+                        iconName: verticalTrayIcon.status === Image.Ready ? "" : panel.trayGlyph(modelData)
+                        toolTip: modelData.tooltipTitle || modelData.title || modelData.id
+                        onClicked: modelData.activate()
+                        Image {
+                            id: verticalTrayIcon
+                            anchors.centerIn: parent
+                            width: Math.min(18, parent.width)
+                            height: width
+                            source: panel.trayImage(verticalTrayButton.modelData)
+                            fillMode: Image.PreserveAspectFit
+                            visible: status === Image.Ready
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.RightButton | Qt.MiddleButton
+                            onClicked: verticalTrayButton.modelData.secondaryActivate()
+                            onWheel: wheel => verticalTrayButton.modelData.scroll(wheel.angleDelta.y || wheel.angleDelta.x, wheel.angleDelta.x !== 0)
+                        }
                     }
-                    LineIcon {
-                        anchors.centerIn: parent
-                        width: 17
-                        height: 17
-                        visible: !verticalTrayIcon.visible
-                        name: panel.trayGlyph(parent.item)
-                        ink: Theme.text
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: mouse => mouse.button === Qt.LeftButton
-                            ? parent.item.activate() : parent.item.secondaryActivate()
-                    }
-                }
-            }
-
-            PanelSegment {
-                moduleHost: panel
-                width: Math.max(26, verticalContent.width - 12)
-                height: 28
-                text: "☷"
-                fill: "transparent"
-                border.width: 0
-                Accessible.name: shell.tr("Clipboard")
-                onClicked: shell.clipboardPopupOpen = !shell.clipboardPopupOpen
-            }
-            PanelSegment {
-                moduleHost: panel
-                width: Math.max(26, verticalContent.width - 12)
-                height: 28
-                text: panel.networkState.connected ? "◉" : "○"
-                fill: "transparent"
-                border.width: 0
-                Accessible.name: panel.networkLabel()
-                onClicked: shell.wifiPopupOpen = !shell.wifiPopupOpen
-            }
-            PanelSegment {
-                moduleHost: panel
-                width: Math.max(26, verticalContent.width - 12)
-                height: 28
-                text: "⚙"
-                fill: "transparent"
-                border.width: 0
-                Accessible.name: shell.tr("Settings")
-                onClicked: shell.settingsOpen = !shell.settingsOpen
-            }
-            Text {
-                width: Math.max(26, verticalContent.width - 12)
-                horizontalAlignment: Text.AlignHCenter
-                color: moduleForeground
-                font.family: Theme.font
-                font.pixelSize: 10
-                text: verticalClock.time
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: shell.calendarOpen = !shell.calendarOpen
-                }
-            }
-            Item {
-                id: verticalClock
-                width: 1
-                height: 1
-                property string time: ""
-                Timer {
-                    interval: 1000
-                    repeat: true
-                    running: true
-                    triggeredOnStart: true
-                    onTriggered: verticalClock.time =
-                        Qt.formatDateTime(new Date(), Theme.clock24Hour ? "HH:mm" : "h:mm")
                 }
             }
         }
+        PanelButton {
+            visible: verticalContent.height > 540
+            moduleHost: panel
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: panel.capsuleHeight
+            Layout.preferredHeight: panel.capsuleHeight
+            Layout.minimumWidth: 0
+            Layout.minimumHeight: 0
+            iconName: panel.networkState.ethernetConnected ? "ethernet" : panel.networkState.connected ? "network" : "network-off"
+            toolTip: panel.networkLabel()
+            selected: shell.wifiPopupOpen
+            onClicked: shell.togglePopup("network")
+        }
+        PanelButton {
+            visible: verticalContent.height > 440
+            moduleHost: panel
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: panel.capsuleHeight
+            Layout.preferredHeight: panel.capsuleHeight
+            Layout.minimumWidth: 0
+            Layout.minimumHeight: 0
+            iconName: "sound"
+            toolTip: shell.tr("Volume")
+            selected: shell.volumePopupOpen
+            onClicked: shell.togglePopup("audio")
+        }
+        PanelButton {
+            moduleHost: panel
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: panel.capsuleHeight
+            Layout.preferredHeight: panel.capsuleHeight
+            Layout.minimumWidth: 0
+            Layout.minimumHeight: 0
+            iconName: "general"
+            toolTip: shell.tr("Control center")
+            selected: shell.overviewOpen
+            onClicked: shell.toggleControlCenter(0)
+        }
+        PanelButton {
+            id: verticalClock
+            moduleHost: panel
+            Layout.fillWidth: true
+            Layout.preferredHeight: panel.thickness < 64 ? 34 : 26
+            Layout.minimumWidth: 0
+            Layout.minimumHeight: 0
+            property string time: ""
+            label: panel.thickness < 64 ? time.replace(":", "\n") : time
+            toolTip: shell.tr("Calendar") + " " + time
+            selected: shell.calendarOpen
+            onClicked: shell.togglePopup("calendar")
+            Timer {
+                interval: 1000
+                repeat: true
+                running: panel.vertical
+                triggeredOnStart: true
+                onTriggered: verticalClock.time = Qt.formatDateTime(new Date(), Theme.clock24Hour ? "HH:mm" : "h:mm")
+            }
+        }
+        PanelButton {
+            moduleHost: panel
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: panel.capsuleHeight
+            Layout.preferredHeight: panel.capsuleHeight
+            Layout.minimumWidth: 0
+            Layout.minimumHeight: 0
+            iconName: "session"
+            toolTip: shell.tr("Session controls")
+            selected: shell.logoutOpen
+        onClicked: shell.togglePopup("session")
+        }
     }
-
 }

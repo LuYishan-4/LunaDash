@@ -109,7 +109,8 @@ private:
 
   void requestShutdown();
   void scheduleShellRestart();
-  void publishSessionActivationEnvironment();
+  void publishSessionActivationEnvironment(
+      const std::function<void()> &ready = {});
   void captureScreen();
   bool launchExternalCommand(QStringList command, QString *error,
                              bool x11Helper = false);
@@ -126,7 +127,7 @@ private:
   void focus(ClientWindow *client);
   void raiseWithDialogs(ClientWindow *client);
   void activateTask(int window);
-  void beginWindowSwitch(int direction);
+  void beginWindowSwitch(int direction, bool workspaces = false);
   void selectWorkspace(int workspace);
   void publishWindowLayout();
   void captureWorkspaceThumbnail(int serial, QList<int> windows);

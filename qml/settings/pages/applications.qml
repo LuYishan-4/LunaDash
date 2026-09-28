@@ -46,7 +46,8 @@ ColumnLayout {
                 model: ["files", "packages", "welcome"]
                 ShellButton {
                     required property string modelData
-                    text: modelData; active: ((shell.state.appearance || {}).startupApps || []).includes(modelData)
+                    text: shell.tr(modelData === "welcome" ? "Welcome" : modelData === "packages" ? "Packages" : "Files")
+                    active: ((shell.state.appearance || {}).startupApps || []).includes(modelData)
                     onClicked: { const apps = ((shell.state.appearance || {}).startupApps || []).slice(); const index = apps.indexOf(modelData); if (index >= 0) apps.splice(index, 1); else apps.push(modelData); shell.setAppearance({startupApps: apps}) }
                 }
             }

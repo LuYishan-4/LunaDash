@@ -8,6 +8,9 @@ namespace LunaDash {
 class FileChooserPortal final : public QObject, public QDBusContext {
   Q_OBJECT
   Q_CLASSINFO("D-Bus Interface", "org.freedesktop.impl.portal.FileChooser")
+  Q_PROPERTY(uint version READ version CONSTANT)
+public:
+  uint version() const;
 public slots:
   uint OpenFile(const QDBusObjectPath &, const QString &, const QString &,
                 const QString &title, const QVariantMap &options,

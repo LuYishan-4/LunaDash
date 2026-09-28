@@ -3,9 +3,11 @@
 // Private wlroots runtime state. Public callers use WaylandCompositor.hpp.
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/renderer/blur/WindowGlass.hpp"
+#include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/color/NightColor.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
+#include <QElapsedTimer>
 #include <QJsonArray>
 #include <QList>
 #include <QPointF>
@@ -26,6 +28,14 @@ public:
     // Keep a short frame tail after a screencopy request is consumed so
     // portal clients have time to queue their next streaming frame.
     int screencopyKeepalive = 0;
+    QTimer *screencopyTimer = nullptr;
+    bool softwareCursorLocked = false;
+    bool forceSoftwareCursor = false;
+    quint64 lastAnimationPublishNs = 0;
+    quint64 frameCallbacks = 0;
+    quint64 slowFrames = 0;
+    qint64 lastFrameWorkUsec = 0;
+    qint64 maxFrameWorkUsec = 0;
     ludash_night_color *nightColor = nullptr;
     int nightTemperature = 6500;
     QString nightError;
@@ -48,10 +58,13 @@ public:
     // GPU Screen Recorder UI to discover the active/focused toplevel.
     wlr_foreign_toplevel_handle_v1 *legacyForeignHandle = nullptr;
 #endif
+    bool hasSurfaceGeometry = false;
+    wlr_box lastSurfaceGeometry{};
     Slot<ToplevelState> map;
     Slot<ToplevelState> unmap;
     Slot<ToplevelState> commit;
     Slot<ToplevelState> destroy;
+    Slot<ToplevelState> sceneContentDestroy;
     Slot<ToplevelState> setTitle;
     Slot<ToplevelState> setAppId;
     Slot<ToplevelState> setParent;
@@ -71,6 +84,7 @@ public:
     Slot<XWaylandState> map;
     Slot<XWaylandState> unmap;
     Slot<XWaylandState> sceneDestroy;
+    Slot<XWaylandState> sceneContentDestroy;
     Slot<XWaylandState> destroy;
     Slot<XWaylandState> requestConfigure;
     Slot<XWaylandState> requestMove;
@@ -113,7 +127,9 @@ public:
   struct KeyboardState {
     Impl *impl = nullptr;
     wlr_keyboard *keyboard = nullptr;
+    wl_client *ownerClient = nullptr;
     bool virtualKeyboard = false;
+    uint32_t lastLockedModifiers = 0;
     QSet<uint32_t> consumedKeys;
     bool metaTapPending = false;
     int metaTapKeycode = -1;
@@ -162,6 +178,7 @@ public:
   wlr_output_layout *outputLayout = nullptr;
   wlr_scene *scene = nullptr;
   std::unique_ptr<WindowGlass> windowGlass;
+  std::unique_ptr<WindowCorners> windowCorners;
   wlr_scene_output_layout *sceneLayout = nullptr;
   wlr_scene_tree *backgroundLayer = nullptr;
   wlr_scene_tree *bottomLayer = nullptr;
@@ -177,6 +194,12 @@ public:
   QTimer *displayRevertTimer = nullptr;
   QString displayError;
   QRect usableArea{0, 0, 1440, 900};
+  bool eyeCareActive = false;
+  float steadyWindowOpacity = 0.90f;
+  quint64 dispatchCalls = 0;
+  quint64 slowDispatches = 0;
+  qint64 lastDispatchUsec = 0;
+  qint64 maxDispatchUsec = 0;
 
   wlr_xdg_shell *xdgShell = nullptr;
   wlr_layer_shell_v1 *layerShell = nullptr;
@@ -225,9 +248,11 @@ public:
   uint32_t pointerButton = 0;
   bool orbitPointerConsumed = false;
   QPointF pointerLast;
+  QRect pointerStartGeometry;
+  QElapsedTimer pointerPublishClock;
   bool beginWindowPointer(uint32_t button);
   bool beginClientWindowPointer(ClientWindow *client, uint32_t serial,
-                                uint32_t edges);
+                                uint32_t edges, bool validateSerial = true);
   bool updateWindowPointer();
   void finishWindowPointer(bool apply);
 
@@ -279,6 +304,7 @@ public:
 
   void updateBackground();
   void updateWindowGlass();
+  void updateWindowCorners();
   void updateNightLight();
 
   void arrangeLayers();
@@ -311,7 +337,10 @@ public:
 
   void updateSeatCapabilities();
 
-  void addKeyboard(wlr_keyboard *keyboard, bool isVirtual);
+  void addKeyboard(wlr_keyboard *keyboard, bool isVirtual,
+                   wl_client *ownerClient = nullptr);
+
+  bool inputMethodVirtualKeyboard(const KeyboardState *state) const;
 
   void applyKeyboardConfig();
 

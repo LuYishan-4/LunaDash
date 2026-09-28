@@ -75,8 +75,6 @@
     "Save file": "儲存檔案",
     "Choose folder": "選擇資料夾",
     "Konsole (default)": "Konsole（預設）",
-    "LunaDash default": "LunaDash 預設值",
-    "Using the built-in default.": "正在使用內建預設值。",
     "Open apps from the diamond at the top left. Switch workspaces with Super + 1–4. Open a terminal with Super + Enter.": "點擊左上角的菱形開啟應用程式。Super + 1–4 切換工作區，Super + Enter 開啟終端機。",
     "Playback device": "播放裝置",
     "Choose the PipeWire output used by the desktop.": "選擇桌面使用的 PipeWire 輸出裝置。",
@@ -98,5 +96,7 @@
     "Wi-Fi password": "Wi-Fi 密碼",
     "Search Wi-Fi": "搜尋 Wi-Fi",
     "No wireless networks were reported. Search to scan again.": "未偵測到無線網路，請按搜尋以重新掃描。",
-    "Wi-Fi credentials are managed by NetworkManager. Use the system network editor for secured networks.": "Wi-Fi 認證資料由 NetworkManager 管理；受保護的網路請使用系統網路編輯器設定。"
+    "Wi-Fi credentials are managed by NetworkManager. Use the system network editor for secured networks.": "Wi-Fi 認證資料由 NetworkManager 管理；受保護的網路請使用系統網路編輯器設定。",
+    "Dolphin (default)": "Dolphin（預設）",
+    "Using the default application.": "正在使用預設應用程式。"
 }

@@ -27,16 +27,37 @@ void WindowSwitcher::setChannelPath(const QString &path) {
   channelPath_ = path;
   writeSnapshot();
 }
+QJsonArray WindowSwitcher::windowsForWorkspace(const QJsonArray &clients,
+                                               int workspace) {
+  QJsonArray windows;
+  for (const auto &value : clients) {
+    const auto client = value.toObject();
+    if (client.value("mapped").toBool() && !client.value("utility").toBool() &&
+        !client.value("desktop").toBool() &&
+        client.value("workspace").toInt(-1) == workspace)
+      windows.append(client);
+  }
+  return windows;
+}
 bool WindowSwitcher::active() const { return active_; }
+WindowSwitcher::Scope WindowSwitcher::scope() const { return scope_; }
+void WindowSwitcher::dismissPopups() {
+  dismissSerial_ = dismissSerial_ >= 999999 ? 1 : dismissSerial_ + 1;
+  publish();
+}
 bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
                            int direction,
-                           const QProcessEnvironment &environment) {
+                           const QProcessEnvironment &environment,
+                           Scope scope) {
+  if (active_ && scope_ != scope)
+    finish(false);
   if (active_) {
     step(direction);
     return true;
   }
   if (windows.isEmpty())
     return false;
+  scope_ = scope;
   workspaces_ = windows;
   index_ = 0;
   for (int i = 0; i < workspaces_.size(); ++i)
@@ -84,6 +105,21 @@ int WindowSwitcher::finish(bool accept) {
   return selected;
 }
 void WindowSwitcher::remove(int window) {
+  if (scope_ == Scope::Windows) {
+    for (int i = static_cast<int>(workspaces_.size()); i-- > 0;) {
+      if (workspaces_[i].toObject().value("id").toInt() != window)
+        continue;
+      workspaces_.removeAt(i);
+      if (i < index_)
+        --index_;
+    }
+    if (workspaces_.isEmpty())
+      finish(false);
+    else
+      index_ = std::min(index_, static_cast<int>(workspaces_.size()) - 1);
+    publish();
+    return;
+  }
   for (int w = 0; w < workspaces_.size(); ++w) {
     auto workspace = workspaces_[w].toObject();
     auto members = workspace.value("windows").toArray();
@@ -103,6 +139,17 @@ QString WindowSwitcher::thumbnailPath(int window) const {
 void WindowSwitcher::setThumbnail(int serial, int window, const QString &path) {
   if (!active_ || serial != serial_) {
     QFile::remove(path);
+    return;
+  }
+  if (scope_ == Scope::Windows) {
+    for (int i = 0; i < workspaces_.size(); ++i) {
+      auto entry = workspaces_[i].toObject();
+      if (entry.value("id").toInt() == window) {
+        entry["thumbnail"] = QUrl::fromLocalFile(path).toString();
+        workspaces_[i] = entry;
+      }
+    }
+    publish();
     return;
   }
   for (int w = 0; w < workspaces_.size(); ++w) {
@@ -143,7 +190,10 @@ QJsonObject WindowSwitcher::snapshot() const {
           {"ready", ready_},
           {"index", index_},
           {"serial", serial_},
-          {"workspaces", workspaces_},
+          {"scope", scope_ == Scope::Windows ? "windows" : "workspaces"},
+          {"windows", scope_ == Scope::Windows ? workspaces_ : QJsonArray{}},
+          {"workspaces", scope_ == Scope::Workspaces ? workspaces_ : QJsonArray{}},
+          {"dismissSerial", dismissSerial_},
           {"background", background_},
           {"drag", drag_},
           {"clients", clients_},

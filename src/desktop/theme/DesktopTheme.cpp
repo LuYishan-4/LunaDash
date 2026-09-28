@@ -90,15 +90,10 @@ QCheckBox::indicator:checked { background: #9ccbfb; border-color: #9ccbfb; }
   const auto preferences = desktopPreferences();
   const auto colors = appearancePalette(preferences);
   style += R"(
-QLabel#fileBrand { font-size: 21px; font-weight: 600; }
-QLabel#fileFolderTitle { font-size: 18px; font-weight: 600; }
-QLabel#fileSection { font-size: 10px; color: #aab7d1; letter-spacing: 2px; }
 QLabel#fileStatus { color: #aab7d1; font-size: 11px; }
 QPushButton[fileTool="true"] { border: none; padding: 6px; border-radius: 10px; background: transparent; }
 QPushButton[fileTool="true"]:hover { background: #2c3b5c; }
 QPushButton[fileTool="true"]:checked { background: #2c3b5c; }
-QPushButton#fileAssociations { border-radius: 11px; padding: 8px 14px; }
-QLineEdit#fileLocation, QLineEdit#fileSearch { border: 1px solid #465777; background: #141c31; padding: 2px 10px; border-radius: 11px; }
 QListWidget#filePlaces { background: transparent; border: none; padding: 0; outline: none; }
 QListWidget#filePlaces::item { padding: 10px 12px; border-radius: 10px; }
 QListWidget#filePlaces::item:hover { background: #202b45; }
@@ -114,7 +109,6 @@ QLabel#filePreviewImage { background: #141c31; border: 1px solid #2b3b4c; border
 QLabel#filePreviewTitle { font-size: 16px; font-weight: 600; }
 QLabel#filePreviewMeta { color: #aab7d1; font-size: 11px; }
 QLabel#filePreviewHint { color: #aab7d1; font-size: 10px; }
-QDialog#fileApplicationChooser, QDialog#fileAssociationSettings, QDialog#fileManagerFirstRun { border: 1px solid #465777; border-radius: 16px; }
 )";
   style +=
       QString(

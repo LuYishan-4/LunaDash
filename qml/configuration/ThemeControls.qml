@@ -129,7 +129,7 @@ SettingsCard {
     }
     Text {
         Layout.fillWidth: true
-        text: shell.tr("Opt in to GTK 3/4 and Kitty theme files. Existing CSS and Kitty settings receive a backed-up include. Browsers follow the desktop portal; Kitty reads its colors on reload.")
+        text: shell.tr("Light/dark mode is always published as the system preference through the desktop portal and gsettings. This optional switch additionally syncs LunaDash palette files to GTK 3/4 and Kitty; existing files receive a backup.")
         color: Theme.muted
         font.family: Theme.font
         wrapMode: Text.Wrap

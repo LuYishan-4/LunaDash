@@ -6,11 +6,11 @@ This integration follows [ech678/NyxNiri](https://github.com/ech678/NyxNiri) at 
 
 ## Desktop and controls
 
-New profiles follow the supplied reference screenshots: an inset top panel with numbered workspaces, running applications, the active window title and CPU/memory readings on the left; a centered launcher; and status controls and the clock on the right. The workspace list shows occupied workspaces, the active workspace and one spare empty workspace. This changes only the panel display; all configured workspaces and their shortcuts remain available. The compact control center opens on the right with controls, media, audio and system pages. Settings > Dashboard can select the larger dashboard. Settings keeps its shared header and search.
+New profiles follow the supplied reference screenshots: an inset top panel with numbered workspaces, running applications, the active window title and CPU/memory readings on the left; a centered launcher; and status controls and the clock on the right. The compact workspace strip shows at least two workspaces (unless only one is configured), keeps numbering contiguous and retains one spare after the last occupied workspace. Opening a window on workspace 2 reveals workspace 3; switching back to workspace 1 keeps it visible. Visiting an empty spare does not create another spare. Minimized and off-workspace windows still count as occupied. This changes only the panel display; all configured workspaces and their shortcuts remain available. The compact control center opens on the right with controls, media, audio and system pages. Settings > Dashboard can select the larger dashboard. Settings keeps its shared header and search.
 
 The bottom shortcut dock and large wallpaper clock are disabled by default, leaving the wallpaper clear as in the reference. Settings > Appearance > Show dock can enable the dock; the Desktop widgets extension settings can enable the wallpaper clock. Existing saved preferences are preserved. If enabled, dock pins come from the `dock` module configuration and running tasks use the existing activation behavior. Auto-hide leaves an 8 px reveal strip while the current workspace has visible applications.
 
-The default window arrangement keeps the first window in the right half and divides the focused tile for later windows, alternating split axes. This creates the reference's large right pane and recursively divided left panes through the existing bounded tiling template. Settings > Windows and workspaces lets users change the split target and initial side; see [window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
+The default window arrangement keeps the first window in the right half and divides the focused tile for later windows, alternating split axes. This starts the reference arrangement through the existing bounded tiling template. Further splits prefer at least 320 × 300 logical pixels per tile and move to a larger tile when needed, so the initial main pane can later divide. Settings > Windows and workspaces lets users change the split target and initial side; see [window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
 
 The `orbit` and `dock` modules use the existing module schema and extension slots. `desktop-widgets` remains a multiple-selection extension target inside the wallpaper Background layer. Its built-in settings control the clock position and optional playback audio rings. Rings use the existing output-monitor spectrum helper, not microphone input. Weather is off initially: enabling it sends the entered coordinates, rounded to three decimal places, to [Open-Meteo](https://open-meteo.com/en/docs) at startup, on location changes and every 15 minutes. Failed requests show unavailable data. No location lookup runs automatically.
 
@@ -31,7 +31,9 @@ Super+T and Super+Return retain the configured terminal role. New defaults yield
 
 ## Editable desktop configuration
 
-Settings > Appearance > Panel layout controls the centered launcher, active window title, CPU/memory readings and compact workspace list. Turning off the centered launcher restores the launcher on the left and the clock in the center. Settings > Shell modules exposes the remaining validated panel fields, including dimensions, edge, colors, capsule contrast and workspace indicators. These controls use the existing module registry and save through the existing settings backend.
+Settings > Appearance > Panel layout directly controls the edge, full or custom length, thickness, margin, content visibility, capsule opacity and tint. All changes save through the existing versioned module settings backend and apply immediately. Width means length along the chosen edge, including vertical panels; height means thickness. Panel thickness and both edge margins reserve space for application windows. Short panels keep essential controls and scroll application/workspace lists; long titles and statistics appear only when space allows. Dark capsules use a low secondary-color tint by default; the selected workspace retains its accent. Shell modules still exposes advanced fields.
+
+The launcher uses an enlarged original LunaDash moon logo with a subtle accent halo and outline. It remains accessible by name but does not show an Applications tooltip on hover. **Choose launcher image** opens the existing local image picker; **Restore LunaDash logo** removes the override. PNG, JPEG, WebP, GIF and SVG images are supported. Missing or unreadable images fall back to the logo. The image stays at its selected local path, so keep that file available. Turning off the centered launcher moves it to the left; narrow panels also move it left to keep controls from overlapping.
 
 The corresponding file is `$XDG_CONFIG_HOME/LuDash/shell-modules.json`, normally `~/.config/LuDash/shell-modules.json`. Edit the existing document's `modules.panel.config` object to customize it:
 
@@ -40,7 +42,9 @@ The corresponding file is `$XDG_CONFIG_HOME/LuDash/shell-modules.json`, normally
   "centerLauncher": true,
   "showSystemStats": true,
   "showActiveTitle": true,
-  "occupiedWorkspacesOnly": true
+  "occupiedWorkspacesOnly": true,
+  "capsuleTint": 12,
+  "launcherImage": ""
 }
 ```
 
@@ -72,4 +76,4 @@ Arch runtime packaging includes `qt6-multimedia` and `ffmpeg` for live wallpaper
 
 This is a development integration, not complete NyxNiri parity. Niri-specific tabbed columns, cross-output navigation and glow presets; Noctalia's greeter/secure lock protocols; the upstream whole-application preset/deployment/rollback system; and downloadable wallpaper packs remain outside this implementation. Optional author application-profile import is handled by LunaDash's installer, independently of its compositor. LunaDash's existing tiling/stacking templates, updater, session controls and external application roles remain in use. Native plugins stay disabled by default and are not sandboxed.
 
-For this layout and installation change, the user requested no local tests or builds, including local source/QML/translation audits. Verification is deferred to the configured CI workflows after pushing; workflow configuration alone does not establish a passing result. No real-session screenshot has been produced for this change, so final visual verification remains outstanding.
+For this layout and installation change, the user requested no local tests or builds, including local source/QML/translation audits. Verification runs in CI after pushing; workflow configuration alone does not establish a passing result. The Arch shell workflow captures the running Quickshell desktop and ordinary Wayland windows with a software renderer. Physical GPU performance and a real login-session screenshot remain outside that coverage.

@@ -112,8 +112,12 @@ private Q_SLOTS:
     QVERIFY(shellModuleIds().contains("dock"));
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"settings":{"enabled":false}}})", &normalized, &error));
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"config":{"workspaceInactiveWidth":48,"workspaceActiveWidth":18}}}})", &normalized, &error));
-    QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"custom":{"entry":"../Main.qml"}}}})", &normalized, &error));
-    QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"custom":{"enabled":true,"entry":""}}}})", &normalized, &error));
+    // Legacy code fields are ignored without losing safe style/config values.
+    QVERIFY(validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"style":{"height":48},"custom":{"enabled":true,"entry":"../Main.qml"}}}})", &normalized, &error));
+    const auto panel = normalized.value("modules").toObject().value("panel").toObject();
+    QVERIFY(!panel.contains("custom"));
+    QCOMPARE(panel.value("style").toObject().value("height").toInt(), 48);
+    QVERIFY(!shellModuleDescriptor("panel").value("sections").toObject().contains("custom"));
     QVERIFY(!validateModuleDocument(QByteArray(16385, ' '), &normalized, &error));
   }
   void orbitRejectsInvalidDocumentsWithoutLosingConfiguration() {

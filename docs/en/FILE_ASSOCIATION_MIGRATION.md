@@ -1,23 +1,7 @@
-# Migrating the early file-association implementation
+# File associations after switching to Dolphin
 
-The first modular Files launch imports recognized entries from the earlier
-QSettings `fileAssociations/ext_*` and `fileAssociations/mime_*` groups into
-`$XDG_CONFIG_HOME/LunaDash/file-associations.json`. Existing JSON rules win. The
-old keys are retained as a backup. A migration-version marker prevents deleted
-JSON rules from being imported again. Missing or unrecognized desktop entries
-are not launched; Files reports them and prompts for a new handler on next use.
+The built-in LunaDash file manager and its private association store are retired. Dolphin and other configured external managers use their own preferences and system MIME handlers.
 
-The `__system__` rule follows the current system MIME handler instead of pinning
-its executable. It is also available as **Use the current system default** in
-the chooser when the system has an installed handler. If that handler later
-vanishes, the chooser is shown again.
+LunaDash no longer reads or migrates `$XDG_CONFIG_HOME/LunaDash/file-associations.json` or the earlier QSettings `fileAssociations/*` keys. Existing files are left intact for reference; nothing is automatically imported into Dolphin or deleted. Re-select document handlers through Dolphin or the system default-application settings when needed. System MIME defaults previously changed by the user remain effective.
 
-Right-click **Set default application for this file type...** saves a rule
-without launching a document. **Reset default application for this file type**
-removes only the Files rule. Sidebar Open, Open terminal here and Copy paths
-remain available; sidebar Open in a new window is also supported. Ctrl+R and F5
-refresh, and Ctrl+H toggles hidden entries.
-
-Earlier builds also wrote system MIME defaults when saving extension rules.
-Migration does not undo those system settings. New changes affect only Files
-unless the user explicitly checks the separate system-default option.
+The files application role remains configurable in Settings > Applications and startup. An empty command selects Dolphin. FileChooser and screen/window sharing pickers remain part of LunaDash. See [Files](FILES.md).

@@ -6,7 +6,7 @@ Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後�
 
 ## 建置與靜態檢查
 
-需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Qt 6.4+（Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、GL headers 與 GIO。Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
+需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Qt 6.4+（Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、GL headers 與 GLib。Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -19,7 +19,7 @@ python3 scripts/ci/check_qml_actions.py
 python3 scripts/ci/check_qml_style.py
 
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DLUDASH_BUILD_FILES_TESTS=ON -DLUDASH_BUILD_RENDERER_TESTS=ON
+  -DLUDASH_BUILD_RENDERER_TESTS=ON
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
@@ -68,17 +68,14 @@ Source archive 必須含 `examples/` 與 `templates/`，不然 installed plugin 
 
 | 類別 | 內容 |
 | --- | --- |
-| Ubuntu build | C/C++、Files、architecture |
-| Qt loading | Qt client modules 對 wlroots |
-| Wayland | protocol、xdg lifecycle、headless、XWayland |
-| OpenGL | shaders、renderer lifetime、software GL、staged install |
-| Startup | CLI failure、renderer fallback |
-| Website | Astro check/build/link/asset |
-| Source/QML | architecture/source language/QML checks |
+| Main build and integration | 單一 Ubuntu 主流程，涵蓋 maintained CTest、source contracts、QML parse/test、renderer、startup failure、Wayland/XWayland lifecycle 與 software OpenGL relocation |
 | Distro | Arch、Debian 13、Fedora 45、openSUSE Tumbleweed、Alpine Edge |
-| PR analysis | clang-tidy、CodeQL、Qt lifetime、policy |
+| Website | Astro check/build/link/asset |
+| PR source style | architecture、英文 source、shell syntax/ShellCheck、QML design-system |
+| PR analysis / hygiene | policy、repository hygiene、clang-tidy、CodeQL、Qt lifetime |
+| Pages deployment | 從 main 建置與部署正式網站 |
 
-Void/Gentoo 有 installer path，但 CI breadth 較小。
+不再為單一小功能維護獨立 workflow。個別 UI 互動與一次性 desktop regression 應放進 maintained test suite 或 release 實機驗證，而不是各自成為 required workflow。Void/Gentoo 有 installer path，但 CI breadth 較小。
 
 ## 原始碼地圖
 
@@ -97,7 +94,7 @@ Void/Gentoo 有 installer path，但 CI breadth 較小。
 | `src/compositor/renderer/opengl` | GL resources/shaders |
 | `src/config` | preference/localization/plugin metadata |
 | `src/core` | contracts/listeners/plugin C API |
-| `src/desktop` | apps/files/audio/network/power/system |
+| `src/desktop` | apps/default-apps/audio/network/power/system |
 | `src/service/portal` | FileChooser portal |
 | `src/shell` | modules/media |
 | `src/ctl` | control client |

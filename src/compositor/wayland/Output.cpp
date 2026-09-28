@@ -40,11 +40,29 @@ QSize WaylandCompositor::Impl::outputSize() const {
 QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
   const QSize size = outputSize();
   QJsonArray nightLight;
-  for (const auto *output : outputs)
+  quint64 frameCallbacks = 0;
+  quint64 slowFrames = 0;
+  qint64 lastFrameWorkUsec = 0;
+  qint64 maxFrameWorkUsec = 0;
+  for (const auto *output : outputs) {
+    frameCallbacks += output->frameCallbacks;
+    slowFrames += output->slowFrames;
+    lastFrameWorkUsec = std::max(lastFrameWorkUsec, output->lastFrameWorkUsec);
+    maxFrameWorkUsec = std::max(maxFrameWorkUsec, output->maxFrameWorkUsec);
     nightLight.append(QJsonObject{{"output", safeUtf8(output->output->name)},
                                   {"temperature", output->nightTemperature},
                                   {"error", output->nightError}});
+  }
   return {
+      {"frameCallbacks", static_cast<qint64>(frameCallbacks)},
+      {"frameWorkMs", static_cast<double>(lastFrameWorkUsec) / 1000.0},
+      {"maxFrameWorkMs", static_cast<double>(maxFrameWorkUsec) / 1000.0},
+      {"slowFrames", static_cast<qint64>(slowFrames)},
+      {"eventLoop",
+       QJsonObject{{"dispatchCalls", static_cast<qint64>(dispatchCalls)},
+                   {"lastDispatchMs", static_cast<double>(lastDispatchUsec) / 1000.0},
+                   {"maxDispatchMs", static_cast<double>(maxDispatchUsec) / 1000.0},
+                   {"slowDispatches", static_cast<qint64>(slowDispatches)}}},
       {"nightLight", nightLight},
       {"width", size.width()},
       {"pixelWidth", primaryOutput ? primaryOutput->width : 0},
@@ -90,6 +108,30 @@ void WaylandCompositor::Impl::updateBackground() {
   wlr_scene_rect_set_color(background, color);
 }
 
+void WaylandCompositor::Impl::updateWindowCorners() {
+  if (!windowCorners)
+    return;
+  QList<WindowCorners::Surface> surfaces;
+  const float opacity = eyeCareActive ? 1.0f : steadyWindowOpacity;
+  for (const auto &client : q->clients_) {
+    if (!client->sceneTree)
+      continue;
+    wlr_box geometry{};
+    if (client->surface) {
+#if WLR_VERSION_MINOR >= 19
+      geometry = client->surface->geometry;
+#else
+      wlr_xdg_surface_get_geometry(client->surface, &geometry);
+#endif
+    }
+    surfaces.append({client->sceneTree, client->sceneContent, client->wlSurface,
+                     client->geometry.size(), {geometry.x, geometry.y},
+                     client->mapped && !client->fullscreen &&
+                         !client->desktop && !client->utility, opacity});
+  }
+  windowCorners->update(surfaces);
+}
+
 void WaylandCompositor::Impl::updateWindowGlass() {
   if (!windowGlass)
     return;
@@ -98,7 +140,25 @@ void WaylandCompositor::Impl::updateWindowGlass() {
     if (client->sceneTree)
       surfaces.append({client->sceneTree, client->geometry.size(),
                        client->mapped && !client->fullscreen &&
-                           !client->desktop && !client->utility});
+                           !client->desktop && !client->utility,
+                       windowCorners ? windowCorners->radius(client->sceneTree) : 0});
+  // The settings and control-center clients are layer-shell surfaces, not
+  // xdg toplevels. Give them the same producer-owned, input-transparent blur
+  // underlays; never sample the panel's own text or change its buffer alpha.
+  // Unsupported imports/renderers continue to use the opaque QML fallback.
+  for (const auto *layer : layers) {
+    if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer)
+      continue;
+    const QString name = QString::fromUtf8(layer->surface->namespace_);
+    const int radius = name == "lunadash-settings" ? 28
+        : (name == "lunadash-wallpaper-gallery" ||
+           name == "lunadash-control-center") ? 24 : 0;
+    if (!radius)
+      continue;
+    const auto &state = layer->surface->surface->current;
+    surfaces.append({layer->sceneLayer->tree, {state.width, state.height},
+                     true, radius, 1.0f});
+  }
   const bool animating = q->windowAnimations_ &&
                          q->windowAnimations_->activeCount() > 0;
   windowGlass->update(surfaces, animating);
@@ -108,17 +168,22 @@ void WaylandCompositor::Impl::arrangeLayers() {
   const QSize size = outputSize();
   wlr_box full{0, 0, size.width(), size.height()};
   wlr_box usable = full;
-  for (auto *layer : layers) {
-    if (!layer || !layer->sceneLayer || !layer->surface)
-      continue;
-    // wlroots 0.20 emits layer_shell.new_surface before the client's first
-    // commit. wlr_scene_layer_surface_v1_configure() is only valid after the
-    // role has been initialized by that commit.
-    if (!layer->surface->initialized)
-      continue;
-    if (!layer->surface->output && primaryOutput)
-      layer->surface->output = primaryOutput;
-    wlr_scene_layer_surface_v1_configure(layer->sceneLayer, &full, &usable);
+  // Reserve panels before configuring non-exclusive surfaces, regardless of
+  // client startup/commit order.
+  for (const bool exclusive : {true, false}) {
+    for (auto *layer : layers) {
+      if (!layer || !layer->sceneLayer || !layer->surface)
+        continue;
+      // wlroots 0.20 emits layer_shell.new_surface before the client's first
+      // commit. wlr_scene_layer_surface_v1_configure() is only valid after the
+      // role has been initialized by that commit.
+      if (!layer->surface->initialized ||
+          (layer->surface->current.exclusive_zone > 0) != exclusive)
+        continue;
+      if (!layer->surface->output && primaryOutput)
+        layer->surface->output = primaryOutput;
+      wlr_scene_layer_surface_v1_configure(layer->sceneLayer, &full, &usable);
+    }
   }
   usableArea = QRect(usable.x, usable.y, usable.width, usable.height);
 }
@@ -126,6 +191,7 @@ void WaylandCompositor::Impl::arrangeLayers() {
 bool WaylandCompositor::Impl::resizePrimaryOutput(const QString &preset,
                                                   QString *error) {
   static const QHash<QString, QSize> sizes{
+      {"800x600", {800, 600}},
       {"1280x720", {1280, 720}},
       {"1440x900", {1440, 900}},
       {"1920x1080", {1920, 1080}},
@@ -211,16 +277,19 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   }
   wlr_output_state_finish(&pending);
 
-  // Direct KMS recorders capture the primary scanout buffer, but hardware
-  // cursor planes are separate and are not reliably composited by all drivers
-  // (notably NVIDIA). Keep the cursor in the scene-rendered framebuffer on
-  // real login outputs so monitor recording sees exactly what LunaDash shows.
-  if (!self->nested)
-    wlr_output_lock_software_cursors(output, true);
-
   auto *state = new OutputState;
   state->impl = self;
   state->output = output;
+  // Hardware cursor planes avoid a full scene composition on every mouse
+  // movement. Screencopy temporarily switches to software cursors so portal
+  // streams still receive the pointer. Direct-KMS recorders can opt into the
+  // old always-composited behavior with LUDASH_SOFTWARE_CURSOR=1.
+  state->forceSoftwareCursor =
+      !self->nested && qEnvironmentVariableIntValue("LUDASH_SOFTWARE_CURSOR") == 1;
+  if (state->forceSoftwareCursor) {
+    wlr_output_lock_software_cursors(output, true);
+    state->softwareCursorLocked = true;
+  }
   auto *layoutOutput = wlr_output_layout_add_auto(self->outputLayout, output);
   state->sceneOutput = wlr_scene_output_create(self->scene, output);
   if (layoutOutput && state->sceneOutput)
@@ -247,6 +316,11 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   auto *state = listenerOwner<OutputState>(listener);
   if (!state || !state->sceneOutput)
     return;
+  ++state->frameCallbacks;
+  timespec now{};
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  const quint64 nowNs = static_cast<quint64>(now.tv_sec) * 1000000000ULL +
+                        static_cast<quint64>(now.tv_nsec);
 
   // Sample before commit: a screencopy frame is removed when this output
   // commit satisfies it. The tail bridges the small gap before xdpw queues
@@ -258,9 +332,26 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   else if (state->screencopyKeepalive > 0)
     --state->screencopyKeepalive;
 
+  const bool needsSoftwareCursor =
+      state->forceSoftwareCursor || capturePending || state->screencopyKeepalive > 0;
+  if (needsSoftwareCursor != state->softwareCursorLocked) {
+    wlr_output_lock_software_cursors(state->output, needsSoftwareCursor);
+    state->softwareCursorLocked = needsSoftwareCursor;
+  }
+
   auto *animations = state->impl->q->windowAnimations_.get();
+  const bool wasAnimating = animations && animations->activeCount() > 0;
   if (animations)
     animations->advance();
+  const bool stillAnimating = animations && animations->activeCount() > 0;
+  if (wasAnimating &&
+      (!stillAnimating || state->lastAnimationPublishNs == 0 ||
+       nowNs - state->lastAnimationPublishNs >= 33000000ULL)) {
+    state->impl->q->publishWindowLayout();
+    state->lastAnimationPublishNs = stillAnimating ? nowNs : 0;
+  } else if (!wasAnimating) {
+    state->lastAnimationPublishNs = 0;
+  }
   state->impl->updateWindowGlass();
   if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
     qWarning("wlroots scene output commit failed.");
@@ -272,8 +363,6 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
       wlr_output_schedule_frame(state->output);
     }
   }
-  timespec now{};
-  clock_gettime(CLOCK_MONOTONIC, &now);
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
 
   if (animations && animations->activeCount() > 0)
@@ -286,18 +375,30 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   // at roughly one display interval instead. wlroots still schedules the
   // first frame for every copy request itself.
   if (capturePending || state->screencopyKeepalive > 0) {
-    auto *impl = state->impl;
-    auto *output = state->output;
-    QTimer::singleShot(16, impl->q, [impl, output] {
-      const bool alive =
-          std::any_of(impl->outputs.cbegin(), impl->outputs.cend(),
-                      [output](const auto *candidate) {
-                        return candidate && candidate->output == output;
-                      });
-      if (alive)
-        wlr_output_schedule_frame(output);
-    });
+    // Coalesce callbacks from capture, client damage and animation into one
+    // wakeup per output. Several frames inside 16 ms must not grow a timer tail.
+    if (!state->screencopyTimer) {
+      state->screencopyTimer = new QTimer(state->impl->q);
+      state->screencopyTimer->setSingleShot(true);
+      state->screencopyTimer->setInterval(16);
+      QObject::connect(state->screencopyTimer, &QTimer::timeout, state->impl->q,
+                       [state] { wlr_output_schedule_frame(state->output); });
+    }
+    if (!state->screencopyTimer->isActive())
+      state->screencopyTimer->start();
   }
+
+  timespec finished{};
+  clock_gettime(CLOCK_MONOTONIC, &finished);
+  const quint64 finishedNs =
+      static_cast<quint64>(finished.tv_sec) * 1000000000ULL +
+      static_cast<quint64>(finished.tv_nsec);
+  state->lastFrameWorkUsec =
+      static_cast<qint64>((finishedNs - nowNs) / 1000ULL);
+  state->maxFrameWorkUsec =
+      std::max(state->maxFrameWorkUsec, state->lastFrameWorkUsec);
+  if (state->lastFrameWorkUsec >= 8000)
+    ++state->slowFrames;
 }
 
 void WaylandCompositor::Impl::handleOutputRequestState(wl_listener *listener,
@@ -317,6 +418,8 @@ void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
   if (!state)
     return;
   auto *self = state->impl;
+  delete state->screencopyTimer;
+  state->screencopyTimer = nullptr;
   if (self->pendingDisplay == state->output)
     self->clearPendingDisplay();
   detachListener(state->frame);

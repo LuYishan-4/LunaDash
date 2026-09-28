@@ -35,11 +35,20 @@ SettingsCard {
     readonly property var filtered: entries.filter(entry => (!category || entry.category === category) && (kind === "all" || entry.type === kind) && String(entry.name + " " + entry.category).toLocaleLowerCase().includes(search.text.trim().toLocaleLowerCase()))
     readonly property var choice: entries.find(entry => entry.path === selected) || current
 
+    function activate(path) {
+        const next = String(path || "")
+        if (!next.length)
+            return
+        library.selected = next
+        if (next !== String(library.current.path || ""))
+            shell.command("wallpaper-image", next)
+    }
+
     Connections {
         target: library.shell
         function onPendingWallpaperChanged() {
             if (library.shell.pendingWallpaper)
-                library.selected = library.shell.pendingWallpaper;
+                library.activate(library.shell.pendingWallpaper)
         }
     }
     RowLayout {
@@ -142,7 +151,7 @@ SettingsCard {
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
             Accessible.name: modelData.name
-            Keys.onReturnPressed: library.selected = modelData.path
+            Keys.onReturnPressed: library.activate(modelData.path)
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 4
@@ -191,7 +200,7 @@ SettingsCard {
             }
             MouseArea {
                 anchors.fill: parent
-                onClicked: library.selected = tile.modelData.path
+                onClicked: library.activate(tile.modelData.path)
             }
         }
         Text {
@@ -216,12 +225,6 @@ SettingsCard {
         ShellButton {
             text: shell.tr("Use default")
             onClicked: shell.command("wallpaper-default", "")
-        }
-        ShellButton {
-            text: shell.tr("Apply")
-            active: true
-            enabled: library.selected.length > 0 && library.selected !== library.current.path
-            onClicked: shell.command("wallpaper-image", library.selected)
         }
     }
     Text {

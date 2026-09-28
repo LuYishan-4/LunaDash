@@ -115,6 +115,7 @@ void WaylandCompositor::Impl::handleXWaylandDissociate(
   if (client->sceneTree) {
     wlr_scene_node_destroy(&client->sceneTree->node);
     client->sceneTree = nullptr;
+    client->sceneContent = nullptr;
   }
   client->wlSurface = nullptr;
 #endif
@@ -131,13 +132,28 @@ void WaylandCompositor::Impl::handleXWaylandMap(wl_listener *listener,
     client->wlSurface = state->surface->surface;
   if (!client->wlSurface)
     return;
+  if (client->sceneTree && !client->sceneContent)
+    wlr_scene_node_destroy(&client->sceneTree->node);
   if (!client->sceneTree) {
-    client->sceneTree =
-        wlr_scene_subsurface_tree_create(state->impl->normalLayer,
-                                         client->wlSurface);
+    client->sceneTree = wlr_scene_tree_create(state->impl->normalLayer);
     if (!client->sceneTree)
       return;
+    client->sceneContent =
+        wlr_scene_subsurface_tree_create(client->sceneTree, client->wlSurface);
+    if (!client->sceneContent) {
+      wlr_scene_node_destroy(&client->sceneTree->node);
+      client->sceneTree = nullptr;
+      return;
+    }
     client->sceneTree->node.data = client;
+    attachListener(
+        &client->sceneContent->node.events.destroy, state->sceneContentDestroy,
+        state, [](wl_listener *listener, void *) {
+          auto *state = listenerOwner<XWaylandState>(listener);
+          detachListener(state->sceneContentDestroy);
+          if (state->client)
+            state->client->sceneContent = nullptr;
+        });
     attachListener(&client->sceneTree->node.events.destroy, state->sceneDestroy,
                    state, handleXWaylandSceneDestroy);
   }
@@ -186,10 +202,12 @@ void WaylandCompositor::Impl::handleXWaylandSceneDestroy(wl_listener *listener,
   if (!state)
     return;
   detachListener(state->sceneDestroy);
-  // The subsurface helper can be destroyed by wl_surface teardown before XWM
-  // emits dissociate. Never leave layout or dissociate with a dangling tree.
-  if (state->client)
+  // The wrapper is compositor-owned and can be destroyed before XWM emits
+  // dissociate. Never leave layout or dissociate with a dangling tree.
+  if (state->client) {
     state->client->sceneTree = nullptr;
+    state->client->sceneContent = nullptr;
+  }
 #endif
 }
 
@@ -213,7 +231,9 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
     wlr_scene_node_destroy(&client->sceneTree->node);
   detachListener(state->sceneDestroy);
   client->wlSurface = nullptr;
+  detachListener(state->sceneContentDestroy);
   client->sceneTree = nullptr;
+  client->sceneContent = nullptr;
   client->xwayland = nullptr;
 
   detachListener(state->associate);
@@ -271,6 +291,14 @@ void WaylandCompositor::Impl::handleXWaylandConfigure(wl_listener *listener,
     return;
   }
   state->impl->q->arrange();
+  // Explicit ConfigureRequests need a reply even when tiling rejects a size.
+  // Ordinary metadata/layout refreshes do not resend identical configurations.
+  wlr_xwayland_surface_configure(
+      state->surface,
+      static_cast<int16_t>(std::clamp(client->geometry.x(), -32768, 32767)),
+      static_cast<int16_t>(std::clamp(client->geometry.y(), -32768, 32767)),
+      static_cast<uint16_t>(std::clamp(client->geometry.width(), 1, 65535)),
+      static_cast<uint16_t>(std::clamp(client->geometry.height(), 1, 65535)));
 #endif
 }
 
@@ -278,11 +306,15 @@ void WaylandCompositor::Impl::handleXWaylandMove(wl_listener *listener,
                                                   void *) {
 #if LUDASH_WLR_HAS_XWAYLAND
   auto *state = listenerOwner<XWaylandState>(listener);
-  if (state && state->client) {
-    state->client->floating = true;
-    state->client->manualGeometry = state->client->geometry;
-    state->impl->q->arrange();
-  }
+  if (!state || !state->client)
+    return;
+  if (state->impl->beginClientWindowPointer(state->client, 0, 0, false))
+    return;
+  // A move request without an active pointer grab cannot be made into an
+  // interactive exchange. Preserve the legacy fallback for such clients.
+  state->client->floating = true;
+  state->client->manualGeometry = state->client->geometry;
+  state->impl->q->arrange();
 #endif
 }
 

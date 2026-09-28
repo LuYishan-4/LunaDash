@@ -11,9 +11,9 @@ Bounded tiling is the default. Enabling a native stacking replacement in Desktop
 
 ## Focused split layout
 
-The default arrangement uses the existing bounded split tree. The first two windows form a left/right pair, keeping the first window on the right. New windows then divide the focused tile, alternating top/bottom and left/right at each level. Focus a tile before opening an application to choose which part of the desktop it divides. Other branches retain their geometry. When a focused tile has too little space to split, insertion uses the largest active tile. Grouped windows remain rows within their existing leaf; grouping, shared-boundary resize, minimize/restore and maximize/restore continue to use the same template.
+The default arrangement uses the existing bounded split tree. The first two windows form a left/right pair, keeping the first window on the right. New windows then divide the focused tile, alternating top/bottom and left/right at each level. Focus a tile before opening an application to choose which part of the desktop it divides. Other branches retain their geometry. When a focused split would produce a tile below the preferred minimum (320 × 300 logical pixels by default), insertion chooses the largest tile with a fitting split, trying its other axis if necessary. If no tile can fit the preferred minimum, the largest tile is divided anyway to keep every window bounded and non-overlapping. These are layout preferences, not an application minimum-size guarantee. Grouped windows remain rows within their existing leaf; grouping, shared-boundary resize, minimize/restore and maximize/restore continue to use the same template.
 
-For the six-window reference arrangement: open three windows, focus the upper-left window, then open three more. The first window stays in the full-height right half; the lower-left tile remains intact while the upper-left branch splits into progressively smaller panes. Ordinary focus changes never rearrange tiles.
+For the exact densely divided six-window reference arrangement, lower both preferred minimums (down to 1), open three windows, focus the upper-left window, then open three more. The first window stays in the full-height right half; the lower-left tile remains intact while the upper-left branch splits into progressively smaller panes. The default preferred minimums instead allow the right-hand main pane to divide before left-hand controls become too cramped. Ordinary focus changes never rearrange tiles.
 
 Settings > Windows and workspaces > Window layout exposes:
 
@@ -22,11 +22,17 @@ Settings > Windows and workspaces > Window layout exposes:
 | `splitTarget` | `focused` | Split the active tile with alternating axes; `largest` selects the largest tile and divides its longer dimension. |
 | `firstWindowSide` | `right` | Keep the original window on the right of the first pair; `left` places it on the left. |
 | `gap` | inherited desktop gap, initially 12 | Space between adjacent tiles. |
-| `defaultWidth` | 1120 | Initial width for a lone window when it does not supply a preferred size. |
+| `minimumTileWidth` | 320 | Preferred minimum width of new tiles; falls back on crowded outputs. |
+| `minimumTileHeight` | 300 | Preferred minimum height of new tiles; falls back on crowded outputs. |
+| `defaultWidth` | 1120 | Initial width for a lone tiled window, bounded to the available work area. |
 
 The first pair always uses left/right placement. Split policy and first-window-side changes apply to future insertions, workspace moves and group expulsions; saved tile arrangements are retained. Existing explicit settings remain authoritative. The fields are validated and persisted by the existing `layout:tiling` settings target under `windowLayout/tiling/`; no new configuration file, Niri parser or layout backend is added. Selecting `largest` and `left` restores the earlier insertion policy for a typical landscape screen.
 
-The existing layout CI target includes the reference arrangement, policy switching, destination focus, minimized-window recovery, small-screen bounds and maximize/restore regressions. These changes were not built or tested locally at the user's request; CI results and real-session visual verification must be reported separately.
+Ordinary Wayland windows reserve their tile on the initial surface commit and receive that tile's dimensions before drawing their first buffer. Mapping uses the same membership, so startup content is not first drawn at a client-chosen size and then immediately squeezed into a tile. This applies without application-name rules, including when several windows start together. Canceling an opening or unmapping releases its slot; remapping negotiates a fresh size. Pending windows remain invisible and cannot receive input focus. Floating dialogs retain their client-provided size within the work area; maximized and fullscreen requests retain their respective work-area/output bounds.
+
+Opening more windows still resizes existing tiles according to the selected template. Applications remain responsible for adapting their content to a deliberate resize; a terminal's already-printed output cannot be regenerated by the compositor. Increase the preferred tile minimums or maximize a window when more room is needed.
+
+The layout CI target covers reference arrangements, policy switching, destination focus, minimized-window recovery, small-screen bounds and maximize/restore. The Wayland lifecycle test checks initial-size stability for six anonymous clients, canceled openings, reverse mapping order, remapping and floating dialogs. The Arch shell workflow also records a real Kitty child's PTY size from startup, mixes Kitty and Dolphin windows, and saves screenshots. These are headless software-rendered sessions, not physical GPU/login-session verification. No local builds or tests were run at the user's request.
 
 ## Extending a template
 

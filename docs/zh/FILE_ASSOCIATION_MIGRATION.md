@@ -1,16 +1,7 @@
-# 舊檔案關聯設定遷移
+# 改用 Dolphin 後的檔案關聯
 
-[English](../en/FILE_ASSOCIATION_MIGRATION.md)
+LunaDash 內建檔案管理器及其專用關聯設定已退役。Dolphin 和其他自訂外部檔案管理器使用各自偏好與系統 MIME 關聯。
 
-新版 Files 第一次啟動時，會把舊 QSettings 的 `fileAssociations/ext_*` 與 `fileAssociations/mime_*` 匯入 `$XDG_CONFIG_HOME/LunaDash/file-associations.json`。
+LunaDash 不再讀取或遷移 `$XDG_CONFIG_HOME/LunaDash/file-associations.json` 及較早的 QSettings `fileAssociations/*` 設定。既有檔案保留供參考，不會自動匯入 Dolphin，也不會刪除。需要時請透過 Dolphin 或系統預設程式設定重新選擇文件開啟程式；先前已修改的系統 MIME 關聯仍有效。
 
-- 已存在的 JSON rule 優先。
-- 舊 key 保留作 backup。
-- Migration-version marker 避免使用者刪掉 JSON rule 後又被重複匯入。
-- 不存在或無法辨識的 desktop entry 不會直接執行；下次 open 時重新詢問。
-
-`__system__` rule 表示「跟隨目前 system MIME handler」，不是把 executable 固定下來。Chooser 也提供 **Use the current system default**。如果 handler 後來移除，就再次顯示 chooser。
-
-右鍵 **Set default application for this file type…** 可只儲存 rule，不立即開文件；**Reset default application for this file type** 只刪 Files rule，不會回復 system-wide MIME default。
-
-早期版本可能在儲存 extension rule 時一併改 system MIME；遷移不會自動反轉那些系統設定。新版只有使用者明確選 system-default 選項時才修改。
+Settings > Applications and startup 仍可調整 files 角色，空白命令表示 Dolphin。FileChooser 與螢幕／視窗分享選擇器繼續由 LunaDash 提供，詳見[檔案管理](FILES.md)。

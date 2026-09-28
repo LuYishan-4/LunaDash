@@ -96,7 +96,7 @@ SystemStatus::SystemStatus(QObject *parent) : QObject(parent) {
   refresh();
   auto *timer = new QTimer(this);
   connect(timer, &QTimer::timeout, this, &SystemStatus::refresh);
-  timer->start(1500);
+  timer->start(3000);
 }
 
 QJsonObject SystemStatus::snapshot() const { return data_; }
@@ -227,38 +227,45 @@ void SystemStatus::refresh() {
       static_cast<double>(memory.total_kib) / (1024.0 * 1024.0);
   data_["memoryPercent"] = ludash_memory_percent(memory);
 
-  const QStorageInfo storage(QDir::homePath());
-  const qint64 total = storage.bytesTotal();
-  const qint64 available = storage.bytesAvailable();
-  const qint64 used = total > available ? total - available : 0;
-  data_["diskUsed"] =
-      static_cast<double>(used) / (1024.0 * 1024.0 * 1024.0);
-  data_["diskTotal"] =
-      static_cast<double>(std::max<qint64>(0, total)) /
-      (1024.0 * 1024.0 * 1024.0);
-  data_["diskPercent"] =
-      total > 0 ? static_cast<int>(100.0 * static_cast<double>(used) /
-                                   static_cast<double>(total))
-                : 0;
-  const QString diskDevice = QString::fromUtf8(storage.device());
-  data_["diskDevice"] =
-      diskDevice.isEmpty() ? storage.name() : diskDevice;
+  const bool slowSample = (refreshCount_ % 3) == 0;
+  const bool gpuSample = (refreshCount_ % 2) == 0;
 
-  refreshGpu();
+  if (slowSample) {
+    const QStorageInfo storage(QDir::homePath());
+    const qint64 total = storage.bytesTotal();
+    const qint64 available = storage.bytesAvailable();
+    const qint64 used = total > available ? total - available : 0;
+    data_["diskUsed"] =
+        static_cast<double>(used) / (1024.0 * 1024.0 * 1024.0);
+    data_["diskTotal"] =
+        static_cast<double>(std::max<qint64>(0, total)) /
+        (1024.0 * 1024.0 * 1024.0);
+    data_["diskPercent"] =
+        total > 0 ? static_cast<int>(100.0 * static_cast<double>(used) /
+                                     static_cast<double>(total))
+                  : 0;
+    const QString diskDevice = QString::fromUtf8(storage.device());
+    data_["diskDevice"] =
+        diskDevice.isEmpty() ? storage.name() : diskDevice;
 
-  int battery = -1;
-  for (const auto &entry : QDir("/sys/class/power_supply")
-                               .entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-    const auto base = "/sys/class/power_supply/" + entry + "/";
-    if (readStatusFile(base + "type") != "Battery")
-      continue;
-    bool valid = false;
-    const int capacity = readStatusFile(base + "capacity").toInt(&valid);
-    if (valid) {
-      battery = std::clamp(capacity, 0, 100);
-      break;
+    int battery = -1;
+    for (const auto &entry : QDir("/sys/class/power_supply")
+                                 .entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+      const auto base = "/sys/class/power_supply/" + entry + "/";
+      if (readStatusFile(base + "type") != "Battery")
+        continue;
+      bool valid = false;
+      const int capacity = readStatusFile(base + "capacity").toInt(&valid);
+      if (valid) {
+        battery = std::clamp(capacity, 0, 100);
+        break;
+      }
     }
+    data_["batteryPercent"] = battery;
   }
-  data_["batteryPercent"] = battery;
+
+  if (gpuSample)
+    refreshGpu();
+  ++refreshCount_;
 }
 } // namespace LunaDash

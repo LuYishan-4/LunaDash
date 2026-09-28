@@ -62,3 +62,30 @@ assert '"layoutMode was removed; use windowTemplate"' in validator
 assert 'allowed_controls = {"toggle", "select", "number", "slider"}' in validator
 
 print("Window/plugin architecture contract passed: no legacy modes or hardcoded base actions.")
+
+
+# Client titlebar move requests are accepted for ordinary tiled windows and
+# exchange slots on drop. The modifier-assisted path remains a fallback.
+pointer = (root / "src/compositor/window/WindowPointer.cpp").read_text(
+    encoding="utf-8"
+)
+assert "if (edges == 0)" in pointer
+assert "windowAllowsPointerInteraction" in pointer
+assert "pointerStartGeometry = client->geometry" in pointer
+assert "const bool directMove = pointerClientGrab" in pointer
+assert '"swap"' in pointer
+assert "pointerStartGeometry.topLeft()" in pointer
+
+
+# Generic virtual-keyboard clients (recorders/remappers) can be recreated with
+# an empty locked mask. Physical XKB state is the persistent CapsLock/NumLock
+# owner: inherit it before processing a virtual key and write lock changes back
+# from the modifiers callback. Destruction keeps a final fallback sync.
+input_source = (root / "src/compositor/input/Input.cpp").read_text(
+    encoding="utf-8"
+)
+assert "bool copyKeyboardLocks(" in input_source
+assert "copyKeyboardLocks(keyboard, physical)" in input_source
+assert "copyKeyboardLocks(physical, state->keyboard)" in input_source
+assert "XKB_MOD_NAME_CAPS" in input_source
+assert "XKB_MOD_NAME_NUM" in input_source
