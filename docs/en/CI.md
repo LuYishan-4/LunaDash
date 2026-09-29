@@ -6,7 +6,7 @@
 | --- | --- |
 | `dev` push or PR | Repository/source contracts always; affected Ubuntu runtime, QML, website, Nix and Arch suites selected from the complete Git diff |
 | `main` push or PR | All shared suites, all five distribution builds, clang-tidy/Qt lifetime and CodeQL |
-| Merge queue | All suites selected; the development queue uses the Arch matrix |
+| Merge queue | All suites and all five distribution builds |
 | Weekly schedule | Full checks on the default branch, `main` |
 | Manual `Dev CI` | Select suites from the last commit; select `full` to run everything |
 

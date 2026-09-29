@@ -25,7 +25,7 @@ stdenv.mkDerivation {
   pname = "lunadash";
   version = "1.0.1a";
   src = lib.fileset.toSource {
-    root = ..;
+    root = ../.;
     fileset = lib.fileset.unions [
       ../CMakeLists.txt ../cmake ../src ../qml ../data
       ../protocols ../scripts ../templates ../tests ../LICENSE

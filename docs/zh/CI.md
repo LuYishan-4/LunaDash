@@ -8,7 +8,7 @@
 | --- | --- |
 | `dev` push 或 PR | 每次執行 repository／source contracts；依完整 Git diff 選擇 Ubuntu runtime、QML、website、Nix 與 Arch |
 | `main` push 或 PR | 所有共用測試、五個發行版建置、clang-tidy／Qt lifetime、CodeQL |
-| Merge queue | 啟用全部測試類別；開發分支使用 Arch matrix |
+| Merge queue | 全部測試類別及五個發行版建置 |
 | 每週排程 | 在預設分支 `main` 執行完整檢查 |
 | 手動 `Dev CI` | 依最後一個 commit 選擇測試；勾選 `full` 執行全部檢查 |
 
