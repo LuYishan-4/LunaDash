@@ -1,6 +1,6 @@
-{ lib, stdenv, cmake, ninja, pkg-config, python3, makeWrapper
+{ lib, stdenv, runCommand, cmake, ninja, pkg-config, python3, makeWrapper
 , qt6, wayland, wayland-protocols, wayland-scanner, wlroots_0_19
-, libxkbcommon, libGL, glib, libinput, systemd, dbus, quickshell
+, libxkbcommon, libGL, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, quickshell
 , coreutils, bash, gnused, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages
 , xdg-desktop-portal-wlr, revision ? "unknown"
@@ -8,9 +8,14 @@
 let
   # Quickshell must inherit the QML modules imported by LunaDash, including
   # QtMultimedia, rather than relying on a user's profile or global Qt paths.
-  shell = quickshell.overrideAttrs (old: {
-    buildInputs = old.buildInputs ++ [ qt6.qtmultimedia qt6.qt5compat ];
-  });
+  shell = runCommand "lunadash-quickshell" {
+    nativeBuildInputs = [ makeWrapper ];
+  } ''
+    mkdir -p "$out/bin"
+    makeWrapper ${lib.getExe quickshell} "$out/bin/quickshell" \
+      --prefix NIXPKGS_QT6_QML_IMPORT_PATH : "${lib.makeSearchPath qt6.qtbase.qtQmlPrefix [ qt6.qtmultimedia qt6.qt5compat ]}" \
+      --prefix QT_PLUGIN_PATH : "${lib.makeSearchPath qt6.qtbase.qtPluginPrefix [ qt6.qtmultimedia ]}"
+  '';
   runtimePath = lib.makeBinPath [
     shell coreutils bash gnused dbus systemd xwayland xdg-utils wl-clipboard
     grim slurp brightnessctl ddcutil wireplumber pulseaudio
@@ -20,18 +25,19 @@ stdenv.mkDerivation {
   pname = "lunadash";
   version = "1.0.1a";
   src = lib.fileset.toSource {
-    root = ../..;
+    root = ..;
     fileset = lib.fileset.unions [
-      ../../CMakeLists.txt ../../cmake ../../src ../../qml ../../data
-      ../../protocols ../../scripts ../../templates ../../tests ../../LICENSE
-      ../../docs/PLUGIN_TARGETS.md ../../docs/PLUGINS.md
+      ../CMakeLists.txt ../cmake ../src ../qml ../data
+      ../protocols ../scripts ../templates ../tests ../LICENSE
+      ../docs/PLUGIN_TARGETS.md ../docs/PLUGINS.md
     ];
   };
 
   nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper wayland-scanner qt6.wrapQtAppsHook ];
   buildInputs = [
     qt6.qtbase qt6.qtdeclarative qt6.qtwayland qt6.qtsvg qt6.qtmultimedia
-    wayland wayland-protocols wlroots_0_19 libxkbcommon libGL glib libinput systemd
+    wayland wayland-protocols wlroots_0_19 libxkbcommon libGL glib libinput
+    pixman libdrm libxcb systemd
   ];
   cmakeFlags = [
     "-DBUILD_TESTING=OFF"

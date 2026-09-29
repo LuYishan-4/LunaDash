@@ -19,7 +19,7 @@ def select(paths, full=False):
             selected["website"] = True
         elif path.startswith(("docs/",)) or path.endswith(".md") or path in ("LICENSE", ".gitignore", ".clang-format"):
             continue
-        elif path in ("flake.nix", "flake.lock") or path.startswith("packaging/nixos/"):
+        elif path in ("flake.nix", "flake.lock") or path.startswith("nix/"):
             selected["nix"] = True
         elif path.startswith(("qml/", "tests/qml/")):
             selected.update(qml=True, native=True, nix=True)

@@ -24,7 +24,7 @@ class SelectionTests(unittest.TestCase):
             self.assertFalse(selected["analysis"])
 
     def test_nix_change_does_not_rebuild_other_distributions(self):
-        self.assertEqual([name for name, on in changes.select(["flake.lock"]).items() if on], ["nix"])
+        self.assertEqual([name for name, on in changes.select(["flake.lock", "nix/module.nix"]).items() if on], ["nix"])
 
     def test_unknown_and_ci_paths_get_full_coverage(self):
         for path in ["new-domain/input.conf", ".github/workflows/ci.yml", "tests/ci/test_changes.py"]:

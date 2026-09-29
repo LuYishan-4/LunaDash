@@ -4,6 +4,8 @@ let
     inherit system;
     modules = [ module ({ ... }: {
       programs.lunadash.enable = true;
+      services.displayManager.enable = true;
+      services.displayManager.defaultSession = "lunadash";
       boot.loader.grub.enable = false;
       fileSystems."/" = { device = "/dev/vda"; fsType = "ext4"; };
       system.stateVersion = "26.05";

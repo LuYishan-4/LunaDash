@@ -31,6 +31,10 @@ Apply your configuration with `sudo nixos-rebuild switch --flake .#my-host`, the
 
 The package targets `x86_64-linux` and `aarch64-linux`. CI builds and exercises x86_64; aarch64 is evaluated only. Following your host's nixpkgs uses its Qt and wlroots packages; the repository's committed lock is the reference used by CI. Older stable nixpkgs releases are not covered. The package uses wlroots 0.19 and Quickshell 0.3+, with Qt multimedia and SVG support included.
 
+## Source layout
+
+The repository root contains `flake.nix` and `flake.lock`. Nix implementation files live in `nix/`: `package.nix` owns the derivation and runtime wrappers, `module.nix` owns NixOS options and services, and `checks.nix` owns package/module/runtime verification.
+
 ## What the module configures
 
 - The LunaDash package, display-manager session entries, graphics support, polkit, DConf and optional XWayland compatibility.
@@ -68,3 +72,5 @@ Use NixOS generations for installation, updates and rollback. `install.sh`, `ins
 The Nix CI suite evaluates module assertions and session/portal registration, builds the installed package and starts its compositor with headless wlroots/pixman using the installed wrappers. Its state JSON is retained as a CI artifact. This does not verify an actual display-manager login, Quickshell visuals, physical input, GPU drivers, multi-monitor behavior or PipeWire capture on NixOS. Those need a real session and screenshots before release qualification. See [CI](CI.md) and [testing](TESTING_AND_FILES.md).
 
 Packaging follows the upstream [Qt wrapper guidance](https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/qt.section.md) and [NixOS portal module](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/config/xdg/portal.nix).
+
+Source archives produced by `scripts/make-source.sh` also include the flake, lock and `nix/` definitions.

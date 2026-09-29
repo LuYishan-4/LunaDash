@@ -164,7 +164,7 @@ jobs:
       - name: Install Qt Quick test tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y qt6-declarative-dev-tools qml6-module-qttest \
+          sudo apt-get install -y qt6-declarative-dev-tools libqt6svg6 qml6-module-qttest \
             qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtquick-templates \
             qml6-module-qtquick-shapes qml6-module-qtqml-workerscript
@@ -196,11 +196,12 @@ jobs:
           persist-credentials: false
       - uses: cachix/install-nix-action@v31
       - name: Evaluate both package architectures and module, build and run x86_64 checks
+        id: nix-check
         run: |
           nix eval --raw .#packages.aarch64-linux.default.drvPath
           nix flake check --print-build-logs --no-update-lock-file
       - name: Preserve installed runtime state
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.nix-check.outcome == 'success' }}
         run: |
           nix build .#checks.x86_64-linux.runtime --out-link result-runtime --no-update-lock-file
           cp result-runtime/state.json nix-runtime-state.json

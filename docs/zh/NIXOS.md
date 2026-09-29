@@ -33,6 +33,10 @@ LunaDash **1.0.1a** 提供 Nix flake、套件與 NixOS 模組。Arch Linux 仍�
 
 套件提供 `x86_64-linux` 與 `aarch64-linux`；CI 建置並執行 x86_64，aarch64 只驗證求值。使用 `follows` 會採用主機的 Qt 與 wlroots 套件，專案提交的 lock 才是 CI 使用的基準。較舊的穩定版 nixpkgs 尚未涵蓋。套件使用 wlroots 0.19、Quickshell 0.3+，包含 Qt 多媒體與 SVG 模組。
 
+## 原始碼布局
+
+根目錄保留 `flake.nix` 與 `flake.lock`。Nix 實作集中於最外層 `nix/`：`package.nix` 管理套件與 runtime wrapper，`module.nix` 管理 NixOS 選項及服務，`checks.nix` 管理套件、模組與 runtime 驗證。
+
 ## 模組設定範圍
 
 - 安裝 LunaDash，註冊登入項目，啟用 graphics、polkit、DConf 及選用的 XWayland 相容層。
@@ -70,3 +74,5 @@ NixOS 的安裝、更新與回復都使用系統世代。`install.sh`、`install
 Nix CI 會求值模組斷言及 session／portal 註冊、建置安裝後的套件，再透過已安裝 wrapper 啟動 headless wlroots／pixman compositor。狀態 JSON 保留為 CI artifact。這不代表已驗證 NixOS 的實際登入畫面、Quickshell 外觀、實體輸入、GPU 驅動、多螢幕或 PipeWire 擷取；發行前仍需要真實工作階段及截圖。詳見 [CI](CI.md) 與[測試指南](TESTING_AND_FILES.md)。
 
 套件實作依循上游 [Qt wrapper 說明](https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/qt.section.md)與 [NixOS portal 模組](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/config/xdg/portal.nix)。
+
+`scripts/make-source.sh` 產生的原始碼封存檔也包含 flake、lock 與 `nix/` 定義。

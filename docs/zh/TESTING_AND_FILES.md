@@ -6,7 +6,7 @@ Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後�
 
 ## 建置與靜態檢查
 
-需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Qt 6.4+（Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、GL headers 與 GLib。Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
+需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Qt 6.4+（Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、pixman、libdrm、GL headers 與 GLib。Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -91,6 +91,7 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 | `src/service/portal` | FileChooser portal |
 | `src/shell` | modules/media |
 | `src/ctl` | control client |
+| `nix`、`flake.nix`、`flake.lock` | Nix 套件、NixOS 模組與鎖定的相依來源 |
 | `qml` | Shell UI |
 | `data` | assets/translations/metadata |
 | `scripts`, `tests` | install/diagnostics/regression |

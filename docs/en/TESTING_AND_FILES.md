@@ -4,7 +4,7 @@ Finish code, packaging and documentation changes before building. Arch Linux is 
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
+The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, pixman, libdrm, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -84,6 +84,7 @@ This builds packages without installing them. The archive must include `data/plu
 | `src/service/portal` | D-Bus startup and native file chooser implementation |
 | `src/shell` | Generic QML module schema/runtime and media helper |
 | `src/ctl` | Bounded local control client |
+| `nix`, `flake.nix`, `flake.lock` | Nix package, NixOS module and pinned dependency input |
 | `qml` | Shell feature UI and shared controls |
 | `data` | User-facing assets, templates, translations and portal/plugin metadata |
 | `cmake/modules/Renderer.cmake` | Explicit render sources and embedded shader inventory |

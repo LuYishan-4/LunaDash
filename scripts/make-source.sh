@@ -5,7 +5,7 @@ project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 # Native plugin examples live under data/plugins; SDK templates live under
 # templates/plugins. Keep required inputs strict instead of skipping omissions.
 set -- CMakeLists.txt .clang-format cmake LICENSE README.md install.sh src data qml \
-  protocols scripts tests docs templates packaging/arch/PKGBUILD
+  protocols scripts tests docs templates packaging/arch/PKGBUILD flake.nix flake.lock nix
 for entry do
   if [ ! -e "$project_dir/$entry" ]; then
     printf 'Missing required source path: %s\n' "$entry" >&2

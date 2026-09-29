@@ -31,3 +31,5 @@ The contribution policy still targets `dev` and protects workflows/generated rel
 Removed unused `scripts/security/check_pr_scope.py` (the obsolete rule forbidding documentation), `scripts/security/run_local_audit.sh` (a duplicate audit/build wrapper), and `scripts/test-xdpw-sources.sh` (an unreferenced standalone probe). Active installer/session scripts, SDK helpers, diagnostics and documented manual tools remain.
 
 A green build proves only the checks that ran at that commit. Physical GPU/input, real login, Quickshell visuals and application compatibility still need release-session testing. See [testing](TESTING_AND_FILES.md) and [security checks](SECURITY_CHECKS.md). Website source changes on `dev` are validated there; public Pages deployment happens from `main`.
+
+The translation gate covers every shipped locale. Existing missing desktop strings and duplicate catalog keys were corrected when enabling the shared gate.

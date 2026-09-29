@@ -98,5 +98,14 @@
     "No wireless networks were reported. Search to scan again.": "未偵測到無線網路，請按搜尋以重新掃描。",
     "Wi-Fi credentials are managed by NetworkManager. Use the system network editor for secured networks.": "Wi-Fi 認證資料由 NetworkManager 管理；受保護的網路請使用系統網路編輯器設定。",
     "Dolphin (default)": "Dolphin（預設）",
-    "Using the default application.": "正在使用預設應用程式。"
+    "Using the default application.": "正在使用預設應用程式。",
+    "Alt + Tab previews windows in the current workspace. Super + Tab previews workspaces. Use Tab, arrow keys or scrolling; release Alt/Super to confirm, or press Esc to cancel.": "Alt + Tab 預覽目前工作區的視窗，Super + Tab 預覽工作區。使用 Tab、方向鍵或捲動選擇；放開 Alt/Super 確認，按 Esc 取消。",
+    "Animations enabled": "動畫已啟用",
+    "Bundled": "內建",
+    "Drag a window onto another to swap them": "將視窗拖到另一個視窗上以交換位置",
+    "Drag a window titlebar onto another window to exchange their slots with the normal layout animation. Alt + left-drag remains available for compositor-driven dragging; dropping near the top or bottom edge inserts into a column.": "將視窗標題列拖到另一個視窗上，以一般布局動畫交換位置。仍可使用 Alt + 左鍵拖曳，由合成器處理；拖到頂端或底端邊緣附近會插入欄中。",
+    "Favorites": "我的最愛",
+    "Library": "桌布庫",
+    "Light/dark mode is always published as the system preference through the desktop portal and gsettings. This optional switch additionally syncs LunaDash palette files to GTK 3/4 and Kitty; existing files receive a backup.": "明暗模式一律透過桌面 portal 與 gsettings 發布為系統偏好。此選項另將 LunaDash 配色檔同步至 GTK 3/4 與 Kitty；現有檔案會先備份。",
+    "Window and workspace switchers accept arrow keys; Enter or releasing Alt/Super confirms, and Escape cancels.": "視窗與工作區切換器支援方向鍵；按 Enter 或放開 Alt/Super 確認，按 Escape 取消。"
 }

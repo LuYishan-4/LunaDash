@@ -33,3 +33,5 @@ CI／policy 修改、未知原始碼目錄、新分支或無法取得基準 comm
 移除未使用的 `scripts/security/check_pr_scope.py`（舊版禁止修改文件規則）、`scripts/security/run_local_audit.sh`（重複 audit／build wrapper）及 `scripts/test-xdpw-sources.sh`（無引用的獨立 probe）。仍在使用的 installer、session、SDK、diagnostics 與文件記載的手動工具保留。
 
 成功結果只證明該 commit 實際執行的檢查。實體 GPU／輸入、真實登入、Quickshell 外觀及應用程式相容性仍需發行前測試。詳見[測試指南](TESTING_AND_FILES.md)與[安全檢查](SECURITY_CHECKS.md)。`dev` 會驗證網站原始碼；公開 Pages 網站由 `main` 部署。
+
+翻譯 gate 涵蓋所有隨附語言。啟用共用檢查時，一併補齊既有桌面字串缺漏並移除重複的語言包鍵。

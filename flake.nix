@@ -7,7 +7,7 @@
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      packageFor = pkgs: pkgs.callPackage ./packaging/nixos/package.nix {
+      packageFor = pkgs: pkgs.callPackage ./nix/package.nix {
         revision = self.rev or self.dirtyRev or "unknown";
       };
     in {
@@ -20,14 +20,14 @@
         });
       nixosModules.default = self.nixosModules.lunadash;
       nixosModules.lunadash = { pkgs, lib, ... }: {
-        imports = [ ./packaging/nixos/module.nix ];
+        imports = [ ./nix/module.nix ];
         programs.lunadash.package = lib.mkDefault (packageFor pkgs);
       };
       checks = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
           package = self.packages.${system}.lunadash;
-        in import ./packaging/nixos/checks.nix {
+        in import ./nix/checks.nix {
           inherit pkgs package system nixpkgs;
           module = self.nixosModules.lunadash;
         });
