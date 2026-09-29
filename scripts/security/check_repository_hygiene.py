@@ -6,7 +6,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".h", ".hh", ".hpp", ".qml", ".py", ".sh",
-    ".txt", ".cmake", ".yml", ".yaml", ".json",
+    ".txt", ".cmake", ".yml", ".yaml", ".json", ".nix",
 }
 SECRET_PATTERNS = (
     r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",

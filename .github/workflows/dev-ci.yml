@@ -1,0 +1,26 @@
+name: Dev CI
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+  merge_group:
+    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run all distributions and security analysis
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+concurrency:
+  group: dev-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    uses: ./.github/workflows/main-build.yml
+    with:
+      full: ${{ inputs.full || false }}

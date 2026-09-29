@@ -1,5 +1,7 @@
 # LunaDash documentation — English
 
+NixOS uses the [flake and system module](NIXOS.md). See [CI policy](CI.md) for branch coverage and verification limits.
+
 - [Complete keyboard shortcuts](SHORTCUTS.md)
 
 [Traditional Chinese](../zh/README.md) · [Documentation index](../README.md)

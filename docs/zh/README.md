@@ -1,5 +1,7 @@
 # LunaDash 文件 — 繁體中文
 
+NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證限制見 [CI 說明](CI.md)。
+
 [English](../en/README.md) · [文件總索引](../README.md)
 
 - [NyxNiri 桌面整合、Orbit 與動態桌布](NYXNIRI_DESKTOP.md)

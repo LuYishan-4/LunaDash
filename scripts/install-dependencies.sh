@@ -34,6 +34,11 @@ while (($#)); do
     shift
 done
 
+if [[ -e /etc/NIXOS ]]; then
+    echo 'On NixOS, import the LunaDash flake module and enable programs.lunadash.enable. See docs/en/NIXOS.md.' >&2
+    exit 2
+fi
+
 if ((EUID == 0)); then
     if [[ ${LUDASH_ALLOW_ROOT_DEPS:-0} != 1 ]]; then
         echo 'Run as a normal user; privilege elevation is requested only for package installation.' >&2

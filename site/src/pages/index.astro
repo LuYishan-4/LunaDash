@@ -111,10 +111,11 @@ const shortcuts: Array<[string, string]> = [
 
   <section id="install" class="wrap section">
     <span class="eyebrow">03 / INSTALL</span>
-    <h2>Start with one installer.</h2>
+    <h2>Choose your installation.</h2>
     <p>Clone the development branch, then run <code>./scripts/install-session.sh</code>. It handles dependencies, builds LunaDash and installs the login session.</p>
     <CodeBlock label="INSTALL FROM THE DEV BRANCH" code={build} />
     <p>Log out and choose <strong>LunaDash</strong> in your display manager. Use <code>./scripts/install-session.sh --dry-run</code> to preview the installation. Options and recovery steps are in the <a class="inline-link" href={`${base}docs/start/`}>installation guide</a>.</p>
+    <p>On NixOS, use the <a class="inline-link" href={`${base}docs/start/#nixos`}>flake and NixOS module</a> with <code>programs.lunadash.enable = true</code>. Updates and rollback use NixOS generations.</p>
     <div class="callout">An active development preview, built primarily on Arch Linux. Quickshell 0.3+ is required; if it is unavailable from your distribution, the installer reports the missing dependency. Keep your current desktop available while trying LunaDash.</div>
     <p class="coverage-note">Screen locking and screen-sharing/PipeWire portals are still incomplete. Native plugins stay disabled by default and execute without a sandbox when enabled.</p>
   </section>

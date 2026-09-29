@@ -1,106 +1,261 @@
-name: Main build and integration
-on: [push, pull_request, merge_group, workflow_dispatch]
+name: Shared CI suites
+on:
+  workflow_call:
+    inputs:
+      full:
+        type: boolean
+        default: false
 permissions:
   contents: read
-concurrency:
-  group: main-build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build:
-    name: Ubuntu build, contracts and runtime integration
+  changes:
+    name: Select suites
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 5
+    outputs:
+      native: ${{ steps.select.outputs.native }}
+      qml: ${{ steps.select.outputs.qml }}
+      website: ${{ steps.select.outputs.website }}
+      nix: ${{ steps.select.outputs.nix }}
+      distro: ${{ steps.select.outputs.distro }}
+      analysis: ${{ steps.select.outputs.analysis }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: select
+        env:
+          CI_FULL: ${{ inputs.full }}
+        run: python3 scripts/ci/changes.py
+
+  quality:
+    name: Repository and source contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-
-      - name: Install dependencies
+      - name: Install shell audit tools
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Repository and CI policy
         run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            cmake g++ git ninja-build pkg-config python3 \
-            libgl-dev libgl1-mesa-dri libwayland-dev wayland-protocols libwlroots-dev \
-            libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
-            qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools qt6-wayland \
-            libqt6opengl6-dev libqt6svg6 \
-            qml6-module-qttest qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-            qml6-module-qtquick-window qml6-module-qtquick-templates \
-            qml6-module-qtquick-shapes qml6-module-qtqml-workerscript \
-            xvfb xauth xdotool xwayland wayland-utils wl-clipboard grim shared-mime-info
-
-      - name: Configure and build
-        run: |
-          cmake -S . -B build-main -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DLUDASH_BUILD_RENDERER_TESTS=ON
-          cmake --build build-main --parallel 2
-
-      - name: Run maintained CTest suite
-        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure
-
-      - name: Validate source and public contracts
+          python3 tests/ci/test_changes.py
+          python3 tests/ci/test_pr_policy.py
+          python3 scripts/security/check_repository_hygiene.py workflows
+          python3 scripts/security/check_repository_hygiene.py secrets
+          python3 scripts/security/check_repository_hygiene.py paths
+          python3 tests/security/test_sarif_gate.py
+      - name: Architecture and source language
+        if: ${{ !cancelled() }}
         run: |
           python3 scripts/check-source-layout.py
           python3 tests/architecture/test_source_layout.py
           python3 tests/architecture/test_window_template_contract.py
+          python3 tests/security/test_source_language.py
           python3 tests/renderer/test_render_architecture.py
           python3 tests/renderer/test_shader_extensions.py
           python3 tests/renderer/test_shader_diagnostics.py
           python3 tests/wayland/test_no_qtwayland.py
           python3 tests/wayland/test_graphics_protocol_contract.py
           python3 tests/wayland/test_input_contract.py
-          python3 tests/settings/test_schema.py
+      - name: Shell syntax and ShellCheck
+        if: ${{ !cancelled() }}
+        run: |
+          bash -n install.sh
+          while IFS= read -r -d '' file; do
+            case "$(head -n 1 "$file")" in
+              *bash*) bash -n "$file"; shellcheck --severity=error "$file" ;;
+              *'/sh') sh -n "$file"; shellcheck --severity=error "$file" ;;
+            esac
+          done < <(git ls-files -z scripts)
+      - name: QML design, actions and translations
+        if: ${{ !cancelled() }}
+        run: |
           python3 scripts/ci/check_qml_actions.py
           python3 scripts/ci/check_qml_style.py
-          bash -n install.sh
-          python3 tests/installer/test_install.py
-          python3 tests/packaging/test_make_source.py
-
-      - name: Parse and test QML
+          python3 scripts/check-translations.py
+          python3 scripts/test-translation-checker.py
+      - name: Packaging and installer contracts
+        if: ${{ !cancelled() }}
         run: |
-          qmlformat_bin="$(command -v qmlformat6 || command -v qmlformat || true)"
-          if [ -z "$qmlformat_bin" ] && [ -x /usr/lib/qt6/bin/qmlformat ]; then
-            qmlformat_bin=/usr/lib/qt6/bin/qmlformat
-          fi
-          test -n "$qmlformat_bin"
-          while IFS= read -r -d '' file; do
-            "$qmlformat_bin" "$file" >/dev/null
-          done < <(find qml -type f -name '*.qml' -print0)
-          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
-            QML_XHR_ALLOW_FILE_READ=1 /usr/lib/qt6/bin/qmltestrunner -input tests/qml
+          python3 tests/packaging/test_make_source.py
+          python3 tests/packaging/test_nix_update.py
+          python3 tests/update/test_update_contract.py
 
-      - name: Verify compositor linkage and startup
+  native:
+    name: Ubuntu build and runtime
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/ubuntu-dependencies
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ubuntu-native-v1-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ubuntu-native-v1-${{ github.ref_name }}-
+            ubuntu-native-v1-
+      - name: Configure and build once
+        id: build
+        run: |
+          ccache --max-size=500M
+          cmake -S . -B build-main -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DLUDASH_BUILD_RENDERER_TESTS=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON
+          cmake --build build-main --parallel 2
+      - name: Maintained CTest suite including portal runtime
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure --timeout 120
+      - name: Plugin SDK build and installation
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: python3 tests/plugins/test_sdk.py --sdk build-main/sdk-build
+      - name: Compositor startup and linkage
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           ldd build-main/lunadash-compositor | grep -E 'libwlroots|libwayland-server'
           ! ldd build-main/lunadash-compositor | grep -q libQt6WaylandCompositor
           python3 tests/renderer/test_startup_failure.py build-main/lunadash-compositor
-
-      - name: Exercise core Wayland and XWayland runtime
+      - name: Wayland lifecycle
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           ./scripts/test-xdg-lifecycle.sh "$PWD/build-main"
+          LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-main" ./scripts/test-wayland.sh
+      - name: XWayland lifecycle
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
           xvfb-run -a python3 tests/wayland/test_xwayland.py build-main
           python3 tests/wayland/test_xwayland_notifications.py build-main
-          LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-main" ./scripts/test-wayland.sh
-
-      - name: Verify relocated software OpenGL renderer
+      - name: Relocated software OpenGL renderer
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Tests
           cd "$RUNNER_TEMP"
           QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
             "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
-
       - name: Preserve runtime diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: main-runtime-diagnostics
+          name: ubuntu-runtime-diagnostics
           path: |
-            build-main/wayland.log
-            build-main/wayland-state.json
-            build-main/xdg-lifecycle.log
-            build-main/xwayland.log
-            build-main/xwayland-notifications.log
+            build-main/*.log
+            build-main/*state.json
+            build-main/Testing/Temporary/
           if-no-files-found: ignore
           retention-days: 7
+
+  qml:
+    name: QML suite
+    needs: changes
+    if: needs.changes.outputs.qml == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Qt Quick test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-declarative-dev-tools qml6-module-qttest \
+            qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-window qml6-module-qtquick-templates \
+            qml6-module-qtquick-shapes qml6-module-qtqml-workerscript
+      - name: Parse every shell QML file
+        run: |
+          while IFS= read -r -d '' file; do
+            /usr/lib/qt6/bin/qmlformat "$file" >/dev/null
+          done < <(find qml -type f -name '*.qml' -print0)
+      - name: Run all QML tests
+        if: ${{ !cancelled() }}
+        run: |
+          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 \
+            /usr/lib/qt6/bin/qmltestrunner -input tests/qml
+
+  website:
+    needs: changes
+    if: needs.changes.outputs.website == 'true'
+    uses: ./.github/workflows/main-site.yml
+
+  nix:
+    name: NixOS package and module
+    needs: changes
+    if: needs.changes.outputs.nix == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@v31
+      - name: Evaluate both package architectures and module, build and run x86_64 checks
+        run: |
+          nix eval --raw .#packages.aarch64-linux.default.drvPath
+          nix flake check --print-build-logs --no-update-lock-file
+      - name: Preserve installed runtime state
+        if: ${{ !cancelled() }}
+        run: |
+          nix build .#checks.x86_64-linux.runtime --out-link result-runtime --no-update-lock-file
+          cp result-runtime/state.json nix-runtime-state.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nix-runtime-diagnostics
+          path: nix-runtime-state.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  distributions:
+    needs: changes
+    if: needs.changes.outputs.distro == 'true'
+    uses: ./.github/workflows/distro-build.yml
+    with:
+      full: ${{ inputs.full || needs.changes.outputs.analysis == 'true' }}
+
+  clang:
+    needs: changes
+    if: needs.changes.outputs.analysis == 'true'
+    uses: ./.github/workflows/pr-clang-tidy.yml
+
+  codeql:
+    needs: changes
+    if: needs.changes.outputs.analysis == 'true'
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: ./.github/workflows/pr-codeql.yml
+
+  gate:
+    name: CI result
+    needs: [changes, quality, native, qml, website, nix, distributions, clang, codeql]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every selected suite to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ['RESULTS'])
+          failures = {name: job['result'] for name, job in results.items()
+                      if job['result'] not in ('success', 'skipped')}
+          print(json.dumps(results, indent=2))
+          if failures:
+              raise SystemExit(f'CI failed: {failures}')
+          selected = results['changes']['outputs']
+          for output, job in [('native', 'native'), ('qml', 'qml'), ('website', 'website'),
+                              ('nix', 'nix'), ('distro', 'distributions'),
+                              ('analysis', 'clang'), ('analysis', 'codeql')]:
+              if selected.get(output) == 'true' and results[job]['result'] != 'success':
+                  raise SystemExit(f'Selected suite did not pass: {job}')
+          PY

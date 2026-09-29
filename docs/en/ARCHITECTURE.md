@@ -1,5 +1,7 @@
 # Source architecture
 
+NixOS uses the [flake and system module](NIXOS.md). See [CI policy](CI.md) for branch coverage and verification limits.
+
 LunaDash is a development Wayland desktop built with C++20, C11, wlroots and Qt 6. Quickshell/QML owns the desktop shell. Qt Widgets implements the native tools; Qt Wayland is used by clients, not as the compositor server. Arch Linux is the primary development platform. Passing nested or software-rendered tests does not establish complete hardware or login-session support.
 
 ## Source domains

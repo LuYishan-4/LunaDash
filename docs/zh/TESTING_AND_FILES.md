@@ -62,20 +62,13 @@ LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.
 (cd packaging/arch && makepkg --cleanbuild --force --nosign)
 ```
 
-Source archive 必須含 `examples/` 與 `templates/`，不然 installed plugin SDK 會缺 example/template。
+Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plugin SDK 會缺 example/template。
 
 ## CI
 
-| 類別 | 內容 |
-| --- | --- |
-| Main build and integration | 單一 Ubuntu 主流程，涵蓋 maintained CTest、source contracts、QML parse/test、renderer、startup failure、Wayland/XWayland lifecycle 與 software OpenGL relocation |
-| Distro | Arch、Debian 13、Fedora 45、openSUSE Tumbleweed、Alpine Edge |
-| Website | Astro check/build/link/asset |
-| PR source style | architecture、英文 source、shell syntax/ShellCheck、QML design-system |
-| PR analysis / hygiene | policy、repository hygiene、clang-tidy、CodeQL、Qt lifetime |
-| Pages deployment | 從 main 建置與部署正式網站 |
+[Dev CI 與 Main CI](CI.md) 共用維護中的測試集。開發流程依完整 diff 選擇測試類別，相關變更建置 Arch；main 與完整流程涵蓋五個發行版、clang-tidy 與 CodeQL。Ubuntu 只建置一次，供 CTest、portal frontend、plugin SDK、Wayland／XWayland 與 software OpenGL 使用；QML、網站及 NixOS 分別回報。
 
-不再為單一小功能維護獨立 workflow。個別 UI 互動與一次性 desktop regression 應放進 maintained test suite 或 release 實機驗證，而不是各自成為 required workflow。Void/Gentoo 有 installer path，但 CI breadth 較小。
+[NixOS](NIXOS.md) 提供鎖定的 flake、套件與系統模組。CI 建置 x86_64、求值 aarch64 並檢查安裝後的 headless runtime；真實登入及 GPU 行為仍需實機驗證。請查看指定 commit 的完成結果。Void／Gentoo 保留 installer path，但沒有相同 CI 覆蓋。
 
 ## 原始碼地圖
 

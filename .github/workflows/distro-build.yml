@@ -1,24 +1,12 @@
 name: Linux distribution builds
 on:
-  push:
-    branches: [dev]
-    paths:
-      - "CMakeLists.txt"
-      - "cmake/**"
-      - "src/**"
-      - "qml/**"
-      - "tests/**"
-      - "scripts/install-dependencies.sh"
-      - "scripts/install-session.sh"
-      - ".github/workflows/distro-build.yml"
-  workflow_dispatch:
-  schedule:
-    - cron: "23 4 * * 1"
+  workflow_call:
+    inputs:
+      full:
+        type: boolean
+        default: false
 permissions:
   contents: read
-concurrency:
-  group: distro-build-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   build:
     name: ${{ matrix.name }} source build
@@ -27,22 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Arch Linux
-            image: archlinux:latest
-            bootstrap: "pacman -Syu --noconfirm --needed base-devel git"
-          - name: Debian 13
-            image: debian:13-slim
-            bootstrap: ""
-          - name: Fedora 45
-            image: fedora:45
-            bootstrap: ""
-          - name: openSUSE Tumbleweed
-            image: opensuse/tumbleweed
-            bootstrap: ""
-          - name: Alpine Edge
-            image: alpine:edge
-            bootstrap: "apk add --no-cache bash"
+        include: ${{ fromJSON(inputs.full && '[{"name":"Arch Linux","image":"archlinux:latest","bootstrap":"pacman -Syu --noconfirm --needed base-devel git"},{"name":"Debian 13","image":"debian:13-slim","bootstrap":""},{"name":"Fedora 45","image":"fedora:45","bootstrap":""},{"name":"openSUSE Tumbleweed","image":"opensuse/tumbleweed","bootstrap":""},{"name":"Alpine Edge","image":"alpine:edge","bootstrap":"apk add --no-cache bash"}]' || '[{"name":"Arch Linux","image":"archlinux:latest","bootstrap":"pacman -Syu --noconfirm --needed base-devel git"}]') }}
     steps:
       - uses: actions/checkout@v4
         with:

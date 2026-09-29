@@ -1,5 +1,7 @@
 # 開機登入、安裝與救援
 
+NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證限制見 [CI 說明](CI.md)。
+
 [English](../en/LOGIN_SESSION.md) · [繁中索引](README.md)
 
 LunaDash 仍是開發預覽版。安裝器會註冊真正的 Wayland login session，但巢狀測試不能證明每一種 DRM/KMS GPU、seat、VT、輸入裝置或 display manager 都能正常工作。測試期間請保留原本桌面或可登入的 TTY。

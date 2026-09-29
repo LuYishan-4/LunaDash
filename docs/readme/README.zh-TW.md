@@ -9,7 +9,7 @@
 
 <p>
   <a href="#linux-distributions"><img src="https://img.shields.io/badge/status-development_preview-d3bfe6?style=flat-square" alt="Development preview"></a>
-  <a href="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-build.yml?query=branch%3Adev"><img src="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-build.yml/badge.svg?branch=dev" alt="Build on dev"></a>
+  <a href="https://github.com/LuYishan-4/LunaDash/actions/workflows/dev-ci.yml?query=branch%3Adev"><img src="https://github.com/LuYishan-4/LunaDash/actions/workflows/dev-ci.yml/badge.svg?branch=dev" alt="Build on dev"></a>
   <a href="https://github.com/LuYishan-4/LunaDash/pulls"><img src="https://img.shields.io/github/issues-pr/LuYishan-4/LunaDash?style=flat-square&amp;label=pull%20requests&amp;color=9ccbfb" alt="Open pull requests"></a>
   <a href="https://github.com/LuYishan-4/LunaDash/issues"><img src="https://img.shields.io/github/issues/LuYishan-4/LunaDash?style=flat-square&amp;color=d3bfe6" alt="Open issues"></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only license"></a>
@@ -18,6 +18,7 @@
 <a id="linux-distributions"></a>
 
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793d1?logo=arch-linux&logoColor=white&style=flat-square)](https://archlinux.org)
+[![NixOS](https://img.shields.io/badge/NixOS-5277c3?logo=nixos&logoColor=white&style=flat-square)](../zh/NIXOS.md)
 [![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu_Rolling-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com)
 
@@ -114,3 +115,9 @@ PR 請以 **`dev`** 為目標分支。主旨要清楚描述改動，說明使用
 ### 打造自己的桌面功能
 
 [Plugin SDK 2](../zh/PLUGINS.md) 提供 C／C++ hook、Quickshell 元件及 OpenGL 著色器模板，可依類別設定並即時替換或並用。從[功能介面參考](../zh/PLUGIN_TARGETS.md)或預設停用的[堆疊視窗範例](../../examples/plugins/stacking-windows/README.md)開始。
+
+## NixOS 與 CI
+
+NixOS 請使用 [flake 與系統模組](../zh/NIXOS.md)，設定 `programs.lunadash.enable = true`；安裝、更新與回復由 NixOS 系統世代管理。
+
+`dev` 依變更選擇共用測試集，`main` 執行完整檢查；同一 repository 的 `dev` → `main` 升版 PR 可攜帶已審查的 workflow 變更。詳見 [CI 說明](../zh/CI.md)。

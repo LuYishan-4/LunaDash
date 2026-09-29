@@ -29,7 +29,7 @@ Every pull request must:
 5. List the validation actually run and any unverified platform or hardware scope.
 6. Review security-sensitive input, process execution, file paths, permissions, QObject lifetimes, and Wayland client lifetime when applicable.
 
-The `PR policy gate` workflow enforces the target branch and the protected paths above. It does **not** require every PR to modify `docs/` or `site/`. It runs the policy script from the base commit and inspects the proposed diff without checking out or running PR code. Source, security, and lifetime checks are path-scoped so documentation-only changes do not run C/C++ analysis unnecessarily.
+The `PR policy gate` workflow enforces the target branch and the protected paths above. Same-repository `dev` → `main` promotion PRs are exempt from those contribution restrictions; forks and other source branches are not. It does **not** require every PR to modify `docs/` or `site/`. It runs the policy script from the base commit and inspects the proposed diff without checking out or running PR code. Dev CI selects shared suites from the complete diff; Main CI and full runs include every suite. Expensive analyzer builds run on full checks or CI/security changes. See [CI policy](docs/en/CI.md) and [NixOS packaging](docs/en/NIXOS.md).
 
 ## Branch flow
 
