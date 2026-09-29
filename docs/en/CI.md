@@ -33,3 +33,5 @@ Removed unused `scripts/security/check_pr_scope.py` (the obsolete rule forbiddin
 A green build proves only the checks that ran at that commit. Physical GPU/input, real login, Quickshell visuals and application compatibility still need release-session testing. See [testing](TESTING_AND_FILES.md) and [security checks](SECURITY_CHECKS.md). Website source changes on `dev` are validated there; public Pages deployment happens from `main`.
 
 The translation gate covers every shipped locale. Existing missing desktop strings and duplicate catalog keys were corrected when enabling the shared gate.
+
+Runtime tests wait for document-portal FUSE teardown before removing their temporary directory. The notification lifecycle test allows extra time for the first lazy XWayland/GLX startup while retaining all 25 teardown and mapping checks.

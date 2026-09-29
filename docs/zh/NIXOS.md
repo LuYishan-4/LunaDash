@@ -31,7 +31,7 @@ LunaDash **1.0.1a** 提供 Nix flake、套件與 NixOS 模組。Arch Linux 仍�
 
 執行 `sudo nixos-rebuild switch --flake .#my-host`，登出後在登入畫面選擇 **LunaDash (Wayland)**。模組會註冊工作階段，但不會替主機選擇或啟用顯示管理器。使用 SDDM 的主機可自行設定 `services.displayManager.sddm.enable = true`。TTY 登入經 PAM/logind 建立使用者 runtime 目錄後，也能執行 `lunadash-session`。
 
-套件提供 `x86_64-linux` 與 `aarch64-linux`；CI 建置並執行 x86_64，aarch64 只驗證求值。使用 `follows` 會採用主機的 Qt 與 wlroots 套件，專案提交的 lock 才是 CI 使用的基準。較舊的穩定版 nixpkgs 尚未涵蓋。套件使用 wlroots 0.19、Quickshell 0.3+，包含 Qt 多媒體與 SVG 模組。
+套件提供 `x86_64-linux` 與 `aarch64-linux`；CI 建置並執行 x86_64，aarch64 只驗證求值。使用 `follows` 會採用主機的 Qt 與 wlroots 套件，專案提交的 lock 才是 CI 使用的基準。較舊的穩定版 nixpkgs 尚未涵蓋。套件使用 wlroots 0.20 的 foreign-toplevel capture API 與 Quickshell 0.3+，包含 Qt 多媒體與 SVG 模組。
 
 ## 原始碼布局
 

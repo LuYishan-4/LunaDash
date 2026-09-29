@@ -1,5 +1,5 @@
 { lib, stdenv, runCommand, cmake, ninja, pkg-config, python3, makeWrapper
-, qt6, wayland, wayland-protocols, wayland-scanner, wlroots_0_19
+, qt6, wayland, wayland-protocols, wayland-scanner, wlroots_0_20
 , libxkbcommon, libGL, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, quickshell
 , coreutils, bash, gnused, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages
@@ -36,7 +36,7 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper wayland-scanner qt6.wrapQtAppsHook ];
   buildInputs = [
     qt6.qtbase qt6.qtdeclarative qt6.qtwayland qt6.qtsvg qt6.qtmultimedia
-    wayland wayland-protocols wlroots_0_19 libxkbcommon libGL glib libinput
+    wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
     pixman libdrm libxcb systemd
   ];
   cmakeFlags = [

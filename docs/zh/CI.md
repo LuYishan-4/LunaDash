@@ -35,3 +35,5 @@ CI／policy 修改、未知原始碼目錄、新分支或無法取得基準 comm
 成功結果只證明該 commit 實際執行的檢查。實體 GPU／輸入、真實登入、Quickshell 外觀及應用程式相容性仍需發行前測試。詳見[測試指南](TESTING_AND_FILES.md)與[安全檢查](SECURITY_CHECKS.md)。`dev` 會驗證網站原始碼；公開 Pages 網站由 `main` 部署。
 
 翻譯 gate 涵蓋所有隨附語言。啟用共用檢查時，一併補齊既有桌面字串缺漏並移除重複的語言包鍵。
+
+Runtime 測試會等待 document portal 卸載 FUSE，再清除暫存目錄。通知生命週期測試為首次延遲啟動的 XWayland／GLX 保留較長時限，仍保留全部 25 次關閉與映射檢查。

@@ -29,7 +29,7 @@ Use the flake in an existing NixOS configuration with flakes enabled:
 
 Apply your configuration with `sudo nixos-rebuild switch --flake .#my-host`, then log out and select **LunaDash (Wayland)** in your display manager. The module registers the session; it does not choose or enable a display manager. For an SDDM host, configure `services.displayManager.sddm.enable = true` in your system configuration. A manual TTY login can run `lunadash-session` after PAM/logind has created a user runtime directory.
 
-The package targets `x86_64-linux` and `aarch64-linux`. CI builds and exercises x86_64; aarch64 is evaluated only. Following your host's nixpkgs uses its Qt and wlroots packages; the repository's committed lock is the reference used by CI. Older stable nixpkgs releases are not covered. The package uses wlroots 0.19 and Quickshell 0.3+, with Qt multimedia and SVG support included.
+The package targets `x86_64-linux` and `aarch64-linux`. CI builds and exercises x86_64; aarch64 is evaluated only. Following your host's nixpkgs uses its Qt and wlroots packages; the repository's committed lock is the reference used by CI. Older stable nixpkgs releases are not covered. The package uses wlroots 0.20 for its foreign-toplevel capture API and Quickshell 0.3+, with Qt multimedia and SVG support included.
 
 ## Source layout
 
