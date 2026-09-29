@@ -197,6 +197,26 @@ add_custom_command(
     DEPENDS ${LUDASH_XDG_SHELL_PROTOCOL_XML}
     VERBATIM)
 
+# wlroots 0.19 exposes capture protocol enums in its public headers but does
+# not install the generated declarations on every distribution.
+if(WLROOTS_VERSION VERSION_GREATER_EQUAL "0.19")
+    set(LUDASH_EXT_CAPTURE_PROTOCOL_HEADER
+        ${CMAKE_CURRENT_BINARY_DIR}/ext-image-copy-capture-v1-protocol.h)
+    set(LUDASH_EXT_CAPTURE_PROTOCOL_XML
+        ${WAYLAND_PROTOCOLS_DATADIR}/staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml)
+    if(NOT EXISTS "${LUDASH_EXT_CAPTURE_PROTOCOL_XML}")
+        message(FATAL_ERROR
+            "wayland-protocols capture XML not found: ${LUDASH_EXT_CAPTURE_PROTOCOL_XML}")
+    endif()
+    add_custom_command(
+        OUTPUT ${LUDASH_EXT_CAPTURE_PROTOCOL_HEADER}
+        COMMAND ${WAYLAND_SCANNER} server-header
+                ${LUDASH_EXT_CAPTURE_PROTOCOL_XML}
+                ${LUDASH_EXT_CAPTURE_PROTOCOL_HEADER}
+        DEPENDS ${LUDASH_EXT_CAPTURE_PROTOCOL_XML}
+        VERBATIM)
+endif()
+
 add_library(ludash-thumbnail-readback src/compositor/renderer/capture/ThumbnailReadback.c)
 target_include_directories(ludash-thumbnail-readback PUBLIC src)
 target_compile_definitions(ludash-thumbnail-readback PRIVATE WLR_USE_UNSTABLE=1)
@@ -240,7 +260,8 @@ add_library(ludash-wayland
     src/compositor/ipc/ControlServer.cpp
     src/desktop/system/SystemStatus.cpp
     ${LUDASH_WLR_LAYER_PROTOCOL_HEADER}
-    ${LUDASH_XDG_SHELL_PROTOCOL_HEADER})
+    ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
+    ${LUDASH_EXT_CAPTURE_PROTOCOL_HEADER})
 target_include_directories(ludash-wayland
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
