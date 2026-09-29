@@ -44,7 +44,8 @@ in {
     ${package}/bin/lunadash-session --check
     export WLR_BACKENDS=headless WLR_HEADLESS_OUTPUTS=1 WLR_RENDERER=pixman
     export LUDASH_DISABLE_XWAYLAND=1 LUDASH_SKIP_SETUP=1 QT_QPA_PLATFORM=offscreen
-    dbus-run-session -- ${package}/bin/lunadash-compositor \
+    dbus-run-session --config-file=${pkgs.dbus}/share/dbus-1/session.conf \
+      -- ${package}/bin/lunadash-compositor \
       --no-shell --socket lunadash-nix-check --exit-after 2500 --state "$TMPDIR/state.json"
     python3 - "$TMPDIR/state.json" <<'PY'
 import json, sys
