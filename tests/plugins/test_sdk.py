@@ -47,7 +47,7 @@ def main():
             print(f"SDK template built and staged: {name}")
 
         multi = root / "multi-target"
-        shutil.copytree(source / "templates/plugins" / "effect-cpp", multi)
+        shutil.copytree(source / "templates/plugins" / "window-animation", multi)
         multi_manifest = json.loads((multi / "metadata.json").read_text())
         animation = {
             "id": "window-animation",

@@ -50,6 +50,10 @@ if [[ "${1:-}" == "--status" ]]; then
     exit 0
 fi
 
+if [[ ${LUNADASH_PACKAGE_MANAGER:-} == nix || -e /etc/NIXOS ]]; then
+    fail "LunaDash is managed by Nix. Update your flake lock and run nixos-rebuild switch; use nixos-rebuild switch --rollback to restore a system generation."
+fi
+
 if [[ "${1:-}" == "--rollback" ]]; then
     rollback=true
     write_status "running" 10 "authorization" "Approve the system authorization request to restore the previous installation."

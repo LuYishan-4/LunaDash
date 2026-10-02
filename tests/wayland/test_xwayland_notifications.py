@@ -54,11 +54,13 @@ with tempfile.TemporaryDirectory(prefix="lunadash-notification-") as runtime:
             mapped = 0
             for iteration in range(25):
                 child = subprocess.Popen(command, env=env, stdout=log, stderr=log)
-                deadline = time.monotonic() + 5
+                # The first client starts lazy XWayland and initializes GLX.
+                # Cold software-renderer startup on CI can exceed five seconds.
+                deadline = time.monotonic() + (20 if iteration == 0 else 5)
                 saw_map = False
                 while child.poll() is None:
                     assert process.poll() is None, "Notification crashed compositor"
-                    assert time.monotonic() < deadline, "Notification hung"
+                    assert time.monotonic() < deadline, f"Notification {iteration} hung"
                     state = request()
                     # Override-redirect helpers are deliberately excluded from
                     # the application task list. Observe their own lifecycle.

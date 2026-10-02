@@ -4,25 +4,15 @@
 
 ## Pull Request
 
-一般 PR 必須以 `dev` 為 target branch。現有 PR policy gate 會拒絕一般 feature/fix PR 直接送往其他 base。
+一般貢獻 PR 以 `dev` 為目標。同一 repository 的 `dev` → `main` 升版 PR 明確允許；fork 與 feature branch 不適用。Policy 從 base commit 讀取，檢查 diff，不 checkout 或執行提案程式碼。
 
-每個 PR 都要同步更新：
+可見行為應同步更新 `docs/en/`、相同主題的 `docs/zh/` 與 `site/`。根 `docs/*.md` 保留為精簡的英文轉址頁。自動 gate 不要求無關的文件或網站修改。
 
-- `docs/en/`：英文技術／使用者文件。
-- `docs/zh/`：相同主題的繁體中文版本。
-- `site/`：對外網站中對應的 guide、API 或產品說明。
+一般 PR 不得修改 `.github/workflows/`、`site/src/pages/releases/` 下自動產生的 Markdown／MDX 或 `site/src/data/releases.json`。維護者在 `dev` 完成的 workflow 修改可透過同 repository 的升版 PR 帶到 main。Release impact 寫在 PR body。
 
-共享圖片與品牌資源仍在 `docs/image/`、`docs/brand/`。根 `docs/*.md` 目前是語言目錄遷移期的相容副本，不應成為新連結的首選。
+[Dev CI](CI.md) 依完整 diff 選擇共用測試類別；[Main CI](CI.md)、排程及完整流程涵蓋全部測試與發行版，包含 NixOS、clang-tidy 及 CodeQL。小功能併入維護中的測試集，不各自新增 workflow。Branch protection 應要求 aggregate `CI result`，並查看升版 commit 的實際結果。略過的 suite 不代表已通過。
 
-一般 PR 不得新增、修改、刪除或 rename：
-
-- `.github/workflows/`
-- `site/src/pages/releases/` 下的 release Markdown/MDX
-- `site/src/data/releases.json`
-
-Release impact 寫在 PR body；公開 release notes 由 GitHub Releases 產生。
-
-CI 目前保留廣義主流程：Main build and integration、跨發行版建置、網站，以及 PR policy/style/security。單一小功能不再各自維護 workflow；其 regression 應併入 maintained test suite 或 release 實機驗證。被 path filter 跳過的 job 不能宣稱「測試通過」。
+NixOS 發行內容包含根目錄 flake、lock 及 `nix/` 定義。系統世代更新方式及自動 runtime 驗證限制見 [NixOS](NIXOS.md)。
 
 ## Release notes
 

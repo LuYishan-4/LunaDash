@@ -93,7 +93,8 @@ class SourceArchiveTests(unittest.TestCase):
                 "protocols/wlr-layer-shell-unstable-v1.xml",
                 "tests/settings/contract.json", "scripts/install-session.sh",
                 "docs/en/SETTINGS_API.md", "docs/zh/SETTINGS_API.md",
-                "packaging/arch/PKGBUILD", ".lunadash-revision",
+                "packaging/arch/PKGBUILD", "flake.nix", "flake.lock",
+                "nix/package.nix", "nix/module.nix", "nix/checks.nix", ".lunadash-revision",
             ):
                 self.assertIn(PREFIX + name, names)
             self.assertTrue(all(name.startswith(PREFIX) for name in names))

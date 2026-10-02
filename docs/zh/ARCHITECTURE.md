@@ -1,5 +1,7 @@
 # 原始碼架構
 
+NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證限制見 [CI 說明](CI.md)。
+
 [English](../en/ARCHITECTURE.md) · [繁中索引](README.md)
 
 LunaDash 是以 C++20、C11、wlroots、Qt 6 與 Quickshell/QML 組成的 Wayland 桌面。**wlroots 是實際合成器後端**；Quickshell/QML 負責桌面 Shell，Qt Widgets 用於原生工具，Qt Wayland 是 client 端依賴，不是 compositor server。Arch Linux 是主要開發平台。巢狀或軟體繪圖測試成功，不等於所有實體 GPU／登入工作階段都已驗證。

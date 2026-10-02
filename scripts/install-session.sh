@@ -107,6 +107,11 @@ if $non_interactive && { [[ $guide_mode == always ]] || $setup_requested; }; the
     exit 2
 fi
 
+if [[ -e /etc/NIXOS ]]; then
+    echo 'On NixOS, import the LunaDash flake module and enable programs.lunadash.enable. See docs/en/NIXOS.md.' >&2
+    exit 2
+fi
+
 if ((EUID == 0)); then
     echo 'Run as a normal user; build/package tools must not run as root.' >&2
     exit 1

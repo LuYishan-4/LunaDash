@@ -2,7 +2,7 @@
 
 [English](../en/SECURITY_CHECKS.md) · [繁中索引](README.md)
 
-核心 build/runtime workflow 會在對應 push、PR、merge-group 或手動 dispatch 執行；較昂貴的 PR analyzer 依路徑啟動。Pull-request code 使用 GitHub-hosted runner，沒有 `pull_request_target` 執行不受信任 PR code 的設計。Website deploy 是少數需要 Pages/id-token 權限的 workflow。
+[Dev CI 與 Main CI](CI.md) 共用 source／repository contracts。完整流程及 CI／security 修改會加入 clang-tidy、Qt lifetime 與 CodeQL；一般 dev 原始碼 push 不再重複 analyzer 建置。Main 與每週排程執行完整檢查。PR code 使用 GitHub-hosted runner，不使用 `pull_request_target`，checkout 不保留憑證。CodeQL 的 `security-events: write` 由入口 workflow 傳遞；只有 Pages 部署使用 Pages／id-token 寫入權限。
 
 | 檢查 | 主要覆蓋 | 失敗條件 |
 | --- | --- | --- |
@@ -11,7 +11,7 @@
 | Workflow policy/style | workflow permission、credential persistence、unsafe trigger | policy error |
 | Secret/path scan | token、private key、個人絕對路徑 | 高信心命中 |
 | Source language/shell | 英文 source policy、shell syntax/shellcheck | violation |
-| clang-tidy | null/dangling、memory/lifetime、安全 API | project/test source 的 enabled warning |
+| clang-tidy | null/dangling、memory/lifetime、安全 API | compiler／analyzer 執行失敗；clang-tidy 診斷保留為 warning |
 | CodeQL | C/C++ security/quality/dataflow | SARIF error 或帶 security-severity 的 finding；一般 quality warning 保留 annotation；缺少 report 也失敗 |
 | Graphics diagnostics | shader variant、graphics pipeline log | pipeline/shader failure |
 
@@ -23,7 +23,7 @@ Static analysis 與 dynamic test 都不是安全證明；前者可能誤報/漏�
 
 ## GitHub Rulesets
 
-Workflow YAML 本身不能啟用 branch protection。Maintainer 應在 GitHub Rulesets / Branch protection 明確要求需要的 build/runtime/website/architecture/analysis checks。
+Workflow YAML 本身不能啟用 branch protection。Maintainer 應在 GitHub Rulesets / Branch protection 要求各分支的 aggregate `CI result`，拒絕失敗及意外略過的 suite。
 
 ## 本機檢查
 

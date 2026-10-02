@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   policy:
-    name: Target dev and update docs + website
+    name: Contribution or dev promotion policy
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -27,4 +27,6 @@ jobs:
           PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
         run: python3 scripts/ci/check_pr_policy.py

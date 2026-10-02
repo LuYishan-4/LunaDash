@@ -32,8 +32,14 @@ def main() -> int:
         print("PR policy applies only to pull_request events.")
         return 0
 
+    promotion = (
+        base_ref == "main"
+        and os.environ.get("PR_HEAD_REF") == "dev"
+        and os.environ.get("PR_HEAD_REPO") == os.environ.get("GITHUB_REPOSITORY")
+        and bool(os.environ.get("GITHUB_REPOSITORY"))
+    )
     errors: list[str] = []
-    if base_ref != "dev":
+    if base_ref != "dev" and not promotion:
         errors.append(f"Pull requests must target dev, not {base_ref or '<unknown>'}.")
 
     if not base_sha or not head_sha:
@@ -41,7 +47,7 @@ def main() -> int:
     else:
         files = changed_files(base_sha, head_sha)
         forbidden = [path for path in files if protected_path(path)]
-        for path in forbidden:
+        for path in ([] if promotion else forbidden):
             errors.append(f"Pull requests must not change workflows or generated release notes: {path!r}.")
         print("Changed files:")
         for path in files:
@@ -53,7 +59,8 @@ def main() -> int:
             print(f"  - {error}", file=sys.stderr)
         return 1
 
-    print("PR policy passed: target=dev and protected paths unchanged.")
+    print("PR policy passed: same-repository dev promotion." if promotion
+          else "PR policy passed: target=dev and protected paths unchanged.")
     return 0
 
 

@@ -2,29 +2,15 @@
 
 ## Pull requests
 
-Normal pull requests must target `dev`. The PR policy gate rejects pull requests opened against another base branch.
+Contribution pull requests target `dev`. A same-repository `dev` → `main` promotion is allowed; forks and feature branches cannot use that exception. The policy runs from the base commit and inspects the diff without checking out or executing proposed code.
 
-Every pull request must update documentation and matching public website content. The canonical technical documentation now uses paired language directories:
+Keep relevant public behavior documented in paired `docs/en/` and `docs/zh/` pages and matching `site/` content. Root `docs/*.md` files remain small English forwarding pages. The automated gate does not require unrelated documentation or website edits.
 
-- `docs/en/` — English technical and user-facing documentation.
-- `docs/zh/` — the matching Traditional Chinese documentation, using the same filenames.
-- `site/` — the public website copy, guide, API page, or other matching public content.
+Contribution PRs cannot modify `.github/workflows/`, generated release Markdown/MDX under `site/src/pages/releases/`, or `site/src/data/releases.json`. Maintainer workflow changes made on `dev` can be carried by the same-repository promotion PR. Describe release impact in the PR body.
 
-The automated policy gate still checks for at least one path under `docs/` and one non-generated path under `site/`; it does not compare translations for semantic parity. Keep the English/Traditional Chinese pair synchronized during review. Root-level `docs/*.md` files are compatibility forwarding pages, not the canonical text.
+[Dev CI](CI.md) selects broad shared suites from the complete diff. [Main CI](CI.md), scheduled checks and full runs cover all suites and distribution builds, including NixOS, clang-tidy and CodeQL. Small features belong in maintained suites rather than separate workflows. Require the aggregate `CI result` in branch protection and inspect results for the exact promotion commit. A skipped suite does not establish successful execution.
 
-PRs must not add, modify, delete or rename GitHub workflow files under `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or `site/src/data/releases.json`. Workflow maintenance is handled separately by the maintainer. Generated release notes do not satisfy the website-update requirement: update relevant guides or product copy instead, and describe release impact in the PR body.
-
-The policy script runs from the base commit, inspecting both sides of renames without checking out or executing PR code. This keeps changes to the proposed policy script from bypassing the check.
-
-PR CI is split by cost:
-
-- **PR policy gate** checks the base branch, required documentation/site updates, and protected workflow/release paths.
-- **Repository hygiene** runs for every PR targeting `dev`.
-- **Source/QML style** checks source architecture on `dev`/`main` pushes and on source-scoped PRs.
-- **Qt lifetime**, **Clang-Tidy**, and **CodeQL** run only when C/C++ or build-system code changes.
-- **Website build** runs for PRs targeting `dev` because every PR must include a `site/` update.
-
-Main validation is consolidated into the broad `Main build and integration` workflow plus the distribution, website and PR security/policy workflows. Small features do not own separate required workflows; maintained regressions run inside the broad suite or during release-session verification.
+NixOS releases include the root flake, lock and `nix/` definitions. See [NixOS](NIXOS.md) for generation-based updates and the limits of automated runtime verification.
 
 ## Release notes
 

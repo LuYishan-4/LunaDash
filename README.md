@@ -8,7 +8,7 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 
 <p>
   <a href="#linux-distributions"><img src="https://img.shields.io/badge/status-development_preview-d3bfe6?style=flat-square" alt="Development preview"></a>
-  <a href="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-build.yml?query=branch%3Adev"><img src="https://github.com/LuYishan-4/LunaDash/actions/workflows/main-build.yml/badge.svg?branch=dev" alt="Build on dev"></a>
+  <a href="https://github.com/LuYishan-4/LunaDash/actions/workflows/dev-ci.yml?query=branch%3Adev"><img src="https://github.com/LuYishan-4/LunaDash/actions/workflows/dev-ci.yml/badge.svg?branch=dev" alt="Build on dev"></a>
   <a href="https://github.com/LuYishan-4/LunaDash/pulls"><img src="https://img.shields.io/github/issues-pr/LuYishan-4/LunaDash?style=flat-square&amp;label=pull%20requests&amp;color=9ccbfb" alt="Open pull requests"></a>
   <a href="https://github.com/LuYishan-4/LunaDash/issues"><img src="https://img.shields.io/github/issues/LuYishan-4/LunaDash?style=flat-square&amp;color=d3bfe6" alt="Open issues"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--only-9ccbfb?style=flat-square" alt="GPL-3.0-only license"></a>
@@ -17,6 +17,7 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 <a id="linux-distributions"></a>
 
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793d1?logo=arch-linux&logoColor=white&style=flat-square)](https://archlinux.org)
+[![NixOS](https://img.shields.io/badge/NixOS-5277c3?logo=nixos&logoColor=white&style=flat-square)](docs/en/NIXOS.md)
 [![Fedora](https://img.shields.io/badge/Fedora-51A2DA?logo=fedora&logoColor=white&style=flat-square)](https://fedoraproject.org)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu_Rolling-E95420?logo=ubuntu&logoColor=white&style=flat-square)](https://ubuntu.com)
 
@@ -53,6 +54,8 @@ Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The 
 <a id="install"></a>
 
 ## Install
+
+**NixOS:** use the [flake and NixOS module](docs/en/NIXOS.md), with `programs.lunadash.enable = true`. Installation, updates and rollback use NixOS generations.
 
 On Arch Linux, the guided installer offers Traditional Chinese / English,
 optional applications and a separate system-locale choice. Review the script
@@ -98,7 +101,7 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 
 ## Documentation
 
-[English docs](docs/en/README.md) · [Traditional Chinese docs](docs/zh/README.md)
+[English docs](docs/en/README.md) · [Traditional Chinese docs](docs/zh/README.md) · [NixOS](docs/en/NIXOS.md) · [CI policy](docs/en/CI.md)
 
 
 | Start here | Make it yours |
@@ -115,9 +118,9 @@ Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell req
 
 Help make the default experience useful and customization approachable. Bug reports, design feedback, documentation and code contributions are welcome.
 
-Send pull requests to **`dev`**. Use a clear title describing the change, and explain the user-visible result, the checks you actually ran, and whether the change affects default behavior or optional customization. Update the relevant **`docs/` documentation and website content**.
+Send contribution pull requests to **`dev`**. Same-repository `dev` → `main` promotion PRs are allowed. Use a clear title describing the change, and explain the user-visible result, the checks you actually ran, and whether the change affects default behavior or optional customization. Update the relevant **`docs/` documentation and website content**.
 
-**PRs must not add, modify, delete, or rename files under `.github/workflows/`, release Markdown (`.md`/`.mdx`) under `site/src/pages/releases/`, or `site/src/data/releases.json`.** Describe release impact in the PR body; website release notes are generated from GitHub Releases. See the [contribution guide](CONTRIBUTING.md) and [PR template](.github/pull_request_template.md).
+**Contribution PRs must not add, modify, delete, or rename files under `.github/workflows/`, release Markdown (`.md`/`.mdx`) under `site/src/pages/releases/`, or `site/src/data/releases.json`.** Describe release impact in the PR body; website release notes are generated from GitHub Releases. See the [contribution guide](CONTRIBUTING.md) and [PR template](.github/pull_request_template.md).
 
 ---
 

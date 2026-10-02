@@ -1,5 +1,7 @@
 # Boot and login session
 
+NixOS uses the [flake and system module](NIXOS.md). See [CI policy](CI.md) for branch coverage and verification limits.
+
 [Traditional Chinese guide](../zh/LOGIN_SESSION.md)
 
 LunaDash is a development preview. The installer registers a real Wayland login entry, but nested testing does not prove that every physical DRM/KMS GPU, input-seat, VT or display-manager combination works. Keep another desktop or TTY available during evaluation.

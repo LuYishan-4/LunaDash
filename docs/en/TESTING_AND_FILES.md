@@ -4,7 +4,7 @@ Finish code, packaging and documentation changes before building. Arch Linux is 
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
+The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, pixman, libdrm, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -21,7 +21,7 @@ cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
 
-The architecture checker enforces lowercase domains, PascalCase C++ filenames, small domain-local entrypoints, source-root includes, dependency direction, raw GL placement and explicit CMake inventories. Its fixture tests intentionally introduce invalid layouts and ensure rejection. `.clang-format` defines source formatting; use `clang-format -i` on modified C/C++ files. Static analysis remains configured separately in the PR clang-tidy/CodeQL workflows.
+The architecture checker enforces lowercase domains, PascalCase C++ filenames, small domain-local entrypoints, source-root includes, dependency direction, raw GL placement and explicit CMake inventories. Its fixture tests intentionally introduce invalid layouts and ensure rejection. `.clang-format` defines source formatting; use `clang-format -i` on modified C/C++ files. Static analysis runs in the shared full CI suites; see [CI](CI.md).
 
 ## Plugin SDK checks
 
@@ -59,20 +59,13 @@ On Arch, also verify the source archive used by `./scripts/install-session.sh`, 
 (cd packaging/arch && makepkg --cleanbuild --force --nosign)
 ```
 
-This builds packages without installing them. The archive must include `examples/` for native plugin examples and `templates/` for the installed plugin SDK, in addition to the main source tree. Inspect the resulting package for the SDK templates and plugin examples before publishing it.
+This builds packages without installing them. The archive must include `data/plugins/` for native plugin examples and `templates/` for the installed plugin SDK, in addition to the main source tree. Inspect the resulting package for the SDK templates and plugin examples before publishing it.
 
 ## CI coverage
 
-| Workflow | Configured coverage |
-| --- | --- |
-| Main build and integration | One Ubuntu build covering maintained CTest, source contracts, QML parsing/tests, renderer checks, startup failure handling, Wayland/XWayland lifecycle and software OpenGL relocation |
-| Linux distribution builds | Arch, Debian 13, Fedora 45, openSUSE Tumbleweed and Alpine Edge source builds |
-| Main website build | Astro checking/build and local link/asset tests |
-| PR source style | Architecture, English source, shell syntax/ShellCheck and QML design-system usage |
-| PR analysis and hygiene | Policy, repository hygiene, path-scoped clang-tidy, CodeQL and Qt lifetime analysis |
-| Website Pages deployment | Builds and publishes the release website from main |
+[Dev CI and Main CI](CI.md) share maintained suites. Development runs select broad suites from the complete diff and build Arch when relevant; main and full runs check all five configured distributions plus clang-tidy and CodeQL. Ubuntu builds once for CTest, portal frontend, plugin SDK, Wayland/XWayland and software OpenGL. QML, website and NixOS report separately.
 
-Feature-specific workflows are intentionally not maintained. Individual UI interactions and one-off desktop regressions belong in the maintained test suite or release-session verification rather than owning a separate required workflow. The source-build matrix does not verify physical hardware. Void/Gentoo have installer paths without the same configured CI breadth. Inspect completed runs for the exact commit; a skipped/manual-only workflow is not a successful execution. See [security checks](SECURITY_CHECKS.md) and [release process](RELEASE_PROCESS.md).
+[NixOS](NIXOS.md) has a locked flake, package and system module. CI builds x86_64, evaluates aarch64 and checks installed headless runtime; physical login and GPU behavior still require a real session. Inspect completed results for the exact commit. Void/Gentoo retain installer paths without the same CI coverage.
 
 ## Source map
 
@@ -91,6 +84,7 @@ Feature-specific workflows are intentionally not maintained. Individual UI inter
 | `src/service/portal` | D-Bus startup and native file chooser implementation |
 | `src/shell` | Generic QML module schema/runtime and media helper |
 | `src/ctl` | Bounded local control client |
+| `nix`, `flake.nix`, `flake.lock` | Nix package, NixOS module and pinned dependency input |
 | `qml` | Shell feature UI and shared controls |
 | `data` | User-facing assets, templates, translations and portal/plugin metadata |
 | `cmake/modules/Renderer.cmake` | Explicit render sources and embedded shader inventory |

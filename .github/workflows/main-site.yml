@@ -1,10 +1,8 @@
-name: Main website build
-on: [push, pull_request, merge_group, workflow_dispatch]
+name: Website suite
+on:
+    workflow_call:
 permissions:
     contents: read
-concurrency:
-    group: main-site-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: true
 jobs:
     build:
         name: Website check, build and tests
