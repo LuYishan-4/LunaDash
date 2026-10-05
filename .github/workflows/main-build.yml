@@ -95,7 +95,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/ubuntu-dependencies
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ccache
           key: ubuntu-native-v1-${{ github.ref_name }}-${{ github.sha }}
