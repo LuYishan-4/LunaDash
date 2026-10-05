@@ -17,6 +17,8 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
     env = os.environ | {
         "XDG_RUNTIME_DIR": runtime,
         "XDG_CONFIG_HOME": runtime,
+        "XDG_CACHE_HOME": runtime + "/cache",
+        "XDG_DATA_HOME": runtime + "/data",
         "WLR_BACKENDS": "headless",
         "WLR_RENDERER": "pixman",
         "WLR_HEADLESS_OUTPUTS": "1",

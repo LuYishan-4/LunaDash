@@ -11,7 +11,7 @@ ModuleSurface {
     id: dashboard
     moduleId: "overview"
 
-    property var stats: shell.state.system || ({})
+    property var stats: shell.systemState || shell.state.system || ({})
     property int tab: 0
     property string time: ""
     property string date: ""

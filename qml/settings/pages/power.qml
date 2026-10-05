@@ -8,7 +8,8 @@ ColumnLayout {
     required property var shell
     spacing: 16
     PageTitle { shell: page.shell; title: "Power and battery" }
-    Text { text: (shell.state.system || {}).batteryPercent >= 0 ? shell.tr("Battery") + "  " + shell.state.system.batteryPercent + "%" : shell.tr("No battery reported"); color: Theme.text; font.family: Theme.font; font.pixelSize: 18 }
+    readonly property var system: shell.systemState || shell.state.system || ({})
+    Text { objectName: "batteryLevel"; text: page.system.batteryPercent >= 0 ? shell.tr("Battery") + "  " + page.system.batteryPercent + "%" : shell.tr("No battery reported"); color: Theme.text; font.family: Theme.font; font.pixelSize: 18 }
     HelpText { shell: page.shell; message: "Power profile" }
     RowLayout {
         Repeater {

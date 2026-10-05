@@ -38,6 +38,7 @@ jobs:
               exec bash -lc "
                 set -euo pipefail
                 bash scripts/install-dependencies.sh
+                git config --global --add safe.directory /src
                 python3 tests/wayland/test_no_qtwayland.py
                 cmake -S . -B build-distro -G Ninja \\
                   -DCMAKE_BUILD_TYPE=Release
@@ -46,6 +47,7 @@ jobs:
                 ctest --test-dir build-distro --output-on-failure
                 if command -v pacman >/dev/null; then
                   pacman -S --noconfirm --needed quickshell wtype
+                  dbus-uuidgen --ensure
                   dbus-run-session -- python3 tests/wayland/test_setup.py build-distro
                 fi
               "

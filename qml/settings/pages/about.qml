@@ -8,7 +8,7 @@ import "../../style"
 ColumnLayout {
     id: page
     required property var shell
-    readonly property var system: shell.state.system || ({})
+    readonly property var system: shell.systemState || shell.state.system || ({})
     readonly property var update: shell.state.update || ({})
     readonly property bool compact: width < 600
     spacing: 16

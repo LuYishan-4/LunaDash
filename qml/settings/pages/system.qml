@@ -7,7 +7,7 @@ import "../../style"
 ColumnLayout {
     id: page
     required property var shell
-    readonly property var systemInfo: shell.state.system || ({})
+    readonly property var systemInfo: shell.systemState || shell.state.system || ({})
     spacing: 16
 
     PageTitle { shell: page.shell; title: "Users, date and time" }

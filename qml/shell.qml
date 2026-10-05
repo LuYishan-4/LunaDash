@@ -26,6 +26,8 @@ ShellRoot {
     Component.onCompleted: Quickshell.watchFiles = Quickshell.env("LUNADASH_QML_WATCH") === "1"
     property var state: ({ workspace: 0, clients: [], language: "en_US", wallpaper: 0, wallpaperImage: Quickshell.env("LUNADASH_WALLPAPER") || "" })
     property bool stateReady: false
+    property var systemState: ({})
+    property string systemFingerprint: ""
     property string settingsPage: "general"
     property string lastCaptureError: ""
     readonly property string bin: Quickshell.env("LUNADASH_BIN_DIR") || Quickshell.env("LUDASH_BIN_DIR")
@@ -332,6 +334,16 @@ ShellRoot {
         // install state before filtering high-frequency system metrics so About
         // keeps showing progress even after a QML reload.
         root.syncPersistentUpdateInstall(result)
+
+        // Panel CPU/battery and settings telemetry must remain live even when
+        // unrelated settings bindings retain a stable desktop snapshot.
+        if (result.system !== undefined) {
+            const systemFingerprint = JSON.stringify(result.system)
+            if (systemFingerprint !== root.systemFingerprint) {
+                root.systemFingerprint = systemFingerprint
+                root.systemState = result.system
+            }
+        }
 
         // System performance counters change every 1.5 s. Replacing the entire
         // root state object for those counters forces every settings binding to

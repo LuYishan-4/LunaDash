@@ -106,4 +106,6 @@ Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；�
 
 Shell 輪詢可使用 `status <已知語言>`，語言相符時省略翻譯字典。一般 `status` 仍回傳完整狀態。QML 補回快取字典，並抑制不可見的 frame／event-loop 計數更新，同時保留螢幕模式、幾何、錯誤與確認狀態。開啟控制中心或關於頁時恢復即時資訊。
 
+系統資訊另透過獨立的 `systemState` 更新。面板 CPU／記憶體與電池數值、電源設定和使用者資料持續保持最新，無關的設定介面仍可保留穩定的桌面狀態。
+
 第一個鍵盤的 keymap 就緒時會恢復焦點，涵蓋獨占 shell 視窗已映射後才連接虛擬鍵盤的情況。鍵盤及 display 清理時會解除 keymap listener。

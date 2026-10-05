@@ -50,7 +50,7 @@ ModuleSurface {
     color: "transparent"
     WlrLayershell.namespace: "lunadash-panel"
 
-    property var stats: shell.state.system || ({})
+    property var stats: shell.systemState || shell.state.system || ({})
     readonly property var panelConfig: specification.config || ({})
     readonly property bool backgroundVisible: panelConfig.backgroundVisible ?? false
     readonly property bool contrastShells: panelConfig.contrastShells ?? true

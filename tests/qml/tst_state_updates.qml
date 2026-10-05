@@ -3,7 +3,26 @@ import QtTest
 import "../../qml/session/StateUpdates.js" as Updates
 
 TestCase {
+    id: test
     name: "StateUpdates"
+    QtObject {
+        id: shellMock
+        property var state: ({system: {batteryPercent: 10}, power: {}})
+        property var systemState: ({batteryPercent: 30})
+        function tr(text) { return text }
+    }
+    function test_batteryUpdatesWithoutReplacingDesktopState() {
+        const component = Qt.createComponent("../../qml/settings/pages/power.qml")
+        compare(component.status, Component.Ready, component.errorString())
+        const page = createTemporaryObject(component, test, {shell: shellMock, width: 600})
+        verify(page)
+        const label = findChild(page, "batteryLevel")
+        verify(label)
+        compare(label.text, "Battery  30%")
+        shellMock.systemState = {batteryPercent: 42}
+        compare(label.text, "Battery  42%")
+        compare(shellMock.state.system.batteryPercent, 10)
+    }
     function test_idleTelemetryDoesNotRebindDesktop() {
         const previous = {language: "zh_TW", translations: {Welcome: "test"}, system: {cpu: 2},
             display: {width: 800, frameCallbacks: 10, eventLoop: {dispatchCalls: 5}}}

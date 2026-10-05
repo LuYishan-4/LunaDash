@@ -51,7 +51,7 @@ ModuleSurface {
     readonly property int tab: config.showMedia === false && shell.controlCenterTab === 1
         ? 0 : Math.max(0, Math.min(3, shell.controlCenterTab))
     readonly property var config: specification.config || ({})
-    readonly property var stats: shell.state.system || ({})
+    readonly property var stats: shell.systemState || shell.state.system || ({})
     readonly property var output: (shell.state.audio || {}).output || ({})
     readonly property var input: (shell.state.audio || {}).input || ({})
     readonly property var power: shell.state.power || ({})
