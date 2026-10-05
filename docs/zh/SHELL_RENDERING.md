@@ -7,7 +7,7 @@ Quickshell 與 compositor 是不同 process，也有不同 rendering path：
 - Compositor：wlroots renderer/allocator/scene。
 - Shell：Qt Quick，繼承 LunaDash session rendering environment。
 
-`SessionEnvironment` 在 `QSG_RHI_BACKEND` 與 `QT_QUICK_BACKEND` 都沒有指定時，預設讓 Qt Quick 使用 `opengl`。
+Renderer 政策只套用於 Quickshell，不再向所有應用程式強制設定 OpenGL。
 
 要在 host Wayland 內比較 software Shell：
 
@@ -18,7 +18,7 @@ QT_QUICK_BACKEND=software LUDASH_TEST_HOST_WAYLAND=1 \
 
 Software rendering 可能提高 CPU 使用量，GPU-only QML effect 需要 fallback。
 
-專案保留 `shell/runtime/ShellRenderer` compatibility helper，但**目前 wlroots startup path 沒有呼叫它**，因此不能看到 `LUDASH_SHELL_RENDERER=auto` 就假設 NVIDIA auto-detection 正在活動。先前 NVIDIA/Qt 的 descriptor/fence observation 是歷史背景，不是當前所有 driver 的證據。
+`shell/runtime/ShellRenderer` 現在於啟動 shell 時套用。NVIDIA 自動選擇軟體模式是相容性預設，可由使用者明確選擇 OpenGL 或 Vulkan 覆寫；不代表每一版本的驅動都有相同問題。
 
 像：
 
@@ -40,3 +40,5 @@ Renderer tests 驗 relocation、software OpenGL、failure cleanup，但不能證
 ## 共用 Surface 設計
 
 1.0.1a 的 Dashboard、Settings、桌布 picker 與 portal wrapper 使用同一套 strong/glass/hairline/radius 規則。Dashboard telemetry 使用 bounded layout，不應靠絕對文字座標堆疊；Settings 可切換最大化而不改 page contract；desktop widget plugin 直接繪製在 wallpaper Background surface。
+
+啟動 Quickshell 時會套用 `shell/runtime/ShellRenderer`。`LUDASH_SHELL_RENDERER` 支援 `auto`、`opengl`、`vulkan`、`software`。Auto 保留明確的 Qt 渲染選擇，否則在偵測到 NVIDIA 時使用軟體模式，其餘使用 OpenGL；此政策僅修改 shell 子程序的環境，GTK／Qt 應用程式自行選擇繪圖 API。

@@ -10,7 +10,7 @@ checksummed source archive so the audit can be reproduced.
 no live callers. `compositor/window/WindowFrame.{cpp,hpp}` and
 `ResizeGuide.{cpp,hpp}` were dormant Qt Quick adapters, kept alive only by the
 `ludash-window-items` build target. All six files and that build target were
-removed. The actual QML `WindowFrames` and wlroots `SceneAnimationBackend`
+removed. The actual QML `WindowFrames` and wlroots `SceneAnimation`
 remain active and were not replaced with the obsolete adapters.
 
 ## Consolidated boundaries

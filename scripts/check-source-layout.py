@@ -7,7 +7,7 @@ import re
 DOMAINS = {"compositor", "config", "core", "ctl", "desktop", "service", "shell"}
 CPP_NAME = re.compile(r"[A-Z][A-Za-z0-9]*\Z")
 DIRECTORY = re.compile(r"[a-z][a-z0-9]*\Z")
-LEGACY = re.compile(r"\b(?:RenderBackend|RenderingBackend|RendererBackend|GraphicsBackendManager|RenderBackendManager)\w*\b")
+LEGACY = re.compile(r"\b(?:[A-Za-z]\w*Backend|Backend)\w*\b")
 INCLUDE = re.compile(r'^\s*#\s*include\s*[<"]([^>"\n]+)[>"]', re.M)
 GL_IMPLEMENTATION = re.compile(
     r'#\s*include\s*[<"](?:GL/|GLES\w*/|QOpenGL\w*)|'
@@ -55,7 +55,7 @@ def violations(root: Path) -> list[str]:
             continue
         text = path.read_text(encoding="utf-8")
         if LEGACY.search(text) or LEGACY.search(path.name):
-            errors.append(f"source-naming: legacy renderer naming is prohibited: {label}")
+            errors.append(f"source-naming: generic Backend naming is prohibited: {label}")
         if re.search(r'\bnamespace\s+LuDash\b|\bLuDash::', text):
             errors.append(f"source-naming: project namespace must be LunaDash: {label}")
         opengl = relative.parts[:3] == ("compositor", "renderer", "opengl")

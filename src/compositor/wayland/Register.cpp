@@ -1,4 +1,5 @@
 #include "compositor/wayland/Register.hpp"
+#include "compositor/renderer/selection/RenderSelection.h"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include <QAbstractEventDispatcher>
@@ -23,21 +24,16 @@ WaylandCompositor::Impl::Impl(WaylandCompositor *owner,
 WaylandCompositor::Impl::~Impl() { shutdown(); }
 
 bool WaylandCompositor::Impl::initialize() {
-  if (rendererPreference == "opengl" || rendererPreference == "gles") {
-    if (qEnvironmentVariableIsEmpty("WLR_RENDERER"))
-      qputenv("WLR_RENDERER", "gles2");
-  }
-
   wlr_log_init(WLR_INFO, nullptr);
   display = wl_display_create();
   if (!display)
     return fail("Could not create the Wayland display.");
   eventLoop = wl_display_get_event_loop(display);
 
-  backend = WlrootsCompat::createBackend(display);
+  backend = WlrootsCompat::createPlatform(display);
   if (!backend)
     return fail("wlroots could not create a backend.");
-  renderer = wlr_renderer_autocreate(backend);
+  renderer = ludash_renderer_create(backend, rendererPreference.toUtf8().constData());
   if (!renderer)
     return fail("wlroots could not create a renderer.");
 #if WLR_VERSION_MINOR >= 20
@@ -379,6 +375,7 @@ void WaylandCompositor::Impl::shutdown() {
     if (!state)
       continue;
     detachListener(state->key);
+    detachListener(state->keymap);
     detachListener(state->modifiers);
     detachListener(state->destroy);
     delete state;

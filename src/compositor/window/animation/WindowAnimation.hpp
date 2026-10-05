@@ -1,11 +1,11 @@
 #pragma once
 
-#include "compositor/window/animation/SceneAnimationBackend.hpp"
+#include "compositor/window/animation/SceneAnimation.hpp"
 #include "core/templates/WindowAnimation.hpp"
 
 namespace LunaDash {
 
 using SceneWindowAnimationTemplate =
-    Templates::WindowAnimationTemplate<SceneAnimationBackend>;
+    Templates::WindowAnimationTemplate<SceneAnimation>;
 
 } // namespace LunaDash

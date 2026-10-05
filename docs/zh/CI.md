@@ -21,12 +21,12 @@ CI／policy 修改、未知原始碼目錄、新分支或無法取得基準 comm
 - **QML：** 解析所有 shell QML，執行整個 Qt Quick 測試目錄。
 - **Website：** Astro 型別檢查、正式建置、素材與連結檢查。
 - **NixOS：** 鎖定套件、模組求值與安裝後的 headless runtime；x86_64 實際建置，aarch64 僅求值。見 [NixOS](NIXOS.md)。
-- **發行版：** 開發變更執行 Arch；完整流程加入 Debian 13、Fedora 45、openSUSE Tumbleweed 與 Alpine Edge。
+- **發行版：** 開發變更執行 Arch；完整流程加入 Debian 13、Fedora 44、openSUSE Tumbleweed 與 Alpine Edge。
 - **安全分析：** Qt lifetime fixtures、clang-tidy production build、CodeQL 與 SARIF gate。在完整流程或 CI／security 設定修改時執行，平常開發原始碼 push 不再重複兩次 analyzer 建置。
 
 同一 PR／分支的新執行會取消舊執行。每個 job 有時限，runtime 證據保留為 artifact。`CI result` 拒絕失敗、取消或應執行卻被跳過的 suite；只有刻意未選取的 suite 可以略過。可在 GitHub ruleset 要求各分支的 aggregate result；YAML 不會自行修改 branch protection。
 
-一般 PR 仍以 `dev` 為目標，保護 workflows／自動產生的 release notes。同一 repository 的 `dev` → `main` 升版 PR 明確允許已審查的 workflow 修改；fork 內名為 `dev` 的分支不適用。Policy 使用 PR base commit 的程式碼。
+一般 PR 仍以 `dev` 為目標，允許正常審查 workflow 修改，並保護自動產生的 release notes。同一 repository 的 `dev` → `main` 升版 PR 明確允許已審查的 workflow 修改；fork 內名為 `dev` 的分支不適用。Policy 使用 PR base commit 的程式碼。
 
 ## 腳本與驗證紀錄
 
@@ -37,3 +37,7 @@ CI／policy 修改、未知原始碼目錄、新分支或無法取得基準 comm
 翻譯 gate 涵蓋所有隨附語言。啟用共用檢查時，一併補齊既有桌面字串缺漏並移除重複的語言包鍵。
 
 Runtime 測試會等待 document portal 卸載 FUSE，再清除暫存目錄。通知生命週期測試為首次延遲啟動的 XWayland／GLX 保留較長時限，仍保留全部 25 次關閉與映射檢查。
+
+允許對 dev 提交 workflow 修改並接受正常審查，仍保護自動產生的發行資訊。Ubuntu CI 加入 GTK 3／4 與 Qt 生命週期測試並保留截圖。Fork 的 CodeQL 仍分析及檢查 SARIF，但不使用唯讀 token 上傳 security events。Fedora 使用穩定的 44，而非 45 beta，參見 [Fedora 發行頁](https://fedoraproject.org/)。
+
+Arch 發行版工作使用同一次建置的執行檔測試首次登入 Quickshell：擷取 Welcome、透過 Wayland 虛擬鍵盤啟用「開始桌面」，再重新啟動驗證設定持久性。發行版 artifact 保留此軟體工作階段截圖與紀錄。

@@ -134,6 +134,7 @@ public:
     bool metaTapPending = false;
     int metaTapKeycode = -1;
     Slot<KeyboardState> key;
+    Slot<KeyboardState> keymap;
     Slot<KeyboardState> modifiers;
     Slot<KeyboardState> destroy;
   };

@@ -1,4 +1,7 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/renderer/selection/RenderSelection.h"
+#include "shell/runtime/ShellRenderer.hpp"
+#include "config/BuildConfig.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
@@ -442,6 +445,12 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
     environment.insert("QT_QPA_PLATFORMTHEME", "generic");
     environment.remove("GTK_USE_PORTAL");
     qInfo().noquote() << "LunaDash shell config:" << config;
+    if (!configureShellRendering(environment, QFileInfo::exists("/sys/module/nvidia"))) {
+      qWarning("LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
+      processFailure_ = true;
+      process->deleteLater();
+      return nullptr;
+    }
     process->setProcessEnvironment(environment);
     process->start(quickshell, {"--path", config, "--no-color"});
 
@@ -1287,7 +1296,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
   synchronizeWindowFocus();
 }
 
-QJsonObject WaylandCompositor::state() const {
+QJsonObject WaylandCompositor::state(bool includeTranslations) const {
   QJsonArray entries;
   QJsonArray xwaylandUtilities;
   for (const auto &client : clients_) {
@@ -1314,7 +1323,7 @@ QJsonObject WaylandCompositor::state() const {
 #endif
     }
     const QRect frame = windowAnimations_
-                            ? windowAnimations_->backend().visualGeometry(
+                            ? windowAnimations_->animation().visualGeometry(
                                   client->sceneTree, client->geometry)
                             : client->geometry;
     entries.append(QJsonObject{
@@ -1421,7 +1430,7 @@ QJsonObject WaylandCompositor::state() const {
   auto xwaylandState = xwayland_ ? xwayland_->snapshot() : QJsonObject{};
   xwaylandState["utilitySurfaces"] = xwaylandUtilities;
   const auto language = selectedLanguage();
-  const auto translations = languageDictionary(language);
+  const auto translations = includeTranslations ? languageDictionary(language) : QJsonObject{};
   auto *physicalKeyboard = d ? d->preferredKeyboard() : nullptr;
   const auto lockEnabled = [physicalKeyboard](const char *name) {
     if (!physicalKeyboard || !physicalKeyboard->keymap)
@@ -1431,7 +1440,8 @@ QJsonObject WaylandCompositor::state() const {
     return index != XKB_MOD_INVALID &&
            (physicalKeyboard->modifiers.locked & (xkb_mod_mask_t{1} << index));
   };
-  return {
+  QJsonObject result{
+      {"version", QString::fromLatin1(BuildConfig::version)},
       {"settingsApi", QJsonObject{{"version", 1},
           {"targets", settingsApiTargets(extensions, moduleState, layoutTarget)}}},
       {"layoutMode",
@@ -1543,17 +1553,22 @@ QJsonObject WaylandCompositor::state() const {
       {"wallpaper", QSettings().value("appearance/wallpaper", 0).toInt()},
       {"shutdown", testStopping_},
       {"graphicsApi", "wlroots"},
+      {"renderer", QString::fromLatin1(ludash_renderer_name(d ? d->renderer : nullptr))},
+      {"vulkanAvailable", ludash_renderer_vulkan_available()},
       {"shaderReady", d && d->renderer},
       {"graphicsFailed", processFailure_},
       {"graphicsMajor", 0},
       {"graphicsMinor", 0}};
+  if (!includeTranslations)
+    result.remove("translations");
+  return result;
 }
 
 QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   const QString method = request.value("method").toString();
   const QString value = request.value("value").toString();
   if (method == "status")
-    return state();
+    return state(value != selectedLanguage());
 
   bool numberValid = false;
   const int number = value.toInt(&numberValid);

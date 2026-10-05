@@ -3,7 +3,7 @@
 
 namespace LunaDash {
 namespace {
-struct FakeAnimationBackend {
+struct TestAnimation {
   int configured = 0;
   int opened = 0;
   int closed = 0;
@@ -30,26 +30,26 @@ class WindowAnimationTemplateTests final : public QObject {
 
 private slots:
   void forwardsWindowLifecycle() {
-    Templates::WindowAnimationTemplate<FakeAnimationBackend> animation;
+    Templates::WindowAnimationTemplate<TestAnimation> animation;
     animation.configure(7);
     animation.open(11);
     animation.relayout(10, 5);
     animation.focus(12);
     animation.cancel(13);
 
-    QCOMPARE(animation.backend().configured, 7);
-    QCOMPARE(animation.backend().opened, 11);
-    QCOMPARE(animation.backend().relayouts, 15);
-    QCOMPARE(animation.backend().focused, 12);
-    QCOMPARE(animation.backend().cancelled, 13);
+    QCOMPARE(animation.animation().configured, 7);
+    QCOMPARE(animation.animation().opened, 11);
+    QCOMPARE(animation.animation().relayouts, 15);
+    QCOMPARE(animation.animation().focused, 12);
+    QCOMPARE(animation.animation().cancelled, 13);
     QCOMPARE(animation.activeCount(), 1);
 
     animation.close(11);
     QCOMPARE(animation.activeCount(), 0);
     animation.advance();
     animation.clear();
-    QCOMPARE(animation.backend().advances, 1);
-    QCOMPARE(animation.backend().clears, 1);
+    QCOMPARE(animation.animation().advances, 1);
+    QCOMPARE(animation.animation().clears, 1);
   }
 };
 

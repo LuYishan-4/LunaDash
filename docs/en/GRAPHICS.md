@@ -26,3 +26,22 @@ python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
 These session checks use wlroots' headless pixman path, including renderer fallback and invalid CLI diagnostics. Software OpenGL and pixman results are separate evidence; neither proves NVIDIA/AMD/Intel/ARM hardware, dmabuf interoperability or physical-seat startup. A real host-Wayland test is available through `LUDASH_TEST_HOST_WAYLAND=1`, and requires an existing desktop socket.
 
 Quickshell has its own rendering policy and process. See [shell rendering](SHELL_RENDERING.md) and [architecture](ARCHITECTURE.md).
+
+## Vulkan selection
+
+`--graphics vulkan` (or `LUDASH_GRAPHICS=vulkan` for the session launcher) requests the wlroots Vulkan renderer. A nonempty `WLR_RENDERER` has precedence, as it does for GLES. `--graphics auto` keeps wlroots selection. Explicit Vulkan failure exits with a diagnostic; it never reports a pixman fallback as Vulkan. `lunadashctl status` exposes `renderer` (`vulkan`, `gles2`, `pixman`, or unavailable) and `vulkanAvailable`, which describes build support, not GPU readiness.
+
+The C11 selection code lives in `renderer/selection/RenderSelection.c`, links only to wlroots and accepts no Qt objects. `LUDASH_ENABLE_VULKAN=OFF` disables Vulkan integration; the default detects the wlroots Vulkan API at configure time. Install Vulkan development headers/loader and an appropriate GPU ICD (Arch: `vulkan-headers`, `vulkan-icd-loader`, and your GPU's Vulkan driver). Other Linux dependencies are handled by `scripts/install-dependencies.sh`; Nix supplies the loader and headers. Vulkan needs a usable DRM render node and the external-memory features required by wlroots; a loader or Lavapipe installation alone does not establish that support.
+
+Both renderers use the existing wlroots scene, allocator, dmabuf feedback and capability-gated explicit synchronization. Client GTK/Qt APIs are independent of the compositor renderer. The retained Qt OpenGL effect library remains OpenGL-specific. Shell selection is separate: `LUDASH_SHELL_RENDERER=vulkan` uses Qt Quick's Vulkan path only in Quickshell.
+
+To validate actual clients on a GPU host:
+
+```sh
+LUDASH_TEST_RENDERER=vulkan LUDASH_TEST_HOST_WAYLAND=1 \
+  dbus-run-session -- python3 tests/wayland/test_toolkits.py build
+```
+
+This checks GTK 3, GTK 4 and Qt map/capture/close and saves state/log/screenshot evidence. Without the environment variables it tests headless pixman. CI tests explicit Vulkan failure and shell selection separately; software results are not a Vulkan hardware claim.
+
+Local verification on 2026-10-05: Arch Linux, wlroots 0.20.2, AMD Radeon 680M with RADV/Mesa 26.2.3 passed the nested Vulkan GTK 3/GTK 4/Qt map/capture/close test. This is one GPU in a host Wayland session, not a verified physical login or a claim about other drivers.

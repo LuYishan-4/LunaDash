@@ -1,6 +1,6 @@
 # Window motion and renderer effects
 
-The active wlroots compositor uses `src/compositor/window/animation/SceneAnimationBackend` for window transitions. The default 220 ms transition fades and gently lifts mapped windows; closing/unmapping windows retain a scene snapshot so the animation can finish after the surface disappears. Moving windows updates their scene position. Closing does not bypass an application's save/cancel dialog. Disable animations or set duration to zero for reduced motion.
+The active wlroots compositor uses `src/compositor/window/animation/SceneAnimation` for window transitions. The default 220 ms transition fades and gently lifts mapped windows; closing/unmapping windows retain a scene snapshot so the animation can finish after the surface disappears. Moving windows updates their scene position. Closing does not bypass an application's save/cancel dialog. Disable animations or set duration to zero for reduced motion.
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"

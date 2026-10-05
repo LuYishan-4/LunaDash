@@ -39,7 +39,7 @@ class LayoutTests(unittest.TestCase):
     def test_bad_names(self):
         self.add("src/compositor/Render/renderer_backend.cpp", "class RenderBackend {};", listed=True)
         errors = "\n".join(layout.violations(self.root))
-        for expected in ("lowercase", "PascalCase", "legacy renderer"):
+        for expected in ("lowercase", "PascalCase", "generic Backend"):
             self.assertIn(expected, errors)
 
     def test_dependency_and_missing_header(self):

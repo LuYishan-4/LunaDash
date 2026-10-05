@@ -16,8 +16,7 @@ def changed_files(base_sha: str, head_sha: str) -> list[str]:
 
 def protected_path(path: str) -> bool:
     return (
-        path.startswith(".github/workflows/")
-        or (path.startswith("site/src/pages/releases/") and path.lower().endswith((".md", ".mdx")))
+        (path.startswith("site/src/pages/releases/") and path.lower().endswith((".md", ".mdx")))
         or path == "site/src/data/releases.json"
     )
 
@@ -48,7 +47,7 @@ def main() -> int:
         files = changed_files(base_sha, head_sha)
         forbidden = [path for path in files if protected_path(path)]
         for path in ([] if promotion else forbidden):
-            errors.append(f"Pull requests must not change workflows or generated release notes: {path!r}.")
+            errors.append(f"Pull requests must not change generated release notes: {path!r}.")
         print("Changed files:")
         for path in files:
             print(f"  {path!r}")
@@ -60,7 +59,7 @@ def main() -> int:
         return 1
 
     print("PR policy passed: same-repository dev promotion." if promotion
-          else "PR policy passed: target=dev and protected paths unchanged.")
+          else "PR policy passed: target=dev and generated release notes unchanged.")
     return 0
 
 

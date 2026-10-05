@@ -1,4 +1,4 @@
-#include "compositor/window/animation/SceneAnimationBackend.hpp"
+#include "compositor/window/animation/SceneAnimation.hpp"
 #include "compositor/wayland/wlroots/WlrootsSceneHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 
@@ -108,8 +108,8 @@ qreal elapsedProgress(const QElapsedTimer &elapsed, int duration) {
 }
 } // namespace
 
-struct SceneAnimationBackend::LiveState {
-  SceneAnimationBackend *owner = nullptr;
+struct SceneAnimation::LiveState {
+  SceneAnimation *owner = nullptr;
   wlr_scene_tree *tree = nullptr;
   Templates::WaylandSlot<LiveState> destroy;
   QElapsedTimer elapsed;
@@ -123,8 +123,8 @@ struct SceneAnimationBackend::LiveState {
   SnapshotState *preview = nullptr;
 };
 
-struct SceneAnimationBackend::SnapshotState {
-  SceneAnimationBackend *owner = nullptr;
+struct SceneAnimation::SnapshotState {
+  SceneAnimation *owner = nullptr;
   LiveState *live = nullptr;
   wlr_scene_tree *tree = nullptr;
   Templates::WaylandSlot<SnapshotState> destroy;
@@ -140,15 +140,15 @@ struct SceneAnimationBackend::SnapshotState {
   }
 };
 
-SceneAnimationBackend::~SceneAnimationBackend() { clear(); }
+SceneAnimation::~SceneAnimation() { clear(); }
 
-void SceneAnimationBackend::setDuration(int milliseconds) {
+void SceneAnimation::setDuration(int milliseconds) {
   duration_ = std::clamp(milliseconds, 0, 600);
   if (duration_ == 0)
     clear();
 }
 
-void SceneAnimationBackend::configure(const QJsonObject &profile) {
+void SceneAnimation::configure(const QJsonObject &profile) {
   setDuration(profile.value("duration").toInt(220));
   enterOffset_ = std::clamp(profile.value("enterOffset").toInt(12), -100, 100);
   focusOpacity_ =
@@ -161,7 +161,7 @@ void SceneAnimationBackend::configure(const QJsonObject &profile) {
                                                  : QEasingCurve::OutCubic);
 }
 
-int SceneAnimationBackend::activeCount() const {
+int SceneAnimation::activeCount() const {
   int count = live_.size();
   for (const auto *snapshot : snapshots_)
     if (!snapshot->live)
@@ -169,7 +169,7 @@ int SceneAnimationBackend::activeCount() const {
   return count;
 }
 
-QRect SceneAnimationBackend::visualGeometry(wlr_scene_tree *tree,
+QRect SceneAnimation::visualGeometry(wlr_scene_tree *tree,
                                             const QRect &fallback) const {
   if (const auto *state = live_.value(tree))
     return state->preview ? state->preview->current : state->current;
@@ -177,7 +177,7 @@ QRect SceneAnimationBackend::visualGeometry(wlr_scene_tree *tree,
               : fallback;
 }
 
-void SceneAnimationBackend::startLive(LiveState *state) {
+void SceneAnimation::startLive(LiveState *state) {
   state->owner = this;
   state->duration = duration_;
   state->elapsed.start();
@@ -191,7 +191,7 @@ void SceneAnimationBackend::startLive(LiveState *state) {
   applyLive(state, 0.0);
 }
 
-void SceneAnimationBackend::applyLive(LiveState *state, qreal progress) {
+void SceneAnimation::applyLive(LiveState *state, qreal progress) {
   state->current = interpolate(state->from, state->target, progress);
   if (state->preview) {
     // Configure the client once at its final size. Move the previous frame
@@ -213,7 +213,7 @@ void SceneAnimationBackend::applyLive(LiveState *state, qreal progress) {
   }
 }
 
-void SceneAnimationBackend::finishLive(wlr_scene_tree *tree, LiveState *state,
+void SceneAnimation::finishLive(wlr_scene_tree *tree, LiveState *state,
                                        bool restore) {
   if (live_.value(tree) != state)
     return;
@@ -230,7 +230,7 @@ void SceneAnimationBackend::finishLive(wlr_scene_tree *tree, LiveState *state,
   delete state;
 }
 
-void SceneAnimationBackend::open(wlr_scene_tree *tree, const QRect &geometry) {
+void SceneAnimation::open(wlr_scene_tree *tree, const QRect &geometry) {
   if (!tree)
     return;
   cancel(tree);
@@ -244,7 +244,7 @@ void SceneAnimationBackend::open(wlr_scene_tree *tree, const QRect &geometry) {
   startLive(state);
 }
 
-void SceneAnimationBackend::focus(wlr_scene_tree *tree,
+void SceneAnimation::focus(wlr_scene_tree *tree,
                                      const QRect &geometry) {
   if (!tree || duration_ <= 0 || live_.contains(tree))
     return;
@@ -256,7 +256,7 @@ void SceneAnimationBackend::focus(wlr_scene_tree *tree,
   startLive(state);
 }
 
-void SceneAnimationBackend::relayout(wlr_scene_tree *tree,
+void SceneAnimation::relayout(wlr_scene_tree *tree,
                                         const QRect &previous,
                                         const QRect &geometry,
                                         wlr_scene_tree *overlay, bool animate) {
@@ -295,7 +295,7 @@ void SceneAnimationBackend::relayout(wlr_scene_tree *tree,
   startLive(state);
 }
 
-SceneAnimationBackend::SnapshotState *SceneAnimationBackend::createSnapshot(
+SceneAnimation::SnapshotState *SceneAnimation::createSnapshot(
     wlr_scene_tree *source, wlr_scene_tree *parent, const QRect &geometry) {
   if (!source || !parent)
     return nullptr;
@@ -342,7 +342,7 @@ SceneAnimationBackend::SnapshotState *SceneAnimationBackend::createSnapshot(
   return state;
 }
 
-void SceneAnimationBackend::applySnapshot(SnapshotState *state,
+void SceneAnimation::applySnapshot(SnapshotState *state,
                                           const QRect &geometry,
                                           qreal opacity) {
   const qreal scaleX =
@@ -366,7 +366,7 @@ void SceneAnimationBackend::applySnapshot(SnapshotState *state,
   }
 }
 
-void SceneAnimationBackend::destroySnapshot(SnapshotState *state) {
+void SceneAnimation::destroySnapshot(SnapshotState *state) {
   Templates::detachListener(state->destroy);
   snapshots_.removeAll(state);
   if (state->live)
@@ -375,7 +375,7 @@ void SceneAnimationBackend::destroySnapshot(SnapshotState *state) {
   delete state;
 }
 
-void SceneAnimationBackend::close(wlr_scene_tree *source,
+void SceneAnimation::close(wlr_scene_tree *source,
                                          wlr_scene_tree *parent) {
   if (!source || duration_ <= 0)
     return;
@@ -386,7 +386,7 @@ void SceneAnimationBackend::close(wlr_scene_tree *source,
                  live ? visualGeometry(live->tree, live->current) : QRect());
 }
 
-void SceneAnimationBackend::advance() {
+void SceneAnimation::advance() {
   // Follow output presentation cadence; no independent timer redraws idle
   // frames.
   const auto live = live_.values();
@@ -417,12 +417,12 @@ void SceneAnimationBackend::advance() {
   }
 }
 
-void SceneAnimationBackend::cancel(wlr_scene_tree *tree) {
+void SceneAnimation::cancel(wlr_scene_tree *tree) {
   if (auto *state = live_.value(tree))
     finishLive(tree, state);
 }
 
-void SceneAnimationBackend::clear() {
+void SceneAnimation::clear() {
   for (auto *tree : live_.keys())
     cancel(tree);
   const auto snapshots = snapshots_;

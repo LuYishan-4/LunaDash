@@ -122,7 +122,7 @@ private:
   QRect workArea() const;
   QJsonObject currentWindowLayoutSettings() const;
   bool updateWindowLayoutSettings(const QJsonObject &changes, QString *error);
-  QJsonObject state() const;
+  QJsonObject state(bool includeTranslations = true) const;
   QJsonObject control(const QJsonObject &request);
   void focus(ClientWindow *client);
   void raiseWithDialogs(ClientWindow *client);

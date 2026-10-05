@@ -132,6 +132,9 @@ jobs:
         run: |
           xvfb-run -a python3 tests/wayland/test_xwayland.py build-main
           python3 tests/wayland/test_xwayland_notifications.py build-main
+      - name: GTK 3, GTK 4 and Qt Wayland clients
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: dbus-run-session -- python3 tests/wayland/test_toolkits.py build-main
       - name: Relocated software OpenGL renderer
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
@@ -148,6 +151,7 @@ jobs:
             build-main/*.log
             build-main/*state.json
             build-main/Testing/Temporary/
+            build-main/ci-evidence/
           if-no-files-found: ignore
           retention-days: 7
 

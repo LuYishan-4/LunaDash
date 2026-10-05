@@ -205,6 +205,16 @@ void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
   else
     restorePreferredKeyboard();
   updateSeatCapabilities();
+  // Virtual keyboards publish their keymap after creation. Restore focus
+  // after the seat's keymap listener has sent it, before the first key arrives.
+  attachListener(&keyboard->events.keymap, state->keymap, state,
+                 [](wl_listener *listener, void *) {
+                   auto *source = listenerOwner<KeyboardState>(listener);
+                   if (!source->impl->seat->keyboard_state.focused_surface)
+                     source->impl->restoreLayerFocus();
+                 });
+  if (keyboard->keymap && !seat->keyboard_state.focused_surface)
+    restoreLayerFocus();
 }
 
 void WaylandCompositor::Impl::applyKeyboardConfig() {
@@ -604,6 +614,7 @@ void WaylandCompositor::Impl::handleKeyboardDestroy(wl_listener *listener,
   }
 
   detachListener(state->key);
+  detachListener(state->keymap);
   detachListener(state->modifiers);
   detachListener(state->destroy);
   self->keyboards.removeAll(state);

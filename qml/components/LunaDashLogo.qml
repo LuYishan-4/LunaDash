@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Window
-import Quickshell
 import "../style"
 
 Item {
@@ -14,7 +13,7 @@ Item {
     // item changes scale or rotation, because its damage tracking misses the old
     // transformed bounds. The compatibility path therefore reveals the logo with
     // opacity only; the GPU path keeps the moon's tilt-and-zoom entrance.
-    readonly property bool softwareRenderer: Quickshell.env("LUDASH_SHELL_RENDERER") === "software"
+    readonly property bool softwareRenderer: GraphicsInfo.api === GraphicsInfo.Software
     implicitWidth: 120
     implicitHeight: 120
 

@@ -19,7 +19,7 @@ void WaylandCompositor::publishWindowLayout() {
     if (client->utility || !client->mapped)
       continue;
     const QRect frame = windowAnimations_
-                            ? windowAnimations_->backend().visualGeometry(
+                            ? windowAnimations_->animation().visualGeometry(
                                   client->sceneTree, client->geometry)
                             : client->geometry;
     clients.append(QJsonObject{{"id", client->id},

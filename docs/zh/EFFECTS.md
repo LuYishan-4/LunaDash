@@ -2,7 +2,7 @@
 
 [English](../en/EFFECTS.md) · [繁中索引](README.md)
 
-活動中的 wlroots compositor 使用 `src/compositor/window/animation/SceneAnimationBackend`。預設 220 ms：map 時淡入並輕微上移；close/unmap 時保留 scene snapshot，讓 surface 已消失後動畫仍能正常結束。Move 會更新 scene position。
+活動中的 wlroots compositor 使用 `src/compositor/window/animation/SceneAnimation`。預設 220 ms：map 時淡入並輕微上移；close/unmap 時保留 scene snapshot，讓 surface 已消失後動畫仍能正常結束。Move 會更新 scene position。
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"

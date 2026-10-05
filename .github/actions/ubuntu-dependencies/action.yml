@@ -8,7 +8,7 @@ runs:
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
           cmake g++ git ninja-build pkg-config python3 ccache clang clang-tidy \
-          libgl-dev libgl1-mesa-dri libwayland-dev wayland-protocols libwlroots-dev \
+          libgl-dev libgl1-mesa-dri libvulkan-dev mesa-vulkan-drivers libwayland-dev wayland-protocols libwlroots-dev \
           libpixman-1-dev libdrm-dev libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev \
           qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools qt6-wayland \
           qt6-shadertools-dev libqt6opengl6-dev libqt6svg6 \
@@ -16,4 +16,4 @@ runs:
           qml6-module-qtquick-window qml6-module-qtquick-templates \
           qml6-module-qtquick-shapes qml6-module-qtqml-workerscript \
           xvfb xauth xdotool xclip xwayland wayland-utils wl-clipboard grim shared-mime-info \
-          dbus-x11 python3-dbus python3-gi xdg-desktop-portal xdg-desktop-portal-gtk
+          dbus-x11 python3-dbus python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 xdg-desktop-portal xdg-desktop-portal-gtk

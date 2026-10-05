@@ -99,3 +99,11 @@ CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless composi
 設定、快捷鍵、相依套件及驗證界線請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)；可選的首次安裝流程請參閱[工作階段安裝](LOGIN_SESSION.md)。
 
 檔案管理器啟動透過外部 files 角色解析，預設為 Dolphin。退役的 `desktop/filemanager`、`desktop/fileoperations` 實作與建置目標已移除。Portal 選擇器與圖示歸屬 `service/portal`；Shell 圖片選擇器及螢幕分享選擇器各自保留。
+
+## 目前渲染與 shell 邊界
+
+Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；場景動畫由 `window/animation/SceneAnimation` 負責。Welcome 的共用 QML 位於 `qml/welcome`，`desktop/welcome` 僅負責獨立視窗宿主與 IPC 轉接。不使用 QtWayland compositor／server API。目前 compositor 程序的事件派送、設定與桌面服務仍連結 Qt Core／Gui／Network／DBus；無 Qt 的 C 渲染選擇程式不等於完整 compositor 已去除 Qt。
+
+Shell 輪詢可使用 `status <已知語言>`，語言相符時省略翻譯字典。一般 `status` 仍回傳完整狀態。QML 補回快取字典，並抑制不可見的 frame／event-loop 計數更新，同時保留螢幕模式、幾何、錯誤與確認狀態。開啟控制中心或關於頁時恢復即時資訊。
+
+第一個鍵盤的 keymap 就緒時會恢復焦點，涵蓋獨占 shell 視窗已映射後才連接虛擬鍵盤的情況。鍵盤及 display 清理時會解除 keymap listener。

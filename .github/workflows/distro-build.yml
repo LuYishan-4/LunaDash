@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.full && '[{"name":"Arch Linux","image":"archlinux:latest","bootstrap":"pacman -Syu --noconfirm --needed base-devel git"},{"name":"Debian 13","image":"debian:13-slim","bootstrap":""},{"name":"Fedora 45","image":"fedora:45","bootstrap":""},{"name":"openSUSE Tumbleweed","image":"opensuse/tumbleweed","bootstrap":""},{"name":"Alpine Edge","image":"alpine:edge","bootstrap":"apk add --no-cache bash"}]' || '[{"name":"Arch Linux","image":"archlinux:latest","bootstrap":"pacman -Syu --noconfirm --needed base-devel git"}]') }}
+        include: ${{ fromJSON(inputs.full && '[{"name":"Arch Linux","image":"archlinux:latest","bootstrap":"pacman -Syu --noconfirm --needed base-devel git"},{"name":"Debian 13","image":"debian:13-slim","bootstrap":""},{"name":"Fedora 44","image":"fedora:44","bootstrap":""},{"name":"openSUSE Tumbleweed","image":"opensuse/tumbleweed","bootstrap":""},{"name":"Alpine Edge","image":"alpine:edge","bootstrap":"apk add --no-cache bash"}]' || '[{"name":"Arch Linux","image":"archlinux:latest","bootstrap":"pacman -Syu --noconfirm --needed base-devel git"}]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,5 +44,19 @@ jobs:
                 cmake --build build-distro --parallel 2
                 bash scripts/test-xdg-lifecycle.sh "\$PWD/build-distro"
                 ctest --test-dir build-distro --output-on-failure
+                if command -v pacman >/dev/null; then
+                  pacman -S --noconfirm --needed quickshell wtype
+                  dbus-run-session -- python3 tests/wayland/test_setup.py build-distro
+                fi
               "
             '
+      - name: Preserve distribution runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: distro-${{ strategy.job-index }}-runtime
+          path: |
+            build-distro/ci-evidence/
+            build-distro/Testing/Temporary/
+          if-no-files-found: ignore
+          retention-days: 7

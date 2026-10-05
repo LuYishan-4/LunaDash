@@ -17,6 +17,7 @@ import "compatibility"
 import "windows"
 import "plugins"
 import "components/PopupPolicy.js" as PopupPolicy
+import "session/StateUpdates.js" as StateUpdates
 
 ShellRoot {
     id: root
@@ -338,8 +339,7 @@ ShellRoot {
         // unless a page that actually displays live performance is open.
         const needsLiveSystem = root.overviewOpen ||
             (root.settingsOpen && root.settingsPage === "about")
-        if (!needsLiveSystem && root.state.system !== undefined)
-            result.system = root.state.system
+        result = StateUpdates.prepare(result, root.state, needsLiveSystem)
 
         const fingerprint = JSON.stringify(result)
         if (fingerprint === root.stateFingerprint)
@@ -502,7 +502,7 @@ ShellRoot {
 
     Process {
         id: status
-        command: [root.controlExecutable, "status"]
+        command: [root.controlExecutable, "status", root.stateReady ? root.state.language || "" : ""]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim()) return

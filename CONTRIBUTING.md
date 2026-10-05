@@ -24,7 +24,7 @@ Every pull request must:
 
 1. Target the `dev` branch.
 2. Keep the PR focused on the implementation being changed. Documentation and website updates are optional and should only be included when they are genuinely needed for that change.
-3. Do not add, edit, delete or rename files under `.github/workflows/`, release Markdown under `site/src/pages/releases/` (`.md` or `.mdx`), or `site/src/data/releases.json`.
+3. Workflow changes are welcome and run the full CI suites. Do not add, edit, delete or rename generated release Markdown under `site/src/pages/releases/` (`.md` or `.mdx`), or `site/src/data/releases.json`.
 4. Describe the observable behavior before and after the change.
 5. List the validation actually run and any unverified platform or hardware scope.
 6. Review security-sensitive input, process execution, file paths, permissions, QObject lifetimes, and Wayland client lifetime when applicable.

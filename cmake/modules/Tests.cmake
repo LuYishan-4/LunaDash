@@ -18,6 +18,9 @@ if(BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/installer/test_install.py)
     set_tests_properties(lunadash-installer PROPERTIES TIMEOUT 90)
     find_package(Qt6 6.4 REQUIRED COMPONENTS Test)
+    add_executable(lunadash-shell-rendering-test tests/renderer/ShellRenderingTests.cpp)
+    target_link_libraries(lunadash-shell-rendering-test PRIVATE ludash-shell-renderer Qt6::Test)
+    add_test(NAME lunadash-shell-rendering COMMAND lunadash-shell-rendering-test)
     add_executable(lunadash-portal-picker-test tests/files/PortalPickerTests.cpp
         src/service/portal/FileChooserPortal.cpp
         src/service/portal/FileChooserPortal.hpp

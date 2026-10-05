@@ -46,9 +46,9 @@ for target in (
     "ludash-animation",
 ):
     assert target in cmake, target
-assert "src/compositor/window/animation/SceneAnimationBackend.cpp" in cmake
+assert "src/compositor/window/animation/SceneAnimation.cpp" in cmake
 assert (root / "src/compositor/window/animation/WindowAnimation.hpp").is_file()
-assert (root / "src/compositor/window/animation/SceneAnimationBackend.hpp").is_file()
+assert (root / "src/compositor/window/animation/SceneAnimation.hpp").is_file()
 assert "PREFIX /LunaDash/renderer/shaders" in cmake
 assert "LUDASH_RENDERER_OPENGL=1" in cmake
 assert "file(GLOB" not in cmake, "Renderer sources/resources must be explicit"

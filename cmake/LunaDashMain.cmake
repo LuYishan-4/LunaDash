@@ -24,7 +24,7 @@ if(CMAKE_CXX_CLANG_TIDY AND NOT CMAKE_C_CLANG_TIDY)
     set(CMAKE_C_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
 endif()
 find_path(LUDASH_GL_INCLUDE_DIR GL/glcorearb.h REQUIRED)
-find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Concurrent Quick OpenGL Network DBus)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Concurrent Quick QuickWidgets OpenGL Network DBus)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
@@ -163,7 +163,12 @@ target_link_libraries(ludash-plugins PUBLIC ludash-plugin-catalog ludash-tiling 
 add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp src/desktop/browser/Browser.cpp)
 target_include_directories(ludash-default-applications PUBLIC src)
 target_link_libraries(ludash-default-applications PUBLIC ludash-configuration Qt6::Core)
-add_library(ludash-apps src/desktop/theme/DesktopTheme.cpp src/desktop/app/ApplicationWindow.cpp src/desktop/welcome/Welcome.cpp src/desktop/package/PackageManager.cpp)
+add_library(ludash-welcome src/desktop/welcome/Welcome.hpp src/desktop/welcome/Welcome.cpp)
+target_include_directories(ludash-welcome PUBLIC src)
+target_link_libraries(ludash-welcome PRIVATE ludash-configuration ludash-localization
+    ludash-shortcut-settings Qt6::QuickWidgets)
+target_compile_definitions(ludash-welcome PRIVATE LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+add_library(ludash-apps src/desktop/theme/DesktopTheme.cpp src/desktop/app/ApplicationWindow.cpp src/desktop/package/PackageManager.cpp)
 target_include_directories(ludash-apps PUBLIC src)
 target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-system-metrics ludash-localization ludash-wallpaper Qt6::Widgets)
 target_compile_options(ludash-apps PRIVATE -Wall -Wextra -Wpedantic)
@@ -273,6 +278,8 @@ target_compile_definitions(ludash-wayland
 target_link_libraries(ludash-wayland
     PUBLIC
         ludash-session-environment
+        ludash-render-selection
+        ludash-shell-renderer
         ludash-launch-policy
         ludash-session-actions
         ludash-shortcut-settings
@@ -312,7 +319,7 @@ add_library(ludash-client-lifecycle src/desktop/app/WaylandClientShutdown.cpp)
 target_include_directories(ludash-client-lifecycle PUBLIC src)
 target_link_libraries(ludash-client-lifecycle PUBLIC Qt6::Gui PRIVATE PkgConfig::WAYLAND_CLIENT)
 add_executable(ludash-desktop src/desktop/Main.cpp src/desktop/app/DesktopApplication.cpp)
-target_link_libraries(ludash-desktop PRIVATE ludash-apps ludash-client-lifecycle)
+target_link_libraries(ludash-desktop PRIVATE ludash-apps ludash-welcome ludash-client-lifecycle)
 set_target_properties(ludash-desktop PROPERTIES OUTPUT_NAME lunadash-desktop)
 add_custom_command(TARGET ludash-desktop POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-desktop> ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop)
 add_executable(ludash-compositor src/compositor/Main.cpp src/compositor/session/SessionApplication.cpp)

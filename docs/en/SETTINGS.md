@@ -126,3 +126,7 @@ The old standalone “Motion” wording is retired. Appearance exposes **Visual 
 ## NyxNiri-inspired desktop, Orbit and live wallpapers
 
 See [the desktop integration guide](NYXNIRI_DESKTOP.md) for the new modules, palette and portal services, shortcuts, dependencies, and current verification limits.
+
+## Welcome
+
+The first-login guide and the `welcome` tool share `qml/welcome/WelcomeContent.qml`. The bounded, scrollable layout adapts to narrow screens, uses the common strong/glass surfaces, and keeps its documentation and Start desktop actions in the footer. Language and reduced motion apply through the normal desktop settings API. Shortcut hints display saved bindings, including disabled actions. Appearance, default applications, plugins and keyboard shortcuts open their existing Settings pages; from the first-login guide this also completes setup. Opening documentation alone does not complete setup. Start desktop works offline, and the setup-complete preference survives the next session. The native tool is a Qt Quick view inside its existing frameless wrapper.

@@ -1,140 +1,106 @@
 #include "desktop/welcome/Welcome.hpp"
 #include "config/BuildConfig.hpp"
+#include "config/appearance/AppearancePalette.hpp"
+#include "config/desktop/DesktopPreferences.hpp"
 #include "config/localization/Localization.hpp"
-#include <QSysInfo>
-#include <QtWidgets>
+#include "desktop/shortcuts/ShortcutSettings.hpp"
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QJsonDocument>
+#include <QProcess>
+#include <QQmlContext>
+#include <QQuickWidget>
+#include <QStandardPaths>
+#include <QTimer>
 
 namespace LunaDash {
-namespace {
-QFrame *infoCard(const QString &eyebrowText, const QString &value,
-                 const QString &detail) {
-  auto *card = new QFrame;
-  card->setObjectName("welcomeCard");
-  auto *layout = new QVBoxLayout(card);
-  layout->setContentsMargins(18, 16, 18, 16);
-  layout->setSpacing(5);
-
-  auto *eyebrow = new QLabel(eyebrowText);
-  eyebrow->setObjectName("welcomeEyebrow");
-  layout->addWidget(eyebrow);
-
-  auto *title = new QLabel(value);
-  title->setObjectName("welcomeValue");
-  title->setWordWrap(true);
-  layout->addWidget(title);
-
-  auto *description = new QLabel(detail);
-  description->setObjectName("welcomeDetail");
-  description->setWordWrap(true);
-  layout->addWidget(description);
-  layout->addStretch();
-  return card;
+WelcomeBridge::WelcomeBridge(QObject *parent) : QObject(parent) {
+  const auto preferences = desktopPreferences();
+  const auto language = selectedLanguage();
+  state_ = {{"version", BuildConfig::version}, {"language", language},
+            {"translations", languageDictionary(language).toVariantMap()},
+            {"appearance", preferences.toVariantMap()},
+            {"palette", appearancePalette(preferences).toVariantMap()},
+            {"shortcuts", ShortcutSettings().snapshot().toVariantMap()}};
+  QTimer::singleShot(0, this, [this] { command("status", {}); });
 }
-} // namespace
 
-QWidget *createWelcome(const std::function<void(const QString &)> &launch) {
-  auto *page = new QWidget;
+QVariantMap WelcomeBridge::state() const { return state_; }
+
+void WelcomeBridge::command(const QString &method, const QString &value) {
+  if (commands_.size() >= 16)
+    return;
+  commands_.enqueue({method, value});
+  dispatch();
+}
+
+void WelcomeBridge::reportError() {
+  state_["welcomeError"] = translate("Could not contact the desktop.");
+  emit stateChanged();
+}
+
+void WelcomeBridge::dispatch() {
+  if (pending_ || commands_.isEmpty())
+    return;
+  const auto [method, value] = commands_.dequeue();
+  pending_ = true;
+  auto *process = new QProcess(this);
+  auto *timeout = new QTimer(process);
+  timeout->setSingleShot(true);
+  connect(timeout, &QTimer::timeout, process, [process] { process->kill(); });
+  connect(process, &QProcess::errorOccurred, this,
+          [this, process](QProcess::ProcessError error) {
+            if (error == QProcess::FailedToStart) {
+              pending_ = false;
+              reportError();
+              process->deleteLater();
+              dispatch();
+            }
+          });
+  connect(process, &QProcess::finished, this,
+          [this, process](int code, QProcess::ExitStatus status) {
+            pending_ = false;
+            const auto document = QJsonDocument::fromJson(process->readAllStandardOutput());
+            if (code == 0 && status == QProcess::NormalExit && document.isObject() &&
+                !document.object().contains("error")) {
+              state_ = document.object().toVariantMap();
+              emit stateChanged();
+            } else {
+              reportError();
+            }
+            process->deleteLater();
+            dispatch();
+          });
+  process->start(QCoreApplication::applicationDirPath() + "/lunadashctl", {method, value});
+  timeout->start(5000);
+}
+
+void WelcomeBridge::finish() { emit finished(); }
+
+QWidget *createWelcome() {
+  auto *page = new QQuickWidget;
   page->setObjectName("welcomePage");
-
-  auto *root = new QVBoxLayout(page);
-  root->setContentsMargins(28, 24, 28, 24);
-  root->setSpacing(16);
-
-  auto *hero = new QFrame;
-  hero->setObjectName("welcomeHero");
-  auto *heroLayout = new QHBoxLayout(hero);
-  heroLayout->setContentsMargins(24, 22, 24, 22);
-  heroLayout->setSpacing(20);
-
-  auto *copy = new QVBoxLayout;
-  copy->setSpacing(6);
-  auto *eyebrow = new QLabel("LUNADASH  /  WAYLAND DESKTOP");
-  eyebrow->setObjectName("welcomeEyebrow");
-  copy->addWidget(eyebrow);
-
-  auto *title = new QLabel(LunaDash::translate("Welcome to LunaDash"));
-  title->setObjectName("welcomeHeroTitle");
-  copy->addWidget(title);
-
-  auto *description = new QLabel(LunaDash::translate(
-      "Your desktop is ready. Open a workspace, tune the system, or continue "
-      "where you left off."));
-  description->setObjectName("welcomeHeroDescription");
-  description->setWordWrap(true);
-  copy->addWidget(description);
-
-  auto *version = new QLabel(QStringLiteral("VERSION %1  ·  %2")
-                                 .arg(QString::fromLatin1(BuildConfig::version),
-                                      QSysInfo::prettyProductName()));
-  version->setObjectName("welcomeMeta");
-  copy->addWidget(version);
-  copy->addStretch();
-
-  auto *actions = new QGridLayout;
-  actions->setHorizontalSpacing(8);
-  actions->setVerticalSpacing(8);
-  const QList<QPair<QString, QString>> entries{
-      {"files", LunaDash::translate("Browse files")},
-      {"settings", LunaDash::translate("Desktop settings")},
-      {"plugins", LunaDash::translate("Plugins")},
-      {"packages", LunaDash::translate("Packages")}};
-  int index = 0;
-  for (const auto &entry : entries) {
-    auto *button = new QPushButton(entry.second);
-    button->setObjectName(index == 0 ? "accent" : "welcomeAction");
-    button->setMinimumHeight(42);
-    actions->addWidget(button, index / 2, index % 2);
-    QObject::connect(button, &QPushButton::clicked, page,
-                     [launch, id = entry.first] { launch(id); });
-    ++index;
+  page->setResizeMode(QQuickWidget::SizeRootObjectToView);
+  page->setClearColor(Qt::transparent);
+  auto *bridge = new WelcomeBridge(page);
+  page->rootContext()->setContextProperty("welcomeBridge", bridge);
+  QObject::connect(bridge, &WelcomeBridge::finished, page,
+                   [page] { page->window()->close(); });
+  const QString relative = "welcome/WelcomeStandalone.qml";
+  auto path = QDir(QCoreApplication::applicationDirPath())
+                  .absoluteFilePath("../share/lunadash/shell/" + relative);
+  if (!QFileInfo::exists(path))
+    path = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
+                                  "lunadash/shell/" + relative);
+  if (path.isEmpty())
+    path = QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/" + relative;
+  page->setSource(QUrl::fromLocalFile(path));
+  if (page->status() == QQuickWidget::Error) {
+    qWarning("Welcome QML could not be loaded.");
+    delete page;
+    return nullptr;
   }
-  copy->addLayout(actions);
-  heroLayout->addLayout(copy, 1);
-
-  auto *mark = new QFrame;
-  mark->setObjectName("welcomeMark");
-  mark->setFixedSize(164, 164);
-  auto *markLayout = new QVBoxLayout(mark);
-  markLayout->setContentsMargins(16, 16, 16, 16);
-  auto *glyph = new QLabel(QStringLiteral("◈"));
-  glyph->setObjectName("welcomeGlyph");
-  glyph->setAlignment(Qt::AlignCenter);
-  markLayout->addWidget(glyph);
-  auto *markText = new QLabel(QStringLiteral("1.0.1a"));
-  markText->setObjectName("welcomeMeta");
-  markText->setAlignment(Qt::AlignCenter);
-  markLayout->addWidget(markText);
-  heroLayout->addWidget(mark, 0, Qt::AlignCenter);
-
-  root->addWidget(hero);
-
-  auto *cards = new QHBoxLayout;
-  cards->setSpacing(12);
-  cards->addWidget(infoCard(
-      LunaDash::translate("Desktop"),
-      LunaDash::translate("Wayland session"),
-      LunaDash::translate("wlroots compositor, rootless XWayland and native input.")));
-  cards->addWidget(infoCard(
-      LunaDash::translate("Customize"),
-      LunaDash::translate("Modules and plugins"),
-      LunaDash::translate("Panel, wallpaper, dashboard and desktop widgets can be changed live.")));
-  cards->addWidget(infoCard(
-      LunaDash::translate("System"),
-      QSysInfo::kernelType() + " " + QSysInfo::kernelVersion(),
-      QSysInfo::currentCpuArchitecture()));
-  root->addLayout(cards);
-
-  auto *footer = new QHBoxLayout;
-  auto *hint = new QLabel(LunaDash::translate(
-      "Tip: use Settings for desktop controls and the launcher for installed applications."));
-  hint->setObjectName("welcomeDetail");
-  hint->setWordWrap(true);
-  footer->addWidget(hint, 1);
-  auto *status = new QLabel(QStringLiteral("LUNADASH  %1")
-                                .arg(QString::fromLatin1(BuildConfig::version)));
-  status->setObjectName("welcomeMeta");
-  footer->addWidget(status);
-  root->addLayout(footer);
   return page;
 }
 } // namespace LunaDash

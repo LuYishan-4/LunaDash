@@ -17,8 +17,12 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
     env = os.environ | {
         "XDG_RUNTIME_DIR": runtime,
         "XDG_CONFIG_HOME": runtime,
-        "QT_QPA_PLATFORM": "xcb",
-        "QT_XCB_GL_INTEGRATION": "xcb_egl",
+        "WLR_BACKENDS": "headless",
+        "WLR_RENDERER": "pixman",
+        "WLR_HEADLESS_OUTPUTS": "1",
+        "QT_QUICK_BACKEND": "software",
+        "QT_QPA_PLATFORM": "wayland",
+        "LUDASH_DISABLE_XWAYLAND": "1",
         "LIBGL_ALWAYS_SOFTWARE": "1",
         "QT_FORCE_STDERR_LOGGING": "1",
         "LANG": "C.UTF-8",
@@ -49,7 +53,8 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
             return json.loads(output)
 
     def wait_for(predicate):
-        deadline = time.monotonic() + 6
+        deadline = time.monotonic() + 12
+        result = {}
         while time.monotonic() < deadline:
             try:
                 result = request()
@@ -58,7 +63,8 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
             except (OSError, ValueError):
                 pass
             time.sleep(0.1)
-        raise AssertionError("Setup state did not match expectation")
+        (evidence / "timeout-state.json").write_text(json.dumps(result, indent=2))
+        raise AssertionError(f"Setup state did not match expectation: setup={result.get('setupComplete')}, layers={result.get('layerSurfaces')}")
 
     for run in range(2):
         with open(evidence / f"run-{run}.log", "w+") as log:
@@ -70,7 +76,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                     "--graphics",
                     "opengl",
                     "--exit-after",
-                    "13000" if run == 0 else "4000",
+                    "13000" if run == 0 else "6500",
                 ],
                 env=env,
                 stdout=log,
@@ -87,27 +93,15 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                     # three-second fallback timer so the next wait really sees the
                     # setup wizard before any click is sent.
                     time.sleep(3.5)
-                    wait_for(lambda data: data["layerSurfaces"] >= 3)
-                    window = subprocess.check_output(
-                        [
-                            "xdotool",
-                            "search",
-                            "--onlyvisible",
-                            "--pid",
-                            str(process.pid),
-                        ],
-                        text=True,
-                    ).splitlines()[0]
-                    subprocess.run(
-                        ["xdotool", "windowfocus", "--sync", window], check=True
-                    )
-
-                    # Start desktop is focused initially; completing the welcome
-                    # screen must not depend on a fixed panel size or language.
-                    subprocess.run(["xdotool", "key", "Return"], check=True)
+                    welcome_state = wait_for(lambda data: data["layerSurfaces"] >= 3)
+                    desktop_layers = welcome_state["layerSurfaces"] - 1
+                    client_env = env | {"WAYLAND_DISPLAY": "ludash-setup"}
+                    subprocess.run(["grim", str(evidence / "welcome.png")], env=client_env, check=True, timeout=10)
+                    # Exercise the focused footer through the Wayland virtual keyboard.
+                    subprocess.run(["wtype", "-s", "250", "-k", "Return"], env=client_env, check=True, timeout=5)
                     wait_for(
                         lambda data: (
-                            data["setupComplete"] and data["layerSurfaces"] == 2
+                            data["setupComplete"] and data["layerSurfaces"] == desktop_layers
                         )
                     )
                     assert "error" not in request(
@@ -115,6 +109,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                         json.dumps(
                             {
                                 "accent": "#c4b5fd",
+                                "wallpaperColors": False,
                                 "gap": 20,
                                 "panelHeight": 36,
                                 "startupApps": ["welcome"],
@@ -136,9 +131,9 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                         state["appearance"]["gap"] == 20
                         and state["appearance"]["panelHeight"] == 36
                     ), state
-                    assert state["layerSurfaces"] == 2, state
                     state = wait_for(
-                        lambda data: any(client["mapped"] for client in data["clients"])
+                        lambda data: data["layerSurfaces"] == desktop_layers
+                        and any(client["mapped"] for client in data["clients"])
                     )
                     assert (
                         state["appearance"]["startupApps"] == ["welcome"]

@@ -1,5 +1,5 @@
 # Keep core portal regressions in the existing CTest build, without adding a
-# workflow (PR policy protects .github/workflows). No display server is needed.
+# workflow. No display server is needed.
 find_program(LUDASH_DBUS_RUN_SESSION dbus-run-session REQUIRED)
 add_executable(lunadash-portal-protocol-test tests/portal/PortalProtocolTests.cpp)
 target_link_libraries(lunadash-portal-protocol-test PRIVATE Qt6::Core Qt6::DBus Qt6::Test)

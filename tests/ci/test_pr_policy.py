@@ -29,8 +29,11 @@ class PolicyTests(unittest.TestCase):
     def test_feature_branch_cannot_promote(self):
         self.assertNotEqual(self.check("main", "feature", "owner/project", []), 0)
 
-    def test_workflows_still_protected_on_dev(self):
-        self.assertNotEqual(self.check("dev", "feature", "owner/project", [".github/workflows/dev-ci.yml"]), 0)
+    def test_workflow_contributions_are_reviewable(self):
+        self.assertEqual(self.check("dev", "feature", "owner/project", [".github/workflows/dev-ci.yml"]), 0)
+
+    def test_generated_release_notes_remain_protected(self):
+        self.assertNotEqual(self.check("dev", "feature", "fork/project", ["site/src/data/releases.json"]), 0)
 
     def test_documentation_contribution_allowed(self):
         self.assertEqual(self.check("dev", "feature", "fork/project", ["docs/en/NIXOS.md"]), 0)

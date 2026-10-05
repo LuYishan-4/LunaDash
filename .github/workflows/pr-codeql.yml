@@ -28,6 +28,7 @@ jobs:
         id: codeql
         with:
           output: codeql-results
+          upload: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
       - name: Reject CodeQL findings
         if: always() && (steps.codeql.outcome == 'success' || hashFiles('codeql-results/*.sarif') != '')
         run: python3 scripts/security/check_sarif.py codeql-results

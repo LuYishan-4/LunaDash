@@ -6,6 +6,7 @@
 - C core functions use the `ludash_` prefix; expose C declarations inside `LunaDash` with C linkage when included from C++.
 - Run `scripts/check-source-layout.py` after changing native source layout or build lists.
 - Keep raw OpenGL code and built-in shaders under `src/compositor/renderer/opengl/`; embed shaders through CMake.
+- Name project types, directories and targets by their concrete responsibility; do not introduce generic Backend names. External API/environment spellings remain unchanged.
 - Headers declare interfaces and types; `.cpp` files contain implementations. Do not accumulate unrelated features in a shared implementation file.
 - Keep small `Main.cpp` entry points in their owning executable domain, and add every source explicitly to CMake targets.
 - Finish the intended code, packaging, and documentation changes before building. Do not build after each intermediate edit.

@@ -69,10 +69,7 @@ int DesktopApplication::run(int argc, char **argv) {
     if (id == "packages")
       content = LunaDash::createPackageManager();
     else if (id == "welcome")
-      content = LunaDash::createWelcome([](const QString &target) {
-        QProcess::startDetached(QCoreApplication::applicationFilePath(),
-                                {"--app", target});
-      });
+      content = LunaDash::createWelcome();
     if (!content) {
       qCritical("Unknown built-in application.");
       return 2;
@@ -84,7 +81,7 @@ int DesktopApplication::run(int argc, char **argv) {
     layout->addWidget(content);
     window.setWindowTitle("LunaDash · " + LunaDash::translate(
         id == "welcome" ? "Welcome" : "Packages"));
-    window.resize(760, 520);
+    window.resize(id == "welcome" ? 800 : 760, id == "welcome" ? 660 : 520);
     window.show();
     if (parser.isSet("screenshot"))
       QTimer::singleShot(1200, &window, [&] {

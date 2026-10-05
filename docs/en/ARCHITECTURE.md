@@ -87,3 +87,11 @@ Panel workspace filtering is a presentation option and does not change composito
 See [the desktop integration guide](NYXNIRI_DESKTOP.md) for settings, shortcuts, dependencies and current verification limits, and [session installation](LOGIN_SESSION.md) for the optional first-install workflow.
 
 File-manager launches resolve the external files role (Dolphin by default). The retired `desktop/filemanager` and `desktop/fileoperations` implementations and build targets are removed. Portal picker code and its icons are owned by `service/portal`; the shell image picker and screen-sharing chooser remain independent.
+
+## Current rendering and shell boundary
+
+Renderer selection is C11 in `renderer/selection/RenderSelection.c`; scene transitions use `window/animation/SceneAnimation`. The Welcome UI is shared QML under `qml/welcome`, with `desktop/welcome` providing only the native host/IPC adapter. No QtWayland compositor/server API is used. The current compositor process still links Qt Core/Gui/Network/DBus for event dispatch, settings and desktop services; the toolkit-free C rendering selection must not be described as a fully Qt-free compositor.
+
+For shell polling, `status <known-language>` omits the translation dictionary when the language matches. Ordinary `status` continues returning the complete state. QML restores its cached dictionary and suppresses invisible frame/event-loop counters without dropping display mode, geometry, error or confirmation changes. Live metrics resume in the control center or About page.
+
+Keyboard focus is restored when the first keyboard keymap becomes ready, including a virtual keyboard attached after an exclusive shell surface has mapped. Keymap listeners are detached during keyboard and display teardown.

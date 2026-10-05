@@ -12,10 +12,10 @@ namespace LunaDash {
 
 // wlroots scene implementation for the generic window-animation template.
 // Policy is supplied by WindowTemplate/plugins; this class only executes it.
-class SceneAnimationBackend final {
+class SceneAnimation final {
 public:
-  SceneAnimationBackend() = default;
-  ~SceneAnimationBackend();
+  SceneAnimation() = default;
+  ~SceneAnimation();
 
   void configure(const QJsonObject &profile);
   void open(wlr_scene_tree *tree, const QRect &geometry);

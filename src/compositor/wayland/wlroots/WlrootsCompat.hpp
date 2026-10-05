@@ -4,7 +4,7 @@
 
 namespace LunaDash::WlrootsCompat {
 
-inline wlr_backend *createBackend(wl_display *display) {
+inline wlr_backend *createPlatform(wl_display *display) {
 #if WLR_VERSION_MINOR < 18
   return wlr_backend_autocreate(display, nullptr);
 #else

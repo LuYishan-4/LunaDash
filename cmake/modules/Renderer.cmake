@@ -1,3 +1,35 @@
+# Toolkit-independent wlroots renderer selection. Vulkan is optional so that
+# distributions building wlroots without it retain GLES/pixman support.
+option(LUDASH_ENABLE_VULKAN "Enable the wlroots Vulkan renderer when available" ON)
+include(CheckCSourceCompiles)
+pkg_check_modules(LUDASH_VULKAN QUIET IMPORTED_TARGET vulkan)
+set(CMAKE_REQUIRED_LIBRARIES PkgConfig::WLROOTS)
+if(LUDASH_VULKAN_FOUND)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES PkgConfig::LUDASH_VULKAN)
+endif()
+set(CMAKE_REQUIRED_DEFINITIONS -DWLR_USE_UNSTABLE=1)
+check_c_source_compiles("
+#include <wlr/config.h>
+#if !WLR_HAS_VULKAN_RENDERER
+#error Vulkan disabled in wlroots
+#endif
+#include <wlr/render/vulkan.h>
+int main(void) { return wlr_renderer_is_vk(0); }
+" LUDASH_WLROOTS_VULKAN)
+unset(CMAKE_REQUIRED_LIBRARIES)
+unset(CMAKE_REQUIRED_DEFINITIONS)
+add_library(ludash-render-selection
+    src/compositor/renderer/selection/RenderSelection.c)
+set_target_properties(ludash-render-selection PROPERTIES AUTOMOC OFF)
+target_include_directories(ludash-render-selection PUBLIC src)
+target_compile_definitions(ludash-render-selection PRIVATE WLR_USE_UNSTABLE=1
+    LUDASH_HAS_VULKAN_RENDERER=$<AND:$<BOOL:${LUDASH_ENABLE_VULKAN}>,$<BOOL:${LUDASH_WLROOTS_VULKAN}>>)
+target_link_libraries(ludash-render-selection PUBLIC PkgConfig::WLROOTS)
+if(LUDASH_VULKAN_FOUND)
+    target_link_libraries(ludash-render-selection PRIVATE PkgConfig::LUDASH_VULKAN)
+endif()
+message(STATUS "LunaDash Vulkan: enabled=${LUDASH_ENABLE_VULKAN}, wlroots=${LUDASH_WLROOTS_VULKAN}")
+
 # Modular render architecture. Low-level GL ownership, shader assets,
 # render elements and feature passes are separate targets so future renderers
 # can replace one layer without rewriting the rest of the pipeline.
@@ -60,7 +92,7 @@ target_link_libraries(ludash-blur
     PUBLIC ludash-renderer Qt6::Quick Qt6::OpenGL)
 
 add_library(ludash-animation
-    src/compositor/window/animation/SceneAnimationBackend.cpp)
+    src/compositor/window/animation/SceneAnimation.cpp)
 target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_definitions(ludash-animation PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-animation

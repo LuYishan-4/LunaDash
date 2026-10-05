@@ -2,6 +2,7 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "config/localization/Localization.hpp"
 #include "config/BuildConfig.hpp"
+#include "compositor/renderer/selection/RenderSelection.h"
 
 #include <QAbstractEventDispatcher>
 #include <QCommandLineParser>
@@ -54,7 +55,7 @@ int SessionApplication::run(int argc, char **argv) {
   parser.addHelpOption();
   parser.addVersionOption();
   parser.addOption({"graphics",
-                    "Renderer preference: auto, opengl or gles. OpenGL and "
+                    "Renderer preference: auto, opengl, gles or vulkan. OpenGL and "
                     "GLES select wlroots' GLES2 renderer.",
                     "api", "auto"});
   parser.addOption({"socket", "Wayland socket name.", "name", "lunadash-0"});
@@ -73,8 +74,8 @@ int SessionApplication::run(int argc, char **argv) {
   parser.process(app);
 
   const QString renderer = parser.value("graphics").toLower();
-  if (renderer != "auto" && renderer != "opengl" && renderer != "gles") {
-    qCritical("--graphics must be auto, opengl, or gles");
+  if (!ludash_renderer_preference_valid(renderer.toUtf8().constData())) {
+    qCritical("--graphics must be auto, opengl, gles, or vulkan");
     return 2;
   }
 
