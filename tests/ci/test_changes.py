@@ -3,6 +3,8 @@ import importlib.util
 from pathlib import Path
 import unittest
 from unittest.mock import patch
+import io
+import json
 
 spec = importlib.util.spec_from_file_location(
     "changes", Path(__file__).resolve().parents[2] / "scripts/ci/changes.py")
@@ -33,6 +35,7 @@ class SelectionTests(unittest.TestCase):
     def test_main_full_includes_documentation_only_changes(self):
         self.assertTrue(all(changes.select(["README.md"], full=True).values()))
 
+    @patch.dict(changes.os.environ, {}, clear=True)
     @patch.object(changes.subprocess, "run")
     def test_push_diff_keeps_removed_and_renamed_paths(self, run):
         run.return_value.stdout = "src/Old.cpp\0docs/new.md\0"
@@ -40,6 +43,30 @@ class SelectionTests(unittest.TestCase):
         args = run.call_args.args[0]
         self.assertIn("--no-renames", args)
         self.assertIn("abc..def", args)
+
+    @patch.object(changes, "successful_push_base", return_value="last-green")
+    @patch.object(changes.subprocess, "run")
+    def test_push_includes_changes_from_cancelled_previous_run(self, run, baseline):
+        run.return_value.stdout = ".github/workflows/dev-ci.yml\0data/translations/en_US.json\0"
+        paths = changes.changed_paths({"before": "cancelled", "after": "current"}, "push")
+        self.assertIn("last-green..current", run.call_args.args[0])
+        self.assertTrue(all(changes.select(paths).values()))
+
+    @patch.dict(changes.os.environ, {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "owner/repo", "GITHUB_WORKFLOW": "Dev CI"}, clear=True)
+    @patch.object(changes.urllib.request, "urlopen")
+    def test_baseline_uses_successful_matching_workflow(self, fetch):
+        sha = "a" * 40
+        fetch.return_value = io.BytesIO(json.dumps({"workflow_runs": [
+            {"name": "Other workflow", "head_sha": "b" * 40},
+            {"name": "Dev CI", "head_sha": sha},
+        ]}).encode())
+        self.assertEqual(changes.successful_push_base({"ref": "refs/heads/dev"}), sha)
+        self.assertIn("branch=dev&event=push&status=success", fetch.call_args.args[0].full_url)
+
+    @patch.dict(changes.os.environ, {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "owner/repo", "GITHUB_WORKFLOW": "Dev CI"}, clear=True)
+    @patch.object(changes.urllib.request, "urlopen", side_effect=OSError("offline"))
+    def test_unavailable_baseline_requires_full_coverage(self, fetch):
+        self.assertIsNone(changes.changed_paths({"before": "old", "after": "new", "ref": "refs/heads/dev"}, "push"))
 
     def test_new_branch_and_merge_queue_run_everything(self):
         self.assertIsNone(changes.changed_paths({"before": "0" * 40}, "push"))

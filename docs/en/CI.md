@@ -24,6 +24,8 @@ CI/policy changes and unknown source domains enable every suite and the full dis
 
 Superseded runs on the same PR/branch are cancelled. Jobs have time limits and retain runtime evidence. `CI result` rejects failed/cancelled suites and selected suites that were skipped; deliberately unselected suites are allowed. Require this aggregate result for each branch in repository rulesets; workflow files do not configure branch protection themselves.
 
+Push selection compares against the most recent successful push of the same branch and workflow, so a cancelled or failed run cannot hide earlier unverified changes. If GitHub cannot provide that baseline, all suites run.
+
 The contribution policy still targets `dev` and protects generated release notes; workflow contributions are allowed for normal review. A same-repository `dev` → `main` promotion is explicitly allowed, including previously reviewed workflow changes. Forks named `dev` do not receive that exception. The policy is read from the PR base commit.
 
 ## Script maintenance and evidence

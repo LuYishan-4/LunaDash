@@ -26,6 +26,8 @@ CI／policy 修改、未知原始碼目錄、新分支或無法取得基準 comm
 
 同一 PR／分支的新執行會取消舊執行。每個 job 有時限，runtime 證據保留為 artifact。`CI result` 拒絕失敗、取消或應執行卻被跳過的 suite；只有刻意未選取的 suite 可以略過。可在 GitHub ruleset 要求各分支的 aggregate result；YAML 不會自行修改 branch protection。
 
+Push 從同分支、同工作流程最近一次成功的提交比較，避免取消或失敗的前一輪隱藏尚未驗證的修改。若 GitHub 無法提供這個基準，就執行全部測試類別。
+
 一般 PR 仍以 `dev` 為目標，允許正常審查 workflow 修改，並保護自動產生的 release notes。同一 repository 的 `dev` → `main` 升版 PR 明確允許已審查的 workflow 修改；fork 內名為 `dev` 的分支不適用。Policy 使用 PR base commit 的程式碼。
 
 ## 腳本與驗證紀錄

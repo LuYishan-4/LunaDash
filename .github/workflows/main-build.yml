@@ -27,6 +27,7 @@ jobs:
       - id: select
         env:
           CI_FULL: ${{ inputs.full }}
+          GH_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/changes.py
 
   quality:
