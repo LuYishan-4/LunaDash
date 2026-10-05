@@ -1,21 +1,30 @@
 import QtQuick
 import QtTest
+import "../../qml/settings"
 import "../../qml/session/StateUpdates.js" as Updates
 
 TestCase {
     id: test
     name: "StateUpdates"
+    width: 640
+    height: 480
+    when: windowShown
+    visible: true
     QtObject {
         id: shellMock
         property var state: ({system: {batteryPercent: 10}, power: {}})
         property var systemState: ({batteryPercent: 30})
         function tr(text) { return text }
     }
+    Component {
+        id: powerView
+        SettingsPageView { shell: shellMock; category: "power" }
+    }
     function test_batteryUpdatesWithoutReplacingDesktopState() {
-        const component = Qt.createComponent("../../qml/settings/pages/power.qml")
-        compare(component.status, Component.Ready, component.errorString())
-        const page = createTemporaryObject(component, test, {shell: shellMock, width: 600})
+        const page = createTemporaryObject(powerView, test, {width: 600, height: 440})
         verify(page)
+        tryCompare(page, "ready", true)
+        waitForRendering(page)
         const label = findChild(page, "batteryLevel")
         verify(label)
         compare(label.text, "Battery  30%")
