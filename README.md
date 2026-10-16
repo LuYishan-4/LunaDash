@@ -34,20 +34,11 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 
 Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The current development version is **1.0.1a**. LunaDash is an active development preview, with Arch Linux as its primary platform.
 
-<a id="gallery"></a>
-
-## Gallery
-
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024312-792.png"><img src="docs/image/LunaDash-20260920-024312-792.png" alt="The dashboard brings together the clock, system status and everyday controls." width="440"></a></td>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024259-008.png"><img src="docs/image/LunaDash-20260920-024259-008.png" alt="Choose wallpaper and accent colors in Appearance settings." width="440"></a></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024708-948.png"><img src="docs/image/LunaDash-20260920-024708-948.png" alt="Use the terminal, Discord and Zed in tiled windows." width="440"></a></td>
-    <td width="50%" align="center"><a href="docs/image/LunaDash-20260920-024455-959.png"><img src="docs/image/LunaDash-20260920-024455-959.png" alt="The calendar panel also supports custom images." width="440"></a></td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=KfPCAeAzKik">
+    <img src="https://img.youtube.com/vi/KfPCAeAzKik/maxresdefault.jpg" alt="Watch the LunaDash desktop demo" width="880">
+  </a>
+</p>
 
 <sub>Actual desktop screenshots from September 20, 2026. Click any image for the original. Layout and appearance are configurable.</sub>
 
