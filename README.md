@@ -40,7 +40,6 @@ Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The 
   </a>
 </p>
 
-<sub>Actual desktop screenshots from September 20, 2026. Click any image for the original. Layout and appearance are configurable.</sub>
 
 <a id="install"></a>
 
