@@ -4,6 +4,8 @@
 
 Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後再建置；CI 設定本身不等於某個 commit 的實際 workflow 已成功。
 
+請使用 `git clone --recurse-submodules --branch dev ...` 取得整合分支，或在既有 checkout 執行 `git submodule update --init --recursive`。建置與 source archive 都需要三個固定版本的元件；`git submodule status` 不應出現開頭為 `-`、`+` 或 `U` 的狀態。審查及更新 pin 的流程見[元件 repository 說明](COMPONENT_REPOS.md)。
+
 ## 建置與靜態檢查
 
 需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Qt 6.4+（Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、pixman、libdrm、GL headers 與 GLib。Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
@@ -92,9 +94,10 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 | `src/shell` | modules/media |
 | `src/ctl` | control client |
 | `nix`、`flake.nix`、`flake.lock` | Nix 套件、NixOS 模組與鎖定的相依來源 |
-| `qml` | Shell UI |
+| `qml` | Shell UI，版本由 LunaDash-Shell 管理 |
 | `data` | assets/translations/metadata |
 | `scripts`, `tests` | install/diagnostics/regression |
-| `site` | 公開網站 |
+| `site` | 公開網站，版本由 LunaDash-docs 管理 |
+| `src/compositor` | compositor 原始碼，版本由 LunaDash-Compositor 管理並透過整合 CMake targets 建置 |
 
 架構原則見 [原始碼架構](ARCHITECTURE.md)。

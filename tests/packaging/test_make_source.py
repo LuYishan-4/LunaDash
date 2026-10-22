@@ -32,9 +32,26 @@ class SourceArchiveTests(unittest.TestCase):
             source = ROOT / relative
             if not source.exists() and not source.is_symlink():
                 continue  # Respect tracked deletions in a local working tree.
+            if source.is_dir():
+                continue  # Gitlinks are expanded below from their working trees.
             destination = self.project / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination, follow_symlinks=False)
+        component_paths = subprocess.run(
+            ["git", "-C", str(ROOT), "config", "-f", ".gitmodules", "--get-regexp", r"^submodule\..*\.path$"],
+            check=True, capture_output=True, text=True, timeout=10,
+        ).stdout.splitlines()
+        for entry in component_paths:
+            _, relative = entry.split(maxsplit=1)
+            if relative == "site":
+                continue  # The desktop source package does not ship the website.
+            source = ROOT / relative
+            if source.is_dir():
+                destination = self.project / relative
+                shutil.copytree(
+                    source, destination, dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns(".git"),
+                )
         self.git("init", "-q")
         self.git("add", "-A")
         self.git("-c", "user.name=Packaging Test",
@@ -92,6 +109,7 @@ class SourceArchiveTests(unittest.TestCase):
                 "qml/settings/components/SchemaOptions.qml",
                 "protocols/wlr-layer-shell-unstable-v1.xml",
                 "tests/settings/contract.json", "scripts/install-session.sh",
+                "src/compositor/Main.cpp",
                 "docs/en/SETTINGS_API.md", "docs/zh/SETTINGS_API.md",
                 "packaging/arch/PKGBUILD", "flake.nix", "flake.lock",
                 "nix/package.nix", "nix/module.nix", "nix/checks.nix", ".lunadash-revision",
@@ -100,6 +118,7 @@ class SourceArchiveTests(unittest.TestCase):
             self.assertTrue(all(name.startswith(PREFIX) for name in names))
             self.assertFalse(any("__pycache__" in name or name.endswith(".pyc")
                                  for name in names))
+            self.assertFalse(any(name.endswith("/.git") for name in names))
             self.assertNotIn(PREFIX + ".git", names)
             self.assertFalse(any(
                 name.startswith(PREFIX + "data/plugins/fade/") or

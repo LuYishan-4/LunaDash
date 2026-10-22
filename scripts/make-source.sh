@@ -13,15 +13,29 @@ for entry do
   fi
 done
 
+# A superproject checkout must contain every pinned component before an archive
+# is created. The packaging test fixture expands gitlinks into ordinary files.
+if [ -e "$project_dir/.git" ] &&
+   git -C "$project_dir" ls-files --stage | grep -q '^160000 '; then
+  submodules=$(git -C "$project_dir" submodule status --recursive) || {
+    echo 'Could not read pinned component status.' >&2
+    exit 1
+  }
+  if printf '%s\n' "$submodules" | grep -Eq '^[+-U]'; then
+    echo 'Initialize and checkout every pinned component before packaging.' >&2
+    exit 1
+  fi
+fi
+
 # Stage beside the final archive so a failed tar never replaces a good package.
 metadata=$(mktemp -d "$project_dir/packaging/arch/.make-source.XXXXXX")
 trap 'rm -rf "$metadata"' EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-# GitHub source archives have no .git directory. The curl installer records
-# the exact downloaded commit before invoking this packager. Never borrow a
-# parent directory's Git revision or accept arbitrary version-file contents.
+# The guided installer records the exact fetched commit before invoking this
+# packager. Never borrow a parent directory's Git revision or trust arbitrary
+# version-file contents.
 if [ -e "$project_dir/.git" ]; then
   revision=$(git -C "$project_dir" rev-parse HEAD)
   if [ -n "$(git -C "$project_dir" status --porcelain --untracked-files=no)" ]; then
@@ -40,7 +54,7 @@ else
 fi
 printf '%s\n' "$revision" > "$metadata/.lunadash-revision"
 tar -czf "$metadata/ludash-1.0.1a.tar.gz" \
-  --exclude='__pycache__' --exclude='*.pyc' \
+  --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' \
   --transform='s,^,ludash-1.0.1a/,' -C "$project_dir" "$@" \
   -C "$metadata" .lunadash-revision
 mv -f -- "$metadata/ludash-1.0.1a.tar.gz" \

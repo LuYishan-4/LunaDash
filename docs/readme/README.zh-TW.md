@@ -61,7 +61,7 @@
 取得開發分支後，執行工作階段安裝程式：
 
 ```sh
-git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```

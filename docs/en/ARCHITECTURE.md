@@ -40,6 +40,8 @@ src/
 
 Each `Main.cpp` delegates to a module implementing `run(argc, argv)`. `SessionApplication`, `DesktopApplication`, `ControlClient`, `ShellTool` and `Portal` own their startup and event loop. The portal's file chooser implementation is separate from D-Bus service registration. `JsonTranslator` is separate from dictionary loading. Shell module configuration belongs to `shell/modules`; metrics, status and update checking belong to `desktop/system`.
 
+The integration repository pins the standalone website at `site/`, QML shell at `qml/`, and compositor sources at `src/compositor/` as separate repositories. Root CMake still owns the combined targets and supplies shared settings, core, desktop and shell APIs. See [component repositories](COMPONENT_REPOS.md) for clone and pin-update commands; the compositor is not yet an independent CMake build.
+
 ## Dependency and ownership rules
 
 Dependencies flow from `core` to `config` to runtime domains. Core cannot include any higher domain. Configuration cannot include compositor or desktop services. Desktop code cannot include compositor internals. Renderer code cannot depend on desktop UI. The source-root include style is uniform, for example `"compositor/renderer/Renderer.hpp"`; deep relative includes are rejected.

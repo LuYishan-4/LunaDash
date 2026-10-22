@@ -97,12 +97,12 @@ installer_log="$work/install.log"
 
 write_status "running" 12 "download" "Cloning the selected LunaDash source from GitHub."
 if [[ "$channel" == dev ]]; then
-    git clone --quiet --depth 1 --branch dev "$repo" "$src" || fail "Could not download the dev branch."
+    git clone --quiet --depth 1 --recurse-submodules --branch dev "$repo" "$src" || fail "Could not download the dev branch."
     write_status "running" 22 "verify" "Verifying the downloaded development commit."
     actual=$(git -C "$src" rev-parse HEAD)
     [[ "$actual" == "$target"* ]] || fail "The downloaded dev commit does not match the selected update."
 else
-    git clone --quiet --depth 1 --branch "$target" "$repo" "$src" || fail "Could not download release $target."
+    git clone --quiet --depth 1 --recurse-submodules --branch "$target" "$repo" "$src" || fail "Could not download release $target."
     write_status "running" 22 "verify" "Verifying the downloaded release tag."
     actual=$(git -C "$src" describe --tags --exact-match HEAD 2>/dev/null || true)
     [[ "$actual" == "$target" ]] || fail "The downloaded release tag could not be verified."

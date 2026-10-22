@@ -230,7 +230,7 @@ download_source() {
     stage=desktop-source
     say 'Step 3/5 · LunaDash desktop' '步驟 3/5 · 安裝 LunaDash 桌面環境'
     if $dry_run; then
-        printf '+ Resolve %s@%s, download SHA-pinned HTTPS source archive, validate archive paths\n' "$repository" "$source_ref"
+        printf '+ Resolve %s@%s, fetch the exact Git commit and initialize its pinned submodules\n' "$repository" "$source_ref"
         printf '+ make-source.sh; makepkg --syncdeps --force; sudo pacman -U (built package)\n'
         return
     fi
@@ -239,25 +239,15 @@ download_source() {
         "https://api.github.com/repos/$repository/commits/$source_ref" | jq -er '.sha')
     [[ $revision =~ ^[0-9a-f]{40}$ ]] || die 'Invalid GitHub source revision.' 'GitHub 回傳的版本識別碼無效。'
     printf 'Source revision: %s\n' "$revision"
-    run curl --proto '=https' --tlsv1.2 -fsSL --connect-timeout 10 --max-time 600 --retry 2 \
-        "https://codeload.github.com/$repository/tar.gz/$revision" -o "$work/source.tar.gz"
-    python3 - "$work/source.tar.gz" "$work" "$revision" <<'PY'
-import pathlib, sys, tarfile
-archive, destination, revision = sys.argv[1:]
-expected = 'LunaDash-' + revision
-with tarfile.open(archive, 'r:gz') as source:
-    members = source.getmembers()
-    if len(members) > 20000 or sum(m.size for m in members) > 512 * 1024 * 1024:
-        raise SystemExit('Source archive exceeds safe size limits')
-    for entry in members:
-        parts = pathlib.PurePosixPath(entry.name).parts
-        if not parts or parts[0] != expected or '..' in parts or not (entry.isfile() or entry.isdir()):
-            raise SystemExit('Unexpected source archive entry: ' + entry.name)
-    source.extractall(destination, filter='data')
-path = pathlib.Path(destination) / expected
-(path / '.lunadash-revision').write_text(revision + '\n')
-PY
     source_dir="$work/LunaDash-$revision"
+    run git init --quiet "$source_dir"
+    run git -C "$source_dir" remote add origin "https://github.com/$repository.git"
+    run git -C "$source_dir" fetch --quiet --depth=1 origin "$revision"
+    run git -C "$source_dir" checkout --quiet --detach FETCH_HEAD
+    [[ $(git -C "$source_dir" rev-parse HEAD) == "$revision" ]] || \
+        die 'Downloaded Git source does not match the pinned revision.' '下載的 Git 原始碼與固定版本不符。'
+    run git -C "$source_dir" submodule update --init --depth 1 --recursive
+    printf '%s\n' "$revision" > "$source_dir/.lunadash-revision"
     run bash "$source_dir/scripts/make-source.sh"
     stage=desktop-build
     (

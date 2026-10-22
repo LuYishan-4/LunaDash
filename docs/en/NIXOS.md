@@ -35,6 +35,8 @@ The package targets `x86_64-linux` and `aarch64-linux`. CI builds and exercises 
 
 The repository root contains `flake.nix` and `flake.lock`. Nix implementation files live in `nix/`: `package.nix` owns the derivation and runtime wrappers, `module.nix` owns NixOS options and services, and `checks.nix` owns package/module/runtime verification.
 
+The flake includes pinned Git submodules in its source. Use Nix 2.27 or newer, which supports `inputs.self.submodules = true`.
+
 For wlroots 0.19+, CMake generates image-copy capture declarations from the installed Wayland protocol XML. The build does not depend on distributions shipping that generated header.
 
 ## What the module configures

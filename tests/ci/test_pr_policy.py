@@ -35,6 +35,18 @@ class PolicyTests(unittest.TestCase):
     def test_generated_release_notes_remain_protected(self):
         self.assertNotEqual(self.check("dev", "feature", "fork/project", ["site/src/data/releases.json"]), 0)
 
+    def test_generated_release_changes_in_site_submodule_remain_protected(self):
+        with patch.object(policy, "changed_site_component_files",
+                          return_value=["site/src/pages/releases/1.0.1a.md"]):
+            self.assertNotEqual(self.check("dev", "feature", "fork/project", ["site"]), 0)
+
+    def test_site_submodule_code_changes_are_reviewable(self):
+        with patch.object(policy, "changed_site_component_files", return_value=["site/src/pages/docs/start.astro"]):
+            self.assertEqual(self.check("dev", "feature", "fork/project", ["site"]), 0)
+
+    def test_submodule_configuration_is_maintainer_owned(self):
+        self.assertNotEqual(self.check("dev", "feature", "fork/project", [".gitmodules"]), 0)
+
     def test_documentation_contribution_allowed(self):
         self.assertEqual(self.check("dev", "feature", "fork/project", ["docs/en/NIXOS.md"]), 0)
 

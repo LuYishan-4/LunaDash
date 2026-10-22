@@ -15,6 +15,7 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 - [Settings, shortcuts and desktop behavior](SETTINGS.md)
 - [Build, test and source map](TESTING_AND_FILES.md)
 - [Source architecture](ARCHITECTURE.md)
+- [Component repositories and version pins](COMPONENT_REPOS.md)
 
 ## Desktop behavior
 

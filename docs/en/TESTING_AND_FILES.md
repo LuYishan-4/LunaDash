@@ -2,6 +2,8 @@
 
 Finish code, packaging and documentation changes before building. Arch Linux is the primary development environment; CI configuration is not a substitute for observing a completed run on the intended commit.
 
+Clone the integration branch with `git clone --recurse-submodules --branch dev ...`, or run `git submodule update --init --recursive` in an existing checkout. Builds and source archives require all three pinned components; `git submodule status` should have no leading `-`, `+` or `U` markers. See [component repositories](COMPONENT_REPOS.md) for the review and pin-update workflow.
+
 ## Build and static checks
 
 The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, pixman, libdrm, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
@@ -85,7 +87,9 @@ This builds packages without installing them. The archive must include `data/plu
 | `src/shell` | Generic QML module schema/runtime and media helper |
 | `src/ctl` | Bounded local control client |
 | `nix`, `flake.nix`, `flake.lock` | Nix package, NixOS module and pinned dependency input |
-| `qml` | Shell feature UI and shared controls |
+| `qml` | Shell feature UI and shared controls, versioned in LunaDash-Shell |
+| `site` | Astro website, versioned in LunaDash-docs |
+| `src/compositor` | Compositor sources, versioned in LunaDash-Compositor and built with the integration CMake targets |
 | `data` | User-facing assets, templates, translations and portal/plugin metadata |
 | `cmake/modules/Renderer.cmake` | Explicit render sources and embedded shader inventory |
 | `cmake/modules/Tests.cmake` | Optional renderer tests and staged test installation |

@@ -2,6 +2,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 
 
 def changed_files(base_sha: str, head_sha: str) -> list[str]:
@@ -16,9 +17,49 @@ def changed_files(base_sha: str, head_sha: str) -> list[str]:
 
 def protected_path(path: str) -> bool:
     return (
-        (path.startswith("site/src/pages/releases/") and path.lower().endswith((".md", ".mdx")))
+        path == ".gitmodules"
+        or (path.startswith("site/src/pages/releases/") and path.lower().endswith((".md", ".mdx")))
         or path == "site/src/data/releases.json"
     )
+
+
+def component_revision(commit: str, path: str) -> str | None:
+    result = subprocess.run(
+        ["git", "ls-tree", commit, "--", path],
+        check=True, text=True, capture_output=True,
+    )
+    fields = result.stdout.strip().split()
+    if len(fields) != 4 or fields[0] != "160000" or fields[1] != "commit":
+        return None
+    return fields[2]
+
+
+def changed_site_component_files(base_sha: str, head_sha: str) -> list[str]:
+    """Read the pinned site diff without checking out or executing component code."""
+    old = component_revision(base_sha, "site")
+    new = component_revision(head_sha, "site")
+    if not old or not new or old == new:
+        return []
+    with tempfile.TemporaryDirectory(prefix="lunadash-site-policy-") as directory:
+        subprocess.run(["git", "init", "--quiet", directory], check=True)
+        subprocess.run(
+            ["git", "-C", directory, "remote", "add", "origin",
+             "https://github.com/LunaDash-DE/LunaDash-docs.git"],
+            check=True,
+        )
+        fetched = subprocess.run(
+            ["git", "-C", directory, "fetch", "--quiet", "--no-tags", "--depth=1",
+             "origin", old, new],
+            text=True, capture_output=True,
+        )
+        if fetched.returncode:
+            raise RuntimeError("could not fetch both pinned LunaDash-docs commits")
+        diff = subprocess.run(
+            ["git", "-C", directory, "diff-tree", "--no-renames", "--no-commit-id", "--name-only",
+             "-r", old, new],
+            check=True, text=True, capture_output=True,
+        )
+        return [f"site/{path}" for path in diff.stdout.splitlines() if path]
 
 
 def main() -> int:
@@ -46,6 +87,14 @@ def main() -> int:
     else:
         files = changed_files(base_sha, head_sha)
         forbidden = [path for path in files if protected_path(path)]
+        if "site" in files and not promotion:
+            try:
+                forbidden.extend(
+                    path for path in changed_site_component_files(base_sha, head_sha)
+                    if protected_path(path)
+                )
+            except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
+                errors.append(f"Could not verify the pinned LunaDash-docs changes: {error}.")
         for path in ([] if promotion else forbidden):
             errors.append(f"Pull requests must not change generated release notes: {path!r}.")
         print("Changed files:")

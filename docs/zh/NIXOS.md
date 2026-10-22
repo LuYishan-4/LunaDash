@@ -37,6 +37,8 @@ LunaDash **1.0.1a** 提供 Nix flake、套件與 NixOS 模組。Arch Linux 仍�
 
 根目錄保留 `flake.nix` 與 `flake.lock`。Nix 實作集中於最外層 `nix/`：`package.nix` 管理套件與 runtime wrapper，`module.nix` 管理 NixOS 選項及服務，`checks.nix` 管理套件、模組與 runtime 驗證。
 
+Flake 會將固定版本的 Git submodule 納入原始碼。請使用支援 `inputs.self.submodules = true` 的 Nix 2.27 或更新版本。
+
 使用 wlroots 0.19+ 時，CMake 會從已安裝的 Wayland 協定 XML 產生 image-copy capture 宣告，不依賴發行版另外提供生成後的標頭。
 
 ## 模組設定範圍

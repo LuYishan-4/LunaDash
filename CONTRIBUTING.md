@@ -24,16 +24,17 @@ Every pull request must:
 
 1. Target the `dev` branch.
 2. Keep the PR focused on the implementation being changed. Documentation and website updates are optional and should only be included when they are genuinely needed for that change.
-3. Workflow changes are welcome and run the full CI suites. Do not add, edit, delete or rename generated release Markdown under `site/src/pages/releases/` (`.md` or `.mdx`), or `site/src/data/releases.json`.
+3. Workflow changes are welcome and run the full CI suites. Do not add, edit, delete or rename generated release Markdown under `site/src/pages/releases/` (`.md` or `.mdx`), or `site/src/data/releases.json`, including through a `site/` submodule update.
 4. Describe the observable behavior before and after the change.
 5. List the validation actually run and any unverified platform or hardware scope.
 6. Review security-sensitive input, process execution, file paths, permissions, QObject lifetimes, and Wayland client lifetime when applicable.
 
-The `PR policy gate` workflow enforces the target branch and the protected paths above. Same-repository `dev` → `main` promotion PRs are exempt from those contribution restrictions; forks and other source branches are not. It does **not** require every PR to modify `docs/` or `site/`. It runs the policy script from the base commit and inspects the proposed diff without checking out or running PR code. Dev CI selects shared suites from the complete diff; Main CI and full runs include every suite. Expensive analyzer builds run on full checks or CI/security changes. See [CI policy](docs/en/CI.md) and [NixOS packaging](docs/en/NIXOS.md).
+The `PR policy gate` workflow enforces the target branch and protected paths above. When a proposed change updates the `site/` pin, it fetches the old and new commits from the fixed LunaDash-docs repository and inspects their file diff without checking out or running component code. Same-repository `dev` → `main` promotion PRs are exempt from those contribution restrictions; forks and other source branches are not. It does **not** require every PR to modify `docs/` or `site/`. Dev CI selects shared suites from the complete diff; Main CI and full runs include every suite. Expensive analyzer builds run on full checks or CI/security changes. See [CI policy](docs/en/CI.md), [component repositories](docs/en/COMPONENT_REPOS.md) and [NixOS packaging](docs/en/NIXOS.md).
 
 ## Branch flow
 
 - Feature/fix branch -> pull request -> `dev`
+- Component repository commit -> reviewed submodule pointer update -> integration `dev`
 - `dev` -> stabilization / merge queue -> `main`
 - Release tags are created from the intended release commit.
 

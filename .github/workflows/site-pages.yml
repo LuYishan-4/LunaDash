@@ -3,6 +3,7 @@ on:
     push:
         branches: [main]
         paths:
+            - "site"
             - "site/**"
             - "docs/brand/**"
             - "docs/image/**"
@@ -32,6 +33,7 @@ jobs:
               with:
                   ref: main
                   persist-credentials: false
+                  submodules: recursive
             - name: Sync published GitHub Release Markdown
               env:
                   GITHUB_TOKEN: ${{ github.token }}
