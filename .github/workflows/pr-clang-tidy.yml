@@ -11,6 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          submodules: recursive
           persist-credentials: false
       - uses: ./.github/actions/ubuntu-dependencies
       - name: Verify Qt lifetime analyzer

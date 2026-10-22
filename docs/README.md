@@ -7,10 +7,10 @@ Technical documentation is organized by language.
 
 Shared screenshots and branding remain in `docs/image/` and `docs/brand/`. README translations remain in `docs/readme/`.
 
-The language directories are the canonical locations for new documentation links. The website source lives in the same repository under `site/`. The older Markdown paths directly under `docs/` are retained as small compatibility forwarding pages so existing external links do not break. The canonical document text lives only in the language directories.
+The language directories are the canonical locations for new documentation links. The website source lives in LunaDash-docs and is pinned at `site/`; the QML shell source lives in LunaDash-Shell and is pinned at `qml/`. The older Markdown paths directly under `docs/` are retained as small compatibility forwarding pages so existing external links do not break. The canonical document text lives only in the language directories.
 
 ## Current development documentation
 
 The documentation tracks the `dev` branch and current **1.0.1a** behavior, including the wlroots compositor, redesigned Dashboard/Settings surfaces, LunaDash-styled portal pickers, bounded tiling and optional stacking layout, Plugin SDK 2, wallpaper-layer desktop widgets, media/MPRIS support, DDC/CI display controls, region capture, and on-demand XWayland helpers.
 
-When behavior changes, update the matching English and Traditional Chinese document together. Website changes belong in `site/` and are committed with the root LunaDash repository.
+When behavior changes, update the matching English and Traditional Chinese document together. Website changes are committed to LunaDash-docs; update the root `site/` pin separately when integrating them.

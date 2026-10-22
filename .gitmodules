@@ -1,0 +1,8 @@
+[submodule "qml"]
+	path = qml
+	url = https://github.com/LunaDash-DE/LunaDash-Shell.git
+	branch = main
+[submodule "site"]
+	path = site
+	url = https://github.com/LunaDash-DE/LunaDash-docs.git
+	branch = main

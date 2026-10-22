@@ -2,7 +2,7 @@
 
 [English](../en/WEBSITE.md) · [繁中索引](README.md)
 
-公開網站位於 `site/`，使用 Astro、CSS 與 TypeScript。Home page 介紹 LunaDash、客製化、截圖、安裝與貢獻；複雜技術細節應留在 source docs。網站不載入 analytics/font service，clipboard 只在使用者按 Copy 時操作。
+公開網站位於 LunaDash-docs repository，遞迴 clone LunaDash 後會出現在 `site/`，使用 Astro、CSS 與 TypeScript。Home page 介紹 LunaDash、客製化、截圖、安裝與貢獻；複雜技術細節應留在 source docs。網站不載入 analytics/font service，clipboard 只在使用者按 Copy 時操作。
 
 ## Screenshots / brand
 
@@ -46,7 +46,7 @@ docs/zh/<NAME>.md
 
 ## PR 與發布
 
-一般 PR target `dev`，同步更新 `docs/en/`、`docs/zh/` 與 matching `site/`。Release Markdown 由 GitHub Releases 產生，不手動維護 generated release files。
+一般 LunaDash PR target `dev`；網站 commit 放在 LunaDash-docs，再更新根 repository 的 `site/` 指標整合。`site/src/pages/releases/` 下的 release Markdown 與產生的 `site/src/data/releases.json` 仍受保護。Release Markdown 由 GitHub Releases 產生，不手動維護 generated release files。
 
 - `main-site.yml`：網站 type/build/link/asset check。
 - `site-pages.yml`：`main` 的網站/brand/screenshot 變更與 release event 後部署。

@@ -32,6 +32,7 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   ref: main
+                  submodules: recursive
                   persist-credentials: false
             - name: Sync published GitHub Release Markdown
               env:

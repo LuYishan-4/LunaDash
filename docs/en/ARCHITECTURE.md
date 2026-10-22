@@ -40,7 +40,7 @@ src/
 
 Each `Main.cpp` delegates to a module implementing `run(argc, argv)`. `SessionApplication`, `DesktopApplication`, `ControlClient`, `ShellTool` and `Portal` own their startup and event loop. The portal's file chooser implementation is separate from D-Bus service registration. `JsonTranslator` is separate from dictionary loading. Shell module configuration belongs to `shell/modules`; metrics, status and update checking belong to `desktop/system`.
 
-The root repository tracks the website at `site/`, QML shell at `qml/`, and compositor sources at `src/compositor/` alongside their shared APIs and build definitions. Edit and commit related changes together in this repository; see the [repository workflow](COMPONENT_REPOS.md). The compositor is not an independent CMake build.
+The root repository pins the Astro website from LunaDash-docs at `site/` and the QML shell from LunaDash-Shell at `qml/`, both as Git submodules. Compositor sources and their C++ host APIs and build integration remain in the root repository under `src/compositor/`. See the [repository workflow](COMPONENT_REPOS.md). The compositor is not an independent CMake build.
 
 ## Dependency and ownership rules
 

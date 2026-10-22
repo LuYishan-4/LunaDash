@@ -19,7 +19,7 @@ GitHub Release Markdown is the canonical release-note source. Do not maintain a 
 The Pages deployment workflow handles release notes without committing generated files back into `dev` or `main`:
 
 1. A GitHub Release is published, edited, or deleted.
-2. `.github/workflows/site-pages.yml` checks out the latest `main` website source.
+2. `.github/workflows/site-pages.yml` checks out the root `main` commit and its pinned website submodule.
 3. `scripts/site/sync-releases.py` reads all non-draft releases through the GitHub Releases API.
 4. Every Release body is written into the deployment workspace as `site/src/pages/releases/<tag>.md` with Astro frontmatter.
 5. `site/src/data/releases.json` is regenerated for the `/releases/` index.

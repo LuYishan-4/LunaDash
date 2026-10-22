@@ -12,6 +12,10 @@ for entry do
     exit 1
   fi
 done
+if [ ! -f "$project_dir/qml/shell.qml" ]; then
+  echo 'QML shell source is missing; initialize the pinned qml submodule first.' >&2
+  exit 1
+fi
 
 # Stage beside the final archive so a failed tar never replaces a good package.
 metadata=$(mktemp -d "$project_dir/packaging/arch/.make-source.XXXXXX")

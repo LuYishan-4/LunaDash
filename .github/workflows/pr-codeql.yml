@@ -15,6 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          submodules: recursive
           persist-credentials: false
       - uses: ./.github/actions/ubuntu-dependencies
       - uses: github/codeql-action/init@v4

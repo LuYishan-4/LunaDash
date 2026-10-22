@@ -70,7 +70,7 @@ For developer/testing installs or other distributions, the existing session
 installer remains available and unchanged:
 
 ```sh
-git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```
@@ -79,7 +79,7 @@ The installer handles distribution dependencies, builds LunaDash and installs th
 
 Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
 
-The desktop, Quickshell UI, compositor and website are tracked together in this repository. See the [repository workflow](docs/COMPONENT_REPOS.md) to make and submit a change.
+The compositor remains in this repository. The Astro website and Quickshell UI live in [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) and [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell), pinned as the `site/` and `qml/` submodules. The root repo records an exact commit for each. See the [repository workflow](docs/COMPONENT_REPOS.md) to change and integrate either component.
 
 ## A few shortcuts
 

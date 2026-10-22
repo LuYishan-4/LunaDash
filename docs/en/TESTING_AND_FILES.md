@@ -2,7 +2,7 @@
 
 Finish code, packaging and documentation changes before building. Arch Linux is the primary development environment; CI configuration is not a substitute for observing a completed run on the intended commit.
 
-Clone the `dev` branch with `git clone --branch dev ...`. The desktop, QML shell, compositor and website are tracked in the same repository, so a normal clone contains all project source. See the [repository workflow](COMPONENT_REPOS.md) for editing and submitting changes.
+Clone the `dev` branch with `git clone --recurse-submodules --branch dev ...`, or initialize the QML and website sources in an existing checkout with `git submodule update --init --recursive`. The root repository pins the exact component commits used by the build and website workflow. See the [repository workflow](COMPONENT_REPOS.md) for editing and submitting changes.
 
 ## Build and static checks
 
@@ -87,14 +87,14 @@ This builds packages without installing them. The archive must include `data/plu
 | `src/shell` | Generic QML module schema/runtime and media helper |
 | `src/ctl` | Bounded local control client |
 | `nix`, `flake.nix`, `flake.lock` | Nix package, NixOS module and pinned dependency input |
-| `qml` | Shell feature UI and shared controls, tracked in this repository |
-| `site` | Astro website, tracked here and deployed by the root repository |
+| `qml` | Shell feature UI and shared controls, pinned from LunaDash-Shell |
+| `site` | Astro website pinned from LunaDash-docs and deployed by the root repository |
 | `src/compositor` | Compositor sources, built with the root CMake targets |
 | `data` | User-facing assets, templates, translations and portal/plugin metadata |
 | `cmake/modules/Renderer.cmake` | Explicit render sources and embedded shader inventory |
 | `cmake/modules/Tests.cmake` | Optional renderer tests and staged test installation |
 | `scripts`, `tests` | Installation, diagnostics and executable regression checks |
-| `site/src/pages/docs/architecture.astro` | Website architecture guide |
+| `site/src/pages/docs/architecture.astro` | Website architecture guide in LunaDash-docs |
 
 See [architecture](ARCHITECTURE.md) for ownership contracts. Existing historical Python tests that assume the previous Qt compositor or Xvfb keyboard injection are not part of the current wlroots CI gate; use the current lifecycle and protocol tests above and port a historical test before relying on it as release evidence.
 

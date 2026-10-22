@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://luyishan-4.github.io/LunaDash/sitemap.xml

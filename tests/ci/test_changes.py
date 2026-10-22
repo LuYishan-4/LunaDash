@@ -18,7 +18,8 @@ class SelectionTests(unittest.TestCase):
 
     def test_website_has_independent_suite(self):
         self.assertEqual([name for name, on in changes.select(["site/src/pages/index.astro"]).items() if on], ["website"])
-        self.assertEqual([name for name, on in changes.select(["qml/shell.qml"]).items() if on], ["native", "qml", "nix"])
+        self.assertEqual([name for name, on in changes.select(["site"]).items() if on], ["website"])
+        self.assertEqual([name for name, on in changes.select(["qml"]).items() if on], ["native", "qml", "nix"])
 
     def test_native_changes_cover_all_native_domains(self):
         for path in ["src/compositor/input/Input.cpp", "src/service/portal/Portal.cpp", "data/translations/en_US.json", "cmake/LunaDashMain.cmake"]:

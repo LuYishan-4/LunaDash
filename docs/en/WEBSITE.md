@@ -1,6 +1,6 @@
 # Website and GitHub Pages
 
-The English site lives in `site/` and uses Astro, CSS and TypeScript. Its introduction follows LunaDash's goal: a useful desktop from the first login, with room for customization. README and website installation examples use `./scripts/install-session.sh`; manual builds belong in the technical guides.
+The English Astro site lives in the LunaDash-docs repository and appears at `site/` in a recursive LunaDash checkout. It uses Astro, CSS and TypeScript. Its introduction follows LunaDash's goal: a useful desktop from the first login, with room for customization. README and website installation examples use `./scripts/install-session.sh`; manual builds belong in the technical guides.
 
 The home page presents the desktop, its customization options, screenshots, installation and contribution guidance. The short opening animation respects reduced motion. There are no analytics or font services. The contributor avatar loads from the maintainer's host. Clipboard access occurs only when Copy is clicked.
 
@@ -28,7 +28,7 @@ Open `http://localhost:4321/LunaDash/` while the preview server is running. Chec
 
 ## Contributions and publishing
 
-Normal pull requests target `dev` and include relevant `docs/en/`, matching `docs/zh/`, and website content changes. They must not change `.github/workflows/`, release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/`, or the generated `site/src/data/releases.json` index. Release impact belongs in the PR body; maintainers publish it through GitHub Releases. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../../CONTRIBUTING.md) and the [PR template](../../.github/pull_request_template.md).
+Normal LunaDash pull requests target `dev`; website commits belong in LunaDash-docs, then the root `site/` pointer is updated for integration. Generated release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/` and the `site/src/data/releases.json` index remain protected. Release impact belongs in the PR body; maintainers publish it through GitHub Releases. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../../CONTRIBUTING.md) and the [PR template](../../.github/pull_request_template.md).
 
 - `main-site.yml` checks types, builds and validates local links/assets on pushes, pull requests, merge groups and manual runs.
 - `site-pages.yml` deploys from `main` when website, brand or screenshot assets change, when a GitHub Release changes, or when manually dispatched. It synchronizes published Release Markdown, repeats validation and deploys `site/dist` to GitHub Pages.
