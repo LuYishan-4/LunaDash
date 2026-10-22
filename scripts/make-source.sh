@@ -13,20 +13,6 @@ for entry do
   fi
 done
 
-# A superproject checkout must contain every pinned component before an archive
-# is created. The packaging test fixture expands gitlinks into ordinary files.
-if [ -e "$project_dir/.git" ] &&
-   git -C "$project_dir" ls-files --stage | grep -q '^160000 '; then
-  submodules=$(git -C "$project_dir" submodule status --recursive) || {
-    echo 'Could not read pinned component status.' >&2
-    exit 1
-  }
-  if printf '%s\n' "$submodules" | grep -Eq '^[+-U]'; then
-    echo 'Initialize and checkout every pinned component before packaging.' >&2
-    exit 1
-  fi
-fi
-
 # Stage beside the final archive so a failed tar never replaces a good package.
 metadata=$(mktemp -d "$project_dir/packaging/arch/.make-source.XXXXXX")
 trap 'rm -rf "$metadata"' EXIT

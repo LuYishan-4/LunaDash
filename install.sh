@@ -230,7 +230,7 @@ download_source() {
     stage=desktop-source
     say 'Step 3/5 · LunaDash desktop' '步驟 3/5 · 安裝 LunaDash 桌面環境'
     if $dry_run; then
-        printf '+ Resolve %s@%s, fetch the exact Git commit and initialize its pinned submodules\n' "$repository" "$source_ref"
+        printf '+ Resolve %s@%s and fetch the exact Git commit\n' "$repository" "$source_ref"
         printf '+ make-source.sh; makepkg --syncdeps --force; sudo pacman -U (built package)\n'
         return
     fi
@@ -246,7 +246,6 @@ download_source() {
     run git -C "$source_dir" checkout --quiet --detach FETCH_HEAD
     [[ $(git -C "$source_dir" rev-parse HEAD) == "$revision" ]] || \
         die 'Downloaded Git source does not match the pinned revision.' '下載的 Git 原始碼與固定版本不符。'
-    run git -C "$source_dir" submodule update --init --depth 1 --recursive
     printf '%s\n' "$revision" > "$source_dir/.lunadash-revision"
     run bash "$source_dir/scripts/make-source.sh"
     stage=desktop-build

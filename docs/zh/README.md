@@ -13,7 +13,7 @@ NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證�
 - [設定、快捷鍵與桌面行為](SETTINGS.md)
 - [建置、測試與原始碼地圖](TESTING_AND_FILES.md)
 - [原始碼架構](ARCHITECTURE.md)
-- [元件 repository 與版本指標](COMPONENT_REPOS.md)
+- [Repository 工作流程](COMPONENT_REPOS.md)
 
 ## 桌面功能
 

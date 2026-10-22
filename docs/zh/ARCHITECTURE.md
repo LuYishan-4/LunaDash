@@ -36,7 +36,7 @@ src/
 
 C++ 檔名使用 PascalCase 的 `.hpp/.cpp`，資料夾使用小寫 domain；C 介面維持 `.h/.c` 與既有 `ludash_` symbol。每個可執行入口的 `Main.cpp` 只負責把控制交給對應 module。
 
-整合 repository 將獨立網站放在 `site/`、QML shell 放在 `qml/`、compositor 原始碼放在 `src/compositor/`，三者分別以獨立 repository 的 submodule commit 固定。根目錄 CMake 仍負責組合 targets，並提供共用 settings、core、desktop 與 shell API。Clone 與更新版本指標的指令見[元件 repository 說明](COMPONENT_REPOS.md)；compositor 目前還不能獨立使用 CMake 建置。
+根 repository 將網站放在 `site/`、QML shell 放在 `qml/`、compositor 原始碼放在 `src/compositor/`，並與共用 API 和建置設定一同追蹤。相關修改可在同一 repository 一起編輯和 commit，詳見[repository 工作流程](COMPONENT_REPOS.md)。Compositor 目前不能獨立使用 CMake 建置。
 
 ## 相依與生命週期
 

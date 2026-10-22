@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="LunaDash">
+  <title>LunaDash</title>
+  <!-- The mark reuses the crescent, orbit and star paths that the shell draws in
+       qml/components/LunaDashLogo.qml, so the icon and the desktop logo match.
+       The 126-unit artwork is centred on its ink box, which spans x 18..118 and
+       y 8..117, so translate = tile centre - (68, 62.5) * scale. -->
+  <defs>
+    <linearGradient id="tile" x1="0.05" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#20303f"/>
+      <stop offset="0.5" stop-color="#131c25"/>
+      <stop offset="1" stop-color="#0a0e13"/>
+    </linearGradient>
+    <radialGradient id="haze" cx="0.3" cy="0.24" r="0.8">
+      <stop offset="0" stop-color="#9ccbfb" stop-opacity="0.3"/>
+      <stop offset="0.5" stop-color="#9ccbfb" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#9ccbfb" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="moon" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#f4f9ff"/>
+      <stop offset="0.42" stop-color="#aed6fb"/>
+      <stop offset="1" stop-color="#6c9dd6"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#a8cbea" stop-opacity="0.6"/>
+      <stop offset="0.55" stop-color="#7f9cba" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#7f9cba" stop-opacity="0.05"/>
+    </linearGradient>
+    <clipPath id="tileClip">
+      <rect x="16" y="16" width="480" height="480" rx="116"/>
+    </clipPath>
+    <g id="mark">
+      <path d="M18 72 C24 103 58 119 88 104 C111 93 121 67 112 43" fill="none"
+            stroke="#9ccbfb" stroke-opacity="0.5" stroke-width="2.1" stroke-linecap="round"/>
+      <path d="M65 11 C38 17 23 43 31 69 C39 96 70 110 95 97 C77 96 60 85 53 68 C44 47 50 25 65 11 Z"
+            fill="url(#moon)" stroke="#e2eefb" stroke-opacity="0.6" stroke-width="1"/>
+      <path d="M92 19 L95 27 L103 30 L95 33 L92 41 L89 33 L81 30 L89 27 Z" fill="#d3bfe6"/>
+      <path d="M105 54 L107 59 L112 61 L107 63 L105 68 L103 63 L98 61 L103 59 Z"
+            fill="#e2e9f1" fill-opacity="0.85"/>
+      <path d="M78 8 L80 12 L84 14 L80 16 L78 20 L76 16 L72 14 L76 12 Z" fill="#9ccbfb"/>
+    </g>
+  </defs>
+
+  <g clip-path="url(#tileClip)">
+    <rect x="16" y="16" width="480" height="480" fill="url(#tile)"/>
+    <rect x="16" y="16" width="480" height="480" fill="url(#haze)"/>
+    <g fill="#dce9f6">
+      <circle cx="126" cy="118" r="2.6" opacity="0.45"/>
+      <circle cx="392" cy="150" r="2" opacity="0.35"/>
+      <circle cx="348" cy="392" r="2.6" opacity="0.3"/>
+      <circle cx="163" cy="404" r="1.8" opacity="0.26"/>
+      <circle cx="418" cy="286" r="1.8" opacity="0.22"/>
+    </g>
+  </g>
+  <rect x="16" y="16" width="480" height="480" rx="116" fill="none" stroke="url(#rim)" stroke-width="2.5"/>
+
+  <g transform="translate(43.8 61) scale(3.12)">
+    <use href="#mark"/>
+  </g>
+</svg>

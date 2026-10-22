@@ -1,0 +1,13 @@
+---
+interface Props { code: string; label?: string; }
+const { code, label = "TERMINAL" } = Astro.props;
+---
+<figure class="code-block"><figcaption><span>{label}</span><button type="button" data-copy-code aria-label={`Copy ${label.toLowerCase()} example`}>Copy</button></figcaption><pre><code>{code}</code></pre><span class="copy-feedback" role="status" aria-live="polite"></span></figure>
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-copy-code]").forEach(button => button.addEventListener("click", async () => {
+    const block = button.closest("figure");
+    const feedback = block?.querySelector<HTMLElement>(".copy-feedback");
+    try { await navigator.clipboard.writeText(block?.querySelector("code")?.textContent ?? ""); if (feedback) feedback.textContent = "Copied."; }
+    catch { if (feedback) feedback.textContent = "Select the example to copy it manually."; }
+  }));
+</script>

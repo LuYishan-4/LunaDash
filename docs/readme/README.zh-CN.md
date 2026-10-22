@@ -60,7 +60,7 @@
 获取开发分支后，运行会话安装程序：
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```

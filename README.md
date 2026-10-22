@@ -70,7 +70,7 @@ For developer/testing installs or other distributions, the existing session
 installer remains available and unchanged:
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```
@@ -79,7 +79,7 @@ The installer handles distribution dependencies, builds LunaDash and installs th
 
 Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
 
-Source components live in [separate repositories](docs/COMPONENT_REPOS.md) and are pinned by the `dev` integration branch. A component commit becomes part of LunaDash after its submodule pointer is reviewed and committed on `dev`.
+The desktop, Quickshell UI, compositor and website are tracked together in this repository. See the [repository workflow](docs/COMPONENT_REPOS.md) to make and submit a change.
 
 ## A few shortcuts
 

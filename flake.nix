@@ -1,7 +1,6 @@
 {
   description = "LunaDash 1.0.1a Wayland desktop";
 
-  inputs.self.submodules = true;
   inputs.nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst";
 
   outputs = { self, nixpkgs }:

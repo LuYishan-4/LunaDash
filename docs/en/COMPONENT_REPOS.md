@@ -1,61 +1,36 @@
-# Component repositories
+# Repository workflow
 
-LunaDash keeps the website, Quickshell shell and compositor source in separate GitHub repositories. The integration repository's `dev` branch pins exact component commits with Git submodules:
+LunaDash keeps its desktop, Quickshell UI, compositor and Astro website in one Git repository. The source directories `src/compositor/`, `qml/` and `site/` are ordinary tracked directories in the `dev` branch; they are not submodules.
 
-| Integration path | Repository | Current build role |
-| --- | --- | --- |
-| `site/` | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | Standalone Astro website; deployed by the integration workflow |
-| `qml/` | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | QML assets loaded by the integrated Quickshell runtime |
-| `src/compositor/` | [LunaDash-Compositor](https://github.com/LunaDash-DE/LunaDash-Compositor) | Compositor source compiled by the integration CMake project |
+| Path | Responsibility |
+| --- | --- |
+| `src/compositor/` | Wayland compositor, built with the root CMake project and shared LunaDash APIs |
+| `qml/` | Quickshell desktop UI, using the host's C++ services, translations and data |
+| `site/` | Astro website, deployed by the root repository's Pages workflow |
 
-The root LunaDash repository remains the integration project. Its CMake files own target definitions and combine the compositor with shared `src/config`, `src/core`, `src/desktop` and `src/shell` APIs. The compositor repository therefore is not yet a standalone CMake build. Shell QML also relies on the host's C++ services, translations and data assets. A pinned component commit is a version boundary, not an automatic update or a promise of an independent runtime.
+The compositor and QML shell depend on APIs and assets elsewhere in LunaDash. Keeping them in the same repository lets one branch and commit update related code together. The former LunaDash-Shell, LunaDash-Compositor and LunaDash-docs repositories are historical component snapshots; normal development happens in this repository.
 
 ## Clone and build
 
-Initialize the exact versions selected by `dev` when cloning:
+Clone the development branch and build from the root:
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
-git submodule status
 cmake -S . -B build -G Ninja
 cmake --build build --parallel 2
 ```
 
-An existing checkout can initialize or restore the recorded component versions with:
+## Make a change
+
+Edit any combination of files in one LunaDash checkout. Stage and commit them in the root repository, then push a branch and open a pull request targeting `dev`:
 
 ```sh
-git submodule update --init --recursive
+git switch -c feature/my-change
+# edit files in src/compositor/, qml/, site/ or other project paths
+git add src/compositor qml site
+git commit -m "Describe the change"
+git push -u origin feature/my-change
 ```
 
-Do not use `git submodule update --remote` for a normal build; it moves the local checkout to newer component commits without changing the integration pin.
-
-## Change a component and integrate it
-
-Make the change in the component repository, commit and push that repository, then review its commit in the integration checkout. For example, after a QML change has been committed to `LunaDash-Shell`:
-
-```sh
-git -C qml fetch origin main
-git -C qml checkout --detach <reviewed-component-sha>
-git diff --submodule=log -- qml
-git add qml
-git diff --cached --submodule=log
-git commit -m "Update pinned QML shell"
-```
-
-The component URL must be pushed before the integration commit so fresh clones can fetch it. Commit the integration pointer on `dev`; do not move `main` as part of ordinary component work. Website, QML and compositor source edits each need their matching component commit and one integration pin update. CI, the website deploy workflow, Nix and the Arch source packager initialize the pinned submodules.
-
-For a quick update to every component's configured `main` branch, inspect the fetched commit IDs first:
-
-```sh
-git submodule update --remote site qml src/compositor
-git diff --submodule=log
-git add site qml src/compositor
-git commit -m "Update pinned component revisions"
-```
-
-This command changes only the local worktree and the integration repository's staged pointers. It does not commit or push changes in any component repository.
-
-## Current extraction boundary
-
-The website has its own Node package and can be checked and built in its repository. QML is versioned independently, while application builds and behavior tests run in LunaDash because its host APIs and test assets live there. The compositor sources have a stronger dependency on shared integration domains, so all production CMake targets and Wayland runtime tests remain in LunaDash. Moving those APIs into a stable public core would be required before advertising the compositor as independently buildable.
+There is no component commit or submodule pointer to update. The website has its own `package.json` and can be checked from `site/`, while desktop and Wayland integration is built from the root project.

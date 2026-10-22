@@ -60,7 +60,7 @@
 開発ブランチを取得し、セッションインストーラーを実行します。
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```

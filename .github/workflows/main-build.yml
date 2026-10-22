@@ -27,7 +27,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          submodules: recursive
       - id: select
         env:
           CI_FULL: ${{ inputs.full }}
@@ -42,7 +41,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Install shell audit tools
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Repository and CI policy
@@ -100,7 +98,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - uses: ./.github/actions/ubuntu-dependencies
       - uses: actions/cache@v4
         with:
@@ -172,7 +169,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Install Qt Quick test tools
         run: |
           sudo apt-get update
@@ -206,7 +202,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - uses: cachix/install-nix-action@v31
       - name: Evaluate both package architectures and module, build and run x86_64 checks
         id: nix-check

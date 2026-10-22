@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 400" width="1600" height="400" role="img" aria-label="LunaDash">
+  <title>LunaDash</title>
+  <!-- README banner: the app mark next to the wordmark, centred on a dark
+       gradient. The mark reuses the crescent, orbit and star paths from
+       qml/components/LunaDashLogo.qml, which are centred on their ink box
+       (x 18..118, y 8..117), so translate = tile centre - (68, 62.5) * scale. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#121c26"/>
+      <stop offset="0.5" stop-color="#0d141c"/>
+      <stop offset="1" stop-color="#080c11"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.62">
+      <stop offset="0" stop-color="#9ccbfb" stop-opacity="0.18"/>
+      <stop offset="0.5" stop-color="#9ccbfb" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#9ccbfb" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#f6fbff"/>
+      <stop offset="1" stop-color="#b9d5f0"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="0.05" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#20303f"/>
+      <stop offset="0.5" stop-color="#131c25"/>
+      <stop offset="1" stop-color="#0a0e13"/>
+    </linearGradient>
+    <linearGradient id="moon" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#f4f9ff"/>
+      <stop offset="0.42" stop-color="#aed6fb"/>
+      <stop offset="1" stop-color="#6c9dd6"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#a8cbea" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#7f9cba" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#7f9cba" stop-opacity="0.04"/>
+    </linearGradient>
+    <clipPath id="frame">
+      <rect x="0" y="0" width="1600" height="400" rx="28"/>
+    </clipPath>
+    <g id="mark">
+      <path d="M18 72 C24 103 58 119 88 104 C111 93 121 67 112 43" fill="none"
+            stroke="#9ccbfb" stroke-opacity="0.5" stroke-width="2.1" stroke-linecap="round"/>
+      <path d="M65 11 C38 17 23 43 31 69 C39 96 70 110 95 97 C77 96 60 85 53 68 C44 47 50 25 65 11 Z"
+            fill="url(#moon)" stroke="#e2eefb" stroke-opacity="0.6" stroke-width="1"/>
+      <path d="M92 19 L95 27 L103 30 L95 33 L92 41 L89 33 L81 30 L89 27 Z" fill="#d3bfe6"/>
+      <path d="M105 54 L107 59 L112 61 L107 63 L105 68 L103 63 L98 61 L103 59 Z"
+            fill="#e2e9f1" fill-opacity="0.85"/>
+      <path d="M78 8 L80 12 L84 14 L80 16 L78 20 L76 16 L72 14 L76 12 Z" fill="#9ccbfb"/>
+    </g>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1600" height="400" fill="url(#bg)"/>
+    <rect width="1600" height="400" fill="url(#glow)"/>
+    <g fill="#dce9f6">
+      <circle cx="286" cy="86" r="2.4" opacity="0.36"/>
+      <circle cx="1318" cy="72" r="2" opacity="0.3"/>
+      <circle cx="1246" cy="330" r="2.4" opacity="0.22"/>
+      <circle cx="352" cy="318" r="2" opacity="0.2"/>
+    </g>
+  </g>
+
+  <rect x="504" y="134" width="132" height="132" rx="33" fill="url(#tile)"/>
+  <rect x="504" y="134" width="132" height="132" rx="33" fill="none" stroke="url(#rim)" stroke-width="2"/>
+  <g transform="translate(530.3 149.7) scale(0.8044)">
+    <use href="#mark"/>
+  </g>
+
+  <text x="676" y="230" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+        font-size="84" font-weight="600" letter-spacing="2" fill="url(#word)">LunaDash</text>
+
+  <rect x="0.75" y="0.75" width="1598.5" height="398.5" rx="28" fill="none" stroke="#3b4856" stroke-opacity="0.5" stroke-width="1.5"/>
+</svg>

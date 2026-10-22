@@ -33,7 +33,6 @@ jobs:
               with:
                   ref: main
                   persist-credentials: false
-                  submodules: recursive
             - name: Sync published GitHub Release Markdown
               env:
                   GITHUB_TOKEN: ${{ github.token }}
