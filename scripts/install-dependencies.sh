@@ -21,8 +21,9 @@ mode and accepts an already-provisioned CMake/Ninja/Qt6/Wayland toolchain.
 
 The script installs only packages from enabled distribution repositories. It does
 not add third-party repositories. Quickshell is checked separately because its
-packaging differs between distributions. Fcitx 5, its Qt integration, and its
-configuration tool are installed automatically on supported distributions.
+packaging differs between distributions. Fcitx 5 and its Qt integration are
+installed automatically on supported distributions. The optional configuration
+tool is installed where available.
 EOF
 }
 while (($#)); do
@@ -157,7 +158,9 @@ case "$manager" in
             glib-dev wlroots-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
-            pulseaudio-utils fcitx5 fcitx5-qt fcitx5-configtool
+            pulseaudio-utils fcitx5 fcitx5-qt
+        # Alpine Edge currently publishes fcitx5-configtool with an unresolved
+        # so:libPlasma.so.7 dependency; the optional GUI is unavailable there.
         ;;
     xbps)
         run "${elevate[@]}" xbps-install -Sy \
