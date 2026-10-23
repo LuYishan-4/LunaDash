@@ -4,9 +4,9 @@ namespace LunaDash {
 
 Texture::~Texture() { reset(); }
 
-bool Texture::resize(LuDashGLDispatch &gl, const QSize &size) {
-  if (size.width() <= 0 || size.height() <= 0 || size.width() > 32768 ||
-      size.height() > 32768)
+bool Texture::resize(LuDashGLDispatch &gl, RenderSize size) {
+  if (size.width <= 0 || size.height <= 0 || size.width > 32768 ||
+      size.height > 32768)
     return false;
   if (gl_ == &gl && texture_ && size_ == size)
     return true;
@@ -24,8 +24,8 @@ bool Texture::resize(LuDashGLDispatch &gl, const QSize &size) {
   gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.width(), size.height(), 0,
-                GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  gl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.width, size.height, 0, GL_RGBA,
+                GL_UNSIGNED_BYTE, nullptr);
   size_ = size;
   return true;
 }
@@ -39,7 +39,7 @@ void Texture::reset() {
 }
 
 GLuint Texture::texture() const { return texture_; }
-QSize Texture::size() const { return size_; }
-bool Texture::valid() const { return texture_ != 0 && !size_.isEmpty(); }
+RenderSize Texture::size() const { return size_; }
+bool Texture::valid() const { return texture_ != 0 && !size_.empty(); }
 
 } // namespace LunaDash

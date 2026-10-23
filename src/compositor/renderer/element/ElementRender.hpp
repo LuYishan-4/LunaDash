@@ -1,9 +1,9 @@
 #pragma once
 
 #include "compositor/renderer/RendererTypes.hpp"
-#include <QString>
 #include <concepts>
 #include <memory>
+#include <string>
 #include <utility>
 
 namespace LunaDash {
@@ -13,9 +13,9 @@ class Renderer;
 class ElementRender {
 public:
   virtual ~ElementRender() = default;
-  virtual bool prepare(Renderer &renderer, QString *error = nullptr) = 0;
+  virtual bool prepare(Renderer &renderer, std::string *error = nullptr) = 0;
   virtual bool render(Renderer &renderer, const ElementRenderContext &context,
-                      QString *error = nullptr) = 0;
+                      std::string *error = nullptr) = 0;
   virtual void release() = 0;
 };
 

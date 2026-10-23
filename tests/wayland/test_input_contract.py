@@ -9,6 +9,12 @@ input_cpp = (root / "src/compositor/input/Input.cpp").read_text(encoding="utf-8"
 compositor = (root / "src/compositor/wayland/WaylandCompositor.cpp").read_text(
     encoding="utf-8"
 )
+register = (root / "src/compositor/wayland/Register.cpp").read_text(
+    encoding="utf-8"
+)
+surface = (root / "src/compositor/wayland/Surface.cpp").read_text(
+    encoding="utf-8"
+)
 launcher = (shell_root / "launcher/Launcher.qml").read_text(encoding="utf-8")
 shell = (shell_root / "shell.qml").read_text(encoding="utf-8")
 
@@ -52,6 +58,21 @@ assert "self->q->setLauncherVisible(false)" not in input_cpp
 assert "WindowSwitcher::Scope::Workspaces" in input_cpp
 assert "WLR_MODIFIER_LOGO : WLR_MODIFIER_ALT" in input_cpp
 assert "windowSwitcher_->dismissPopups()" in input_cpp
+
+# Toolkit clients use xdg-activation-v1 for launch and focus requests. Only
+# accept requests backed by a recent input serial from the declared source
+# surface's seat client, and focus mapped application surfaces through the
+# compositor's regular policy path.
+assert "wlr_xdg_activation_v1_create(display)" in register
+assert "events.request_activate" in register
+activation = surface[surface.index(
+    "void WaylandCompositor::Impl::handleXdgActivationRequest"
+):surface.index("void WaylandCompositor::Impl::handleToplevelMap")]
+assert "request->token->seat != self->seat" in activation
+assert "wlr_seat_client_for_wl_client" in activation
+assert "wlr_seat_client_validate_event_serial" in activation
+assert "target->mapped" in activation
+assert "self->q->focus(target)" in activation
 
 # Shell interaction state carries both serial and desired visibility so a
 # second Meta tap closes the launcher immediately.

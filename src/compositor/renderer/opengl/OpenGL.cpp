@@ -1,10 +1,10 @@
 #include "compositor/renderer/opengl/OpenGL.hpp"
 
-#include <QCoreApplication>
-#include <QOpenGLContext>
-#include <QQuickWindow>
-#include <QSGRendererInterface>
-#include <QSurfaceFormat>
+#include <EGL/egl.h>
+
+#include <algorithm>
+#include <string_view>
+#include <utility>
 
 namespace LunaDash {
 
@@ -12,33 +12,42 @@ OpenGL::OpenGL(GraphicsApi requested, std::shared_ptr<RenderState> state)
     : requested_(requested),
       state_(state ? std::move(state) : std::make_shared<RenderState>()) {}
 
-bool OpenGL::initialize(QString *error) {
+bool OpenGL::initialize(std::string *error) {
   if (initialized_)
     return true;
+  if (error)
+    error->clear();
 
-  context_ = QOpenGLContext::currentContext();
-  if (!context_) {
+  const EGLContext context = eglGetCurrentContext();
+  const EGLDisplay display = eglGetCurrentDisplay();
+  if (context == EGL_NO_CONTEXT || display == EGL_NO_DISPLAY) {
     if (error)
-      *error = QStringLiteral("no current OpenGL context");
+      *error = "no current EGL/OpenGL context";
     state_->failed = true;
     return false;
   }
 
-  const bool es = context_->isOpenGLES();
-  const auto format = context_->format();
-  state_->isOpenGLES = es;
-  state_->majorVersion = format.majorVersion();
-  state_->minorVersion = format.minorVersion();
+  EGLint clientType = EGL_NONE;
+  if (eglQueryContext(display, context, EGL_CONTEXT_CLIENT_TYPE, &clientType) !=
+      EGL_TRUE) {
+    if (error)
+      *error = "could not query the current EGL context API";
+    state_->failed = true;
+    return false;
+  }
+  const bool es = clientType == EGL_OPENGL_ES_API;
+  if (!es && clientType != EGL_OPENGL_API) {
+    if (error)
+      *error = "the current EGL context is not an OpenGL context";
+    state_->failed = true;
+    return false;
+  }
 
   const bool apiMismatch = (requested_ == GraphicsApi::OpenGL && es) ||
                            (requested_ == GraphicsApi::OpenGLES && !es);
-  const bool versionTooOld =
-      format.majorVersion() < 3 ||
-      (!es && format.majorVersion() == 3 && format.minorVersion() < 3);
-  if (apiMismatch || versionTooOld) {
+  if (apiMismatch) {
     if (error)
-      *error =
-          QStringLiteral("requested OpenGL API/context version is unavailable");
+      *error = "requested OpenGL API does not match the current EGL context";
     state_->failed = true;
     return false;
   }
@@ -47,22 +56,38 @@ bool OpenGL::initialize(QString *error) {
   if (!ludash_gl_load(&dispatch_, &OpenGL::resolve, loadError,
                       sizeof(loadError))) {
     if (error)
-      *error = QString::fromLocal8Bit(loadError);
+      *error = loadError;
     state_->failed = true;
     return false;
   }
 
+  GLint major = 0;
+  GLint minor = 0;
+  dispatch_.GetIntegerv(GL_MAJOR_VERSION, &major);
+  dispatch_.GetIntegerv(GL_MINOR_VERSION, &minor);
+  const bool versionTooOld = major < 3 || (!es && major == 3 && minor < 3);
+  if (versionTooOld) {
+    if (error)
+      *error = es ? "OpenGL ES 3.0 or newer is required"
+                  : "OpenGL 3.3 or newer is required";
+    dispatch_ = {};
+    state_->failed = true;
+    return false;
+  }
+
+  state_->isOpenGLES = es;
+  state_->majorVersion = major;
+  state_->minorVersion = minor;
   state_->failed = false;
   initialized_ = true;
   return true;
 }
 
 void OpenGL::shutdown() {
-  // Qt owns the context. GL resources must already have been released by
-  // elements.
+  // EGL and the toolkit own the current context. LunaDash only owns the GL
+  // dispatch table and must release its resources before that context ends.
   initialized_ = false;
   dispatch_ = {};
-  context_ = nullptr;
   state_->shaderReady = false;
 }
 
@@ -74,52 +99,32 @@ const LuDashGLDispatch &OpenGL::dispatch() const { return dispatch_; }
 std::shared_ptr<RenderState> OpenGL::state() const { return state_; }
 
 LuDashGLProc OpenGL::resolve(const char *name) {
-  auto *context = QOpenGLContext::currentContext();
-  return context ? context->getProcAddress(name) : nullptr;
-}
-
-void OpenGL::configureDefault(GraphicsApi api) {
-  const bool es =
-      api == GraphicsApi::OpenGLES ||
-      (api == GraphicsApi::Auto &&
-       QOpenGLContext::openGLModuleType() == QOpenGLContext::LibGLES);
-
-  QSurfaceFormat format;
-  format.setRenderableType(es ? QSurfaceFormat::OpenGLES
-                              : QSurfaceFormat::OpenGL);
-  format.setVersion(3, es ? 0 : 3);
-  format.setProfile(es ? QSurfaceFormat::NoProfile
-                       : QSurfaceFormat::CoreProfile);
-  format.setDepthBufferSize(24);
-  format.setStencilBufferSize(8);
-  format.setSwapInterval(1);
-  QSurfaceFormat::setDefaultFormat(format);
-  QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
-  QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+  return reinterpret_cast<LuDashGLProc>(eglGetProcAddress(name));
 }
 
 std::optional<GraphicsApi> graphicsApiFromArguments(int argc, char **argv) {
-  QString value = QStringLiteral("auto");
-  for (int i = 1; i < argc; ++i) {
-    const auto argument = QString::fromLocal8Bit(argv[i]);
-    if (argument.startsWith(QStringLiteral("--graphics=")))
-      value = argument.mid(11);
-    else if (argument == QStringLiteral("--graphics")) {
-      if (i + 1 >= argc)
+  std::string_view value = "auto";
+  for (int index = 1; index < argc; ++index) {
+    const std::string_view argument(argv[index]);
+    if (argument.starts_with("--graphics=")) {
+      value = argument.substr(11);
+      break;
+    }
+    if (argument == "--graphics") {
+      if (index + 1 >= argc)
         return std::nullopt;
-      value = QString::fromLocal8Bit(argv[++i]);
+      value = argv[index + 1];
+      break;
     }
   }
 
-  if (value == QStringLiteral("opengl"))
+  if (value == "opengl")
     return GraphicsApi::OpenGL;
-  if (value == QStringLiteral("gles"))
+  if (value == "gles")
     return GraphicsApi::OpenGLES;
-  if (value == QStringLiteral("auto"))
+  if (value == "auto")
     return GraphicsApi::Auto;
   return std::nullopt;
 }
-
-void configureGraphics(GraphicsApi api) { OpenGL::configureDefault(api); }
 
 } // namespace LunaDash

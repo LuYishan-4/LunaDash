@@ -25,10 +25,12 @@ Inspect that file when an upgrade does not change routing.
 
 ## Backend contracts
 
-Both executable modes disable portal platform-theme/native-dialog recursion
-before constructing QApplication. The backend registers D-Bus argument types,
-exports FileChooser version 4 and the Settings adaptor, and only then acquires
-its bus name. Readiness and activation failures are written to stderr/journal.
+The D-Bus backend uses GLib GDBus and owns its service name only after it has
+exported FileChooser version 4 and Settings version 2. FileChooser and
+ScreenCast each launch a separate Slint/Winit Wayland client. The FileChooser
+helper receives JSON on stdin and returns the accepted local paths and portal
+options on stdout. `Request.Close` terminates the active picker process.
+Readiness and activation failures are written to stderr/journal.
 
 The dmenu chooser must return the selected input line unchanged. In particular,
 UTF-8 names and trailing spaces belong to the opaque source label. Trimming a
@@ -37,9 +39,8 @@ Cancellation returns no label. Thumbnail capture failure must not block selectio
 
 ## Automated core tests
 
-PR policy forbids changes under .github/workflows, so portal regressions are
-registered in CTest rather than a new workflow. With BUILD_TESTING enabled,
-the existing Ubuntu build runs lunadash-portal-protocol and
+Portal regressions are registered in CTest with the existing core suite. With
+BUILD_TESTING enabled, the Ubuntu build runs lunadash-portal-protocol and
 lunadash-session-launcher alongside the existing lunadash-portal-picker test.
 The protocol test uses Qt Test and dbus-run-session, starts a separate real
 backend on a private bus, and checks the first exported method/signal signatures,
@@ -55,33 +56,42 @@ ctest --test-dir build --output-on-failure -R '^lunadash-(portal-protocol|portal
 
 ## Full frontend and UI integration
 
-The unchanged tests/portal/test_runtime.py suite additionally checks real
-OpenFile/SaveFile confirmation and URIs, a freshly started backend behind the
+The tests/portal/test_runtime.py suite additionally checks real
+OpenFile/SaveFile/SaveFiles confirmation and URIs, a freshly started backend behind the
 real xdg-desktop-portal frontend, public Request.Response and color-scheme,
 no recursive frontend activation, and real source-picker confirmation/cancellation
-with lossless UTF-8/whitespace labels. It does not enable AUTOPICK.
-This extended suite is opt-in; do not report it as run by the default CI jobs.
+with lossless UTF-8/whitespace labels. It starts a nested headless wlroots
+compositor and uses `wtype` to accept/cancel the Slint chooser over Wayland; it
+also retains a rendered chooser screenshot. It does not enable AUTOPICK.
+The main Ubuntu workflow opts into this suite and runs it through CTest. Other
+jobs and local builds only run it when the option is enabled; report its result
+from the specific job that executed it.
 
-Install xdg-desktop-portal, Xvfb, xauth, xdotool and the selected Python
+Install xdg-desktop-portal, Xvfb, xauth, wtype and the selected Python
 interpreter's dbus/gi bindings. Ubuntu packages are xdg-desktop-portal, xvfb,
-xauth, xdotool, python3-dbus and python3-gi. Arch packages are
-xdg-desktop-portal, xorg-server-xvfb, xorg-xauth, xdotool, python-dbus and
+xauth, wtype, python3-dbus and python3-gi. Arch packages are
+xdg-desktop-portal, xorg-server-xvfb, xorg-xauth, wtype, python-dbus and
 python-gobject. Enable and run the suite with:
 
 ```sh
 cmake -S . -B build -G Ninja -DBUILD_TESTING=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON
-cmake --build build --target lunadash-portal
+cmake --build build --target lunadash-portal lunadash-compositor
 ctest --test-dir build --output-on-failure -R '^lunadash-portal-runtime$'
 ```
 
 Missing dependencies are configuration errors when the option is enabled, not
-silent skips. The wrapper creates a private runtime directory, display and bus.
-Backend/frontend logs and introspection XML remain in build/portal-runtime.
+silent skips. The wrapper creates a private runtime directory, X display and
+D-Bus session; the test starts a separate headless Wayland compositor for the
+Slint chooser. Backend/frontend logs and introspection XML remain in
+build/portal-runtime, and the chooser screenshot is saved under
+build/ci-evidence/.
 
 ## Verification boundaries
 
-Core tests use Qt's offscreen platform; the full UI suite uses a virtual X
-display. Neither proves native-Wayland focus, Flatpak app identification or
+The protocol test uses Qt Test for the current Qt D-Bus service; the full suite
+uses a virtual X display for portal frontend setup and a headless Wayland display
+for both Slint pickers. Neither
+proves physical-session focus, Flatpak app identification or
 sustained NVIDIA/PipeWire streaming on a physical session. Existing Wayland
 checks verify capture protocols/source types, not a complete Discord call.
 Push success is not PR success: also inspect PR policy, repository hygiene,

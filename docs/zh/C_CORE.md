@@ -2,11 +2,11 @@
 
 [English](../en/C_CORE.md) · [繁中索引](README.md)
 
-LunaDash 以 C11 處理範圍明確的低階工作，以 C++20 管物件生命週期與 Qt/wlroots 整合；桌面 Shell 使用 Quickshell/QML。
+LunaDash 以 C11 處理範圍明確的低階工作，以 C++20 管物件生命週期與系統／wlroots 整合；桌面 Shell 使用 Quickshell/QML。
 
 | C implementation | 職責 | C++ owner |
 | --- | --- | --- |
-| `src/compositor/renderer/opengl/GLDispatch.c` | 載入需要的 OpenGL entry points 與 bounded diagnostics | `OpenGL` 使用 Qt render-thread 的 current context |
+| `src/compositor/renderer/opengl/GLDispatch.c` | 載入需要的 OpenGL entry points 與 bounded diagnostics | `OpenGL` 使用呼叫端提供的 current EGL context |
 | `src/compositor/tiling/TilingGeometry.c` | 驗證尺寸並計算 column/member geometry | `TilingLayout` |
 | `src/desktop/system/SystemMetrics.c` | 解析 CPU/memory counter 並計算 bounded percentage | `SystemStatus` / `SystemMonitor` |
 

@@ -35,6 +35,9 @@
     "Search applications...": "搜尋程式…",
     "Launch failed": "啟動失敗",
     "pacman: queries run without administrator privileges. Confirm installation and removal in a terminal.": "pacman 套件管理：查詢不需要管理員權限，安裝與移除在終端機確認。",
+    "A package query is already running.": "套件查詢仍在執行中。",
+    "Could not start pacman: ": "無法啟動 pacman：",
+    "Enter a package name to search.": "請輸入要搜尋的套件名稱。",
     "Package name, for example fcitx5": "套件名稱，例如 fcitx5",
     "Installed": "已安裝",
     "Search": "搜尋",
@@ -49,6 +52,11 @@
     "Ask your system administrator to manage packages.": "請由系統管理員執行套件操作。",
     "Confirm in terminal": "在終端機確認",
     "The terminal will run:\n": "將在終端機執行：\n",
+    "The terminal will run:": "將在終端機執行：",
+    "Install or configure a supported terminal to manage packages.": "請安裝或設定支援的終端機，再管理套件。",
+    "The configured terminal is not supported for package actions.": "目前設定的終端機不支援套件操作。",
+    "Package transaction opened in the configured terminal.": "套件操作已在設定的終端機中開啟。",
+    "Launch failed: ": "啟動失敗：",
     "Terminal required": "需要終端機",
     "Install Konsole, foot, or Alacritty to manage packages.": "請安裝 Konsole、foot 或 Alacritty 後再執行套件操作。",
     "Up": "↑ 上一層",
@@ -388,5 +396,10 @@
     "Clear center width": "中央留白寬度",
     "Side bar spacing": "兩側長條間距",
     "Bar count (full width)": "整排模式長條數量",
-    "Bar spacing (full width)": "整排模式長條間距"
+    "Bar spacing (full width)": "整排模式長條間距",
+    "Could not create GTK theme URI.": "無法建立 GTK 主題 URI。",
+    "Could not export the portal request.": "無法匯出 Portal 要求。",
+    "Could not start the file picker.": "無法啟動檔案選擇器。",
+    "D-Bus call failed.": "D-Bus 呼叫失敗。",
+    "unknown error": "未知錯誤"
 }

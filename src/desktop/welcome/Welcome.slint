@@ -1,0 +1,447 @@
+import { ScrollView } from "std-widgets.slint";
+
+component SetupButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    in property <color> accent: #9ccbfb;
+    in property <color> ink: #171922;
+    in property <color> surface: #292d39;
+    in property <color> foreground: #f1f1f5;
+    in property <color> stroke: #4c5060;
+    callback clicked();
+
+    height: 38px;
+    horizontal-stretch: 1;
+    background: root.primary ? root.accent : root.surface;
+    border-color: root.primary ? root.accent : root.stroke;
+    border-width: 1px;
+    border-radius: 10px;
+
+    Text {
+        text: root.label;
+        color: root.primary ? root.ink : root.foreground;
+        font-size: 13px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component LanguageButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected: false;
+    in property <color> surface: #292d39;
+    in property <color> selected-fill: #3c4658;
+    in property <color> stroke: #4c5060;
+    in property <color> foreground: #f1f1f5;
+    in property <color> accent: #9ccbfb;
+    callback clicked();
+
+    horizontal-stretch: 1;
+    min-width: 0px;
+    height: 34px;
+    background: root.selected ? root.selected-fill : root.surface;
+    border-color: root.selected ? root.accent : root.stroke;
+    border-width: 1px;
+    border-radius: 9px;
+
+    Text {
+        text: root.label;
+        color: root.foreground;
+        font-size: 11px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component ToggleButton inherits Rectangle {
+    in property <bool> active: false;
+    in property <color> active-fill: #9ccbfb;
+    in property <color> inactive-fill: #4c5060;
+    callback clicked();
+
+    width: 52px;
+    height: 28px;
+    background: root.active ? root.active-fill : root.inactive-fill;
+    border-radius: 14px;
+
+    Rectangle {
+        x: root.active ? parent.width - self.width - 3px : 3px;
+        y: 3px;
+        width: 22px;
+        height: 22px;
+        background: #f1f1f5;
+        border-radius: 11px;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component ShortcutRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> shortcut;
+    in property <color> muted: #c3c6d0;
+    in property <color> foreground: #f1f1f5;
+    spacing: 12px;
+
+    Text {
+        text: root.label;
+        color: root.muted;
+        horizontal-stretch: 1;
+    }
+    Text {
+        text: root.shortcut;
+        color: root.foreground;
+        font-weight: 600;
+        horizontal-alignment: right;
+        overflow: elide;
+    }
+}
+
+export component WelcomeWindow inherits Window {
+    title: root.window-title;
+    preferred-width: 800px;
+    preferred-height: 660px;
+    min-width: 320px;
+    min-height: 480px;
+    background: root.background-color;
+
+    in-out property <string> window-title: "LunaDash · Welcome";
+    in-out property <string> welcome-title: "Welcome to LunaDash";
+    in-out property <string> introduction: "Make yourself at home. Choose a comfortable appearance and learn your way around.";
+    in-out property <string> language-heading: "Interface language";
+    in-out property <string> motion-heading: "Reduced motion";
+    in-out property <string> motion-value: "Off";
+    in-out property <string> setup-heading: "Make this space yours";
+    in-out property <string> steps-heading: "Your first steps";
+    in-out property <string> appearance-label: "Appearance";
+    in-out property <string> applications-label: "Default applications";
+    in-out property <string> plugins-label: "Plugins";
+    in-out property <string> keyboard-label: "Keyboard shortcuts";
+    in-out property <string> settings-note: "Settings stay available from the panel whenever you need them.";
+    in-out property <string> shortcuts-heading: "Find your rhythm";
+    in-out property <string> files-label: "Files";
+    in-out property <string> terminal-label: "Terminal";
+    in-out property <string> control-center-label: "Control center";
+    in-out property <string> development-note: "Development preview. Some session and protocol features are still being improved.";
+    in-out property <string> documentation-label: "Documentation";
+    in-out property <string> start-label: "Start desktop";
+    in-out property <string> error-message: "";
+    in-out property <string> files-shortcut: "Disabled";
+    in-out property <string> terminal-shortcut: "Disabled";
+    in-out property <string> control-center-shortcut: "Disabled";
+    in-out property <string> selected-locale: "en_US";
+    in-out property <bool> reduced-motion: false;
+    in-out property <bool> dark-theme: true;
+    in-out property <color> background-color: #171922;
+    in-out property <color> surface-color: #20232e;
+    in-out property <color> elevated-color: #292d39;
+    in-out property <color> surface-hover-color: #353b4b;
+    in-out property <color> text-color: #f1f1f5;
+    in-out property <color> muted-color: #a5a8b5;
+    in-out property <color> border-color: #4c5060;
+    in-out property <color> accent-color: #9ccbfb;
+    in-out property <color> accent-ink-color: #171922;
+
+    callback language-selected(string);
+    callback reduced-motion-toggled();
+    callback settings-requested(string);
+    callback documentation-requested();
+    callback finish-requested();
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 14px;
+
+        Rectangle {
+            height: 116px;
+            background: root.surface-color;
+            border-color: root.border-color;
+            border-width: 1px;
+            border-radius: 18px;
+
+            VerticalLayout {
+                padding-left: 22px;
+                padding-right: 22px;
+                padding-top: 14px;
+                padding-bottom: 14px;
+                spacing: 4px;
+
+                Text {
+                    text: "LUNADASH  1.0.1a";
+                    color: root.accent-color;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: root.welcome-title;
+                    color: root.text-color;
+                    font-size: 25px;
+                    font-weight: 700;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.introduction;
+                    color: root.muted-color;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                    overflow: elide;
+                }
+            }
+        }
+
+        ScrollView {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 12px;
+
+                Rectangle {
+                    height: 206px;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 16px;
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 10px;
+                        Text {
+                            text: root.setup-heading;
+                            color: root.text-color;
+                            font-size: 16px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: root.language-heading;
+                            color: root.muted-color;
+                            font-size: 12px;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            LanguageButton {
+                                label: "English";
+                                selected: root.selected-locale == "en_US";
+                                surface: root.elevated-color;
+                                selected-fill: root.surface-hover-color;
+                                stroke: root.border-color;
+                                foreground: root.text-color;
+                                accent: root.accent-color;
+                                clicked => { root.language-selected("en_US"); }
+                            }
+                            LanguageButton {
+                                label: "Traditional Chinese";
+                                selected: root.selected-locale == "zh_TW";
+                                surface: root.elevated-color;
+                                selected-fill: root.surface-hover-color;
+                                stroke: root.border-color;
+                                foreground: root.text-color;
+                                accent: root.accent-color;
+                                clicked => { root.language-selected("zh_TW"); }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            LanguageButton {
+                                label: "Simplified Chinese";
+                                selected: root.selected-locale == "zh_CN";
+                                surface: root.elevated-color;
+                                selected-fill: root.surface-hover-color;
+                                stroke: root.border-color;
+                                foreground: root.text-color;
+                                accent: root.accent-color;
+                                clicked => { root.language-selected("zh_CN"); }
+                            }
+                            LanguageButton {
+                                label: "Japanese";
+                                selected: root.selected-locale == "ja_JP";
+                                surface: root.elevated-color;
+                                selected-fill: root.surface-hover-color;
+                                stroke: root.border-color;
+                                foreground: root.text-color;
+                                accent: root.accent-color;
+                                clicked => { root.language-selected("ja_JP"); }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            Text {
+                                text: root.motion-heading;
+                                color: root.text-color;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+                            Text {
+                                text: root.motion-value;
+                                color: root.muted-color;
+                                vertical-alignment: center;
+                            }
+                            ToggleButton {
+                                active: root.reduced-motion;
+                                active-fill: root.accent-color;
+                                inactive-fill: root.border-color;
+                                clicked => { root.reduced-motion-toggled(); }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 178px;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 16px;
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 9px;
+                        Text {
+                            text: root.steps-heading;
+                            color: root.text-color;
+                            font-size: 16px;
+                            font-weight: 700;
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            SetupButton {
+                                label: root.appearance-label;
+                                accent: root.accent-color;
+                                ink: root.accent-ink-color;
+                                surface: root.elevated-color;
+                                foreground: root.text-color;
+                                stroke: root.border-color;
+                                clicked => { root.settings-requested("appearance"); }
+                            }
+                            SetupButton {
+                                label: root.applications-label;
+                                accent: root.accent-color;
+                                ink: root.accent-ink-color;
+                                surface: root.elevated-color;
+                                foreground: root.text-color;
+                                stroke: root.border-color;
+                                clicked => { root.settings-requested("applications"); }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 10px;
+                            SetupButton {
+                                label: root.plugins-label;
+                                accent: root.accent-color;
+                                ink: root.accent-ink-color;
+                                surface: root.elevated-color;
+                                foreground: root.text-color;
+                                stroke: root.border-color;
+                                clicked => { root.settings-requested("plugins"); }
+                            }
+                            SetupButton {
+                                label: root.keyboard-label;
+                                accent: root.accent-color;
+                                ink: root.accent-ink-color;
+                                surface: root.elevated-color;
+                                foreground: root.text-color;
+                                stroke: root.border-color;
+                                clicked => { root.settings-requested("shortcuts"); }
+                            }
+                        }
+                        Text {
+                            text: root.settings-note;
+                            color: root.muted-color;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                            overflow: elide;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 126px;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 16px;
+
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 8px;
+                        Text {
+                            text: root.shortcuts-heading;
+                            color: root.text-color;
+                            font-size: 16px;
+                            font-weight: 700;
+                        }
+                        ShortcutRow {
+                            label: root.files-label;
+                            shortcut: root.files-shortcut;
+                            muted: root.muted-color;
+                            foreground: root.text-color;
+                        }
+                        ShortcutRow {
+                            label: root.terminal-label;
+                            shortcut: root.terminal-shortcut;
+                            muted: root.muted-color;
+                            foreground: root.text-color;
+                        }
+                        ShortcutRow {
+                            label: root.control-center-label;
+                            shortcut: root.control-center-shortcut;
+                            muted: root.muted-color;
+                            foreground: root.text-color;
+                        }
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: root.error-message;
+            color: #ffb4ab;
+            visible: root.error-message != "";
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+
+        VerticalLayout {
+            spacing: 8px;
+            Text {
+                text: root.development-note;
+                color: root.muted-color;
+                font-size: 11px;
+                wrap: word-wrap;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+            HorizontalLayout {
+                spacing: 10px;
+                SetupButton {
+                    label: root.documentation-label;
+                    accent: root.accent-color;
+                    ink: root.accent-ink-color;
+                    surface: root.elevated-color;
+                    foreground: root.text-color;
+                    stroke: root.border-color;
+                    clicked => { root.documentation-requested(); }
+                }
+                SetupButton {
+                    label: root.start-label;
+                    primary: true;
+                    accent: root.accent-color;
+                    ink: root.accent-ink-color;
+                    surface: root.elevated-color;
+                    foreground: root.text-color;
+                    stroke: root.border-color;
+                    clicked => { root.finish-requested(); }
+                }
+            }
+        }
+    }
+}

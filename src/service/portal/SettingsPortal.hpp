@@ -1,34 +1,42 @@
 #pragma once
-#include <QDBusAbstractAdaptor>
-#include <QDBusVariant>
-#include <QFileSystemWatcher>
-#include <QMap>
-#include <QTimer>
-#include <QVariantMap>
+
+#include <gio/gio.h>
+
+#include <cstdint>
+#include <map>
+#include <string>
 
 namespace LunaDash {
-using PortalSettingsMap = QMap<QString, QVariantMap>;
-class SettingsPortal final : public QDBusAbstractAdaptor {
-  Q_OBJECT
-  Q_CLASSINFO("D-Bus Interface", "org.freedesktop.impl.portal.Settings")
-  Q_PROPERTY(uint version READ version CONSTANT)
+
+class SettingsPortal final {
 public:
-  explicit SettingsPortal(QObject *parent);
-  uint version() const;
-public slots:
-  LunaDash::PortalSettingsMap ReadAll(const QStringList &namespaces);
-  QDBusVariant Read(const QString &nameSpace, const QString &key);
-signals:
-  void SettingChanged(const QString &nameSpace, const QString &key,
-                      const QDBusVariant &value);
+  SettingsPortal(GDBusConnection *connection, GDBusNodeInfo *introspection);
+  ~SettingsPortal();
+
+  SettingsPortal(const SettingsPortal &) = delete;
+  SettingsPortal &operator=(const SettingsPortal &) = delete;
+
+  bool registerObject(GError **error);
+
+  static void methodCall(GDBusConnection *, const gchar *, const gchar *,
+                         const gchar *, const gchar *, GVariant *,
+                         GDBusMethodInvocation *, gpointer);
+  static GVariant *getProperty(GDBusConnection *, const gchar *, const gchar *,
+                               const gchar *, const gchar *, GError **,
+                               gpointer);
 
 private:
-  QVariantMap values_;
-  QFileSystemWatcher watcher_;
-  QTimer debounce_;
-  QString settingsPath_;
+  GDBusConnection *connection_ = nullptr;
+  GDBusNodeInfo *introspection_ = nullptr;
+  GFileMonitor *monitor_ = nullptr;
+  guint registration_ = 0;
+  guint debounce_ = 0;
+  guint refreshTimer_ = 0;
+  std::map<std::string, std::uint32_t> values_;
+
   void refresh();
   void watchSettings();
+  void scheduleRefresh();
 };
+
 } // namespace LunaDash
-Q_DECLARE_METATYPE(LunaDash::PortalSettingsMap)

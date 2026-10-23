@@ -1,11 +1,14 @@
-"""Exercise the real backend, frontend and chooser as separate processes.
+"""Exercise the real portal backend, frontend, and Wayland source chooser.
 
-Run under xvfb-run + dbus-run-session. No test-only autoaccept hook is used in
-production code: xdotool activates the real dialog and its confirmation button.
+Run under xvfb-run + dbus-run-session. Both Slint portal pickers run against an
+isolated headless wlroots compositor and receive real virtual-keyboard events.
+No picker shortcut bypass is used.
 """
 import os
+import json
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -42,30 +45,20 @@ def wait_for(predicate, message, timeout=12):
     raise AssertionError(message)
 
 
-def xdo(*args):
-    return subprocess.run(["xdotool", *map(str, args)], check=True,
-                          capture_output=True, text=True, timeout=4).stdout
+def find_client(title):
+    state = current_state()
+    if not state:
+        return None
+    return next((client["id"] for client in state.get("clients", [])
+                 if client.get("mapped") and client.get("title") == title), None)
 
 
-def find_window(pid, title):
-    result = subprocess.run(
-        ["xdotool", "search", "--onlyvisible", "--pid", str(pid), "--name", title],
-        capture_output=True, text=True, timeout=4)
-    return result.stdout.splitlines()[0] if result.returncode == 0 else None
-
-
-def confirm(window, path=None):
-    xdo("windowfocus", "--sync", window)
-    if path is not None:
-        xdo("key", "--clearmodifiers", "ctrl+l")
-        xdo("type", "--clearmodifiers", "--delay", 1, "--", path)
-        xdo("key", "Return")
-    geometry = dict(line.split("=", 1) for line in
-                    xdo("getwindowgeometry", "--shell", window).splitlines()
-                    if "=" in line)
-    # The existing template keeps Share/Open/Save in the lower right footer.
-    xdo("mousemove", "--window", window, int(geometry["WIDTH"]) - 100,
-        int(geometry["HEIGHT"]) - 32, "click", 1)
+def enter_manual_path(client_id, path):
+    control_request("focus", client_id)
+    subprocess.run(["wtype", "-s", path], env=wayland_env,
+                   check=True, timeout=5)
+    subprocess.run(["wtype", "-k", "Return"], env=wayland_env,
+                   check=True, timeout=5)
 
 
 def response_call(method, *args):
@@ -99,16 +92,59 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
     fixture = base / "picked file.txt"
     fixture.write_text("portal integration fixture", encoding="utf-8")
 
-    def launch(name, command, **kwargs):
+    control_path = str(base / "portal-runtime-control")
+    wayland_name = "portal-runtime"
+    wayland_env = env | {
+        "WAYLAND_DISPLAY": wayland_name,
+        "LUNADASH_CONTROL": control_path,
+        "XDG_SESSION_TYPE": "wayland",
+    }
+
+    def control_request(method="status", value=""):
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+            connection.settimeout(2)
+            connection.connect(control_path)
+            request = json.dumps({"method": method, "value": str(value)}).encode() + b"\n"
+            connection.sendall(request)
+            response = bytearray()
+            while b"\n" not in response:
+                chunk = connection.recv(65536)
+                if not chunk or len(response) > 4 * 1024 * 1024:
+                    raise RuntimeError("Invalid compositor control response")
+                response.extend(chunk)
+        return json.loads(bytes(response).split(b"\n", 1)[0])
+
+    def current_state():
+        try:
+            return control_request()
+        except (OSError, RuntimeError, json.JSONDecodeError):
+            return None
+
+    def launch(name, command, environment=env, **kwargs):
         log = (LOGDIR / (name + ".log")).open("w+")
         logs.append(log)
-        process = subprocess.Popen(command, env=env, stdout=log,
+        process = subprocess.Popen(command, env=environment, stdout=log,
                                    stderr=log, **kwargs)
         processes.append(process)
         return process
 
     try:
-        backend = launch("backend", [str(BACKEND)])
+        compositor_env = wayland_env | {
+            "WLR_BACKENDS": "headless",
+            "WLR_HEADLESS_OUTPUTS": "1",
+            "WLR_RENDERER": "pixman",
+            "LUDASH_SKIP_SETUP": "1",
+            "LUDASH_DISABLE_XWAYLAND": "1",
+        }
+        compositor = launch("compositor", [str(BUILD / "lunadash-compositor"),
+            "--no-shell", "--socket", wayland_name], environment=compositor_env)
+        def compositor_ready():
+            state = current_state()
+            return state if state and state.get("display", {}).get("width", 0) > 0 else None
+
+        wait_for(compositor_ready, "Headless Wayland compositor did not become ready")
+
+        backend = launch("backend", [str(BACKEND)], environment=wayland_env)
         wait_for(lambda: bus.name_has_owner(SERVICE), "Backend did not acquire its name")
         exported = bus.get_object(SERVICE, DESKTOP, introspect=False)
         xml = dbus.Interface(exported, "org.freedesktop.DBus.Introspectable").Introspect()
@@ -131,19 +167,46 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
             options = dbus.Dictionary({"current_folder": dbus.ByteArray(os.fsencode(base) + b"\0")}, signature="sv")
             title = "LunaDash integration " + mode
             answers, errors = response_call(getattr(impl, mode), handle, "", "", title, options)
-            window = wait_for(lambda: find_window(backend.pid, title) or errors,
-                              f"{mode} did not open a real dialog")
+            client_id = wait_for(lambda: find_client(title) or errors,
+                                 f"{mode} did not map its Slint Wayland picker")
             assert not errors, errors
             target = str(fixture if mode == "OpenFile" else base / "new file.txt")
-            confirm(window, target)
+            if mode == "OpenFile" and title == "LunaDash integration OpenFile":
+                evidence = BUILD / "ci-evidence" / "portal-filepicker.png"
+                evidence.parent.mkdir(parents=True, exist_ok=True)
+                control_request("focus", client_id)
+                subprocess.run(["grim", str(evidence)], env=wayland_env,
+                               check=True, timeout=12)
+            enter_manual_path(client_id, target)
             response, results = checked_wait(answers, errors)
             assert int(response) == 0, (mode, response, results)
             assert list(results["uris"]) == [Path(target).as_uri()], results
         print("Backend OpenFile/SaveFile: actual dialogs returned matching URIs", flush=True)
 
+        savefiles_options = dbus.Dictionary({
+            "current_folder": dbus.ByteArray(os.fsencode(base) + b"\0"),
+            "files": dbus.Array([dbus.ByteArray(b"picked file.txt\0")],
+                                 signature="ay"),
+        }, signature="sv")
+        savefiles_handle = dbus.ObjectPath(
+            "/org/freedesktop/portal/desktop/request/test/savefiles")
+        answers, errors = response_call(
+            impl.SaveFiles, savefiles_handle, "", "", "LunaDash SaveFiles test",
+            savefiles_options)
+        client_id = wait_for(lambda: find_client("LunaDash SaveFiles test") or errors,
+                             "SaveFiles did not map its Slint Wayland picker")
+        assert not errors, errors
+        enter_manual_path(client_id, str(base))
+        response, results = checked_wait(answers, errors)
+        expected = base / "picked file (1).txt"
+        assert int(response) == 0 and list(results["uris"]) == [expected.as_uri()], (
+            response, results)
+        print("Backend SaveFiles: selected folder and collision-safe URI passed", flush=True)
+
         # Cancellation must work over D-Bus while a file dialog is open.
         answers, errors = response_call(impl.OpenFile, handle, "", "", "LunaDash cancel test", options)
-        wait_for(lambda: find_window(backend.pid, "LunaDash cancel test"), "Cancel dialog missing")
+        client_id = wait_for(lambda: find_client("LunaDash cancel test"),
+                             "Cancel picker missing")
         dbus.Interface(bus.get_object(SERVICE, handle), "org.freedesktop.impl.portal.Request").Close()
         response, results = checked_wait(answers, errors)
         assert int(response) == 1 and not results, (response, results)
@@ -156,7 +219,8 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
         backend.terminate()
         backend.wait(timeout=3)
         wait_for(lambda: not bus.name_has_owner(SERVICE), "Backend name was not released")
-        backend = launch("backend-cold-frontend", [str(BACKEND)])
+        backend = launch("backend-cold-frontend", [str(BACKEND)],
+                         environment=wayland_env)
         wait_for(lambda: bus.name_has_owner(SERVICE), "Cold frontend backend did not start")
 
         # The frontend runs with actual routing files, not a fake success stub.
@@ -186,10 +250,10 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
         public = dbus.Interface(bus.get_object("org.freedesktop.portal.Desktop", DESKTOP),
                                 "org.freedesktop.portal.FileChooser")
         path = public.OpenFile("", "LunaDash frontend test", options)
-        window = wait_for(lambda: find_window(backend.pid, "LunaDash frontend test") or replies.get(path),
-                          "Frontend did not invoke the LunaDash backend")
+        client_id = wait_for(lambda: find_client("LunaDash frontend test") or replies.get(path),
+                             "Frontend did not invoke the LunaDash backend")
         assert path not in replies, replies
-        confirm(window, str(fixture))
+        enter_manual_path(client_id, str(fixture))
         wait_for(lambda: path in replies, "Frontend did not emit Request.Response")
         assert int(replies[path][0]) == 0, replies[path]
         assert list(replies[path][1]["uris"]) == [fixture.as_uri()], replies[path]
@@ -202,6 +266,8 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
 
         # Run the real chooser UI, not its old AUTOPICK testing shortcut. The raw
         # output must preserve labels, including meaningful whitespace.
+        chooser_evidence = BUILD / "ci-evidence" / "portal-screencast-chooser.png"
+        chooser_evidence.parent.mkdir(parents=True, exist_ok=True)
         for index, (raw, accept) in enumerate((
             ("Monitor: HEADLESS-1 Display with trailing space  ", True),
             ("Window: editor \u5de5\u4f5c\u5340 (id-1)  ", True),
@@ -210,18 +276,27 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
             chooser_log = (LOGDIR / f"chooser-{index}.log").open("w+")
             logs.append(chooser_log)
             chooser = subprocess.Popen([str(BACKEND), "--screencast-chooser"],
-                                       env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                       env=wayland_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                        stderr=chooser_log, text=True)
             processes.append(chooser)
             chooser.stdin.write(raw + "\n")
             chooser.stdin.close()
-            window = wait_for(lambda: find_window(chooser.pid, "Share your screen"),
-                              "Screen chooser UI did not appear")
-            xdo("windowfocus", "--sync", window)
-            if accept:
-                xdo("key", "Return")
-            else:
-                xdo("key", "Escape")
+            def chooser_client():
+                state = current_state()
+                if not state:
+                    return None
+                return next((client["id"] for client in state.get("clients", [])
+                             if client.get("mapped") and
+                             client.get("title") == "Share your screen"), None)
+
+            client_id = wait_for(chooser_client,
+                                 "Slint ScreenCast chooser did not map as a Wayland client")
+            control_request("focus", client_id)
+            if index == 0:
+                subprocess.run(["grim", str(chooser_evidence)], env=wayland_env,
+                               check=True, timeout=12)
+            subprocess.run(["wtype", "-k", "Return" if accept else "Escape"],
+                           env=wayland_env, check=True, timeout=5)
             chooser.wait(timeout=8)
             output = chooser.stdout.read()
             assert chooser.returncode == 0, chooser.returncode

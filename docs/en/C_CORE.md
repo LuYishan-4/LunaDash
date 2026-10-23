@@ -1,10 +1,10 @@
 # C core and C++ integration
 
-LunaDash uses C11 for bounded low-level operations and C++20 for object ownership and Qt/wlroots integration. The shell is Quickshell/QML.
+LunaDash uses C11 for bounded low-level operations and C++20 for object ownership and Linux/wlroots integration. The shell is Quickshell/QML.
 
 | C implementation | Responsibility | C++ owner |
 | --- | --- | --- |
-| `compositor/renderer/opengl/GLDispatch.c` | Resolve the required GL entry points with bounded diagnostics | `OpenGL` uses Qt's current render-thread context |
+| `compositor/renderer/opengl/GLDispatch.c` | Resolve the required GL entry points with bounded diagnostics | `OpenGL` uses the caller's current EGL context |
 | `compositor/tiling/TilingGeometry.c` | Validate sizes and calculate column/member geometry | `TilingLayout` converts Qt values |
 | `desktop/system/SystemMetrics.c` | Parse CPU/memory counters and calculate bounded percentages | `SystemStatus` and `SystemMonitor` |
 

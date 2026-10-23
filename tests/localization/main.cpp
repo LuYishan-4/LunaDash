@@ -1,113 +1,120 @@
-#include "config/localization/JsonTranslator.hpp"
 #include "config/localization/Localization.hpp"
-#include <QCoreApplication>
-#include <QDebug>
-#include <QDir>
-#include <QFile>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QRegularExpression>
+#include "config/desktop/DesktopPreferenceStore.hpp"
+
+#include <algorithm>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
 namespace {
-QJsonObject sourceDictionary(const QDir &root, const QString &locale) {
-    QStringList paths;
-    const QString rootCatalog = root.filePath(locale + ".json");
-    if (QFileInfo::exists(rootCatalog))
-        paths.append(rootCatalog);
-    const QDir extras(root.filePath(locale));
-    for (const auto &file : extras.entryList({"*.json"}, QDir::Files, QDir::Name))
-        paths.append(extras.filePath(file));
+namespace fs = std::filesystem;
+using Json = nlohmann::json;
 
-    QJsonObject expected;
-    for (const auto &path : paths) {
-        QFile file(path);
-        if (!file.open(QIODevice::ReadOnly))
-            return {};
-        QJsonParseError error;
-        const auto document = QJsonDocument::fromJson(file.readAll(), &error);
-        if (error.error != QJsonParseError::NoError || !document.isObject())
-            return {};
-        const auto catalog = document.object();
-        for (auto it = catalog.constBegin(); it != catalog.constEnd(); ++it)
-            expected.insert(it.key(), it.value());
-    }
-    return expected;
+std::vector<fs::path> catalogPaths(const fs::path &root,
+                                   const std::string &locale) {
+  std::vector<fs::path> paths;
+  const auto main = root / (locale + ".json");
+  std::error_code error;
+  if (fs::is_regular_file(main, error))
+    paths.push_back(main);
+  error.clear();
+  const auto directory = root / locale;
+  if (fs::is_directory(directory, error)) {
+    for (fs::directory_iterator entry(directory, error), end;
+         !error && entry != end; entry.increment(error))
+      if (entry->is_regular_file(error) && entry->path().extension() == ".json")
+        paths.push_back(entry->path());
+  }
+  std::sort(paths.begin(), paths.end());
+  return paths;
+}
+
+Json sourceDictionary(const fs::path &root, const std::string &locale) {
+  Json result = Json::object();
+  for (const auto &path : catalogPaths(root, locale)) {
+    std::ifstream input(path, std::ios::binary);
+    const auto catalog = Json::parse(input, nullptr, false);
+    if (!input || catalog.is_discarded() || !catalog.is_object())
+      return {};
+    for (auto entry = catalog.begin(); entry != catalog.end(); ++entry)
+      if (entry.value().is_string() && !entry.value().get<std::string>().empty() &&
+          !result.contains(entry.key()))
+        result[entry.key()] = entry.value();
+  }
+  return result;
+}
+
+int fail(std::string_view message, int code) {
+  std::cerr << message << '\n';
+  return code;
 }
 } // namespace
 
-int main(int argc, char** argv) {
-    QCoreApplication application(argc, argv);
-    if (argc != 2)
-        return 2;
+int main(int argc, char **argv) {
+  if (argc != 2)
+    return 2;
+  const fs::path translations(argv[1]);
+  const std::vector<std::string> locales{"en_US", "ja_JP", "zh_CN", "zh_TW"};
+  for (const auto &locale : locales) {
+    if (!LunaDash::isSupportedLanguage(locale))
+      return fail("A shipped locale was not found: " + locale, 3);
+    const auto expected = sourceDictionary(translations, locale);
+    if (locale != "en_US" && expected.empty())
+      return fail("Could not read source catalogs for " + locale, 4);
+    if (LunaDash::languageDictionary(locale) != expected)
+      return fail("Loaded catalogs differ from source catalogs for " + locale,
+                  5);
+  }
+  if (!LunaDash::languageDictionary("unsupported").empty() ||
+      LunaDash::isSupportedLanguage("unsupported"))
+    return fail("Unsupported locales must use the English source fallback.", 6);
 
-    qputenv("LUDASH_LANGUAGE", "zh_TW");
-    LunaDash::initializeLocalization(application);
-    const QDir root(QString::fromLocal8Bit(argv[1]));
-    const QRegularExpression localePattern(QStringLiteral("^[a-z]{2,3}_[A-Z]{2}\\.json$"));
+  std::string directoryTemplate =
+      (fs::temp_directory_path() / "lunadash-localization-XXXXXX").string();
+  std::vector<char> temporary(directoryTemplate.begin(), directoryTemplate.end());
+  temporary.push_back('\0');
+  const char *temporaryDirectory = ::mkdtemp(temporary.data());
+  if (!temporaryDirectory)
+    return fail("Could not create a localization test directory.", 7);
+  const fs::path config(temporaryDirectory);
+  ::setenv("XDG_CONFIG_HOME", config.c_str(), 1);
+  ::setenv("HOME", config.c_str(), 1);
+  ::setenv("LANG", "C.UTF-8", 1);
+  ::unsetenv("LC_ALL");
+  ::unsetenv("LC_MESSAGES");
+  ::unsetenv("LUDASH_LANGUAGE");
 
-    QStringList locales;
-    for (const auto &file : root.entryList({"*.json"}, QDir::Files, QDir::Name)) {
-        if (!localePattern.match(file).hasMatch())
-            continue;
-        const QString locale = QFileInfo(file).completeBaseName();
-        if (locale != QStringLiteral("en_US"))
-            locales.append(locale);
-    }
-    if (!locales.contains(QStringLiteral("zh_TW")) ||
-        !locales.contains(QStringLiteral("zh_CN")) ||
-        !locales.contains(QStringLiteral("ja_JP"))) {
-        qCritical() << "Expected shipped locales are missing:" << locales;
-        return 3;
-    }
+  const auto legacyPath = config / "LunaDash/LunaDash.conf";
+  fs::create_directories(legacyPath.parent_path());
+  {
+    std::ofstream legacy(legacyPath);
+    legacy << "[appearance]\nlanguage=zh_TW\n";
+  }
+  if (LunaDash::selectedLanguage() != "zh_TW")
+    return fail("The legacy language preference was not read.", 8);
 
-    for (const auto &locale : locales) {
-        const auto expected = sourceDictionary(root, locale);
-        if (expected.isEmpty()) {
-            qCritical() << "Could not read source catalogs for" << locale;
-            return 4;
-        }
-        if (!LunaDash::isSupportedLanguage(locale)) {
-            qCritical() << "Packaged locale is not detected:" << locale;
-            return 5;
-        }
-        const auto embedded = LunaDash::languageDictionary(locale);
-        if (embedded != expected) {
-            qCritical() << "Embedded catalogs differ from source catalogs for" << locale
-                        << "embedded:" << embedded.size() << "source:" << expected.size();
-            return 6;
-        }
+  std::string error;
+  if (!LunaDash::setSelectedLanguage("ja_JP", &error) ||
+      LunaDash::selectedLanguage() != "ja_JP")
+    return fail("The native language preference was not persisted: " + error,
+                9);
+  if (LunaDash::setSelectedLanguage("unsupported", &error))
+    return fail("An unsupported language was accepted.", 10);
 
-        LunaDash::JsonTranslator translator(locale, &application);
-        for (auto it = expected.constBegin(); it != expected.constEnd(); ++it) {
-            const auto source = it.key().toUtf8();
-            if (translator.translate("LuDash", source.constData(), nullptr, -1) != it.value().toString()) {
-                qCritical() << "Translator mismatch:" << locale << it.key();
-                return 7;
-            }
-        }
-        qInfo() << "Verified locale" << locale << "with" << expected.size() << "entries";
-    }
+  if (!LunaDash::resetDesktopPreferences(&error) ||
+      !LunaDash::legacyLanguagePreferenceIgnored() ||
+      LunaDash::selectedLanguage() != "en_US")
+    return fail("Reset did not ignore the legacy language preference: " + error,
+                11);
 
-    const auto traditional = sourceDictionary(root, QStringLiteral("zh_TW"));
-    for (auto it = traditional.constBegin(); it != traditional.constEnd(); ++it) {
-        const auto source = it.key().toUtf8();
-        if (LunaDash::translate(source.constData()) != it.value().toString()) {
-            qCritical() << "Installed native translation mismatch:" << it.key();
-            return 8;
-        }
-    }
+  ::setenv("LUDASH_LANGUAGE", "zh-Hans-CN.UTF-8", 1);
+  if (LunaDash::selectedLanguage() != "zh_CN")
+    return fail("Language environment overrides were not normalized.", 12);
 
-    LunaDash::JsonTranslator english("en_US", &application);
-    if (!english.isEmpty() || !LunaDash::languageDictionary("unsupported").isEmpty())
-        return 9;
-    if (!english.translate("LuDash", "Input method", nullptr, -1).isEmpty())
-        return 10;
-    if (!LunaDash::isSupportedLanguage("en_US") || LunaDash::isSupportedLanguage("unsupported"))
-        return 11;
-    if (LunaDash::translate("Unknown application name") != QStringLiteral("Unknown application name"))
-        return 12;
-
-    qInfo() << "Verified" << locales.size()
-            << "packaged locale dictionaries with English/source fallback";
-    return 0;
+  fs::remove_all(config);
+  std::cout << "Verified native locale loading, fallback, legacy migration, reset and persistence.\n";
+  return 0;
 }

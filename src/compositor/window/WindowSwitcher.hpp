@@ -1,11 +1,15 @@
 #pragma once
 
+#include "core/process/ProcessEnvironment.hpp"
+#include "core/process/ProcessRunner.hpp"
+
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
-#include <QProcess>
 #include <QTemporaryDir>
 #include <QTimer>
+
+#include <memory>
 
 namespace LunaDash {
 // Owns one selection session and its private, event-driven shell feedback file.
@@ -13,10 +17,11 @@ class WindowSwitcher final : public QObject {
 public:
   enum class Scope { Windows, Workspaces };
   explicit WindowSwitcher(QObject *parent = nullptr);
+  WindowSwitcher(wl_event_loop *eventLoop, QObject *parent = nullptr);
   ~WindowSwitcher() override;
   void setChannelPath(const QString &path);
   bool begin(const QJsonArray &windows, int focused, int direction,
-             const QProcessEnvironment &environment,
+             const ProcessEnvironment &environment,
              Scope scope = Scope::Workspaces);
   static QJsonArray windowsForWorkspace(const QJsonArray &clients, int workspace);
   bool active() const;
@@ -53,9 +58,9 @@ private:
   bool ready_ = false;
   QString background_;
   QTemporaryDir captureDirectory_;
-  QProcess *capture_ = nullptr;
+  std::unique_ptr<ProcessRunner> captureRunner_;
   void publish();
   void writeSnapshot();
-  void captureBackground(const QProcessEnvironment &environment);
+  void captureBackground(const ProcessEnvironment &environment);
 };
 } // namespace LunaDash

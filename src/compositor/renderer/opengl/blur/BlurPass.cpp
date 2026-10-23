@@ -6,15 +6,14 @@
 
 namespace LunaDash {
 
-bool BlurPass::prepare(Renderer &renderer, QString *error) {
+bool BlurPass::prepare(Renderer &renderer, std::string *error) {
   if (shader_)
     return true;
-  shader_ = renderer.createProgram(
-      {QStringLiteral("Fullscreen.vert"), QStringLiteral("Blur.frag")}, error);
+  shader_ = renderer.createProgram({"Fullscreen.vert", "Blur.frag"}, error);
   return shader_ != nullptr;
 }
 
-bool BlurPass::resizeTargets(LuDashGLDispatch &gl, const QSize &size) {
+bool BlurPass::resizeTargets(LuDashGLDispatch &gl, RenderSize size) {
   return targets_[0].resize(gl, size) && targets_[1].resize(gl, size);
 }
 
@@ -50,7 +49,7 @@ void BlurPass::uploadKernel(int radius) {
 }
 
 bool BlurPass::draw(Renderer &renderer, const BlurRegion &region,
-                    QString *error) {
+                    std::string *error) {
   if (!prepare(renderer, error))
     return false;
   if (region.width <= 0 || region.height <= 0 || region.width > 32768 ||
@@ -59,7 +58,7 @@ bool BlurPass::draw(Renderer &renderer, const BlurRegion &region,
       region.radius > 32 || !std::isfinite(region.opacity) ||
       region.opacity < 0.0f || region.opacity > 1.0f) {
     if (error)
-      *error = QStringLiteral("invalid blur region");
+      *error = "invalid blur region";
     return false;
   }
 
@@ -71,11 +70,11 @@ bool BlurPass::draw(Renderer &renderer, const BlurRegion &region,
   gl.GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawTarget);
   gl.GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readTarget);
 
-  const QSize halfSize(std::max(1, region.width / 2),
-                       std::max(1, region.height / 2));
+  const RenderSize halfSize{std::max(1, region.width / 2),
+                            std::max(1, region.height / 2)};
   if (!resizeTargets(gl, halfSize)) {
     if (error)
-      *error = QStringLiteral("could not resize blur framebuffers");
+      *error = "could not resize blur framebuffers";
     return false;
   }
 
@@ -91,24 +90,24 @@ bool BlurPass::draw(Renderer &renderer, const BlurRegion &region,
   gl.BindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(drawTarget));
   targets_[0].bind(GL_DRAW_FRAMEBUFFER);
   gl.BlitFramebuffer(region.x, region.y, region.x + region.width,
-                     region.y + region.height, 0, 0, halfSize.width(),
-                     halfSize.height(), GL_COLOR_BUFFER_BIT, GL_LINEAR);
+                     region.y + region.height, 0, 0, halfSize.width,
+                     halfSize.height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
   targets_[1].bind();
-  gl.Viewport(0, 0, halfSize.width(), halfSize.height());
+  gl.Viewport(0, 0, halfSize.width, halfSize.height);
   gl.BindTexture(GL_TEXTURE_2D, targets_[0].texture());
   shader_->bind();
   gl.Uniform1i(shader_->uniform("sourceTexture"), 0);
   gl.Uniform1f(shader_->uniform("opacity"), 1.0f);
   uploadKernel(region.radius);
   gl.Uniform2f(shader_->uniform("direction"),
-               1.0f / static_cast<float>(halfSize.width()), 0.0f);
+               1.0f / static_cast<float>(halfSize.width), 0.0f);
   shader_->drawFullscreen();
 
   targets_[0].bind();
   gl.BindTexture(GL_TEXTURE_2D, targets_[1].texture());
   gl.Uniform2f(shader_->uniform("direction"), 0.0f,
-               1.0f / static_cast<float>(halfSize.height()));
+               1.0f / static_cast<float>(halfSize.height));
   shader_->drawFullscreen();
 
   gl.BindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(drawTarget));

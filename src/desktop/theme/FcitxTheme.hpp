@@ -1,6 +1,11 @@
 #pragma once
-#include <QJsonObject>
-#include <QString>
+
+#include <nlohmann/json.hpp>
+
+#include <string>
+
 namespace LunaDash {
-bool synchronizeFcitxTheme(const QJsonObject &palette, QString *error);
+
+bool synchronizeFcitxTheme(const nlohmann::json &palette, std::string *error);
+
 } // namespace LunaDash

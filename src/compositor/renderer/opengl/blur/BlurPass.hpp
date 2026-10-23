@@ -4,6 +4,7 @@
 #include "compositor/renderer/opengl/Program.hpp"
 #include <array>
 #include <memory>
+#include <string>
 
 namespace LunaDash {
 
@@ -24,13 +25,13 @@ struct BlurRegion {
 
 class BlurPass final {
 public:
-  bool prepare(Renderer &renderer, QString *error = nullptr);
+  bool prepare(Renderer &renderer, std::string *error = nullptr);
   bool draw(Renderer &renderer, const BlurRegion &region,
-            QString *error = nullptr);
+            std::string *error = nullptr);
   void release();
 
 private:
-  bool resizeTargets(LuDashGLDispatch &gl, const QSize &size);
+  bool resizeTargets(LuDashGLDispatch &gl, RenderSize size);
   void uploadKernel(int radius);
 
   std::unique_ptr<Program> shader_;

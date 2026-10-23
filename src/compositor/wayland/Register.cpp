@@ -19,16 +19,18 @@ WaylandCompositor::Impl::Impl(WaylandCompositor *owner,
     : q(owner), socketName(socket), fullscreen(wantsFullscreen),
       nested(!qEnvironmentVariable("WAYLAND_DISPLAY").isEmpty() ||
              !qEnvironmentVariable("DISPLAY").isEmpty()),
-      rendererPreference(renderer) {}
+      rendererPreference(renderer) {
+  display = wl_display_create();
+  if (display)
+    eventLoop = wl_display_get_event_loop(display);
+}
 
 WaylandCompositor::Impl::~Impl() { shutdown(); }
 
 bool WaylandCompositor::Impl::initialize() {
   wlr_log_init(WLR_INFO, nullptr);
-  display = wl_display_create();
-  if (!display)
+  if (!display || !eventLoop)
     return fail("Could not create the Wayland display.");
-  eventLoop = wl_display_get_event_loop(display);
 
   backend = WlrootsCompat::createPlatform(display);
   if (!backend)
@@ -123,6 +125,11 @@ bool WaylandCompositor::Impl::initialize() {
 
   xdgShell = wlr_xdg_shell_create(display, 3);
   layerShell = wlr_layer_shell_v1_create(display, 4);
+#if LUDASH_WLR_HAS_XDG_ACTIVATION
+  // xdg-activation is optional in older wlroots builds. Its requests are
+  // filtered through the seat's event-serial history before focus changes.
+  xdgActivation = wlr_xdg_activation_v1_create(display);
+#endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   // Keep the wlroots toplevel-management compatibility global alongside the
   // newer ext-foreign-toplevel-list protocol. Native Wayland applications
@@ -184,6 +191,11 @@ bool WaylandCompositor::Impl::initialize() {
 #endif
   attachListener(&layerShell->events.new_surface, newLayerSurface, this,
                  handleNewLayerSurface);
+#if LUDASH_WLR_HAS_XDG_ACTIVATION
+  if (xdgActivation)
+    attachListener(&xdgActivation->events.request_activate,
+                   requestXdgActivation, this, handleXdgActivationRequest);
+#endif
   attachListener(&seat->events.request_set_cursor, requestCursor, this,
                  handleRequestCursor);
   attachListener(&seat->events.request_set_selection, requestSelection, this,
@@ -299,6 +311,9 @@ void WaylandCompositor::Impl::shutdown() {
   detachListener(newXdgSurface);
   detachListener(newXdgPopup);
   detachListener(newLayerSurface);
+#if LUDASH_WLR_HAS_XDG_ACTIVATION
+  detachListener(requestXdgActivation);
+#endif
   detachListener(requestCursor);
   detachListener(requestSelection);
   detachListener(keyboardFocusChange);

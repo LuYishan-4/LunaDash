@@ -27,7 +27,7 @@ Protocol output and setup references: [ddcutil detection](https://www.ddcutil.co
 
 Settings → Display lists modes advertised by the primary wlroots output and supports scale factors from 100% to 300%. The compositor tests and commits the configuration. Choose **Keep changes** within 15 seconds to save it; otherwise the previous mode and scale are restored. **Revert** restores them immediately. Confirmed physical-output settings are restored on the next startup, with fallback to a supported preferred mode if the driver refuses them.
 
-On an unconfigured physical display, LunaDash chooses the highest advertised refresh rate at the preferred resolution. Nested windows use the host's pacing instead of requesting a fixed 60 Hz custom mode. Nested physical resolution/refresh rate still belong to the host desktop; LunaDash exposes its window size and client scale. This is primary-output configuration, not a complete multi-monitor arrangement interface.
+On an unconfigured physical display, LunaDash chooses the highest advertised refresh rate at the preferred resolution. A virtual/custom output without a reported mode uses a 60 Hz fallback, so Wayland clients receive a valid nonzero refresh rate; nested windows still follow the host's pacing. Nested physical resolution/refresh rate belong to the host desktop; LunaDash exposes its window size and client scale. This is primary-output configuration, not a complete multi-monitor arrangement interface.
 
 ```sh
 lunadashctl display-configure '{"scale":1.25}'

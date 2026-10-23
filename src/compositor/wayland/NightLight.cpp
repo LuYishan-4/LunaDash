@@ -5,8 +5,8 @@ namespace LunaDash {
 void WaylandCompositor::Impl::updateNightLight() {
   const auto preferences = desktopPreferences();
   const int temperature =
-      preferences.value("eyeCare").toBool()
-          ? preferences.value("eyeCareTemperature").toInt(4500)
+      preferences.value("eyeCare", false)
+          ? preferences.value("eyeCareTemperature", 4500)
           : 6500;
   for (auto *state : outputs) {
     if (state->nightTemperature == temperature)

@@ -16,6 +16,7 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 - [Build, test and source map](TESTING_AND_FILES.md)
 - [Source architecture](ARCHITECTURE.md)
 - [Repository workflow](COMPONENT_REPOS.md)
+- [Slint and wlroots migration](SLINT_WLROOTS_MIGRATION.md)
 
 ## Desktop behavior
 

@@ -1,12 +1,14 @@
 #pragma once
 
-#include <QJsonObject>
-#include <QString>
+#include <nlohmann/json.hpp>
+
+#include <string>
 
 namespace LunaDash {
-QJsonObject mediaStatus(const QString &preferredService = {},
-                        const QString &preferredBus = {});
-QJsonObject mediaAction(const QString &action, const QString &service,
-                        const QString &bus, const QString &value = {},
-                        const QString &trackId = {});
+nlohmann::json mediaStatus(const std::string &preferredService = {},
+                           const std::string &preferredBus = {});
+nlohmann::json mediaAction(const std::string &action, const std::string &service,
+                          const std::string &bus,
+                          const std::string &value = {},
+                          const std::string &trackId = {});
 } // namespace LunaDash

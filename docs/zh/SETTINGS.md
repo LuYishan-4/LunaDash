@@ -98,4 +98,4 @@ Settings 可在預設大小與最大化間切換；搜尋框在頂部 header，�
 
 ## 歡迎畫面
 
-首次登入導覽與 `welcome` 工具共用 `LunaDash-Shell/welcome/WelcomeContent.qml`。有界且可捲動的版面可適應窄螢幕，使用共同的實色／玻璃表面，並將文件與「開始桌面」固定在頁尾。語言及減少動態效果透過既有設定 API 套用。快捷鍵提示顯示已儲存的實際按鍵，包括停用的動作。外觀、預設應用程式、外掛與快捷鍵會開啟對應的既有設定頁；從首次登入導覽開啟時亦完成初始設定。僅開啟文件不會完成設定。「開始桌面」不需要網路，完成狀態會保留至下次登入。獨立工具使用既有無邊框外殼內的 Qt Quick 畫面。
+首次登入導覽仍使用獨立 Shell repo 中的 Quickshell／QML。另一個 `lunadash-desktop --app welcome` 工具現在是由 `src/desktop/welcome/` 建置的 Slint Wayland client；舊指令會直接轉交 `lunadash-welcome`，不建立 Qt 視窗。兩者都透過 compositor control socket 操作。Slint 視窗可捲動、會依小螢幕調整，並使用已儲存的色盤與減少動態效果偏好，文件與「開始使用桌面」固定在頁尾。語言及減少動態效果透過既有設定 API 套用；快捷鍵提示顯示已儲存的按鍵，包括停用的動作。外觀、預設應用程式、外掛與快捷鍵會開啟既有 Settings 頁。「開始使用桌面」可離線完成初始設定；只開啟文件不會完成。完成狀態會保留至下次登入。

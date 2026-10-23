@@ -1,7 +1,7 @@
 #pragma once
 
+#include "compositor/renderer/RendererTypes.hpp"
 #include "compositor/renderer/opengl/GLDispatch.h"
-#include <QSize>
 
 namespace LunaDash {
 
@@ -13,16 +13,16 @@ public:
   Texture(const Texture &) = delete;
   Texture &operator=(const Texture &) = delete;
 
-  bool resize(LuDashGLDispatch &gl, const QSize &size);
+  bool resize(LuDashGLDispatch &gl, RenderSize size);
   void reset();
   GLuint texture() const;
-  QSize size() const;
+  RenderSize size() const;
   bool valid() const;
 
 private:
   LuDashGLDispatch *gl_ = nullptr;
   GLuint texture_ = 0;
-  QSize size_;
+  RenderSize size_;
 };
 
 } // namespace LunaDash

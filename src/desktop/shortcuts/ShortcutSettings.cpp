@@ -1,81 +1,74 @@
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 
-#include <QSet>
-#include <QSettings>
-#include <QStringList>
+#include "config/desktop/DesktopPreferenceStore.hpp"
+
+#include <algorithm>
+#include <cctype>
+#include <set>
+#include <string_view>
 
 namespace LunaDash {
 namespace {
 
-QJsonObject defaults() {
-  QJsonObject result;
-  result.insert("focusLeft", "Meta+H");
-  result.insert("focusRight", "Meta+L");
-  result.insert("focusUp", "Meta+K");
-  result.insert("focusDown", "Meta+J");
-  result.insert("groupLeft", "Meta+Shift+H");
-  result.insert("groupRight", "Meta+Shift+L");
-  result.insert("reorderLeft", "Meta+Ctrl+H");
-  result.insert("reorderRight", "Meta+Ctrl+L");
-  result.insert("expelWindow", "Meta+Shift+E");
-  result.insert("centerColumn", "Meta+Shift+C");
-  result.insert("widenColumn", "Meta+=");
-  result.insert("narrowColumn", "Meta+-");
-  result.insert("maximizeWindow", "Meta+F");
-  result.insert("closeWindow", "Meta+C");
-  result.insert("minimizeWindow", "Meta+M");
-  result.insert("launchTerminal", "Meta+T");
-  result.insert("launchFiles", "Meta+E");
-  result.insert("launchLauncher", "Meta+D");
-  result.insert("screenshot", "Meta+Shift+S");
-  result.insert("launchOrbit", "Meta+A");
-  result.insert("chooseWallpaper", "Meta+W");
-  result.insert("randomWallpaper", "Meta+Ctrl+W");
-  result.insert("toggleEyeCare", "Meta+N");
-  result.insert("toggleScratchpad", "Meta+grave");
-  result.insert("openControlCenter", "Meta+I");
-  result.insert("openClipboard", "Meta+V");
-  result.insert("openPowerMenu", "Meta+X");
-  result.insert("toggleFullscreen", "Meta+Shift+F");
+nlohmann::json defaults() {
+  nlohmann::json result{
+      {"focusLeft", "Meta+H"},         {"focusRight", "Meta+L"},
+      {"focusUp", "Meta+K"},           {"focusDown", "Meta+J"},
+      {"groupLeft", "Meta+Shift+H"},   {"groupRight", "Meta+Shift+L"},
+      {"reorderLeft", "Meta+Ctrl+H"},  {"reorderRight", "Meta+Ctrl+L"},
+      {"expelWindow", "Meta+Shift+E"}, {"centerColumn", "Meta+Shift+C"},
+      {"widenColumn", "Meta+="},       {"narrowColumn", "Meta+-"},
+      {"maximizeWindow", "Meta+F"},    {"closeWindow", "Meta+C"},
+      {"minimizeWindow", "Meta+M"},    {"launchTerminal", "Meta+T"},
+      {"launchFiles", "Meta+E"},       {"launchLauncher", "Meta+D"},
+      {"screenshot", "Meta+Shift+S"},  {"launchOrbit", "Meta+A"},
+      {"chooseWallpaper", "Meta+W"},   {"randomWallpaper", "Meta+Ctrl+W"},
+      {"toggleEyeCare", "Meta+N"},     {"toggleScratchpad", "Meta+grave"},
+      {"openControlCenter", "Meta+I"}, {"openClipboard", "Meta+V"},
+      {"openPowerMenu", "Meta+X"},     {"toggleFullscreen", "Meta+Shift+F"}};
   for (int workspace = 1; workspace <= 10; ++workspace) {
-    result.insert(QString("workspace%1").arg(workspace),
-                  QString("Meta+%1").arg(workspace % 10));
-    result.insert(QString("moveToWorkspace%1").arg(workspace),
-                  QString("Meta+Shift+%1").arg(workspace % 10));
+    const auto number = std::to_string(workspace % 10);
+    result["workspace" + std::to_string(workspace)] = "Meta+" + number;
+    result["moveToWorkspace" + std::to_string(workspace)] =
+        "Meta+Shift+" + number;
   }
   return result;
 }
 
-xkb_keysym_t keySym(const QString &name) {
+xkb_keysym_t keySym(std::string_view name) {
   if (name == "=")
     return XKB_KEY_equal;
   if (name == "-")
     return XKB_KEY_minus;
-  if (name.compare("Space", Qt::CaseInsensitive) == 0)
+  std::string key(name);
+  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char value) {
+    return static_cast<char>(std::tolower(value));
+  });
+  if (key == "space")
     return XKB_KEY_space;
-  if (name.compare("Return", Qt::CaseInsensitive) == 0)
+  if (key == "return")
     return XKB_KEY_Return;
-  const QByteArray utf8 = name.toLatin1();
-  return xkb_keysym_from_name(utf8.constData(), XKB_KEYSYM_CASE_INSENSITIVE);
+  return xkb_keysym_from_name(key.c_str(), XKB_KEYSYM_CASE_INSENSITIVE);
 }
 
 struct ParsedShortcut {
   xkb_keysym_t symbol = XKB_KEY_NoSymbol;
   uint32_t modifiers = 0;
-  QString canonical;
+  std::string canonical;
 };
 
-ParsedShortcut parseShortcut(const QString &text) {
+ParsedShortcut parseShortcut(std::string_view text) {
   if (text == "Disabled")
-    return {XKB_KEY_NoSymbol, 0, QStringLiteral("Disabled")};
-
-  const QStringList pieces = text.split('+', Qt::KeepEmptyParts);
-  if (pieces.size() < 2)
-    return {};
+    return {XKB_KEY_NoSymbol, 0, "Disabled"};
 
   uint32_t modifiers = 0;
-  QString key;
-  for (const QString &piece : pieces) {
+  std::string key;
+  std::size_t start = 0;
+  while (start <= text.size()) {
+    const auto separator = text.find('+', start);
+    const auto piece = text.substr(start, separator == std::string_view::npos
+                                              ? text.size() - start
+                                              : separator - start);
     if (piece == "Meta")
       modifiers |= ShortcutMeta;
     else if (piece == "Ctrl" || piece == "Control")
@@ -84,71 +77,106 @@ ParsedShortcut parseShortcut(const QString &text) {
       modifiers |= ShortcutAlt;
     else if (piece == "Shift")
       modifiers |= ShortcutShift;
-    else if (key.isEmpty())
+    else if (key.empty())
       key = piece;
     else
       return {};
+    if (separator == std::string_view::npos)
+      break;
+    start = separator + 1;
   }
 
-  if (key.isEmpty() || !(modifiers & (ShortcutMeta | ShortcutAlt)))
+  if (key.empty() || !(modifiers & (ShortcutMeta | ShortcutAlt)))
     return {};
 
   const xkb_keysym_t symbol = keySym(key);
   if (symbol == XKB_KEY_NoSymbol)
     return {};
 
-  QString canonicalKey = key;
-  if (key.size() == 1 && key.front().isLetter())
-    canonicalKey = key.toUpper();
-  else if (symbol == XKB_KEY_space)
-    canonicalKey = QStringLiteral("Space");
-  else if (symbol == XKB_KEY_Return)
-    canonicalKey = QStringLiteral("Return");
+  std::string canonicalKey = key;
+  if (key.size() == 1 &&
+      std::isalpha(static_cast<unsigned char>(key.front()))) {
+    canonicalKey.front() = static_cast<char>(
+        std::toupper(static_cast<unsigned char>(canonicalKey.front())));
+  } else if (symbol == XKB_KEY_space) {
+    canonicalKey = "Space";
+  } else if (symbol == XKB_KEY_Return) {
+    canonicalKey = "Return";
+  }
 
-  QStringList normalized;
+  std::string canonical;
+  const auto append = [&canonical](std::string_view value) {
+    if (!canonical.empty())
+      canonical += '+';
+    canonical.append(value);
+  };
   if (modifiers & ShortcutMeta)
-    normalized << QStringLiteral("Meta");
+    append("Meta");
   if (modifiers & ShortcutControl)
-    normalized << QStringLiteral("Ctrl");
+    append("Ctrl");
   if (modifiers & ShortcutAlt)
-    normalized << QStringLiteral("Alt");
+    append("Alt");
   if (modifiers & ShortcutShift)
-    normalized << QStringLiteral("Shift");
-  normalized << canonicalKey;
-  return {symbol, modifiers, normalized.join('+')};
+    append("Shift");
+  append(canonicalKey);
+  return {symbol, modifiers, std::move(canonical)};
+}
+
+bool reservedWindowSwitchKey(const ParsedShortcut &shortcut) {
+  return (shortcut.symbol == XKB_KEY_Tab ||
+          shortcut.symbol == XKB_KEY_ISO_Left_Tab) &&
+         (shortcut.modifiers == ShortcutAlt ||
+          shortcut.modifiers == (ShortcutAlt | ShortcutShift) ||
+          shortcut.modifiers == ShortcutMeta ||
+          shortcut.modifiers == (ShortcutMeta | ShortcutShift));
 }
 
 } // namespace
 
-ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
-  QSettings settings;
-  auto configured =
-      QJsonObject::fromVariantMap(settings.value("shortcuts/bindings").toMap());
-  const auto knownActions = defaults();
-  bool removedObsolete = false;
-  for (const auto &key : configured.keys())
-    if (!knownActions.contains(key)) {
-      configured.remove(key);
-      removedObsolete = true;
-    }
-  if (removedObsolete) {
-    if (configured.isEmpty())
-      settings.remove("shortcuts/bindings");
-    else
-      settings.setValue("shortcuts/bindings", configured.toVariantMap());
-    settings.sync();
+ShortcutSettings::ShortcutSettings()
+    : ShortcutSettings(nlohmann::json::object()) {}
+
+ShortcutSettings::ShortcutSettings(nlohmann::json legacyBindings)
+    : bindings_(defaults()) {
+  if (!hasStoredShortcutBindings() && legacyBindings.is_object()) {
+    std::string error;
+    importLegacyShortcutBindings(legacyBindings, &error);
   }
 
-  // Older settings may reserve Meta+T for a different action. Keep those
-  // assignments; add the terminal defaults only when their keys are free.
-  const auto uses = [&configured](const QString &sequence,
-                                  const QString &except) {
-    for (auto it = configured.begin(); it != configured.end(); ++it)
-      if (it.key() != except && it.value().toString() == sequence)
+  auto configured = loadShortcutBindings();
+  const auto knownActions = defaults();
+  bool removedObsolete = false;
+  if (configured.is_object()) {
+    for (auto it = configured.begin(); it != configured.end();) {
+      if (!knownActions.contains(it.key())) {
+        it = configured.erase(it);
+        removedObsolete = true;
+      } else {
+        ++it;
+      }
+    }
+  } else {
+    configured = nlohmann::json::object();
+  }
+  if (removedObsolete) {
+    std::string error;
+    saveShortcutBindings(configured, &error);
+  }
+
+  const auto uses = [&configured](std::string_view sequence,
+                                  std::string_view except) {
+    for (const auto &[key, value] : configured.items())
+      if (key != except && value.is_string() &&
+          value.get_ref<const std::string &>() == sequence)
         return true;
     return false;
   };
-  if (configured.value("launchTerminal").toString() == "Meta+Return" &&
+  const auto configuredValue = [&configured](std::string_view key) {
+    const auto it = configured.find(std::string(key));
+    return it != configured.end() && it->is_string() ? it->get<std::string>()
+                                                     : std::string{};
+  };
+  if (configuredValue("launchTerminal") == "Meta+Return" &&
       !uses("Meta+T", "launchTerminal"))
     configured["launchTerminal"] = "Meta+T";
   if (!configured.contains("launchTerminal") &&
@@ -159,107 +187,114 @@ ShortcutSettings::ShortcutSettings() : bindings_(defaults()) {
   if (!configured.contains("moveToWorkspace10") &&
       uses("Meta+Shift+0", "moveToWorkspace10"))
     bindings_["moveToWorkspace10"] = "Disabled";
-  for (auto it = configured.begin(); it != configured.end(); ++it) {
-    const auto binding = parseShortcut(it.value().toString());
-    if ((binding.symbol == XKB_KEY_Tab ||
-         binding.symbol == XKB_KEY_ISO_Left_Tab) &&
-        (binding.modifiers == ShortcutAlt ||
-         binding.modifiers == (ShortcutAlt | ShortcutShift) ||
-         binding.modifiers == ShortcutMeta ||
-         binding.modifiers == (ShortcutMeta | ShortcutShift)))
-      it.value() = "Disabled";
+  for (auto &[key, value] : configured.items()) {
+    (void)key;
+    if (!value.is_string())
+      continue;
+    const auto binding = parseShortcut(value.get_ref<const std::string &>());
+    if (reservedWindowSwitchKey(binding))
+      value = "Disabled";
   }
+
   // Migrate the previous shipped default without replacing custom bindings
   // or stealing Meta+Shift+S from another explicitly assigned action.
-  if (configured.value("screenshot").toString() == "Alt+Shift+F5") {
+  if (configuredValue("screenshot") == "Alt+Shift+F5") {
     bool used = false;
-    for (auto it = configured.begin(); it != configured.end(); ++it)
-      used |=
-          it.key() != "screenshot" && it.value().toString() == "Meta+Shift+S";
+    for (const auto &[key, value] : configured.items())
+      used |= key != "screenshot" && value.is_string() &&
+              value.get_ref<const std::string &>() == "Meta+Shift+S";
     if (!used)
       configured["screenshot"] = "Meta+Shift+S";
   }
   // New defaults never invalidate a user's existing custom bindings.
-  for (auto it = bindings_.begin(); it != bindings_.end(); ++it)
-    if (!configured.contains(it.key()) && uses(it.value().toString(), it.key()))
-      it.value() = "Disabled";
-  QString error;
-  if (!configured.isEmpty())
+  for (const auto &[key, value] : bindings_.items())
+    if (!configured.contains(key) && value.is_string() &&
+        uses(value.get_ref<const std::string &>(), key))
+      bindings_[key] = "Disabled";
+
+  std::string error;
+  if (!configured.empty())
     apply(configured, &error);
 }
 
-QJsonObject ShortcutSettings::snapshot() const { return bindings_; }
+nlohmann::json ShortcutSettings::snapshot() const { return bindings_; }
 
-QString ShortcutSettings::actionFor(xkb_keysym_t keysym,
-                                    uint32_t modifiers) const {
-  for (auto it = bindings_.begin(); it != bindings_.end(); ++it) {
-    const ParsedShortcut shortcut = parseShortcut(it.value().toString());
+std::string ShortcutSettings::actionFor(xkb_keysym_t keysym,
+                                        uint32_t modifiers) const {
+  for (const auto &[action, value] : bindings_.items()) {
+    if (!value.is_string())
+      continue;
+    const ParsedShortcut shortcut =
+        parseShortcut(value.get_ref<const std::string &>());
     if (shortcut.canonical != "Disabled" &&
         xkb_keysym_to_lower(shortcut.symbol) == xkb_keysym_to_lower(keysym) &&
         shortcut.modifiers == modifiers)
-      return it.key();
+      return action;
   }
   return {};
 }
 
-bool ShortcutSettings::apply(const QJsonObject &changes, QString *error) {
+bool ShortcutSettings::apply(const nlohmann::json &changes,
+                             std::string *error) {
+  if (!changes.is_object()) {
+    if (error)
+      *error = "Expected shortcut object.";
+    return false;
+  }
   auto candidate = bindings_;
   const auto known = defaults();
-  for (auto it = changes.begin(); it != changes.end(); ++it) {
-    if (!known.contains(it.key()) || !it.value().isString()) {
+  for (const auto &[action, value] : changes.items()) {
+    if (!known.contains(action) || !value.is_string()) {
       if (error)
-        *error = "Unknown shortcut action: " + it.key();
+        *error = "Unknown shortcut action: " + action;
       return false;
     }
-    const ParsedShortcut parsed = parseShortcut(it.value().toString());
-    if (parsed.canonical.isEmpty()) {
+    const ParsedShortcut parsed =
+        parseShortcut(value.get_ref<const std::string &>());
+    if (parsed.canonical.empty()) {
       if (error)
         *error = "Shortcut must be one Meta or Alt key combination.";
       return false;
     }
-    if ((parsed.symbol == XKB_KEY_Tab ||
-         parsed.symbol == XKB_KEY_ISO_Left_Tab) &&
-        (parsed.modifiers == ShortcutAlt ||
-         parsed.modifiers == (ShortcutAlt | ShortcutShift) ||
-         parsed.modifiers == ShortcutMeta ||
-         parsed.modifiers == (ShortcutMeta | ShortcutShift))) {
+    if (reservedWindowSwitchKey(parsed)) {
       if (error)
-        *error = "Alt+Tab and Super+Tab are reserved for window and workspace switching.";
+        *error = "Alt+Tab and Super+Tab are reserved for window and workspace "
+                 "switching.";
       return false;
     }
-    candidate.insert(it.key(), parsed.canonical);
+    candidate[action] = parsed.canonical;
   }
 
-  QSet<QString> used;
-  for (auto it = candidate.begin(); it != candidate.end(); ++it) {
-    const QString sequence = it.value().toString();
+  std::set<std::string> used;
+  for (const auto &[action, value] : candidate.items()) {
+    (void)action;
+    if (!value.is_string())
+      continue;
+    const auto &sequence = value.get_ref<const std::string &>();
     if (sequence == "Disabled")
       continue;
-    if (used.contains(sequence)) {
+    if (!used.insert(sequence).second) {
       if (error)
         *error = "Shortcut is already assigned: " + sequence;
       return false;
     }
-    used.insert(sequence);
   }
 
-  bindings_ = candidate;
-  QSettings settings;
-  settings.setValue("shortcuts/bindings", bindings_.toVariantMap());
-  settings.sync();
-  if (settings.status() != QSettings::NoError) {
+  std::string nativeError;
+  if (!saveShortcutBindings(candidate, &nativeError)) {
     if (error)
-      *error = "Could not save shortcut settings.";
+      *error = std::move(nativeError);
     return false;
   }
+  bindings_ = std::move(candidate);
   return true;
 }
 
-void ShortcutSettings::reset() {
+bool ShortcutSettings::reset(std::string *error) {
+  if (!saveShortcutBindings(nlohmann::json::object(), error))
+    return false;
   bindings_ = defaults();
-  QSettings settings;
-  settings.remove("shortcuts/bindings");
-  settings.sync();
+  return true;
 }
 
 } // namespace LunaDash

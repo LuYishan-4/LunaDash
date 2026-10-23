@@ -1,10 +1,13 @@
 #pragma once
-#include <QStringList>
-#include <QUrl>
+
+#include <string>
+#include <vector>
+
 namespace LunaDash {
+
 class Browser final {
 public:
-  static QStringList defaultCommand();
-  static QStringList commandForUrl(const QUrl &url, QString *error = nullptr);
+  static std::vector<std::string> defaultCommand();
 };
+
 } // namespace LunaDash

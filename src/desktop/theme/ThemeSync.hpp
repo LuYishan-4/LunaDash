@@ -1,8 +1,10 @@
 #pragma once
-#include <QJsonObject>
-#include <QString>
+
+#include <nlohmann/json.hpp>
 
 namespace LunaDash {
-QJsonObject synchronizeApplicationTheme(const QJsonObject &preferences,
-                                        const QJsonObject &palette);
+
+nlohmann::json synchronizeApplicationTheme(
+    const nlohmann::json &preferences, const nlohmann::json &palette);
+
 } // namespace LunaDash

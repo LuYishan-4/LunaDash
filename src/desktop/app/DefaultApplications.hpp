@@ -1,9 +1,17 @@
 #pragma once
-#include <QJsonObject>
-#include <QStringList>
+
+#include <nlohmann/json.hpp>
+
+#include <string>
+#include <string_view>
+#include <vector>
+
 namespace LunaDash {
-QJsonObject defaultApplications();
-bool setDefaultApplications(const QJsonObject &changes, QString *error);
-QStringList defaultApplicationCommand(const QString &role, QString *error);
-QStringList konsoleCommand();
+
+nlohmann::json defaultApplications();
+bool setDefaultApplications(const nlohmann::json &changes, std::string *error);
+std::vector<std::string> defaultApplicationCommand(std::string_view role,
+                                                   std::string *error);
+std::vector<std::string> konsoleCommand();
+
 } // namespace LunaDash

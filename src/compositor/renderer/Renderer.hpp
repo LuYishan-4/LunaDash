@@ -4,8 +4,9 @@
 #include "compositor/renderer/opengl/Program.hpp"
 #include "core/templates/Renderer.hpp"
 
-#include <QStringList>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace LunaDash {
 
@@ -17,18 +18,18 @@ public:
   explicit Renderer(GraphicsApi api = GraphicsApi::Auto,
                     std::shared_ptr<RenderState> state = {});
 
-  bool initialize(QString *error = nullptr);
+  bool initialize(std::string *error = nullptr);
   bool ready() const;
 
   ActiveGraphics &context();
   const ActiveGraphics &context() const;
   std::shared_ptr<RenderState> state() const;
 
-  std::unique_ptr<Program> createProgram(const QStringList &assets,
-                                         QString *error = nullptr);
+  std::unique_ptr<Program> createProgram(const std::vector<std::string> &assets,
+                                         std::string *error = nullptr);
 
   bool render(ElementRender &element, const ElementRenderContext &context,
-              QString *error = nullptr);
+              std::string *error = nullptr);
 
 private:
   Templates::RendererTemplate<ActiveGraphics> graphics_;

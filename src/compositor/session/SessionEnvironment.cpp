@@ -1,383 +1,247 @@
 #include "compositor/session/SessionEnvironment.hpp"
 
-#include <QDir>
-#include <QFileInfo>
-#include <QProcess>
-#include <QSettings>
-#include <QStandardPaths>
-#include <QStringList>
-#include <QTimer>
-#include <memory>
+#include <nlohmann/json.hpp>
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <string_view>
+#include <vector>
+
+extern char **environ;
 
 namespace LunaDash {
 namespace {
-QString detectedIconTheme() {
-  if (!qEnvironmentVariableIsEmpty("QS_ICON_THEME"))
+namespace fs = std::filesystem;
+
+constexpr const char *kProxyVariables[] = {
+    "http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY",
+    "all_proxy",  "ALL_PROXY",  "no_proxy",    "NO_PROXY"};
+
+std::string trim(std::string value) {
+  const auto first = std::find_if_not(value.begin(), value.end(), [](char c) {
+    return std::isspace(static_cast<unsigned char>(c));
+  });
+  const auto last = std::find_if_not(value.rbegin(), value.rend(), [](char c) {
+                      return std::isspace(static_cast<unsigned char>(c));
+                    }).base();
+  if (first >= last)
     return {};
-  const QString configLocation =
-      QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
-  QStringList candidates;
-  const QString kdeTheme =
-      QSettings(configLocation + "/kdeglobals", QSettings::IniFormat)
-          .value("Icons/Theme")
-          .toString();
-  if (!kdeTheme.isEmpty())
-    candidates.append(kdeTheme);
-  const QString gtkTheme =
-      QSettings(configLocation + "/gtk-3.0/settings.ini", QSettings::IniFormat)
-          .value("Settings/gtk-icon-theme-name")
-          .toString();
-  if (!gtkTheme.isEmpty())
-    candidates.append(gtkTheme);
-  candidates.append({"breeze", "Adwaita", "Papirus", "hicolor"});
-  candidates.removeDuplicates();
-  for (const auto &name : candidates) {
-    if (!QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                "icons/" + name + "/index.theme")
-             .isEmpty())
-      return name;
+  return std::string(first, last);
+}
+
+fs::path configDirectory() {
+  if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg) {
+    const fs::path path(xdg);
+    if (path.is_absolute())
+      return path;
+  }
+  if (const char *home = std::getenv("HOME"); home && *home)
+    return fs::path(home) / ".config";
+  return {};
+}
+
+std::vector<fs::path> dataDirectories() {
+  std::vector<fs::path> directories;
+  if (const char *xdg = std::getenv("XDG_DATA_HOME"); xdg && *xdg) {
+    const fs::path path(xdg);
+    if (path.is_absolute())
+      directories.push_back(path);
+  } else if (const char *home = std::getenv("HOME"); home && *home) {
+    directories.push_back(fs::path(home) / ".local/share");
+  }
+
+  const char *systemDirectories = std::getenv("XDG_DATA_DIRS");
+  std::string_view list = systemDirectories && *systemDirectories
+                              ? systemDirectories
+                              : "/usr/local/share:/usr/share";
+  std::size_t start = 0;
+  while (start <= list.size()) {
+    const auto separator = list.find(':', start);
+    const auto entry = list.substr(start, separator == std::string_view::npos
+                                              ? list.size() - start
+                                              : separator - start);
+    if (!entry.empty()) {
+      const fs::path path(entry);
+      if (path.is_absolute())
+        directories.push_back(path);
+    }
+    if (separator == std::string_view::npos)
+      break;
+    start = separator + 1;
+  }
+  return directories;
+}
+
+fs::path locateData(const fs::path &relative) {
+  std::error_code error;
+  for (const auto &root : dataDirectories()) {
+    const auto candidate = root / relative;
+    if (fs::is_directory(candidate, error) && !error)
+      return candidate;
+    error.clear();
   }
   return {};
 }
 
-void applyProxyEnvironment(QProcessEnvironment &environment) {
-  static const QStringList proxyVariables = {
-      "http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY",
-      "all_proxy",  "ALL_PROXY",  "no_proxy",    "NO_PROXY"};
-  for (const auto &name : proxyVariables)
-    environment.remove(name);
+std::string iniValue(const fs::path &file, std::string_view wantedSection,
+                     std::string_view wantedKey) {
+  std::ifstream input(file);
+  std::string section;
+  std::string line;
+  while (std::getline(input, line)) {
+    const auto cleaned = trim(line);
+    if (cleaned.empty() || cleaned.front() == '#' || cleaned.front() == ';')
+      continue;
+    if (cleaned.front() == '[' && cleaned.back() == ']') {
+      section = trim(cleaned.substr(1, cleaned.size() - 2));
+      continue;
+    }
+    if (section != wantedSection)
+      continue;
+    const auto separator = cleaned.find('=');
+    if (separator == std::string::npos ||
+        trim(cleaned.substr(0, separator)) != wantedKey)
+      continue;
+    return trim(cleaned.substr(separator + 1));
+  }
+  return {};
+}
 
-  QSettings settings;
-  if (!settings.value("desktop/proxyEnabled", false).toBool())
+std::string detectedIconTheme() {
+  if (const char *existing = std::getenv("QS_ICON_THEME");
+      existing && *existing)
+    return {};
+
+  const auto config = configDirectory();
+  std::vector<std::string> candidates;
+  const auto kde = iniValue(config / "kdeglobals", "Icons", "Theme");
+  const auto gtk = iniValue(config / "gtk-3.0/settings.ini", "Settings",
+                            "gtk-icon-theme-name");
+  if (!kde.empty())
+    candidates.push_back(kde);
+  if (!gtk.empty())
+    candidates.push_back(gtk);
+  for (const auto *fallback : {"breeze", "Adwaita", "Papirus", "hicolor"})
+    candidates.emplace_back(fallback);
+
+  const auto roots = dataDirectories();
+  for (const auto &name : candidates) {
+    for (const auto &root : roots) {
+      std::error_code error;
+      if (fs::is_regular_file(root / "icons" / name / "index.theme", error) &&
+          !error)
+        return name;
+    }
+  }
+  return {};
+}
+
+void applyProxyEnvironment(ClientEnvironment &environment,
+                           const nlohmann::json &preferences) {
+  for (const auto *name : kProxyVariables)
+    environment.erase(name);
+  if (!preferences.value("proxyEnabled", false))
     return;
 
-  const QString http = settings.value("desktop/proxyHttp").toString().trimmed();
-  const QString https =
-      settings.value("desktop/proxyHttps").toString().trimmed();
-  const QString socks =
-      settings.value("desktop/proxySocks").toString().trimmed();
-  const QString bypass =
-      settings.value("desktop/proxyBypass").toString().trimmed();
-  if (!http.isEmpty()) {
-    environment.insert("http_proxy", http);
-    environment.insert("HTTP_PROXY", http);
-  }
-  if (!https.isEmpty()) {
-    environment.insert("https_proxy", https);
-    environment.insert("HTTPS_PROXY", https);
-  }
-  if (!socks.isEmpty()) {
-    environment.insert("all_proxy", socks);
-    environment.insert("ALL_PROXY", socks);
-  }
-  if (!bypass.isEmpty()) {
-    environment.insert("no_proxy", bypass);
-    environment.insert("NO_PROXY", bypass);
-  }
+  const auto insertPair = [&environment, &preferences](const char *key,
+                                                       const char *lower,
+                                                       const char *upper) {
+    auto value = preferences.value(key, std::string{});
+    const auto first = std::find_if_not(value.begin(), value.end(), [](char c) {
+      return std::isspace(static_cast<unsigned char>(c));
+    });
+    const auto last =
+        std::find_if_not(value.rbegin(), value.rend(), [](char c) {
+          return std::isspace(static_cast<unsigned char>(c));
+        }).base();
+    if (first >= last)
+      return;
+    value = std::string(first, last);
+    environment[lower] = value;
+    environment[upper] = std::move(value);
+  };
+  insertPair("proxyHttp", "http_proxy", "HTTP_PROXY");
+  insertPair("proxyHttps", "https_proxy", "HTTPS_PROXY");
+  insertPair("proxySocks", "all_proxy", "ALL_PROXY");
+  insertPair("proxyBypass", "no_proxy", "NO_PROXY");
 }
+
 } // namespace
 
-QProcessEnvironment createClientEnvironment(const QString &socketName,
-                                            const QString &controlPath,
-                                            const QString &binaryDirectory) {
-  auto environment = QProcessEnvironment::systemEnvironment();
-  environment.remove("DISPLAY");
-  environment.remove("XAUTHORITY");
-  environment.remove("QT_QPA_EGLFS_INTEGRATION");
-  environment.remove("KITTY_DISABLE_WAYLAND");
-  environment.insert("WAYLAND_DISPLAY", socketName);
-  environment.insert("QT_QPA_PLATFORM", "wayland;xcb");
-  environment.insert("GDK_BACKEND", "wayland,x11");
-  environment.insert("SDL_VIDEODRIVER", "wayland,x11");
-  environment.insert("GLFW_PLATFORM", "wayland");
-  environment.insert("XDG_SESSION_TYPE", "wayland");
-  environment.insert("XDG_CURRENT_DESKTOP", "LunaDash");
-  environment.insert("XDG_SESSION_DESKTOP", "LunaDash");
-  environment.insert("GTK_USE_PORTAL", "1");
-  environment.insert("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
-  environment.insert("LUNADASH_CHROMIUM_WAYLAND", "1");
-  environment.insert("ELECTRON_OZONE_PLATFORM_HINT", "wayland");
-  environment.insert("XMODIFIERS", "@im=fcitx");
-  environment.insert("QT_IM_MODULE", "fcitx");
-  // The compositor-side bridge is implemented by wlroots
-  // text-input-v3/input-method-v2. Toolkit input modules remain client-side:
-  // Fcitx can use the native Wayland protocols without any Qt compositor path.
-  environment.insert("QT_IM_MODULES", "fcitx;wayland");
-  environment.insert("GTK_IM_MODULE", "fcitx");
-  environment.insert("SDL_IM_MODULE", "fcitx");
-  environment.insert("INPUT_METHOD", "fcitx");
-  applyProxyEnvironment(environment);
-  auto assetDirectory = QStandardPaths::locate(
-      QStandardPaths::GenericDataLocation, "lunadash/data/assets",
-      QStandardPaths::LocateDirectory);
-  if (assetDirectory.isEmpty())
-    assetDirectory = QStringLiteral(LUDASH_ASSET_SOURCE_DIR);
-  environment.insert("LUNADASH_ASSET_DIR", assetDirectory);
+ClientEnvironment createClientEnvironment(const std::string &socketName,
+                                          const std::string &controlPath,
+                                          const std::string &binaryDirectory,
+                                          const nlohmann::json &preferences) {
+  ClientEnvironment environment;
+  for (char **entry = environ; entry && *entry; ++entry) {
+    const std::string_view item(*entry);
+    const auto separator = item.find('=');
+    if (separator != std::string_view::npos && separator > 0)
+      environment.emplace(std::string(item.substr(0, separator)),
+                          std::string(item.substr(separator + 1)));
+  }
 
-  auto wallpaperDirectory = QStandardPaths::locate(
-      QStandardPaths::GenericDataLocation, "ludash/wallpapers",
-      QStandardPaths::LocateDirectory);
-  if (wallpaperDirectory.isEmpty())
-    wallpaperDirectory =
-        QFileInfo(assetDirectory).absoluteDir().filePath("wallpapers");
-  environment.insert("LUNADASH_WALLPAPER_DIR", wallpaperDirectory);
+  for (const auto *name : {"DISPLAY", "XAUTHORITY", "QT_QPA_EGLFS_INTEGRATION",
+                           "KITTY_DISABLE_WAYLAND"})
+    environment.erase(name);
+  environment["WAYLAND_DISPLAY"] = socketName;
+  environment["QT_QPA_PLATFORM"] = "wayland;xcb";
+  environment["GDK_BACKEND"] = "wayland,x11";
+  environment["SDL_VIDEODRIVER"] = "wayland,x11";
+  environment["GLFW_PLATFORM"] = "wayland";
+  environment["XDG_SESSION_TYPE"] = "wayland";
+  environment["XDG_CURRENT_DESKTOP"] = "LunaDash";
+  environment["XDG_SESSION_DESKTOP"] = "LunaDash";
+  environment["GTK_USE_PORTAL"] = "1";
+  environment["QT_QPA_PLATFORMTHEME"] = "xdgdesktopportal";
+  environment["LUNADASH_CHROMIUM_WAYLAND"] = "1";
+  environment["ELECTRON_OZONE_PLATFORM_HINT"] = "wayland";
+  environment["XMODIFIERS"] = "@im=fcitx";
+  environment["QT_IM_MODULE"] = "fcitx";
+  // wlroots handles text-input-v3/input-method-v2. Toolkit input modules stay
+  // on the client side, so Qt and GTK clients can use their native Fcitx paths.
+  environment["QT_IM_MODULES"] = "fcitx;wayland";
+  environment["GTK_IM_MODULE"] = "fcitx";
+  environment["SDL_IM_MODULE"] = "fcitx";
+  environment["INPUT_METHOD"] = "fcitx";
+  applyProxyEnvironment(environment, preferences);
 
-  environment.insert("LUNADASH_BIN_DIR", binaryDirectory);
-  environment.insert("LUNADASH_CONTROL", controlPath);
-  environment.insert("LUDASH_BIN_DIR", binaryDirectory);
-  environment.insert("LUDASH_CONTROL", controlPath);
-  const QString iconTheme = detectedIconTheme();
-  if (!iconTheme.isEmpty())
-    environment.insert("QS_ICON_THEME", iconTheme);
-  // Client toolkits select their own renderer. Shell-specific rendering policy
-  // is applied only when spawning Quickshell, never exported to applications.
-  auto loggingRules = environment.value("QT_LOGGING_RULES");
-  if (!loggingRules.isEmpty())
-    loggingRules += ";";
+  auto assetDirectory = locateData("lunadash/data/assets");
+  if (assetDirectory.empty())
+    assetDirectory = LUDASH_ASSET_SOURCE_DIR;
+  environment["LUNADASH_ASSET_DIR"] = assetDirectory.string();
+
+  auto wallpaperDirectory = locateData("ludash/wallpapers");
+  if (wallpaperDirectory.empty())
+    wallpaperDirectory = assetDirectory.parent_path() / "wallpapers";
+  environment["LUNADASH_WALLPAPER_DIR"] = wallpaperDirectory.string();
+
+  environment["LUNADASH_BIN_DIR"] = binaryDirectory;
+  environment["LUNADASH_CONTROL"] = controlPath;
+  environment["LUDASH_BIN_DIR"] = binaryDirectory;
+  environment["LUDASH_CONTROL"] = controlPath;
+  const auto iconTheme = detectedIconTheme();
+  if (!iconTheme.empty())
+    environment["QS_ICON_THEME"] = iconTheme;
+
+  // Client toolkits select their renderer. Quickshell logging stays scoped to
+  // the client environment rather than compositor-wide rendering policy.
+  auto &loggingRules = environment["QT_LOGGING_RULES"];
+  if (!loggingRules.empty())
+    loggingRules += ';';
   loggingRules += "quickshell.desktopentry.warning=false";
-  environment.insert("QT_LOGGING_RULES", loggingRules);
   return environment;
 }
 
-bool publishClientEnvironment(const QProcessEnvironment &environment) {
-  for (const auto &name : environment.keys())
-    qputenv(name.toUtf8(), environment.value(name).toUtf8());
-  return true;
+bool publishClientEnvironment(const ClientEnvironment &environment) {
+  bool published = true;
+  for (const auto &[name, value] : environment)
+    if (::setenv(name.c_str(), value.c_str(), 1) != 0)
+      published = false;
+  return published;
 }
 
-void refreshScreencastPortalServices(
-    const QProcessEnvironment &environment, QObject *owner,
-    std::function<void()> completion) {
-  const auto completed = std::make_shared<bool>(false);
-  const auto finish = [completed, completion] {
-    if (*completed)
-      return;
-    *completed = true;
-    if (completion)
-      completion();
-  };
-  const QString config = QStringLiteral(LUDASH_XDPW_CONFIG_PATH);
-
-  auto findXdpw = [] {
-    QString executable =
-        QStandardPaths::findExecutable(QStringLiteral("xdg-desktop-portal-wlr"));
-    if (!executable.isEmpty())
-      return executable;
-    const QStringList candidates = {
-        QStringLiteral("/usr/lib/xdg-desktop-portal-wlr"),
-        QStringLiteral("/usr/libexec/xdg-desktop-portal-wlr"),
-        QStringLiteral("/usr/local/libexec/xdg-desktop-portal-wlr")};
-    for (const auto &candidate : candidates) {
-      const QFileInfo info(candidate);
-      if (info.exists() && info.isExecutable())
-        return candidate;
-    }
-    return QString();
-  };
-
-  auto restartFrontend = [environment, owner, finish] {
-    const QString systemctl =
-        QStandardPaths::findExecutable(QStringLiteral("systemctl"));
-    if (systemctl.isEmpty()) {
-      finish();
-      return;
-    }
-    auto *frontend = new QProcess(owner);
-    frontend->setProcessEnvironment(environment);
-    frontend->setProcessChannelMode(QProcess::MergedChannels);
-    auto *timeout = new QTimer(frontend);
-    timeout->setSingleShot(true);
-    timeout->setInterval(5000);
-    QObject::connect(timeout, &QTimer::timeout, frontend, [frontend, finish] {
-      frontend->kill();
-      finish();
-    });
-    QObject::connect(frontend, &QProcess::finished, owner,
-                     [frontend, timeout, finish](int code,
-                                                  QProcess::ExitStatus status) {
-                       timeout->stop();
-                       if (code != 0 || status != QProcess::NormalExit) {
-                         const QString diagnostic =
-                             QString::fromLocal8Bit(frontend->readAll())
-                                 .trimmed()
-                                 .left(1024);
-                         if (!diagnostic.isEmpty())
-                           qWarning().noquote()
-                               << "LunaDash portal frontend refresh:"
-                               << diagnostic;
-                       }
-                       frontend->deleteLater();
-                       finish();
-                     });
-    frontend->start(
-        systemctl,
-        {QStringLiteral("--user"), QStringLiteral("restart"),
-         QStringLiteral("xdg-desktop-portal-lunadash.service"),
-         QStringLiteral("xdg-desktop-portal-gtk.service"),
-         QStringLiteral("xdg-desktop-portal.service")});
-    timeout->start();
-  };
-
-  // xdpw searches the user's generic config before the desktop-specific
-  // system config. Start it with LunaDash's config explicitly so an existing
-  // ~/.config/xdg-desktop-portal-wlr/config cannot silently restore the
-  // default slurp screenshot-style chooser for Discord ScreenCast.
-  const QString xdpw = findXdpw();
-  if (!xdpw.isEmpty() && QFileInfo::exists(config)) {
-    auto *existing =
-        owner->findChild<QProcess *>(QStringLiteral("lunadash-xdpw"));
-    if (existing && existing->state() != QProcess::NotRunning) {
-      restartFrontend();
-      return;
-    }
-
-    auto *portal = new QProcess(owner);
-    portal->setObjectName(QStringLiteral("lunadash-xdpw"));
-    portal->setProcessEnvironment(environment);
-    portal->setProcessChannelMode(QProcess::ForwardedChannels);
-    QObject::connect(portal, &QProcess::started, owner, restartFrontend);
-    QObject::connect(
-        portal, &QProcess::errorOccurred, owner,
-        [portal, restartFrontend](QProcess::ProcessError error) {
-          if (error == QProcess::FailedToStart) {
-            qWarning().noquote()
-                << "LunaDash could not start xdg-desktop-portal-wlr:"
-                << portal->errorString();
-            restartFrontend();
-          }
-        });
-    QObject::connect(
-        portal, &QProcess::finished, owner,
-        [portal](int code, QProcess::ExitStatus status) {
-          if (code != 0 || status != QProcess::NormalExit)
-            qWarning().noquote()
-                << "LunaDash xdg-desktop-portal-wlr exited:" << code;
-          portal->deleteLater();
-        });
-    portal->start(
-        xdpw, {QStringLiteral("--replace"), QStringLiteral("--config"), config,
-               QStringLiteral("--loglevel"), QStringLiteral("INFO")});
-    return;
-  }
-
-  // Fallback for unusual installations where xdpw or the installed LunaDash
-  // config cannot be located.
-  const QString systemctl =
-      QStandardPaths::findExecutable(QStringLiteral("systemctl"));
-  if (systemctl.isEmpty()) {
-    finish();
-    return;
-  }
-  auto *process = new QProcess(owner);
-  process->setProcessEnvironment(environment);
-  process->setProcessChannelMode(QProcess::MergedChannels);
-  QObject::connect(
-      process, &QProcess::finished, owner,
-      [process, finish](int code, QProcess::ExitStatus status) {
-        if (code != 0 || status != QProcess::NormalExit) {
-          const QString diagnostic =
-              QString::fromLocal8Bit(process->readAll()).trimmed().left(1024);
-          if (!diagnostic.isEmpty())
-            qWarning().noquote() << "LunaDash portal refresh:" << diagnostic;
-        }
-        process->deleteLater();
-        finish();
-      });
-  process->start(
-      systemctl,
-      {QStringLiteral("--user"), QStringLiteral("restart"),
-       QStringLiteral("xdg-desktop-portal-wlr.service"),
-       QStringLiteral("xdg-desktop-portal-lunadash.service"),
-       QStringLiteral("xdg-desktop-portal-gtk.service"),
-       QStringLiteral("xdg-desktop-portal.service")});
-}
-
-void publishActivationEnvironment(
-    const QProcessEnvironment &environment, QObject *owner,
-    std::function<void(bool, const QString &)> completion) {
-  static const QStringList names = {
-      QStringLiteral("WAYLAND_DISPLAY"),
-      QStringLiteral("DISPLAY"),
-      QStringLiteral("XAUTHORITY"),
-      QStringLiteral("XDG_SESSION_TYPE"),
-      QStringLiteral("XDG_CURRENT_DESKTOP"),
-      QStringLiteral("XDG_SESSION_DESKTOP"),
-      QStringLiteral("GTK_USE_PORTAL"),
-      QStringLiteral("QT_QPA_PLATFORMTHEME"),
-      QStringLiteral("LUNADASH_CONTROL"),
-      QStringLiteral("LUDASH_CONTROL"),
-      QStringLiteral("QT_QPA_PLATFORM"),
-      QStringLiteral("GDK_BACKEND"),
-      QStringLiteral("SDL_VIDEODRIVER"),
-      QStringLiteral("GLFW_PLATFORM"),
-      QStringLiteral("LUNADASH_CHROMIUM_WAYLAND"),
-      QStringLiteral("ELECTRON_OZONE_PLATFORM_HINT"),
-      QStringLiteral("XMODIFIERS"),
-      QStringLiteral("QT_IM_MODULE"),
-      QStringLiteral("QT_IM_MODULES"),
-      QStringLiteral("GTK_IM_MODULE"),
-      QStringLiteral("SDL_IM_MODULE"),
-      QStringLiteral("INPUT_METHOD"),
-      QStringLiteral("http_proxy"),
-      QStringLiteral("HTTP_PROXY"),
-      QStringLiteral("https_proxy"),
-      QStringLiteral("HTTPS_PROXY"),
-      QStringLiteral("all_proxy"),
-      QStringLiteral("ALL_PROXY"),
-      QStringLiteral("no_proxy"),
-      QStringLiteral("NO_PROXY")};
-  const auto tool = QStandardPaths::findExecutable(
-      QStringLiteral("dbus-update-activation-environment"));
-  if (tool.isEmpty()) {
-    completion(false, "dbus-update-activation-environment is not installed.");
-    return;
-  }
-  QStringList available;
-  for (const auto &name : names)
-    if (environment.contains(name))
-      available.append(name);
-  auto *process = new QProcess(owner);
-  auto *timeout = new QTimer(process);
-  timeout->setSingleShot(true);
-  timeout->setInterval(3000);
-  process->setProcessEnvironment(environment);
-  process->setProcessChannelMode(QProcess::MergedChannels);
-  const auto fallback = std::make_shared<bool>(false);
-  QObject::connect(timeout, &QTimer::timeout, process,
-                   [process] { process->kill(); });
-  QObject::connect(
-      process, &QProcess::finished, owner,
-      [process, timeout, fallback, available, tool,
-       completion](int code, QProcess::ExitStatus status) {
-        timeout->stop();
-        const QString message =
-            QString::fromLocal8Bit(process->readAll()).trimmed().left(1024);
-        if (code == 0 && status == QProcess::NormalExit) {
-          completion(true, {});
-          process->deleteLater();
-        } else if (!*fallback) {
-          *fallback = true;
-          process->start(tool, available);
-          timeout->start();
-        } else {
-          completion(
-              false,
-              message.isEmpty()
-                  ? "Activation environment publication failed or timed out."
-                  : message);
-          process->deleteLater();
-        }
-      });
-  QObject::connect(
-      process, &QProcess::errorOccurred, owner,
-      [process, timeout, completion](QProcess::ProcessError error) {
-        if (error != QProcess::FailedToStart)
-          return;
-        timeout->stop();
-        completion(false, process->errorString());
-        process->deleteLater();
-      });
-  process->start(tool, QStringList{"--systemd"} + available);
-  timeout->start();
-}
 } // namespace LunaDash

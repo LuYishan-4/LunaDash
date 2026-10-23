@@ -4,7 +4,7 @@ NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證�
 
 [English](../en/ARCHITECTURE.md) · [繁中索引](README.md)
 
-LunaDash 是以 C++20、C11、wlroots、Qt 6 與 Quickshell/QML 組成的 Wayland 桌面。**wlroots 是實際合成器後端**；Quickshell/QML 負責桌面 Shell，Qt Widgets 用於原生工具，Qt Wayland 是 client 端依賴，不是 compositor server。Arch Linux 是主要開發平台。巢狀或軟體繪圖測試成功，不等於所有實體 GPU／登入工作階段都已驗證。
+LunaDash 是以 C++20、C11、wlroots、Qt 6 與 Quickshell/QML 組成的 Wayland 桌面。**wlroots 是實際合成器後端**；Quickshell/QML 負責桌面 Shell。LunaDash 自有的 Welcome、portal 選擇器與套件管理器視窗使用 Slint/Winit；Qt Widgets 僅保留在選用的工具包相容性用戶端。Qt 仍支援 compositor 與服務程式碼，移除工作仍在進行；Qt Wayland 是 client 端依賴，不是 compositor server。Arch Linux 是主要開發平台。巢狀或軟體繪圖測試成功，不等於所有實體 GPU／登入工作階段都已驗證。
 
 ## 原始碼分區
 
@@ -27,14 +27,18 @@ src/
     window/          window rules、frame、switcher
     xwayland/        驗證過的按需 X11 相容層
   config/            preferences、翻譯、plugin catalog
-  core/              共用 contract、listener 與 C plugin API
+  core/              原生 process runner、共用 contract 與 listener
   ctl/               lunadashctl
   desktop/           預設程式、設定、系統／音訊／網路等桌面服務
+    app/             原生執行檔分派器與預設程式角色
+    package/         Slint 套件管理用戶端與 pacman 參數規則
   service/portal/    FileChooser portal
   shell/             shell module runtime 與媒體 helper
 ```
 
-C++ 檔名使用 PascalCase 的 `.hpp/.cpp`，資料夾使用小寫 domain；C 介面維持 `.h/.c` 與既有 `ludash_` symbol。每個可執行入口的 `Main.cpp` 只負責把控制交給對應 module。
+C++ 檔名使用 PascalCase 的 `.hpp/.cpp`，資料夾使用小寫 domain；C 介面維持 `.h/.c` 與既有 `ludash_` symbol。每個可執行入口的 `Main.cpp` 只負責把控制交給對應 module。`DesktopApplication` 是原生 `exec` 分派器：啟動 compositor，或以 Welcome、套件管理器、control 用戶端或設定的檔案管理器取代自身程序。
+
+原生語系載入器位於 `config/localization`，從 JSON catalog 建立共用字典，提供給 Slint 用戶端與 Shell IPC；語系選擇寫入原生桌面偏好，並支援讀取舊 INI 語系值。
 
 根 repository 不含 Astro 網站或 QML shell 原始碼。LunaDash 使用 `packaging/shell-revision` 記錄的 Shell revision；安裝指令會另外抓取該版本。Website CI 與 Pages 部署只會在 runner 暫存目錄 clone LunaDash-docs。Compositor 原始碼、C++ 宿主 API 與建置整合留在根 repository 的 `src/compositor/`。詳見[repository 工作流程](COMPONENT_REPOS.md)。Compositor 目前不能獨立使用 CMake 建置。
 
@@ -42,9 +46,19 @@ C++ 檔名使用 PascalCase 的 `.hpp/.cpp`，資料夾使用小寫 domain；C �
 
 相依方向大致是 `core → config → runtime domains`。Core 不可 include 上層模組；desktop 不可直接依賴 compositor internals；renderer 不可依賴 desktop UI。專案用 `"compositor/renderer/Renderer.hpp"` 這種 source-root include，避免深層相對路徑。
 
-`WaylandCompositor` 擁有工作階段整合；`Runtime.cpp` 管 setup/teardown，`Output.cpp` 管 output，`Surface.cpp` 管 xdg/layer surface，`input/Input.cpp` 管輸入事件與 input-method bridge。物理鍵盤 map 與 repeat 由 `Keyboard.cpp` 套用。
+`WaylandCompositor` 擁有工作階段整合；`Runtime.cpp` 管 setup/teardown，`Output.cpp` 管 output，`Surface.cpp` 管 xdg/layer surface，`input/Input.cpp` 管輸入事件與 input-method bridge。物理鍵盤 map 與 repeat 由 `Keyboard.cpp` 套用；`desktop/input` 使用 xkbcommon 驗證 layout 名稱，不連結 Qt，也不直接操作 wlroots keyboard device。
 
 `core/templates/WaylandListener.hpp` 統一 wl_listener 的註冊與移除，owner 銷毀前先 disconnect。視窗關閉動畫使用保留的 scene snapshot，不保留已失效 surface callback。實際 wlroots 視窗動畫由 `SceneWindowAnimations` 驅動。
+
+MPRIS media library 使用 GLib GDBus 與 nlohmann/json，可同時搜尋 session bus 與登入使用者的 runtime bus，不連結 QtDBus。Audio-spectrum library 透過 `posix_spawnp` 和 `poll` 只擷取播放監聽 PCM，並輸出有界 JSON frame，不使用 Qt process 或 event-loop API。Shell tool 的其他 Qt 模組仍待遷移。
+
+預設應用程式角色、browser discovery、桌面偏好與桌布選擇／歷史資料使用標準 C++ 及 nlohmann/json 儲存，不連結 Qt。新檔案原子寫入 `${XDG_CONFIG_HOME:-$HOME/.config}/LunaDash/`；GLib `GKeyFile` importer 會從 `LunaDash.conf`／`LunaDash.ini` 一次性讀取舊值，並保留舊檔。
+
+系統遙測現在使用標準 C++、procfs、sysfs、Linux 使用者資料與 `statvfs` 讀取資訊。定期更新掛在 Wayland event loop，GPU 子程序使用原生 process runner，狀態目標回傳 nlohmann/json，不使用 QObject 或 Qt。
+
+網路狀態與操作使用原生 argument array、Wayland event loop、`ProcessRunner`、nlohmann/json 及 GLib GDBus。服務不再依賴 QtDBus 或 Qt 的網路／程序 API。
+
+選用的天氣查詢透過 libcurl 在可取消的工作執行緒中執行，再用 eventfd 回到 Wayland loop。請求僅允許 HTTPS，回應上限為 64 KiB；此目標不連結 Qt Network。
 
 ## 視窗配置
 
@@ -66,9 +80,9 @@ Plugin metadata discovery 在 `src/config/plugins/`，因此設定 UI 可以檢�
 
 應用程式毛玻璃沿用這條 scene 繪圖路徑。`renderer/blur/WindowGlass` 在受管理視窗 tree 下方維護不接收輸入的同層背景節點；`SceneBackdrop.c` 只擷取堆疊順序較低的 scene 內容，再透過 wlroots render pass 模糊。用戶端 buffer 保持清晰並畫在其上。輸出提交前更新背景快取，暫時動畫透明度仍由既有動畫程式控制。內容 commit revision 及 scene 幾何變動會更新快取；只有 frame callback 的 commit 及視窗自身的背景節點不會觸發更新。Scene 銷毀 listener 會在 renderer 結束前釋放保留的 buffer。沿用現有外觀偏好設定，全螢幕、utility 及桌面視窗不套用此效果。
 
-另外保留一套 Qt render-element library 於 `src/compositor/renderer/`。所有專案自有 raw OpenGL 都在 `renderer/opengl/`；`GLDispatch.c` 負責 function loading，`Shader`、`Program`、`Texture`、`Framebuffer` 以 RAII 管資源。這套 Qt GL library 有獨立測試，但**目前不是 wlroots scene 的主 renderer**。
+另外保留一套 toolkit-neutral render-element library 於 `src/compositor/renderer/`。所有專案自有 raw OpenGL 都在 `renderer/opengl/`；`GLDispatch.c` 負責 function loading，`Shader`、`Program`、`Texture`、`Framebuffer` 以 RAII 管資源。呼叫端提供 current EGL context；這套 library 有獨立測試，但目前不是 wlroots scene 的主 renderer。
 
-內建 shader 明確列在 CMake 中並嵌入 `:/LunaDash/renderer/shaders/`，安裝後不依賴 source checkout。SDK 2 的 OpenGL plugin 是另一條 Quickshell visual-slot 路徑，不能任意改 application buffer 或 wlroots output framebuffer。
+內建 shader 明確列在 CMake 中並嵌入產生的 C++ resource header，安裝後不依賴 source checkout。SDK 2 的 OpenGL plugin 是另一條 Quickshell visual-slot 路徑，不能任意改 application buffer 或 wlroots output framebuffer。
 
 ## 新增功能時
 
@@ -88,7 +102,7 @@ python3 tests/architecture/test_source_layout.py
 
 架構檢查會拒絕錯誤命名、舊 renderer 結構、違反 include 方向、漏列的 CMake source、錯放 shader 與 renderer 外的 raw OpenGL。
 
-CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless compositor、on-demand XWayland、renderer 資源與 plugin SDK regression。實體 GPU、Chrome/Zed、Fcitx 候選視窗、實體輸入、多螢幕與 display-manager login 仍需真實工作階段測試。FileChooser portal 也不是完整 PipeWire ScreenCast portal。
+wlroots compositor 透過 Wayland protocol 接收不同 toolkit 的 client。若系統安裝的 wlroots headers 有 `xdg-activation-v1`，compositor 會註冊此 protocol，並驗證來源 seat client 的輸入 serial，才接受已映射應用程式視窗的啟用請求；較舊 wlroots 建置的 client 仍需準備 fallback。CI 會覆蓋 protocol globals、xdg lifecycle、headless compositor、on-demand XWayland、renderer 資源與 plugin SDK regression，並以 source contract 檢查 activation serial policy。實體 GPU、Chrome/Zed、Fcitx 候選視窗、實體輸入、多螢幕與 display-manager login 仍需真實工作階段測試。FileChooser portal 也不是完整 PipeWire ScreenCast portal。
 
 延伸閱讀：[測試與原始碼地圖](TESTING_AND_FILES.md)、[圖形](GRAPHICS.md)、[輸入法](INPUT_METHODS.md)、[Plugin SDK 2](PLUGINS.md)。
 
@@ -100,14 +114,16 @@ CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless composi
 
 設定、快捷鍵、相依套件及驗證界線請參閱[桌面整合說明](NYXNIRI_DESKTOP.md)；可選的首次安裝流程請參閱[工作階段安裝](LOGIN_SESSION.md)。
 
-檔案管理器啟動透過外部 files 角色解析，預設為 Dolphin。退役的 `desktop/filemanager`、`desktop/fileoperations` 實作與建置目標已移除。Portal 選擇器與圖示歸屬 `service/portal`；Shell 圖片選擇器及螢幕分享選擇器各自保留。
+檔案管理器啟動透過外部 files 角色解析，預設為 Dolphin。退役的 `desktop/filemanager`、`desktop/fileoperations` 實作與建置目標已移除。FileChooser 與 ScreenCast 選擇器都是由 `service/portal` 管理的獨立 Slint/Winit Wayland client；portal service 使用 GLib GDBus 匯出 FileChooser v4 與 Settings v2。Shell 圖片選擇器仍留在 LunaDash-Shell。
 
 ## 目前渲染與 shell 邊界
 
-Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；場景動畫由 `window/animation/SceneAnimation` 負責。Welcome 的共用 QML 位於 `LunaDash-Shell/welcome`，`desktop/welcome` 僅負責獨立視窗宿主與 IPC 轉接。不使用 QtWayland compositor／server API。目前 compositor 程序的事件派送、設定與桌面服務仍連結 Qt Core／Gui／Network／DBus；無 Qt 的 C 渲染選擇程式不等於完整 compositor 已去除 Qt。
+Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；場景動畫由 `window/animation/SceneAnimation` 負責。獨立 Welcome 工具是位於 `desktop/welcome` 的 Slint／Winit Wayland client，使用與 Shell 相同的 control socket IPC。首次登入 Quickshell 導覽仍留在獨立 Shell repo。Compositor 透過一般 Wayland client 接收兩者，不嵌入任一 toolkit。不使用 QtWayland compositor／server API。原生 process runner 使用 `posix_spawn` 與 Wayland event loop 處理有輸出上限的非同步執行、逾時及子程序回收。音訊、電源、亮度、網路及 NVIDIA 狀態服務已直接使用它。Application theme sync 使用原生檔案操作，並透過 GDBus 要求 Fcitx 重新載入。Shell module 與 Orbit launcher 設定改用 nlohmann/json、GIO，所屬 targets 不連結 Qt；compositor 只在 IPC 邊界轉換 JSON。其他 LunaDash targets 仍連結 Qt Core／Gui／Widgets／Quick／Network／DBus；專案仍在遷移中。
 
 Shell 輪詢可使用 `status <已知語言>`，語言相符時省略翻譯字典。一般 `status` 仍回傳完整狀態。QML 補回快取字典，並抑制不可見的 frame／event-loop 計數更新，同時保留螢幕模式、幾何、錯誤與確認狀態。開啟控制中心或關於頁時恢復即時資訊。
 
 系統資訊另透過獨立的 `systemState` 更新。面板 CPU／記憶體與電池數值、電源設定和使用者資料持續保持最新，無關的設定介面仍可保留穩定的桌面狀態。
+
+系統遙測使用 Linux procfs／sysfs、標準檔案 API 與 Wayland event loop。更新檢查透過可取消的 libcurl 工作執行緒送出請求，再以 eventfd 回到 compositor event loop；安裝進度使用標準檔案及 JSON API 讀取。
 
 第一個鍵盤的 keymap 就緒時會恢復焦點，涵蓋獨占 shell 視窗已映射後才連接虛擬鍵盤的情況。鍵盤及 display 清理時會解除 keymap listener。

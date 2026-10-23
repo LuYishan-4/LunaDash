@@ -29,7 +29,7 @@ QString optimizationPath;
 QString optimizationTemp;
 
 void extractPalette(const QString &imagePath, const QString &original) {
-  if (!desktopPreferences().value("wallpaperColors").toBool() ||
+  if (!desktopPreferences().value("wallpaperColors", true) ||
       QUrl(wallpaperImageUrl()).toLocalFile() != original)
     return;
   QImageReader reader(imagePath);
@@ -58,13 +58,14 @@ void extractPalette(const QString &imagePath, const QString &original) {
   const int index = int(largest - weights.begin());
   const double hue = (index + 0.5) / 24.0;
   const double sat = std::clamp(saturation[index] / *largest, 0.25, 0.65);
-  QString error;
+  std::string error;
   updateDesktopPreferences(
-      {{"accent", QColor::fromHslF(hue, sat, 0.78).name()},
-       {"secondaryAccent", QColor::fromHslF(hue, 0.22, 0.65).name()}},
+      {{"accent", QColor::fromHslF(hue, sat, 0.78).name().toStdString()},
+       {"secondaryAccent",
+        QColor::fromHslF(hue, 0.22, 0.65).name().toStdString()}},
       &error);
-  if (!error.isEmpty())
-    mediaError = error;
+  if (!error.empty())
+    mediaError = QString::fromStdString(error);
 }
 } // namespace
 

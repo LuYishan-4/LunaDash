@@ -1,9 +1,14 @@
 #pragma once
-#include <QJsonObject>
-#include <QString>
+
+#include <nlohmann/json.hpp>
+
+#include <string>
+#include <string_view>
 
 namespace LunaDash {
-QJsonObject orbitSettings();
-bool saveOrbitSettings(const QByteArray &text, QString *error);
-bool resetOrbitSettings(QString *error);
+
+nlohmann::json orbitSettings();
+bool saveOrbitSettings(std::string_view text, std::string *error);
+bool resetOrbitSettings(std::string *error);
+
 } // namespace LunaDash

@@ -6,27 +6,40 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
-#include <QFutureWatcher>
+#include <QFile>
 #include <QImage>
 #include <QTimer>
-#include <QtConcurrent>
 #include <algorithm>
+#include <chrono>
+#include <future>
+#include <utility>
 
 namespace LunaDash {
+struct WaylandCompositor::ThumbnailWriteState {
+  std::future<bool> result;
+  int serial = 0;
+  int window = 0;
+  QString path;
+  QList<int> remaining;
+};
+
 void WaylandCompositor::publishWindowLayout() {
   QJsonArray clients;
   for (const auto &client : clients_) {
     if (client->utility || !client->mapped)
       continue;
-    const QRect frame = windowAnimations_
-                            ? windowAnimations_->animation().visualGeometry(
-                                  client->sceneTree, client->geometry)
-                            : client->geometry;
+    const SceneAnimationRectangle fallback{
+        client->geometry.x(), client->geometry.y(),
+        client->geometry.width(), client->geometry.height()};
+    const auto frame = windowAnimations_
+                           ? windowAnimations_->animation().visualGeometry(
+                                 client->sceneTree, fallback)
+                           : fallback;
     clients.append(QJsonObject{{"id", client->id},
-                               {"frameX", frame.x()},
-                               {"frameY", frame.y()},
-                               {"frameWidth", frame.width()},
-                               {"frameHeight", frame.height()},
+                               {"frameX", frame.left},
+                               {"frameY", frame.top},
+                               {"frameWidth", frame.width},
+                               {"frameHeight", frame.height},
                                {"cornerRadius", d->windowCorners
                                     ? d->windowCorners->radius(client->sceneTree) : 0},
                                {"fullscreen", client->fullscreen},
@@ -53,8 +66,8 @@ void WaylandCompositor::publishWindowLayout() {
 void WaylandCompositor::selectWorkspace(int workspace) {
   if (workspace < 0 || workspace >= 10)
     return;
-  if (workspace >= desktopPreferences().value("workspaceCount").toInt()) {
-    QString error;
+  if (workspace >= desktopPreferences().value("workspaceCount", 10)) {
+    std::string error;
     if (!updateDesktopPreferences({{"workspaceCount", workspace + 1}}, &error))
       return;
   }
@@ -165,6 +178,13 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
 }
 void WaylandCompositor::captureWorkspaceThumbnail(int serial,
                                                   QList<int> windows) {
+  if (thumbnailWrite_) {
+    if (thumbnailWrite_->serial != serial) {
+      queuedThumbnailSerial_ = serial;
+      queuedThumbnailWindows_ = std::move(windows);
+    }
+    return;
+  }
   if (!windowSwitcher_->active() || serial != windowSwitcher_->serial() ||
       windows.isEmpty())
     return;
@@ -196,18 +216,66 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
     return;
   }
   const QString path = windowSwitcher_->thumbnailPath(id);
-  auto *watcher = new QFutureWatcher<bool>(this);
-  connect(watcher, &QFutureWatcher<bool>::finished, this,
-          [this, watcher, serial, id, path, windows] {
-            if (watcher->result())
-              windowSwitcher_->setThumbnail(serial, id, path);
-            watcher->deleteLater();
-            QTimer::singleShot(16, this, [this, serial, windows] {
-              captureWorkspaceThumbnail(serial, windows);
-            });
-          });
-  watcher->setFuture(
-      QtConcurrent::run([image, path] { return image.save(path, "PNG"); }));
+  auto write = std::make_shared<ThumbnailWriteState>();
+  write->serial = serial;
+  write->window = id;
+  write->path = path;
+  write->remaining = std::move(windows);
+  try {
+    write->result = std::async(std::launch::async,
+                               [image = std::move(image), path] {
+                                 return image.save(path, "PNG");
+                               });
+  } catch (...) {
+    QTimer::singleShot(16, this, [this, serial, remaining = write->remaining] {
+      captureWorkspaceThumbnail(serial, remaining);
+    });
+    return;
+  }
+  thumbnailWrite_ = std::move(write);
+  QTimer::singleShot(0, this, [this] { pollThumbnailWrite(); });
+}
+
+void WaylandCompositor::pollThumbnailWrite() {
+  if (!thumbnailWrite_)
+    return;
+  if (thumbnailWrite_->result.wait_for(std::chrono::seconds(0)) !=
+      std::future_status::ready) {
+    QTimer::singleShot(2, this, [this] { pollThumbnailWrite(); });
+    return;
+  }
+
+  const auto completed = std::move(thumbnailWrite_);
+  bool saved = false;
+  try {
+    saved = completed->result.get();
+  } catch (...) {
+  }
+  const bool current = windowSwitcher_->active() &&
+                       completed->serial == windowSwitcher_->serial();
+  if (saved && current)
+    windowSwitcher_->setThumbnail(completed->serial, completed->window,
+                                   completed->path);
+  else if (saved)
+    QFile::remove(completed->path);
+
+  if (queuedThumbnailSerial_ != 0) {
+    const int serial = std::exchange(queuedThumbnailSerial_, 0);
+    auto queued = std::move(queuedThumbnailWindows_);
+    queuedThumbnailWindows_.clear();
+    QTimer::singleShot(16, this, [this, serial, queued = std::move(queued)] {
+      captureWorkspaceThumbnail(serial, queued);
+    });
+    return;
+  }
+
+  if (current) {
+    QTimer::singleShot(16, this,
+                       [this, serial = completed->serial,
+                        remaining = std::move(completed->remaining)] {
+                         captureWorkspaceThumbnail(serial, remaining);
+                       });
+  }
 }
 void WaylandCompositor::finishWindowSwitch(bool accept) {
   const auto scope = windowSwitcher_->scope();

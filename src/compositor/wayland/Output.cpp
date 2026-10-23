@@ -9,6 +9,7 @@
 #include <QTimer>
 #include <algorithm>
 #include <ctime>
+#include <vector>
 
 namespace LunaDash {
 namespace {
@@ -111,7 +112,7 @@ void WaylandCompositor::Impl::updateBackground() {
 void WaylandCompositor::Impl::updateWindowCorners() {
   if (!windowCorners)
     return;
-  QList<WindowCorners::Surface> surfaces;
+  std::vector<WindowCorners::Surface> surfaces;
   const float opacity = eyeCareActive ? 1.0f : steadyWindowOpacity;
   for (const auto &client : q->clients_) {
     if (!client->sceneTree)
@@ -124,8 +125,9 @@ void WaylandCompositor::Impl::updateWindowCorners() {
       wlr_xdg_surface_get_geometry(client->surface, &geometry);
 #endif
     }
-    surfaces.append({client->sceneTree, client->sceneContent, client->wlSurface,
-                     client->geometry.size(), {geometry.x, geometry.y},
+    surfaces.push_back({client->sceneTree, client->sceneContent, client->wlSurface,
+                     {client->geometry.width(), client->geometry.height()},
+                     {geometry.x, geometry.y},
                      client->mapped && !client->fullscreen &&
                          !client->desktop && !client->utility, opacity});
   }
@@ -135,10 +137,11 @@ void WaylandCompositor::Impl::updateWindowCorners() {
 void WaylandCompositor::Impl::updateWindowGlass() {
   if (!windowGlass)
     return;
-  QList<WindowGlass::Surface> surfaces;
+  std::vector<WindowGlass::Surface> surfaces;
   for (const auto &client : q->clients_)
     if (client->sceneTree)
-      surfaces.append({client->sceneTree, client->geometry.size(),
+      surfaces.push_back({client->sceneTree,
+                       {client->geometry.width(), client->geometry.height()},
                        client->mapped && !client->fullscreen &&
                            !client->desktop && !client->utility,
                        windowCorners ? windowCorners->radius(client->sceneTree) : 0});
@@ -156,7 +159,7 @@ void WaylandCompositor::Impl::updateWindowGlass() {
     if (!radius)
       continue;
     const auto &state = layer->surface->surface->current;
-    surfaces.append({layer->sceneLayer->tree, {state.width, state.height},
+    surfaces.push_back({layer->sceneLayer->tree, {state.width, state.height},
                      true, radius, 1.0f});
   }
   const bool animating = q->windowAnimations_ &&
@@ -205,7 +208,8 @@ bool WaylandCompositor::Impl::resizePrimaryOutput(const QString &preset,
   const QSize size = sizes.value(preset);
   wlr_output_state state;
   wlr_output_state_init(&state);
-  wlr_output_state_set_custom_mode(&state, size.width(), size.height(), 0);
+  wlr_output_state_set_custom_mode(&state, size.width(), size.height(),
+                                   kDefaultOutputRefreshMilliHz);
   const bool ok = wlr_output_commit_state(primaryOutput, &state);
   wlr_output_state_finish(&state);
   if (!ok) {
@@ -260,7 +264,8 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   if (chosen)
     wlr_output_state_set_mode(&pending, chosen);
   else if (!self->fullscreen)
-    wlr_output_state_set_custom_mode(&pending, 1440, 900, 0);
+    wlr_output_state_set_custom_mode(&pending, 1440, 900,
+                                     kDefaultOutputRefreshMilliHz);
   const float scale =
       std::clamp(settings.value(prefix + "scale", 1.0).toFloat(), 1.0f, 3.0f);
   wlr_output_state_set_scale(&pending, scale);

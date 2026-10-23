@@ -1,25 +1,25 @@
 #pragma once
-#include <QDBusObjectPath>
-#include <QDBusContext>
-#include <QObject>
-#include <QVariantMap>
+
+#include <gio/gio.h>
 
 namespace LunaDash {
-class FileChooserPortal final : public QObject, public QDBusContext {
-  Q_OBJECT
-  Q_CLASSINFO("D-Bus Interface", "org.freedesktop.impl.portal.FileChooser")
-  Q_PROPERTY(uint version READ version CONSTANT)
+
+class FileChooserPortal final {
 public:
-  uint version() const;
-public slots:
-  uint OpenFile(const QDBusObjectPath &, const QString &, const QString &,
-                const QString &title, const QVariantMap &options,
-                QVariantMap &results);
-  uint SaveFile(const QDBusObjectPath &, const QString &, const QString &,
-                const QString &title, const QVariantMap &options,
-                QVariantMap &results);
-  uint SaveFiles(const QDBusObjectPath &, const QString &, const QString &,
-                 const QString &title, const QVariantMap &options,
-                 QVariantMap &results);
+  FileChooserPortal(GDBusConnection *connection,
+                    GDBusNodeInfo *introspection);
+  ~FileChooserPortal();
+
+  FileChooserPortal(const FileChooserPortal &) = delete;
+  FileChooserPortal &operator=(const FileChooserPortal &) = delete;
+
+  bool registerObject(GError **error);
+  GDBusNodeInfo *introspection() const { return introspection_; }
+
+private:
+  GDBusConnection *connection_ = nullptr;
+  GDBusNodeInfo *introspection_ = nullptr;
+  guint registration_ = 0;
 };
+
 } // namespace LunaDash

@@ -97,7 +97,7 @@ class MediaPlayerTests final : public QObject {
     environment.insert("XDG_RUNTIME_DIR", runtime.path());
     process.setProcessEnvironment(environment);
     process.start(QCoreApplication::applicationDirPath() +
-                      "/lunadash-shell-tool",
+                      "/lunadash-media-client",
                   arguments);
     if (!process.waitForStarted(2000)) {
       QTest::qFail("Could not start media helper", __FILE__, __LINE__);

@@ -5,8 +5,8 @@
 #include "core/settings/SettingsTarget.hpp"
 #include "shell/modules/ShellModules.hpp"
 #include "shell/modules/ShellModuleSchema.hpp"
-#include <QFile>
 #include <QJsonDocument>
+#include <fstream>
 
 namespace LunaDash {
 QJsonArray settingsApiTargets(const QJsonObject &extensions,
@@ -66,15 +66,30 @@ bool updateSettingsApi(PluginManager &plugins, ShellModules &modules,
   const auto id = request.value("target").toString();
   if (id.isEmpty() || id.size() > 512) return fail("Invalid settings target.");
   plugins.refresh();
-  auto moduleState = modules.snapshot();
+  const auto nativeModuleState = modules.snapshot();
+  auto moduleState = QJsonDocument::fromJson(
+                         QByteArray::fromStdString(nativeModuleState.dump()))
+                         .object();
   // Read current disk contents, not a potentially debounced watcher snapshot.
   if (id.startsWith("module:")) {
-    QFile file(moduleState.value("path").toString());
-    QJsonObject document;
-    if (!file.open(QIODevice::ReadOnly) ||
-        !validateModuleDocument(file.read(16385), &document, error))
+    const auto path = nativeModuleState.value("path", std::string{});
+    std::ifstream file(path, std::ios::binary);
+    std::string text(16385, '\0');
+    if (file.is_open()) {
+      file.read(text.data(), static_cast<std::streamsize>(text.size()));
+      text.resize(static_cast<std::size_t>(file.gcount()));
+    }
+    ShellModuleJson document;
+    std::string nativeError = "Could not read module configuration.";
+    if (!file.is_open() || file.bad() ||
+        !validateModuleDocument(text, &document, &nativeError)) {
+      if (error)
+        *error = QString::fromStdString(nativeError);
       return fail("Module file changed or is unreadable; reload before editing.");
-    moduleState["document"] = document;
+    }
+    moduleState["document"] = QJsonDocument::fromJson(
+                                   QByteArray::fromStdString(document.dump()))
+                                   .object();
   }
   const auto targets = settingsApiTargets(plugins.snapshot(), moduleState, layout);
   QJsonObject descriptor;
@@ -92,7 +107,14 @@ bool updateSettingsApi(PluginManager &plugins, ShellModules &modules,
     else module[parts[2]] = Settings::merged(module.value(parts[2]).toObject(), changes);
     entries[parts[1]] = module;
     document["modules"] = entries;
-    return modules.apply(QJsonDocument(document).toJson(), error);
+    std::string nativeError;
+    const auto bytes = QJsonDocument(document).toJson(QJsonDocument::Compact);
+    if (!modules.apply(bytes.toStdString(), &nativeError)) {
+      if (error)
+        *error = QString::fromStdString(nativeError);
+      return false;
+    }
+    return true;
   }
   QString configError;
   auto document = readExtensionConfiguration(&configError);

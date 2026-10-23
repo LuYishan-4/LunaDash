@@ -1,307 +1,540 @@
 #include "shell/media/MediaPlayer.hpp"
 
-#include <QDBusArgument>
-#include <QDBusConnection>
-#include <QDBusConnectionInterface>
-#include <QDBusMessage>
-#include <QDBusMetaType>
-#include <QDBusObjectPath>
-#include <QDBusPendingCallWatcher>
-#include <QDBusReply>
-#include <QDBusVariant>
-#include <QEventLoop>
-#include <QFile>
-#include <QFileInfo>
-#include <QJsonArray>
-#include <QStandardPaths>
-#include <QTimer>
-#include <QUrl>
-#include <QVariantMap>
+#include <gio/gio.h>
+
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <map>
 #include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
+#include <unistd.h>
 
 namespace LunaDash {
 namespace {
-constexpr auto kPrefix = "org.mpris.MediaPlayer2.";
-constexpr auto kPath = "/org/mpris/MediaPlayer2";
-constexpr auto kRoot = "org.mpris.MediaPlayer2";
-constexpr auto kPlayer = "org.mpris.MediaPlayer2.Player";
-constexpr auto kProperties = "org.freedesktop.DBus.Properties";
-constexpr int kTimeout = 700;
+constexpr std::string_view kPrefix = "org.mpris.MediaPlayer2.";
+constexpr char kPath[] = "/org/mpris/MediaPlayer2";
+constexpr char kRoot[] = "org.mpris.MediaPlayer2";
+constexpr char kPlayer[] = "org.mpris.MediaPlayer2.Player";
+constexpr char kProperties[] = "org.freedesktop.DBus.Properties";
+constexpr int kTimeoutMilliseconds = 700;
+
+struct VariantDeleter {
+  void operator()(GVariant *value) const {
+    if (value)
+      g_variant_unref(value);
+  }
+};
+using Variant = std::unique_ptr<GVariant, VariantDeleter>;
+using PropertyMap = std::map<std::string, Variant, std::less<>>;
+using Connection = std::shared_ptr<GDBusConnection>;
 
 struct Bus {
-  QString name;
-  QDBusConnection connection;
+  std::string name;
+  Connection connection;
 };
 
-QDBusMessage request(const QString &service, const QString &interface,
-                     const QString &method, const QVariantList &args = {}) {
-  auto message =
-      QDBusMessage::createMethodCall(service, kPath, interface, method);
-  message.setArguments(args);
-  return message;
+struct Player {
+  std::string service;
+  std::string bus;
+  PropertyMap root;
+  PropertyMap properties;
+};
+
+struct CollectState {
+  GMainLoop *loop = nullptr;
+  std::size_t remaining = 0;
+  std::vector<std::shared_ptr<Player>> players;
+
+  ~CollectState() {
+    if (loop)
+      g_main_loop_unref(loop);
+  }
+};
+
+struct PendingReply {
+  std::shared_ptr<CollectState> state;
+  std::shared_ptr<Player> player;
+  bool root = false;
+};
+
+Connection ownConnection(GDBusConnection *connection) {
+  if (!connection)
+    return {};
+  g_dbus_connection_set_exit_on_close(connection, FALSE);
+  return Connection(connection, [](GDBusConnection *value) {
+    g_object_unref(value);
+  });
 }
 
-QString busId(const QDBusConnection &bus) {
-  const auto message = QDBusMessage::createMethodCall(
-      "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
-      "GetId");
-  const QDBusReply<QString> reply = bus.call(message, QDBus::Block, kTimeout);
-  return reply.isValid() ? reply.value() : QString();
+Variant callSync(GDBusConnection *connection, const char *destination,
+                 const char *path, const char *interface,
+                 const char *method, GVariant *arguments,
+                 std::string *errorMessage = nullptr) {
+  if (!connection) {
+    if (errorMessage)
+      *errorMessage = "The media connection is unavailable.";
+    return {};
+  }
+  GError *error = nullptr;
+  GVariant *reply = g_dbus_connection_call_sync(
+      connection, destination, path, interface, method, arguments, nullptr,
+      G_DBUS_CALL_FLAGS_NONE, kTimeoutMilliseconds, nullptr, &error);
+  if (error) {
+    if (errorMessage)
+      *errorMessage = error->message ? error->message : "D-Bus call failed.";
+    g_error_free(error);
+  }
+  return Variant(reply);
+}
+
+PropertyMap readProperties(GVariant *dictionary) {
+  PropertyMap result;
+  if (!dictionary || !g_variant_is_of_type(dictionary, G_VARIANT_TYPE("a{sv}")))
+    return result;
+
+  GVariantIter iterator;
+  g_variant_iter_init(&iterator, dictionary);
+  GVariant *entry = nullptr;
+  while ((entry = g_variant_iter_next_value(&iterator))) {
+    Variant ownedEntry(entry);
+    Variant key(g_variant_get_child_value(entry, 0));
+    Variant boxedValue(g_variant_get_child_value(entry, 1));
+    if (!key || !boxedValue)
+      continue;
+    const char *name = g_variant_get_string(key.get(), nullptr);
+    GVariant *value = g_variant_is_of_type(boxedValue.get(),
+                                            G_VARIANT_TYPE_VARIANT)
+                          ? g_variant_get_variant(boxedValue.get())
+                          : g_variant_ref(boxedValue.get());
+    if (name && value)
+      result.emplace(name, Variant(value));
+    else if (value)
+      g_variant_unref(value);
+  }
+  return result;
+}
+
+std::string stringValue(const PropertyMap &properties, std::string_view key,
+                        std::string fallback = {}) {
+  const auto found = properties.find(key);
+  if (found == properties.end() || !found->second)
+    return fallback;
+  GVariant *value = found->second.get();
+  if (!g_variant_is_of_type(value, G_VARIANT_TYPE_STRING) &&
+      !g_variant_is_of_type(value, G_VARIANT_TYPE_OBJECT_PATH))
+    return fallback;
+  return g_variant_get_string(value, nullptr);
+}
+
+bool boolValue(const PropertyMap &properties, std::string_view key,
+               bool fallback = false) {
+  const auto found = properties.find(key);
+  if (found == properties.end() || !found->second ||
+      !g_variant_is_of_type(found->second.get(), G_VARIANT_TYPE_BOOLEAN))
+    return fallback;
+  return g_variant_get_boolean(found->second.get());
+}
+
+double doubleValue(const PropertyMap &properties, std::string_view key,
+                   double fallback = 0.0) {
+  const auto found = properties.find(key);
+  if (found == properties.end() || !found->second)
+    return fallback;
+  GVariant *value = found->second.get();
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE))
+    return g_variant_get_double(value);
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_INT64))
+    return static_cast<double>(g_variant_get_int64(value));
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_UINT64))
+    return static_cast<double>(g_variant_get_uint64(value));
+  return fallback;
+}
+
+int64_t integerValue(const PropertyMap &properties, std::string_view key,
+                     int64_t fallback = 0) {
+  const auto found = properties.find(key);
+  if (found == properties.end() || !found->second)
+    return fallback;
+  GVariant *value = found->second.get();
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_INT64))
+    return g_variant_get_int64(value);
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_UINT64))
+    return static_cast<int64_t>(g_variant_get_uint64(value));
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_INT32))
+    return g_variant_get_int32(value);
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_UINT32))
+    return g_variant_get_uint32(value);
+  return fallback;
+}
+
+std::string stringList(const PropertyMap &properties, std::string_view key) {
+  const auto found = properties.find(key);
+  if (found == properties.end() || !found->second)
+    return {};
+  GVariant *value = found->second.get();
+  if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING))
+    return g_variant_get_string(value, nullptr);
+  if (!g_variant_is_of_type(value, G_VARIANT_TYPE_STRING_ARRAY))
+    return {};
+
+  std::string result;
+  const gsize length = g_variant_n_children(value);
+  for (gsize index = 0; index < length; ++index) {
+    Variant item(g_variant_get_child_value(value, index));
+    if (!item)
+      continue;
+    if (!result.empty())
+      result += ", ";
+    result += g_variant_get_string(item.get(), nullptr);
+  }
+  return result;
+}
+
+std::string makeValidUtf8(const std::string &value, std::size_t maximumCharacters) {
+  char *valid = g_utf8_make_valid(value.data(),
+                                  static_cast<gssize>(value.size()));
+  if (!valid)
+    return {};
+  std::string result(valid);
+  g_free(valid);
+  const glong characters = g_utf8_strlen(result.c_str(), -1);
+  if (characters > static_cast<glong>(maximumCharacters)) {
+    const char *end = g_utf8_offset_to_pointer(
+        result.c_str(), static_cast<glong>(maximumCharacters));
+    result.resize(static_cast<std::size_t>(end - result.c_str()));
+  }
+  return result;
+}
+
+std::string busId(GDBusConnection *connection) {
+  const auto reply = callSync(connection, "org.freedesktop.DBus",
+                              "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                              "GetId", nullptr);
+  if (!reply || !g_variant_is_of_type(reply.get(), G_VARIANT_TYPE("(s)")))
+    return {};
+  const char *id = nullptr;
+  g_variant_get(reply.get(), "(&s)", &id);
+  return id ? id : "";
 }
 
 std::vector<Bus> mediaBuses() {
   std::vector<Bus> result;
-  const auto session = QDBusConnection::sessionBus();
-  QString sessionId;
-  if (session.isConnected()) {
+  std::string sessionId;
+  GError *error = nullptr;
+  auto session = ownConnection(
+      g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error));
+  if (error)
+    g_error_free(error);
+  if (session) {
     result.push_back({"session", session});
-    sessionId = busId(session);
+    sessionId = busId(session.get());
   }
-  // A display-manager session may have its own bus while user services and
-  // sandboxed applications advertise players on the login user's bus.
-  const QString socket =
-      QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) +
-      "/bus";
-  if (QFileInfo::exists(socket)) {
-    const auto user = QDBusConnection::connectToBus("unix:path=" + socket,
-                                                    "lunadash-media-user");
-    if (user.isConnected() && (sessionId.isEmpty() || busId(user) != sessionId))
-      result.push_back({"user", user});
-  }
+
+  const char *runtimeDirectory = std::getenv("XDG_RUNTIME_DIR");
+  const std::filesystem::path runtime =
+      runtimeDirectory && *runtimeDirectory
+          ? std::filesystem::path(runtimeDirectory)
+          : std::filesystem::path("/run/user") /
+                std::to_string(static_cast<unsigned long>(::getuid()));
+  const auto socket = runtime / "bus";
+  std::error_code filesystemError;
+  if (!std::filesystem::exists(socket, filesystemError))
+    return result;
+
+  char *escapedPath = g_dbus_address_escape_value(socket.c_str());
+  if (!escapedPath)
+    return result;
+  const std::string address = std::string("unix:path=") + escapedPath;
+  g_free(escapedPath);
+  error = nullptr;
+  auto user = ownConnection(g_dbus_connection_new_for_address_sync(
+      address.c_str(),
+      static_cast<GDBusConnectionFlags>(G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+                                        G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION),
+      nullptr, nullptr, &error));
+  if (error)
+    g_error_free(error);
+  if (user && (sessionId.empty() || busId(user.get()) != sessionId))
+    result.push_back({"user", std::move(user)});
   return result;
 }
 
-QVariantMap mapValue(const QVariant &value) {
-  return value.canConvert<QVariantMap>() ? value.toMap()
-                                         : qdbus_cast<QVariantMap>(value);
-}
-
-QString lyrics(const QVariantMap &metadata) {
-  for (const auto *key : {"xesam:lyrics", "lyrics", "xesam:asText"}) {
-    const QString value = metadata.value(key).toString();
-    if (!value.isEmpty())
-      return value.left(131072);
+void getAllFinished(GObject *source, GAsyncResult *result, gpointer data) {
+  std::unique_ptr<PendingReply> pending(static_cast<PendingReply *>(data));
+  GError *error = nullptr;
+  Variant reply(g_dbus_connection_call_finish(
+      G_DBUS_CONNECTION(source), result, &error));
+  if (error)
+    g_error_free(error);
+  if (reply && g_variant_n_children(reply.get()) > 0) {
+    Variant dictionary(g_variant_get_child_value(reply.get(), 0));
+    auto values = readProperties(dictionary.get());
+    if (pending->root)
+      pending->player->root = std::move(values);
+    else
+      pending->player->properties = std::move(values);
   }
-  const QUrl url(metadata.value("xesam:url").toString());
-  if (!url.isLocalFile())
-    return {};
-  const QFileInfo track(url.toLocalFile());
-  QFile file(track.path() + "/" + track.completeBaseName() + ".lrc");
-  if (!QFileInfo(file).isFile() || file.size() > 262144 ||
-      !file.open(QIODevice::ReadOnly))
-    return {};
-  return QString::fromUtf8(file.read(262144));
+  if (pending->state->remaining > 0 && --pending->state->remaining == 0)
+    g_main_loop_quit(pending->state->loop);
 }
 
-QJsonObject snapshot(const QString &service, const QString &bus,
-                     const QVariantMap &root, const QVariantMap &player) {
-  if (!player.contains("PlaybackStatus"))
-    return {};
-  const auto metadata = mapValue(player.value("Metadata"));
-  auto artists = metadata.value("xesam:artist").toStringList();
-  if (artists.isEmpty() && metadata.value("xesam:artist").isValid())
-    artists << metadata.value("xesam:artist").toString();
-  const QString status = player.value("PlaybackStatus").toString();
-  const bool control = player.value("CanControl", true).toBool();
-  const auto trackId =
-      qdbus_cast<QDBusObjectPath>(metadata.value("mpris:trackid")).path();
-  QJsonObject result{
-      {"available", true},
-      {"service", service},
-      {"bus", bus},
-      {"identity",
-       root.value("Identity", service.mid(QString(kPrefix).size())).toString()},
-      {"desktopEntry", root.value("DesktopEntry").toString()},
-      {"playbackStatus", status},
-      {"playing", status == "Playing"},
-      {"title", metadata.value("xesam:title").toString()},
-      {"artist", artists.join(", ")},
-      {"album", metadata.value("xesam:album").toString()},
-      {"artUrl", metadata.value("mpris:artUrl").toString()},
-      {"trackUrl", metadata.value("xesam:url").toString()},
-      {"trackId", trackId},
-      {"lengthUs", metadata.value("mpris:length").toLongLong()},
-      {"positionUs", player.value("Position").toLongLong()},
-      {"positionSupported", player.contains("Position")},
-      {"rate", player.value("Rate", 1.0).toDouble()},
-      {"volume", player.value("Volume", 0.0).toDouble()},
-      {"volumeSupported", control && player.contains("Volume")},
-      {"shuffle", player.value("Shuffle").toBool()},
-      {"shuffleSupported", control && player.contains("Shuffle")},
-      {"loopStatus", player.value("LoopStatus", "None").toString()},
-      {"loopSupported", control && player.contains("LoopStatus")},
-      {"canRaise", root.value("CanRaise").toBool()},
-      {"lyrics", lyrics(metadata)}};
-  for (const auto *capability :
-       {"Play", "Pause", "GoNext", "GoPrevious", "Seek"})
-    result.insert(QString("can") + capability,
-                  control &&
-                      player.value(QString("Can") + capability).toBool());
+std::vector<std::string> listNames(GDBusConnection *connection) {
+  std::vector<std::string> result;
+  const auto reply = callSync(connection, "org.freedesktop.DBus",
+                              "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                              "ListNames", nullptr);
+  if (!reply || g_variant_n_children(reply.get()) == 0)
+    return result;
+  Variant names(g_variant_get_child_value(reply.get(), 0));
+  if (!names || !g_variant_is_of_type(names.get(), G_VARIANT_TYPE_STRING_ARRAY))
+    return result;
+  const gsize length = g_variant_n_children(names.get());
+  result.reserve(length);
+  for (gsize index = 0; index < length; ++index) {
+    Variant name(g_variant_get_child_value(names.get(), index));
+    if (name)
+      result.emplace_back(g_variant_get_string(name.get(), nullptr));
+  }
+  std::sort(result.begin(), result.end());
   return result;
 }
 
-struct Player {
-  QString service;
-  QString bus;
-  QVariantMap root;
-  QVariantMap properties;
-};
-
-QList<QJsonObject> collect(const std::vector<Bus> &buses) {
-  QEventLoop loop;
-  std::vector<std::shared_ptr<Player>> pending;
-  int calls = 0;
+std::vector<std::shared_ptr<Player>>
+collect(const std::vector<Bus> &buses) {
+  auto state = std::make_shared<CollectState>();
+  state->loop = g_main_loop_new(nullptr, FALSE);
   for (const auto &bus : buses) {
-    auto message = QDBusMessage::createMethodCall(
-        "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
-        "ListNames");
-    const QDBusReply<QStringList> names =
-        bus.connection.call(message, QDBus::Block, kTimeout);
-    if (!names.isValid())
-      continue;
-    QStringList services = names.value();
-    services.sort();
-    for (const auto &name : services) {
-      if (!name.startsWith(kPrefix))
+    for (const auto &name : listNames(bus.connection.get())) {
+      if (!name.starts_with(kPrefix))
         continue;
       auto player = std::make_shared<Player>(Player{name, bus.name, {}, {}});
-      pending.push_back(player);
+      state->players.push_back(player);
       for (const bool root : {true, false}) {
-        ++calls;
-        auto *watcher = new QDBusPendingCallWatcher(
-            bus.connection.asyncCall(request(name, kProperties, "GetAll",
-                                             {QString(root ? kRoot : kPlayer)}),
-                                     kTimeout),
-            &loop);
-        QObject::connect(watcher, &QDBusPendingCallWatcher::finished, &loop,
-                         [&, player, root](QDBusPendingCallWatcher *finished) {
-                           const QDBusMessage reply = finished->reply();
-                           if (reply.type() != QDBusMessage::ErrorMessage &&
-                               !reply.arguments().isEmpty())
-                             (root ? player->root : player->properties) =
-                                 mapValue(reply.arguments().first());
-                           if (--calls == 0)
-                             loop.quit();
-                         });
+        ++state->remaining;
+        auto *pending = new PendingReply{state, player, root};
+        g_dbus_connection_call(
+            bus.connection.get(), name.c_str(), kPath, kProperties, "GetAll",
+            g_variant_new("(s)", root ? kRoot : kPlayer),
+            G_VARIANT_TYPE("(a{sv})"), G_DBUS_CALL_FLAGS_NONE,
+            kTimeoutMilliseconds, nullptr, getAllFinished, pending);
       }
     }
   }
-  if (calls) {
-    QTimer::singleShot(kTimeout + 100, &loop, &QEventLoop::quit);
-    loop.exec();
+  if (state->remaining > 0)
+    g_main_loop_run(state->loop);
+  return std::move(state->players);
+}
+
+std::string lyrics(const PropertyMap &metadata) {
+  for (const auto key : {"xesam:lyrics", "lyrics", "xesam:asText"}) {
+    auto value = stringValue(metadata, key);
+    if (!value.empty()) {
+      return makeValidUtf8(value, 131072);
+    }
   }
-  QList<QJsonObject> result;
-  for (const auto &player : pending) {
-    auto data = snapshot(player->service, player->bus, player->root,
-                         player->properties);
-    if (!data.isEmpty())
-      result.append(data);
-  }
+
+  const std::string url = stringValue(metadata, "xesam:url");
+  if (url.empty())
+    return {};
+  GError *error = nullptr;
+  char *filename = g_filename_from_uri(url.c_str(), nullptr, &error);
+  if (error)
+    g_error_free(error);
+  if (!filename)
+    return {};
+
+  std::filesystem::path lyricsPath(filename);
+  g_free(filename);
+  lyricsPath.replace_extension(".lrc");
+  std::error_code filesystemError;
+  const auto size = std::filesystem::file_size(lyricsPath, filesystemError);
+  if (filesystemError || size > 262144)
+    return {};
+  std::ifstream file(lyricsPath, std::ios::binary);
+  if (!file)
+    return {};
+  const std::string content{std::istreambuf_iterator<char>(file),
+                            std::istreambuf_iterator<char>()};
+  return makeValidUtf8(content, 262144);
+}
+
+nlohmann::json snapshot(const Player &player) {
+  const auto &properties = player.properties;
+  const auto playback = properties.find("PlaybackStatus");
+  if (playback == properties.end())
+    return {};
+  const std::string status = stringValue(properties, "PlaybackStatus");
+  const auto metadataValue = properties.find("Metadata");
+  PropertyMap metadata;
+  if (metadataValue != properties.end() && metadataValue->second)
+    metadata = readProperties(metadataValue->second.get());
+  const bool canControl = boolValue(properties, "CanControl", true);
+  std::string identity = stringValue(player.root, "Identity");
+  if (identity.empty())
+    identity = player.service.substr(kPrefix.size());
+
+  nlohmann::json result = {
+      {"available", true},
+      {"service", player.service},
+      {"bus", player.bus},
+      {"identity", identity},
+      {"desktopEntry", stringValue(player.root, "DesktopEntry")},
+      {"playbackStatus", status},
+      {"playing", status == "Playing"},
+      {"title", stringValue(metadata, "xesam:title")},
+      {"artist", stringList(metadata, "xesam:artist")},
+      {"album", stringValue(metadata, "xesam:album")},
+      {"artUrl", stringValue(metadata, "mpris:artUrl")},
+      {"trackUrl", stringValue(metadata, "xesam:url")},
+      {"trackId", stringValue(metadata, "mpris:trackid")},
+      {"lengthUs", integerValue(metadata, "mpris:length")},
+      {"positionUs", integerValue(properties, "Position")},
+      {"positionSupported", properties.contains("Position")},
+      {"rate", doubleValue(properties, "Rate", 1.0)},
+      {"volume", doubleValue(properties, "Volume")},
+      {"volumeSupported", canControl && properties.contains("Volume")},
+      {"shuffle", boolValue(properties, "Shuffle")},
+      {"shuffleSupported", canControl && properties.contains("Shuffle")},
+      {"loopStatus", stringValue(properties, "LoopStatus", "None")},
+      {"loopSupported", canControl && properties.contains("LoopStatus")},
+      {"canRaise", boolValue(player.root, "CanRaise")},
+      {"lyrics", lyrics(metadata)}};
+  for (const auto capability : {"Play", "Pause", "GoNext", "GoPrevious",
+                                "Seek"})
+    result[std::string("can") + capability] =
+        canControl && boolValue(properties, std::string("Can") + capability);
   return result;
 }
 
-QJsonObject select(const QList<QJsonObject> &players, const QString &service,
-                   const QString &bus) {
-  QJsonArray list;
-  QJsonObject selected;
+nlohmann::json select(const std::vector<std::shared_ptr<Player>> &players,
+                      const std::string &service, const std::string &bus) {
+  nlohmann::json list = nlohmann::json::array();
+  std::vector<nlohmann::json> snapshots;
+  nlohmann::json selected;
   for (const auto &player : players) {
-    list.append(QJsonObject{{"service", player["service"]},
-                            {"bus", player["bus"]},
-                            {"identity", player["identity"]},
-                            {"playing", player["playing"]}});
-    if (player["service"].toString() == service &&
-        (bus.isEmpty() || player["bus"].toString() == bus))
-      selected = player;
+    auto data = snapshot(*player);
+    if (!data.is_object() || data.empty())
+      continue;
+    snapshots.push_back(data);
+    list.push_back({{"service", data["service"]},
+                    {"bus", data["bus"]},
+                    {"identity", data["identity"]},
+                    {"playing", data["playing"]}});
+    if (data["service"] == service && (bus.empty() || data["bus"] == bus))
+      selected = std::move(data);
   }
-  if (selected.isEmpty())
-    for (const auto &player : players)
-      if (selected.isEmpty() ||
-          (!selected["playing"].toBool() && player["playing"].toBool()))
-        selected = player;
-  if (selected.isEmpty())
+  if (selected.empty())
+    for (const auto &data : snapshots) {
+      if (selected.empty() ||
+          (!selected.value("playing", false) && data.value("playing", false)))
+        selected = data;
+    }
+  if (selected.empty())
     selected = {{"available", false}};
-  selected["players"] = list;
+  selected["players"] = std::move(list);
   return selected;
 }
+
 } // namespace
 
-QJsonObject mediaStatus(const QString &service, const QString &bus) {
-  return select(collect(mediaBuses()), service, bus);
+nlohmann::json mediaStatus(const std::string &preferredService,
+                          const std::string &preferredBus) {
+  const auto buses = mediaBuses();
+  auto players = collect(buses);
+  return select(players, preferredService, preferredBus);
 }
 
-QJsonObject mediaAction(const QString &action, const QString &service,
-                        const QString &busName, const QString &value,
-                        const QString &trackId) {
+nlohmann::json mediaAction(const std::string &action, const std::string &service,
+                           const std::string &busName, const std::string &value,
+                           const std::string &trackId) {
   const auto buses = mediaBuses();
-  const auto players = collect(buses);
+  auto players = collect(buses);
   auto current = select(players, service, busName);
-  const auto fail = [&](const QString &error) {
+  const auto fail = [&](const std::string &message) {
     auto result = current;
-    result["error"] = error;
+    result["error"] = message;
     return result;
   };
-  if (!current["available"].toBool() ||
-      (!service.isEmpty() &&
-       (current["service"].toString() != service ||
-        (!busName.isEmpty() && current["bus"].toString() != busName))))
+  if (!current.value("available", false) ||
+      (!service.empty() &&
+       (current.value("service", std::string{}) != service ||
+        (!busName.empty() && current.value("bus", std::string{}) != busName))))
     return fail("The selected media player is no longer available.");
-  const auto bus =
-      std::find_if(buses.begin(), buses.end(), [&](const Bus &entry) {
-        return entry.name == current["bus"].toString();
-      });
+
+  const auto bus = std::find_if(buses.begin(), buses.end(), [&](const Bus &entry) {
+    return entry.name == current.value("bus", std::string{});
+  });
   if (bus == buses.end())
     return fail("The media connection is unavailable.");
-  const QString selected = current["service"].toString();
-  static const QHash<QString, QString> methods{
+  const std::string selected = current.value("service", std::string{});
+  std::string interface = kPlayer;
+  std::string method;
+  std::string error;
+  Variant reply;
+
+  static const std::map<std::string, std::string, std::less<>> methods{
       {"play-pause", "PlayPause"}, {"play", "Play"},
       {"pause", "Pause"},          {"next", "Next"},
       {"previous", "Previous"},    {"raise", "Raise"}};
-  QDBusMessage message;
-  if (methods.contains(action)) {
-    message =
-        request(selected, action == "raise" ? kRoot : kPlayer, methods[action]);
+  if (const auto found = methods.find(action); found != methods.end()) {
+    method = found->second;
+    if (action == "raise")
+      interface = kRoot;
+    reply = callSync(bus->connection.get(), selected.c_str(), kPath,
+                     interface.c_str(), method.c_str(), nullptr, &error);
   } else if (action == "volume" || action == "shuffle" || action == "loop") {
-    QString property;
-    QVariant content;
+    std::string property;
+    GVariant *content = nullptr;
     if (action == "volume") {
-      bool valid = false;
-      const double volume = value.toDouble(&valid);
-      if (!valid || !std::isfinite(volume) || volume < 0 || volume > 1)
+      char *end = nullptr;
+      const double volume = std::strtod(value.c_str(), &end);
+      if (end == value.c_str() || *end != '\0' || !std::isfinite(volume) ||
+          volume < 0 || volume > 1)
         return fail("Invalid media volume.");
       property = "Volume";
-      content = volume;
+      content = g_variant_new_double(volume);
     } else if (action == "shuffle") {
       if (value != "true" && value != "false")
         return fail("Invalid shuffle state.");
       property = "Shuffle";
-      content = value == "true";
+      content = g_variant_new_boolean(value == "true");
     } else {
-      if (!QStringList{"None", "Track", "Playlist"}.contains(value))
+      if (value != "None" && value != "Track" && value != "Playlist")
         return fail("Invalid repeat mode.");
       property = "LoopStatus";
-      content = value;
+      content = g_variant_new_string(value.c_str());
     }
-    message = request(selected, kProperties, "Set",
-                      {QString(kPlayer), property,
-                       QVariant::fromValue(QDBusVariant(content))});
+    reply = callSync(
+        bus->connection.get(), selected.c_str(), kPath, kProperties, "Set",
+        g_variant_new("(ssv)", kPlayer, property.c_str(), content),
+        &error);
   } else if (action == "seek") {
-    bool valid = false;
-    const qint64 position = value.toLongLong(&valid);
-    if (!valid || position < 0 || position > current["lengthUs"].toInteger() ||
-        trackId.isEmpty() || trackId != current["trackId"].toString() ||
+    char *end = nullptr;
+    const long long position = std::strtoll(value.c_str(), &end, 10);
+    if (value.empty() || end == value.c_str() || *end != '\0' || position < 0 ||
+        position > current.value("lengthUs", int64_t(0)) || trackId.empty() ||
+        trackId != current.value("trackId", std::string{}) ||
         trackId == "/org/mpris/MediaPlayer2/TrackList/NoTrack")
       return fail("The track changed or its position is unavailable.");
-    message =
-        request(selected, kPlayer, "SetPosition",
-                {QVariant::fromValue(QDBusObjectPath(trackId)), position});
-  } else
+    reply = callSync(bus->connection.get(), selected.c_str(), kPath, kPlayer,
+                     "SetPosition",
+                     g_variant_new("(ox)", trackId.c_str(), position), &error);
+  } else {
     return fail("Unknown media action.");
-  const auto reply = bus->connection.call(message, QDBus::Block, kTimeout);
-  if (reply.type() == QDBusMessage::ErrorMessage)
-    return fail(reply.errorMessage());
-  return mediaStatus(selected, current["bus"].toString());
+  }
+
+  if (!reply)
+    return fail(error.empty() ? "The media player rejected the action."
+                              : error);
+  return mediaStatus(selected, current.value("bus", std::string{}));
 }
+
 } // namespace LunaDash

@@ -1,11 +1,10 @@
 #pragma once
 
 #include <GL/glcorearb.h>
-#include <QByteArray>
-#include <QList>
-#include <QString>
-#include <QStringList>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace LunaDash {
 
@@ -20,20 +19,21 @@ enum class ShaderStage {
 };
 
 struct ShaderAsset {
-  QString name;
+  std::string name;
   ShaderStage stage = ShaderStage::Unknown;
-  QByteArray source;
+  std::string source;
 };
 
-ShaderStage shaderStageFromName(const QString &name);
+ShaderStage shaderStageFromName(std::string_view name);
 GLenum shaderStageGlEnum(ShaderStage stage);
 
 class ShaderAssetLoader final {
 public:
-  static std::optional<ShaderAsset> load(const QString &name, bool openGLES,
-                                         QString *error = nullptr);
-  static QList<ShaderAsset> loadMany(const QStringList &names, bool openGLES,
-                                     QString *error = nullptr);
+  static std::optional<ShaderAsset> load(std::string_view name, bool openGLES,
+                                         std::string *error = nullptr);
+  static std::vector<ShaderAsset>
+  loadMany(const std::vector<std::string> &names, bool openGLES,
+           std::string *error = nullptr);
 };
 
 } // namespace LunaDash

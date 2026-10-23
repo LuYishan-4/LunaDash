@@ -35,7 +35,7 @@ lunadashctl display-configure '{"mode":"1920x1080@144000"}'
 lunadashctl display-revert
 ```
 
-未設定過的實體 output 會在 preferred resolution 中選最高 advertised refresh。巢狀視窗的實體模式由 host desktop 決定。現在仍是 primary-output 設定，不是完整多螢幕排列工具。
+未設定過的實體 output 會在 preferred resolution 中選最高 advertised refresh。沒有回報 mode 的虛擬／自訂 output 會使用 60 Hz fallback，讓 Wayland client 收到有效且非零的更新率；巢狀視窗實際仍跟隨 host pacing，實體解析度與更新率由 host desktop 決定。現在仍是 primary-output 設定，不是完整多螢幕排列工具。
 
 ## 啟動與動畫
 

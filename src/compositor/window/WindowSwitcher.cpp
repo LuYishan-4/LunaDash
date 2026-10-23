@@ -9,17 +9,19 @@
 #include <algorithm>
 
 namespace LunaDash {
-WindowSwitcher::WindowSwitcher(QObject *parent) : QObject(parent) {
+WindowSwitcher::WindowSwitcher(QObject *parent) : WindowSwitcher(nullptr, parent) {}
+WindowSwitcher::WindowSwitcher(wl_event_loop *eventLoop, QObject *parent)
+    : QObject(parent) {
+  if (eventLoop)
+    captureRunner_ = std::make_unique<ProcessRunner>(eventLoop, false);
   feedbackTimer_.setSingleShot(true);
   feedbackTimer_.setInterval(16);
   connect(&feedbackTimer_, &QTimer::timeout, this,
           &WindowSwitcher::writeSnapshot);
 }
 WindowSwitcher::~WindowSwitcher() {
-  if (capture_) {
-    capture_->kill();
-    capture_->waitForFinished(100);
-  }
+  if (captureRunner_)
+    captureRunner_->cancel();
   if (!channelPath_.isEmpty())
     QFile::remove(channelPath_);
 }
@@ -47,7 +49,7 @@ void WindowSwitcher::dismissPopups() {
 }
 bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
                            int direction,
-                           const QProcessEnvironment &environment,
+                           const ProcessEnvironment &environment,
                            Scope scope) {
   if (active_ && scope_ != scope)
     finish(false);
@@ -97,10 +99,8 @@ int WindowSwitcher::finish(bool accept) {
                            ? workspaces_[index_].toObject().value("id").toInt()
                            : 0;
   active_ = ready_ = false;
-  if (capture_) {
-    capture_->kill();
-    capture_ = nullptr;
-  }
+  if (captureRunner_)
+    captureRunner_->cancel();
   publish();
   return selected;
 }
@@ -219,8 +219,9 @@ void WindowSwitcher::writeSnapshot() {
   if (file.write(data) == data.size() && file.commit())
     lastPublished_ = data;
 }
-void WindowSwitcher::captureBackground(const QProcessEnvironment &environment) {
-  if (!captureDirectory_.isValid()) {
+void WindowSwitcher::captureBackground(
+    const ProcessEnvironment &environment) {
+  if (!captureDirectory_.isValid() || !captureRunner_) {
     ready_ = true;
     publish();
     return;
@@ -233,38 +234,20 @@ void WindowSwitcher::captureBackground(const QProcessEnvironment &environment) {
            ? QDir(captureDirectory_.path()).entryList({"*.png"}, QDir::Files)
            : QStringList{})
     QFile::remove(captureDirectory_.filePath(file));
-  auto *process = new QProcess(this);
-  capture_ = process;
-  process->setProcessEnvironment(environment);
-  const auto complete = [this, process, path](bool success) {
-    if (capture_ == process) {
-      capture_ = nullptr;
-      if (active_) {
+  const bool started = captureRunner_->run(
+      "grim", {"-s", "0.5", path.toStdString()},
+      [this, path](bool success, const std::string &) {
+        if (!active_)
+          return;
         if (success && QFileInfo(path).size() > 0)
           background_ = QUrl::fromLocalFile(path).toString();
         ready_ = true;
         publish();
-      }
-    }
-    process->deleteLater();
-  };
-  connect(process, &QProcess::finished, this,
-          [complete](int code, QProcess::ExitStatus status) {
-            complete(code == 0 && status == QProcess::NormalExit);
-          });
-  connect(process, &QProcess::errorOccurred, this,
-          [complete](QProcess::ProcessError error) {
-            if (error == QProcess::FailedToStart)
-              complete(false);
-          });
-  QTimer::singleShot(350, process, [this, process] {
-    if (capture_ != process)
-      return;
-    capture_ = nullptr;
-    process->kill();
-    ready_ = active_;
+      },
+      350, environment);
+  if (!started && !captureRunner_->busy()) {
+    ready_ = true;
     publish();
-  });
-  process->start("grim", {"-s", "0.5", path});
+  }
 }
 } // namespace LunaDash

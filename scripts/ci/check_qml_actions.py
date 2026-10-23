@@ -40,7 +40,7 @@ if missing_methods:
     )
 
 builtin_ids = set(re.findall(r'id\s*==\s*"([^"]+)"', desktop))
-builtin_ids.update(re.findall(r'requested\s*==\s*"([^"]+)"', desktop))
+builtin_ids.update(re.findall(r'(?:requested|app)\s*==\s*"([^"]+)"', desktop))
 builtin_ids.update({"terminal", "browser", "settings"})
 missing_launches = sorted(qml_launches - builtin_ids)
 if missing_launches:

@@ -1,11 +1,15 @@
 #pragma once
-#include <QJsonObject>
-#include <QString>
-class QCoreApplication;
+
+#include <nlohmann/json.hpp>
+
+#include <string>
+#include <string_view>
+
 namespace LunaDash {
-QString translate(const char *source);
-QString selectedLanguage();
-bool isSupportedLanguage(const QString &language);
-QJsonObject languageDictionary(const QString &language);
-void initializeLocalization(QCoreApplication &application);
+
+std::string selectedLanguage();
+bool isSupportedLanguage(std::string_view language);
+nlohmann::json languageDictionary(std::string_view language);
+bool setSelectedLanguage(std::string_view language, std::string *error);
+
 } // namespace LunaDash

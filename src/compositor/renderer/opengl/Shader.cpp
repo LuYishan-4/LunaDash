@@ -1,5 +1,7 @@
 #include "compositor/renderer/opengl/Shader.hpp"
+
 #include <algorithm>
+#include <vector>
 
 namespace LunaDash {
 namespace {
@@ -17,17 +19,16 @@ bool supported(GLenum stage) {
   }
 }
 
-QString shaderLog(LuDashGLDispatch &gl, GLuint shader) {
+std::string shaderLog(LuDashGLDispatch &gl, GLuint shader) {
   GLint length = 0;
   gl.GetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
   const GLsizei capacity = std::max(1, length);
-  QByteArray message(capacity, '\0');
+  std::vector<GLchar> message(static_cast<std::size_t>(capacity), '\0');
   GLsizei written = 0;
   gl.GetShaderInfoLog(shader, capacity, &written, message.data());
-  message.resize(std::max<GLsizei>(0, written));
-  return QString::fromLocal8Bit(message);
+  message.resize(static_cast<std::size_t>(std::max<GLsizei>(0, written)));
+  return std::string(message.begin(), message.end());
 }
-
 } // namespace
 
 Shader::Shader(const LuDashGLDispatch &dispatch, GLuint id)
@@ -40,30 +41,28 @@ GLuint Shader::id() const { return id_; }
 
 std::unique_ptr<Shader> Shader::compile(const LuDashGLDispatch &dispatch,
                                         const ShaderAsset &asset,
-                                        QString *error) {
+                                        std::string *error) {
   const GLenum stage = shaderStageGlEnum(asset.stage);
   if (!supported(stage)) {
     if (error)
-      *error = QStringLiteral("unsupported shader stage: %1").arg(asset.name);
+      *error = "unsupported shader stage: " + asset.name;
     return {};
   }
   const GLuint id = dispatch.CreateShader(stage);
   if (!id) {
     if (error)
-      *error =
-          QStringLiteral("glCreateShader returned 0 for %1").arg(asset.name);
+      *error = "glCreateShader returned 0 for " + asset.name;
     return {};
   }
   auto shader = std::unique_ptr<Shader>(new Shader(dispatch, id));
-  const char *source = asset.source.constData();
+  const char *source = asset.source.c_str();
   dispatch.ShaderSource(id, 1, &source, nullptr);
   dispatch.CompileShader(id);
   GLint ok = GL_FALSE;
   dispatch.GetShaderiv(id, GL_COMPILE_STATUS, &ok);
   if (!ok) {
     if (error)
-      *error =
-          QStringLiteral("%1: %2").arg(asset.name, shaderLog(shader->gl_, id));
+      *error = asset.name + ": " + shaderLog(shader->gl_, id);
     return {};
   }
   return shader;

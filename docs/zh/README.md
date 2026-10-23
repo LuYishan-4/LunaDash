@@ -14,6 +14,7 @@ NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證�
 - [建置、測試與原始碼地圖](TESTING_AND_FILES.md)
 - [原始碼架構](ARCHITECTURE.md)
 - [Repository 工作流程](COMPONENT_REPOS.md)
+- [Slint 與 wlroots 遷移](SLINT_WLROOTS_MIGRATION.md)
 
 ## 桌面功能
 

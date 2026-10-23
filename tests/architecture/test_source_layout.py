@@ -18,9 +18,10 @@ class LayoutTests(unittest.TestCase):
         self.root = Path(self.directory.name)
         for domain in layout.DOMAINS:
             (self.root / "src" / domain).mkdir(parents=True)
-        (self.root / "src/service/portal").mkdir()
         for name in layout.MAINS:
-            (self.root / "src" / name).write_text("int main() { return 0; }\n")
+            path = self.root / "src" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("int main() { return 0; }\n")
         (self.root / "CMakeLists.txt").write_text(
             "add_executable(example\n" + "\n".join("src/" + p for p in layout.MAINS) + ")\n"
         )

@@ -2,6 +2,8 @@
 #include "compositor/tiling/TilingLayout.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
+#include "config/desktop/DesktopPreferenceStore.hpp"
+#include "core/process/ProcessEnvironment.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 #include <QFile>
@@ -11,8 +13,17 @@
 #include <QTemporaryDir>
 #include <QtTest>
 #include <climits>
+#include <string>
+#include <vector>
 
 namespace LunaDash {
+namespace {
+nlohmann::json nativeJson(const QJsonObject &object) {
+  return nlohmann::json::parse(
+      QJsonDocument(object).toJson(QJsonDocument::Compact).toStdString());
+}
+} // namespace
+
 class WindowLayoutTests final : public QObject {
   Q_OBJECT
   const QRect area{10, 40, 1440, 900};
@@ -42,34 +53,33 @@ class WindowLayoutTests final : public QObject {
   }
   static bool focusDirection(WindowLayout &layout, LayoutWorkspaceId workspace,
                              int dx, int dy) {
-    return layout.performAction(
-        "focus-direction",
-        {{"workspace", static_cast<qint64>(workspace)}, {"dx", dx}, {"dy", dy}});
+    return layout.performAction("focus-direction",
+                                {{"workspace", static_cast<qint64>(workspace)},
+                                 {"dx", dx},
+                                 {"dy", dy}});
   }
   static bool groupWith(WindowLayout &layout, LayoutWindowId window,
                         LayoutWindowId target) {
-    return layout.performAction(
-        "group-with",
-        {{"window", static_cast<qint64>(window)},
-         {"target", static_cast<qint64>(target)}});
+    return layout.performAction("group-with",
+                                {{"window", static_cast<qint64>(window)},
+                                 {"target", static_cast<qint64>(target)}});
   }
   static bool expel(WindowLayout &layout, LayoutWindowId window) {
-    return layout.performAction(
-        "expel", {{"window", static_cast<qint64>(window)}});
+    return layout.performAction("expel",
+                                {{"window", static_cast<qint64>(window)}});
   }
   static bool swapWindows(WindowLayout &layout, LayoutWindowId window,
                           LayoutWindowId target) {
-    return layout.performAction(
-        "swap", {{"window", static_cast<qint64>(window)},
-                 {"target", static_cast<qint64>(target)}});
+    return layout.performAction("swap",
+                                {{"window", static_cast<qint64>(window)},
+                                 {"target", static_cast<qint64>(target)}});
   }
   static bool insertBeside(WindowLayout &layout, LayoutWindowId window,
                            LayoutWindowId target, bool after) {
-    return layout.performAction(
-        "insert-beside",
-        {{"window", static_cast<qint64>(window)},
-         {"target", static_cast<qint64>(target)},
-         {"after", after}});
+    return layout.performAction("insert-beside",
+                                {{"window", static_cast<qint64>(window)},
+                                 {"target", static_cast<qint64>(target)},
+                                 {"after", after}});
   }
   static bool resizeWidth(WindowLayout &layout, LayoutWindowId window,
                           int width) {
@@ -85,12 +95,11 @@ class WindowLayoutTests final : public QObject {
   }
   static bool moveBy(WindowLayout &layout, LayoutWindowId window, QPoint delta,
                      QRect area) {
-    return layout.performAction(
-        "move-by",
-        {{"window", static_cast<qint64>(window)},
-         {"dx", delta.x()},
-         {"dy", delta.y()},
-         {"area", areaJson(area)}});
+    return layout.performAction("move-by",
+                                {{"window", static_cast<qint64>(window)},
+                                 {"dx", delta.x()},
+                                 {"dy", delta.y()},
+                                 {"area", areaJson(area)}});
   }
 private Q_SLOTS:
   void initTestCase() {
@@ -114,10 +123,12 @@ private Q_SLOTS:
     QVERIFY(templates[1].allowOverlap);
     QVERIFY(templates[0].layoutSettingsSchema.contains("gap"));
     QVERIFY(templates[0].layoutSettingsSchema.contains("defaultWidth"));
-    QCOMPARE(templates[0].layoutSettingsDefaults.value("splitTarget").toString(),
-             QString("focused"));
-    QCOMPARE(templates[0].layoutSettingsDefaults.value("firstWindowSide").toString(),
-             QString("right"));
+    QCOMPARE(
+        templates[0].layoutSettingsDefaults.value("splitTarget").toString(),
+        QString("focused"));
+    QCOMPARE(
+        templates[0].layoutSettingsDefaults.value("firstWindowSide").toString(),
+        QString("right"));
     QVERIFY(templates[0].layoutActions.contains("group-direction"));
     QVERIFY(templates[0].layoutActions.contains("insert-beside"));
     QVERIFY(!templates[1].layoutActions.contains("group-direction"));
@@ -179,8 +190,10 @@ private Q_SLOTS:
   }
   void fixedSplitsStayOnScreen() {
     TilingLayout layout;
-    layout.configure({{"defaultWidth", 960}, {"gap", 6},
-                      {"splitTarget", "largest"}, {"firstWindowSide", "left"}});
+    layout.configure({{"defaultWidth", 960},
+                      {"gap", 6},
+                      {"splitTarget", "largest"},
+                      {"firstWindowSide", "left"}});
     QVERIFY(layout.insert(0, 1, QSize(900, 600)));
     QCOMPARE(layout.layout(0, area).first().geometry.size(), QSize(900, 600));
     QVERIFY(layout.insert(0, 2));
@@ -216,7 +229,8 @@ private Q_SLOTS:
   }
   void focusedSplitsPreserveMainPane() {
     TilingLayout layout;
-    layout.configure({{"gap", 8}, {"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
+    layout.configure(
+        {{"gap", 8}, {"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
     const QRect bounds(16, 48, 1608, 1000);
     QVERIFY(layout.insert(0, 1));
     layout.layout(0, bounds);
@@ -361,7 +375,7 @@ private Q_SLOTS:
   }
   void mixedLayoutEditsRemainBounded() {
     TilingLayout layout;
-      layout.configure({{"defaultWidth", 960}, {"gap", 6}});
+    layout.configure({{"defaultWidth", 960}, {"gap", 6}});
     for (int id = 1; id <= 16; ++id)
       layout.insert(0, id);
     quint32 random = 12345;
@@ -573,8 +587,8 @@ private Q_SLOTS:
         {{"window", 2}, {"dx", 180}, {"dy", 0}, {"area", areaJson(area)}}));
     const auto before = geometries(layout->presentation(0, area));
     QVERIFY(before.value(1) != before.value(2));
-    QVERIFY(performWindowLayoutAction(
-        *layout, stacking, "swap", {{"window", 1}, {"target", 2}}));
+    QVERIFY(performWindowLayoutAction(*layout, stacking, "swap",
+                                      {{"window", 1}, {"target", 2}}));
     const auto after = geometries(layout->presentation(0, area));
     QCOMPARE(after.value(1), before.value(2));
     QCOMPARE(after.value(2), before.value(1));
@@ -619,19 +633,25 @@ private Q_SLOTS:
   void windowSelectionScopeAndLifetime() {
     QJsonArray clients;
     for (int i = 1; i <= 6; ++i)
-      clients.append(QJsonObject{{"id", i}, {"mapped", i != 5},
-          {"workspace", i == 4 ? 1 : 0}, {"utility", i == 6},
-          {"desktop", i == 3}, {"minimized", i == 2}});
+      clients.append(QJsonObject{{"id", i},
+                                 {"mapped", i != 5},
+                                 {"workspace", i == 4 ? 1 : 0},
+                                 {"utility", i == 6},
+                                 {"desktop", i == 3},
+                                 {"minimized", i == 2}});
     const auto windows = WindowSwitcher::windowsForWorkspace(clients, 0);
-    QCOMPARE(windows.size(), 2); // Includes minimized peers, no other workspace.
+    QCOMPARE(windows.size(),
+             2); // Includes minimized peers, no other workspace.
     WindowSwitcher switcher;
-    QProcessEnvironment environment;
-    QVERIFY(switcher.begin(windows, 1, 1, environment, WindowSwitcher::Scope::Windows));
+    ProcessEnvironment environment;
+    QVERIFY(switcher.begin(windows, 1, 1, environment,
+                           WindowSwitcher::Scope::Windows));
     QCOMPARE(switcher.snapshot().value("scope").toString(), QString("windows"));
     QVERIFY(switcher.snapshot().value("workspaces").toArray().isEmpty());
     QCOMPARE(switcher.snapshot().value("windows").toArray().size(), 2);
     QCOMPARE(switcher.finish(true), 2);
-    QVERIFY(switcher.begin(windows, 1, -1, environment, WindowSwitcher::Scope::Windows));
+    QVERIFY(switcher.begin(windows, 1, -1, environment,
+                           WindowSwitcher::Scope::Windows));
     switcher.remove(1);
     QCOMPARE(switcher.snapshot().value("index").toInt(), 0);
     QCOMPARE(switcher.finish(true), 2);
@@ -644,7 +664,8 @@ private Q_SLOTS:
     QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 1);
     switcher.dismissPopups();
     QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 2);
-    QVERIFY(!switcher.begin({}, 0, 1, environment, WindowSwitcher::Scope::Windows));
+    QVERIFY(
+        !switcher.begin({}, 0, 1, environment, WindowSwitcher::Scope::Windows));
     QTest::qWait(40);
   }
   void selectionLifecycle() {
@@ -658,9 +679,10 @@ private Q_SLOTS:
     switcher.setLauncherState(8, false);
     QCOMPARE(switcher.snapshot().value("launcherSerial").toInt(), 8);
     QVERIFY(!switcher.snapshot().value("launcherOpen").toBool());
-    QProcessEnvironment environment;
-    environment.insert("XDG_RUNTIME_DIR", runtime.path());
-    environment.insert("WAYLAND_DISPLAY", runtime.filePath("no-display"));
+    ProcessEnvironment environment{
+        {"XDG_RUNTIME_DIR", runtime.path().toStdString()},
+        {"WAYLAND_DISPLAY", runtime.filePath("no-display").toStdString()},
+    };
     QJsonArray workspaces;
     for (int i = 1; i <= 10; ++i)
       workspaces.append(QJsonObject{
@@ -701,24 +723,37 @@ private Q_SLOTS:
   }
   void externalFileManagerDefaults() {
     QTemporaryDir config;
+    qputenv("XDG_CONFIG_HOME", config.path().toUtf8());
     QSettings::setDefaultFormat(QSettings::IniFormat);
-    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, config.path());
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       config.path());
     QSettings().clear();
-    QCOMPARE(defaultApplicationCommand("files", nullptr),
-             (QStringList{"dolphin", "--new-window"}));
-    // Keep a user's explicit argv intact, including spaces and shell characters.
-    const QStringList custom{"custom-file-manager", "--profile",
+    QVERIFY(defaultApplicationCommand("files", nullptr) ==
+            (std::vector<std::string>{"dolphin", "--new-window"}));
+    // Keep a user's explicit argv intact, including spaces and shell
+    // characters.
+    const QStringList custom{"/usr/bin/printf", "--profile",
                              "Work $HOME; notes"};
-    QSettings().setValue("defaultApps/files", custom);
-    QCOMPARE(defaultApplicationCommand("files", nullptr), custom);
-    QString error;
+    QSettings legacy(config.path() + "/LunaDash/LunaDash.conf",
+                     QSettings::IniFormat);
+    legacy.setValue("defaultApps/files", custom);
+    legacy.sync();
+    auto configured = defaultApplicationCommand("files", nullptr);
+    QCOMPARE(configured.size(), static_cast<std::size_t>(custom.size()));
+    for (qsizetype index = 0; index < custom.size(); ++index)
+      QCOMPARE(
+          QString::fromStdString(configured[static_cast<std::size_t>(index)]),
+          custom[index]);
+    std::string error;
     for (const auto &launcher :
          {"ludash-desktop", "lunadash-desktop", "ludashctl", "lunadashctl"})
       QVERIFY(!setDefaultApplications(
-          {{"files", QJsonArray{launcher, "--app", "files"}}}, &error));
-    QVERIFY(setDefaultApplications({{"files", QJsonArray{}}}, &error));
-    QCOMPARE(defaultApplicationCommand("files", nullptr),
-             (QStringList{"dolphin", "--new-window"}));
+          {{"files", nlohmann::json::array({launcher, "--app", "files"})}},
+          &error));
+    QVERIFY(
+        setDefaultApplications({{"files", nlohmann::json::array()}}, &error));
+    QVERIFY(defaultApplicationCommand("files", nullptr) ==
+            (std::vector<std::string>{"dolphin", "--new-window"}));
   }
   void terminalAndShortcutMigration() {
     QTemporaryDir config;
@@ -726,51 +761,75 @@ private Q_SLOTS:
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
                        config.path());
     QSettings().clear();
-    QCOMPARE(defaultApplicationCommand("terminal", nullptr),
-             QStringList{"kitty"});
+    struct ConfigHomeRestore {
+      QByteArray value = qgetenv("XDG_CONFIG_HOME");
+      ~ConfigHomeRestore() {
+        if (value.isNull())
+          qunsetenv("XDG_CONFIG_HOME");
+        else
+          qputenv("XDG_CONFIG_HOME", value);
+      }
+    } restoreConfigHome;
+    const auto useNativeConfig = [&config](const QString &name) {
+      qputenv("XDG_CONFIG_HOME", (config.path() + "/" + name).toUtf8());
+    };
+    useNativeConfig("defaults");
+    QVERIFY(defaultApplicationCommand("terminal", nullptr) ==
+            (std::vector<std::string>{"kitty"}));
     ShortcutSettings settings;
-    QCOMPARE(settings.actionFor(XKB_KEY_t, ShortcutMeta),
-             QString("launchTerminal"));
-    QCOMPARE(settings.actionFor(XKB_KEY_0, ShortcutMeta),
-             QString("workspace10"));
-    QCOMPARE(settings.actionFor(XKB_KEY_Return, ShortcutMeta), QString());
-    QString error;
+    QVERIFY(settings.actionFor(XKB_KEY_t, ShortcutMeta) == "launchTerminal");
+    QVERIFY(settings.actionFor(XKB_KEY_0, ShortcutMeta) == "workspace10");
+    QVERIFY(settings.actionFor(XKB_KEY_Return, ShortcutMeta).empty());
+    std::string error;
     QVERIFY(!settings.apply({{"closeWindow", "Alt+Tab"}}, &error));
     QVERIFY(!settings.apply({{"closeWindow", "Meta+Tab"}}, &error));
     QVERIFY(!settings.apply({{"closeWindow", "Meta+Shift+Tab"}}, &error));
     QVERIFY(!settings.apply({{"closeWindow", "Alt+Shift+Tab"}}, &error));
+
+    useNativeConfig("legacy");
     QSettings().setValue("shortcuts/bindings",
                          QJsonObject{{"launchTerminal", "Meta+Return"},
                                      {"closeWindow", "Meta+T"},
                                      {"toggleFloating", "Meta+Space"}}
                              .toVariantMap());
-    ShortcutSettings migrated;
-    QCOMPARE(migrated.actionFor(XKB_KEY_t, ShortcutMeta),
-             QString("closeWindow"));
-    QCOMPARE(migrated.actionFor(XKB_KEY_Return, ShortcutMeta),
-             QString("launchTerminal"));
-    QVERIFY(!QJsonObject::fromVariantMap(
-                 QSettings().value("shortcuts/bindings").toMap())
-                 .contains("toggleFloating"));
+    ShortcutSettings migrated(
+        nativeJson(QJsonObject{{"launchTerminal", "Meta+Return"},
+                               {"closeWindow", "Meta+T"},
+                               {"toggleFloating", "Meta+Space"}}));
+    QVERIFY(migrated.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
+    QVERIFY(migrated.actionFor(XKB_KEY_Return, ShortcutMeta) ==
+            "launchTerminal");
+    QVERIFY(!loadShortcutBindings().contains("toggleFloating"));
+    QVERIFY(QJsonObject::fromVariantMap(
+                QSettings().value("shortcuts/bindings").toMap())
+                .contains("toggleFloating"));
+    QSettings().setValue("shortcuts/bindings",
+                         QJsonObject{{"closeWindow", "Meta+Q"}}.toVariantMap());
+    ShortcutSettings retained(
+        nativeJson(QJsonObject{{"closeWindow", "Meta+Q"}}));
+    QVERIFY(retained.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
 
     // Removed shortcut IDs from older releases must not stay in the persistent
     // settings map or reappear in Settings. Valid custom bindings survive.
-    QSettings().setValue(
-        "shortcuts/bindings",
-        QJsonObject{{"removedLegacyAction", "Meta+Y"},
-                    {"closeWindowAlternate", "Meta+Q"},
-                    {"launchTerminalAlternate", "Meta+Return"},
-                    {"closeWindow", "Meta+T"}}
-            .toVariantMap());
-    ShortcutSettings cleaned;
-    const auto saved = QJsonObject::fromVariantMap(
-        QSettings().value("shortcuts/bindings").toMap());
+    useNativeConfig("cleanup");
+    QSettings().setValue("shortcuts/bindings",
+                         QJsonObject{{"removedLegacyAction", "Meta+Y"},
+                                     {"closeWindowAlternate", "Meta+Q"},
+                                     {"launchTerminalAlternate", "Meta+Return"},
+                                     {"closeWindow", "Meta+T"}}
+                             .toVariantMap());
+    ShortcutSettings cleaned(
+        nativeJson(QJsonObject{{"removedLegacyAction", "Meta+Y"},
+                               {"closeWindowAlternate", "Meta+Q"},
+                               {"launchTerminalAlternate", "Meta+Return"},
+                               {"closeWindow", "Meta+T"}}));
+    const auto saved = loadShortcutBindings();
     QVERIFY(!saved.contains("removedLegacyAction"));
     QVERIFY(!saved.contains("closeWindowAlternate"));
     QVERIFY(!saved.contains("launchTerminalAlternate"));
-    QCOMPARE(saved.value("closeWindow").toString(), QString("Meta+T"));
-    QCOMPARE(cleaned.actionFor(XKB_KEY_t, ShortcutMeta),
-             QString("closeWindow"));
+    QCOMPARE(QString::fromStdString(saved.at("closeWindow").get<std::string>()),
+             QString("Meta+T"));
+    QVERIFY(cleaned.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
   }
 };
 } // namespace LunaDash

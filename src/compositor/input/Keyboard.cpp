@@ -4,25 +4,27 @@
 
 namespace LunaDash {
 bool applyKeyboardPreferences(wlr_keyboard *keyboard,
-                              const QJsonObject &preferences, QString *error) {
+                              const nlohmann::json &preferences,
+                              std::string *error) {
   if (!keyboard) {
     if (error)
-      *error = QStringLiteral("No wlroots keyboard is available.");
+      *error = "No wlroots keyboard is available.";
     return false;
   }
 
-  const QByteArray layout = keyboardLayoutPreference(preferences).toUtf8();
+  const std::string layout = keyboardLayoutPreference(
+      preferences.value("keyboardLayout", std::string("us")));
   xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
   if (!context) {
     if (error)
-      *error = QStringLiteral("Could not create the XKB context.");
+      *error = "Could not create the XKB context.";
     return false;
   }
 
   const xkb_rule_names names{
       .rules = "evdev",
       .model = "pc105",
-      .layout = layout.constData(),
+      .layout = layout.c_str(),
       .variant = nullptr,
       .options = nullptr,
   };
@@ -31,7 +33,7 @@ bool applyKeyboardPreferences(wlr_keyboard *keyboard,
   if (!keymap) {
     xkb_context_unref(context);
     if (error)
-      *error = QStringLiteral("Could not compile the XKB keymap.");
+      *error = "Could not compile the XKB keymap.";
     return false;
   }
 
@@ -40,7 +42,7 @@ bool applyKeyboardPreferences(wlr_keyboard *keyboard,
   xkb_context_unref(context);
   if (!ok) {
     if (error)
-      *error = QStringLiteral("wlroots rejected the XKB keymap.");
+      *error = "wlroots rejected the XKB keymap.";
     return false;
   }
 

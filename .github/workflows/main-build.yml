@@ -104,6 +104,8 @@ jobs:
           persist-credentials: false
       - name: Fetch pinned LunaDash-Shell source
         run: bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
+      - name: Install the Rust toolchain required by Slint
+        uses: dtolnay/rust-toolchain@stable
       - uses: ./.github/actions/ubuntu-dependencies
       - uses: actions/cache@v4
         with:

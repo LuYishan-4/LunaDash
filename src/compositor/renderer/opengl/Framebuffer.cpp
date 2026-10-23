@@ -4,7 +4,7 @@ namespace LunaDash {
 
 Framebuffer::~Framebuffer() { reset(); }
 
-bool Framebuffer::resize(LuDashGLDispatch &gl, const QSize &size) {
+bool Framebuffer::resize(LuDashGLDispatch &gl, RenderSize size) {
   if (valid() && gl_ == &gl && color_.size() == size)
     return true;
 
@@ -46,7 +46,7 @@ void Framebuffer::reset() {
 
 GLuint Framebuffer::id() const { return framebuffer_; }
 GLuint Framebuffer::texture() const { return color_.texture(); }
-QSize Framebuffer::size() const { return color_.size(); }
+RenderSize Framebuffer::size() const { return color_.size(); }
 bool Framebuffer::valid() const { return framebuffer_ != 0 && color_.valid(); }
 
 } // namespace LunaDash

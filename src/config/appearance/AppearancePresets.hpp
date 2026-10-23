@@ -1,9 +1,15 @@
 #pragma once
-#include <QJsonArray>
-#include <QString>
+
+#include <nlohmann/json.hpp>
+
+#include <string>
+#include <string_view>
+
 namespace LunaDash {
-QJsonArray appearancePresets();
-bool saveAppearancePreset(const QString &name, QString *error);
-bool applyAppearancePreset(const QString &name, QString *error);
-bool deleteAppearancePreset(const QString &name, QString *error);
+
+nlohmann::json appearancePresets();
+bool saveAppearancePreset(std::string_view name, std::string *error);
+bool applyAppearancePreset(std::string_view name, std::string *error);
+bool deleteAppearancePreset(std::string_view name, std::string *error);
+
 } // namespace LunaDash

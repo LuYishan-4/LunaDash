@@ -21,8 +21,8 @@ public:
     wlr_scene_tree *content;
     wlr_surface *surface;
     wlr_scene_tree *views = nullptr;
-    QSize size;
-    QPoint origin;
+    WindowCorners::Size size;
+    WindowCorners::Point origin;
     int radius = 0;
     Templates::WaylandSlot<Entry> treeDestroy;
     Templates::WaylandSlot<Entry> contentDestroy;
@@ -31,14 +31,14 @@ public:
 
     explicit Entry(const Surface &value)
         : tree(value.tree), content(value.content), surface(value.surface) {
-      Templates::attachListener(
-          &tree->node.events.destroy, treeDestroy, this,
-          [](wl_listener *listener, void *) {
-            auto *entry = Templates::listenerOwner<Entry>(listener);
-            Templates::detachListener(entry->treeDestroy);
-            entry->tree = nullptr;
-            entry->clearViews(false);
-          });
+      Templates::attachListener(&tree->node.events.destroy, treeDestroy, this,
+                                [](wl_listener *listener, void *) {
+                                  auto *entry =
+                                      Templates::listenerOwner<Entry>(listener);
+                                  Templates::detachListener(entry->treeDestroy);
+                                  entry->tree = nullptr;
+                                  entry->clearViews(false);
+                                });
       Templates::attachListener(
           &content->node.events.destroy, contentDestroy, this,
           [](wl_listener *listener, void *) {
@@ -74,8 +74,8 @@ public:
     }
 
     void configure(const Surface &value) {
-      const int requested = std::max(0, std::min({16, value.size.width() / 2,
-                                                 value.size.height() / 2}));
+      const int requested = std::max(
+          0, std::min({16, value.size.width / 2, value.size.height / 2}));
       if (views && size == value.size && origin == value.surfaceOrigin &&
           radius == requested) {
         // The original xdg helper remains responsible for protocol state.
@@ -85,8 +85,9 @@ public:
         return;
       }
       ludash_corner_band bands[LUDASH_CORNER_MAX_BANDS];
-      const auto count = ludash_corner_bands(value.size.width(), value.size.height(),
-                                             requested, bands, LUDASH_CORNER_MAX_BANDS);
+      const auto count =
+          ludash_corner_bands(value.size.width, value.size.height, requested,
+                              bands, LUDASH_CORNER_MAX_BANDS);
       if (!count) {
         clearViews(true);
         return;
@@ -104,11 +105,11 @@ public:
           complete = false;
           break;
         }
-        wlr_scene_node_set_position(&view->node, -value.surfaceOrigin.x(),
-                                    -value.surfaceOrigin.y());
+        wlr_scene_node_set_position(&view->node, -value.surfaceOrigin.x,
+                                    -value.surfaceOrigin.y);
         const auto &band = bands[i];
-        wlr_box clip{band.x + value.surfaceOrigin.x(),
-                            band.y + value.surfaceOrigin.y(), band.width, band.height};
+        wlr_box clip{band.x + value.surfaceOrigin.x,
+                     band.y + value.surfaceOrigin.y, band.width, band.height};
         wlr_scene_subsurface_tree_set_clip(&view->node, &clip);
         // Traverse the enabled view itself: its container stays hidden until
         // all bands are ready, and traversal does not consult ancestors.
@@ -145,17 +146,17 @@ public:
 WindowCorners::WindowCorners() : d(std::make_unique<Impl>()) {}
 WindowCorners::~WindowCorners() = default;
 
-void WindowCorners::update(const QList<Surface> &surfaces) {
+void WindowCorners::update(const std::vector<Surface> &surfaces) {
   std::unordered_set<wlr_scene_tree *> active;
   for (const auto &surface : surfaces) {
     if (!surface.enabled || !surface.tree || !surface.content ||
         !surface.surface || surface.content->node.parent != surface.tree ||
-        surface.size.isEmpty())
+        surface.size.empty())
       continue;
     active.insert(surface.tree);
     auto &entry = d->entries[surface.tree];
-    if (!entry || entry->tree != surface.tree || entry->content != surface.content ||
-        entry->surface != surface.surface)
+    if (!entry || entry->tree != surface.tree ||
+        entry->content != surface.content || entry->surface != surface.surface)
       entry = std::make_unique<Impl::Entry>(surface);
     entry->configure(surface);
   }

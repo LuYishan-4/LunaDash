@@ -14,7 +14,17 @@ GL_IMPLEMENTATION = re.compile(
     r'\bgl[A-Z]\w*\s*\(|\bgl_?\s*(?:\.|->)\s*[A-Z]\w*\s*\('
 )
 SHADER_SUFFIXES = {".vert", ".frag", ".geom", ".comp", ".tesc", ".tese", ".glsl", ".glal", ".shader", ".vsh", ".fsh", ".gsh", ".csh", ".vs", ".fs", ".gs", ".cs"}
-MAINS = {"compositor/Main.cpp", "desktop/Main.cpp", "ctl/Main.cpp", "shell/Main.cpp", "service/portal/Main.cpp"}
+MAINS = {
+    "compositor/Main.cpp",
+    "desktop/Main.cpp",
+    "desktop/package/Main.cpp",
+    "desktop/welcome/Main.cpp",
+    "ctl/Main.cpp",
+    "shell/Main.cpp",
+    "service/portal/Main.cpp",
+    "service/portal/screencast/Main.cpp",
+    "service/portal/filepicker/Main.cpp",
+}
 
 
 def violations(root: Path) -> list[str]:

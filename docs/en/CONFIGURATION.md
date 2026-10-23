@@ -1,10 +1,10 @@
 # First-run setup and configuration
 
-The first launch shows a single welcome screen with a help link to https://luyishan-4.github.io/LunaDash/. **Start desktop** dismisses it and saves completion, including when offline. Opening the help link also completes the welcome screen before launching the default browser. General settings can reopen it. Language, network and appearance remain available in Settings; the welcome screen does not change those preferences.
+The first-login Quickshell guide offers language and reduced-motion controls and links to https://luyishan-4.github.io/LunaDash/. The standalone `lunadash-desktop --app welcome` tool uses a separate Slint Wayland window with the same control-socket actions. **Start desktop** saves setup completion, including when offline; opening the documentation link alone does not complete setup. General settings can reopen the guide. Network preferences remain in Settings.
 
 ## Network
 
-LunaDash reads the existing system connection state through NetworkManager's D-Bus API every five seconds. It does not create accounts, modify connection profiles, enable services or send connectivity probes. A connected interface is not automatically labeled as Internet access: captive portals and unknown connectivity have separate labels. Without NetworkManager, interface detection reports only a possible link, with Internet access unverified.
+LunaDash reads NetworkManager device, saved-connection and Wi-Fi details with `nmcli` every 30 seconds and refreshes after LunaDash network actions. If `nmcli` is unavailable, it reads NetworkManager's D-Bus state; without NetworkManager, interface detection reports only a possible link. LunaDash does not create accounts, modify connection profiles unless requested in Settings, enable services or send connectivity probes. A connected interface is not automatically labeled as Internet access: captive portals and unknown connectivity have separate labels.
 
 **Configure network** opens `nm-connection-editor`. If it is unavailable, LunaDash tries `nmtui` in Kitty, Konsole, Alacritty or foot. Passwords remain in the external editor; LunaDash never stores them or sends them over its IPC. Changing system connections may require the distribution's working polkit authentication agent. LunaDash does not currently provide one.
 
@@ -12,7 +12,7 @@ Arch optional packages: `networkmanager nm-connection-editor`. Do not enable Net
 
 ## Saved preferences
 
-With normal XDG settings, the compositor stores configuration in `~/.config/LuDash/LuDash.conf`. `XDG_CONFIG_HOME` changes its root. Keep this file private if it includes local wallpaper paths. The built-in tools and compositor share the LunaDash organization/application identity.
+Desktop preferences, wallpaper state, and shortcut bindings are stored atomically in `${XDG_CONFIG_HOME:-$HOME/.config}/LunaDash/desktop-preferences.json`, with owner-only file permissions. On first use of each settings group, LunaDash imports valid `desktop/*` values, setup completion, wallpaper selection/shader/history/favorites/revision, and shortcut bindings from the older `LunaDash.conf` or `LunaDash.ini`. It leaves the old file in place. Other appearance settings such as language remain there until their storage is migrated.
 
 | Preference | Default | Accepted values |
 | --- | --- | --- |

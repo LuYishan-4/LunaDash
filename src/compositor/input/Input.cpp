@@ -183,9 +183,9 @@ void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
   if (!keyboard)
     return;
   if (!isVirtual) {
-    QString error;
+    std::string error;
     if (!applyKeyboardPreferences(keyboard, desktopPreferences(), &error))
-      qWarning().noquote() << "LunaDash keyboard:" << error;
+      qWarning().noquote() << "LunaDash keyboard:" << error.c_str();
   }
 
   auto *state = new KeyboardState;
@@ -221,10 +221,10 @@ void WaylandCompositor::Impl::applyKeyboardConfig() {
   for (auto *state : keyboards) {
     if (!state || state->virtualKeyboard)
       continue;
-    QString error;
+    std::string error;
     if (!applyKeyboardPreferences(state->keyboard, desktopPreferences(),
                                   &error))
-      qWarning().noquote() << "LunaDash keyboard:" << error;
+      qWarning().noquote() << "LunaDash keyboard:" << error.c_str();
   }
 }
 
@@ -475,10 +475,10 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
     const uint32_t modifiers =
         shortcutModifiers(wlr_keyboard_get_modifiers(keyboard));
     for (int i = 0; i < count && !handled; ++i) {
-      const QString action =
+      const std::string action =
           self->q->shortcutSettings_->actionFor(symbols[i], modifiers);
-      if (!action.isEmpty()) {
-        self->q->handleShortcut(action);
+      if (!action.empty()) {
+        self->q->handleShortcut(QString::fromStdString(action));
         handled = true;
       }
     }

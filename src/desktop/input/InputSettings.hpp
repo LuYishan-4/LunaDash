@@ -1,11 +1,10 @@
 #pragma once
 
-#include <QJsonObject>
-#include <QString>
+#include <string>
 
 namespace LunaDash {
 
-QString keyboardLayoutPreference(const QJsonObject &preferences);
+std::string keyboardLayoutPreference(const std::string &requested = "us");
 int keyboardRepeatRate();
 int keyboardRepeatDelay();
 

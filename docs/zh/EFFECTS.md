@@ -26,7 +26,7 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 在 wlroots 0.19 以上版本，若需要取樣的下方來源視窗使用 explicit sync，該次模糊背景會停用。在非同步 commit-release 資源管理完成前，這項可選特效不會排入額外的來源讀取。使用 explicit sync 的目標視窗仍可顯示由下方 implicit-sync 內容組成的模糊背景，因為目標本身不會被取樣。一般應用程式畫面仍由 wlroots 正常繪製。
 
-獨立 Qt render-element library 仍保留 `renderer/opengl` 下的 OpenGL blur、procedural wallpaper 與 decoration shader，沒有取代活動中的 wlroots scene。CI 包含背景隔離、Gaussian 模糊像素、尺寸界線與資源生命週期測試；Arch shell workflow 會擷取實際軟體 Wayland 工作階段。最終視覺驗證仍需實體 GPU 效能測試與真實登入工作階段截圖。
+獨立 toolkit-neutral render-element library 仍保留 `renderer/opengl` 下的 OpenGL blur、procedural wallpaper 與 decoration shader，沒有取代活動中的 wlroots scene。CI 包含背景隔離、Gaussian 模糊像素、尺寸界線與資源生命週期測試；Arch shell workflow 會擷取實際軟體 Wayland 工作階段。最終視覺驗證仍需實體 GPU 效能測試與真實登入工作階段截圖。
 
 Quickshell 自己也會動畫 shell surface 與 wallpaper transition。GPU 效能與 application 相容性仍需真實 session 驗證。詳見 [Graphics](GRAPHICS.md) 與 [Architecture](ARCHITECTURE.md)。
 

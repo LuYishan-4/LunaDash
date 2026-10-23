@@ -3,6 +3,8 @@
 #include "desktop/app/DefaultApplications.hpp"
 #include <QFile>
 #include <QTimer>
+#include <iterator>
+#include <string>
 
 namespace LunaDash {
 namespace {
@@ -52,11 +54,18 @@ bool WaylandCompositor::toggleScratchpad(QString *error) {
   scratchpadWindow_ = 0;
   if (scratchpadPending_)
     return true;
-  auto command = defaultApplicationCommand("terminal", error);
-  if (command.isEmpty())
+  std::string nativeError;
+  auto command = defaultApplicationCommand("terminal", &nativeError);
+  if (error)
+    *error = QString::fromStdString(nativeError);
+  if (command.empty())
     return false;
-  const auto executable = command.takeFirst();
-  auto *process = spawn(command, executable, false);
+  const auto executable = QString::fromStdString(command.front());
+  QStringList arguments;
+  for (auto argument = std::next(command.begin()); argument != command.end();
+       ++argument)
+    arguments.push_back(QString::fromStdString(*argument));
+  auto *process = spawn(arguments, executable, false);
   if (!process) {
     if (error)
       *error = "Could not launch the configured terminal.";

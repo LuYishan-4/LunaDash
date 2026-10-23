@@ -1,9 +1,13 @@
 #pragma once
-#include <QJsonObject>
-#include <QString>
+#include <nlohmann/json.hpp>
+
+#include <string>
+
 namespace LunaDash {
-QJsonObject desktopPreferences();
-bool updateDesktopPreferences(const QJsonObject &changes, QString *error);
+nlohmann::json desktopPreferences();
+void ensureLegacyDesktopSettingsImported();
+bool updateDesktopPreferences(const nlohmann::json &changes,
+                              std::string *error);
 bool setupComplete();
-void setSetupComplete(bool complete);
+bool setSetupComplete(bool complete, std::string *error);
 } // namespace LunaDash

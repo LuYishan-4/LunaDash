@@ -1,86 +1,226 @@
 #include "desktop/network/NetworkStatus.hpp"
-#include "config/command/CommandRunner.hpp"
-#include <QDBusConnection>
-#include <QDBusMessage>
-#include <QDBusPendingCallWatcher>
-#include <QDBusPendingReply>
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QMap>
-#include <QNetworkInterface>
-#include <QRegularExpression>
-#include <QStandardPaths>
-#include <QTimer>
-#include <QVariantMap>
+
+#include <gio/gio.h>
+
 #include <algorithm>
+#include <cctype>
+#include <charconv>
+#include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <ifaddrs.h>
+#include <map>
+#include <net/if.h>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <unistd.h>
+#include <utility>
+#include <vector>
 
 namespace LunaDash {
 namespace {
-bool boundedText(const QJsonObject &request, const QString &key, QString *value,
-                 int maximum = 512, bool allowEmpty = false) {
-  if (!request.value(key).isString())
+using Document = nlohmann::json;
+
+constexpr int kRefreshIntervalMilliseconds = 30000;
+
+std::string findExecutable(std::string_view name) {
+  const char *pathValue = std::getenv("PATH");
+  if (!pathValue)
+    return {};
+  const std::string path(pathValue);
+  std::size_t begin = 0;
+  while (begin <= path.size()) {
+    const auto end = path.find(':', begin);
+    const auto component = path.substr(
+        begin, end == std::string::npos ? std::string::npos : end - begin);
+    const std::filesystem::path directory =
+        component.empty() ? std::filesystem::current_path()
+                          : std::filesystem::path(component);
+    const auto candidate = directory / name;
+    if (::access(candidate.c_str(), X_OK) == 0)
+      return candidate.string();
+    if (end == std::string::npos)
+      break;
+    begin = end + 1;
+  }
+  return {};
+}
+
+bool boundedText(const Document &request, std::string_view key,
+                 std::string *value, std::size_t maximum = 512,
+                 bool allowEmpty = false) {
+  const auto field = request.find(key);
+  if (field == request.end() || !field->is_string())
     return false;
-  const QString text = request.value(key).toString();
-  if ((!allowEmpty && text.isEmpty()) || text.size() > maximum ||
-      text.contains('\n') || text.contains('\r') || text.contains(QChar::Null))
+  const auto text = field->get<std::string>();
+  if ((!allowEmpty && text.empty()) || text.size() > maximum ||
+      text.find('\n') != std::string::npos ||
+      text.find('\r') != std::string::npos ||
+      text.find('\0') != std::string::npos)
     return false;
   if (value)
     *value = text;
   return true;
 }
 
-// nmcli -t escapes ':' as "\:" and '\\' as "\\\\" when escaping is enabled.
-// Splitting on every ':' corrupts any SSID or connection name that contains a
-// colon, so split on unescaped separators and then unescape each field.
-QStringList splitTerse(const QString &line) {
-  QStringList fields;
-  QString current;
+std::vector<std::string> splitLines(const std::string &text) {
+  std::vector<std::string> lines;
+  std::size_t begin = 0;
+  while (begin <= text.size()) {
+    const auto end = text.find('\n', begin);
+    auto line = text.substr(begin, end == std::string::npos ? std::string::npos
+                                                            : end - begin);
+    if (!line.empty() && line.back() == '\r')
+      line.pop_back();
+    lines.push_back(std::move(line));
+    if (end == std::string::npos)
+      break;
+    begin = end + 1;
+  }
+  return lines;
+}
+
+// nmcli -t escapes ':' as "\:" and '\\' as "\\\\" when escaping is
+// enabled. Split only on unescaped delimiters and remove the escape marker.
+std::vector<std::string> splitTerse(const std::string &line) {
+  std::vector<std::string> fields;
+  std::string current;
   bool escaped = false;
-  for (const QChar ch : line) {
+  for (const char character : line) {
     if (escaped) {
-      current += ch;
+      current.push_back(character);
       escaped = false;
-      continue;
-    }
-    if (ch == '\\') {
+    } else if (character == '\\') {
       escaped = true;
-      continue;
-    }
-    if (ch == ':') {
-      fields.append(current);
+    } else if (character == ':') {
+      fields.push_back(std::move(current));
       current.clear();
-      continue;
+    } else {
+      current.push_back(character);
     }
-    current += ch;
   }
   if (escaped)
-    current += '\\';
-  fields.append(current);
+    current.push_back('\\');
+  fields.push_back(std::move(current));
   return fields;
 }
 
-bool isWifiType(const QString &type) {
-  const QString normalized = type.toLower();
+std::string lowercase(std::string value) {
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char character) {
+                   return static_cast<char>(std::tolower(character));
+                 });
+  return value;
+}
+
+bool isWifiType(const std::string &type) {
+  const auto normalized = lowercase(type);
   return normalized == "wifi" || normalized == "802-11-wireless" ||
          normalized == "wireless";
 }
 
-bool isEthernetType(const QString &type) {
-  const QString normalized = type.toLower();
+bool isEthernetType(const std::string &type) {
+  const auto normalized = lowercase(type);
   return normalized == "ethernet" || normalized == "802-3-ethernet" ||
          normalized == "wired";
 }
 
-bool wifiSecurityRequiresPassword(const QString &security) {
-  const QString normalized = security.trimmed().toLower();
-  return !normalized.isEmpty() && normalized != "--" && normalized != "open" &&
+bool wifiSecurityRequiresPassword(const std::string &security) {
+  const auto normalized = lowercase(security);
+  return !normalized.empty() && normalized != "--" && normalized != "open" &&
          normalized != "none";
 }
+
+bool fieldBool(const Document &object, std::string_view key) {
+  const auto value = object.find(key);
+  return value != object.end() && value->is_boolean() && value->get<bool>();
+}
+
+std::string fieldString(const Document &object, std::string_view key) {
+  const auto value = object.find(key);
+  return value != object.end() && value->is_string() ? value->get<std::string>()
+                                                     : std::string{};
+}
+
+void setError(std::string *error, std::string message) {
+  if (error)
+    *error = std::move(message);
+}
+
+bool hasActiveNetworkLink() {
+  ifaddrs *interfaces = nullptr;
+  if (::getifaddrs(&interfaces) != 0)
+    return false;
+  bool link = false;
+  for (auto *entry = interfaces; entry; entry = entry->ifa_next) {
+    if (!entry->ifa_name || !entry->ifa_addr ||
+        (entry->ifa_flags & IFF_LOOPBACK) != 0 ||
+        (entry->ifa_flags & IFF_UP) == 0 ||
+        (entry->ifa_flags & IFF_RUNNING) == 0)
+      continue;
+    if (entry->ifa_addr->sa_family == AF_INET ||
+        entry->ifa_addr->sa_family == AF_INET6) {
+      link = true;
+      break;
+    }
+  }
+  ::freeifaddrs(interfaces);
+  return link;
+}
+
+Document fallbackNetworkStatus() {
+  const bool link = hasActiveNetworkLink();
+  return {{"managed", false},
+          {"connected", link},
+          {"internet", false},
+          {"label", link
+                        ? "Network link detected; Internet access is unverified"
+                        : "NetworkManager is unavailable"},
+          {"hasWifi", false},
+          {"wifiEnabled", false},
+          {"wifiConnected", false},
+          {"ethernetConnected", link},
+          {"primaryType", link ? "ethernet" : "disconnected"}};
+}
+
+Document networkManagerStatus() {
+  GError *error = nullptr;
+  GDBusConnection *connection =
+      g_bus_get_sync(G_BUS_TYPE_SYSTEM, nullptr, &error);
+  if (!connection) {
+    if (error)
+      g_error_free(error);
+    return fallbackNetworkStatus();
+  }
+  GVariant *reply = g_dbus_connection_call_sync(
+      connection, "org.freedesktop.NetworkManager",
+      "/org/freedesktop/NetworkManager", "org.freedesktop.DBus.Properties",
+      "GetAll", g_variant_new("(s)", "org.freedesktop.NetworkManager"),
+      G_VARIANT_TYPE("(a{sv})"), G_DBUS_CALL_FLAGS_NONE, 1500, nullptr, &error);
+  g_object_unref(connection);
+  if (!reply) {
+    if (error)
+      g_error_free(error);
+    return fallbackNetworkStatus();
+  }
+
+  GVariant *properties = nullptr;
+  g_variant_get(reply, "(@a{sv})", &properties);
+  guint state = 0;
+  guint connectivity = 0;
+  g_variant_lookup(properties, "State", "u", &state);
+  g_variant_lookup(properties, "Connectivity", "u", &connectivity);
+  g_variant_unref(properties);
+  g_variant_unref(reply);
+  return describeNetwork(state, connectivity);
+}
+
 } // namespace
 
-QJsonObject describeNetwork(unsigned int state, unsigned int connectivity) {
+Document describeNetwork(unsigned int state, unsigned int connectivity) {
   const bool connected = state >= 50;
-  const QString label =
+  const std::string label =
       connected
           ? (connectivity == 4   ? "Connected to the Internet"
              : connectivity == 2 ? "Sign-in required"
@@ -98,397 +238,400 @@ QJsonObject describeNetwork(unsigned int state, unsigned int connectivity) {
           {"primaryType", connected ? "network" : "disconnected"}};
 }
 
-NetworkStatus::NetworkStatus(QObject *parent)
-    : QObject(parent),
-      status_({{"label", "Checking network"}, {"managed", false}}) {
-  nmcli_ = QStandardPaths::findExecutable("nmcli");
-  bluetoothctl_ = QStandardPaths::findExecutable("bluetoothctl");
-  command_ = new CommandRunner(this);
-  bluetoothCommand_ = new CommandRunner(this);
-
-  eventRefresh_ = new QTimer(this);
-  eventRefresh_->setSingleShot(true);
-  eventRefresh_->setInterval(350);
-  connect(eventRefresh_, &QTimer::timeout, this, [this] {
-    if (pending_ || command_->busy() || bluetoothCommand_->busy()) {
-      eventRefresh_->start(500);
-      return;
-    }
-    refresh();
-  });
-
-  // NetworkManager already publishes property changes over D-Bus. Let those
-  // events drive the expensive nmcli detail refresh instead of spawning
-  // bluetoothctl + nmcli chains every five seconds while the desktop is idle.
-  QDBusConnection::systemBus().connect(
-      QStringLiteral("org.freedesktop.NetworkManager"),
-      QStringLiteral("/org/freedesktop/NetworkManager"),
-      QStringLiteral("org.freedesktop.DBus.Properties"),
-      QStringLiteral("PropertiesChanged"), this, SLOT(scheduleRefresh()));
-
-  auto *fallback = new QTimer(this);
-  fallback->setInterval(30000);
-  connect(fallback, &QTimer::timeout, this, &NetworkStatus::refresh);
-  fallback->start();
+NetworkStatus::NetworkStatus(wl_event_loop *eventLoop)
+    : status_({{"label", "Checking network"}, {"managed", false}}),
+      command_(eventLoop), bluetoothCommand_(eventLoop) {
+  nmcli_ = findExecutable("nmcli");
+  bluetoothctl_ = findExecutable("bluetoothctl");
   refresh();
+  refreshTimer_ = wl_event_loop_add_timer(eventLoop, handleRefresh, this);
+  if (refreshTimer_)
+    wl_event_source_timer_update(refreshTimer_, kRefreshIntervalMilliseconds);
 }
 
-void NetworkStatus::scheduleRefresh() {
-  if (eventRefresh_)
-    eventRefresh_->start();
+NetworkStatus::~NetworkStatus() {
+  if (refreshTimer_)
+    wl_event_source_remove(refreshTimer_);
+  refreshTimer_ = nullptr;
 }
 
-QJsonObject NetworkStatus::snapshot() const { return status_; }
+Document NetworkStatus::snapshot() const { return status_; }
+
+int NetworkStatus::handleRefresh(void *data) {
+  auto *status = static_cast<NetworkStatus *>(data);
+  status->refresh();
+  if (status->refreshTimer_)
+    wl_event_source_timer_update(status->refreshTimer_,
+                                 kRefreshIntervalMilliseconds);
+  return 0;
+}
+
+bool NetworkStatus::runNmcli(const std::vector<std::string> &arguments,
+                             Completion completion, int timeoutMilliseconds) {
+  return !nmcli_.empty() &&
+         command_.run(nmcli_, arguments, std::move(completion),
+                      timeoutMilliseconds);
+}
 
 void NetworkStatus::refresh() {
-  if (!bluetoothctl_.isEmpty() && !bluetoothCommand_->busy()) {
-    bluetoothCommand_->run(
-        bluetoothctl_, {"devices"}, [this](bool ok, const QByteArray &output) {
-          QJsonArray devices;
-          if (ok) {
-            for (const auto &line : QString::fromUtf8(output).split('\n')) {
-              const auto fields = line.split(' ', Qt::SkipEmptyParts);
-              if (fields.size() >= 3 && fields[0] == "Device")
-                devices.append(QJsonObject{{"address", fields[1]},
-                                           {"name", fields.mid(2).join(" ")}});
-            }
-          }
-          status_["bluetooth"] = devices;
-        });
-  }
-  if (!nmcli_.isEmpty()) {
-    refreshNmcli();
+  refreshBluetooth();
+  if (nmcli_.empty()) {
+    refreshWithoutNmcli();
     return;
   }
-  if (pending_)
-    return;
-  pending_ = true;
-  auto message = QDBusMessage::createMethodCall(
-      "org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager",
-      "org.freedesktop.DBus.Properties", "GetAll");
-  message << "org.freedesktop.NetworkManager";
-  auto *watcher = new QDBusPendingCallWatcher(
-      QDBusConnection::systemBus().asyncCall(message, 1500), this);
-  connect(watcher, &QDBusPendingCallWatcher::finished, this,
-          [this](QDBusPendingCallWatcher *call) {
-            const QDBusPendingReply<QVariantMap> reply = *call;
-            pending_ = false;
-            if (!reply.isError()) {
-              const auto properties = reply.value();
-              status_ =
-                  describeNetwork(properties.value("State").toUInt(),
-                                  properties.value("Connectivity").toUInt());
-            } else {
-              bool link = false;
-              for (const auto &interface : QNetworkInterface::allInterfaces()) {
-                const auto flags = interface.flags();
-                link =
-                    link || (flags.testFlag(QNetworkInterface::IsUp) &&
-                             flags.testFlag(QNetworkInterface::IsRunning) &&
-                             !flags.testFlag(QNetworkInterface::IsLoopBack) &&
-                             !interface.addressEntries().isEmpty());
-              }
-              status_ = {
-                  {"managed", false},
-                  {"connected", link},
-                  {"internet", false},
-                  {"label",
-                   link ? "Network link detected; Internet access is unverified"
-                        : "NetworkManager is unavailable"},
-                  {"hasWifi", false},
-                  {"wifiEnabled", false},
-                  {"wifiConnected", false},
-                  {"ethernetConnected", link},
-                  {"primaryType", link ? "ethernet" : "disconnected"}};
-            }
-            call->deleteLater();
-          });
+  refreshNmcli();
 }
 
-void NetworkStatus::refreshNmcli() {
-  if (pending_ || command_->busy())
+void NetworkStatus::refreshBluetooth() {
+  if (bluetoothctl_.empty() || bluetoothCommand_.busy())
     return;
-  pending_ = true;
-  command_->run(
-      nmcli_,
-      {"-t", "--escape", "yes", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"},
-      [this](bool ok, const QByteArray &output) {
-        pending_ = false;
-        QJsonArray devices;
-        bool connected = false;
-        bool hasWifi = false;
-        bool wifiEnabled = false;
-        bool wifiConnected = false;
-        bool ethernetConnected = false;
-        QString primaryConnection;
-        QString primaryType = "disconnected";
-
-        for (const auto &line : QString::fromUtf8(output).split('\n')) {
-          const auto fields = splitTerse(line);
-          if (fields.size() < 4 || fields[0].isEmpty())
-            continue;
-          const QString deviceName = fields[0];
-          const QString type = fields[1];
-          const QString state = fields[2];
-          const QString connection = fields[3];
-          const bool deviceConnected = state == "connected";
-          connected = connected || deviceConnected;
-
-          if (isWifiType(type)) {
-            hasWifi = true;
-            wifiEnabled = wifiEnabled || state != "unavailable";
-            if (deviceConnected) {
-              wifiConnected = true;
-              if (primaryConnection.isEmpty()) {
-                primaryConnection = connection;
-                primaryType = "wifi";
-              }
-            }
-          } else if (isEthernetType(type) && deviceConnected) {
-            ethernetConnected = true;
-            primaryConnection = connection;
-            primaryType = "ethernet";
+  bluetoothCommand_.run(
+      bluetoothctl_, {"devices"},
+      [this](bool success, const std::string &output) {
+        Document devices = Document::array();
+        if (success) {
+          for (const auto &line : splitLines(output)) {
+            std::istringstream fields(line);
+            std::string device;
+            std::string address;
+            if (!(fields >> device >> address) || device != "Device")
+              continue;
+            std::string name;
+            std::getline(fields, name);
+            const auto first = name.find_first_not_of(" \t");
+            if (first != std::string::npos)
+              name.erase(0, first);
+            devices.push_back({{"address", address}, {"name", name}});
           }
-
-          devices.append(QJsonObject{{"device", deviceName},
-                                     {"type", type},
-                                     {"state", state},
-                                     {"connection", connection}});
         }
-
-        status_ = {{"managed", ok},
-                   {"connected", connected},
-                   {"internet", false},
-                   {"label", ok ? (connected ? "Connected" : "Not connected")
-                                : "NetworkManager is unavailable"},
-                   {"devices", devices},
-                   {"hasWifi", hasWifi},
-                   {"wifiEnabled", hasWifi && wifiEnabled},
-                   {"wifiConnected", wifiConnected},
-                   {"ethernetConnected", ethernetConnected},
-                   {"primaryType", primaryType},
-                   {"primaryConnection", primaryConnection}};
-        if (!ok)
-          return;
-
-        command_->run(
-            nmcli_,
-            {"-t", "--escape", "yes", "-f",
-             "NAME,UUID,TYPE,DEVICE,STATE,AUTOCONNECT", "connection", "show"},
-            [this](bool connectionOk, const QByteArray &connectionOutput) {
-              QJsonArray connections;
-              if (connectionOk) {
-                for (const auto &line :
-                     QString::fromUtf8(connectionOutput).split('\n')) {
-                  const auto fields = splitTerse(line);
-                  if (fields.size() >= 6 && !fields[0].isEmpty())
-                    connections.append(
-                        QJsonObject{{"name", fields[0]},
-                                    {"uuid", fields[1]},
-                                    {"type", fields[2]},
-                                    {"device", fields[3]},
-                                    {"state", fields[4]},
-                                    {"autoconnect", fields[5] == "yes"}});
-                }
-              }
-              status_["connections"] = connections;
-
-              if (!status_.value("hasWifi").toBool()) {
-                status_["wifi"] = QJsonArray{};
-                return;
-              }
-
-              command_->run(
-                  nmcli_,
-                  {"-t", "--escape", "yes", "-f",
-                   "IN-USE,SSID,SIGNAL,SECURITY,DEVICE", "device", "wifi",
-                   "list"},
-                  [this](bool wifiOk, const QByteArray &wifiOutput) {
-                    QMap<QString, QJsonObject> strongestBySsid;
-                    if (wifiOk) {
-                      for (const auto &line :
-                           QString::fromUtf8(wifiOutput).split('\n')) {
-                        const auto fields = splitTerse(line);
-                        if (fields.size() < 5 || fields[1].isEmpty())
-                          continue;
-                        const QString ssid = fields[1];
-                        const int signal = fields[2].toInt();
-                        QJsonObject candidate{
-                            {"active", fields[0] == "*"},
-                            {"ssid", ssid},
-                            {"signal", signal},
-                            {"security", fields[3]},
-                            {"secured",
-                             wifiSecurityRequiresPassword(fields[3])},
-                            {"device", fields[4]}};
-                        if (!strongestBySsid.contains(ssid) ||
-                            strongestBySsid.value(ssid)
-                                    .value("signal")
-                                    .toInt() < signal ||
-                            candidate.value("active").toBool())
-                          strongestBySsid[ssid] = candidate;
-                      }
-                    }
-                    QList<QJsonObject> sorted = strongestBySsid.values();
-                    std::sort(sorted.begin(), sorted.end(),
-                              [](const QJsonObject &a, const QJsonObject &b) {
-                                if (a.value("active").toBool() !=
-                                    b.value("active").toBool())
-                                  return a.value("active").toBool();
-                                return a.value("signal").toInt() >
-                                       b.value("signal").toInt();
-                              });
-                    QJsonArray wifi;
-                    for (const auto &entry : sorted)
-                      wifi.append(entry);
-                    status_["wifi"] = wifi;
-                  });
-            });
+        status_["bluetooth"] = std::move(devices);
       });
 }
 
-bool NetworkStatus::execute(const QJsonObject &request, QString *error) {
-  const auto action = request.value("action").toString();
+void NetworkStatus::refreshWithoutNmcli() { status_ = networkManagerStatus(); }
+
+void NetworkStatus::refreshNmcli() {
+  if (pending_ || command_.busy())
+    return;
+  pending_ = true;
+  if (!runNmcli(
+          {"-t", "--escape", "yes", "-f", "DEVICE,TYPE,STATE,CONNECTION",
+           "device"},
+          [this](bool success, const std::string &output) {
+            pending_ = false;
+            Document devices = Document::array();
+            bool connected = false;
+            bool hasWifi = false;
+            bool wifiEnabled = false;
+            bool wifiConnected = false;
+            bool ethernetConnected = false;
+            std::string primaryConnection;
+            std::string primaryType = "disconnected";
+
+            if (success) {
+              for (const auto &line : splitLines(output)) {
+                const auto fields = splitTerse(line);
+                if (fields.size() < 4 || fields[0].empty())
+                  continue;
+                const auto &device = fields[0];
+                const auto &type = fields[1];
+                const auto &state = fields[2];
+                const auto &connection = fields[3];
+                const bool deviceConnected = state == "connected";
+                connected = connected || deviceConnected;
+
+                if (isWifiType(type)) {
+                  hasWifi = true;
+                  wifiEnabled = wifiEnabled || state != "unavailable";
+                  if (deviceConnected) {
+                    wifiConnected = true;
+                    if (primaryConnection.empty()) {
+                      primaryConnection = connection;
+                      primaryType = "wifi";
+                    }
+                  }
+                } else if (isEthernetType(type) && deviceConnected) {
+                  ethernetConnected = true;
+                  primaryConnection = connection;
+                  primaryType = "ethernet";
+                }
+                devices.push_back({{"device", device},
+                                   {"type", type},
+                                   {"state", state},
+                                   {"connection", connection}});
+              }
+            }
+
+            status_ = {
+                {"managed", success},
+                {"connected", connected},
+                {"internet", false},
+                {"label", success ? (connected ? "Connected" : "Not connected")
+                                  : "NetworkManager is unavailable"},
+                {"devices", std::move(devices)},
+                {"hasWifi", hasWifi},
+                {"wifiEnabled", hasWifi && wifiEnabled},
+                {"wifiConnected", wifiConnected},
+                {"ethernetConnected", ethernetConnected},
+                {"primaryType", primaryType},
+                {"primaryConnection", primaryConnection}};
+            if (!success)
+              return;
+
+            pending_ = true;
+            if (!runNmcli(
+                    {"-t", "--escape", "yes", "-f",
+                     "NAME,UUID,TYPE,DEVICE,STATE,AUTOCONNECT", "connection",
+                     "show"},
+                    [this](bool connectionSuccess,
+                           const std::string &connectionOutput) {
+                      pending_ = false;
+                      Document connections = Document::array();
+                      if (connectionSuccess)
+                        for (const auto &line : splitLines(connectionOutput)) {
+                          const auto fields = splitTerse(line);
+                          if (fields.size() >= 6 && !fields[0].empty())
+                            connections.push_back(
+                                {{"name", fields[0]},
+                                 {"uuid", fields[1]},
+                                 {"type", fields[2]},
+                                 {"device", fields[3]},
+                                 {"state", fields[4]},
+                                 {"autoconnect", fields[5] == "yes"}});
+                        }
+                      status_["connections"] = std::move(connections);
+                      if (!fieldBool(status_, "hasWifi")) {
+                        status_["wifi"] = Document::array();
+                        return;
+                      }
+
+                      pending_ = true;
+                      if (!runNmcli(
+                              {"-t", "--escape", "yes", "-f",
+                               "IN-USE,SSID,SIGNAL,SECURITY,DEVICE", "device",
+                               "wifi", "list"},
+                              [this](bool wifiSuccess,
+                                     const std::string &wifiOutput) {
+                                pending_ = false;
+                                std::map<std::string, Document> strongestBySsid;
+                                if (wifiSuccess)
+                                  for (const auto &line :
+                                       splitLines(wifiOutput)) {
+                                    const auto fields = splitTerse(line);
+                                    if (fields.size() < 5 || fields[1].empty())
+                                      continue;
+                                    int signal = 0;
+                                    const auto [end, error] = std::from_chars(
+                                        fields[2].data(),
+                                        fields[2].data() + fields[2].size(),
+                                        signal);
+                                    if (error != std::errc{} ||
+                                        end !=
+                                            fields[2].data() + fields[2].size())
+                                      signal = 0;
+                                    const auto &ssid = fields[1];
+                                    Document candidate{
+                                        {"active", fields[0] == "*"},
+                                        {"ssid", ssid},
+                                        {"signal", signal},
+                                        {"security", fields[3]},
+                                        {"secured",
+                                         wifiSecurityRequiresPassword(
+                                             fields[3])},
+                                        {"device", fields[4]}};
+                                    const auto current =
+                                        strongestBySsid.find(ssid);
+                                    if (current == strongestBySsid.end() ||
+                                        current->second["signal"].get<int>() <
+                                            signal ||
+                                        fieldBool(candidate, "active"))
+                                      strongestBySsid[ssid] =
+                                          std::move(candidate);
+                                  }
+                                std::vector<Document> sorted;
+                                for (auto &[ssid, network] : strongestBySsid) {
+                                  (void)ssid;
+                                  sorted.push_back(std::move(network));
+                                }
+                                std::sort(sorted.begin(), sorted.end(),
+                                          [](const Document &left,
+                                             const Document &right) {
+                                            if (fieldBool(left, "active") !=
+                                                fieldBool(right, "active"))
+                                              return fieldBool(left, "active");
+                                            return left["signal"].get<int>() >
+                                                   right["signal"].get<int>();
+                                          });
+                                status_["wifi"] = sorted;
+                              })) {
+                        pending_ = false;
+                        status_["wifi"] = Document::array();
+                      }
+                    })) {
+              pending_ = false;
+              status_["connections"] = Document::array();
+            }
+          })) {
+    pending_ = false;
+    status_ = {{"managed", false},
+               {"connected", false},
+               {"internet", false},
+               {"label", "NetworkManager is unavailable"},
+               {"devices", Document::array()},
+               {"hasWifi", false},
+               {"wifiEnabled", false},
+               {"wifiConnected", false},
+               {"ethernetConnected", false},
+               {"primaryType", "disconnected"}};
+  }
+}
+
+bool NetworkStatus::execute(const Document &request, std::string *error) {
+  if (error)
+    error->clear();
+  const auto action = fieldString(request, "action");
   if (action == "bluetooth-scan") {
-    if (bluetoothctl_.isEmpty() || bluetoothCommand_->busy()) {
-      if (error)
-        *error = "Bluetooth control is unavailable or busy.";
+    if (bluetoothctl_.empty() || bluetoothCommand_.busy()) {
+      setError(error, "Bluetooth control is unavailable or busy.");
       return false;
     }
-    return bluetoothCommand_->run(
+    return bluetoothCommand_.run(
         bluetoothctl_, {"scan", "on"},
-        [this](bool, const QByteArray &) { refresh(); });
+        [this](bool, const std::string &) { refresh(); });
   }
 
-  if (nmcli_.isEmpty() || command_->busy()) {
-    if (error)
-      *error = "NetworkManager/nmcli is unavailable or busy.";
+  if (nmcli_.empty() || command_.busy()) {
+    setError(error, "NetworkManager/nmcli is unavailable or busy.");
     return false;
   }
 
-  QStringList args;
-  QString name;
-  QString device;
+  std::vector<std::string> arguments;
+  std::string name;
+  std::string device;
   if (action == "network-reset") {
-    return command_->run(
-        nmcli_, {"networking", "off"},
-        [this](bool, const QByteArray &) {
-          command_->run(
-              nmcli_, {"networking", "on"},
-              [this](bool, const QByteArray &) { refresh(); }, 15000);
+    return runNmcli(
+        {"networking", "off"},
+        [this](bool, const std::string &) {
+          if (!runNmcli(
+                  {"networking", "on"},
+                  [this](bool, const std::string &) { refresh(); }, 15000))
+            refresh();
         },
         15000);
   }
   if (action == "connection-reconnect" &&
       boundedText(request, "name", &name, 256)) {
-    return command_->run(
-        nmcli_, {"connection", "down", name},
-        [this, name](bool, const QByteArray &) {
-          command_->run(
-              nmcli_, {"connection", "up", name},
-              [this](bool, const QByteArray &) { refresh(); }, 15000);
+    return runNmcli(
+        {"connection", "down", name},
+        [this, name](bool, const std::string &) {
+          if (!runNmcli(
+                  {"connection", "up", name},
+                  [this](bool, const std::string &) { refresh(); }, 15000))
+            refresh();
         },
         15000);
   }
   if (action == "wifi-scan") {
-    if (!status_.value("hasWifi").toBool()) {
-      if (error)
-        *error = "No wireless network adapter is available.";
+    if (!fieldBool(status_, "hasWifi")) {
+      setError(error, "No wireless network adapter is available.");
       return false;
     }
-    args = {"device", "wifi", "rescan"};
+    arguments = {"device", "wifi", "rescan"};
   } else if (action == "wifi-connect") {
-    QString ssid;
-    QString password;
+    std::string ssid;
+    std::string password;
     if (!boundedText(request, "ssid", &ssid, 128) ||
         !boundedText(request, "password", &password, 512, true)) {
-      if (error)
-        *error = "Invalid Wi-Fi request.";
+      setError(error, "Invalid Wi-Fi request.");
       return false;
     }
-    args = {"device", "wifi", "connect", ssid};
-    if (!password.isEmpty())
-      args << "password" << password;
+    arguments = {"device", "wifi", "connect", ssid};
+    if (!password.empty()) {
+      arguments.push_back("password");
+      arguments.push_back(password);
+    }
   } else if ((action == "connection-up" || action == "connection-down" ||
               action == "connection-delete") &&
              boundedText(request, "name", &name, 256)) {
-    args = {"connection",
-            action == "connection-up"     ? "up"
-            : action == "connection-down" ? "down"
-                                          : "delete",
-            name};
+    arguments = {"connection",
+                 action == "connection-up"     ? "up"
+                 : action == "connection-down" ? "down"
+                                               : "delete",
+                 name};
   } else if ((action == "device-connect" || action == "device-disconnect") &&
              boundedText(request, "device", &device, 128)) {
-    args = {"device", action == "device-connect" ? "connect" : "disconnect",
-            device};
+    arguments = {"device",
+                 action == "device-connect" ? "connect" : "disconnect", device};
   } else if ((action == "networking-enable" || action == "wifi-enable") &&
-             request.value("enabled").isBool()) {
-    const QString value = request.value("enabled").toBool() ? "on" : "off";
-    args = action == "networking-enable" ? QStringList{"networking", value}
-                                         : QStringList{"radio", "wifi", value};
+             request.contains("enabled") && request["enabled"].is_boolean()) {
+    const std::string value = fieldBool(request, "enabled") ? "on" : "off";
+    arguments = action == "networking-enable"
+                    ? std::vector<std::string>{"networking", value}
+                    : std::vector<std::string>{"radio", "wifi", value};
   } else if (action == "connection-autoconnect" &&
              boundedText(request, "name", &name, 256) &&
-             request.value("enabled").isBool()) {
-    args = {"connection", "modify", name, "connection.autoconnect",
-            request.value("enabled").toBool() ? "yes" : "no"};
+             request.contains("enabled") && request["enabled"].is_boolean()) {
+    arguments = {"connection", "modify", name, "connection.autoconnect",
+                 fieldBool(request, "enabled") ? "yes" : "no"};
   } else if (action == "connection-ipv4-auto" &&
              boundedText(request, "name", &name, 256)) {
-    args = {"connection", "modify",         name, "ipv4.method",
-            "auto",       "ipv4.addresses", "",   "ipv4.gateway",
-            "",           "ipv4.dns",       "",   "ipv4.ignore-auto-dns",
-            "no"};
+    arguments = {"connection", "modify",         name, "ipv4.method",
+                 "auto",       "ipv4.addresses", "",   "ipv4.gateway",
+                 "",           "ipv4.dns",       "",   "ipv4.ignore-auto-dns",
+                 "no"};
   } else if (action == "connection-ipv4-manual" &&
              boundedText(request, "name", &name, 256)) {
-    QString address;
-    QString gateway;
-    QString dns;
+    std::string address;
+    std::string gateway;
+    std::string dns;
     if (!boundedText(request, "address", &address, 128) ||
         !boundedText(request, "gateway", &gateway, 128, true) ||
         !boundedText(request, "dns", &dns, 256, true)) {
-      if (error)
-        *error = "Invalid IPv4 settings.";
+      setError(error, "Invalid IPv4 settings.");
       return false;
     }
-    args = {"connection",
-            "modify",
-            name,
-            "ipv4.method",
-            "manual",
-            "ipv4.addresses",
-            address,
-            "ipv4.gateway",
-            gateway,
-            "ipv4.dns",
-            dns,
-            "ipv4.ignore-auto-dns",
-            dns.isEmpty() ? "no" : "yes"};
+    arguments = {"connection",
+                 "modify",
+                 name,
+                 "ipv4.method",
+                 "manual",
+                 "ipv4.addresses",
+                 address,
+                 "ipv4.gateway",
+                 gateway,
+                 "ipv4.dns",
+                 dns,
+                 "ipv4.ignore-auto-dns",
+                 dns.empty() ? "no" : "yes"};
   } else if ((action == "connection-ipv6-auto" ||
               action == "connection-ipv6-disabled") &&
              boundedText(request, "name", &name, 256)) {
-    args = {"connection", "modify", name, "ipv6.method",
-            action == "connection-ipv6-auto" ? "auto" : "disabled"};
+    arguments = {"connection", "modify", name, "ipv6.method",
+                 action == "connection-ipv6-auto" ? "auto" : "disabled"};
   } else if (action == "connection-route-metric" &&
              boundedText(request, "name", &name, 256) &&
-             request.value("metric").isDouble()) {
-    const int metric = request.value("metric").toInt(-1);
-    if (metric < -1 || metric > 65535) {
-      if (error)
-        *error = "Invalid route metric.";
+             request.contains("metric") && request["metric"].is_number()) {
+    const double rawMetric = request["metric"].get<double>();
+    if (!std::isfinite(rawMetric) || std::floor(rawMetric) != rawMetric ||
+        rawMetric < -1 || rawMetric > 65535) {
+      setError(error, "Invalid route metric.");
       return false;
     }
-    args = {"connection", "modify", name, "ipv4.route-metric",
-            QString::number(metric)};
+    arguments = {"connection", "modify", name, "ipv4.route-metric",
+                 std::to_string(static_cast<int>(rawMetric))};
   } else {
-    if (error)
-      *error = "Invalid network request.";
+    setError(error, "Invalid network request.");
     return false;
   }
 
-  // Wi-Fi scans, connects and connection up/down routinely take longer than the
-  // default 2.5s CommandRunner timeout; give NetworkManager actions more room
-  // before they are treated as failures.
-  return command_->run(nmcli_, args,
-                       [this](bool, const QByteArray &) { refresh(); },
-                       15000);
+  // NetworkManager operations routinely outlast the short status-query
+  // timeout. Keep the longer limit for actions that can reconfigure links.
+  if (!runNmcli(
+          arguments, [this](bool, const std::string &) { refresh(); }, 15000)) {
+    setError(error, "Could not start the NetworkManager request.");
+    return false;
+  }
+  return true;
 }
+
 } // namespace LunaDash

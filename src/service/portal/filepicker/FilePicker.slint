@@ -1,0 +1,764 @@
+import { ScrollView } from "std-widgets.slint";
+
+export struct FilePickerItem {
+    name: string,
+    detail: string,
+    icon: string,
+    is-directory: bool,
+    selected: bool,
+}
+
+export struct FilePickerPlace {
+    label: string,
+    path: string,
+    icon: string,
+}
+
+export struct FilePickerFilter {
+    label: string,
+}
+
+export struct FilePickerChoiceOption {
+    id: string,
+    label: string,
+}
+
+export struct FilePickerChoice {
+    id: string,
+    label: string,
+    selected-label: string,
+}
+
+component PickerButton inherits Rectangle {
+    in property <string> label;
+    in property <string> glyph: "";
+    in property <bool> primary: false;
+    in property <bool> compact: false;
+    in property <color> foreground: #f1f1f5;
+    in property <color> accent: #9ccbfb;
+    in property <color> accent-ink: #171922;
+    in property <color> surface: #292d39;
+    in property <color> stroke: #4c5060;
+    callback clicked();
+
+    height: 40px;
+    min-width: root.compact ? 40px : 92px;
+    background: root.primary ? root.accent : root.surface;
+    border-color: root.primary ? root.accent : root.stroke;
+    border-width: 1px;
+    border-radius: 11px;
+    accessible-role: button;
+    accessible-label: root.label;
+
+    HorizontalLayout {
+        alignment: center;
+        spacing: 7px;
+        Text {
+            text: root.glyph;
+            color: root.primary ? root.accent-ink : root.foreground;
+            font-size: 16px;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.label;
+            visible: !root.compact;
+            color: root.primary ? root.accent-ink : root.foreground;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+component FileRow inherits Rectangle {
+    in property <string> name;
+    in property <string> detail;
+    in property <string> glyph;
+    in property <bool> is-directory;
+    in property <bool> selected;
+    in property <color> surface: #20232e;
+    in property <color> elevated: #292d39;
+    in property <color> foreground: #f1f1f5;
+    in property <color> muted: #a5a8b5;
+    in property <color> accent: #9ccbfb;
+    in property <color> stroke: #4c5060;
+    callback clicked();
+    callback activated();
+
+    accessible-role: button;
+    accessible-label: root.name;
+    height: 54px;
+    background: root.selected ? root.elevated : root.surface;
+    border-color: root.selected ? root.accent : root.stroke;
+    border-width: root.selected ? 2px : 1px;
+    border-radius: 10px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+        Text {
+            text: root.glyph;
+            color: root.is-directory ? root.accent : root.muted;
+            font-size: 20px;
+            vertical-alignment: center;
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: root.name;
+                color: root.foreground;
+                font-size: 12px;
+                font-weight: 600;
+                overflow: elide;
+            }
+            Text {
+                text: root.detail;
+                color: root.muted;
+                font-size: 10px;
+                overflow: elide;
+            }
+        }
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+        double-clicked => { root.activated(); }
+    }
+}
+
+component FileTile inherits Rectangle {
+    in property <string> name;
+    in property <string> detail;
+    in property <string> glyph;
+    in property <bool> is-directory;
+    in property <bool> selected;
+    in property <color> surface: #20232e;
+    in property <color> elevated: #292d39;
+    in property <color> foreground: #f1f1f5;
+    in property <color> muted: #a5a8b5;
+    in property <color> accent: #9ccbfb;
+    in property <color> stroke: #4c5060;
+    callback clicked();
+    callback activated();
+
+    accessible-role: button;
+    accessible-label: root.name;
+    height: 112px;
+    background: root.selected ? root.elevated : root.surface;
+    border-color: root.selected ? root.accent : root.stroke;
+    border-width: root.selected ? 2px : 1px;
+    border-radius: 12px;
+    clip: true;
+    VerticalLayout {
+        padding: 9px;
+        spacing: 4px;
+        Text { text: root.glyph; color: root.is-directory ? root.accent : root.muted; font-size: 26px; horizontal-alignment: center; vertical-alignment: center; vertical-stretch: 1; }
+        Text { text: root.name; color: root.foreground; font-size: 11px; font-weight: 600; horizontal-alignment: center; overflow: elide; }
+        Text { text: root.detail; color: root.muted; font-size: 9px; horizontal-alignment: center; overflow: elide; }
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+        double-clicked => { root.activated(); }
+    }
+}
+
+component PlaceRow inherits Rectangle {
+    in property <string> label;
+    in property <string> glyph;
+    in property <color> foreground: #f1f1f5;
+    in property <color> accent: #9ccbfb;
+    callback clicked();
+    accessible-role: button;
+    accessible-label: root.label;
+    height: 36px;
+    background: transparent;
+    HorizontalLayout {
+        padding-left: 10px;
+        spacing: 9px;
+        Text { text: root.glyph; color: root.accent; font-size: 15px; vertical-alignment: center; }
+        Text { text: root.label; color: root.foreground; font-size: 11px; vertical-alignment: center; overflow: elide; }
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+export component FilePickerWindow inherits Window {
+    title: root.window-title;
+    no-frame: true;
+    resize-border-width: 8px;
+    preferred-width: 1120px;
+    preferred-height: 740px;
+    min-width: 720px;
+    min-height: 480px;
+    background: root.background-color;
+
+    in property <string> window-title: "Open file";
+    in property <string> caption: "Browse, preview and choose your files";
+    in property <string> location-placeholder: "Paste an absolute path or file:// URL";
+    in property <string> search-placeholder: "Search this folder";
+    in property <string> location-label: "Location";
+    in property <string> search-label: "Search";
+    in property <string> show-hidden-label: "Show hidden files";
+    in property <string> grid-label: "Grid view";
+    in property <string> list-label: "List view";
+    in property <string> preview-label: "Preview";
+    in property <string> manual-path-label: "File name or local path";
+    in property <string> footer-hint: "Ctrl+L · Location    Ctrl+F · Search";
+    in property <string> maximize-label: "Maximize or restore";
+    in property <string> preview-hint: "Double-click a folder to open it. Select a file, then confirm below.";
+    in property <string> empty-label: "No matching files in this folder.";
+    in property <string> cancel-label: "Cancel";
+    in property <string> accept-label: "Open file";
+    in property <string> back-label: "Back";
+    in property <string> forward-label: "Forward";
+    in property <string> up-label: "Up";
+    in property <string> go-label: "Go";
+    in property <string> status-label: "";
+    in property <string> error-label: "";
+    in property <string> preview-name: "";
+    in property <string> preview-detail: "";
+    in property <image> preview-image;
+    in property <string> replace-heading: "Replace file?";
+    in property <string> replace-description: "A file with this name already exists. Replace it?";
+    in property <string> replace-label: "Replace";
+    in property <string> keep-label: "Keep existing";
+    in property <color> background-color: #171922;
+    in property <color> surface-color: #20232e;
+    in property <color> elevated-color: #292d39;
+    in property <color> text-color: #f1f1f5;
+    in property <color> muted-color: #a5a8b5;
+    in property <color> border-color: #4c5060;
+    in property <color> accent-color: #9ccbfb;
+    in property <color> accent-ink-color: #171922;
+    in-out property <string> location;
+    in-out property <string> search-text;
+    in-out property <string> manual-path;
+    in-out property <bool> show-hidden: false;
+    in-out property <bool> grid-view: false;
+    in-out property <int> selected-index: -1;
+    in-out property <int> filter-index: 0;
+    in-out property <bool> overwrite-pending: false;
+    in property <[FilePickerItem]> items;
+    in property <[FilePickerPlace]> places;
+    in property <[FilePickerFilter]> filters;
+    in property <[FilePickerChoice]> choices;
+
+    callback location-accepted(string);
+    callback manual-path-accepted(string);
+    callback manual-path-changed(string);
+    callback search-changed(string);
+    callback select-item(int);
+    callback activate-item(int);
+    callback select-place(string);
+    callback navigate-back();
+    callback navigate-forward();
+    callback navigate-up();
+    callback toggle-hidden();
+    callback toggle-view();
+    callback select-filter(int);
+    callback select-choice(int);
+    callback maximize-requested();
+    callback confirm-requested();
+    callback cancel-requested();
+    callback overwrite-response(bool);
+
+    public function focus-manual-path() {
+        manual-input.focus();
+        manual-input.select-all();
+    }
+
+    public function focus-location() {
+        location-input.focus();
+        location-input.select-all();
+    }
+
+    public function focus-search() {
+        search-input.focus();
+        search-input.select-all();
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        background: root.background-color;
+        border-color: root.border-color;
+        border-width: 1px;
+        border-radius: 20px;
+        clip: true;
+
+        VerticalLayout {
+            x: 0px;
+            y: 0px;
+            width: 100%;
+            height: 100%;
+            padding: 16px;
+            spacing: 10px;
+
+            HorizontalLayout {
+                height: 68px;
+                padding-left: 18px;
+                padding-right: 12px;
+                spacing: 12px;
+                Rectangle {
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 12px;
+                    background: root.elevated-color;
+                    Text { text: "▰"; color: root.accent-color; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                WindowMoveArea {
+                    horizontal-stretch: 1;
+                    height: 100%;
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 3px;
+                        Text { text: root.window-title; color: root.text-color; font-size: 16px; font-weight: 700; overflow: elide; }
+                        Text { text: root.caption; color: root.muted-color; font-size: 11px; overflow: elide; }
+                    }
+                }
+                PickerButton {
+                    label: root.maximize-label;
+                    glyph: "□";
+                    compact: true;
+                    foreground: root.text-color;
+                    surface: root.elevated-color;
+                    stroke: root.border-color;
+                    clicked => { root.maximize-requested(); }
+                }
+                PickerButton {
+                    label: root.cancel-label;
+                    glyph: "×";
+                    compact: true;
+                    foreground: root.text-color;
+                    surface: root.elevated-color;
+                    stroke: root.border-color;
+                    clicked => { root.cancel-requested(); }
+                }
+            }
+
+            HorizontalLayout {
+                height: 42px;
+                spacing: 7px;
+                PickerButton { label: root.back-label; glyph: "‹"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-back(); } }
+                PickerButton { label: root.forward-label; glyph: "›"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-forward(); } }
+                PickerButton { label: root.up-label; glyph: "↑"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-up(); } }
+                Rectangle {
+                    height: 40px;
+                    horizontal-stretch: 1;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 10px;
+                    location-input := TextInput {
+                        x: 12px;
+                        width: parent.width - 24px;
+                        height: 100%;
+                        text <=> root.location;
+                        accessible-label: root.location-label;
+                        color: root.text-color;
+                        font-size: 12px;
+                        accepted => { root.location-accepted(root.location); }
+                        key-pressed(event) => {
+                            if event.modifiers.control && (event.text == "l" || event.text == "L") {
+                                root.focus-location();
+                                return accept;
+                            }
+                            if event.modifiers.control && (event.text == "f" || event.text == "F") {
+                                root.focus-search();
+                                return accept;
+                            }
+                            if event.text == Key.Escape {
+                                root.cancel-requested();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.LeftArrow {
+                                root.navigate-back();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.RightArrow {
+                                root.navigate-forward();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.UpArrow {
+                                root.navigate-up();
+                                return accept;
+                            }
+                            reject
+                        }
+                    }
+                    if root.location == "": Text {
+                        x: 13px;
+                        width: parent.width - 26px;
+                        height: 100%;
+                        text: root.location-placeholder;
+                        color: root.muted-color;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                }
+                PickerButton { label: root.go-label; glyph: "↵"; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.location-accepted(root.location); } }
+                Rectangle {
+                    width: 220px;
+                    height: 40px;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 10px;
+                    search-input := TextInput {
+                        x: 12px;
+                        width: parent.width - 24px;
+                        height: 100%;
+                        text <=> root.search-text;
+                        accessible-label: root.search-label;
+                        color: root.text-color;
+                        font-size: 12px;
+                        edited => { root.search-changed(root.search-text); }
+                        key-pressed(event) => {
+                            if event.modifiers.control && (event.text == "l" || event.text == "L") {
+                                root.focus-location();
+                                return accept;
+                            }
+                            if event.modifiers.control && (event.text == "f" || event.text == "F") {
+                                root.focus-search();
+                                return accept;
+                            }
+                            if event.text == Key.Escape {
+                                root.cancel-requested();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.LeftArrow {
+                                root.navigate-back();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.RightArrow {
+                                root.navigate-forward();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.UpArrow {
+                                root.navigate-up();
+                                return accept;
+                            }
+                            reject
+                        }
+                    }
+                    if root.search-text == "": Text {
+                        x: 13px;
+                        width: parent.width - 26px;
+                        height: 100%;
+                        text: root.search-placeholder;
+                        color: root.muted-color;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                vertical-stretch: 1;
+                spacing: 10px;
+
+                Rectangle {
+                    width: 158px;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 13px;
+                    clip: true;
+                    ScrollView {
+                        width: 100%;
+                        height: 100%;
+                        VerticalLayout {
+                            width: 100%;
+                            padding: 8px;
+                            spacing: 3px;
+                            for place[index] in root.places: PlaceRow {
+                                width: 100%;
+                                label: place.label;
+                                glyph: place.icon;
+                                foreground: root.text-color;
+                                accent: root.accent-color;
+                                clicked => { root.select-place(place.path); }
+                            }
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    vertical-stretch: 1;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        height: 34px;
+                        Text { text: root.status-label; color: root.muted-color; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                        PickerButton {
+                            label: root.show-hidden-label;
+                            glyph: root.show-hidden ? "☑" : "□";
+                            foreground: root.text-color;
+                            surface: root.elevated-color;
+                            stroke: root.border-color;
+                            clicked => { root.toggle-hidden(); }
+                        }
+                        PickerButton {
+                            label: root.grid-view ? root.list-label : root.grid-label;
+                            glyph: root.grid-view ? "☷" : "▦";
+                            foreground: root.text-color;
+                            surface: root.elevated-color;
+                            stroke: root.border-color;
+                            clicked => { root.toggle-view(); }
+                        }
+                    }
+                    ScrollView {
+                        vertical-stretch: 1;
+                        min-height: 0px;
+                        if !root.grid-view: VerticalLayout {
+                            width: 100%;
+                            spacing: 6px;
+                            for item[index] in root.items: FileRow {
+                                width: 100%;
+                                name: item.name;
+                                detail: item.detail;
+                                glyph: item.icon;
+                                is-directory: item.is-directory;
+                                selected: item.selected;
+                                surface: root.surface-color;
+                                elevated: root.elevated-color;
+                                foreground: root.text-color;
+                                muted: root.muted-color;
+                                accent: root.accent-color;
+                                stroke: root.border-color;
+                                clicked => { root.select-item(index); }
+                                activated => { root.activate-item(index); }
+                            }
+                        }
+                        if root.grid-view: GridLayout {
+                            width: 100%;
+                            spacing: 6px;
+                            Row {
+                                for item[index] in root.items: FileTile {
+                                    row: index / 3;
+                                    col: Math.mod(index, 3);
+                                    width: min(190px, (root.width - 496px) / 3);
+                                    name: item.name;
+                                    detail: item.detail;
+                                    glyph: item.icon;
+                                    is-directory: item.is-directory;
+                                    selected: item.selected;
+                                    surface: root.surface-color;
+                                    elevated: root.elevated-color;
+                                    foreground: root.text-color;
+                                    muted: root.muted-color;
+                                    accent: root.accent-color;
+                                    stroke: root.border-color;
+                                    clicked => { root.select-item(index); }
+                                    activated => { root.activate-item(index); }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 210px;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 13px;
+                    clip: true;
+                    VerticalLayout {
+                        padding: 13px;
+                        spacing: 10px;
+                        Text { text: root.preview-label; color: root.accent-color; font-size: 11px; font-weight: 700; }
+                        Rectangle {
+                            height: 150px;
+                            background: #111521;
+                            border-radius: 9px;
+                            if root.preview-image.width > 0 && root.preview-image.height > 0: Image {
+                                width: 100%;
+                                height: 100%;
+                                source: root.preview-image;
+                                image-fit: contain;
+                            }
+                            if root.preview-image.width == 0 || root.preview-image.height == 0: Text {
+                                text: "▰";
+                                color: root.muted-color;
+                                font-size: 36px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Text { text: root.preview-name; color: root.text-color; font-size: 12px; font-weight: 600; wrap: word-wrap; max-height: 42px; overflow: elide; }
+                        Text { text: root.preview-detail; color: root.muted-color; font-size: 11px; wrap: word-wrap; max-height: 64px; overflow: elide; }
+                        Text {
+                            text: root.preview-hint;
+                            color: root.muted-color;
+                            font-size: 10px;
+                            wrap: word-wrap;
+                            vertical-stretch: 1;
+                            vertical-alignment: bottom;
+                        }
+                    }
+                }
+            }
+
+            if root.items.length == 0: Text {
+                height: 20px;
+                text: root.empty-label;
+                color: root.muted-color;
+                font-size: 11px;
+                horizontal-alignment: center;
+            }
+
+            if root.choices.length > 0: VerticalLayout {
+                spacing: 5px;
+                for choice[index] in root.choices: HorizontalLayout {
+                    height: 34px;
+                    Text { text: choice.label; color: root.text-color; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                    PickerButton {
+                        label: choice.selected-label;
+                        glyph: "⌄";
+                        foreground: root.text-color;
+                        surface: root.elevated-color;
+                        stroke: root.border-color;
+                        clicked => { root.select-choice(index); }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                height: 42px;
+                spacing: 8px;
+                Text { text: root.manual-path-label; color: root.muted-color; font-size: 11px; vertical-alignment: center; }
+                Rectangle {
+                    height: 40px;
+                    horizontal-stretch: 1;
+                    background: root.surface-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 10px;
+                    manual-input := TextInput {
+                        x: 12px;
+                        width: parent.width - 24px;
+                        height: 100%;
+                        text <=> root.manual-path;
+                        accessible-label: root.manual-path-label;
+                        color: root.text-color;
+                        font-size: 12px;
+                        edited => { root.manual-path-changed(root.manual-path); }
+                        accepted => { root.manual-path-accepted(root.manual-path); }
+                        key-pressed(event) => {
+                            if event.modifiers.control && (event.text == "l" || event.text == "L") {
+                                root.focus-location();
+                                return accept;
+                            }
+                            if event.modifiers.control && (event.text == "f" || event.text == "F") {
+                                root.focus-search();
+                                return accept;
+                            }
+                            if event.text == Key.Escape {
+                                root.cancel-requested();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.LeftArrow {
+                                root.navigate-back();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.RightArrow {
+                                root.navigate-forward();
+                                return accept;
+                            }
+                            if event.modifiers.alt && event.text == Key.UpArrow {
+                                root.navigate-up();
+                                return accept;
+                            }
+                            reject
+                        }
+                    }
+                    if root.manual-path == "": Text {
+                        x: 13px;
+                        width: parent.width - 26px;
+                        height: 100%;
+                        text: root.location-placeholder;
+                        color: root.muted-color;
+                        font-size: 12px;
+                        vertical-alignment: center;
+                    }
+                }
+                if root.filters.length > 0: PickerButton {
+                    label: root.filters[root.filter-index].label;
+                    glyph: "⌄";
+                    foreground: root.text-color;
+                    surface: root.elevated-color;
+                    stroke: root.border-color;
+                    clicked => { root.select-filter(Math.mod(root.filter-index + 1, root.filters.length)); }
+                }
+            }
+
+            if root.error-label != "": Text {
+                height: 22px;
+                text: root.error-label;
+                color: #ff9299;
+                font-size: 11px;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            HorizontalLayout {
+                height: 42px;
+                spacing: 8px;
+                Text { text: root.footer-hint; color: root.muted-color; font-size: 10px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                PickerButton { label: root.cancel-label; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.cancel-requested(); } }
+                PickerButton { label: root.accept-label; primary: true; accent: root.accent-color; accent-ink: root.accent-ink-color; clicked => { root.confirm-requested(); } }
+            }
+        }
+    }
+
+    if root.overwrite-pending: Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        background: #990b0d14;
+        TouchArea { }
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 420px;
+                    min-height: 190px;
+                    background: root.elevated-color;
+                    border-color: root.border-color;
+                    border-width: 1px;
+                    border-radius: 16px;
+                    VerticalLayout {
+                        padding: 22px;
+                        spacing: 12px;
+                        Text { text: root.replace-heading; color: root.text-color; font-size: 17px; font-weight: 700; }
+                        Text { text: root.replace-description; color: root.muted-color; font-size: 12px; wrap: word-wrap; vertical-stretch: 1; }
+                        HorizontalLayout {
+                            alignment: end;
+                            spacing: 8px;
+                            PickerButton {
+                                label: root.keep-label;
+                                foreground: root.text-color;
+                                surface: root.surface-color;
+                                stroke: root.border-color;
+                                clicked => { root.overwrite-response(false); }
+                            }
+                            PickerButton {
+                                label: root.replace-label;
+                                primary: true;
+                                accent: root.accent-color;
+                                accent-ink: root.accent-ink-color;
+                                clicked => { root.overwrite-response(true); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -13,11 +13,11 @@ set_tests_properties(lunadash-session-launcher PROPERTIES TIMEOUT 45)
 
 # The full UI/frontend suite is available to maintainers with its additional
 # system dependencies installed. Enabling it must fail, not skip, on omissions.
-option(LUDASH_BUILD_PORTAL_RUNTIME_TESTS "Run the real portal frontend and Xvfb UI suite" OFF)
+option(LUDASH_BUILD_PORTAL_RUNTIME_TESTS "Run the real portal frontend and Wayland UI suite" OFF)
 if(LUDASH_BUILD_PORTAL_RUNTIME_TESTS)
     find_program(LUDASH_XVFB_RUN xvfb-run REQUIRED)
     find_program(LUDASH_XAUTH xauth REQUIRED)
-    find_program(LUDASH_XDOTOOL xdotool REQUIRED)
+    find_program(LUDASH_WTYPE wtype REQUIRED)
     find_program(LUDASH_PORTAL_FRONTEND xdg-desktop-portal
         PATHS /usr/libexec /usr/lib REQUIRED)
     execute_process(COMMAND ${Python3_EXECUTABLE} -c "import dbus; from gi.repository import GLib"
@@ -28,5 +28,6 @@ if(LUDASH_BUILD_PORTAL_RUNTIME_TESTS)
     add_test(NAME lunadash-portal-runtime COMMAND sh
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/portal/run_runtime.sh
         ${CMAKE_CURRENT_BINARY_DIR} ${Python3_EXECUTABLE})
+    add_dependencies(lunadash-portal ludash-compositor)
     set_tests_properties(lunadash-portal-runtime PROPERTIES TIMEOUT 120)
 endif()

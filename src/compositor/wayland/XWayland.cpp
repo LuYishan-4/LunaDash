@@ -165,7 +165,7 @@ void WaylandCompositor::Impl::handleXWaylandMap(wl_listener *listener,
         *state->impl->q->pluginManager_,
         {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
         client->workspace, client->maximized,
-        desktopPreferences().value("workspaceCount").toInt());
+        desktopPreferences().value("workspaceCount", 10));
     client->workspace = rule.value("workspace").toInt();
     client->maximized = rule.value("maximized").toBool();
   }

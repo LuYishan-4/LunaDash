@@ -1,10 +1,9 @@
 #pragma once
 
-#include <QList>
-#include <QSize>
-#include <QString>
-#include <QtGlobal>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 
 struct wlr_allocator;
 struct wlr_renderer;
@@ -17,9 +16,17 @@ namespace LunaDash {
 // window membership, stacking and animation ownership.
 class WindowGlass final {
 public:
+  struct Size {
+    int width = 0;
+    int height = 0;
+
+    bool valid() const { return width > 0 && height > 0; }
+    bool operator==(const Size &) const = default;
+  };
+
   struct Surface {
     wlr_scene_tree *tree = nullptr;
-    QSize size;
+    Size size;
     bool enabled = true;
     int cornerRadius = 16;
     // A shell surface owns its alpha in its client buffer. Negative uses the
@@ -34,11 +41,11 @@ public:
   WindowGlass &operator=(const WindowGlass &) = delete;
 
   bool configure(bool blurEnabled, int radius, float opacity);
-  void update(const QList<Surface> &surfaces, bool animationsActive);
+  void update(const std::vector<Surface> &surfaces, bool animationsActive);
   bool ready() const;
   bool failed() const;
-  quint64 frames() const;
-  QString error() const;
+  std::uint64_t frames() const;
+  std::string error() const;
 
 private:
   class Impl;

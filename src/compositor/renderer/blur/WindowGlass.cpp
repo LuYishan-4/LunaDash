@@ -4,17 +4,53 @@
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 
-#include <QElapsedTimer>
-#include <QRect>
 #include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 namespace LunaDash {
 namespace {
+using Clock = std::chrono::steady_clock;
+
+struct Rect {
+  int x = 0;
+  int y = 0;
+  int width = 0;
+  int height = 0;
+
+  bool intersects(const Rect &other) const {
+    return width > 0 && height > 0 && other.width > 0 && other.height > 0 &&
+           x < other.x + other.width && other.x < x + width &&
+           y < other.y + other.height && other.y < y + height;
+  }
+  bool operator==(const Rect &) const = default;
+};
+
+struct Stopwatch {
+  Clock::time_point started{};
+  bool running = false;
+
+  void restart() {
+    started = Clock::now();
+    running = true;
+  }
+  bool isValid() const { return running; }
+  std::int64_t elapsed() const {
+    if (!running)
+      return 0;
+    return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() -
+                                                                 started)
+        .count();
+  }
+  void invalidate() { running = false; }
+};
+
 struct Fingerprint {
-  quint64 value = 14695981039346656037ULL;
+  std::uint64_t value = 14695981039346656037ULL;
 
   template <typename T> void add(const T &item) {
     const auto *bytes = reinterpret_cast<const unsigned char *>(&item);
@@ -37,9 +73,9 @@ public:
   struct SurfaceWatch {
     Impl *owner = nullptr;
     wlr_surface *surface = nullptr;
-    quint64 revision = 0;
+    std::uint64_t revision = 0;
     bool rapid = false;
-    QElapsedTimer commitClock;
+    Stopwatch commitClock;
     Templates::WaylandSlot<SurfaceWatch> commit;
     Templates::WaylandSlot<SurfaceWatch> destroy;
 
@@ -49,15 +85,16 @@ public:
           &surface->events.commit, commit, this,
           [](wl_listener *listener, void *) {
             auto *watch = Templates::listenerOwner<SurfaceWatch>(listener);
-            constexpr uint32_t content = WLR_SURFACE_STATE_BUFFER |
-                WLR_SURFACE_STATE_SURFACE_DAMAGE | WLR_SURFACE_STATE_BUFFER_DAMAGE |
-                WLR_SURFACE_STATE_TRANSFORM | WLR_SURFACE_STATE_SCALE |
-                WLR_SURFACE_STATE_VIEWPORT | WLR_SURFACE_STATE_OFFSET;
+            constexpr uint32_t content =
+                WLR_SURFACE_STATE_BUFFER | WLR_SURFACE_STATE_SURFACE_DAMAGE |
+                WLR_SURFACE_STATE_BUFFER_DAMAGE | WLR_SURFACE_STATE_TRANSFORM |
+                WLR_SURFACE_STATE_SCALE | WLR_SURFACE_STATE_VIEWPORT |
+                WLR_SURFACE_STATE_OFFSET;
             // Callback-only commits do not change pixels. Counting them would
             // let our own scene damage sustain an idle frame/blur loop.
             if (watch->surface->current.committed & content) {
-              watch->rapid =
-                  watch->commitClock.isValid() && watch->commitClock.elapsed() < 40;
+              watch->rapid = watch->commitClock.isValid() &&
+                             watch->commitClock.elapsed() < 40;
               watch->commitClock.restart();
               ++watch->revision;
               ++watch->owner->sceneRevision;
@@ -85,26 +122,26 @@ public:
     wlr_buffer *backing = nullptr;
     Templates::WaylandSlot<Entry> treeDestroy;
     Templates::WaylandSlot<Entry> glassDestroy;
-    QRect area;
-    QSize clipSize;
+    Rect area;
+    WindowGlass::Size clipSize;
     int cornerRadius = -1;
-    quint64 fingerprint = 0;
-    quint64 revision = 0;
-    quint64 sceneRevision = 0;
+    std::uint64_t fingerprint = 0;
+    std::uint64_t revision = 0;
+    std::uint64_t sceneRevision = 0;
     bool attempted = false;
     bool rapidBackdrop = false;
-    QElapsedTimer captureClock;
-    QString error;
+    Stopwatch captureClock;
+    std::string error;
 
     explicit Entry(wlr_scene_tree *value) : tree(value) {
-      Templates::attachListener(
-          &tree->node.events.destroy, treeDestroy, this,
-          [](wl_listener *listener, void *) {
-            auto *entry = Templates::listenerOwner<Entry>(listener);
-            Templates::detachListener(entry->treeDestroy);
-            entry->tree = nullptr;
-            entry->clearGlass();
-          });
+      Templates::attachListener(&tree->node.events.destroy, treeDestroy, this,
+                                [](wl_listener *listener, void *) {
+                                  auto *entry =
+                                      Templates::listenerOwner<Entry>(listener);
+                                  Templates::detachListener(entry->treeDestroy);
+                                  entry->tree = nullptr;
+                                  entry->clearGlass();
+                                });
     }
     ~Entry() {
       Templates::detachListener(treeDestroy);
@@ -153,13 +190,13 @@ public:
       return true;
     }
 
-    bool configureClips(QSize size, int radius) {
-      radius = std::max(0, std::min({radius, 32, size.width() / 2,
-                                     size.height() / 2}));
+    bool configureClips(WindowGlass::Size size, int radius) {
+      radius =
+          std::max(0, std::min({radius, 32, size.width / 2, size.height / 2}));
       if (!parts.empty() && clipSize == size && cornerRadius == radius)
         return true;
       ludash_corner_band bands[LUDASH_CORNER_MAX_BANDS];
-      const auto count = ludash_corner_bands(size.width(), size.height(), radius,
+      const auto count = ludash_corner_bands(size.width, size.height, radius,
                                              bands, LUDASH_CORNER_MAX_BANDS);
       if (!count)
         return false;
@@ -191,10 +228,10 @@ public:
     void setBuffer(wlr_buffer *buffer) {
       for (auto *part : parts) {
         const wlr_fbox crop{
-            double(part->node.x) * buffer->width / clipSize.width(),
-            double(part->node.y) * buffer->height / clipSize.height(),
-            double(part->dst_width) * buffer->width / clipSize.width(),
-            double(part->dst_height) * buffer->height / clipSize.height()};
+            double(part->node.x) * buffer->width / clipSize.width,
+            double(part->node.y) * buffer->height / clipSize.height,
+            double(part->dst_width) * buffer->width / clipSize.width,
+            double(part->dst_height) * buffer->height / clipSize.height};
         wlr_scene_buffer_set_source_box(part, &crop);
         wlr_scene_buffer_set_buffer(part, buffer);
       }
@@ -209,28 +246,28 @@ public:
   std::unordered_map<wlr_surface *, std::unique_ptr<SurfaceWatch>> watches;
   std::unordered_map<wlr_scene_tree *, float> steadyOpacity;
   bool enabled = true;
-  quint64 sceneRevision = 1;
+  std::uint64_t sceneRevision = 1;
   int radius = 18;
   float opacity = 0.96f;
   bool ready = false;
   bool failed = false;
-  quint64 frames = 0;
-  QString error;
+  std::uint64_t frames = 0;
+  std::string error;
 
   Impl(wlr_renderer *rendererValue, wlr_allocator *allocatorValue,
-        wlr_scene_node *rootValue)
+       wlr_scene_node *rootValue)
       : renderer(rendererValue), allocator(allocatorValue), root(rootValue) {
     if (root)
-      Templates::attachListener(
-          &root->events.destroy, rootDestroy, this,
-          [](wl_listener *listener, void *) {
-            auto *self = Templates::listenerOwner<Impl>(listener);
-            Templates::detachListener(self->rootDestroy);
-            self->entries.clear();
-            self->watches.clear();
-            self->steadyOpacity.clear();
-            self->root = nullptr;
-          });
+      Templates::attachListener(&root->events.destroy, rootDestroy, this,
+                                [](wl_listener *listener, void *) {
+                                  auto *self =
+                                      Templates::listenerOwner<Impl>(listener);
+                                  Templates::detachListener(self->rootDestroy);
+                                  self->entries.clear();
+                                  self->watches.clear();
+                                  self->steadyOpacity.clear();
+                                  self->root = nullptr;
+                                });
   }
   ~Impl() {
     Templates::detachListener(rootDestroy);
@@ -249,8 +286,8 @@ public:
   // Return true at the target window: only earlier painter-order nodes belong
   // in its backdrop. Our own sibling underlay is excluded from the cache key.
   bool fingerprint(wlr_scene_node *node, const Entry &entry, Fingerprint &hash,
-                    const QRect &sample, bool &rapidSource,
-                    int x = 0, int y = 0, int depth = 0) {
+                   const Rect &sample, bool &rapidSource, int x = 0, int y = 0,
+                   int depth = 0) {
     if (node == &entry.tree->node)
       return true;
     if (!node || !node->enabled || node == &entry.glass->node || depth > 128)
@@ -260,13 +297,13 @@ public:
     if (node->type == WLR_SCENE_NODE_TREE) {
       auto *tree = wlr_scene_tree_from_node(node);
       wlr_scene_node *child = nullptr;
-      wl_list_for_each(child, &tree->children, link)
-        if (fingerprint(child, entry, hash, sample, rapidSource,
-                        x, y, depth + 1))
-          return true;
+      wl_list_for_each(child, &tree->children,
+                       link) if (fingerprint(child, entry, hash, sample,
+                                             rapidSource, x, y,
+                                             depth + 1)) return true;
     } else if (node->type == WLR_SCENE_NODE_RECT) {
       const auto *rect = wlr_scene_rect_from_node(node);
-      if (!sample.intersects(QRect(x, y, rect->width, rect->height)))
+      if (!sample.intersects(Rect{x, y, rect->width, rect->height}))
         return false;
       hash.add(node);
       hash.add(x);
@@ -283,7 +320,7 @@ public:
       // panel must not invalidate every later window's backdrop. Do not hash
       // empty containers: only contributing leaves and painter order matter.
       if (buffer->dst_width > 0 && buffer->dst_height > 0 &&
-          !sample.intersects(QRect(x, y, buffer->dst_width, buffer->dst_height)))
+          !sample.intersects(Rect{x, y, buffer->dst_width, buffer->dst_height}))
         return false;
       hash.add(node);
       hash.add(x);
@@ -306,7 +343,7 @@ public:
         // buffer pointer. A successful lower capture increments its revision.
         bool managed = false;
         for (const auto &[tree, candidate] : entries) {
-          Q_UNUSED(tree);
+          (void)tree;
           if (candidate->glass && buffer->node.parent == candidate->glass) {
             hash.add(candidate->revision);
             managed = true;
@@ -321,8 +358,9 @@ public:
   }
 
   void collect(wlr_scene_node *node, std::vector<Entry *> &ordered,
-                int depth = 0) {
-    if (!node || !node->enabled || node->type != WLR_SCENE_NODE_TREE || depth > 128)
+               int depth = 0) {
+    if (!node || !node->enabled || node->type != WLR_SCENE_NODE_TREE ||
+        depth > 128)
       return;
     auto *tree = wlr_scene_tree_from_node(node);
     const auto found = entries.find(tree);
@@ -330,13 +368,13 @@ public:
       ordered.push_back(found->second.get());
     wlr_scene_node *child = nullptr;
     wl_list_for_each(child, &tree->children, link)
-      collect(child, ordered, depth + 1);
+        collect(child, ordered, depth + 1);
   }
 
   void capture(Entry &entry, bool animationsActive) {
-    const qint64 rapidIntervalMs = entries.size() >= 4 ? 100 : 66;
-    constexpr qint64 staticValidationMs = 100;
-    const bool available = entry.backing && entry.error.isEmpty();
+    const std::int64_t rapidIntervalMs = entries.size() >= 4 ? 100 : 66;
+    constexpr std::int64_t staticValidationMs = 100;
+    const bool available = entry.backing && entry.error.empty();
     if (available && entry.attempted && !animationsActive &&
         !entry.rapidBackdrop && entry.sceneRevision == sceneRevision &&
         entry.captureClock.isValid() &&
@@ -357,20 +395,20 @@ public:
     }
 
     Fingerprint hash;
-    hash.add(entry.area.x());
-    hash.add(entry.area.y());
-    hash.add(entry.area.width());
-    hash.add(entry.area.height());
+    hash.add(entry.area.x);
+    hash.add(entry.area.y);
+    hash.add(entry.area.width);
+    hash.add(entry.area.height);
     hash.add(radius);
     hash.add(entry.cornerRadius);
-    const wlr_box area{entry.area.x(), entry.area.y(), entry.area.width(),
-                       entry.area.height()};
+    const wlr_box area{entry.area.x, entry.area.y, entry.area.width,
+                       entry.area.height};
     wlr_box sample{};
     ludash_scene_backdrop_sample_box(&area, radius, &sample);
     bool rapidSource = false;
     const bool found = fingerprint(
         root, entry, hash,
-        QRect(sample.x, sample.y, sample.width, sample.height), rapidSource);
+        Rect{sample.x, sample.y, sample.width, sample.height}, rapidSource);
     if (!found)
       return;
     entry.sceneRevision = sceneRevision;
@@ -410,11 +448,11 @@ public:
       entry.rapidBackdrop = rapidSource;
       entry.captureClock.restart();
     }
-    const bool nowAvailable = entry.backing && entry.error.isEmpty();
+    const bool nowAvailable = entry.backing && entry.error.empty();
     if (entry.glass->node.enabled != nowAvailable)
       wlr_scene_node_set_enabled(&entry.glass->node, nowAvailable);
     ready = ready || nowAvailable;
-    if (!entry.error.isEmpty()) {
+    if (!entry.error.empty()) {
       failed = true;
       error = entry.error;
     }
@@ -422,22 +460,23 @@ public:
 };
 
 WindowGlass::WindowGlass(wlr_renderer *renderer, wlr_allocator *allocator,
-                          wlr_scene_node *root)
+                         wlr_scene_node *root)
     : d(std::make_unique<Impl>(renderer, allocator, root)) {}
 WindowGlass::~WindowGlass() = default;
 
 bool WindowGlass::configure(bool blurEnabled, int radius, float opacity) {
   radius = std::clamp(radius, 0, 32);
   opacity = std::clamp(opacity, 0.0f, 1.0f);
-  const bool changed = d->enabled != blurEnabled || d->radius != radius ||
-                       d->opacity != opacity;
+  const bool changed =
+      d->enabled != blurEnabled || d->radius != radius || d->opacity != opacity;
   d->enabled = blurEnabled;
   d->radius = radius;
   d->opacity = opacity;
   return changed;
 }
 
-void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) {
+void WindowGlass::update(const std::vector<Surface> &surfaces,
+                         bool animationsActive) {
   d->ready = false;
   d->failed = false;
   d->error.clear();
@@ -457,9 +496,10 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
       d->steadyOpacity.erase(tree);
     } else {
       const float opacity = surface.enabled
-          ? (surface.opacity >= 0.0f ? std::clamp(surface.opacity, 0.0f, 1.0f)
-                                     : d->opacity)
-          : 1.0f;
+                                ? (surface.opacity >= 0.0f
+                                       ? std::clamp(surface.opacity, 0.0f, 1.0f)
+                                       : d->opacity)
+                                : 1.0f;
       const auto applied = d->steadyOpacity.find(tree);
       if (applied == d->steadyOpacity.end() || applied->second != opacity) {
         float value = opacity;
@@ -469,7 +509,7 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
     }
     int x = 0, y = 0;
     if (!d->enabled || d->radius == 0 || !surface.enabled ||
-        !surface.size.isValid() || !tree->node.parent ||
+        !surface.size.valid() || !tree->node.parent ||
         !wlr_scene_node_coords(&tree->node, &x, &y))
       continue;
     active.insert(tree);
@@ -494,10 +534,11 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
     }
     if (entry->glass->node.x != tree->node.x ||
         entry->glass->node.y != tree->node.y) {
-      wlr_scene_node_set_position(&entry->glass->node, tree->node.x, tree->node.y);
+      wlr_scene_node_set_position(&entry->glass->node, tree->node.x,
+                                  tree->node.y);
       sceneChanged = true;
     }
-    const QRect nextArea(QPoint(x, y), surface.size);
+    const Rect nextArea{x, y, surface.size.width, surface.size.height};
     if (entry->area != nextArea) {
       entry->area = nextArea;
       entry->attempted = false;
@@ -512,9 +553,8 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
   std::erase_if(d->steadyOpacity, [&opacityActive](const auto &item) {
     return !opacityActive.contains(item.first);
   });
-  std::erase_if(d->watches, [](const auto &item) {
-    return !item.second->surface;
-  });
+  std::erase_if(d->watches,
+                [](const auto &item) { return !item.second->surface; });
   if (d->entries.empty()) {
     d->watches.clear();
     return;
@@ -528,7 +568,7 @@ void WindowGlass::update(const QList<Surface> &surfaces, bool animationsActive) 
 
 bool WindowGlass::ready() const { return d->ready; }
 bool WindowGlass::failed() const { return d->failed; }
-quint64 WindowGlass::frames() const { return d->frames; }
-QString WindowGlass::error() const { return d->error; }
+std::uint64_t WindowGlass::frames() const { return d->frames; }
+std::string WindowGlass::error() const { return d->error; }
 
 } // namespace LunaDash

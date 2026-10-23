@@ -1,6 +1,7 @@
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
+#include <QDBusMetaType>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
 #include <QDBusPendingReply>
@@ -69,6 +70,7 @@ private slots:
   void init() {
     QVERIFY(directory_.isValid());
     QVERIFY(bus_.isConnected());
+    qDBusRegisterMetaType<QList<QByteArray>>();
     auto environment = QProcessEnvironment::systemEnvironment();
     environment.insert("QT_QPA_PLATFORM", "offscreen");
     environment.insert("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
@@ -79,6 +81,7 @@ private slots:
     environment.insert("XDG_DATA_HOME", directory_.filePath("data"));
     environment.insert("XDG_CACHE_HOME", directory_.filePath("cache"));
     environment.insert("XDG_RUNTIME_DIR", directory_.path());
+    environment.insert("LUNADASH_FILE_PICKER_TEST_HOLD", "1");
     environment.insert("QT_IM_MODULE", "compose");
     backend_.setProcessEnvironment(environment);
     backend_.start(QCoreApplication::applicationDirPath() +
@@ -121,18 +124,32 @@ private slots:
         {"org.freedesktop.appearance", "color-scheme"});
     QVERIFY2(scheme.isValid(), qPrintable(scheme.error().message()));
     QVERIFY(scheme.value().variant().toUInt() == 1u || scheme.value().variant().toUInt() == 2u);
+    const QDBusReply<QDBusVariant> settingsVersion = call(
+        desktop, "org.freedesktop.DBus.Properties", "Get",
+        {"org.freedesktop.impl.portal.Settings", "version"});
+    QVERIFY2(settingsVersion.isValid(),
+             qPrintable(settingsVersion.error().message()));
+    QCOMPARE(settingsVersion.value().variant().toUInt(), 2u);
+    const auto readAll = call(desktop, "org.freedesktop.impl.portal.Settings",
+                              "ReadAll", {QStringList{}});
+    QCOMPARE(readAll.type(), QDBusMessage::ReplyMessage);
   }
 
   void closeCancelsAcrossProcesses_data() {
     QTest::addColumn<QString>("method");
     QTest::newRow("open") << QString("OpenFile");
     QTest::newRow("save") << QString("SaveFile");
+    QTest::newRow("save-files") << QString("SaveFiles");
   }
 
   void closeCancelsAcrossProcesses() {
     QFETCH(QString, method);
     const QString path = desktop + "/request/ctest/cancel";
-    const QVariantMap options{{"current_folder", directory_.path().toUtf8() + '\0'}};
+    QVariantMap options{{"current_folder", directory_.path().toUtf8() + '\0'}};
+    if (method == "SaveFiles")
+      options.insert(
+          "files", QVariant::fromValue(QList<QByteArray>{"draft.txt",
+                                                          "archive.tar.gz"}));
     auto message = QDBusMessage::createMethodCall(service, desktop, fileInterface, method);
     message.setArguments({QVariant::fromValue(QDBusObjectPath(path)), QString{}, QString{},
                           QString("Portal cancellation regression"), options});

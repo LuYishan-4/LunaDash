@@ -22,11 +22,7 @@ for name in (
     "opengl/Framebuffer.cpp",
     "opengl/ShaderAsset.cpp",
     "element/ElementRender.hpp",
-    "async/RenderAsync.hpp",
-    "blur/BlurItem.cpp",
-    "blur/BlurGeometry.cpp",
     "opengl/blur/BlurPass.cpp",
-    "opengl/blur/BlurNode.cpp",
     "opengl/wallpaper/WallpaperElement.cpp",
     "opengl/decoration/DecorationElement.cpp",
 ):
@@ -49,7 +45,15 @@ for target in (
 assert "src/compositor/window/animation/SceneAnimation.cpp" in cmake
 assert (root / "src/compositor/window/animation/WindowAnimation.hpp").is_file()
 assert (root / "src/compositor/window/animation/SceneAnimation.hpp").is_file()
-assert "PREFIX /LunaDash/renderer/shaders" in cmake
+assert "ShaderResources.hpp.in" in cmake
+assert "PkgConfig::LUDASH_EGL" in cmake
+assert "qt_add_resources" not in cmake
+assert "Qt6::Quick" not in cmake
 assert "LUDASH_RENDERER_OPENGL=1" in cmake
 assert "file(GLOB" not in cmake, "Renderer sources/resources must be explicit"
+for path in renderer.rglob("*"):
+    if path.suffix not in {".c", ".cpp", ".h", ".hpp"}:
+        continue
+    text = path.read_text(encoding="utf-8")
+    assert "#include <Q" not in text, f"Qt include remains in {path}"
 print("Renderer boundaries and embedded resource build passed")

@@ -5,6 +5,11 @@
 // Keep those lexical incompatibilities inside this one compatibility boundary;
 // the macros are undefined immediately after the C headers are parsed.
 #ifdef __cplusplus
+// wayland-util.h includes <math.h>; libstdc++'s C++ math declarations must be
+// parsed before the C keyword compatibility macros below are active. glibc's
+// pthread.h also contains a C++ cleanup helper that must be parsed first.
+#include <cmath>
+#include <pthread.h>
 #define static
 #define class class_
 #define delete delete_
@@ -77,6 +82,12 @@ extern "C" {
 #include <wlr/types/wlr_virtual_keyboard_v1.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
+#if __has_include(<wlr/types/wlr_xdg_activation_v1.h>)
+#include <wlr/types/wlr_xdg_activation_v1.h>
+#define LUDASH_WLR_HAS_XDG_ACTIVATION 1
+#else
+#define LUDASH_WLR_HAS_XDG_ACTIVATION 0
+#endif
 #include <wlr/types/wlr_xdg_shell.h>
 #if __has_include(<wlr/xwayland.h>)
 #include <wlr/xwayland.h>

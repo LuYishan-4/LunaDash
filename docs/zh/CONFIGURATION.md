@@ -2,23 +2,19 @@
 
 [English](../en/CONFIGURATION.md) · [繁中索引](README.md)
 
-第一次登入會顯示簡單的歡迎畫面與 LunaDash 網站連結。按 **開始使用桌面** 會記錄 setup complete，即使離線也可完成。語言、網路與外觀都留在 Settings 中，歡迎頁不會替你修改這些偏好。
+第一次登入的 Quickshell 導覽提供語言與減少動態效果控制，並連結 LunaDash 網站。獨立的 `lunadash-desktop --app welcome` 使用另一個 Slint Wayland 視窗，並透過相同 control socket 操作。按 **開始使用桌面** 會記錄初始設定完成，即使離線也可完成；只開啟文件不會完成設定。一般設定仍可重新開啟導覽；網路偏好留在 Settings。
 
 ## 網路
 
-LunaDash 每五秒透過 NetworkManager D-Bus 讀取既有連線狀態，不自行建立帳號、不修改 connection profile、不啟用服務，也不做外部連線探測。**設定網路** 會優先開 `nm-connection-editor`，否則嘗試在 Kitty／Konsole／Alacritty／foot 中執行 `nmtui`。密碼留在外部工具，不寫入 LunaDash IPC。
+LunaDash 每 30 秒透過 `nmcli` 讀取 NetworkManager 裝置、已儲存連線與 Wi‑Fi 資訊，並在 LunaDash 網路操作後立即更新。若沒有 `nmcli`，改讀 NetworkManager D-Bus 狀態；若沒有 NetworkManager，則只回報可能存在的網路 link。LunaDash 不會自行建立帳號、啟用服務或探測外部連線；只有使用者在 Settings 明確要求時才修改 connection profile。連線狀態不會直接當成已驗證 Internet：captive portal 與未知連線狀態會分開顯示。
 
-若系統沒有 NetworkManager，LunaDash 最多只能回報可能存在的 link，不能把它當作已驗證 Internet 連線。原生 Wi‑Fi credential 表單與 captive portal 流程目前未實作。
+**設定網路** 會優先開 `nm-connection-editor`，否則嘗試在 Kitty／Konsole／Alacritty／foot 中執行 `nmtui`。密碼留在外部工具，不寫入 LunaDash IPC。
+
+原生 Wi‑Fi credential 表單與 captive portal 瀏覽流程目前未實作。
 
 ## 儲存的偏好
 
-預設設定檔：
-
-```text
-~/.config/LuDash/LuDash.conf
-```
-
-`XDG_CONFIG_HOME` 會改變其根目錄。活動中的工作階段可能覆寫手動修改，因此要直接編輯檔案時最好先停止 LunaDash。
+桌面偏好、桌布狀態與快捷鍵會以原子寫入方式儲存至 `${XDG_CONFIG_HOME:-$HOME/.config}/LunaDash/desktop-preferences.json`，檔案權限僅限擁有者讀寫。首次使用各設定類別時，LunaDash 會從舊版 `LunaDash.conf`／`LunaDash.ini` 匯入有效的 `desktop/*` 值、初始設定完成狀態、桌布選擇／shader／歷史／收藏／revision，以及快捷鍵，並保留舊檔。語言等其他外觀設定仍留在舊檔，等待後續遷移。
 
 | Key | 預設 | 範圍／值 |
 | --- | --- | --- |

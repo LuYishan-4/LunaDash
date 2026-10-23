@@ -30,9 +30,31 @@ if(LUDASH_VULKAN_FOUND)
 endif()
 message(STATUS "LunaDash Vulkan: enabled=${LUDASH_ENABLE_VULKAN}, wlroots=${LUDASH_WLROOTS_VULKAN}")
 
-# Modular render architecture. Low-level GL ownership, shader assets,
-# render elements and feature passes are separate targets so future renderers
-# can replace one layer without rewriting the rest of the pipeline.
+# Toolkit-neutral OpenGL utilities used by LunaDash-owned render elements.
+# The compositor's client scene remains owned by wlroots; this API only runs
+# when an EGL OpenGL context is current in the calling process.
+pkg_check_modules(LUDASH_EGL REQUIRED IMPORTED_TARGET egl)
+
+set(LUDASH_RENDER_SHADER_FILES
+    src/compositor/renderer/opengl/shaders/Fullscreen.vert
+    src/compositor/renderer/opengl/shaders/Wallpaper.frag
+    src/compositor/renderer/opengl/shaders/Blur.frag
+    src/compositor/renderer/opengl/shaders/Decoration.frag)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${LUDASH_RENDER_SHADER_FILES})
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/compositor/renderer/opengl/shaders/Fullscreen.vert"
+    LUDASH_SHADER_FULLSCREEN_VERT)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/compositor/renderer/opengl/shaders/Wallpaper.frag"
+    LUDASH_SHADER_WALLPAPER_FRAG)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/compositor/renderer/opengl/shaders/Blur.frag"
+    LUDASH_SHADER_BLUR_FRAG)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/compositor/renderer/opengl/shaders/Decoration.frag"
+    LUDASH_SHADER_DECORATION_FRAG)
+set(LUDASH_RENDER_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/renderer")
+file(MAKE_DIRECTORY "${LUDASH_RENDER_GENERATED_DIR}")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ShaderResources.hpp.in
+    ${LUDASH_RENDER_GENERATED_DIR}/ShaderResources.hpp @ONLY)
+
 add_library(ludash-render-gl
     src/compositor/renderer/opengl/GLDispatch.c
     src/compositor/renderer/opengl/OpenGL.cpp
@@ -41,41 +63,28 @@ add_library(ludash-render-gl
 target_include_directories(ludash-render-gl
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${LUDASH_GL_INCLUDE_DIR})
 target_link_libraries(ludash-render-gl
-    PUBLIC Qt6::Core Qt6::Quick Qt6::OpenGL)
+    PUBLIC PkgConfig::LUDASH_EGL)
 target_compile_definitions(ludash-render-gl PUBLIC LUDASH_RENDERER_OPENGL=1)
 target_compile_options(ludash-render-gl PRIVATE -Wall -Wextra -Wpedantic)
-
-# Built-in implementation resources are explicit and embedded, never opened
-# relative to the repository or process working directory.
-set(LUDASH_RENDER_SHADER_FILES
-    src/compositor/renderer/opengl/shaders/Fullscreen.vert
-    src/compositor/renderer/opengl/shaders/Wallpaper.frag
-    src/compositor/renderer/opengl/shaders/Blur.frag
-    src/compositor/renderer/opengl/shaders/Decoration.frag)
 
 add_library(ludash-render-shader
     src/compositor/renderer/opengl/ShaderAsset.cpp
     src/compositor/renderer/opengl/Program.cpp
     src/compositor/renderer/opengl/Shader.cpp)
-target_include_directories(ludash-render-shader PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(ludash-render-shader
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PRIVATE ${LUDASH_RENDER_GENERATED_DIR})
 target_link_libraries(ludash-render-shader
-    PUBLIC ludash-render-gl Qt6::Core Qt6::OpenGL)
-qt_add_resources(ludash-render-shader renderer_shaders
-    PREFIX /LunaDash/renderer/shaders
-    BASE ${CMAKE_CURRENT_SOURCE_DIR}/src/compositor/renderer/opengl/shaders
-    FILES ${LUDASH_RENDER_SHADER_FILES})
+    PUBLIC ludash-render-gl)
 
 add_library(ludash-render-core
-    src/compositor/renderer/async/RenderAsync.hpp
     src/compositor/renderer/element/ElementRender.hpp
     src/compositor/renderer/Renderer.cpp
     src/compositor/renderer/opengl/wallpaper/WallpaperElement.cpp
-    src/compositor/renderer/opengl/wallpaper/WallpaperRenderer.cpp
-    src/compositor/renderer/wallpaper/WallpaperItem.cpp
     src/compositor/renderer/opengl/decoration/DecorationElement.cpp)
 target_include_directories(ludash-render-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(ludash-render-core
-    PUBLIC ludash-render-shader Qt6::Quick Qt6::OpenGL Qt6::Concurrent)
+    PUBLIC ludash-render-shader)
 target_compile_options(ludash-render-core PRIVATE -Wall -Wextra -Wpedantic)
 
 add_library(ludash-renderer INTERFACE)
@@ -83,23 +92,19 @@ target_include_directories(ludash-renderer INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(ludash-renderer INTERFACE ludash-render-core)
 
 add_library(ludash-blur
-    src/compositor/renderer/blur/BlurItem.cpp
-    src/compositor/renderer/opengl/blur/BlurNode.cpp
-    src/compositor/renderer/blur/BlurGeometry.cpp
     src/compositor/renderer/opengl/blur/BlurPass.cpp)
 target_include_directories(ludash-blur PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(ludash-blur
-    PUBLIC ludash-renderer Qt6::Quick Qt6::OpenGL)
+target_link_libraries(ludash-blur PUBLIC ludash-renderer)
 
 add_library(ludash-animation
     src/compositor/window/animation/SceneAnimation.cpp)
 target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set_target_properties(ludash-animation PROPERTIES AUTOMOC OFF)
 target_compile_definitions(ludash-animation PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-animation
-    PUBLIC Qt6::Core
     PRIVATE PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
 
 add_library(ludash-shell-renderer
     src/shell/runtime/ShellRenderer.cpp)
+set_target_properties(ludash-shell-renderer PROPERTIES AUTOMOC OFF)
 target_include_directories(ludash-shell-renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(ludash-shell-renderer PUBLIC Qt6::Core)

@@ -1,0 +1,276 @@
+import { LineEdit, TextEdit } from "std-widgets.slint";
+
+component PackageAction inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    in property <bool> enabled: true;
+    in property <color> accent: #9ccbfb;
+    in property <color> accent-ink: #171922;
+    in property <color> surface: #292d39;
+    in property <color> foreground: #f1f1f5;
+    in property <color> border: #4c5060;
+    callback clicked();
+
+    height: 38px;
+    horizontal-stretch: 1;
+    min-width: 0px;
+    background: root.primary ? root.accent : root.surface;
+    border-color: root.primary ? root.accent : root.border;
+    border-width: 1px;
+    border-radius: 10px;
+    opacity: root.enabled ? 1 : 0.48;
+
+    Text {
+        text: root.label;
+        color: root.primary ? root.accent-ink : root.foreground;
+        font-size: 12px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component PackageManagerWindow inherits Window {
+    title: root.window-title;
+    preferred-width: 820px;
+    preferred-height: 580px;
+    min-width: 420px;
+    min-height: 360px;
+    background: root.background-color;
+
+    in-out property <string> window-title: "LunaDash · Package manager";
+    in-out property <string> heading: "Package manager";
+    in-out property <string> description: "pacman: queries run without administrator privileges. Confirm installation and removal in a terminal.";
+    in-out property <string> package-name: "";
+    in-out property <string> package-placeholder: "Package name, for example fcitx5";
+    in-out property <string> output: "";
+    in-out property <string> status: "";
+    in-out property <string> installed-label: "Installed";
+    in-out property <string> search-label: "Search";
+    in-out property <string> install-label: "Install";
+    in-out property <string> remove-label: "Remove";
+    in-out property <string> upgrade-label: "Full upgrade";
+    in-out property <string> output-label: "Output";
+    in-out property <string> confirm-title: "Confirm in terminal";
+    in-out property <string> confirm-copy: "The terminal will run:";
+    in-out property <string> confirm-command: "";
+    in-out property <string> confirm-label: "Open terminal";
+    in-out property <string> cancel-label: "Cancel";
+    in-out property <bool> pacman-available: true;
+    in-out property <bool> busy: false;
+    in-out property <bool> confirmation-visible: false;
+    in-out property <color> background-color: #171922;
+    in-out property <color> surface-color: #20232e;
+    in-out property <color> elevated-color: #292d39;
+    in-out property <color> text-color: #f1f1f5;
+    in-out property <color> muted-color: #a5a8b5;
+    in-out property <color> border-color: #4c5060;
+    in-out property <color> accent-color: #9ccbfb;
+    in-out property <color> accent-ink-color: #171922;
+
+    callback installed-requested();
+    callback search-requested();
+    callback install-requested();
+    callback remove-requested();
+    callback upgrade-requested();
+    callback transaction-confirmed();
+    callback transaction-cancelled();
+
+    VerticalLayout {
+        padding: 22px;
+        spacing: 14px;
+
+        Rectangle {
+            height: 86px;
+            background: root.surface-color;
+            border-color: root.border-color;
+            border-width: 1px;
+            border-radius: 16px;
+
+            VerticalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 12px;
+                padding-bottom: 12px;
+                spacing: 4px;
+
+                Text {
+                    text: root.heading;
+                    color: root.text-color;
+                    font-size: 21px;
+                    font-weight: 700;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.description;
+                    color: root.muted-color;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                    overflow: elide;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            height: 38px;
+            spacing: 8px;
+
+            LineEdit {
+                text <=> root.package-name;
+                placeholder-text: root.package-placeholder;
+                enabled: root.pacman-available && !root.busy;
+                horizontal-stretch: 1;
+                min-width: 100px;
+            }
+            PackageAction {
+                label: root.search-label;
+                enabled: root.pacman-available && !root.busy;
+                accent: root.accent-color;
+                accent-ink: root.accent-ink-color;
+                surface: root.elevated-color;
+                foreground: root.text-color;
+                border: root.border-color;
+                clicked => { root.search-requested(); }
+            }
+        }
+
+        HorizontalLayout {
+            height: 38px;
+            spacing: 8px;
+            PackageAction {
+                label: root.installed-label;
+                enabled: root.pacman-available && !root.busy;
+                accent: root.accent-color;
+                accent-ink: root.accent-ink-color;
+                surface: root.elevated-color;
+                foreground: root.text-color;
+                border: root.border-color;
+                clicked => { root.installed-requested(); }
+            }
+            PackageAction {
+                label: root.install-label;
+                primary: true;
+                enabled: root.pacman-available && !root.busy;
+                accent: root.accent-color;
+                accent-ink: root.accent-ink-color;
+                surface: root.elevated-color;
+                foreground: root.text-color;
+                border: root.border-color;
+                clicked => { root.install-requested(); }
+            }
+            PackageAction {
+                label: root.remove-label;
+                enabled: root.pacman-available && !root.busy;
+                accent: root.accent-color;
+                accent-ink: root.accent-ink-color;
+                surface: root.elevated-color;
+                foreground: root.text-color;
+                border: root.border-color;
+                clicked => { root.remove-requested(); }
+            }
+            PackageAction {
+                label: root.upgrade-label;
+                enabled: root.pacman-available && !root.busy;
+                accent: root.accent-color;
+                accent-ink: root.accent-ink-color;
+                surface: root.elevated-color;
+                foreground: root.text-color;
+                border: root.border-color;
+                clicked => { root.upgrade-requested(); }
+            }
+        }
+
+        Text {
+            text: root.output-label;
+            color: root.muted-color;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        TextEdit {
+            text: root.output;
+            read-only: true;
+            wrap: word-wrap;
+            vertical-stretch: 1;
+            min-height: 80px;
+        }
+
+        Text {
+            text: root.status;
+            color: root.accent-color;
+            font-size: 11px;
+            overflow: elide;
+        }
+    }
+
+    if root.confirmation-visible: Rectangle {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        background: #99000000;
+
+        TouchArea { }
+
+        Rectangle {
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2;
+            width: min(root.width - 40px, 560px);
+            height: 230px;
+            background: root.surface-color;
+            border-color: root.border-color;
+            border-width: 1px;
+            border-radius: 16px;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                Text {
+                    text: root.confirm-title;
+                    color: root.text-color;
+                    font-size: 18px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: root.confirm-copy;
+                    color: root.muted-color;
+                }
+                Text {
+                    text: root.confirm-command;
+                    color: root.text-color;
+                    wrap: word-wrap;
+                    vertical-stretch: 1;
+                }
+                HorizontalLayout {
+                    height: 38px;
+                    spacing: 8px;
+                    PackageAction {
+                        label: root.cancel-label;
+                        accent: root.accent-color;
+                        accent-ink: root.accent-ink-color;
+                        surface: root.elevated-color;
+                        foreground: root.text-color;
+                        border: root.border-color;
+                        clicked => { root.transaction-cancelled(); }
+                    }
+                    PackageAction {
+                        label: root.confirm-label;
+                        primary: true;
+                        accent: root.accent-color;
+                        accent-ink: root.accent-ink-color;
+                        surface: root.elevated-color;
+                        foreground: root.text-color;
+                        border: root.border-color;
+                        clicked => { root.transaction-confirmed(); }
+                    }
+                }
+            }
+        }
+    }
+}

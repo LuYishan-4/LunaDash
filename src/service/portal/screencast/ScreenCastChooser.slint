@@ -1,0 +1,248 @@
+import { ScrollView } from "std-widgets.slint";
+
+export struct ShareSource {
+    label: string,
+    preview: image,
+}
+
+component ShareButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    in property <color> foreground: #f1f1f5;
+    in property <color> accent: #9ccbfb;
+    in property <color> accent-ink: #171922;
+    in property <color> surface: #292d39;
+    in property <color> stroke-color: #4c5060;
+    callback clicked();
+
+    height: 42px;
+    min-width: 112px;
+    background: root.primary ? root.accent : root.surface;
+    border-color: root.primary ? root.accent : root.stroke-color;
+    border-width: 1px;
+    border-radius: 11px;
+    accessible-role: button;
+    accessible-label: root.label;
+
+    Text {
+        text: root.label;
+        color: root.primary ? root.accent-ink : root.foreground;
+        font-size: 13px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component ShareSourceCard inherits Rectangle {
+    in property <string> label;
+    in property <image> preview;
+    in property <bool> selected: false;
+    in property <color> surface: #20232e;
+    in property <color> elevated: #292d39;
+    in property <color> foreground: #f1f1f5;
+    in property <color> muted: #a5a8b5;
+    in property <color> stroke-color: #4c5060;
+    in property <color> accent: #9ccbfb;
+    callback clicked();
+
+    height: 196px;
+    background: root.selected ? root.elevated : root.surface;
+    border-color: root.selected ? root.accent : root.stroke-color;
+    border-width: root.selected ? 2px : 1px;
+    border-radius: 15px;
+    clip: true;
+
+    Rectangle {
+        x: 10px;
+        y: 10px;
+        width: parent.width - 20px;
+        height: 137px;
+        background: #111521;
+        border-radius: 9px;
+        clip: true;
+
+        if root.preview.width > 0 && root.preview.height > 0: Image {
+            width: 100%;
+            height: 100%;
+            source: root.preview;
+            image-fit: cover;
+        }
+        if root.preview.width == 0 || root.preview.height == 0: Text {
+            text: "▣";
+            color: root.muted;
+            font-size: 34px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    Text {
+        x: 14px;
+        y: 155px;
+        width: parent.width - 28px;
+        height: 25px;
+        text: root.label;
+        color: root.foreground;
+        font-size: 13px;
+        font-weight: 600;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ScreenCastChooserWindow inherits Window {
+    title: root.window-title;
+    preferred-width: 860px;
+    preferred-height: 650px;
+    min-width: 560px;
+    min-height: 460px;
+    background: root.background-color;
+    forward-focus: key-handler;
+
+    in property <string> window-title: "Share your screen";
+    in property <string> heading: "Choose what to share";
+    in property <string> description: "Select a screen or application window. Visible LunaDash windows use a live frame preview captured when this chooser opens; unavailable or minimized windows keep a labelled card.";
+    in property <string> preview-note: "Previews are local and are not shared until you confirm.";
+    in property <string> cancel-label: "Cancel";
+    in property <string> share-label: "Share";
+    in property <[ShareSource]> sources;
+    in-out property <int> selected-index: 0;
+    in property <color> background-color: #171922;
+    in property <color> surface-color: #20232e;
+    in property <color> elevated-color: #292d39;
+    in property <color> text-color: #f1f1f5;
+    in property <color> muted-color: #a5a8b5;
+    in property <color> border-color: #4c5060;
+    in property <color> accent-color: #9ccbfb;
+    in property <color> accent-ink-color: #171922;
+
+    callback confirm(index: int);
+    callback cancel();
+
+    public function reset-focus() {
+        key-handler.focus();
+    }
+
+    key-handler := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.LeftArrow || event.text == Key.UpArrow {
+                root.selected-index = max(0, root.selected-index - 1);
+                return accept;
+            }
+            if event.text == Key.RightArrow || event.text == Key.DownArrow {
+                root.selected-index = min(root.sources.length - 1, root.selected-index + 1);
+                return accept;
+            }
+            if event.text == Key.Return || event.text == " " {
+                root.confirm(root.selected-index);
+                return accept;
+            }
+            if event.text == Key.Escape {
+                root.cancel();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        background: root.background-color;
+        border-color: root.border-color;
+        border-width: 1px;
+        border-radius: 22px;
+        clip: true;
+
+        VerticalLayout {
+            x: 0px;
+            y: 0px;
+            width: 100%;
+            height: 100%;
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-top: 22px;
+            padding-bottom: 20px;
+            spacing: 12px;
+
+            VerticalLayout {
+                spacing: 5px;
+                Text {
+                    text: root.heading;
+                    color: root.text-color;
+                    font-size: 21px;
+                    font-weight: 700;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.description;
+                    color: root.muted-color;
+                    font-size: 12px;
+                    wrap: word-wrap;
+                    max-height: 48px;
+                    overflow: elide;
+                }
+            }
+
+            ScrollView {
+                width: 100%;
+                vertical-stretch: 1;
+                min-height: 0px;
+                VerticalLayout {
+                    width: 100%;
+                    spacing: 11px;
+                    for source[index] in root.sources: ShareSourceCard {
+                        width: 100%;
+                        label: source.label;
+                        preview: source.preview;
+                        selected: root.selected-index == index;
+                        surface: root.surface-color;
+                        elevated: root.elevated-color;
+                        foreground: root.text-color;
+                        muted: root.muted-color;
+                        stroke-color: root.border-color;
+                        accent: root.accent-color;
+                        clicked => { root.selected-index = index; }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: root.preview-note;
+                    color: root.muted-color;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                    overflow: elide;
+                }
+                ShareButton {
+                    label: root.cancel-label;
+                    foreground: root.text-color;
+                    surface: root.elevated-color;
+                    stroke-color: root.border-color;
+                    clicked => { root.cancel(); }
+                }
+                ShareButton {
+                    label: root.share-label;
+                    primary: true;
+                    accent: root.accent-color;
+                    accent-ink: root.accent-ink-color;
+                    clicked => { root.confirm(root.selected-index); }
+                }
+            }
+        }
+    }
+}

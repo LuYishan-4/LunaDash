@@ -12,12 +12,12 @@ public:
   Framebuffer(const Framebuffer &) = delete;
   Framebuffer &operator=(const Framebuffer &) = delete;
 
-  bool resize(LuDashGLDispatch &gl, const QSize &size);
+  bool resize(LuDashGLDispatch &gl, RenderSize size);
   void bind(GLenum target = GL_FRAMEBUFFER) const;
   void reset();
   GLuint id() const;
   GLuint texture() const;
-  QSize size() const;
+  RenderSize size() const;
   bool valid() const;
 
 private:

@@ -1,7 +1,8 @@
 #pragma once
+#include "core/process/ProcessEnvironment.hpp"
+
 #include <QObject>
 #include <QProcess>
-#include <QProcessEnvironment>
 #include <QTemporaryFile>
 #include <QTimer>
 #include <memory>
@@ -12,9 +13,9 @@ class ScreenCapture final : public QObject {
 public:
   explicit ScreenCapture(QObject *parent = nullptr);
   ~ScreenCapture() override;
-  bool selectRegion(const QProcessEnvironment &environment, const QString &path,
+  bool selectRegion(const ProcessEnvironment &environment, const QString &path,
                     QString *error);
-  bool captureOutput(const QProcessEnvironment &environment, const QString &path,
+  bool captureOutput(const ProcessEnvironment &environment, const QString &path,
                      QString *error);
   bool busy() const;
   QString phase() const;
@@ -24,7 +25,7 @@ signals:
 private:
   QProcess process_;
   QTimer timeout_;
-  QProcessEnvironment environment_;
+  ProcessEnvironment environment_;
   std::unique_ptr<QTemporaryFile> temporary_;
   QString destination_;
   QString grim_;

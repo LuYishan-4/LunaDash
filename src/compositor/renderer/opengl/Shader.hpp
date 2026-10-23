@@ -2,13 +2,14 @@
 #include "compositor/renderer/opengl/GLDispatch.h"
 #include "compositor/renderer/opengl/ShaderAsset.hpp"
 #include <memory>
+#include <string>
 
 namespace LunaDash {
 class Shader final {
 public:
   static std::unique_ptr<Shader> compile(const LuDashGLDispatch &dispatch,
                                          const ShaderAsset &asset,
-                                         QString *error);
+                                         std::string *error);
   ~Shader();
   Shader(const Shader &) = delete;
   Shader &operator=(const Shader &) = delete;

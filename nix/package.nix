@@ -1,11 +1,16 @@
 { lib, stdenv, runCommand, cmake, ninja, pkg-config, python3, makeWrapper
+, rustc, cargo, rustPlatform, corrosion
+, nlohmann_json
 , qt6, wayland, wayland-protocols, wayland-scanner, wlroots_0_20
-, libxkbcommon, libGL, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, quickshell
-, coreutils, bash, gnused, xwayland, xdg-utils, wl-clipboard, grim, slurp
+, libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, quickshell
+, coreutils, bash, gnused, curl, gdk-pixbuf, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages
-, xdg-desktop-portal-wlr, revision ? "unknown", shellSource
+, xdg-desktop-portal-wlr, revision ? "unknown", shellSource, slintSource
 }:
 let
+  slintCargoDeps = rustPlatform.importCargoLock {
+    lockFile = "${slintSource}/Cargo.lock";
+  };
   # Quickshell must inherit the QML modules imported by LunaDash, including
   # QtMultimedia, rather than relying on a user's profile or global Qt paths.
   shell = runCommand "lunadash-quickshell" {
@@ -33,17 +38,21 @@ stdenv.mkDerivation {
     ];
   };
 
-  nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper wayland-scanner qt6.wrapQtAppsHook ];
+  nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper rustc cargo
+    rustPlatform.cargoSetupHook corrosion wayland-scanner qt6.wrapQtAppsHook ];
+  cargoDeps = slintCargoDeps;
   buildInputs = [
-    qt6.qtbase qt6.qtdeclarative qt6.qtwayland qt6.qtsvg qt6.qtmultimedia
+    qt6.qtbase qt6.qtdeclarative qt6.qtwayland qt6.qtsvg qt6.qtmultimedia fontconfig freetype
     vulkan-headers vulkan-loader wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
-    pixman libdrm libxcb systemd
+    pixman libdrm libxcb systemd nlohmann_json libglvnd gdk-pixbuf curl
   ];
   cmakeFlags = [
     "-DBUILD_TESTING=OFF"
     "-DCMAKE_INSTALL_SYSCONFDIR=etc"
     "-DCMAKE_INSTALL_LIBEXECDIR=libexec"
     "-DLUDASH_QML_SOURCE_DIR=${shellSource}"
+    "-DFETCHCONTENT_SOURCE_DIR_SLINT=${slintSource}"
+    "-DFETCHCONTENT_FULLY_DISCONNECTED=ON"
   ];
   postPatch = ''
     printf '%s\n' '${revision}' > .lunadash-revision

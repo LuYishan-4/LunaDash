@@ -10,9 +10,9 @@ class WallpaperElement final : public ElementRender {
 public:
   void setPalette(int palette);
 
-  bool prepare(Renderer &renderer, QString *error = nullptr) override;
+  bool prepare(Renderer &renderer, std::string *error = nullptr) override;
   bool render(Renderer &renderer, const ElementRenderContext &context,
-              QString *error = nullptr) override;
+              std::string *error = nullptr) override;
   void release() override;
 
 private:

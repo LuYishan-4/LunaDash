@@ -29,8 +29,12 @@ QJsonArray WaylandCompositor::Impl::displayModes() const {
     for (const QSize size :
          {QSize(1280, 720), QSize(1440, 900), QSize(1920, 1080)})
       result.append(QJsonObject{
-          {"id", modeId(size.width(), size.height(), 0)},
-          {"label", QString("%1 × %2").arg(size.width()).arg(size.height())}});
+          {"id", modeId(size.width(), size.height(),
+                         kDefaultOutputRefreshMilliHz)},
+          {"label", QString("%1 × %2 · %3 Hz")
+                        .arg(size.width())
+                        .arg(size.height())
+                        .arg(kDefaultOutputRefreshMilliHz / 1000.0, 0, 'f', 2)}});
   }
   return result;
 }
@@ -74,7 +78,8 @@ bool WaylandCompositor::Impl::configureDisplay(const QJsonObject &changes,
           continue;
         const auto size = id.section('@', 0, 0).split('x');
         wlr_output_state_set_custom_mode(&next, size[0].toInt(),
-                                         size[1].toInt(), 0);
+                                         size[1].toInt(),
+                                         kDefaultOutputRefreshMilliHz);
         found = true;
         break;
       }

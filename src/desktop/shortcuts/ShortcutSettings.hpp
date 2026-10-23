@@ -1,8 +1,9 @@
 #pragma once
 
-#include <QJsonObject>
-#include <QString>
+#include <nlohmann/json.hpp>
+
 #include <cstdint>
+#include <string>
 #include <xkbcommon/xkbcommon.h>
 
 namespace LunaDash {
@@ -18,13 +19,15 @@ class ShortcutSettings {
 public:
   ShortcutSettings();
 
-  QJsonObject snapshot() const;
-  QString actionFor(xkb_keysym_t keysym, uint32_t modifiers) const;
-  bool apply(const QJsonObject &changes, QString *error);
-  void reset();
+  explicit ShortcutSettings(nlohmann::json legacyBindings);
+
+  nlohmann::json snapshot() const;
+  std::string actionFor(xkb_keysym_t keysym, uint32_t modifiers) const;
+  bool apply(const nlohmann::json &changes, std::string *error);
+  bool reset(std::string *error);
 
 private:
-  QJsonObject bindings_;
+  nlohmann::json bindings_;
 };
 
 } // namespace LunaDash

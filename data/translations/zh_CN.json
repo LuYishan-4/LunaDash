@@ -341,5 +341,13 @@
   "Available": "可用",
   "Unavailable": "不可用",
   "Dolphin (default)": "Dolphin（默认）",
-  "Using the default application.": "正在使用默认应用程序。"
+  "Using the default application.": "正在使用默认应用程序。",
+  "Could not create GTK theme URI.": "无法创建 GTK 主题 URI。",
+  "Could not export the portal request.": "无法导出门户请求。",
+  "Could not start the file picker.": "无法启动文件选择器。",
+  "D-Bus call failed.": "D-Bus 调用失败。",
+  "Keep existing": "保留现有文件",
+  "No matching files in this folder.": "此文件夹中没有匹配的文件。",
+  "Replace": "替换",
+  "unknown error": "未知错误"
 }

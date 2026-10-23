@@ -2,11 +2,11 @@
 
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/window/animation/WindowAnimation.hpp"
+#include "core/process/ProcessEnvironment.hpp"
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
 #include <QProcess>
-#include <QProcessEnvironment>
 #include <QRect>
 #include <QSet>
 #include <functional>
@@ -30,6 +30,7 @@ class NetworkStatus;
 class PluginManager;
 class ControlServer;
 class SessionActions;
+class SessionServices;
 class ShortcutSettings;
 class UpdateChecker;
 struct ClientWindow;
@@ -50,6 +51,7 @@ public:
 
 private:
   class Impl;
+  struct ThumbnailWriteState;
   std::unique_ptr<Impl> d;
 
   WindowSwitcher *windowSwitcher_ = nullptr;
@@ -59,7 +61,8 @@ private:
   ShellModules *shellModules_ = nullptr;
   AudioSettings *audioSettings_ = nullptr;
   PowerSettings *powerSettings_ = nullptr;
-  SessionActions *sessionActions_ = nullptr;
+  std::unique_ptr<SessionActions> sessionActions_;
+  std::unique_ptr<SessionServices> sessionServices_;
   ShortcutSettings *shortcutSettings_ = nullptr;
   UpdateChecker *updateChecker_ = nullptr;
   std::unique_ptr<SceneWindowAnimationTemplate> windowAnimations_;
@@ -68,12 +71,15 @@ private:
   NetworkStatus *networkStatus_ = nullptr;
   XWaylandSupport *xwayland_ = nullptr;
   PluginManager *pluginManager_ = nullptr;
-  ControlServer *controlServer_ = nullptr;
+  std::unique_ptr<ControlServer> controlServer_;
 
   QString controlPath_;
-  QProcessEnvironment clientEnvironment_;
+  ProcessEnvironment clientEnvironment_;
   std::vector<std::unique_ptr<ClientWindow>> clients_;
+  std::shared_ptr<ThumbnailWriteState> thumbnailWrite_;
   QList<QProcess *> processes_;
+  int queuedThumbnailSerial_ = 0;
+  QList<int> queuedThumbnailWindows_;
   ClientWindow *focused_ = nullptr;
 
   int nextWindowId_ = 1;
@@ -109,8 +115,8 @@ private:
 
   void requestShutdown();
   void scheduleShellRestart();
-  void publishSessionActivationEnvironment(
-      const std::function<void()> &ready = {});
+  void
+  publishSessionActivationEnvironment(const std::function<void()> &ready = {});
   void captureScreen();
   bool launchExternalCommand(QStringList command, QString *error,
                              bool x11Helper = false);
@@ -131,6 +137,7 @@ private:
   void selectWorkspace(int workspace);
   void publishWindowLayout();
   void captureWorkspaceThumbnail(int serial, QList<int> windows);
+  void pollThumbnailWrite();
   void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
   void setFullscreen(ClientWindow *client, bool fullscreen);

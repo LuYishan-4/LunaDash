@@ -12,8 +12,8 @@ private slots:
     const auto identity = identifyLaunch(
         "com.discordapp.Discord.desktop",
         {"flatpak", "run", "com.discordapp.Discord"});
-    QCOMPARE(identity.desktopId, QString("com.discordapp.Discord"));
-    QCOMPARE(identity.flatpakId, QString("com.discordapp.Discord"));
+    QVERIFY(identity.desktopId == "com.discordapp.Discord");
+    QVERIFY(identity.flatpakId == "com.discordapp.Discord");
     QVERIFY(resolveLaunchCapabilities(
                 "com.discordapp.Discord.desktop",
                 {"flatpak", "run", "com.discordapp.Discord"})

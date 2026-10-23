@@ -1,31 +1,44 @@
 #pragma once
-#include <QFileSystemWatcher>
-#include <QJsonObject>
-#include <QObject>
-#include <QTimer>
+
+#include "shell/modules/ShellModuleSchema.hpp"
+
+#include <functional>
+#include <string>
+#include <string_view>
+
+struct _GFileMonitor;
+typedef struct _GFileMonitor GFileMonitor;
+
 namespace LunaDash {
-class ShellModules final : public QObject {
-  Q_OBJECT
+
+class ShellModules final {
 public:
-  explicit ShellModules(QObject *parent = nullptr);
-  QJsonObject snapshot() const;
-  bool validate(const QByteArray &text, QString *error);
-  bool apply(const QByteArray &text, QString *error);
-  bool reset(QString *error);
-  void reportError(const QString &id, const QString &error);
+  ShellModules();
+  ~ShellModules();
+  ShellModules(const ShellModules &) = delete;
+  ShellModules &operator=(const ShellModules &) = delete;
+
+  ShellModuleJson snapshot() const;
+  bool validate(std::string_view text, std::string *error);
+  bool apply(std::string_view text, std::string *error);
+  bool reset(std::string *error);
+  void reportError(std::string_view id, std::string_view error);
   int panelExtent(int fallbackHeight) const;
-  QString panelEdge() const;
+  std::string panelEdge() const;
   bool panelAtBottom() const;
-signals:
-  void changed();
+  void setChangedCallback(std::function<void()> callback);
 
 private:
-  QString path_, status_;
-  QJsonObject document_, errors_;
-  QFileSystemWatcher watcher_;
-  QTimer debounce_;
+  std::string path_;
+  std::string status_;
+  ShellModuleJson document_;
+  ShellModuleJson errors_ = ShellModuleJson::object();
+  GFileMonitor *monitor_ = nullptr;
+  unsigned int debounceSource_ = 0;
   int revision_ = 0;
+  std::function<void()> changedCallback_;
+
   void reload();
-  void watchEntries();
 };
+
 } // namespace LunaDash

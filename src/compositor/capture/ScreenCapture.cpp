@@ -1,9 +1,19 @@
 #include "compositor/capture/ScreenCapture.hpp"
 #include <QFileInfo>
+#include <QProcessEnvironment>
 #include <QRegularExpression>
 #include <QStandardPaths>
 
 namespace LunaDash {
+namespace {
+QProcessEnvironment processEnvironment(const ProcessEnvironment &environment) {
+  QProcessEnvironment result;
+  for (const auto &[name, value] : environment)
+    result.insert(QString::fromStdString(name), QString::fromStdString(value));
+  return result;
+}
+} // namespace
+
 ScreenCapture::ScreenCapture(QObject *parent) : QObject(parent) {
   // slurp reads optional rectangle candidates until stdin reaches EOF before
   // connecting to Wayland. An open QProcess input pipe blocks its overlay.
@@ -35,7 +45,7 @@ bool ScreenCapture::busy() const {
 }
 QString ScreenCapture::phase() const { return phase_; }
 
-bool ScreenCapture::captureOutput(const QProcessEnvironment &environment,
+bool ScreenCapture::captureOutput(const ProcessEnvironment &environment,
                                   const QString &path, QString *error) {
   if (busy()) {
     *error = "A screenshot capture is already active.";
@@ -63,13 +73,13 @@ bool ScreenCapture::captureOutput(const QProcessEnvironment &environment,
   environment_ = environment;
   destination_ = path;
   phase_ = "capturing";
-  process_.setProcessEnvironment(environment_);
+  process_.setProcessEnvironment(processEnvironment(environment_));
   process_.start(grim_, {temporary_->fileName()});
   timeout_.start();
   return true;
 }
 
-bool ScreenCapture::selectRegion(const QProcessEnvironment &environment,
+bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
                                  const QString &path, QString *error) {
   if (busy()) {
     *error = "A screenshot selection is already active.";
@@ -88,7 +98,7 @@ bool ScreenCapture::selectRegion(const QProcessEnvironment &environment,
   environment_ = environment;
   destination_ = path;
   phase_ = "selecting";
-  process_.setProcessEnvironment(environment_);
+  process_.setProcessEnvironment(processEnvironment(environment_));
   process_.start(selector, {"-f", "%x,%y %wx%h"});
   return true;
 }

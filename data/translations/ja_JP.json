@@ -341,5 +341,13 @@
   "Available": "利用可能",
   "Unavailable": "利用不可",
   "Dolphin (default)": "Dolphin（既定）",
-  "Using the default application.": "既定のアプリケーションを使用しています。"
+  "Using the default application.": "既定のアプリケーションを使用しています。",
+  "Could not create GTK theme URI.": "GTK テーマ URI を作成できませんでした。",
+  "Could not export the portal request.": "ポータルリクエストをエクスポートできませんでした。",
+  "Could not start the file picker.": "ファイルピッカーを起動できませんでした。",
+  "D-Bus call failed.": "D-Bus 呼び出しに失敗しました。",
+  "Keep existing": "既存のファイルを保持",
+  "No matching files in this folder.": "このフォルダーに一致するファイルはありません。",
+  "Replace": "置換",
+  "unknown error": "不明なエラー"
 }

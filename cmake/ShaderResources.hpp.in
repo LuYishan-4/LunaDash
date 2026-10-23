@@ -1,0 +1,12 @@
+#pragma once
+
+#include <string_view>
+
+namespace LunaDash::EmbeddedShaders {
+
+inline constexpr std::string_view fullscreenVertex = R"LUDASH_GLSL(@LUDASH_SHADER_FULLSCREEN_VERT@)LUDASH_GLSL";
+inline constexpr std::string_view wallpaperFragment = R"LUDASH_GLSL(@LUDASH_SHADER_WALLPAPER_FRAG@)LUDASH_GLSL";
+inline constexpr std::string_view blurFragment = R"LUDASH_GLSL(@LUDASH_SHADER_BLUR_FRAG@)LUDASH_GLSL";
+inline constexpr std::string_view decorationFragment = R"LUDASH_GLSL(@LUDASH_SHADER_DECORATION_FRAG@)LUDASH_GLSL";
+
+} // namespace LunaDash::EmbeddedShaders

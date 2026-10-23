@@ -126,7 +126,7 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
         *q->pluginManager_,
         {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
         client->workspace, client->maximized,
-        desktopPreferences().value("workspaceCount").toInt());
+        desktopPreferences().value("workspaceCount", 10));
     client->workspace = rule.value("workspace").toInt();
     client->maximized = rule.value("maximized").toBool();
   }
@@ -284,6 +284,33 @@ void WaylandCompositor::Impl::handleNewXdgToplevel(wl_listener *listener,
 }
 #endif
 
+#if LUDASH_WLR_HAS_XDG_ACTIVATION
+void WaylandCompositor::Impl::handleXdgActivationRequest(wl_listener *listener,
+                                                         void *data) {
+  auto *self = listenerOwner<Impl>(listener);
+  auto *request =
+      static_cast<wlr_xdg_activation_v1_request_activate_event *>(data);
+  if (!self || !request || !request->token || !request->surface ||
+      request->token->seat != self->seat || !request->token->surface ||
+      request->token->serial == 0 || !request->token->surface->resource)
+    return;
+
+  // A valid token must refer to an input event known to this seat client. This
+  // accepts activation from a focused application or an interactive panel while
+  // rejecting stale and fabricated serials from unrelated Wayland clients.
+  auto *sourceClient = wlr_seat_client_for_wl_client(
+      self->seat,
+      wl_resource_get_client(request->token->surface->resource));
+  if (!sourceClient || !wlr_seat_client_validate_event_serial(
+                           sourceClient, request->token->serial))
+    return;
+
+  auto *target = self->clientForSurface(request->surface);
+  if (target && target->mapped && !target->minimized && !target->utility)
+    self->q->focus(target);
+}
+#endif
+
 void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   auto *state = listenerOwner<ToplevelState>(listener);
   if (!state || !state->client)
@@ -313,7 +340,9 @@ void WaylandCompositor::Impl::handleToplevelMap(wl_listener *listener, void *) {
   if (state->impl->q->windowAnimations_ && client->sceneTree &&
       !client->utility)
     state->impl->q->windowAnimations_->open(client->sceneTree,
-                                            client->geometry);
+        SceneAnimationRectangle{client->geometry.x(), client->geometry.y(),
+                                client->geometry.width(),
+                                client->geometry.height()});
 }
 
 void WaylandCompositor::Impl::handleToplevelUnmap(wl_listener *listener,

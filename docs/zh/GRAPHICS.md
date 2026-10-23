@@ -10,11 +10,11 @@
 
 Backend、renderer、allocator 或必要 global 建立失敗時，startup 會回報 subsystem diagnostic，而不是假裝成功。
 
-## Qt render-element library
+## Toolkit-neutral render-element library
 
-LunaDash 同時保留 `src/compositor/renderer/` 的 Qt render-element library。`OpenGL` 要求 current OpenGL 3.3+ 或 OpenGL ES 3.0+ context；它不自己建立 Qt context。
+LunaDash 在 `src/compositor/renderer/` 保留不依賴 UI toolkit 的 OpenGL render-element library。`OpenGL` 要求呼叫端提供 current EGL OpenGL 3.3+ 或 OpenGL ES 3.0+ context；它不建立或擁有 context。活動中的 compositor scene 仍由 wlroots 負責，桌布由獨立 Quickshell process 顯示。
 
-所有 project-owned raw GL 都在 `renderer/opengl/`。`Renderer` 負責 orchestration；`Shader`、`Program`、`Texture`、`Framebuffer` 用 RAII 管資源。**這套 library 目前不是活動 wlroots compositor 的 scene renderer。** Image wallpaper 由獨立 Quickshell process 顯示。
+所有 project-owned raw GL 都在 `renderer/opengl/`。`Renderer` 負責 orchestration；`Shader`、`Program`、`Texture`、`Framebuffer` 用 RAII 管資源。這套 library 目前不是活動 wlroots compositor 的 scene renderer。
 
 Built-in shader：
 
@@ -26,7 +26,7 @@ src/compositor/renderer/opengl/shaders/
   Decoration.frag
 ```
 
-CMake 明確把它們嵌入 `:/LunaDash/renderer/shaders/`，因此 installed build 不依賴 source checkout 或工作目錄。
+CMake 會根據明確列出的 shader 檔案產生 C++ embedded resource header，因此 installed build 不依賴 source checkout 或工作目錄。
 
 ## 測試
 
@@ -35,7 +35,7 @@ cmake -S . -B build -G Ninja -DLUDASH_BUILD_RENDERER_TESTS=ON
 cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure -R '^lunadash-renderer$'
 
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
+EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 \
   ./build/lunadash-renderer-test --opengl
 ```
 
@@ -58,7 +58,7 @@ Quickshell 有自己的 rendering policy，見 [Shell rendering](SHELL_RENDERING
 
 C11 選擇程式位於 `renderer/selection/RenderSelection.c`，僅連結 wlroots，不使用 Qt 物件。`LUDASH_ENABLE_VULKAN=OFF` 可關閉 Vulkan 整合；預設於 CMake 設定時偵測 wlroots API。Arch 需安裝 `vulkan-headers`、`vulkan-icd-loader` 與適合 GPU 的 Vulkan 驅動程式。其他 Linux 的相依套件由 `scripts/install-dependencies.sh` 處理，Nix 提供 loader 與標頭。Vulkan 需要可存取的 DRM render node 及 wlroots 所需的外部記憶體功能；只有 loader 或 Lavapipe 並不代表符合要求。
 
-兩種 renderer 共用 wlroots scene、allocator、dmabuf feedback 與依能力啟用的 explicit synchronization。GTK／Qt 客戶端使用的繪圖 API 不受 compositor 選擇限制。保留的 Qt OpenGL 特效函式庫仍限定 OpenGL。`LUDASH_SHELL_RENDERER=vulkan` 僅選擇 Quickshell 的 Qt Quick Vulkan 路徑。
+兩種 compositor renderer 共用 wlroots scene、allocator、dmabuf feedback 與依能力啟用的 explicit synchronization。GTK／Qt 客戶端使用的繪圖 API 不受 compositor 選擇限制。獨立 EGL OpenGL render-element library 仍限定 OpenGL。`LUDASH_SHELL_RENDERER=vulkan` 僅選擇 Quickshell 的 Qt Quick Vulkan 路徑。建置 render-element target 需要 EGL 開發套件。
 
 GPU 主機可執行：
 

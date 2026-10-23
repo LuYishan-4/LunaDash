@@ -1,51 +1,112 @@
 #include "compositor/renderer/opengl/ShaderAsset.hpp"
 
-#include <QFile>
-#include <QFileInfo>
+#include "ShaderResources.hpp"
 
-int qInitResources_renderer_shaders();
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <string_view>
+#include <utility>
 
 namespace LunaDash {
 namespace {
+using EmbeddedAsset = std::pair<std::string_view, std::string_view>;
 
-void ensureShaderResources() {
-  static const bool initialized = [] {
-    ::qInitResources_renderer_shaders();
-    return true;
-  }();
-  Q_UNUSED(initialized);
+constexpr std::array<EmbeddedAsset, 4> kEmbeddedShaders{{
+    {"Fullscreen.vert", EmbeddedShaders::fullscreenVertex},
+    {"Wallpaper.frag", EmbeddedShaders::wallpaperFragment},
+    {"Blur.frag", EmbeddedShaders::blurFragment},
+    {"Decoration.frag", EmbeddedShaders::decorationFragment},
+}};
+
+std::string lower(std::string_view value) {
+  std::string result(value);
+  std::transform(
+      result.begin(), result.end(), result.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return result;
 }
 
-ShaderStage stageFromToken(QString token) {
-  token = token.trimmed().toLower();
-  if (token == "vert" || token == "vertex" || token == "vsh" || token == "vs")
-    return ShaderStage::Vertex;
-  if (token == "frag" || token == "fragment" || token == "fsh" || token == "fs")
-    return ShaderStage::Fragment;
-  if (token == "geom" || token == "geometry" || token == "gsh" || token == "gs")
-    return ShaderStage::Geometry;
-  if (token == "comp" || token == "compute" || token == "csh" || token == "cs")
-    return ShaderStage::Compute;
-  if (token == "tesc" || token == "tesscontrol" || token == "tess_control")
-    return ShaderStage::TessControl;
-  if (token == "tese" || token == "tesseval" || token == "tess_eval")
-    return ShaderStage::TessEvaluation;
-  return ShaderStage::Unknown;
+std::string_view suffix(std::string_view name) {
+  const auto slash = name.find_last_of('/');
+  const auto filename =
+      slash == std::string_view::npos ? name : name.substr(slash + 1);
+  const auto dot = filename.find_last_of('.');
+  return dot == std::string_view::npos ? std::string_view{}
+                                       : filename.substr(dot + 1);
 }
 
-ShaderStage stageFromSourceDirective(const QByteArray &source) {
-  const QList<QByteArray> lines = source.left(2048).split('\n');
-  for (QByteArray line : lines) {
-    line = line.trimmed();
-    static const QByteArray pragma = "#pragma ludash_stage";
-    if (line.startsWith(pragma))
-      return stageFromToken(
-          QString::fromLatin1(line.mid(pragma.size()).trimmed()));
+bool genericSuffix(std::string_view value) {
+  const auto normalized = lower(value);
+  return normalized == "glsl" || normalized == "shader" || normalized == "glal";
+}
+
+std::string_view stageToken(std::string_view value) {
+  const auto normalized = lower(value);
+  if (normalized == "vert" || normalized == "vertex" || normalized == "vsh" ||
+      normalized == "vs")
+    return "vertex";
+  if (normalized == "frag" || normalized == "fragment" || normalized == "fsh" ||
+      normalized == "fs")
+    return "fragment";
+  if (normalized == "geom" || normalized == "geometry" || normalized == "gsh" ||
+      normalized == "gs")
+    return "geometry";
+  if (normalized == "comp" || normalized == "compute" || normalized == "csh" ||
+      normalized == "cs")
+    return "compute";
+  if (normalized == "tesc" || normalized == "tesscontrol" ||
+      normalized == "tess_control")
+    return "tess-control";
+  if (normalized == "tese" || normalized == "tesseval" ||
+      normalized == "tess_eval")
+    return "tess-evaluation";
+  return {};
+}
+
+ShaderStage stageFromSourceDirective(std::string_view source) {
+  const auto prefix =
+      source.substr(0, std::min<std::size_t>(source.size(), 2048));
+  std::size_t start = 0;
+  while (start <= prefix.size()) {
+    const auto end = prefix.find('\n', start);
+    auto line = prefix.substr(start, end == std::string_view::npos
+                                         ? prefix.size() - start
+                                         : end - start);
+    while (!line.empty() &&
+           std::isspace(static_cast<unsigned char>(line.front())))
+      line.remove_prefix(1);
+    while (!line.empty() &&
+           std::isspace(static_cast<unsigned char>(line.back())))
+      line.remove_suffix(1);
+    constexpr std::string_view pragma = "#pragma ludash_stage";
+    if (line.starts_with(pragma)) {
+      auto token = line.substr(pragma.size());
+      while (!token.empty() &&
+             std::isspace(static_cast<unsigned char>(token.front())))
+        token.remove_prefix(1);
+      const auto stage = stageToken(token);
+      if (stage == "vertex")
+        return ShaderStage::Vertex;
+      if (stage == "fragment")
+        return ShaderStage::Fragment;
+      if (stage == "geometry")
+        return ShaderStage::Geometry;
+      if (stage == "compute")
+        return ShaderStage::Compute;
+      if (stage == "tess-control")
+        return ShaderStage::TessControl;
+      if (stage == "tess-evaluation")
+        return ShaderStage::TessEvaluation;
+    }
+    if (end == std::string_view::npos)
+      break;
+    start = end + 1;
   }
   return ShaderStage::Unknown;
 }
 
-QByteArray versionPrefix(ShaderStage stage, bool openGLES) {
+std::string versionPrefix(ShaderStage stage, bool openGLES) {
   if (openGLES) {
     switch (stage) {
     case ShaderStage::Compute:
@@ -60,7 +121,6 @@ QByteArray versionPrefix(ShaderStage stage, bool openGLES) {
       return "#version 300 es\nprecision highp float;\nprecision highp int;\n";
     }
   }
-
   switch (stage) {
   case ShaderStage::Compute:
     return "#version 430 core\n";
@@ -76,26 +136,43 @@ QByteArray versionPrefix(ShaderStage stage, bool openGLES) {
   return {};
 }
 
-bool hasVersionDirective(QByteArray source) {
-  if (source.startsWith("\xEF\xBB\xBF"))
-    source.remove(0, 3);
-  return source.trimmed().startsWith("#version");
-}
-
-bool genericSuffix(const QString &suffix) {
-  return suffix == "glsl" || suffix == "shader" || suffix == "glal";
+bool hasVersionDirective(std::string_view source) {
+  if (source.starts_with("\xEF\xBB\xBF"))
+    source.remove_prefix(3);
+  while (!source.empty() &&
+         std::isspace(static_cast<unsigned char>(source.front())))
+    source.remove_prefix(1);
+  return source.starts_with("#version");
 }
 
 } // namespace
 
-ShaderStage shaderStageFromName(const QString &name) {
-  QString fileName = QFileInfo(name).fileName().toLower();
-  QString suffix = QFileInfo(fileName).suffix();
-  if (genericSuffix(suffix)) {
-    fileName.chop(suffix.size() + 1);
-    suffix = QFileInfo(fileName).suffix();
+ShaderStage shaderStageFromName(std::string_view name) {
+  auto extension = suffix(name);
+  if (genericSuffix(extension)) {
+    const auto slash = name.find_last_of('/');
+    const auto filename =
+        slash == std::string_view::npos ? name : name.substr(slash + 1);
+    const auto genericDot = filename.find_last_of('.');
+    const auto withoutGeneric = genericDot == std::string_view::npos
+                                    ? filename
+                                    : filename.substr(0, genericDot);
+    extension = suffix(withoutGeneric);
   }
-  return stageFromToken(suffix);
+  const auto stage = stageToken(extension);
+  if (stage == "vertex")
+    return ShaderStage::Vertex;
+  if (stage == "fragment")
+    return ShaderStage::Fragment;
+  if (stage == "geometry")
+    return ShaderStage::Geometry;
+  if (stage == "compute")
+    return ShaderStage::Compute;
+  if (stage == "tess-control")
+    return ShaderStage::TessControl;
+  if (stage == "tess-evaluation")
+    return ShaderStage::TessEvaluation;
+  return ShaderStage::Unknown;
 }
 
 GLenum shaderStageGlEnum(ShaderStage stage) {
@@ -118,47 +195,44 @@ GLenum shaderStageGlEnum(ShaderStage stage) {
   return 0;
 }
 
-std::optional<ShaderAsset>
-ShaderAssetLoader::load(const QString &name, bool openGLES, QString *error) {
-  ensureShaderResources();
+std::optional<ShaderAsset> ShaderAssetLoader::load(std::string_view name,
+                                                   bool openGLES,
+                                                   std::string *error) {
   if (error)
     error->clear();
-
-  QFile file(":/LunaDash/renderer/shaders/" + name);
-  if (!file.open(QIODevice::ReadOnly)) {
+  const auto embedded = std::find_if(
+      kEmbeddedShaders.begin(), kEmbeddedShaders.end(),
+      [name](const EmbeddedAsset &entry) { return entry.first == name; });
+  if (embedded == kEmbeddedShaders.end()) {
     if (error)
-      *error = QStringLiteral("could not open shader asset: %1").arg(name);
+      *error = "could not find embedded shader asset: " + std::string(name);
     return std::nullopt;
   }
 
-  ShaderAsset asset;
-  asset.name = name;
-  asset.source = file.readAll();
-  asset.stage = shaderStageFromName(name);
+  ShaderAsset asset{std::string(name), shaderStageFromName(name),
+                    std::string(embedded->second)};
   if (asset.stage == ShaderStage::Unknown)
     asset.stage = stageFromSourceDirective(asset.source);
-
-  const QString suffix = QFileInfo(name).suffix().toLower();
-  if (genericSuffix(suffix) && asset.stage == ShaderStage::Unknown) {
+  if (genericSuffix(suffix(name)) && asset.stage == ShaderStage::Unknown) {
     if (error)
-      *error = QStringLiteral("%1 needs a stage suffix or #pragma ludash_stage")
-                   .arg(name);
+      *error =
+          std::string(name) + " needs a stage suffix or #pragma ludash_stage";
     return std::nullopt;
   }
   if (asset.stage == ShaderStage::Unknown) {
     if (error)
-      *error = QStringLiteral("unrecognized shader stage: %1").arg(name);
+      *error = "unrecognized shader stage: " + std::string(name);
     return std::nullopt;
   }
-
   if (!hasVersionDirective(asset.source))
-    asset.source.prepend(versionPrefix(asset.stage, openGLES));
+    asset.source.insert(0, versionPrefix(asset.stage, openGLES));
   return asset;
 }
 
-QList<ShaderAsset> ShaderAssetLoader::loadMany(const QStringList &names,
-                                               bool openGLES, QString *error) {
-  QList<ShaderAsset> assets;
+std::vector<ShaderAsset>
+ShaderAssetLoader::loadMany(const std::vector<std::string> &names,
+                            bool openGLES, std::string *error) {
+  std::vector<ShaderAsset> assets;
   assets.reserve(names.size());
   for (const auto &name : names) {
     auto asset = load(name, openGLES, error);

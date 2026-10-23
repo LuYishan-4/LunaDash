@@ -1,25 +1,30 @@
 #pragma once
 
-#include <QJsonObject>
-#include <QObject>
-#include <QString>
+#include <map>
+#include <string>
+#include <string_view>
 
 namespace LunaDash {
 
-bool isValidSessionAction(const QString &action);
+struct SessionActionSnapshot {
+  std::map<std::string, bool> availability;
+  std::string error;
+};
 
-class SessionActions final : public QObject {
+bool isValidSessionAction(std::string_view action);
+
+class SessionActions final {
 public:
-  explicit SessionActions(QObject *parent = nullptr);
+  SessionActions();
 
-  QJsonObject snapshot() const;
-  bool execute(const QString &action, QString *error = nullptr);
+  SessionActionSnapshot snapshot() const;
+  bool execute(std::string_view action, std::string *error = nullptr);
 
 private:
   void refreshAvailability();
 
-  QJsonObject availability_;
-  QString availabilityError_;
+  std::map<std::string, bool> availability_;
+  std::string availabilityError_;
 };
 
 } // namespace LunaDash

@@ -1,238 +1,248 @@
 #include "config/desktop/DesktopPreferences.hpp"
-#include <QCoreApplication>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QMap>
-#include <QRegularExpression>
-#include <QSet>
-#include <QSettings>
-#include <QStandardPaths>
-#include <QStringList>
-#include <QUrl>
+
+#include "config/desktop/DesktopPreferenceStore.hpp"
+
+#include <gio/gio.h>
+
+#include <charconv>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <string_view>
 
 namespace LunaDash {
 namespace {
-QJsonObject defaults() {
-  return {{"accent", "#9ccbfb"},
-          {"secondaryAccent", "#41576b"},
-          {"themeMode", "dark"},
-          {"wallpaperColors", true},
-          {"wallpaperDirectory", QStandardPaths::writableLocation(QStandardPaths::PicturesLocation) + "/Wallpapers"},
-          {"eyeCare", false},
-          {"eyeCareTemperature", 4500},
-          {"syncApplicationThemes", false},
-          {"syncFcitxTheme", false},
-          {"weatherEnabled", false},
-          {"weatherLocation", ""},
-          {"weatherLatitude", 0.0},
-          {"weatherLongitude", 0.0},
-          {"dockEnabled", false},
-          {"dockAutoHide", true},
-          {"colorPins",
-           QJsonArray{"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
-          {"gap", 12},
-          {"panelHeight", 40},
-          {"blur", true},
-          {"blurRadius", 18},
-          {"windowOpacity", 90},
-          {"animations", true},
-          {"animationDuration", 220},
-          {"workspaceCount", 10},
-          {"keyboardLayout", "us"},
-          {"cursorSize", 24},
-          {"fontFamily", "sans-serif"},
-          {"clock24Hour", true},
-          {"startupApps", QJsonArray{}},
-          {"proxyEnabled", false},
-          {"proxyHttp", ""},
-          {"proxyHttps", ""},
-          {"proxySocks", ""},
-          {"proxyBypass", ""},
-          {"overview", false},
-          {"showHostDetails", false},
-          {"updateChannel", "stable"}};
+namespace fs = std::filesystem;
+using Json = nlohmann::json;
+
+struct KeyFileDeleter {
+  void operator()(GKeyFile *file) const {
+    if (file)
+      g_key_file_unref(file);
+  }
+};
+using KeyFile = std::unique_ptr<GKeyFile, KeyFileDeleter>;
+
+fs::path configRoot() {
+  if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg &&
+      fs::path(xdg).is_absolute())
+    return xdg;
+  if (const char *home = std::getenv("HOME"); home && *home)
+    return fs::path(home) / ".config";
+  return {};
 }
 
-bool validProxyText(const QJsonValue &value, bool url) {
-  if (!value.isString())
-    return false;
-  const QString text = value.toString();
-  if (text.size() > 512 || text.contains('\n') || text.contains('\r') ||
-      text.contains(QChar::Null))
-    return false;
-  if (!url || text.isEmpty())
-    return true;
-  const QUrl parsed(text);
-  return parsed.isValid() &&
-         QStringList{"http", "https", "socks", "socks5"}.contains(
-             parsed.scheme().toLower());
+KeyFile readLegacySettings() {
+  const auto root = configRoot();
+  if (root.empty())
+    return {};
+  for (const auto *name : {"LunaDash/LunaDash.conf", "LunaDash/LunaDash.ini"}) {
+    auto file = KeyFile(g_key_file_new());
+    GError *error = nullptr;
+    if (g_key_file_load_from_file(file.get(), (root / name).c_str(),
+                                  G_KEY_FILE_NONE, &error))
+      return file;
+    if (error)
+      g_error_free(error);
+  }
+  return {};
 }
 
-bool validColor(const QJsonValue &value) {
-  return value.isString() && QRegularExpression("^#[0-9a-fA-F]{6}$")
-                                 .match(value.toString())
-                                 .hasMatch();
-}
-
-bool valid(const QString &key, const QJsonValue &value) {
-  if (key == "weatherEnabled" || key == "syncFcitxTheme") return value.isBool();
-  if (key == "weatherLocation")
-    return value.isString() && value.toString().size() <= 80 && !value.toString().contains(QChar::Null);
-  if (key == "weatherLatitude" || key == "weatherLongitude") {
-    const auto number = value.toDouble();
-    const auto limit = key == "weatherLatitude" ? 90.0 : 180.0;
-    return value.isDouble() && std::isfinite(number) && number >= -limit && number <= limit;
+std::string keyString(GKeyFile *file, const char *group, const char *key) {
+  if (!file || !g_key_file_has_key(file, group, key, nullptr))
+    return {};
+  GError *error = nullptr;
+  char *value = g_key_file_get_string(file, group, key, &error);
+  if (error) {
+    g_error_free(error);
+    return {};
   }
-  if (key == "themeMode")
-    return value.isString() && QStringList{"dark", "light", "auto"}.contains(value.toString());
-  if (key == "wallpaperDirectory")
-    return value.isString() && value.toString().size() <= 4096 &&
-           QDir::isAbsolutePath(value.toString()) &&
-           !value.toString().contains(QChar::Null) &&
-           !value.toString().contains('\n');
-  if (key == "wallpaperColors" || key == "eyeCare" ||
-      key == "syncApplicationThemes" || key == "dockEnabled" || key == "dockAutoHide")
-    return value.isBool();
-  if (key == "keyboardLayout")
-    return value.isString() &&
-           QStringList{"us", "gb", "de", "fr", "es", "jp", "tw"}.contains(
-               value.toString());
-  if (key == "fontFamily")
-    return value.isString() &&
-           QStringList{"sans-serif", "serif", "monospace"}.contains(
-               value.toString());
-  if (key == "updateChannel")
-    return value.isString() &&
-           QStringList{"stable", "dev"}.contains(value.toString());
-  if (key == "proxyHttp" || key == "proxyHttps" || key == "proxySocks")
-    return validProxyText(value, true);
-  if (key == "proxyBypass")
-    return validProxyText(value, false);
-  if (key == "startupApps") {
-    if (!value.isArray() || value.toArray().size() > 3)
-      return false;
-    QSet<QString> seen;
-    for (const auto &app : value.toArray()) {
-      if (!app.isString() ||
-          !QStringList{"files", "packages", "welcome"}.contains(
-              app.toString()) ||
-          seen.contains(app.toString()))
-        return false;
-      seen.insert(app.toString());
-    }
-    return true;
-  }
-  if (key == "colorPins") {
-    if (!value.isArray() || value.toArray().size() > 16)
-      return false;
-    QSet<QString> seen;
-    for (const auto &color : value.toArray()) {
-      if (!validColor(color))
-        return false;
-      const QString normalized = color.toString().toLower();
-      if (seen.contains(normalized))
-        return false;
-      seen.insert(normalized);
-    }
-    return true;
-  }
-  const QMap<QString, QPair<int, int>> ranges{{"workspaceCount", {1, 10}},
-                                              {"eyeCareTemperature", {2500, 6500}},
-                                              {"cursorSize", {16, 64}}};
-  if (ranges.contains(key)) {
-    const double number = value.toDouble(-1);
-    const auto range = ranges.value(key);
-    return value.isDouble() && std::isfinite(number) &&
-           std::floor(number) == number && number >= range.first &&
-           number <= range.second;
-  }
-  if (key == "accent" || key == "secondaryAccent")
-    return validColor(value);
-  if (key == "overview" || key == "showHostDetails" || key == "blur" ||
-      key == "animations" || key == "clock24Hour" || key == "proxyEnabled")
-    return value.isBool();
-  if (key == "gap" || key == "panelHeight" || key == "blurRadius" ||
-      key == "windowOpacity" || key == "animationDuration") {
-    const double number = value.toDouble(-1);
-    return value.isDouble() && std::isfinite(number) &&
-           std::floor(number) == number &&
-           number >= (key == "gap"             ? 4
-                      : key == "panelHeight"   ? 32
-                      : key == "windowOpacity" ? 60
-                                               : 0) &&
-           number <= (key == "gap" || key == "blurRadius" ? 32
-                      : key == "panelHeight"              ? 56
-                      : key == "windowOpacity"            ? 100
-                                                          : 600);
-  }
-  return false;
-}
-} // namespace
-
-QJsonObject desktopPreferences() {
-  auto result = defaults();
-  QSettings settings;
-  for (auto it = result.begin(); it != result.end(); ++it) {
-    auto value = QJsonValue::fromVariant(
-        settings.value("desktop/" + it.key(), it.value().toVariant()));
-    if (value.isString() && it.value().isBool()) {
-      if (value.toString() == "true")
-        value = true;
-      else if (value.toString() == "false")
-        value = false;
-    } else if (value.isString() && it.value().isDouble()) {
-      bool ok = false;
-      const double number = value.toString().toDouble(&ok);
-      if (ok)
-        value = number;
-    }
-    if (valid(it.key(), value))
-      it.value() = value;
-  }
-
-  QJsonArray wallpaperHistory;
-  const auto history =
-      settings.value("appearance/wallpaperHistory").toStringList();
-  for (const auto &path : history)
-    wallpaperHistory.append(path);
-  result.insert("wallpaperHistory", wallpaperHistory);
-  result.insert(
-      "wallpaperRevision",
-      static_cast<qint64>(
-          settings.value("appearance/wallpaperRevision", 0).toULongLong()));
+  std::string result = value ? value : "";
+  g_free(value);
   return result;
 }
 
-bool updateDesktopPreferences(const QJsonObject &changes, QString *error) {
-  for (auto it = changes.begin(); it != changes.end(); ++it) {
-    if (!valid(it.key(), it.value())) {
-      if (error)
-        *error = "Invalid desktop preference: " + it.key();
-      return false;
+Json parseLegacyList(std::string_view source) {
+  if (source.starts_with("@StringList(") && source.ends_with(')')) {
+    source.remove_prefix(std::string_view("@StringList(").size());
+    source.remove_suffix(1);
+  } else if (source == "@Invalid()" || source.starts_with("@Variant(")) {
+    return Json::array();
+  }
+
+  Json result = Json::array();
+  std::string item;
+  bool quoted = false;
+  bool escaped = false;
+  bool hadQuote = false;
+  for (const char character : source) {
+    if (escaped) {
+      switch (character) {
+      case 'n':
+        item.push_back('\n');
+        break;
+      case 'r':
+        item.push_back('\r');
+        break;
+      case 't':
+        item.push_back('\t');
+        break;
+      default:
+        item.push_back(character);
+        break;
+      }
+      escaped = false;
+    } else if (character == '\\' && quoted) {
+      escaped = true;
+    } else if (character == '"') {
+      if (!quoted && item.find_first_not_of(" \t") == std::string::npos)
+        item.clear();
+      quoted = !quoted;
+      hadQuote = true;
+    } else if (character == ',' && !quoted) {
+      if (!hadQuote) {
+        const auto first = item.find_first_not_of(" \t");
+        const auto last = item.find_last_not_of(" \t");
+        item = first == std::string::npos ? "" : item.substr(first, last - first + 1);
+      }
+      result.push_back(item);
+      item.clear();
+      hadQuote = false;
+    } else {
+      item.push_back(character);
     }
   }
-  QSettings settings;
-  for (auto it = changes.begin(); it != changes.end(); ++it)
-    settings.setValue("desktop/" + it.key(), it.value().toVariant());
-  settings.sync();
-  if (settings.status() != QSettings::NoError) {
-    if (error)
-      *error = "Could not save desktop preferences.";
-    return false;
+  if (escaped)
+    item.push_back('\\');
+  if (!hadQuote) {
+    const auto first = item.find_first_not_of(" \t");
+    const auto last = item.find_last_not_of(" \t");
+    item = first == std::string::npos ? "" : item.substr(first, last - first + 1);
   }
-  return true;
+  if (!source.empty() || !result.empty())
+    result.push_back(std::move(item));
+  return result;
 }
+
+Json parseLegacyValue(GKeyFile *file, const std::string &key,
+                      const Json &defaultValue) {
+  if (!file)
+    return nullptr;
+  const auto raw = keyString(file, "desktop", key.c_str());
+  if (raw.empty() && !g_key_file_has_key(file, "desktop", key.c_str(), nullptr))
+    return nullptr;
+  if (defaultValue.is_boolean()) {
+    if (raw == "true" || raw == "1")
+      return true;
+    if (raw == "false" || raw == "0")
+      return false;
+    return nullptr;
+  }
+  if (defaultValue.is_number_integer()) {
+    std::int64_t value = 0;
+    const auto [end, error] =
+        std::from_chars(raw.data(), raw.data() + raw.size(), value);
+    return error == std::errc{} && end == raw.data() + raw.size()
+               ? Json(value)
+               : Json(nullptr);
+  }
+  if (defaultValue.is_number_float()) {
+    char *end = nullptr;
+    const double value = std::strtod(raw.c_str(), &end);
+    return end == raw.c_str() + raw.size() && end != raw.c_str() &&
+                   std::isfinite(value)
+               ? Json(value)
+               : Json(nullptr);
+  }
+  if (defaultValue.is_array())
+    return parseLegacyList(raw);
+  if (defaultValue.is_string())
+    return raw;
+  return nullptr;
+}
+
+void importLegacySettings(GKeyFile *file) {
+  if (!hasStoredDesktopPreferences()) {
+    Json values = Json::object();
+    const auto defaults = defaultDesktopPreferenceValues();
+    for (auto it = defaults.begin(); it != defaults.end(); ++it) {
+      const auto value = parseLegacyValue(file, it.key(), it.value());
+      if (!value.is_null())
+        values[it.key()] = value;
+    }
+    GError *ignored = nullptr;
+    const gboolean setup = file &&
+        g_key_file_get_boolean(file, "session", "setupComplete", &ignored);
+    if (ignored)
+      g_error_free(ignored);
+    std::string error;
+    importLegacyDesktopPreferences(values, setup, &error);
+  }
+
+  if (!hasStoredWallpaperSettings()) {
+    const auto list = [file](const char *group, const char *key) {
+      return parseLegacyList(keyString(file, group, key));
+    };
+    Json history = list("appearance", "wallpaperHistory");
+    if (history.empty())
+      history = list("desktop", "wallpaperHistory");
+    const auto mode = keyString(file, "appearance", "wallpaperMode");
+    const auto image = keyString(file, "appearance", "wallpaperImage");
+    const auto refresh = keyString(file, "appearance", "wallpaperLibraryRefresh");
+    const auto parseInteger = [file](const char *group, const char *key) {
+      const auto raw = keyString(file, group, key);
+      std::uint64_t value = 0;
+      const auto [end, error] =
+          std::from_chars(raw.data(), raw.data() + raw.size(), value);
+      return error == std::errc{} && end == raw.data() + raw.size() ? value : 0;
+    };
+    Json legacy{
+        {"mode", mode.empty() ? "image" : mode},
+        {"image", image},
+        {"shader", parseInteger("appearance", "wallpaper")},
+        {"history", std::move(history)},
+        {"favorites", list("appearance", "wallpaperFavorites")},
+        {"revision", parseInteger("appearance", "wallpaperRevision")},
+        {"libraryRefresh", refresh}};
+    std::string error;
+    importLegacyWallpaperSettings(legacy, &error);
+  }
+}
+
+} // namespace
+
+void ensureLegacyDesktopSettingsImported() {
+  const auto settings = readLegacySettings();
+  importLegacySettings(settings.get());
+}
+
+Json desktopPreferences() {
+  ensureLegacyDesktopSettingsImported();
+  auto result = loadDesktopPreferences();
+  const auto wallpaper = loadWallpaperSettings();
+  result["wallpaperHistory"] =
+      wallpaper.value("history", Json::array());
+  result["wallpaperRevision"] =
+      wallpaper.value("revision", std::uint64_t{0});
+  return result;
+}
+
+bool updateDesktopPreferences(const Json &changes, std::string *error) {
+  ensureLegacyDesktopSettingsImported();
+  return saveDesktopPreferences(changes, error);
+}
+
 bool setupComplete() {
-  return qEnvironmentVariableIntValue("LUDASH_SKIP_SETUP") == 1 ||
-         QSettings().value("session/setupComplete", false).toBool();
+  ensureLegacyDesktopSettingsImported();
+  return isDesktopSetupComplete();
 }
-void setSetupComplete(bool complete) {
-  QSettings settings;
-  settings.setValue("session/setupComplete", complete);
-  settings.sync();
+
+bool setSetupComplete(bool complete, std::string *error) {
+  ensureLegacyDesktopSettingsImported();
+  return setDesktopSetupComplete(complete, error);
 }
+
 } // namespace LunaDash

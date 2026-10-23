@@ -34,8 +34,10 @@ private Q_SLOTS:
     QCoreApplication::setOrganizationName("LunaDashTests");
     QCoreApplication::setApplicationName("WallpaperLibrary");
     library = root.path() + "/user wallpapers";
-    QString error;
-    QVERIFY2(updateDesktopPreferences({{"wallpaperDirectory", library}}, &error), qPrintable(error));
+    std::string error;
+    QVERIFY2(updateDesktopPreferences(
+                 {{"wallpaperDirectory", library.toStdString()}}, &error),
+             error.c_str());
   }
   void directoryIsCreatedOnlyOnRequest() {
     QVERIFY(!wallpaperSnapshot().value("directoryExists").toBool());
@@ -61,7 +63,11 @@ private Q_SLOTS:
     QString error;
     QVERIFY2(setWallpaperFavorite(outside, true, &error), qPrintable(error));
     QVERIFY(contains(outside, true));
-    QVERIFY2(updateDesktopPreferences({{"wallpaperDirectory", root.path() + "/other"}}, &error), qPrintable(error));
+    std::string preferencesError;
+    QVERIFY2(updateDesktopPreferences(
+                 {{"wallpaperDirectory", (root.path() + "/other").toStdString()}},
+                 &preferencesError),
+             preferencesError.c_str());
     QVERIFY(contains(outside, true));
     QVERIFY(setWallpaperFavorite(outside, false, &error));
     QVERIFY(!contains(outside, true));

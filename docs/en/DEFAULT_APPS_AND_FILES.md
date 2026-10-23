@@ -1,8 +1,12 @@
 # Default applications, Fish, Files, and image selection
 
-Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of every installed desktop application that the launcher can also find, with a role default pinned at the top (`Kitty (default)` for the terminal, `Dolphin (default)` for files). `[]` selects the role default. Examples are `["kitty"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated. Configuration is per user, under `defaultApps/terminal` and `defaultApps/files` in the LunaDash settings file.
+Settings > Applications and startup lets users select a default terminal and file manager. Each action offers a selector of every installed desktop application that the launcher can also find, with a role default pinned at the top (`Kitty (default)` for the terminal, `Dolphin (default)` for files). `[]` selects the role default. Examples are `["kitty"]` and `["dolphin"]`. Save validates the executable and arguments before replacing preferences. These trusted commands run as the current user; argument boundaries are preserved and shell operators are not evaluated.
+
+The native application-role service stores new values as JSON in `${XDG_CONFIG_HOME:-$HOME/.config}/LunaDash/default-applications.json`. Until a role is saved there, it reads existing `defaultApps` entries from the legacy `LunaDash.conf` or `LunaDash.ini` settings file. An explicit empty array selects the LunaDash default for that role.
 
 Super+T and the shell's Terminal buttons use the selected terminal. Super+E and Files buttons use the selected file manager. `lunadash-desktop --app files` also respects the preference and forwards to Dolphin by default. `--path /absolute/folder` appends the folder as one argument. The former built-in manager and its `--builtin` option have been removed. These choices apply to LunaDash launchers, not system-wide MIME associations or every third-party application's embedded terminal.
+
+`lunadash-desktop --app packages` opens the standalone Slint Package Manager. Installed-package and search queries run as the current user. Install, remove and full-upgrade actions show the exact command for review, then open it in the configured terminal only after confirmation. Terminal commands are passed as an argument array without a shell; the execute-option forms for Kitty, Konsole, foot, Alacritty, xterm, GNOME Terminal, GNOME Console and Xfce Terminal are recognized.
 
 ## Terminal and Fish
 
@@ -18,13 +22,13 @@ lunadashctl default-apps '{"terminal":[],"files":[]}'                           
 
 ## Portal and wallpaper pickers
 
-The xdg-desktop-portal FileChooser backend uses one LunaDash-owned `FilePickerDialog`, with a frameless dark header, resize grip and maximize/restore control. Its file model and selection belong to this dialog; no stack-allocated `QFileDialog` is reparented into a shorter-lived wrapper. Results are copied before the dialog is destroyed, including on repeated requests.
+The xdg-desktop-portal FileChooser opens the independent `lunadash-filepicker` Slint/Winit Wayland client. It has a bounded frameless surface, navigation, places, list/grid views, hidden-file toggle, search, image preview, manual local-path field, filter and application-choice controls. The helper returns local paths and selected options over a private stdin/stdout exchange; the portal backend constructs the D-Bus response and never evaluates a selected path through a shell.
 
-The browser provides standard home folders and mounted-media shortcuts, back/forward/up navigation, folder search, hidden files, sortable details and icon views, and an image preview (64 MiB / 32 megapixel decode limits). The location field accepts absolute paths, relative paths, `~/` and local `file://` URLs. Enter in that field navigates or selects a candidate without confirming the request. Ctrl+L focuses Location; Ctrl+F focuses search. Paths are validated with Qt and never evaluated by a shell.
+The browser provides common home folders and media mount shortcuts, back/forward/up navigation, folder search, hidden files, name-sorted list and grid views, and an image preview (64 MiB / 32 megapixel limits). The location field accepts absolute paths, relative paths, `~/` and local `file://` URLs. Enter there navigates or selects a candidate without confirming the request. Ctrl+L focuses Location; Ctrl+F focuses search. The helper validates local paths with `std::filesystem` and never evaluates them through a shell.
 
 Open supports single/multiple files and folders; Save validates the destination and asks before replacing an existing file. The file-type selector honors portal glob/MIME filters, and application-provided choices are displayed and returned. SaveFiles restricts names to basenames and generates unique names for collisions. Invalid paths leave the picker open with an error. Previews are optional: unsupported or oversized images remain selectable as regular files.
 
-The Main Qt workflow exercises repeated acceptance, multiple selection, filters, manual paths, saving and invalid paths, and retains a picker screenshot. This is automated coverage; visual acceptance in the actual desktop session remains a separate manual check.
+The portal D-Bus service exports FileChooser v4 and Settings v2 through GLib GDBus; the file picker itself and the separate ScreenCast selector are standalone Slint/Winit Wayland clients. ScreenCast keeps xdpw's line-based selection contract, displays local screen/window previews where capture is available, and returns the original source label unchanged. Headless Wayland integration exercises the FileChooser UI through OpenFile, SaveFile, SaveFiles and the public portal frontend, and captures its rendered surface. Physical-session visual acceptance remains a separate check.
 
 The wallpaper/calendar picker remains a separate in-shell QML picker.
 

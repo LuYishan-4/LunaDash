@@ -1,13 +1,17 @@
 #pragma once
 
 #include "core/templates/WaylandSlot.hpp"
-#include <QJsonObject>
-#include <QObject>
-#include <QProcess>
-#include <QProcessEnvironment>
+
 #include <functional>
+#include <map>
+#include <string>
+#include <vector>
+#include <sys/types.h>
 
 struct wl_display;
+struct wl_event_loop;
+struct wl_event_source;
+struct wl_listener;
 struct wlr_compositor;
 struct wlr_seat;
 struct wlr_xwayland;
@@ -15,38 +19,51 @@ struct wlr_xwayland_surface;
 
 namespace LunaDash {
 
-class XWaylandSupport final : public QObject {
+struct XWaylandSnapshot {
+  bool available = false;
+  bool running = false;
+  bool selectionBridge = false;
+  std::string display;
+  std::string error;
+};
+
+class XWaylandSupport final {
 public:
   using NewSurfaceCallback = std::function<void(wlr_xwayland_surface *)>;
 
-  explicit XWaylandSupport(QObject *parent = nullptr);
-  ~XWaylandSupport() override;
+  XWaylandSupport() = default;
+  ~XWaylandSupport();
+  XWaylandSupport(const XWaylandSupport &) = delete;
+  XWaylandSupport &operator=(const XWaylandSupport &) = delete;
 
   bool start(wl_display *display, wlr_compositor *compositor, wlr_seat *seat,
-             const QProcessEnvironment &environment,
+             std::map<std::string, std::string> environment,
              NewSurfaceCallback newSurface);
   void stop();
   bool stopped() const;
-  bool startServer(QString *error = nullptr);
-  bool isHelperSurface(qint64 processId) const;
-  QJsonObject snapshot() const;
-  void applyEnvironment(QProcessEnvironment &environment) const;
-  bool launch(const QStringList &command, QString *error);
+  bool startServer(std::string *error = nullptr);
+  XWaylandSnapshot snapshot() const;
+  void applyEnvironment(std::map<std::string, std::string> &environment) const;
+  bool launch(const std::vector<std::string> &command, std::string *error);
 
 private:
   using Slot = Templates::WaylandSlot<XWaylandSupport>;
   static void handleReady(wl_listener *listener, void *data);
   static void handleNewSurface(wl_listener *listener, void *data);
+  static int handleClientReaper(void *data);
+  void reapClients();
+  bool ensureClientReaper();
 
   wlr_xwayland *xwayland_ = nullptr;
   wlr_seat *seat_ = nullptr;
-  QList<QProcess *> clients_;
-  QProcessEnvironment environment_;
+  wl_event_loop *eventLoop_ = nullptr;
+  wl_event_source *clientReaper_ = nullptr;
+  std::vector<pid_t> clients_;
+  std::map<std::string, std::string> environment_;
   NewSurfaceCallback newSurface_;
   Slot ready_;
   Slot newSurfaceListener_;
-  QString error_;
-  bool stopping_ = false;
+  std::string error_;
   bool xwmReady_ = false;
 };
 

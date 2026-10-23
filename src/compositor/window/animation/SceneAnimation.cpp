@@ -1,4 +1,11 @@
 #include "compositor/window/animation/SceneAnimation.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <unordered_map>
+#include <utility>
+
 #include "compositor/wayland/wlroots/WlrootsSceneHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 
@@ -9,43 +16,40 @@ extern "C" {
 #endif
 }
 
-#include <QEasingCurve>
-#include <QElapsedTimer>
-#include <algorithm>
-
 namespace LunaDash {
 namespace {
-using OpacityMap = QHash<quintptr, float>;
+using OpacityMap = std::unordered_map<wlr_scene_buffer *, float>;
+using Clock = std::chrono::steady_clock;
 
 struct OpacityContext {
   OpacityMap *base;
-  qreal factor;
+  double factor;
 };
-
-void applyOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
-  auto *context = static_cast<OpacityContext *>(data);
-  const auto key = reinterpret_cast<quintptr>(buffer);
-  if (!context->base->contains(key))
-    context->base->insert(key, buffer->opacity);
-  wlr_scene_buffer_set_opacity(
-      buffer, std::clamp(context->base->value(key) *
-                             static_cast<float>(context->factor),
-                         0.0f, 1.0f));
-}
 
 struct SnapshotBuffer {
   wlr_scene_buffer *buffer;
   wlr_buffer *retained;
-  QRect geometry;
+  SceneAnimationRectangle geometry;
   float opacity;
 };
 
 struct SnapshotBuildContext {
   wlr_scene_tree *parent;
-  QPoint origin;
-  QList<SnapshotBuffer> *buffers;
+  int originX;
+  int originY;
+  std::vector<SnapshotBuffer> *buffers;
   bool synchronizedSource = false;
 };
+
+void applyOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
+  auto *context = static_cast<OpacityContext *>(data);
+  const auto [entry, inserted] =
+      context->base->try_emplace(buffer, buffer->opacity);
+  (void)inserted;
+  wlr_scene_buffer_set_opacity(
+      buffer, std::clamp(entry->second * static_cast<float>(context->factor),
+                         0.0f, 1.0f));
+}
 
 void cloneBuffer(wlr_scene_buffer *buffer, int sx, int sy, void *data) {
   auto *context = static_cast<SnapshotBuildContext *>(data);
@@ -74,37 +78,75 @@ void cloneBuffer(wlr_scene_buffer *buffer, int sx, int sy, void *data) {
   copy->point_accepts_input = [](wlr_scene_buffer *, double *, double *) {
     return false;
   };
-  QSize size(buffer->dst_width, buffer->dst_height);
-  if (size.width() <= 0 || size.height() <= 0) {
-    size = QSize(buffer->buffer->width, buffer->buffer->height);
+
+  int width = buffer->dst_width;
+  int height = buffer->dst_height;
+  if (width <= 0 || height <= 0) {
+    width = buffer->buffer->width;
+    height = buffer->buffer->height;
     if (buffer->transform % 2)
-      size.transpose();
+      std::swap(width, height);
   }
-  const QPoint position = QPoint(sx, sy) - context->origin;
-  wlr_scene_node_set_position(&copy->node, position.x(), position.y());
+  const int positionX = sx - context->originX;
+  const int positionY = sy - context->originY;
+  wlr_scene_node_set_position(&copy->node, positionX, positionY);
   wlr_scene_buffer_set_source_box(copy, &buffer->src_box);
-  wlr_scene_buffer_set_dest_size(copy, size.width(), size.height());
+  wlr_scene_buffer_set_dest_size(copy, width, height);
   wlr_scene_buffer_set_transform(copy, buffer->transform);
   wlr_scene_buffer_set_opacity(copy, buffer->opacity);
   // Scene buffers may release their backing buffer after texture upload.
   // Hold it through this short transition so retarget/close can clone it again.
-  context->buffers->append({copy, wlr_buffer_lock(buffer->buffer),
-                            QRect(position, size), buffer->opacity});
+  context->buffers->push_back({copy,
+                               wlr_buffer_lock(buffer->buffer),
+                               {positionX, positionY, width, height},
+                               buffer->opacity});
 }
 
-QRect interpolate(const QRect &from, const QRect &to, qreal progress) {
-  auto blend = [progress](int a, int b) {
-    return qRound(a + (b - a) * progress);
+SceneAnimationRectangle interpolate(const SceneAnimationRectangle &from,
+                                    const SceneAnimationRectangle &to,
+                                    double progress) {
+  const auto blend = [progress](int a, int b) {
+    return static_cast<int>(std::lround(a + (b - a) * progress));
   };
-  return {blend(from.x(), to.x()), blend(from.y(), to.y()),
-          std::max(1, blend(from.width(), to.width())),
-          std::max(1, blend(from.height(), to.height()))};
+  return {blend(from.left, to.left), blend(from.top, to.top),
+          std::max(1, blend(from.width, to.width)),
+          std::max(1, blend(from.height, to.height))};
 }
 
-qreal elapsedProgress(const QElapsedTimer &elapsed, int duration) {
-  return std::clamp(static_cast<double>(elapsed.nsecsElapsed()) /
-                        (std::max(1, duration) * 1000000.0),
-                    0.0, 1.0);
+SceneAnimationRectangle unite(const SceneAnimationRectangle &first,
+                              const SceneAnimationRectangle &second) {
+  if (!first.valid())
+    return second;
+  if (!second.valid())
+    return first;
+  const int left = std::min(first.left, second.left);
+  const int top = std::min(first.top, second.top);
+  const int right =
+      std::max(first.left + first.width, second.left + second.width);
+  const int bottom =
+      std::max(first.top + first.height, second.top + second.height);
+  return {left, top, right - left, bottom - top};
+}
+
+double elapsedProgress(Clock::time_point started, int durationMilliseconds) {
+  const auto elapsed =
+      std::chrono::duration<double, std::milli>(Clock::now() - started).count();
+  return std::clamp(elapsed / std::max(1, durationMilliseconds), 0.0, 1.0);
+}
+
+double ease(SceneAnimationCurve curve, double progress) {
+  switch (curve) {
+  case SceneAnimationCurve::Linear:
+    return progress;
+  case SceneAnimationCurve::OutQuint:
+    return 1.0 - std::pow(1.0 - progress, 5.0);
+  case SceneAnimationCurve::InOutCubic:
+    return progress < 0.5 ? 4.0 * progress * progress * progress
+                          : 1.0 - std::pow(-2.0 * progress + 2.0, 3.0) / 2.0;
+  case SceneAnimationCurve::OutCubic:
+  default:
+    return 1.0 - std::pow(1.0 - progress, 3.0);
+  }
 }
 } // namespace
 
@@ -112,14 +154,14 @@ struct SceneAnimation::LiveState {
   SceneAnimation *owner = nullptr;
   wlr_scene_tree *tree = nullptr;
   Templates::WaylandSlot<LiveState> destroy;
-  QElapsedTimer elapsed;
+  Clock::time_point started;
   int duration = 0;
-  QRect from;
-  QRect target;
-  QRect current;
+  SceneAnimationRectangle from;
+  SceneAnimationRectangle target;
+  SceneAnimationRectangle current;
   OpacityMap opacity;
-  qreal initialOpacity = 1.0;
-  qreal currentOpacity = 1.0;
+  double initialOpacity = 1.0;
+  double currentOpacity = 1.0;
   SnapshotState *preview = nullptr;
 };
 
@@ -128,12 +170,13 @@ struct SceneAnimation::SnapshotState {
   LiveState *live = nullptr;
   wlr_scene_tree *tree = nullptr;
   Templates::WaylandSlot<SnapshotState> destroy;
-  QElapsedTimer elapsed;
+  Clock::time_point started;
   int duration = 0;
-  QRect original;
-  QRect current;
-  QPoint parentOrigin;
-  QList<SnapshotBuffer> buffers;
+  SceneAnimationRectangle original;
+  SceneAnimationRectangle current;
+  int parentOriginX = 0;
+  int parentOriginY = 0;
+  std::vector<SnapshotBuffer> buffers;
   ~SnapshotState() {
     for (const auto &part : buffers)
       wlr_buffer_unlock(part.retained);
@@ -148,40 +191,40 @@ void SceneAnimation::setDuration(int milliseconds) {
     clear();
 }
 
-void SceneAnimation::configure(const QJsonObject &profile) {
-  setDuration(profile.value("duration").toInt(220));
-  enterOffset_ = std::clamp(profile.value("enterOffset").toInt(12), -100, 100);
-  focusOpacity_ =
-      std::clamp(profile.value("focusOpacity").toDouble(0.82), 0.0, 1.0);
-  exitScale_ = std::clamp(profile.value("exitScale").toDouble(0.90), 0.5, 1.0);
-  const auto curve = profile.value("easing").toString();
-  easing_ = QEasingCurve(curve == "linear"       ? QEasingCurve::Linear
-                         : curve == "outQuint"   ? QEasingCurve::OutQuint
-                         : curve == "inOutCubic" ? QEasingCurve::InOutCubic
-                                                 : QEasingCurve::OutCubic);
+void SceneAnimation::configure(const SceneAnimationOptions &options) {
+  setDuration(options.duration);
+  enterOffset_ = std::clamp(options.enterOffset, -100, 100);
+  focusOpacity_ = std::clamp(options.focusOpacity, 0.0, 1.0);
+  exitScale_ = std::clamp(options.exitScale, 0.5, 1.0);
+  curve_ = options.curve;
 }
 
 int SceneAnimation::activeCount() const {
-  int count = live_.size();
+  int count = static_cast<int>(live_.size());
   for (const auto *snapshot : snapshots_)
     if (!snapshot->live)
       ++count;
   return count;
 }
 
-QRect SceneAnimation::visualGeometry(wlr_scene_tree *tree,
-                                            const QRect &fallback) const {
-  if (const auto *state = live_.value(tree))
+SceneAnimationRectangle
+SceneAnimation::visualGeometry(wlr_scene_tree *tree,
+                               const SceneAnimationRectangle &fallback) const {
+  const auto found = live_.find(tree);
+  if (found != live_.end()) {
+    const auto *state = found->second;
     return state->preview ? state->preview->current : state->current;
-  return tree ? QRect(QPoint(tree->node.x, tree->node.y), fallback.size())
+  }
+  return tree ? SceneAnimationRectangle{tree->node.x, tree->node.y,
+                                        fallback.width, fallback.height}
               : fallback;
 }
 
 void SceneAnimation::startLive(LiveState *state) {
   state->owner = this;
   state->duration = duration_;
-  state->elapsed.start();
-  live_.insert(state->tree, state);
+  state->started = Clock::now();
+  live_.insert_or_assign(state->tree, state);
   Templates::attachListener(&state->tree->node.events.destroy, state->destroy,
                             state, [](wl_listener *listener, void *) {
                               auto *live =
@@ -191,21 +234,21 @@ void SceneAnimation::startLive(LiveState *state) {
   applyLive(state, 0.0);
 }
 
-void SceneAnimation::applyLive(LiveState *state, qreal progress) {
+void SceneAnimation::applyLive(LiveState *state, double progress) {
   state->current = interpolate(state->from, state->target, progress);
   if (state->preview) {
     // Configure the client once at its final size. Move the previous frame
     // through the interpolated tile while the newly laid-out content fades in.
-    const qreal reveal = std::clamp((progress - 0.36) / 0.64, 0.0, 1.0);
+    const double reveal = std::clamp((progress - 0.36) / 0.64, 0.0, 1.0);
     applySnapshot(state->preview, state->current, 1.0 - reveal);
     state->currentOpacity = reveal;
-    wlr_scene_node_set_position(&state->tree->node, state->target.x(),
-                                state->target.y());
+    wlr_scene_node_set_position(&state->tree->node, state->target.left,
+                                state->target.top);
   } else {
     state->currentOpacity =
         state->initialOpacity + (1.0 - state->initialOpacity) * progress;
-    wlr_scene_node_set_position(&state->tree->node, state->current.x(),
-                                state->current.y());
+    wlr_scene_node_set_position(&state->tree->node, state->current.left,
+                                state->current.top);
   }
   if (state->preview || state->initialOpacity != 1.0) {
     OpacityContext context{&state->opacity, state->currentOpacity};
@@ -214,23 +257,25 @@ void SceneAnimation::applyLive(LiveState *state, qreal progress) {
 }
 
 void SceneAnimation::finishLive(wlr_scene_tree *tree, LiveState *state,
-                                       bool restore) {
-  if (live_.value(tree) != state)
+                                bool restore) {
+  const auto found = live_.find(tree);
+  if (found == live_.end() || found->second != state)
     return;
   Templates::detachListener(state->destroy);
-  live_.remove(tree);
+  live_.erase(found);
   if (restore) {
     OpacityContext context{&state->opacity, 1.0};
     wlr_scene_node_for_each_buffer(&tree->node, applyOpacity, &context);
-    wlr_scene_node_set_position(&tree->node, state->target.x(),
-                                state->target.y());
+    wlr_scene_node_set_position(&tree->node, state->target.left,
+                                state->target.top);
   }
   if (state->preview)
     destroySnapshot(state->preview);
   delete state;
 }
 
-void SceneAnimation::open(wlr_scene_tree *tree, const QRect &geometry) {
+void SceneAnimation::open(wlr_scene_tree *tree,
+                          const SceneAnimationRectangle &geometry) {
   if (!tree)
     return;
   cancel(tree);
@@ -245,7 +290,7 @@ void SceneAnimation::open(wlr_scene_tree *tree, const QRect &geometry) {
 }
 
 void SceneAnimation::focus(wlr_scene_tree *tree,
-                                     const QRect &geometry) {
+                           const SceneAnimationRectangle &geometry) {
   if (!tree || duration_ <= 0 || live_.contains(tree))
     return;
   auto *state = new LiveState;
@@ -257,23 +302,24 @@ void SceneAnimation::focus(wlr_scene_tree *tree,
 }
 
 void SceneAnimation::relayout(wlr_scene_tree *tree,
-                                        const QRect &previous,
-                                        const QRect &geometry,
-                                        wlr_scene_tree *overlay, bool animate) {
+                              const SceneAnimationRectangle &previous,
+                              const SceneAnimationRectangle &geometry,
+                              wlr_scene_tree *overlay, bool animate) {
   if (!tree)
     return;
-  if (!animate || duration_ <= 0 || !previous.isValid()) {
+  if (!animate || duration_ <= 0 || !previous.valid()) {
     cancel(tree);
-    wlr_scene_node_set_position(&tree->node, geometry.x(), geometry.y());
+    wlr_scene_node_set_position(&tree->node, geometry.left, geometry.top);
     return;
   }
-  auto *old = live_.value(tree);
+  const auto found = live_.find(tree);
+  auto *old = found == live_.end() ? nullptr : found->second;
   if ((old && old->target == geometry) || (!old && previous == geometry))
     return;
-  const QRect from = visualGeometry(tree, previous);
-  const qreal opacity = old ? old->currentOpacity : 1.0;
+  const auto from = visualGeometry(tree, previous);
+  const double opacity = old ? old->currentOpacity : 1.0;
   SnapshotState *preview = nullptr;
-  if (from.size() != geometry.size()) {
+  if (!from.sameSize(geometry)) {
     if (old && old->preview)
       applySnapshot(old->preview, old->current, 1.0);
     else if (old) {
@@ -295,11 +341,13 @@ void SceneAnimation::relayout(wlr_scene_tree *tree,
   startLive(state);
 }
 
-SceneAnimation::SnapshotState *SceneAnimation::createSnapshot(
-    wlr_scene_tree *source, wlr_scene_tree *parent, const QRect &geometry) {
+SceneAnimation::SnapshotState *
+SceneAnimation::createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
+                               const SceneAnimationRectangle &geometry) {
   if (!source || !parent)
     return nullptr;
-  int sourceX = 0, sourceY = 0;
+  int sourceX = 0;
+  int sourceY = 0;
   if (!wlr_scene_node_coords(&source->node, &sourceX, &sourceY))
     return nullptr;
   auto *tree = wlr_scene_tree_create(parent);
@@ -308,32 +356,35 @@ SceneAnimation::SnapshotState *SceneAnimation::createSnapshot(
   auto *state = new SnapshotState;
   state->owner = this;
   state->tree = tree;
-  int parentX = 0, parentY = 0;
+  int parentX = 0;
+  int parentY = 0;
   wlr_scene_node_coords(&parent->node, &parentX, &parentY);
-  state->parentOrigin = {parentX, parentY};
-  SnapshotBuildContext context{tree, QPoint(sourceX, sourceY), &state->buffers};
+  state->parentOriginX = parentX;
+  state->parentOriginY = parentY;
+  SnapshotBuildContext context{tree, sourceX, sourceY, &state->buffers};
   wlr_scene_node_for_each_buffer(&source->node, cloneBuffer, &context);
-  if (context.synchronizedSource || state->buffers.isEmpty()) {
+  if (context.synchronizedSource || state->buffers.empty()) {
     wlr_scene_node_destroy(&tree->node);
     delete state;
     return nullptr;
   }
-  QRect bounds;
+  SceneAnimationRectangle bounds;
   for (const auto &buffer : state->buffers)
-    bounds = bounds.united(buffer.geometry);
-  state->original = geometry.isValid()
+    bounds = unite(bounds, buffer.geometry);
+  state->original = geometry.valid()
                         ? geometry
-                        : QRect(QPoint(sourceX, sourceY), bounds.size());
+                        : SceneAnimationRectangle{sourceX, sourceY,
+                                                  bounds.width, bounds.height};
   state->current = state->original;
   state->duration = duration_;
-  state->elapsed.start();
-  snapshots_.append(state);
+  state->started = Clock::now();
+  snapshots_.push_back(state);
   Templates::attachListener(
       &tree->node.events.destroy, state->destroy, state,
       [](wl_listener *listener, void *) {
         auto *snapshot = Templates::listenerOwner<SnapshotState>(listener);
         Templates::detachListener(snapshot->destroy);
-        snapshot->owner->snapshots_.removeAll(snapshot);
+        std::erase(snapshot->owner->snapshots_, snapshot);
         if (snapshot->live)
           snapshot->live->preview = nullptr;
         delete snapshot;
@@ -343,87 +394,108 @@ SceneAnimation::SnapshotState *SceneAnimation::createSnapshot(
 }
 
 void SceneAnimation::applySnapshot(SnapshotState *state,
-                                          const QRect &geometry,
-                                          qreal opacity) {
-  const qreal scaleX =
-      qreal(geometry.width()) / std::max(1, state->original.width());
-  const qreal scaleY =
-      qreal(geometry.height()) / std::max(1, state->original.height());
+                                   const SceneAnimationRectangle &geometry,
+                                   double opacity) {
+  const double scaleX =
+      static_cast<double>(geometry.width) / std::max(1, state->original.width);
+  const double scaleY = static_cast<double>(geometry.height) /
+                        std::max(1, state->original.height);
   // Relayout previews deliberately stretch for a few frames instead of
   // preserving aspect ratio with moving letterbox bars. The live client is
   // already configured at the destination size and cross-fades continuously.
   state->current = geometry;
-  const QPoint origin = geometry.topLeft() - state->parentOrigin;
-  wlr_scene_node_set_position(&state->tree->node, origin.x(), origin.y());
+  wlr_scene_node_set_position(&state->tree->node,
+                              geometry.left - state->parentOriginX,
+                              geometry.top - state->parentOriginY);
   for (const auto &part : state->buffers) {
-    wlr_scene_node_set_position(&part.buffer->node,
-                                qRound(part.geometry.x() * scaleX),
-                                qRound(part.geometry.y() * scaleY));
+    wlr_scene_node_set_position(
+        &part.buffer->node,
+        static_cast<int>(std::lround(part.geometry.left * scaleX)),
+        static_cast<int>(std::lround(part.geometry.top * scaleY)));
     wlr_scene_buffer_set_dest_size(
-        part.buffer, std::max(1, qRound(part.geometry.width() * scaleX)),
-        std::max(1, qRound(part.geometry.height() * scaleY)));
+        part.buffer,
+        std::max(1,
+                 static_cast<int>(std::lround(part.geometry.width * scaleX))),
+        std::max(1,
+                 static_cast<int>(std::lround(part.geometry.height * scaleY))));
     wlr_scene_buffer_set_opacity(part.buffer, part.opacity * opacity);
   }
 }
 
 void SceneAnimation::destroySnapshot(SnapshotState *state) {
   Templates::detachListener(state->destroy);
-  snapshots_.removeAll(state);
+  std::erase(snapshots_, state);
   if (state->live)
     state->live->preview = nullptr;
   wlr_scene_node_destroy(&state->tree->node);
   delete state;
 }
 
-void SceneAnimation::close(wlr_scene_tree *source,
-                                         wlr_scene_tree *parent) {
+void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent) {
   if (!source || duration_ <= 0)
     return;
-  auto *live = live_.value(source);
+  const auto found = live_.find(source);
+  auto *live = found == live_.end() ? nullptr : found->second;
   if (live && live->preview)
     source = live->preview->tree;
   createSnapshot(source, parent,
-                 live ? visualGeometry(live->tree, live->current) : QRect());
+                 live ? visualGeometry(live->tree, live->current)
+                      : SceneAnimationRectangle{});
 }
 
 void SceneAnimation::advance() {
   // Follow output presentation cadence; no independent timer redraws idle
   // frames.
-  const auto live = live_.values();
+  std::vector<LiveState *> live;
+  live.reserve(live_.size());
+  for (const auto &[tree, state] : live_) {
+    (void)tree;
+    live.push_back(state);
+  }
   for (auto *state : live) {
-    const qreal t = elapsedProgress(state->elapsed, state->duration);
-    if (t >= 1.0)
+    const double progress = elapsedProgress(state->started, state->duration);
+    if (progress >= 1.0)
       finishLive(state->tree, state);
     else
-      applyLive(state, easing_.valueForProgress(t));
+      applyLive(state, ease(curve_, progress));
   }
+
   const auto snapshots = snapshots_;
   for (auto *state : snapshots) {
     if (state->live)
       continue;
-    const qreal t = elapsedProgress(state->elapsed, state->duration);
-    if (t >= 1.0) {
+    const double progress = elapsedProgress(state->started, state->duration);
+    if (progress >= 1.0) {
       destroySnapshot(state);
       continue;
     }
-    const qreal eased = QEasingCurve(QEasingCurve::InCubic).valueForProgress(t);
-    const QRect &from = state->original;
-    const QSize size(std::max(1, qRound(from.width() * exitScale_)),
-                     std::max(1, qRound(from.height() * exitScale_)));
-    const QRect target(from.x() + (from.width() - size.width()) / 2,
-                       from.y() + (from.height() - size.height()) / 2 + 14,
-                       size.width(), size.height());
+    const double eased = progress * progress * progress;
+    const auto &from = state->original;
+    const int width =
+        std::max(1, static_cast<int>(std::lround(from.width * exitScale_)));
+    const int height =
+        std::max(1, static_cast<int>(std::lround(from.height * exitScale_)));
+    const SceneAnimationRectangle target{
+        from.left + (from.width - width) / 2,
+        from.top + (from.height - height) / 2 + 14, width, height};
     applySnapshot(state, interpolate(from, target, eased), 1.0 - eased);
   }
 }
 
 void SceneAnimation::cancel(wlr_scene_tree *tree) {
-  if (auto *state = live_.value(tree))
-    finishLive(tree, state);
+  const auto found = live_.find(tree);
+  if (found != live_.end())
+    finishLive(tree, found->second);
 }
 
 void SceneAnimation::clear() {
-  for (auto *tree : live_.keys())
+  std::vector<wlr_scene_tree *> trees;
+  trees.reserve(live_.size());
+  for (const auto &[tree, state] : live_) {
+    (void)state;
+    trees.push_back(tree);
+  }
+  for (auto *tree : trees)
     cancel(tree);
   const auto snapshots = snapshots_;
   for (auto *state : snapshots)

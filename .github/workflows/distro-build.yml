@@ -38,6 +38,8 @@ jobs:
               exec bash -lc "
                 set -euo pipefail
                 bash scripts/install-dependencies.sh
+                bash scripts/ci/install-rust-toolchain.sh
+                export PATH=\$HOME/.cargo/bin:\$PATH
                 git config --global --add safe.directory /src
                 python3 tests/wayland/test_no_qtwayland.py
                 bash scripts/fetch-shell.sh /tmp/LunaDash-Shell

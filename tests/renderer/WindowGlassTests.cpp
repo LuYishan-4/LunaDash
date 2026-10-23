@@ -46,12 +46,12 @@ bool accessImage(wlr_buffer *buffer, uint32_t, void **data, uint32_t *format,
 
 void finishAccessImage(wlr_buffer *) {}
 
-const wlr_buffer_impl imageImplementation{
-    .destroy = destroyImage,
-    .get_dmabuf = nullptr,
-    .get_shm = nullptr,
-    .begin_data_ptr_access = accessImage,
-    .end_data_ptr_access = finishAccessImage};
+const wlr_buffer_impl imageImplementation{.destroy = destroyImage,
+                                          .get_dmabuf = nullptr,
+                                          .get_shm = nullptr,
+                                          .begin_data_ptr_access = accessImage,
+                                          .end_data_ptr_access =
+                                              finishAccessImage};
 
 ImageBuffer *createImage(int width, int height, uint32_t color = 0xff000000) {
   auto *image = new ImageBuffer;
@@ -85,7 +85,7 @@ void destroyAllocator(wlr_allocator *allocator) {
 }
 
 const wlr_allocator_interface allocatorImplementation{allocateImage,
-                                                       destroyAllocator};
+                                                      destroyAllocator};
 
 struct Window {
   wlr_scene_tree *tree = nullptr;
@@ -118,8 +118,7 @@ wlr_scene_tree *underlay(wlr_scene_tree *tree) {
 int childCount(wlr_scene_tree *tree) {
   int count = 0;
   wlr_scene_node *child = nullptr;
-  wl_list_for_each(child, &tree->children, link)
-    ++count;
+  wl_list_for_each(child, &tree->children, link)++ count;
   return count;
 }
 
@@ -159,7 +158,7 @@ private Q_SLOTS:
     background_ = wlr_scene_rect_create(&scene_->tree, 512, 512, red);
     QVERIFY(background_);
     glass_ = std::make_unique<WindowGlass>(renderer_, &allocator_->base,
-                                         &scene_->tree.node);
+                                           &scene_->tree.node);
     glass_->configure(true, 8, 0.8f);
   }
 
@@ -182,9 +181,11 @@ private Q_SLOTS:
   void unchangedSceneDoesNotRecapture() {
     const auto window = addWindow();
     QVERIFY(window.tree && window.content);
-    const QList<WindowGlass::Surface> surfaces{{window.tree, {64, 64}, true}};
+    const std::vector<WindowGlass::Surface> surfaces{
+        {window.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
-    QVERIFY2(glass_->ready(), qPrintable(glass_->error()));
+    QVERIFY2(glass_->ready(),
+             qPrintable(QString::fromStdString(glass_->error())));
     QVERIFY(!glass_->failed());
     QCOMPARE(glass_->frames(), quint64{1});
     const int allocations = allocator_->calls;
@@ -259,7 +260,8 @@ private Q_SLOTS:
     QVERIFY(indicator);
     wlr_scene_node_set_position(&activity->node, 300, 200);
     const auto window = addWindow();
-    const QList<WindowGlass::Surface> surfaces{{window.tree, {64, 64}, true}};
+    const std::vector<WindowGlass::Surface> surfaces{
+        {window.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
     QCOMPARE(glass_->frames(), quint64{1});
     const int allocations = allocator_->calls;
@@ -292,7 +294,8 @@ private Q_SLOTS:
   void animationRetainsAlphaAndDisablingRestoresSteadyState() {
     const auto window = addWindow();
     QVERIFY(window.tree && window.content);
-    const QList<WindowGlass::Surface> surfaces{{window.tree, {64, 64}, true}};
+    const std::vector<WindowGlass::Surface> surfaces{
+        {window.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
     QCOMPARE(window.content->opacity, 0.8f);
     wlr_scene_buffer_set_opacity(window.content, 0.25f);
@@ -307,8 +310,9 @@ private Q_SLOTS:
     glass_->update(surfaces, false);
     QCOMPARE(window.content->opacity, 1.0f);
     QVERIFY(!glass_->failed());
-    QVERIFY(glass_->error().isEmpty());
-    // Reduced/eye-care configurations can also suppress blur with a zero radius.
+    QVERIFY(glass_->error().empty());
+    // Reduced/eye-care configurations can also suppress blur with a zero
+    // radius.
     glass_->configure(true, 0, 1.0f);
     glass_->update(surfaces, false);
     QVERIFY(!glass_->ready());
@@ -322,10 +326,11 @@ private Q_SLOTS:
     const auto panel = addWindow();
     wlr_scene_node_reparent(&panel.tree->node, overlay);
     wlr_scene_node_set_position(&panel.tree->node, 40, 24);
-    QList<WindowGlass::Surface> targets{
+    std::vector<WindowGlass::Surface> targets{
         {app.tree, {64, 64}, true}, {panel.tree, {64, 64}, true, 24, 1.0f}};
     glass_->update(targets, false);
-    QVERIFY2(glass_->ready(), qPrintable(glass_->error()));
+    QVERIFY2(glass_->ready(),
+             qPrintable(QString::fromStdString(glass_->error())));
     QCOMPARE(app.content->opacity, 0.8f);
     QCOMPARE(panel.content->opacity, 1.0f);
     auto *backdrop = underlay(panel.tree);
@@ -340,7 +345,7 @@ private Q_SLOTS:
     glass_->update(targets, false);
     QVERIFY(!underlay(panel.tree));
     wlr_scene_node_destroy(&overlay->node);
-    targets.removeLast();
+    targets.pop_back();
     glass_->update(targets, false);
     QCOMPARE(app.content->opacity, 0.8f);
   }
@@ -397,10 +402,11 @@ private Q_SLOTS:
     const auto second = addWindow();
     QVERIFY(first.tree && first.content && second.tree && second.content);
     // Input order is deliberately the reverse of scene painter order.
-    const QList<WindowGlass::Surface> surfaces{
+    const std::vector<WindowGlass::Surface> surfaces{
         {second.tree, {64, 64}, true}, {first.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
-    QVERIFY2(glass_->ready(), qPrintable(glass_->error()));
+    QVERIFY2(glass_->ready(),
+             qPrintable(QString::fromStdString(glass_->error())));
     auto *firstBackdrop = underlay(first.tree);
     auto *secondBackdrop = underlay(second.tree);
     QVERIFY(firstBackdrop && secondBackdrop && firstBackdrop != secondBackdrop);

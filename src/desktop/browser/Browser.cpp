@@ -1,29 +1,37 @@
 #include "desktop/browser/Browser.hpp"
-#include "desktop/app/DefaultApplications.hpp"
-#include <QStandardPaths>
+
+#include <array>
+#include <cstdlib>
+#include <filesystem>
+#include <string>
+#include <unistd.h>
 
 namespace LunaDash {
-QStringList Browser::defaultCommand() {
-  for (const auto &candidate : {"google-chrome-stable", "google-chrome",
-                                "chromium", "chromium-browser"}) {
-    if (!QStandardPaths::findExecutable(candidate).isEmpty())
-      return {candidate};
+
+std::vector<std::string> Browser::defaultCommand() {
+  constexpr std::array candidates{"google-chrome-stable", "google-chrome",
+                                  "chromium", "chromium-browser"};
+  const char *pathValue = std::getenv("PATH");
+  if (!pathValue)
+    return {};
+  const std::string path(pathValue);
+  for (const auto candidate : candidates) {
+    std::size_t begin = 0;
+    while (begin <= path.size()) {
+      const auto end = path.find(':', begin);
+      const auto component = path.substr(
+          begin, end == std::string::npos ? std::string::npos : end - begin);
+      const std::filesystem::path directory =
+          component.empty() ? std::filesystem::current_path()
+                            : std::filesystem::path(component);
+      if (::access((directory / candidate).c_str(), X_OK) == 0)
+        return {candidate};
+      if (end == std::string::npos)
+        break;
+      begin = end + 1;
+    }
   }
   return {};
 }
 
-QStringList Browser::commandForUrl(const QUrl &url, QString *error) {
-  if (error)
-    error->clear();
-  if (!url.isValid() || (url.scheme() != "https" && url.scheme() != "http")) {
-    if (error)
-      *error = "Only valid HTTP and HTTPS URLs can be opened.";
-    return {};
-  }
-  auto command = defaultApplicationCommand("browser", error);
-  if (command.isEmpty())
-    return {};
-  command << url.toString(QUrl::FullyEncoded);
-  return command;
-}
 } // namespace LunaDash

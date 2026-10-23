@@ -12,11 +12,13 @@
 #include <QList>
 #include <QPointF>
 #include <QSize>
+#include <wayland-server-core.h>
 class QSocketNotifier;
 class QTimer;
 
 namespace LunaDash {
 using Templates::WaylandSlot;
+inline constexpr int kDefaultOutputRefreshMilliHz = 60000;
 class WaylandCompositor::Impl {
 public:
   template <typename Owner> using Slot = WaylandSlot<Owner>;
@@ -204,6 +206,9 @@ public:
 
   wlr_xdg_shell *xdgShell = nullptr;
   wlr_layer_shell_v1 *layerShell = nullptr;
+#if LUDASH_WLR_HAS_XDG_ACTIVATION
+  wlr_xdg_activation_v1 *xdgActivation = nullptr;
+#endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   wlr_foreign_toplevel_manager_v1 *foreignToplevelManager = nullptr;
 #endif
@@ -262,6 +267,9 @@ public:
   Slot<Impl> newXdgSurface;
   Slot<Impl> newXdgPopup;
   Slot<Impl> newLayerSurface;
+#if LUDASH_WLR_HAS_XDG_ACTIVATION
+  Slot<Impl> requestXdgActivation;
+#endif
   Slot<Impl> requestCursor;
   Slot<Impl> requestSelection;
   Slot<Impl> keyboardFocusChange;
@@ -395,6 +403,10 @@ public:
   static void handleNewXdgSurface(wl_listener *listener, void *data);
 #else
   static void handleNewXdgToplevel(wl_listener *listener, void *data);
+#endif
+
+#if LUDASH_WLR_HAS_XDG_ACTIVATION
+  static void handleXdgActivationRequest(wl_listener *listener, void *data);
 #endif
 
   static void handleToplevelMap(wl_listener *listener, void *);

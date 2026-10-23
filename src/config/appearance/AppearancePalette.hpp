@@ -1,8 +1,8 @@
 #pragma once
 
-#include <QJsonObject>
+#include <nlohmann/json.hpp>
 
 namespace LunaDash {
-QJsonObject appearancePalette(const QJsonObject &preferences);
-bool appearanceIsDark(const QJsonObject &preferences);
+nlohmann::json appearancePalette(const nlohmann::json &preferences);
+bool appearanceIsDark(const nlohmann::json &preferences);
 } // namespace LunaDash

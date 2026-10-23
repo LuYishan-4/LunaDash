@@ -6,7 +6,7 @@ Clone the `dev` branch with `git clone --branch dev ...`. The normal install com
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, pixman, libdrm, GL headers and GLib. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
+The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Rust/Cargo 1.92+ for pinned Slint 1.18.1, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus for the remaining native targets, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, pixman, libdrm, GL headers and GLib. The standalone Welcome target builds Slint's Winit Wayland backend with FemtoVG and explicitly disables Slint's Qt and X11 backends. `lunadashctl` uses POSIX Unix sockets and nlohmann/json; CMake uses an installed nlohmann_json 3.11+ package or fetches pinned v3.11.3. `scripts/install-dependencies.sh` provides distribution-specific package selection. The independent shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -52,7 +52,7 @@ Headless wlroots tests use pixman and private runtime/configuration directories.
 
 For a real desktop, use `LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh`. It uses the host Wayland socket and writes `build/wayland.log` and `build/wayland-state.json`. Run without `LUDASH_TEST_NO_SHELL` to check Quickshell. A complete manual session also checks Chrome/Zed, pointer and physical keyboard input, Fcitx preedit/candidate positioning, wallpaper changes, animation, file chooser D-Bus activation and logout. Do not infer these results from successful compilation.
 
-Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. Internal GLSL is embedded and needs no installed shader directory. For explicit relocation testing, install `--component Tests` into a temporary prefix and run `libexec/lunadash/tests/lunadash-renderer-test` there; that component is excluded from normal installs.
+Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. When `BUILD_SHARED_LIBS` is enabled, LunaDash's internal shared libraries are installed in `CMAKE_INSTALL_LIBDIR` and executables use relative runtime paths; static builds need no separate library installation. Internal GLSL is embedded and needs no installed shader directory. For explicit relocation testing, install `--component Tests` into a temporary prefix and run `libexec/lunadash/tests/lunadash-renderer-test` there; that component is excluded from normal installs.
 
 On Arch, also verify the source archive used by `./scripts/install-session.sh`, since a checkout build cannot detect missing archive contents:
 
@@ -77,7 +77,7 @@ This builds packages without installing them. The archive must include `data/plu
 | `src/compositor/wayland` | Runtime, output and surface lifetimes; private wlroots compatibility boundary |
 | `src/compositor/input` | Physical keyboard and pointer handling, text-input/input-method bridge |
 | `src/compositor/tiling`, `window`, `client` | Layout, rules and client state |
-| `src/compositor/animation` | wlroots scene transitions and retained Qt adapters |
+| `src/compositor/window/animation` | wlroots scene transitions |
 | `src/compositor/renderer` | Render orchestration, common types and item adapters |
 | `src/compositor/renderer/opengl` | GL dispatch/resources/passes and embedded shaders |
 | `src/config` | Preferences, localization, process helper and plugin metadata |

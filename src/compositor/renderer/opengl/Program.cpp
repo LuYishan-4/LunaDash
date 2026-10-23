@@ -1,23 +1,22 @@
 #include "compositor/renderer/opengl/Program.hpp"
 
 #include "compositor/renderer/opengl/Shader.hpp"
-#include <QByteArray>
+
 #include <algorithm>
-#include <limits>
 #include <vector>
 
 namespace LunaDash {
 namespace {
 
-QString programLog(LuDashGLDispatch &gl, GLuint program) {
+std::string programLog(LuDashGLDispatch &gl, GLuint program) {
   GLint length = 0;
   gl.GetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
   const GLsizei capacity = std::max(1, length);
-  QByteArray message(capacity, '\0');
+  std::vector<GLchar> message(static_cast<std::size_t>(capacity), '\0');
   GLsizei written = 0;
   gl.GetProgramInfoLog(program, capacity, &written, message.data());
-  message.resize(std::max<GLsizei>(0, written));
-  return QString::fromLocal8Bit(message);
+  message.resize(static_cast<std::size_t>(std::max<GLsizei>(0, written)));
+  return {message.begin(), message.end()};
 }
 
 } // namespace
@@ -32,18 +31,18 @@ Program::~Program() {
 }
 
 std::unique_ptr<Program> Program::create(const LuDashGLDispatch &dispatch,
-                                         const QList<ShaderAsset> &assets,
-                                         QString *error) {
+                                         const std::vector<ShaderAsset> &assets,
+                                         std::string *error) {
   auto program = std::unique_ptr<Program>(new Program(dispatch));
   if (!program->link(assets, error))
     return {};
   return program;
 }
 
-bool Program::link(const QList<ShaderAsset> &assets, QString *error) {
-  if (assets.isEmpty()) {
+bool Program::link(const std::vector<ShaderAsset> &assets, std::string *error) {
+  if (assets.empty()) {
     if (error)
-      *error = QStringLiteral("shader program has no stages");
+      *error = "shader program has no stages";
     return false;
   }
 
@@ -64,15 +63,14 @@ bool Program::link(const QList<ShaderAsset> &assets, QString *error) {
 
   if (computeCount && assets.size() != 1) {
     if (error)
-      *error = QStringLiteral(
-          "compute shaders cannot be linked with graphics stages");
+      *error = "compute shaders cannot be linked with graphics stages";
     return false;
   }
 
   program_ = gl_.CreateProgram();
   if (!program_) {
     if (error)
-      *error = QStringLiteral("glCreateProgram returned 0");
+      *error = "glCreateProgram returned 0";
     return false;
   }
 
@@ -93,7 +91,7 @@ bool Program::link(const QList<ShaderAsset> &assets, QString *error) {
     gl_.GenVertexArrays(1, &vertexArray_);
     if (!vertexArray_) {
       if (error)
-        *error = QStringLiteral("could not create fullscreen vertex array");
+        *error = "could not create fullscreen vertex array";
       return false;
     }
   }

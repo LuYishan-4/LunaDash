@@ -1,6 +1,5 @@
 #include "compositor/session/SessionApplication.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
-#include "config/localization/Localization.hpp"
 #include "config/BuildConfig.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
 
@@ -47,8 +46,6 @@ int SessionApplication::run(int argc, char **argv) {
   app.setOrganizationName("LunaDash");
   app.setApplicationVersion(QString::fromLatin1(BuildConfig::version) + " (" +
                             QString::fromLatin1(BuildConfig::commit) + ")");
-  LunaDash::initializeLocalization(app);
-
   QCommandLineParser parser;
   parser.setApplicationDescription(
       "LunaDash wlroots Wayland compositor");

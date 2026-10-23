@@ -30,9 +30,9 @@ QProcess: Cannot create pipe (Too many open files)
 
 ## Built-in GLSL
 
-獨立的 Qt render-element library 將 `src/compositor/renderer/opengl/shaders/` 的 shader 明確嵌入 resource。`ShaderAssetLoader` 可辨識 vertex/fragment/geometry/compute/tessellation suffix 與 stage pragma，並在來源缺 version 時補上適合版本。
+獨立 EGL render-element library 透過 CMake 產生的 C++ header 嵌入 `src/compositor/renderer/opengl/shaders/` 的明列 shader。`ShaderAssetLoader` 可辨識 vertex/fragment/geometry/compute/tessellation suffix 與 stage pragma，並在來源缺 version 時補上適合版本。
 
-Renderer tests 驗 relocation、software OpenGL、failure cleanup，但不能證明所有 GPU/fence leak 都不存在，也不能表示這些 Qt effects 已接到 wlroots scene。
+Renderer tests 驗 relocation、software OpenGL、failure cleanup，但不能證明所有 GPU/fence leak 都不存在，也不能表示這些 standalone GL pass 已接到 wlroots scene。
 
 更多：[Graphics](GRAPHICS.md)、[Effects](EFFECTS.md)、[Testing](TESTING_AND_FILES.md)。
 

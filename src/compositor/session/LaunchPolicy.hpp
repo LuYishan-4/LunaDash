@@ -1,23 +1,23 @@
 #pragma once
 
-#include <QString>
-#include <QStringList>
+#include <string>
+#include <vector>
 
 namespace LunaDash {
 
 struct LaunchIdentity {
-  QString desktopId;
-  QString flatpakId;
-  QString executable;
+  std::string desktopId;
+  std::string flatpakId;
+  std::string executable;
 };
 
 struct LaunchCapabilities {
   bool x11Helper = false;
 };
 
-LaunchIdentity identifyLaunch(const QString &desktopId,
-                              const QStringList &command);
-LaunchCapabilities resolveLaunchCapabilities(const QString &desktopId,
-                                             const QStringList &command);
+LaunchIdentity identifyLaunch(const std::string &desktopId,
+                              const std::vector<std::string> &command);
+LaunchCapabilities resolveLaunchCapabilities(
+    const std::string &desktopId, const std::vector<std::string> &command);
 
 } // namespace LunaDash

@@ -11,12 +11,34 @@
 #include "config/appearance/AppearancePresets.hpp"
 #include "config/appearance/AppearancePalette.hpp"
 #include <QDir>
-#include <QColor>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include <string>
+#include <algorithm>
+#include <array>
+#include <fstream>
+
+namespace {
+double hslLightness(const QString &color) {
+  const auto text = color.toStdString();
+  std::array<int, 3> channels{};
+  for (std::size_t index = 0; index < channels.size(); ++index)
+    channels[index] = std::stoi(text.substr(1 + index * 2, 2), nullptr, 16);
+  const auto [minimum, maximum] =
+      std::minmax_element(channels.begin(), channels.end());
+  return (*minimum + *maximum) / 510.0;
+}
+} // namespace
+
 namespace LunaDash {
+namespace {
+QJsonObject qtJsonObject(const ShellModuleJson &value) {
+  return QJsonDocument::fromJson(QByteArray::fromStdString(value.dump())).object();
+}
+} // namespace
+
 class SettingsTests final : public QObject {
   Q_OBJECT
   QTemporaryDir root;
@@ -26,7 +48,8 @@ class SettingsTests final : public QObject {
   }
   static QJsonObject descriptor(PluginManager &plugins, ShellModules &modules,
                                 const QString &id) {
-    for (const auto &entry : settingsApiTargets(plugins.snapshot(), modules.snapshot(), {}))
+    for (const auto &entry : settingsApiTargets(
+             plugins.snapshot(), qtJsonObject(modules.snapshot()), {}))
       if (entry.toObject().value("id").toString() == id) return entry.toObject();
     return {};
   }
@@ -102,66 +125,91 @@ private Q_SLOTS:
     QVERIFY(!Settings::checkPatch(target, stale, &error));
   }
   void modulesKeepHostInvariants() {
-    QJsonObject normalized;
-    QString error;
+    ShellModuleJson normalized;
+    std::string error;
     const auto defaults = defaultModuleDocument();
-    QVERIFY(validateModuleDocument(QJsonDocument(defaults).toJson(), &normalized, &error));
-    QCOMPARE(normalized, defaults);
-    QCOMPARE(shellModuleIds().size(), 11);
-    QVERIFY(shellModuleIds().contains("orbit"));
-    QVERIFY(shellModuleIds().contains("dock"));
+    QVERIFY(validateModuleDocument(defaults.dump(), &normalized, &error));
+    QVERIFY(normalized == defaults);
+    QVERIFY(shellModuleIds().size() == 11);
+    const auto ids = shellModuleIds();
+    QVERIFY(std::find(ids.begin(), ids.end(), "orbit") != ids.end());
+    QVERIFY(std::find(ids.begin(), ids.end(), "dock") != ids.end());
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"settings":{"enabled":false}}})", &normalized, &error));
     QVERIFY(!validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"config":{"workspaceInactiveWidth":48,"workspaceActiveWidth":18}}}})", &normalized, &error));
     // Legacy code fields are ignored without losing safe style/config values.
     QVERIFY(validateModuleDocument(R"({"schemaVersion":1,"modules":{"panel":{"style":{"height":48},"custom":{"enabled":true,"entry":"../Main.qml"}}}})", &normalized, &error));
-    const auto panel = normalized.value("modules").toObject().value("panel").toObject();
+    const auto panel = normalized.at("modules").at("panel");
     QVERIFY(!panel.contains("custom"));
-    QCOMPARE(panel.value("style").toObject().value("height").toInt(), 48);
-    QVERIFY(!shellModuleDescriptor("panel").value("sections").toObject().contains("custom"));
-    QVERIFY(!validateModuleDocument(QByteArray(16385, ' '), &normalized, &error));
+    QCOMPARE(panel.at("style").at("height").get<int>(), 48);
+    QVERIFY(!shellModuleDescriptor("panel").at("sections").contains("custom"));
+    QVERIFY(!validateModuleDocument(std::string(16385, ' '), &normalized, &error));
+  }
+  void moduleMonitorReloadsExternalChanges() {
+    ShellModules modules;
+    int changes = 0;
+    modules.setChangedCallback([&changes] { ++changes; });
+    auto document = defaultModuleDocument();
+    document["modules"]["panel"]["config"]["shellOpacity"] = 41;
+    const auto path = modules.snapshot().at("path").get<std::string>();
+    {
+      std::ofstream file(path, std::ios::binary | std::ios::trunc);
+      QVERIFY(file.good());
+      file << document.dump();
+      QVERIFY(file.good());
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(changes > 0, 2000);
+    QCOMPARE(modules.snapshot().at("document").at("modules").at("panel")
+                 .at("config").at("shellOpacity").get<int>(),
+             41);
   }
   void orbitRejectsInvalidDocumentsWithoutLosingConfiguration() {
-    QString error;
+    std::string error;
     QVERIFY(resetOrbitSettings(&error));
-    const auto original = orbitSettings().value("document").toObject();
-    QVERIFY(!original.isEmpty());
+    const auto original = orbitSettings().at("document");
+    QVERIFY(!original.empty());
     auto invalid = original;
     invalid["defaultEngine"] = "missing";
-    QVERIFY(!saveOrbitSettings(QJsonDocument(invalid).toJson(), &error));
+    QVERIFY(!saveOrbitSettings(invalid.dump(), &error));
     invalid = original;
-    invalid["items"] = QJsonArray{QJsonObject{{"id", "bad"}, {"name", "Bad"},
-        {"command", "sh -c echo test"}}};
-    QVERIFY(!saveOrbitSettings(QJsonDocument(invalid).toJson(), &error));
-    invalid["items"] = QJsonArray{QJsonObject{{"id", "bad"}, {"name", "Bad"},
-        {"url", "file:///etc/passwd"}}};
-    QVERIFY(!saveOrbitSettings(QJsonDocument(invalid).toJson(), &error));
-    QVERIFY(!saveOrbitSettings(QByteArray(32769, ' '), &error));
-    QCOMPARE(orbitSettings().value("document").toObject(), original);
+    invalid["items"] = nlohmann::json::array({{{"id", "bad"}, {"name", "Bad"},
+        {"command", "sh -c echo test"}}});
+    QVERIFY(!saveOrbitSettings(invalid.dump(), &error));
+    invalid["items"] = nlohmann::json::array({{{"id", "bad"}, {"name", "Bad"},
+        {"url", "file:///etc/passwd"}}});
+    QVERIFY(!saveOrbitSettings(invalid.dump(), &error));
+    QVERIFY(!saveOrbitSettings(std::string(32769, ' '), &error));
+    QVERIFY(orbitSettings().at("document") == original);
   }
   void appearancePresetsValidateBeforeApplying() {
-    QString error;
-    QVERIFY(updateDesktopPreferences({{"themeMode", "light"}, {"eyeCareTemperature", 4200}}, &error));
-    QVERIFY(saveAppearancePreset("daylight", &error));
-    QVERIFY(!saveAppearancePreset("../outside", &error));
+    std::string error;
+    std::string presetError;
+    QVERIFY(updateDesktopPreferences(
+        {{"themeMode", "light"}, {"eyeCareTemperature", 4200}}, &error));
+    QVERIFY(saveAppearancePreset("daylight", &presetError));
+    QVERIFY(!saveAppearancePreset("../outside", &presetError));
     QVERIFY(updateDesktopPreferences({{"themeMode", "dark"}}, &error));
-    QVERIFY(applyAppearancePreset("daylight", &error));
-    QCOMPARE(desktopPreferences().value("themeMode").toString(), QString("light"));
+    QVERIFY(applyAppearancePreset("daylight", &presetError));
+    QVERIFY(desktopPreferences().at("themeMode") == "light");
     const auto before = desktopPreferences();
-    QVERIFY(!updateDesktopPreferences({{"themeMode", "dark"}, {"eyeCareTemperature", 0}}, &error));
-    QCOMPARE(desktopPreferences(), before);
+    QVERIFY(!updateDesktopPreferences(
+        {{"themeMode", "dark"}, {"eyeCareTemperature", 0}}, &error));
+    QVERIFY(desktopPreferences() == before);
     QVERIFY(!updateDesktopPreferences({{"weatherLatitude", 91}}, &error));
-    QVERIFY(!updateDesktopPreferences({{"wallpaperDirectory", "relative"}}, &error));
-    QVERIFY(deleteAppearancePreset("daylight", &error));
+    QVERIFY(!updateDesktopPreferences({{"wallpaperDirectory", "relative"}},
+                                      &error));
+    QVERIFY(deleteAppearancePreset("daylight", &presetError));
   }
   void paletteFollowsDesktopColorScheme() {
-    const auto light = appearancePalette({{"themeMode", "light"}, {"accent", "#6699cc"}});
-    const auto dark = appearancePalette({{"themeMode", "dark"}, {"accent", "#6699cc"}});
-    QVERIFY(!light.value("dark").toBool());
-    QVERIFY(dark.value("dark").toBool());
-    QVERIFY(QColor(light.value("text").toString()).lightnessF() <
-            QColor(light.value("background").toString()).lightnessF());
-    QVERIFY(QColor(dark.value("text").toString()).lightnessF() >
-            QColor(dark.value("background").toString()).lightnessF());
+    const auto light = appearancePalette(
+        nlohmann::json{{"themeMode", "light"}, {"accent", "#6699cc"}});
+    const auto dark = appearancePalette(
+        nlohmann::json{{"themeMode", "dark"}, {"accent", "#6699cc"}});
+    QVERIFY(!light.value("dark", true));
+    QVERIFY(dark.value("dark", false));
+    QVERIFY(hslLightness(QString::fromStdString(light.at("text").get<std::string>())) <
+            hslLightness(QString::fromStdString(light.at("background").get<std::string>())));
+    QVERIFY(hslLightness(QString::fromStdString(dark.at("text").get<std::string>())) >
+            hslLightness(QString::fromStdString(dark.at("background").get<std::string>())));
   }
   void moduleApiPersistsAndRejectsStaleEdits() {
     PluginManager plugins;
@@ -175,9 +223,9 @@ private Q_SLOTS:
     QCOMPARE(descriptor(plugins, modules, "module:panel:config").value("values").toObject().value("shellOpacity").toInt(), 35);
     QVERIFY(!updateSettingsApi(plugins, modules, {}, edit, noLayout, &error));
     target = descriptor(plugins, modules, "module:panel:config");
-    const auto before = modules.snapshot().value("document");
+    const auto before = modules.snapshot().at("document");
     QVERIFY(!updateSettingsApi(plugins, modules, {}, request(target, {{"shellOpacity", 99}}), noLayout, &error));
-    QCOMPARE(modules.snapshot().value("document"), before);
+    QCOMPARE(modules.snapshot().at("document").dump(), before.dump());
     target = descriptor(plugins, modules, "module:settings:module");
     QVERIFY(!updateSettingsApi(plugins, modules, {}, request(target, {{"enabled", false}}), noLayout, &error));
   }

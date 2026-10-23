@@ -1,4 +1,7 @@
 {
+    "Keep existing": "保留現有檔案",
+    "No matching files in this folder.": "此資料夾中沒有符合條件的檔案。",
+    "Replace": "取代",
     "Rollback completed. Start a new session to use it.": "版本回復完成。請重新登入工作階段以使用還原的版本。",
     "The update could not be completed. Open details to view the log.": "無法完成更新，請開啟詳細資訊查看記錄。"
 }

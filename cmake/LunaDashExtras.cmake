@@ -20,17 +20,13 @@ add_executable(lunadash-portal src/service/portal/Main.cpp
     src/service/portal/SettingsPortal.hpp
     src/service/portal/FileChooserPortal.cpp
     src/service/portal/FileChooserPortal.hpp
-    src/service/portal/PortalRequest.cpp
-    src/service/portal/PortalRequest.hpp
     src/service/portal/FileChooserOptions.cpp
-    src/service/portal/FileChooserOptions.hpp
-    src/service/portal/FileIcons.cpp
-    src/service/portal/FileIcons.hpp
-    src/service/portal/FilePickerDialog.cpp
-    src/service/portal/FilePickerDialog.hpp
-    src/service/portal/ScreenCastChooser.cpp
-    src/service/portal/ScreenCastChooser.hpp)
-target_link_libraries(lunadash-portal PRIVATE ludash-apps Qt6::Widgets Qt6::DBus)
+    src/service/portal/FileChooserOptions.hpp)
+target_link_libraries(lunadash-portal PRIVATE
+    ludash-desktop-preferences ludash-appearance-palette
+    PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
+add_dependencies(lunadash-portal ludash-screencast-chooser)
+add_dependencies(lunadash-portal ludash-filepicker)
 set_target_properties(lunadash-portal PROPERTIES OUTPUT_NAME xdg-desktop-portal-lunadash)
 
 configure_file(

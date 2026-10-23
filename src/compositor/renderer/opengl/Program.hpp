@@ -3,16 +3,17 @@
 #include "compositor/renderer/opengl/GLDispatch.h"
 #include "compositor/renderer/opengl/ShaderAsset.hpp"
 
-#include <QString>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace LunaDash {
 
 class Program final {
 public:
   static std::unique_ptr<Program> create(const LuDashGLDispatch &dispatch,
-                                         const QList<ShaderAsset> &assets,
-                                         QString *error = nullptr);
+                                         const std::vector<ShaderAsset> &assets,
+                                         std::string *error = nullptr);
 
   ~Program();
 
@@ -30,7 +31,7 @@ public:
 
 private:
   explicit Program(const LuDashGLDispatch &dispatch);
-  bool link(const QList<ShaderAsset> &assets, QString *error);
+  bool link(const std::vector<ShaderAsset> &assets, std::string *error);
 
   LuDashGLDispatch gl_{};
   GLuint program_ = 0;
