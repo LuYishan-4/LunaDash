@@ -16,12 +16,13 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QScopedValueRollback>
-#include <QSet>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QUrl>
 #include <algorithm>
 #include <chrono>
+#include <map>
+#include <set>
 #include <string_view>
 
 namespace LunaDash {
@@ -132,7 +133,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
 
   static const QRegularExpression validId("^[A-Za-z0-9][A-Za-z0-9._-]+$");
   QJsonArray normalized;
-  QSet<QString> ids;
+  std::set<QString> ids;
   for (const auto &value : values.toArray()) {
     if (!value.isObject()) {
       if (error)
@@ -146,7 +147,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
     bool validTargets = false;
     if (item.value("targets").isArray()) {
       const auto targetItems = item.value("targets").toArray();
-      QSet<QString> targetIds;
+      std::set<QString> targetIds;
       validTargets = !targetItems.isEmpty() && targetItems.size() <= 16;
       for (const auto &targetValue : targetItems) {
         const auto implementation = targetValue.toObject();
@@ -226,7 +227,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
           *error = "Plugin install file list is invalid";
         return false;
       }
-      QSet<QString> paths;
+      std::set<QString> paths;
       bool metadata = false;
       bool cmakeProject = false;
       static const QRegularExpression shaPattern("^[0-9a-fA-F]{64}$");
@@ -386,7 +387,7 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
   }
 
   auto *raw = job.get();
-  storeInstallErrors_.remove(id);
+  storeInstallErrors_.erase(id);
   storeInstalls_.push_back(std::move(job));
   emit changed();
   continueStoreInstall(raw);
@@ -651,7 +652,7 @@ void PluginManager::finishStoreInstall(StoreInstall *job,
     emit changed();
     return;
   }
-  storeInstallErrors_.remove(id);
+  storeInstallErrors_.erase(id);
   refresh();
 }
 
@@ -705,7 +706,7 @@ bool PluginManager::removeInstalledPlugin(const QString &id, QString *error) {
       *error = "Could not remove the user plugin directory";
     return false;
   }
-  storeInstallErrors_.remove(id);
+  storeInstallErrors_.erase(id);
   refresh();
   if (error)
     error->clear();
@@ -718,9 +719,9 @@ void PluginManager::refresh() {
     return;
 
   const auto discovered = discoverPlugins();
-  QList<PluginDescriptor> catalog;
-  QSet<QString> active;
-  QSet<QString> selectedTargets;
+  std::vector<PluginDescriptor> catalog;
+  std::set<QString> active;
+  std::set<QString> selectedTargets;
 
   for (auto descriptor : discovered) {
     const auto id = descriptor.id;
@@ -734,7 +735,7 @@ void PluginManager::refresh() {
         previous->mode != descriptor.mode ||
         previous->settings != descriptor.settings ||
         previous->enabled != descriptor.enabled)
-      errors_.remove(key);
+      errors_.erase(key);
 
     if (descriptor.enabled && descriptor.error.isEmpty() &&
         extensionTarget(descriptor.target)
@@ -748,7 +749,7 @@ void PluginManager::refresh() {
     }
 
     if (!descriptor.enabled || !descriptor.error.isEmpty()) {
-      catalog.append(descriptor);
+      catalog.push_back(descriptor);
       continue;
     }
 
@@ -802,7 +803,7 @@ void PluginManager::refresh() {
       }
     }
 
-    catalog.append(descriptor);
+    catalog.push_back(descriptor);
   }
 
   std::erase_if(native_, [&](const auto &entry) {
@@ -812,7 +813,7 @@ void PluginManager::refresh() {
   for (auto it = errors_.begin(); it != errors_.end();) {
     const bool enabled =
         std::any_of(catalog.cbegin(), catalog.cend(), [&](const auto &plugin) {
-          return pluginInstanceId(plugin) == it.key() && plugin.enabled;
+          return pluginInstanceId(plugin) == it->first && plugin.enabled;
         });
     if (!enabled)
       it = errors_.erase(it);
@@ -831,14 +832,14 @@ QJsonObject PluginManager::snapshot() {
     return snapshotCache_;
 
   QJsonArray installed;
-  QSet<QString> replacements;
-  QHash<QString, QJsonObject> storeItems;
+  std::set<QString> replacements;
+  std::map<QString, QJsonObject> storeItems;
   for (const auto &value : storeCatalog_) {
     const auto item = value.toObject();
-    storeItems.insert(item.value("id").toString(), item);
+    storeItems[item.value("id").toString()] = item;
   }
   const auto removableRoot = QFileInfo(userPluginRoot()).canonicalFilePath();
-  static const QSet<QString> retiredBundledIds{
+  static const std::set<QString> retiredBundledIds{
       "org.ludash.fade",
       "org.lunadash.stacking-windows",
   };
@@ -849,7 +850,10 @@ QJsonObject PluginManager::snapshot() {
         retiredBundledIds.contains(descriptor.id))
       continue;
     auto item = pluginDescriptorJson(descriptor);
-    const auto storeItem = storeItems.value(descriptor.id);
+    const auto storeItemIt = storeItems.find(descriptor.id);
+    const QJsonObject storeItem = storeItemIt == storeItems.end()
+                                      ? QJsonObject{}
+                                      : storeItemIt->second;
     const auto storeVersion = storeItem.value("version").toString();
     item["outdated"] =
         !storeVersion.isEmpty() && !pluginMatchesStore(descriptor, storeItem);
@@ -860,8 +864,11 @@ QJsonObject PluginManager::snapshot() {
         !removableRoot.isEmpty() && !packageDir.isEmpty() &&
         QFileInfo(packageDir).absolutePath() == removableRoot;
     QString error = descriptor.error;
-    if (error.isEmpty())
-      error = errors_.value(pluginInstanceId(descriptor));
+    if (error.isEmpty()) {
+      const auto errorIt = errors_.find(pluginInstanceId(descriptor));
+      if (errorIt != errors_.end())
+        error = errorIt->second;
+    }
     if (descriptor.enabled && error.isEmpty() && descriptor.mode == "replace") {
       if (replacements.contains(descriptor.target))
         error = "Another replacement is already selected for this target";
@@ -892,7 +899,7 @@ QJsonObject PluginManager::snapshot() {
         configuredBuiltinSettings(target.value("id").toString(), document);
     targets[i] = target;
   }
-  QSet<QString> installedIds;
+  std::set<QString> installedIds;
   for (const auto &descriptor : catalog_)
     installedIds.insert(descriptor.id);
   QJsonArray remote;
@@ -922,7 +929,10 @@ QJsonObject PluginManager::snapshot() {
         break;
       }
     }
-    item["installError"] = storeInstallErrors_.value(id);
+    const auto installError = storeInstallErrors_.find(id);
+    item["installError"] =
+        installError == storeInstallErrors_.end() ? QString()
+                                                   : installError->second;
     remote.append(item);
   }
   snapshotCache_ = {{"installed", installed},
@@ -973,7 +983,7 @@ void PluginManager::reportError(const QString &key, const QString &error) {
     return;
   }
 
-  errors_.remove(key);
+  errors_.erase(key);
   if (!inHook_)
     refresh();
 }

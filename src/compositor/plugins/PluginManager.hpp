@@ -1,10 +1,11 @@
 #pragma once
 #include "config/plugins/PluginCatalog.hpp"
-#include <QHash>
 #include <QJsonArray>
 #include <QObject>
 #include <functional>
+#include <map>
 #include <memory>
+#include <vector>
 #include <vector>
 class QNetworkAccessManager;
 
@@ -33,9 +34,9 @@ private:
   struct StoreInstall;
   std::vector<std::unique_ptr<Native>> native_;
   std::vector<std::unique_ptr<StoreInstall>> storeInstalls_;
-  QHash<QString, QString> errors_;
-  QHash<QString, QString> storeInstallErrors_;
-  QList<PluginDescriptor> catalog_;
+  std::map<QString, QString> errors_;
+  std::map<QString, QString> storeInstallErrors_;
+  std::vector<PluginDescriptor> catalog_;
   QJsonArray storeCatalog_;
   QString storeError_;
   QNetworkAccessManager *storeNetwork_ = nullptr;
