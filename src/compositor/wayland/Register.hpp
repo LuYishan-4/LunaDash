@@ -12,6 +12,8 @@
 #include <QPointF>
 #include <QSize>
 #include <chrono>
+#include <functional>
+#include <unordered_set>
 #include <wayland-server-core.h>
 class QSocketNotifier;
 
@@ -144,7 +146,7 @@ public:
     wl_client *ownerClient = nullptr;
     bool virtualKeyboard = false;
     uint32_t lastLockedModifiers = 0;
-    QSet<uint32_t> consumedKeys;
+    std::unordered_set<uint32_t> consumedKeys;
     bool metaTapPending = false;
     int metaTapKeycode = -1;
     Slot<KeyboardState> key;

@@ -7,6 +7,8 @@
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 #include <algorithm>
 #include <linux/input-event-codes.h>
+#include <unordered_set>
+#include <vector>
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -152,14 +154,14 @@ void WaylandCompositor::Impl::focusSurface(wlr_surface *surface) {
   if (!keyboard)
     return;
   wlr_seat_set_keyboard(seat, keyboard);
-  QList<uint32_t> pressed;
-  QSet<uint32_t> consumed;
+  std::vector<uint32_t> pressed;
+  std::unordered_set<uint32_t> consumed;
   for (const auto *state : keyboards)
     if (state->keyboard == keyboard)
       consumed = state->consumedKeys;
   for (size_t i = 0; i < keyboard->num_keycodes; ++i)
     if (!consumed.contains(keyboard->keycodes[i]))
-      pressed.append(keyboard->keycodes[i]);
+      pressed.push_back(keyboard->keycodes[i]);
   wlr_seat_keyboard_notify_enter(seat, surface, pressed.data(), pressed.size(),
                                  &keyboard->modifiers);
 }
@@ -408,7 +410,7 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
   }
 
   if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
-      state->consumedKeys.remove(event->keycode))
+      state->consumedKeys.erase(event->keycode))
     return;
 
   // F12 is a fixed compositor shortcut for true fullscreen. Keep it outside
@@ -495,7 +497,7 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
   }
 
   if (shortcutPress)
-    state->consumedKeys.remove(event->keycode);
+    state->consumedKeys.erase(event->keycode);
 
   const bool inputMethodOwnsKeyboard =
       inputMethodBridgeActive && !inputMethodVirtual;
