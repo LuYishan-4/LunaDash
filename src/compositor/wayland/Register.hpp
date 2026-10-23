@@ -109,6 +109,12 @@ public:
     ClientWindow *client = nullptr;
   };
 
+  struct ScheduledCallback {
+    Impl *impl = nullptr;
+    wl_event_source *source = nullptr;
+    std::function<void()> callback;
+  };
+
   struct LayerState {
     Impl *impl = nullptr;
     wlr_layer_surface_v1 *surface = nullptr;
@@ -253,6 +259,7 @@ public:
   QList<TextInputState *> textInputs;
   QList<PopupState *> inputPopups;
   std::vector<std::unique_ptr<DeferredClientRemoval>> deferredClientRemovals;
+  std::vector<std::unique_ptr<ScheduledCallback>> scheduledCallbacks;
   InputMethodState *inputMethod = nullptr;
   TextInputState *activeTextInput = nullptr;
   int pointerDevices = 0;
@@ -454,6 +461,9 @@ public:
   bool scheduleScratchpadTimeout(quint64 generation);
   void cancelScratchpadTimeout();
   static int handleScratchpadTimeout(void *data);
+  bool scheduleCallback(int delayMilliseconds, std::function<void()> callback);
+  void cancelScheduledCallbacks();
+  static int handleScheduledCallback(void *data);
   static void handleXWaylandConfigure(wl_listener *listener, void *data);
   static void handleXWaylandMove(wl_listener *listener, void *data);
   static void handleXWaylandResize(wl_listener *listener, void *data);

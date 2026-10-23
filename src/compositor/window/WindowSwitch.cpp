@@ -8,7 +8,6 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
-#include <QTimer>
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -127,7 +126,7 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
     if (windowSwitcher_->begin(choices, focused_ ? focused_->id : 0,
                                 direction, clientEnvironment_, scope)) {
       const int serial = windowSwitcher_->serial();
-      QTimer::singleShot(0, this, [this, serial, capture] {
+      d->scheduleCallback(0, [this, serial, capture] {
         captureWorkspaceThumbnail(serial, capture);
       });
     }
@@ -176,7 +175,7 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
   windowSwitcher_->begin(choices, workspace_ + 1, direction,
                          clientEnvironment_, scope);
   const int serial = windowSwitcher_->serial();
-  QTimer::singleShot(0, this, [this, serial, capture] {
+  d->scheduleCallback(0, [this, serial, capture] {
     captureWorkspaceThumbnail(serial, capture);
   });
 }
@@ -221,7 +220,7 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
                        width, height, pixels.data());
   }
   if (!captured) {
-    QTimer::singleShot(16, this, [this, serial, windows] {
+    d->scheduleCallback(16, [this, serial, windows] {
       captureWorkspaceThumbnail(serial, windows);
     });
     return;
@@ -251,13 +250,13 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
       return saved;
     });
   } catch (...) {
-    QTimer::singleShot(16, this, [this, serial, remaining = write->remaining] {
+    d->scheduleCallback(16, [this, serial, remaining = write->remaining] {
       captureWorkspaceThumbnail(serial, remaining);
     });
     return;
   }
   thumbnailWrite_ = std::move(write);
-  QTimer::singleShot(0, this, [this] { pollThumbnailWrite(); });
+  d->scheduleCallback(0, [this] { pollThumbnailWrite(); });
 }
 
 void WaylandCompositor::pollThumbnailWrite() {
@@ -265,7 +264,7 @@ void WaylandCompositor::pollThumbnailWrite() {
     return;
   if (thumbnailWrite_->result.wait_for(std::chrono::seconds(0)) !=
       std::future_status::ready) {
-    QTimer::singleShot(2, this, [this] { pollThumbnailWrite(); });
+    d->scheduleCallback(2, [this] { pollThumbnailWrite(); });
     return;
   }
 
@@ -289,18 +288,17 @@ void WaylandCompositor::pollThumbnailWrite() {
     const int serial = std::exchange(queuedThumbnailSerial_, 0);
     auto queued = std::move(queuedThumbnailWindows_);
     queuedThumbnailWindows_.clear();
-    QTimer::singleShot(16, this, [this, serial, queued = std::move(queued)] {
+    d->scheduleCallback(16, [this, serial, queued = std::move(queued)] {
       captureWorkspaceThumbnail(serial, queued);
     });
     return;
   }
 
   if (current) {
-    QTimer::singleShot(16, this,
-                       [this, serial = completed->serial,
-                        remaining = std::move(completed->remaining)] {
-                         captureWorkspaceThumbnail(serial, remaining);
-                       });
+    d->scheduleCallback(16, [this, serial = completed->serial,
+                              remaining = std::move(completed->remaining)] {
+      captureWorkspaceThumbnail(serial, remaining);
+    });
   }
 }
 void WaylandCompositor::finishWindowSwitch(bool accept) {

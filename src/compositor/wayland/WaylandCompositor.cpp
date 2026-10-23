@@ -64,7 +64,6 @@
 #include <QSettings>
 #include <QSocketNotifier>
 #include <QStandardPaths>
-#include <QTimer>
 #include <QUrl>
 #include <nlohmann/json.hpp>
 
@@ -291,7 +290,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
         preferences.value("weatherLongitude", 0.0),
         preferences.value("weatherLocation", std::string{})};
   });
-  QTimer::singleShot(0, this, [this] {
+  d->scheduleCallback(0, [this] {
     const auto path = wallpaperImagePath();
     if (!path.empty())
       refreshWallpaperPalette(d->eventLoop, path, wallpaperIsVideo(path));
@@ -396,7 +395,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     spawn({"--session"}, {}, false);
 
     if (setupComplete()) {
-      QTimer::singleShot(1200, this, [this] {
+      d->scheduleCallback(1200, [this] {
         if (testStopping_ || shuttingDown_)
           return;
         for (const auto &app : desktopPreferences().value("startupApps", nlohmann::json::array()))
@@ -478,7 +477,7 @@ void WaylandCompositor::scheduleShellRestart() {
   qWarning().noquote() << "LunaDash shell restart scheduled in" << delayMs
                        << "ms";
 
-  QTimer::singleShot(delayMs, this, [this] {
+  d->scheduleCallback(delayMs, [this] {
     shellRestartScheduled_ = false;
     if (shuttingDown_ || testStopping_ || logoutPending_)
       return;
@@ -615,7 +614,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
     process->start(quickshell, {"--path", config, "--no-color"});
 
     const QPointer<QProcess> shellGuard(process);
-    QTimer::singleShot(10000, this, [this, shellGuard] {
+    d->scheduleCallback(10000, [this, shellGuard] {
       if (shellGuard && shellGuard->state() != QProcess::NotRunning)
         shellRestartFailures_ = 0;
     });
@@ -2364,7 +2363,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (value != "confirm")
       return {{"error", "Logout requires explicit confirmation."}};
     qInfo("LunaDash logout requested through the control channel.");
-    QTimer::singleShot(0, this, &WaylandCompositor::requestShutdown);
+    d->scheduleCallback(0, [this] { requestShutdown(); });
   } else if (method == "switch-window") {
     const auto id = textWindowId(value);
     if (!id || !windowSwitcher_->select(*id))
@@ -2476,9 +2475,10 @@ void WaylandCompositor::closeTestSession(
   for (const auto &client : clients_)
     closeClient(client.get());
 
-  auto *timer = new QTimer(this);
   auto elapsed = std::make_shared<int>(0);
-  connect(timer, &QTimer::timeout, this, [this, timer, elapsed, finished] {
+  auto poll = std::make_shared<std::function<void()>>();
+  const std::weak_ptr<std::function<void()>> weakPoll = poll;
+  *poll = [this, elapsed, finished, weakPoll] {
     *elapsed += 50;
     if (clients_.empty() && xwayland_)
       xwayland_->stop();
@@ -2489,13 +2489,17 @@ void WaylandCompositor::closeTestSession(
         });
     if ((clients_.empty() && processesDone && xwaylandDone) ||
         *elapsed >= 5000) {
-      timer->stop();
-      timer->deleteLater();
       finished(clients_.empty() && processesDone && xwaylandDone &&
                !processFailure_);
+      return;
     }
-  });
-  timer->start(50);
+    if (const auto next = weakPoll.lock()) {
+      if (!d->scheduleCallback(50, [next] { (*next)(); }))
+        finished(false);
+    }
+  };
+  if (!d->scheduleCallback(50, [poll] { (*poll)(); }))
+    finished(false);
 }
 
 void WaylandCompositor::requestShutdown() {

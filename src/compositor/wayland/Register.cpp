@@ -5,7 +5,6 @@
 #include <QAbstractEventDispatcher>
 #include <QCoreApplication>
 #include <QSocketNotifier>
-#include <QTimer>
 #include <algorithm>
 
 namespace LunaDash {
@@ -266,7 +265,7 @@ bool WaylandCompositor::Impl::initialize() {
 bool WaylandCompositor::Impl::fail(const char *message) {
   qCritical().noquote() << "LunaDash wlroots:" << message;
   q->processFailure_ = true;
-  QTimer::singleShot(0, q, [] { QCoreApplication::exit(2); });
+  scheduleCallback(0, [] { QCoreApplication::exit(2); });
   return false;
 }
 
@@ -333,7 +332,64 @@ int WaylandCompositor::Impl::handleScratchpadTimeout(void *data) {
   return 0;
 }
 
+bool WaylandCompositor::Impl::scheduleCallback(
+    int delayMilliseconds, std::function<void()> callback) {
+  if (!eventLoop || !callback)
+    return false;
+  auto scheduled = std::make_unique<ScheduledCallback>();
+  scheduled->impl = this;
+  scheduled->callback = std::move(callback);
+  auto *entry = scheduled.get();
+  scheduledCallbacks.push_back(std::move(scheduled));
+  entry->source =
+      wl_event_loop_add_timer(eventLoop, handleScheduledCallback, entry);
+  if (!entry->source ||
+      wl_event_source_timer_update(entry->source,
+                                  std::max(0, delayMilliseconds)) < 0) {
+    if (entry->source)
+      wl_event_source_remove(entry->source);
+    const auto found = std::find_if(
+        scheduledCallbacks.begin(), scheduledCallbacks.end(),
+        [entry](const auto &pending) { return pending.get() == entry; });
+    if (found != scheduledCallbacks.end())
+      scheduledCallbacks.erase(found);
+    qCritical("Could not schedule a compositor event-loop callback.");
+    return false;
+  }
+  return true;
+}
+
+void WaylandCompositor::Impl::cancelScheduledCallbacks() {
+  for (const auto &entry : scheduledCallbacks)
+    if (entry && entry->source)
+      wl_event_source_remove(entry->source);
+  scheduledCallbacks.clear();
+}
+
+int WaylandCompositor::Impl::handleScheduledCallback(void *data) {
+  auto *entry = static_cast<ScheduledCallback *>(data);
+  if (!entry || !entry->impl)
+    return 0;
+  auto *self = entry->impl;
+  auto callback = std::move(entry->callback);
+  const auto found =
+      std::find_if(self->scheduledCallbacks.begin(),
+                   self->scheduledCallbacks.end(),
+                   [entry](const auto &pending) {
+                     return pending.get() == entry;
+                   });
+  if (found != self->scheduledCallbacks.end()) {
+    if (entry->source)
+      wl_event_source_remove(entry->source);
+    self->scheduledCallbacks.erase(found);
+  }
+  if (callback)
+    callback();
+  return 0;
+}
+
 void WaylandCompositor::Impl::shutdown() {
+  cancelScheduledCallbacks();
   cancelScratchpadTimeout();
   clearPendingDisplay();
   if (!display)
