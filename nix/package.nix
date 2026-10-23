@@ -4,7 +4,7 @@
 , qt6, wayland, wayland-protocols, wayland-scanner, wlroots_0_20
 , libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, quickshell
 , coreutils, bash, gnused, curl, gdk-pixbuf, xwayland, xdg-utils, wl-clipboard, grim, slurp
-, brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages
+, brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages, fontconfig, freetype
 , xdg-desktop-portal-wlr, revision ? "unknown", shellSource, slintSource
 }:
 let

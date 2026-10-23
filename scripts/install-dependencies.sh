@@ -153,7 +153,7 @@ case "$manager" in
         ;;
     apk)
         run "${elevate[@]}" apk add \
-            build-base cmake ninja git python3 pkgconf rust cargo mesa-dev mesa-egl-dev vulkan-headers vulkan-loader-dev \
+            build-base cmake ninja git python3 pkgconf rust cargo mesa-dev vulkan-headers vulkan-loader-dev \
             wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev curl-dev \
             glib-dev wlroots-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland gdk-pixbuf-dev \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
