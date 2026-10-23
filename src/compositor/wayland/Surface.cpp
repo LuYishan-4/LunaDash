@@ -7,7 +7,6 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
-#include <QTimer>
 #include <algorithm>
 
 namespace LunaDash {

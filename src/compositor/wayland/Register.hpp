@@ -103,6 +103,12 @@ public:
     Slot<XWaylandState> setOverrideRedirect;
   };
 
+  struct DeferredClientRemoval {
+    Impl *impl = nullptr;
+    WaylandCompositor *owner = nullptr;
+    ClientWindow *client = nullptr;
+  };
+
   struct LayerState {
     Impl *impl = nullptr;
     wlr_layer_surface_v1 *surface = nullptr;
@@ -244,6 +250,7 @@ public:
   QList<KeyboardState *> keyboards;
   QList<TextInputState *> textInputs;
   QList<PopupState *> inputPopups;
+  std::vector<std::unique_ptr<DeferredClientRemoval>> deferredClientRemovals;
   InputMethodState *inputMethod = nullptr;
   TextInputState *activeTextInput = nullptr;
   int pointerDevices = 0;
@@ -440,6 +447,8 @@ public:
   static void handleXWaylandUnmap(wl_listener *listener, void *data);
   static void handleXWaylandSceneDestroy(wl_listener *listener, void *data);
   static void handleXWaylandDestroy(wl_listener *listener, void *data);
+  static void handleDeferredClientRemoval(void *data);
+  void deferClientRemoval(ClientWindow *client);
   static void handleXWaylandConfigure(wl_listener *listener, void *data);
   static void handleXWaylandMove(wl_listener *listener, void *data);
   static void handleXWaylandResize(wl_listener *listener, void *data);

@@ -6,7 +6,6 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include <algorithm>
-#include <QTimer>
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -261,12 +260,44 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
   // Keep ClientWindow alive until the current Wayland/XWM signal dispatch has
   // fully unwound. Scene nodes and other wlroots listeners may still be
   // finishing callbacks that carry this pointer as node.data.
-  auto *owner = self->q;
-  QTimer::singleShot(0, owner, [owner, client] {
-    owner->removeClient(client);
-  });
+  self->deferClientRemoval(client);
   delete state;
 #endif
+}
+
+void WaylandCompositor::Impl::deferClientRemoval(ClientWindow *client) {
+  if (!client || !eventLoop || !q)
+    return;
+  auto removal = std::make_unique<DeferredClientRemoval>();
+  removal->impl = this;
+  removal->owner = q;
+  removal->client = client;
+  auto *data = removal.get();
+  deferredClientRemovals.push_back(std::move(removal));
+  if (!wl_event_loop_add_idle(eventLoop, handleDeferredClientRemoval, data)) {
+    deferredClientRemovals.pop_back();
+    qCritical("Could not schedule deferred XWayland client removal.");
+  }
+}
+
+void WaylandCompositor::Impl::handleDeferredClientRemoval(void *data) {
+  auto *removal = static_cast<DeferredClientRemoval *>(data);
+  if (!removal || !removal->impl || !removal->owner || !removal->client)
+    return;
+  auto *impl = removal->impl;
+  auto *owner = removal->owner;
+  auto *client = removal->client;
+  const auto pending = std::find_if(
+      impl->deferredClientRemovals.begin(),
+      impl->deferredClientRemovals.end(),
+      [removal](const auto &entry) { return entry.get() == removal; });
+  if (pending != impl->deferredClientRemovals.end())
+    impl->deferredClientRemovals.erase(pending);
+  const auto found = std::find_if(
+      owner->clients_.begin(), owner->clients_.end(),
+      [client](const auto &entry) { return entry.get() == client; });
+  if (found != owner->clients_.end())
+    owner->removeClient(client);
 }
 
 void WaylandCompositor::Impl::handleXWaylandConfigure(wl_listener *listener,

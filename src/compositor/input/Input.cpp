@@ -5,8 +5,6 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
-#include <QDateTime>
-#include <QTimer>
 #include <algorithm>
 #include <linux/input-event-codes.h>
 
