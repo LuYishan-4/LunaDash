@@ -4,15 +4,120 @@
 #include "compositor/renderer/selection/RenderSelection.h"
 
 #include <QAbstractEventDispatcher>
-#include <QCommandLineParser>
 #include <QCoreApplication>
 #include <algorithm>
 #include <chrono>
 #include <csignal>
+#include <charconv>
+#include <iostream>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <unistd.h>
 
 namespace LunaDash {
 namespace {
+struct SessionOptions {
+  std::string graphics = "auto";
+  std::string socket = "lunadash-0";
+  std::string screenshot;
+  std::string state;
+  int exitAfterMilliseconds = 0;
+  bool exitAfterSet = false;
+  bool nested = false;
+  bool profile = false;
+  bool fullscreen = false;
+  bool noShell = false;
+  bool demo = false;
+  bool help = false;
+  bool version = false;
+};
+
+std::optional<SessionOptions> parseOptions(int argc, char **argv) {
+  SessionOptions options;
+  for (int index = 1; index < argc; ++index) {
+    const std::string_view argument(argv[index]);
+    const auto value = [&](std::string_view option) -> const char * {
+      if (argument == option) {
+        if (index + 1 >= argc)
+          return nullptr;
+        const char *text = argv[++index];
+        return std::string_view(text).starts_with("--") ? nullptr : text;
+      }
+      const std::string prefix = std::string(option) + "=";
+      if (argument.starts_with(prefix))
+        return argv[index] + prefix.size();
+      return nullptr;
+    };
+    if (argument == "--help" || argument == "-h") {
+      options.help = true;
+    } else if (argument == "--version") {
+      options.version = true;
+    } else if (argument == "--nested") {
+      options.nested = true;
+    } else if (argument == "--profile") {
+      options.profile = true;
+    } else if (argument == "--fullscreen") {
+      options.fullscreen = true;
+    } else if (argument == "--no-shell") {
+      options.noShell = true;
+    } else if (argument == "--demo") {
+      options.demo = true;
+    } else if (argument.starts_with("--graphics")) {
+      const auto *text = value("--graphics");
+      if (!text)
+        return std::nullopt;
+      options.graphics = text;
+    } else if (argument.starts_with("--socket")) {
+      const auto *text = value("--socket");
+      if (!text)
+        return std::nullopt;
+      options.socket = text;
+    } else if (argument.starts_with("--screenshot")) {
+      const auto *text = value("--screenshot");
+      if (!text)
+        return std::nullopt;
+      options.screenshot = text;
+    } else if (argument.starts_with("--state")) {
+      const auto *text = value("--state");
+      if (!text)
+        return std::nullopt;
+      options.state = text;
+    } else if (argument.starts_with("--exit-after")) {
+      const auto *text = value("--exit-after");
+      if (!text)
+        return std::nullopt;
+      const std::string_view number(text);
+      const auto parsed = std::from_chars(number.data(),
+                                          number.data() + number.size(),
+                                          options.exitAfterMilliseconds);
+      if (parsed.ec != std::errc{} || parsed.ptr != number.data() + number.size())
+        return std::nullopt;
+      options.exitAfterSet = true;
+    } else {
+      return std::nullopt;
+    }
+  }
+  return options;
+}
+
+void printHelp() {
+  std::cout
+      << "Usage: lunadash-compositor [options]\n"
+      << "  --help                 Show this help\n"
+      << "  --version              Show version\n"
+      << "  --graphics <api>       Renderer: auto, opengl, gles, or vulkan\n"
+      << "  --socket <name>        Wayland socket name\n"
+      << "  --nested               Run with the nested wlroots backend\n"
+      << "  --profile              Log event-loop stalls longer than 25 ms\n"
+      << "  --fullscreen           Prefer host output size in nested mode\n"
+      << "  --no-shell             Do not start the desktop shell\n"
+      << "  --demo                 Start two demonstration clients\n"
+      << "  --screenshot <path>    Save a compositor screenshot at exit\n"
+      << "  --state <path>         Write window geometry JSON at exit\n"
+      << "  --exit-after <ms>      Exit after this many milliseconds\n";
+}
+
 void fatalSignalHandler(int signalNumber) {
   static constexpr char message[] =
       "LunaDash compositor received a fatal signal.\n";
@@ -45,31 +150,22 @@ int SessionApplication::run(int argc, char **argv) {
   app.setOrganizationName("LunaDash");
   app.setApplicationVersion(QString::fromLatin1(BuildConfig::version) + " (" +
                             QString::fromLatin1(BuildConfig::commit) + ")");
-  QCommandLineParser parser;
-  parser.setApplicationDescription(
-      "LunaDash wlroots Wayland compositor");
-  parser.addHelpOption();
-  parser.addVersionOption();
-  parser.addOption({"graphics",
-                    "Renderer preference: auto, opengl, gles or vulkan. OpenGL and "
-                    "GLES select wlroots' GLES2 renderer.",
-                    "api", "auto"});
-  parser.addOption({"socket", "Wayland socket name.", "name", "lunadash-0"});
-  parser.addOption(
-      {"nested", "Run with the wlroots nested backend selected by the host."});
-  parser.addOption(
-      {"profile", "Log compositor event-loop stalls longer than 25 ms."});
-  parser.addOption(
-      {"fullscreen", "Prefer the host output size in nested mode."});
-  parser.addOption({"no-shell", "Do not start the desktop shell."});
-  parser.addOption({"demo", "Start two demonstration clients."});
-  parser.addOption(
-      {"screenshot", "Save compositor screenshot at exit.", "path"});
-  parser.addOption({"state", "Write window geometry JSON at exit.", "path"});
-  parser.addOption({"exit-after", "Exit after this many milliseconds.", "ms"});
-  parser.process(app);
+  const auto parsedOptions = parseOptions(argc, argv);
+  if (!parsedOptions) {
+    std::cerr << "Invalid command-line arguments. Use --help for usage.\n";
+    return 2;
+  }
+  const auto &options = *parsedOptions;
+  if (options.help) {
+    printHelp();
+    return 0;
+  }
+  if (options.version) {
+    std::cout << app.applicationVersion().toStdString() << '\n';
+    return 0;
+  }
 
-  const QString renderer = parser.value("graphics").toLower();
+  const QString renderer = QString::fromStdString(options.graphics).toLower();
   if (!ludash_renderer_preference_valid(renderer.toUtf8().constData())) {
     qCritical("--graphics must be auto, opengl, gles, or vulkan");
     return 2;
@@ -81,7 +177,7 @@ int SessionApplication::run(int argc, char **argv) {
 
   std::chrono::steady_clock::time_point activeTurn;
   bool activeTurnValid = false;
-  if (parser.isSet("profile")) {
+  if (options.profile) {
     auto *dispatcher = QAbstractEventDispatcher::instance();
     QObject::connect(dispatcher, &QAbstractEventDispatcher::awake, &app,
                      [&] {
@@ -101,24 +197,25 @@ int SessionApplication::run(int argc, char **argv) {
         });
   }
 
-  LunaDash::WaylandCompositor compositor(parser.value("socket").toUtf8(),
-                                         parser.isSet("fullscreen"),
-                                         !parser.isSet("no-shell"), renderer);
+  LunaDash::WaylandCompositor compositor(
+      QString::fromStdString(options.socket).toUtf8(), options.fullscreen,
+      !options.noShell, renderer);
 
-  if (parser.isSet("demo")) {
+  if (options.demo) {
     if (!compositor.scheduleEventLoopCallback(900, [&] {
-          if (!parser.isSet("no-shell"))
+          if (!options.noShell)
             compositor.spawn({"--app", "welcome"});
           compositor.spawn({"--app", "files"});
         }))
       return 2;
   }
 
-  if (parser.isSet("exit-after")) {
+  if (options.exitAfterSet) {
     if (!compositor.scheduleEventLoopCallback(
-            std::max(1000, parser.value("exit-after").toInt()), [&] {
-              if (parser.isSet("state"))
-                compositor.saveState(parser.value("state"));
+            std::max(1000, options.exitAfterMilliseconds), [&] {
+              if (!options.state.empty())
+                compositor.saveState(
+                    QString::fromStdString(options.state));
               const auto finish = [&app, &compositor](bool ok) {
                 compositor.closeTestSession(
                     [&app, &compositor, ok](bool clean) {
@@ -127,12 +224,12 @@ int SessionApplication::run(int argc, char **argv) {
                                    : 2);
                     });
               };
-              if (!parser.isSet("screenshot")) {
+              if (options.screenshot.empty()) {
                 finish(true);
                 return;
               }
-              if (!compositor.saveScreenshot(parser.value("screenshot"),
-                                             finish))
+              if (!compositor.saveScreenshot(
+                      QString::fromStdString(options.screenshot), finish))
                 finish(false);
             }))
       return 2;
