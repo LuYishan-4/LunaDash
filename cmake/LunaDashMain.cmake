@@ -248,7 +248,8 @@ add_library(ludash-plugin-catalog
     src/config/plugins/ExtensionRegistry.cpp
     src/config/plugins/ExtensionConfiguration.cpp)
 target_include_directories(ludash-plugin-catalog PUBLIC src)
-target_link_libraries(ludash-plugin-catalog PUBLIC ludash-crypto Qt6::Core)
+target_link_libraries(ludash-plugin-catalog PUBLIC
+    ludash-configuration ludash-crypto Qt6::Core)
 target_compile_definitions(ludash-plugin-catalog PRIVATE
     LUDASH_PLUGIN_TARGETS_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/targets.json"
     LUDASH_PLUGIN_TARGETS_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/targets.json")

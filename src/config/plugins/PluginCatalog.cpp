@@ -1,6 +1,7 @@
 #include "config/plugins/PluginCatalog.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
+#include "config/desktop/DesktopPreferences.hpp"
 #include "core/crypto/Sha256.hpp"
 #include "core/settings/SettingsSchema.hpp"
 #include <QCoreApplication>
@@ -13,7 +14,6 @@
 #include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
-#include <QSettings>
 #include <QStandardPaths>
 #include <QUrl>
 #include <algorithm>
@@ -118,8 +118,9 @@ QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
 
   const auto metadata = document.object();
   const int schemaVersion = metadata.value("schemaVersion").toInt(1);
-  const auto locale =
-      QSettings().value("appearance/language", QLocale::system().name()).toString();
+  const auto preferences = desktopPreferences();
+  const auto locale = QString::fromStdString(
+      preferences.value("language", QLocale::system().name().toStdString()));
   const QDir directory = QFileInfo(file).absoluteDir();
 
   PluginDescriptor base;
