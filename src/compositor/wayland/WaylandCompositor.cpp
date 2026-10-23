@@ -342,9 +342,10 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     return;
   sessionServices_ = std::make_unique<SessionServices>(d->eventLoop);
 
-  connect(
-      pluginManager_, &PluginManager::changed, this, [this] { arrange(); },
-      Qt::QueuedConnection);
+  pluginManager_->setChangedCallback([this] {
+    if (!d->scheduleCallback(0, [this] { arrange(); }))
+      qWarning("Could not schedule a plugin change relayout.");
+  });
   windowAnimations_ = std::make_unique<SceneWindowAnimationTemplate>();
   const auto initialAppearance = desktopPreferences();
   windowAnimations_->configure(sceneAnimationOptions(windowAnimationProfile(

@@ -6,12 +6,10 @@
 #include <map>
 #include <memory>
 #include <vector>
-#include <vector>
 class QNetworkAccessManager;
 
 namespace LunaDash {
 class PluginManager final : public QObject {
-  Q_OBJECT
 public:
   explicit PluginManager(QObject *parent = nullptr);
   ~PluginManager() override;
@@ -26,8 +24,7 @@ public:
                      const QJsonObject &context, const Validator &validate);
   void reportError(const QString &id, const QString &error);
   QString windowTemplateKey() const;
-signals:
-  void changed();
+  void setChangedCallback(std::function<void()> callback);
 
 private:
   struct Native;
@@ -44,7 +41,9 @@ private:
   bool inHook_ = false;
   bool snapshotDirty_ = true;
   QJsonObject snapshotCache_;
+  std::function<void()> changedCallback_;
 
+  void notifyChanged();
   void refreshStore();
   bool applyStoreCatalog(const QByteArray &bytes, QString *error);
   void continueStoreInstall(StoreInstall *job);

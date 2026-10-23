@@ -92,8 +92,6 @@ bool directoryClaimsPluginId(const QString &directory, const QString &id) {
 }
 } // namespace
 PluginManager::PluginManager(QObject *parent) : QObject(parent) {
-  connect(this, &PluginManager::changed, this,
-          [this] { snapshotDirty_ = true; });
   QFile bundled(QStringLiteral(LUDASH_PLUGIN_CATALOG_SOURCE_FILE));
   bool catalogOpened = bundled.open(QIODevice::ReadOnly);
   if (!catalogOpened) {
@@ -111,6 +109,16 @@ PluginManager::PluginManager(QObject *parent) : QObject(parent) {
   refreshStore();
 }
 PluginManager::~PluginManager() = default;
+
+void PluginManager::setChangedCallback(std::function<void()> callback) {
+  changedCallback_ = std::move(callback);
+}
+
+void PluginManager::notifyChanged() {
+  snapshotDirty_ = true;
+  if (changedCallback_)
+    changedCallback_();
+}
 
 bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
   QJsonParseError parseError;
@@ -276,7 +284,7 @@ void PluginManager::refreshStore() {
   const QUrl url(configured);
   if (!url.isValid() || url.scheme() != "https") {
     storeError_ = "Plugin catalogue URL must use HTTPS";
-    emit changed();
+    notifyChanged();
     return;
   }
 
@@ -298,7 +306,7 @@ void PluginManager::refreshStore() {
       storeError_.clear();
     }
     reply->deleteLater();
-    emit changed();
+    notifyChanged();
   });
 }
 
@@ -389,7 +397,7 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
   auto *raw = job.get();
   storeInstallErrors_.erase(id);
   storeInstalls_.push_back(std::move(job));
-  emit changed();
+  notifyChanged();
   continueStoreInstall(raw);
   if (error)
     error->clear();
@@ -549,7 +557,7 @@ void PluginManager::runStoreBuildStep(StoreInstall *job) {
             process->deleteLater();
             finishStoreInstall(job, "Could not start the plugin SDK build tool");
           });
-  emit changed();
+  notifyChanged();
   process->start(job->cmakeExecutable, arguments);
 }
 
@@ -649,7 +657,7 @@ void PluginManager::finishStoreInstall(StoreInstall *job,
                 [job](const auto &entry) { return entry.get() == job; });
   if (!error.isEmpty()) {
     storeInstallErrors_[id] = error.left(1024);
-    emit changed();
+    notifyChanged();
     return;
   }
   storeInstallErrors_.erase(id);
@@ -825,7 +833,7 @@ void PluginManager::refresh() {
     return a->descriptor.id < b->descriptor.id;
   });
   catalog_ = catalog;
-  emit changed();
+  notifyChanged();
 }
 QJsonObject PluginManager::snapshot() {
   if (!snapshotDirty_)
@@ -979,7 +987,7 @@ bool PluginManager::setEnabled(const QString &id, bool enabled,
 void PluginManager::reportError(const QString &key, const QString &error) {
   if (!error.isEmpty()) {
     errors_[key] = error.left(1024);
-    emit changed();
+    notifyChanged();
     return;
   }
 
