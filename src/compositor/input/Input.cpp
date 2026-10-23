@@ -478,7 +478,7 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
       const std::string action =
           self->q->shortcutSettings_->actionFor(symbols[i], modifiers);
       if (!action.empty()) {
-        self->q->handleShortcut(QString::fromStdString(action));
+        self->q->handleShortcut(action);
         handled = true;
       }
     }

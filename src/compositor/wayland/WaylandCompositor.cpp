@@ -66,6 +66,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
 #include <climits>
 #include <cmath>
@@ -1354,23 +1355,30 @@ void WaylandCompositor::setLauncherVisible(bool visible, bool publish) {
   windowSwitcher_->setLauncherState(launcherSerial_, launcherVisible_);
 }
 
-void WaylandCompositor::handleShortcut(const QString &action) {
-  if (action.startsWith("workspace")) {
-    bool ok = false;
-    const int target =
-        action.mid(QStringLiteral("workspace").size()).toInt(&ok);
-    if (ok && target > 0 &&
+void WaylandCompositor::handleShortcut(std::string_view action) {
+  const auto workspaceNumber = [action](std::string_view prefix) {
+    int target = 0;
+    const auto suffix = action.substr(prefix.size());
+    const auto parsed =
+        std::from_chars(suffix.data(), suffix.data() + suffix.size(), target);
+    return action.starts_with(prefix) &&
+                   parsed.ec == std::errc{} &&
+                   parsed.ptr == suffix.data() + suffix.size()
+               ? target
+               : 0;
+  };
+  if (action.starts_with("workspace")) {
+    const int target = workspaceNumber("workspace");
+    if (target > 0 &&
         target <= desktopPreferences().value("workspaceCount", 10)) {
       selectWorkspace(target - 1);
     }
     return;
   }
 
-  if (action.startsWith("moveToWorkspace")) {
-    bool ok = false;
-    const int target =
-        action.mid(QStringLiteral("moveToWorkspace").size()).toInt(&ok);
-    if (ok && focused_ && target > 0 &&
+  if (action.starts_with("moveToWorkspace")) {
+    const int target = workspaceNumber("moveToWorkspace");
+    if (target > 0 && focused_ &&
         target <= desktopPreferences().value("workspaceCount", 10)) {
       focused_->workspace = target - 1;
       windowLayout_->moveToWorkspace(focused_->id, focused_->workspace);
@@ -1468,7 +1476,7 @@ void WaylandCompositor::handleShortcut(const QString &action) {
     control({{"method", "wallpaper-random"}});
   } else if (action == "launchOrbit" || action == "openControlCenter" ||
              action == "openClipboard" || action == "openPowerMenu") {
-    shellAction_ = action;
+    shellAction_ = QString::fromStdString(std::string(action));
     shellActionSerial_ =
         shellActionSerial_ >= 999999 ? 1 : shellActionSerial_ + 1;
   } else if (action == "launchLauncher") {

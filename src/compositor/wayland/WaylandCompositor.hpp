@@ -11,6 +11,7 @@
 #include <QSet>
 #include <functional>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace LunaDash {
@@ -149,7 +150,7 @@ private:
   void synchronizeWindowFocus();
   void updateClientMetadata(ClientWindow *client);
   void removeClient(ClientWindow *client);
-  void handleShortcut(const QString &action);
+  void handleShortcut(std::string_view action);
   bool toggleScratchpad(QString *error);
   void adoptScratchpad(ClientWindow *client);
   void applyKeyboardConfiguration();
