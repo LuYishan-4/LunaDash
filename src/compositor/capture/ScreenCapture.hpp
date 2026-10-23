@@ -1,36 +1,46 @@
 #pragma once
-#include "core/process/ProcessEnvironment.hpp"
 
-#include <QObject>
-#include <QProcess>
-#include <QTemporaryFile>
-#include <QTimer>
-#include <memory>
+#include "core/process/ProcessRunner.hpp"
+
+#include <functional>
+#include <string>
 
 namespace LunaDash {
-class ScreenCapture final : public QObject {
-  Q_OBJECT
+
+class ScreenCapture final {
 public:
-  explicit ScreenCapture(QObject *parent = nullptr);
-  ~ScreenCapture() override;
-  bool selectRegion(const ProcessEnvironment &environment, const QString &path,
-                    QString *error);
-  bool captureOutput(const ProcessEnvironment &environment, const QString &path,
-                     QString *error);
+  using Completion =
+      std::function<void(const std::string &path, const std::string &error)>;
+
+  explicit ScreenCapture(wl_event_loop *eventLoop);
+  ~ScreenCapture();
+
+  ScreenCapture(const ScreenCapture &) = delete;
+  ScreenCapture &operator=(const ScreenCapture &) = delete;
+
+  void setCompletion(Completion completion);
+  bool selectRegion(const ProcessEnvironment &environment,
+                    const std::string &path, std::string *error);
+  bool captureOutput(const ProcessEnvironment &environment,
+                     const std::string &path, std::string *error);
   bool busy() const;
-  QString phase() const;
-signals:
-  void completed(const QString &path, const QString &error);
+  const std::string &phase() const;
 
 private:
-  QProcess process_;
-  QTimer timeout_;
+  ProcessRunner process_;
   ProcessEnvironment environment_;
-  std::unique_ptr<QTemporaryFile> temporary_;
-  QString destination_;
-  QString grim_;
-  QString phase_ = "idle";
-  void finish(const QString &path, const QString &error);
-  void processFinished(int code, QProcess::ExitStatus status);
+  Completion completion_;
+  std::string destination_;
+  std::string temporaryPath_;
+  std::string grim_;
+  std::string phase_ = "idle";
+
+  bool prepareDestination(const std::string &path, std::string *error);
+  bool createTemporary(std::string *error);
+  void finish(const std::string &path, const std::string &error);
+  void processFinished(const ProcessResult &result);
+  bool saveTemporary(std::string *error);
+  void removeTemporary();
 };
+
 } // namespace LunaDash

@@ -53,21 +53,50 @@ ProcessRunner::~ProcessRunner() {
 bool ProcessRunner::run(const std::string &program,
                         const std::vector<std::string> &arguments,
                         Completion completion, int timeoutMilliseconds) {
-  return runWithEnvironment(program, arguments, std::move(completion),
-                            timeoutMilliseconds, nullptr);
+  if (!completion)
+    return false;
+  return runDetailed(
+      program, arguments,
+      [completion = std::move(completion)](const ProcessResult &result) {
+        completion(result.success, result.output);
+      },
+      timeoutMilliseconds);
 }
 
 bool ProcessRunner::run(const std::string &program,
                         const std::vector<std::string> &arguments,
                         Completion completion, int timeoutMilliseconds,
                         const ProcessEnvironment &environment) {
+  if (!completion)
+    return false;
+  return runDetailed(
+      program, arguments,
+      [completion = std::move(completion)](const ProcessResult &result) {
+        completion(result.success, result.output);
+      },
+      timeoutMilliseconds, environment);
+}
+
+bool ProcessRunner::runDetailed(const std::string &program,
+                                const std::vector<std::string> &arguments,
+                                DetailedCompletion completion,
+                                int timeoutMilliseconds) {
+  return runWithEnvironment(program, arguments, std::move(completion),
+                            timeoutMilliseconds, nullptr);
+}
+
+bool ProcessRunner::runDetailed(const std::string &program,
+                                const std::vector<std::string> &arguments,
+                                DetailedCompletion completion,
+                                int timeoutMilliseconds,
+                                const ProcessEnvironment &environment) {
   return runWithEnvironment(program, arguments, std::move(completion),
                             timeoutMilliseconds, &environment);
 }
 
 bool ProcessRunner::runWithEnvironment(
     const std::string &program, const std::vector<std::string> &arguments,
-    Completion completion, int timeoutMilliseconds,
+    DetailedCompletion completion, int timeoutMilliseconds,
     const ProcessEnvironment *environmentOverride) {
   if (busy_ || !eventLoop_ || program.empty() || containsNullByte(program) ||
       !completion ||
@@ -174,10 +203,12 @@ bool ProcessRunner::runWithEnvironment(
     failed_ = true;
     terminateChild();
     int status = 0;
-    while (::waitpid(childPid_, &status, 0) < 0 && errno == EINTR) {
-    }
+    pid_t waited = -1;
+    do {
+      waited = ::waitpid(childPid_, &status, 0);
+    } while (waited < 0 && errno == EINTR);
     childPid_ = -1;
-    finish(false);
+    finish(false, waited > 0, status);
     return true;
   }
   return true;
@@ -209,7 +240,7 @@ int ProcessRunner::handleTimer(void *data) {
     runner->drainOutput(0);
     const bool success =
         !runner->failed_ && WIFEXITED(status) && WEXITSTATUS(status) == 0;
-    runner->finish(success);
+    runner->finish(success, true, status);
     return 0;
   }
   if (result < 0 && errno != EINTR) {
@@ -283,17 +314,25 @@ void ProcessRunner::drainOutput(uint32_t mask) {
   }
 }
 
-void ProcessRunner::finish(bool success) {
+void ProcessRunner::finish(bool success, bool hasStatus, int status) {
   stopSources();
   childPid_ = -1;
   busy_ = false;
   failed_ = false;
   auto completion = std::move(completion_);
   completion_ = {};
-  auto output = std::move(output_);
+  ProcessResult result;
+  result.success = success;
+  if (hasStatus && WIFEXITED(status)) {
+    result.exited = true;
+    result.exitCode = WEXITSTATUS(status);
+  } else if (hasStatus && WIFSIGNALED(status)) {
+    result.signal = WTERMSIG(status);
+  }
+  result.output = std::move(output_);
   output_.clear();
   if (completion)
-    completion(success, output);
+    completion(result);
 }
 
 void ProcessRunner::stopSources() {

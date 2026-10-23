@@ -1,159 +1,281 @@
 #include "compositor/capture/ScreenCapture.hpp"
-#include <QFileInfo>
-#include <QProcessEnvironment>
-#include <QRegularExpression>
-#include <QStandardPaths>
+
+#include <algorithm>
+#include <charconv>
+#include <cstdlib>
+#include <filesystem>
+#include <regex>
+#include <string_view>
+#include <system_error>
+#include <unistd.h>
+#include <vector>
 
 namespace LunaDash {
 namespace {
-QProcessEnvironment processEnvironment(const ProcessEnvironment &environment) {
-  QProcessEnvironment result;
-  for (const auto &[name, value] : environment)
-    result.insert(QString::fromStdString(name), QString::fromStdString(value));
-  return result;
+std::string findExecutable(std::string_view name,
+                           const ProcessEnvironment &environment) {
+  if (name.empty())
+    return {};
+  if (name.find('/') != std::string_view::npos) {
+    return ::access(std::string(name).c_str(), X_OK) == 0
+               ? std::string(name)
+               : std::string{};
+  }
+
+  const auto pathValue = environment.find("PATH");
+  const char *path = pathValue == environment.end()
+                         ? std::getenv("PATH")
+                         : pathValue->second.c_str();
+  if (!path)
+    return {};
+
+  std::string_view directories(path);
+  while (true) {
+    const auto separator = directories.find(':');
+    const auto directory = directories.substr(0, separator);
+    const auto candidate =
+        (directory.empty() ? std::filesystem::path(".")
+                           : std::filesystem::path(directory)) /
+        name;
+    if (::access(candidate.c_str(), X_OK) == 0)
+      return candidate.string();
+    if (separator == std::string_view::npos)
+      break;
+    directories.remove_prefix(separator + 1);
+  }
+  return {};
+}
+
+std::string trim(std::string value) {
+  const auto first = value.find_first_not_of(" \t\r\n");
+  if (first == std::string::npos)
+    return {};
+  const auto last = value.find_last_not_of(" \t\r\n");
+  return value.substr(first, last - first + 1);
+}
+
+bool validGeometry(const std::string &geometry) {
+  static const std::regex pattern(
+      R"(^-?[0-9]+,-?[0-9]+ ([1-9][0-9]*)x([1-9][0-9]*)$)");
+  std::smatch match;
+  if (!std::regex_match(geometry, match, pattern))
+    return false;
+
+  unsigned width = 0;
+  unsigned height = 0;
+  const auto widthText = match[1].str();
+  const auto heightText = match[2].str();
+  const auto widthResult = std::from_chars(
+      widthText.data(), widthText.data() + widthText.size(), width);
+  const auto heightResult = std::from_chars(
+      heightText.data(), heightText.data() + heightText.size(), height);
+  return widthResult.ec == std::errc{} &&
+         widthResult.ptr == widthText.data() + widthText.size() &&
+         heightResult.ec == std::errc{} &&
+         heightResult.ptr == heightText.data() + heightText.size() &&
+         width <= 32768 && height <= 32768;
+}
+
+std::string diagnostic(const std::string &output) {
+  auto message = trim(output);
+  if (message.size() > 1024)
+    message.resize(1024);
+  return message;
 }
 } // namespace
 
-ScreenCapture::ScreenCapture(QObject *parent) : QObject(parent) {
-  // slurp reads optional rectangle candidates until stdin reaches EOF before
-  // connecting to Wayland. An open QProcess input pipe blocks its overlay.
-  process_.setStandardInputFile(QProcess::nullDevice());
-  timeout_.setSingleShot(true);
-  timeout_.setInterval(15000);
-  connect(&timeout_, &QTimer::timeout, this, [this] {
-    process_.kill();
-    finish({}, "Screenshot capture timed out.");
-  });
-  connect(&process_, &QProcess::finished, this,
-          &ScreenCapture::processFinished);
-  connect(&process_, &QProcess::errorOccurred, this,
-          [this](QProcess::ProcessError error) {
-            if (error == QProcess::FailedToStart)
-              finish({}, "Could not start the screenshot helper.");
-          });
-}
+ScreenCapture::ScreenCapture(wl_event_loop *eventLoop) : process_(eventLoop) {}
+
 ScreenCapture::~ScreenCapture() {
-  disconnect(&process_, nullptr, this, nullptr);
-  if (process_.state() != QProcess::NotRunning) {
-    process_.kill();
-    process_.waitForFinished(1000);
-  }
+  process_.cancel();
+  removeTemporary();
 }
+
+void ScreenCapture::setCompletion(Completion completion) {
+  completion_ = std::move(completion);
+}
+
 bool ScreenCapture::busy() const {
-  return process_.state() != QProcess::NotRunning || phase_ == "selecting" ||
-         phase_ == "capturing";
+  return process_.busy() || phase_ == "selecting" || phase_ == "capturing";
 }
-QString ScreenCapture::phase() const { return phase_; }
+
+const std::string &ScreenCapture::phase() const { return phase_; }
+
+bool ScreenCapture::prepareDestination(const std::string &path,
+                                       std::string *error) {
+  const std::filesystem::path destination(path);
+  std::error_code filesystemError;
+  if (!destination.is_absolute() ||
+      std::filesystem::exists(destination, filesystemError) ||
+      filesystemError) {
+    *error = "Screenshot destination must be a new absolute path.";
+    return false;
+  }
+  return true;
+}
+
+bool ScreenCapture::createTemporary(std::string *error) {
+  const auto directory = std::filesystem::path(destination_).parent_path();
+  auto pattern = (directory / ".lunadash-capture-XXXXXX").string();
+  std::vector<char> path(pattern.begin(), pattern.end());
+  path.push_back('\0');
+  const int descriptor = ::mkstemp(path.data());
+  if (descriptor < 0) {
+    *error = "Could not create the screenshot file.";
+    return false;
+  }
+  temporaryPath_ = path.data();
+  if (::close(descriptor) != 0) {
+    removeTemporary();
+    *error = "Could not create the screenshot file.";
+    return false;
+  }
+  return true;
+}
 
 bool ScreenCapture::captureOutput(const ProcessEnvironment &environment,
-                                  const QString &path, QString *error) {
+                                  const std::string &path,
+                                  std::string *error) {
   if (busy()) {
     *error = "A screenshot capture is already active.";
     return false;
   }
-  grim_ = QStandardPaths::findExecutable("grim");
-  if (grim_.isEmpty()) {
+  grim_ = findExecutable("grim", environment);
+  if (grim_.empty()) {
     *error = "Install grim to capture the compositor output.";
     return false;
   }
-  if (!QFileInfo(path).isAbsolute() || QFileInfo::exists(path)) {
-    *error = "Screenshot destination must be a new absolute path.";
+  if (!prepareDestination(path, error))
     return false;
-  }
 
-  temporary_ = std::make_unique<QTemporaryFile>(
-      QFileInfo(path).absolutePath() + "/.lunadash-capture-XXXXXX");
-  if (!temporary_->open()) {
-    temporary_.reset();
-    *error = "Could not create the screenshot file.";
-    return false;
-  }
-  temporary_->close();
-
-  environment_ = environment;
   destination_ = path;
+  if (!createTemporary(error))
+    return false;
+  environment_ = environment;
   phase_ = "capturing";
-  process_.setProcessEnvironment(processEnvironment(environment_));
-  process_.start(grim_, {temporary_->fileName()});
-  timeout_.start();
+  if (!process_.runDetailed(
+          grim_, {temporaryPath_},
+          [this](const ProcessResult &result) { processFinished(result); },
+          15000, environment_)) {
+    phase_ = "idle";
+    removeTemporary();
+    destination_.clear();
+    *error = "Could not start the screenshot helper.";
+    return false;
+  }
   return true;
 }
 
 bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
-                                 const QString &path, QString *error) {
+                                 const std::string &path,
+                                 std::string *error) {
   if (busy()) {
     *error = "A screenshot selection is already active.";
     return false;
   }
-  const QString selector = QStandardPaths::findExecutable("slurp");
-  grim_ = QStandardPaths::findExecutable("grim");
-  if (selector.isEmpty() || grim_.isEmpty()) {
+  const auto selector = findExecutable("slurp", environment);
+  grim_ = findExecutable("grim", environment);
+  if (selector.empty() || grim_.empty()) {
     *error = "Install grim and slurp to select a screenshot region.";
     return false;
   }
-  if (!QFileInfo(path).isAbsolute() || QFileInfo::exists(path)) {
-    *error = "Screenshot destination must be a new absolute path.";
+  if (!prepareDestination(path, error))
     return false;
-  }
+
   environment_ = environment;
   destination_ = path;
   phase_ = "selecting";
-  process_.setProcessEnvironment(processEnvironment(environment_));
-  process_.start(selector, {"-f", "%x,%y %wx%h"});
+  if (!process_.runDetailed(
+          selector, {"-f", "%x,%y %wx%h"},
+          [this](const ProcessResult &result) { processFinished(result); },
+          15000, environment_)) {
+    phase_ = "idle";
+    destination_.clear();
+    *error = "Could not start the screenshot selector.";
+    return false;
+  }
   return true;
 }
-void ScreenCapture::finish(const QString &path, const QString &error) {
-  if (!busy())
-    return;
-  timeout_.stop();
-  phase_ = !error.isEmpty() ? "failed" : path.isEmpty() ? "cancelled" : "saved";
-  temporary_.reset();
-  emit completed(path, error);
+
+void ScreenCapture::finish(const std::string &path, const std::string &error) {
+  phase_ = !error.empty() ? "failed" : path.empty() ? "cancelled" : "saved";
+  if (path.empty())
+    removeTemporary();
+  else
+    temporaryPath_.clear();
+  destination_.clear();
+  if (completion_)
+    completion_(path, error);
 }
-void ScreenCapture::processFinished(int code, QProcess::ExitStatus status) {
-  if (!busy())
-    return;
-  const QString output =
-      QString::fromUtf8(process_.readAllStandardOutput()).trimmed();
-  const QString diagnostic =
-      QString::fromUtf8(process_.readAllStandardError()).trimmed().left(1024);
+
+void ScreenCapture::processFinished(const ProcessResult &result) {
+  const auto output = trim(result.output);
   if (phase_ == "selecting") {
-    if (status == QProcess::NormalExit && code == 1 && output.isEmpty() &&
-        (diagnostic.isEmpty() || diagnostic == "selection cancelled")) {
+    if (!result.success && result.exited && result.exitCode == 1 &&
+        (output.empty() || output == "selection cancelled")) {
       finish({}, {});
       return;
     }
-    static const QRegularExpression geometry(
-        "^-?[0-9]+,-?[0-9]+ ([1-9][0-9]*)x([1-9][0-9]*)$");
-    const auto match = geometry.match(output);
-    if (status != QProcess::NormalExit || code != 0 || !match.hasMatch() ||
-        match.captured(1).toLongLong() > 32768 ||
-        match.captured(2).toLongLong() > 32768) {
+    if (!result.success || !result.exited || result.exitCode != 0 ||
+        !validGeometry(output)) {
+      const auto detail = diagnostic(output);
       finish({}, "Could not select a screenshot region." +
-                     (diagnostic.isEmpty() ? QString() : " " + diagnostic));
+                     (detail.empty() ? std::string{} : " " + detail));
       return;
     }
-    temporary_ = std::make_unique<QTemporaryFile>(
-        QFileInfo(destination_).absolutePath() + "/.lunadash-capture-XXXXXX");
-    if (!temporary_->open()) {
-      finish({}, "Could not create the screenshot file.");
+    std::string error;
+    if (!createTemporary(&error)) {
+      finish({}, error);
       return;
     }
-    temporary_->close();
     phase_ = "capturing";
-    // slurp has disconnected before grim starts, so the selection overlay is
-    // not included in the captured region. The Wayland loop remains live.
-    process_.start(grim_, {"-g", output, temporary_->fileName()});
-    timeout_.start();
+    if (!process_.runDetailed(
+            grim_, {"-g", output, temporaryPath_},
+            [this](const ProcessResult &captureResult) {
+              processFinished(captureResult);
+            },
+            15000, environment_))
+      finish({}, "Could not start the screenshot helper.");
     return;
   }
-  if (status != QProcess::NormalExit || code != 0 || !temporary_ ||
-      QFileInfo(temporary_->fileName()).size() == 0 ||
-      !QFile::rename(temporary_->fileName(), destination_)) {
-    finish({}, "Could not save the selected screenshot region." +
-                   (diagnostic.isEmpty() ? QString() : " " + diagnostic));
+
+  std::string error;
+  if (!result.success || !result.exited || result.exitCode != 0 ||
+      !saveTemporary(&error)) {
+    if (error.empty())
+      error = "Could not save the screenshot." +
+              (output.empty() ? std::string{} : " " + diagnostic(output));
+    finish({}, error);
     return;
   }
   finish(destination_, {});
 }
+
+bool ScreenCapture::saveTemporary(std::string *error) {
+  std::error_code filesystemError;
+  const auto size = std::filesystem::file_size(temporaryPath_, filesystemError);
+  if (filesystemError || size == 0) {
+    *error = "Screenshot helper produced an empty file.";
+    return false;
+  }
+  if (::link(temporaryPath_.c_str(), destination_.c_str()) != 0) {
+    *error = "Could not save the screenshot without overwriting a file.";
+    return false;
+  }
+  if (::unlink(temporaryPath_.c_str()) != 0) {
+    removeTemporary();
+    *error = "Could not finalize the screenshot file.";
+    return false;
+  }
+  temporaryPath_.clear();
+  return true;
+}
+
+void ScreenCapture::removeTemporary() {
+  if (!temporaryPath_.empty()) {
+    ::unlink(temporaryPath_.c_str());
+    temporaryPath_.clear();
+  }
+}
+
 } // namespace LunaDash

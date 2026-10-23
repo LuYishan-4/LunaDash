@@ -110,6 +110,8 @@ private:
   QString activationEnvironmentError_;
   QString lastCapture_;
   QString captureError_;
+  QString screenshotDestination_;
+  std::function<void(bool)> screenshotCompletion_;
   int modifierResends_ = 0;
   int keypadKeyForwards_ = 0;
 

@@ -227,12 +227,12 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   windowTemplate_ = &windowTemplateForKey("tiling");
   windowLayout_ = createWindowLayout(*windowTemplate_);
   windowSwitcher_ = new WindowSwitcher(d->eventLoop, this);
-  screenCapture_ = new ScreenCapture(this);
-  connect(
-      screenCapture_, &ScreenCapture::completed, this,
-      [this](const QString &path, const QString &error) {
-        if (!path.isEmpty()) {
-          lastCapture_ = path;
+  screenCapture_ = new ScreenCapture(d->eventLoop);
+  screenCapture_->setCompletion(
+      [this](const std::string &path, const std::string &error) {
+        if (!path.empty()) {
+          const QString capturePath = QString::fromStdString(path);
+          lastCapture_ = capturePath;
 
           QString helper =
               QStandardPaths::findExecutable("lunadash-clipboard-history");
@@ -263,10 +263,20 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                                "could not start.");
                       publisher->deleteLater();
                     });
-            publisher->start(helper, {"publish-file", "image/png", path});
+                    publisher->start(helper, {"publish-file", "image/png", capturePath});
           }
         }
-        captureError_ = error;
+        captureError_ = QString::fromStdString(error);
+        if (screenshotCompletion_) {
+          auto completion = std::move(screenshotCompletion_);
+          screenshotCompletion_ = {};
+          const bool saved =
+                      error.empty() && QString::fromStdString(path) ==
+                                           screenshotDestination_ &&
+                      QFileInfo::exists(screenshotDestination_);
+          screenshotDestination_.clear();
+          completion(saved);
+        }
       });
   brightnessSettings_ = new BrightnessSettings(d->eventLoop);
   ddcBrightnessSettings_ = new DdcBrightnessSettings(d->eventLoop);
@@ -666,24 +676,16 @@ bool WaylandCompositor::saveScreenshot(
     return false;
 
   captureError_.clear();
-  std::shared_ptr<QMetaObject::Connection> completion;
-  if (finished) {
-    completion = std::make_shared<QMetaObject::Connection>();
-    *completion = connect(
-        screenCapture_, &ScreenCapture::completed, this,
-        [this, path, finished, completion](const QString &saved,
-                                           const QString &error) {
-          disconnect(*completion);
-          finished(error.isEmpty() && saved == path && QFileInfo::exists(path));
-        });
-  }
+  screenshotDestination_ = finished ? path : QString{};
+  screenshotCompletion_ = finished;
 
   wlr_output_schedule_frame(d->primaryOutput);
-  QString error;
-  if (!screenCapture_->captureOutput(clientEnvironment_, path, &error)) {
-    if (completion)
-      disconnect(*completion);
-    captureError_ = error;
+  std::string error;
+  if (!screenCapture_->captureOutput(clientEnvironment_, path.toStdString(),
+                                     &error)) {
+    screenshotDestination_.clear();
+    screenshotCompletion_ = {};
+    captureError_ = QString::fromStdString(error);
     return false;
   }
   return true;
@@ -1722,7 +1724,8 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
                                     {"lastCapture", lastCapture_},
                                     {"error", captureError_},
                                     {"busy", screenCapture_->busy()},
-                                    {"phase", screenCapture_->phase()}}},
+                                    {"phase", QString::fromStdString(
+                                                  screenCapture_->phase())}}},
       {"activationEnvironment",
        QJsonObject{{"published", activationEnvironmentPublished_},
                    {"error", activationEnvironmentError_}}},
@@ -1832,14 +1835,15 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       return {{"error", captureError_.isEmpty()
                             ? "Could not start capture for " + value
                             : captureError_}};
-    return {
-        {"path", value}, {"pending", true}, {"phase", screenCapture_->phase()}};
+    return {{"path", value},
+            {"pending", true},
+            {"phase", QString::fromStdString(screenCapture_->phase())}};
   } else if (method == "screenshot") {
     captureScreen();
     if (!captureError_.isEmpty())
       return {{"error", captureError_}};
     return {{"pending", screenCapture_->busy()},
-            {"phase", screenCapture_->phase()}};
+            {"phase", QString::fromStdString(screenCapture_->phase())}};
   } else if (method == "check-update") {
     updateChecker_->check();
   } else if (method == "send-key") {
@@ -2431,7 +2435,10 @@ void WaylandCompositor::captureScreen() {
     captureError_ = "Could not create the screenshot directory.";
     return;
   }
-  screenCapture_->selectRegion(clientEnvironment_, path, &captureError_);
+  std::string error;
+  if (!screenCapture_->selectRegion(clientEnvironment_, path.toStdString(),
+                                    &error))
+    captureError_ = QString::fromStdString(error);
 }
 
 void WaylandCompositor::closeTestSession(

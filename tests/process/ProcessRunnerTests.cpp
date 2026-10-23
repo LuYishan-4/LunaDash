@@ -81,6 +81,22 @@ int main() {
     }
 
     completed = false;
+    LunaDash::ProcessResult processResult;
+    if (!runner.runDetailed(
+            "sh", {"-c", "printf detailed-output; exit 7"},
+            [&](const LunaDash::ProcessResult &value) {
+              processResult = value;
+              completed = true;
+            }) ||
+        !waitFor(eventLoop, completed) || processResult.success ||
+        !processResult.exited || processResult.exitCode != 7 ||
+        processResult.signal != 0 ||
+        processResult.output != "detailed-output") {
+      std::cerr << "Detailed process exit status was not preserved.\n";
+      result = 1;
+    }
+
+    completed = false;
     success = true;
     if (!runner.run(
             "sleep", {"2"},
