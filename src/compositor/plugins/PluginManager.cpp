@@ -20,7 +20,6 @@
 #include <QSet>
 #include <QStandardPaths>
 #include <QTemporaryDir>
-#include <QTimer>
 #include <QUrl>
 #include <algorithm>
 
@@ -100,7 +99,7 @@ PluginManager::PluginManager(QObject *parent) : QObject(parent) {
       storeError_ = error;
   }
   storeNetwork_ = new QNetworkAccessManager(this);
-  QTimer::singleShot(0, this, &PluginManager::refreshStore);
+  refreshStore();
 }
 PluginManager::~PluginManager() = default;
 
