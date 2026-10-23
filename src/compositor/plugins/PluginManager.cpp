@@ -92,8 +92,15 @@ bool directoryClaimsPluginId(const QString &directory, const QString &id) {
 PluginManager::PluginManager(QObject *parent) : QObject(parent) {
   connect(this, &PluginManager::changed, this,
           [this] { snapshotDirty_ = true; });
-  QFile bundled(":/LunaDash/plugins/catalog.json");
-  if (bundled.open(QIODevice::ReadOnly)) {
+  QFile bundled(QStringLiteral(LUDASH_PLUGIN_CATALOG_SOURCE_FILE));
+  bool catalogOpened = bundled.open(QIODevice::ReadOnly);
+  if (!catalogOpened) {
+    bundled.setFileName(QStringLiteral(LUDASH_PLUGIN_CATALOG_INSTALL_FILE));
+    catalogOpened = bundled.open(QIODevice::ReadOnly);
+  }
+  if (!catalogOpened) {
+    storeError_ = "Could not read the bundled plugin catalogue.";
+  } else {
     QString error;
     if (!applyStoreCatalog(bundled.readAll(), &error))
       storeError_ = error;

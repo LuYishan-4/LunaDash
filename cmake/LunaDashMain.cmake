@@ -245,13 +245,19 @@ add_library(ludash-plugin-catalog
     src/config/plugins/ExtensionConfiguration.cpp)
 target_include_directories(ludash-plugin-catalog PUBLIC src)
 target_link_libraries(ludash-plugin-catalog PUBLIC Qt6::Core)
-qt_add_resources(ludash-plugin-catalog extension_targets PREFIX /LunaDash/plugins
-    BASE data/plugins FILES data/plugins/targets.json data/plugins/catalog.json)
+target_compile_definitions(ludash-plugin-catalog PRIVATE
+    LUDASH_PLUGIN_TARGETS_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/targets.json"
+    LUDASH_PLUGIN_TARGETS_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/targets.json")
+install(FILES data/plugins/targets.json data/plugins/catalog.json
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugins")
 add_library(ludash-plugins src/compositor/plugins/PluginManager.hpp
     src/compositor/plugins/PluginManager.cpp
     src/compositor/plugins/ExtensionHooks.cpp)
 target_include_directories(ludash-plugins PUBLIC src)
 target_link_libraries(ludash-plugins PUBLIC ludash-plugin-catalog ludash-tiling Qt6::Core Qt6::Network)
+target_compile_definitions(ludash-plugins PRIVATE
+    LUDASH_PLUGIN_CATALOG_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/catalog.json"
+    LUDASH_PLUGIN_CATALOG_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/catalog.json")
 add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp src/desktop/browser/Browser.cpp)
 target_include_directories(ludash-default-applications PUBLIC src)
 set_target_properties(ludash-default-applications PROPERTIES AUTOMOC OFF)

@@ -3,14 +3,15 @@
 #include <QJsonDocument>
 #include "core/settings/SettingsSchema.hpp"
 
-int qInitResources_extension_targets();
 namespace LunaDash {
 QJsonArray extensionTargets() {
   static const auto targets = [] {
-    ::qInitResources_extension_targets();
-    QFile file(":/LunaDash/plugins/targets.json");
-    if (!file.open(QIODevice::ReadOnly))
-      return QJsonArray{};
+    QFile file(QStringLiteral(LUDASH_PLUGIN_TARGETS_SOURCE_FILE));
+    if (!file.open(QIODevice::ReadOnly)) {
+      file.setFileName(QStringLiteral(LUDASH_PLUGIN_TARGETS_INSTALL_FILE));
+      if (!file.open(QIODevice::ReadOnly))
+        return QJsonArray{};
+    }
     return QJsonDocument::fromJson(file.readAll()).array();
   }();
   return targets;
