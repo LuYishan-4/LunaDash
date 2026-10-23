@@ -1,10 +1,10 @@
 #pragma once
 
 #include "compositor/layout/WindowLayout.hpp"
-#include <QList>
 #include <QRect>
 #include <QtGlobal>
 #include <memory>
+#include <vector>
 
 namespace LunaDash {
 
@@ -29,11 +29,11 @@ public:
   bool performAction(const QString &action,
                      const QJsonObject &payload) override;
 
-  QList<WindowPlacement> layout(LayoutWorkspaceId workspace,
-                                QRect area) override;
-  // Overlay maximization without changing the saved tile sizes or membership.
-  QList<WindowPlacement> presentation(LayoutWorkspaceId workspace,
+  std::vector<WindowPlacement> layout(LayoutWorkspaceId workspace,
                                       QRect area) override;
+  // Overlay maximization without changing the saved tile sizes or membership.
+  std::vector<WindowPlacement> presentation(LayoutWorkspaceId workspace,
+                                            QRect area) override;
   WorkspaceLayoutSnapshot snapshot(LayoutWorkspaceId workspace) const override;
 
 private:

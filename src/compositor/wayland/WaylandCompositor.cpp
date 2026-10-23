@@ -1094,9 +1094,10 @@ void WaylandCompositor::arrange() {
   for (const auto &client : clients_)
     if (client->layoutPending && !layoutWorkspaces.contains(client->workspace))
       layoutWorkspaces.append(client->workspace);
-  QList<WindowPlacement> placements;
+  std::vector<WindowPlacement> placements;
   for (const int workspace : layoutWorkspaces)
-    placements.append(windowLayout_->presentation(workspace, area));
+    for (auto &placement : windowLayout_->presentation(workspace, area))
+      placements.push_back(std::move(placement));
   if (windowTemplate_->key != pluginManager_->windowTemplateKey()) {
     arrange();
     return;

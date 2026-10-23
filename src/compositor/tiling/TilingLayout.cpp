@@ -833,8 +833,8 @@ bool TilingLayout::center(LayoutWindowId window, QRect area) {
   return true;
 }
 
-QList<WindowPlacement> TilingLayout::layout(LayoutWorkspaceId workspaceId,
-                                            QRect area) {
+std::vector<WindowPlacement> TilingLayout::layout(LayoutWorkspaceId workspaceId,
+                                                  QRect area) {
   auto found = d->workspaces.find(workspaceId);
   if (found == d->workspaces.end() || !area.isValid())
     return {};
@@ -937,14 +937,14 @@ TilingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
           {"group", static_cast<int>(columnIndex)},
           {"row", row},
           {"members", members}};
-      result.columns.append(placement);
+      result.columns.push_back(placement);
     }
   }
   return result;
 }
 
-QList<WindowPlacement> TilingLayout::presentation(LayoutWorkspaceId workspaceId,
-                                                  QRect area) {
+std::vector<WindowPlacement>
+TilingLayout::presentation(LayoutWorkspaceId workspaceId, QRect area) {
   auto placements = layout(workspaceId, area);
   const auto maximized = snapshot(workspaceId).maximizedWindow;
   if (maximized) {

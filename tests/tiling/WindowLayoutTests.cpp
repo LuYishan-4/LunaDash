@@ -28,14 +28,14 @@ class WindowLayoutTests final : public QObject {
   Q_OBJECT
   const QRect area{10, 40, 1440, 900};
   static QMap<LayoutWindowId, QRect>
-  geometries(const QList<WindowPlacement> &placements) {
+  geometries(const std::vector<WindowPlacement> &placements) {
     QMap<LayoutWindowId, QRect> result;
     for (const auto &slot : placements)
       if (!slot.minimized)
         result[slot.window] = slot.geometry;
     return result;
   }
-  static void verifyNoOverlap(const QList<WindowPlacement> &placements) {
+  static void verifyNoOverlap(const std::vector<WindowPlacement> &placements) {
     for (const auto &a : placements) {
       if (a.minimized)
         continue;
@@ -174,7 +174,7 @@ private Q_SLOTS:
     QVERIFY(layout->setMaximized(1, false));
     QCOMPARE(geometries(layout->presentation(0, area)), resized);
     QVERIFY(layout->focus(1));
-    QCOMPARE(layout->snapshot(0).columns.last().window, LayoutWindowId(1));
+    QCOMPARE(layout->snapshot(0).columns.back().window, LayoutWindowId(1));
     QVERIFY(layout->setMinimized(1, true));
     QCOMPARE(layout->snapshot(0).focusedWindow, LayoutWindowId(2));
     QVERIFY(layout->setMinimized(1, false));
@@ -195,7 +195,7 @@ private Q_SLOTS:
                       {"splitTarget", "largest"},
                       {"firstWindowSide", "left"}});
     QVERIFY(layout.insert(0, 1, QSize(900, 600)));
-    QCOMPARE(layout.layout(0, area).first().geometry.size(), QSize(900, 600));
+    QCOMPARE(layout.layout(0, area).front().geometry.size(), QSize(900, 600));
     QVERIFY(layout.insert(0, 2));
     auto two = geometries(layout.layout(0, area));
     QCOMPARE(two[1].height(), area.height());
@@ -424,14 +424,14 @@ private Q_SLOTS:
   void singleWindowProportionsAndBounds() {
     TilingLayout layout;
     layout.insert(0, 1, QSize(2400, 1600));
-    const auto fitted = layout.layout(0, area).first().geometry;
+    const auto fitted = layout.layout(0, area).front().geometry;
     QVERIFY(area.contains(fitted));
     QCOMPARE(fitted.width() * 2, fitted.height() * 3);
     QVERIFY(moveBy(layout, 1, QPoint(10000, -10000), area));
-    QVERIFY(area.contains(layout.layout(0, area).first().geometry));
+    QVERIFY(area.contains(layout.layout(0, area).front().geometry));
     QVERIFY(resizeWidth(layout, 1, 10000));
     QVERIFY(resizeHeight(layout, 1, 10000));
-    QCOMPARE(layout.layout(0, area).first().geometry, area);
+    QCOMPARE(layout.layout(0, area).front().geometry, area);
   }
   void eightRowsAndOverflow() {
     TilingLayout layout;
@@ -491,17 +491,17 @@ private Q_SLOTS:
   void resizingAndSingleMovement() {
     TilingLayout layout;
     layout.insert(0, 1);
-    const auto before = layout.layout(0, area).first().geometry;
+    const auto before = layout.layout(0, area).front().geometry;
     QVERIFY(moveBy(layout, 1, QPoint(60, 30), area));
-    const auto moved = layout.layout(0, area).first().geometry;
+    const auto moved = layout.layout(0, area).front().geometry;
     QCOMPARE(moved.size(), before.size());
     QCOMPARE(moved.topLeft(), before.topLeft() + QPoint(60, 30));
     QVERIFY(resizeHeight(layout, 1, 400));
-    QCOMPARE(layout.layout(0, area).first().geometry.height(), 400);
-    QCOMPARE(layout.layout(0, area).first().geometry.topLeft(),
+    QCOMPARE(layout.layout(0, area).front().geometry.height(), 400);
+    QCOMPARE(layout.layout(0, area).front().geometry.topLeft(),
              moved.topLeft());
     QVERIFY(resizeHeight(layout, 1, 700));
-    QCOMPARE(layout.layout(0, area).first().geometry.height(), 700);
+    QCOMPARE(layout.layout(0, area).front().geometry.height(), 700);
     layout.insert(0, 2);
     layout.insert(0, 3);
     groupWith(layout, 2, 1);
@@ -513,7 +513,7 @@ private Q_SLOTS:
       auto placements = layout.layout(0, area);
       verifyNoOverlap(placements);
       QCOMPARE(placements[1].window, LayoutWindowId(2));
-      QCOMPARE(placements.last().geometry.bottom(), area.bottom());
+      QCOMPARE(placements.back().geometry.bottom(), area.bottom());
       if (height == 600 || height == 300)
         QCOMPARE(placements[1].geometry.height(), height);
     }

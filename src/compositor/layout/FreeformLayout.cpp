@@ -237,8 +237,8 @@ bool FreeformLayout::center(LayoutWindowId window, QRect area) {
   d->entries[window].geometry.moveCenter(area.center());
   return true;
 }
-QList<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
-                                              QRect area) {
+std::vector<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
+                                                    QRect area) {
   if (!area.isValid())
     return {};
   d->areas[workspace] = area;
@@ -266,8 +266,8 @@ QList<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
   }
   return snapshot(workspace).columns;
 }
-QList<WindowPlacement> FreeformLayout::presentation(LayoutWorkspaceId workspace,
-                                                    QRect area) {
+std::vector<WindowPlacement>
+FreeformLayout::presentation(LayoutWorkspaceId workspace, QRect area) {
   auto result = layout(workspace, area);
   for (auto &placement : result)
     if (d->entries[placement.window].maximized)
@@ -292,7 +292,7 @@ FreeformLayout::snapshot(LayoutWorkspaceId workspace) const {
     placement.focused = result.focusedWindow == id;
     placement.geometry = entry.geometry;
     placement.newWindow = entry.fresh;
-    result.columns.append(placement);
+    result.columns.push_back(placement);
   }
   return result;
 }

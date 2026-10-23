@@ -1,12 +1,12 @@
 #pragma once
 #include <QJsonObject>
-#include <QList>
 #include <QRect>
 #include <QPoint>
 #include <QSize>
 #include <QString>
 #include <QtGlobal>
 #include <functional>
+#include <vector>
 
 namespace LunaDash {
 
@@ -27,7 +27,7 @@ struct WindowPlacement {
 struct WorkspaceLayoutSnapshot {
   LayoutWorkspaceId workspace = 0;
   LayoutWindowId focusedWindow = 0;
-  QList<WindowPlacement> columns;
+  std::vector<WindowPlacement> columns;
   LayoutWindowId maximizedWindow = 0;
 };
 
@@ -36,8 +36,8 @@ struct WorkspaceLayoutSnapshot {
 class WindowLayout {
 public:
   virtual ~WindowLayout();
-  using PlacementFilter = std::function<QList<WindowPlacement>(
-      LayoutWorkspaceId, QRect, const QList<WindowPlacement> &)>;
+  using PlacementFilter = std::function<std::vector<WindowPlacement>(
+      LayoutWorkspaceId, QRect, const std::vector<WindowPlacement> &)>;
   void setPlacementFilter(PlacementFilter filter);
 
   virtual void configure(const QJsonObject &settings) = 0;
@@ -56,17 +56,17 @@ public:
   virtual bool performAction(const QString &action,
                              const QJsonObject &payload) = 0;
 
-  virtual QList<WindowPlacement> layout(LayoutWorkspaceId workspace,
-                                        QRect area) = 0;
-  virtual QList<WindowPlacement> presentation(LayoutWorkspaceId workspace,
+  virtual std::vector<WindowPlacement> layout(LayoutWorkspaceId workspace,
                                               QRect area) = 0;
+  virtual std::vector<WindowPlacement> presentation(
+      LayoutWorkspaceId workspace, QRect area) = 0;
   virtual WorkspaceLayoutSnapshot
   snapshot(LayoutWorkspaceId workspace) const = 0;
 
 protected:
-  QList<WindowPlacement> filterPlacements(
+  std::vector<WindowPlacement> filterPlacements(
       LayoutWorkspaceId workspace, QRect area,
-      const QList<WindowPlacement> &placements) const;
+      const std::vector<WindowPlacement> &placements) const;
 
 private:
   PlacementFilter placementFilter_;

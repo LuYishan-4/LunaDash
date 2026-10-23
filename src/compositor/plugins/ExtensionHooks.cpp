@@ -4,9 +4,10 @@
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
 #include <QJsonArray>
-#include <QSet>
 #include <climits>
 #include <cmath>
+#include <unordered_set>
+#include <vector>
 
 namespace LunaDash {
 namespace {
@@ -67,14 +68,14 @@ QJsonObject initialWindowRule(PluginManager &plugins,
                output.value("maximized").isBool();
       });
 }
-QList<WindowPlacement>
+std::vector<WindowPlacement>
 pluginWindowPlacements(PluginManager &plugins,
                        const WindowTemplate &windowTemplate,
                        LayoutWorkspaceId workspace, QRect area,
-                       const QList<WindowPlacement> &placements) {
+                       const std::vector<WindowPlacement> &placements) {
   QJsonArray windows;
   QJsonArray fresh;
-  QSet<qint64> expected;
+  std::unordered_set<qint64> expected;
   for (const auto &placement : placements) {
     if (placement.minimized)
       continue;
@@ -97,8 +98,8 @@ pluginWindowPlacements(PluginManager &plugins,
         if (result.size() != 1 || !result.value("windows").isArray() ||
             result.value("windows").toArray().size() != windows.size())
           return false;
-        QSet<qint64> seen;
-        QList<QRect> rectangles;
+        std::unordered_set<qint64> seen;
+        std::vector<QRect> rectangles;
         for (const auto &value : result.value("windows").toArray()) {
           const auto object = value.toObject();
           if (object.size() != 5 || !integer(object.value("id"), 1, INT_MAX) ||
@@ -118,7 +119,7 @@ pluginWindowPlacements(PluginManager &plugins,
             if (!stacking && previous.intersects(rect))
               return false;
           seen.insert(id);
-          rectangles.append(rect);
+          rectangles.push_back(rect);
         }
         return seen == expected;
       });
