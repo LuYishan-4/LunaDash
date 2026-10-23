@@ -354,9 +354,13 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   windowAnimations_->configure(sceneAnimationOptions(windowAnimationProfile(
       *pluginManager_, qtJsonObject(initialAppearance), *windowTemplate_)));
 
-  controlPath_ =
-      QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
-      QString::fromUtf8(socket) + "-control";
+  controlPath_ = qEnvironmentVariable("LUNADASH_CONTROL");
+  if (controlPath_.isEmpty())
+    controlPath_ = qEnvironmentVariable("LUDASH_CONTROL");
+  if (controlPath_.isEmpty())
+    controlPath_ =
+        QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
+        QString::fromUtf8(socket) + "-control";
   windowSwitcher_->setChannelPath(controlPath_ + "-interaction.json");
   controlServer_ = std::make_unique<ControlServer>(
       d->eventLoop, controlPath_.toStdString(),
