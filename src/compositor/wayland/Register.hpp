@@ -203,6 +203,8 @@ public:
   wlr_output_state previousDisplay{};
   wl_event_source *displayRevertTimer = nullptr;
   std::chrono::steady_clock::time_point displayRevertDeadline{};
+  wl_event_source *scratchpadTimeout = nullptr;
+  quint64 scratchpadTimeoutGeneration = 0;
   QString displayError;
   QRect usableArea{0, 0, 1440, 900};
   bool eyeCareActive = false;
@@ -449,6 +451,9 @@ public:
   static void handleXWaylandDestroy(wl_listener *listener, void *data);
   static void handleDeferredClientRemoval(void *data);
   void deferClientRemoval(ClientWindow *client);
+  bool scheduleScratchpadTimeout(quint64 generation);
+  void cancelScratchpadTimeout();
+  static int handleScratchpadTimeout(void *data);
   static void handleXWaylandConfigure(wl_listener *listener, void *data);
   static void handleXWaylandMove(wl_listener *listener, void *data);
   static void handleXWaylandResize(wl_listener *listener, void *data);

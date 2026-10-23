@@ -1,8 +1,8 @@
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include <QFile>
-#include <QTimer>
 #include <iterator>
 #include <string>
 
@@ -79,19 +79,16 @@ bool WaylandCompositor::toggleScratchpad(QString *error) {
   connect(process, &QProcess::errorOccurred, this,
           [this](QProcess::ProcessError errorCode) {
             if (errorCode == QProcess::FailedToStart) {
+              d->cancelScratchpadTimeout();
               scratchpadPending_ = false;
               scratchpadProcess_ = 0;
               scratchpadError_ = "Could not launch the configured terminal.";
             }
           });
-  QTimer::singleShot(15000, this, [this, generation] {
-    if (scratchpadPending_ && scratchpadGeneration_ == generation) {
-      scratchpadPending_ = false;
-      scratchpadProcess_ = 0;
-      scratchpadError_ = "The terminal did not create a new window. Configure "
-                         "the terminal role to start a separate process.";
-    }
-  });
+  if (!d->scheduleScratchpadTimeout(generation)) {
+    scratchpadPending_ = false;
+    scratchpadError_ = "Could not monitor the configured terminal launch.";
+  }
   return true;
 }
 
@@ -104,6 +101,7 @@ void WaylandCompositor::adoptScratchpad(ClientWindow *client) {
       !belongsToProcess(client->processId, scratchpadProcess_))
     return;
   scratchpadWindow_ = client->id;
+  d->cancelScratchpadTimeout();
   scratchpadPending_ = false;
   scratchpadProcess_ = 0;
   client->floating = true;

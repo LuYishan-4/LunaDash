@@ -290,7 +290,51 @@ void WaylandCompositor::Impl::dispatch() {
     ++slowDispatches;
 }
 
+bool WaylandCompositor::Impl::scheduleScratchpadTimeout(quint64 generation) {
+  cancelScratchpadTimeout();
+  if (!eventLoop)
+    return false;
+  scratchpadTimeout =
+      wl_event_loop_add_timer(eventLoop, handleScratchpadTimeout, this);
+  if (!scratchpadTimeout) {
+    qCritical("Could not create the scratchpad launch timer.");
+    return false;
+  }
+  scratchpadTimeoutGeneration = generation;
+  if (wl_event_source_timer_update(scratchpadTimeout, 15000) < 0) {
+    cancelScratchpadTimeout();
+    qCritical("Could not schedule the scratchpad launch timer.");
+    return false;
+  }
+  return true;
+}
+
+void WaylandCompositor::Impl::cancelScratchpadTimeout() {
+  if (!scratchpadTimeout)
+    return;
+  wl_event_source_remove(scratchpadTimeout);
+  scratchpadTimeout = nullptr;
+}
+
+int WaylandCompositor::Impl::handleScratchpadTimeout(void *data) {
+  auto *self = static_cast<Impl *>(data);
+  if (!self)
+    return 0;
+  self->cancelScratchpadTimeout();
+  auto *owner = self->q;
+  if (owner && owner->scratchpadPending_ &&
+      owner->scratchpadGeneration_ == self->scratchpadTimeoutGeneration) {
+    owner->scratchpadPending_ = false;
+    owner->scratchpadProcess_ = 0;
+    owner->scratchpadError_ =
+        "The terminal did not create a new window. Configure "
+        "the terminal role to start a separate process.";
+  }
+  return 0;
+}
+
 void WaylandCompositor::Impl::shutdown() {
+  cancelScratchpadTimeout();
   clearPendingDisplay();
   if (!display)
     return;
