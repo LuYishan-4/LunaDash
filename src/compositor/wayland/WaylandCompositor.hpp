@@ -47,6 +47,8 @@ public:
                       const std::function<void(bool)> &finished = {});
   void saveState(const QString &path);
   bool hasProcessFailure() const;
+  bool scheduleEventLoopCallback(int delayMilliseconds,
+                                 std::function<void()> callback);
   void closeTestSession(const std::function<void(bool)> &finished);
 
 private:

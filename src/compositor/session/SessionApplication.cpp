@@ -7,7 +7,6 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QElapsedTimer>
-#include <QTimer>
 #include <algorithm>
 #include <csignal>
 #include <unistd.h>
@@ -100,30 +99,36 @@ int SessionApplication::run(int argc, char **argv) {
                                          !parser.isSet("no-shell"), renderer);
 
   if (parser.isSet("demo")) {
-    QTimer::singleShot(900, &app, [&] {
-      if (!parser.isSet("no-shell"))
-        compositor.spawn({"--app", "welcome"});
-      compositor.spawn({"--app", "files"});
-    });
+    if (!compositor.scheduleEventLoopCallback(900, [&] {
+          if (!parser.isSet("no-shell"))
+            compositor.spawn({"--app", "welcome"});
+          compositor.spawn({"--app", "files"});
+        }))
+      return 2;
   }
 
   if (parser.isSet("exit-after")) {
-    QTimer::singleShot(
-        std::max(1000, parser.value("exit-after").toInt()), &app, [&] {
-          if (parser.isSet("state"))
-            compositor.saveState(parser.value("state"));
-          const auto finish = [&app, &compositor](bool ok) {
-            compositor.closeTestSession([&app, &compositor, ok](bool clean) {
-              app.exit(ok && clean && !compositor.hasProcessFailure() ? 0 : 2);
-            });
-          };
-          if (!parser.isSet("screenshot")) {
-            finish(true);
-            return;
-          }
-          if (!compositor.saveScreenshot(parser.value("screenshot"), finish))
-            finish(false);
-        });
+    if (!compositor.scheduleEventLoopCallback(
+            std::max(1000, parser.value("exit-after").toInt()), [&] {
+              if (parser.isSet("state"))
+                compositor.saveState(parser.value("state"));
+              const auto finish = [&app, &compositor](bool ok) {
+                compositor.closeTestSession(
+                    [&app, &compositor, ok](bool clean) {
+                      app.exit(ok && clean && !compositor.hasProcessFailure()
+                                   ? 0
+                                   : 2);
+                    });
+              };
+              if (!parser.isSet("screenshot")) {
+                finish(true);
+                return;
+              }
+              if (!compositor.saveScreenshot(parser.value("screenshot"),
+                                             finish))
+                finish(false);
+            }))
+      return 2;
   }
 
   return app.exec();

@@ -708,6 +708,11 @@ void WaylandCompositor::saveState(const QString &path) {
 
 bool WaylandCompositor::hasProcessFailure() const { return processFailure_; }
 
+bool WaylandCompositor::scheduleEventLoopCallback(
+    int delayMilliseconds, std::function<void()> callback) {
+  return d && d->scheduleCallback(delayMilliseconds, std::move(callback));
+}
+
 QJsonObject WaylandCompositor::currentWindowLayoutSettings() const {
   if (!windowTemplate_)
     return {};
