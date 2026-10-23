@@ -1,6 +1,7 @@
 #include "compositor/layout/FreeformLayout.hpp"
-#include <QHash>
 #include <algorithm>
+#include <unordered_map>
+#include <vector>
 
 namespace LunaDash {
 class FreeformLayout::Impl {
@@ -14,11 +15,22 @@ public:
     bool maximized = false;
     bool fresh = true;
   };
-  QHash<LayoutWindowId, Entry> entries;
-  QList<LayoutWindowId> order;
-  QHash<LayoutWorkspaceId, LayoutWindowId> focused;
-  QHash<LayoutWorkspaceId, QRect> areas;
+  std::unordered_map<LayoutWindowId, Entry> entries;
+  std::vector<LayoutWindowId> order;
+  std::unordered_map<LayoutWorkspaceId, LayoutWindowId> focused;
+  std::unordered_map<LayoutWorkspaceId, QRect> areas;
   QSize defaultSize{900, 600};
+  LayoutWindowId focusedWindow(LayoutWorkspaceId workspace) const {
+    const auto found = focused.find(workspace);
+    return found == focused.end() ? 0 : found->second;
+  }
+  QRect area(LayoutWorkspaceId workspace) const {
+    const auto found = areas.find(workspace);
+    return found == areas.end() ? QRect{} : found->second;
+  }
+  void removeFromOrder(LayoutWindowId window) {
+    std::erase(order, window);
+  }
   static QRect bounded(QRect geometry, QRect area) {
     if (!area.isValid())
       return geometry;
@@ -44,8 +56,8 @@ bool FreeformLayout::insert(LayoutWorkspaceId workspace, LayoutWindowId window,
                             QSize preferred) {
   if (!window || d->entries.contains(window))
     return false;
-  d->entries.insert(window, {window, workspace, preferred});
-  d->order.append(window);
+  d->entries.emplace(window, Impl::Entry{window, workspace, preferred});
+  d->order.push_back(window);
   d->focused[workspace] = window;
   return true;
 }
@@ -53,10 +65,10 @@ bool FreeformLayout::remove(LayoutWindowId window) {
   if (!d->entries.contains(window))
     return false;
   const auto workspace = d->entries[window].workspace;
-  d->entries.remove(window);
-  d->order.removeAll(window);
-  if (d->focused.value(workspace) == window) {
-    d->focused.remove(workspace);
+  d->entries.erase(window);
+  d->removeFromOrder(window);
+  if (d->focusedWindow(workspace) == window) {
+    d->focused.erase(workspace);
     for (auto id : d->order)
       if (d->entries[id].workspace == workspace && !d->entries[id].minimized)
         d->focused[workspace] = id;
@@ -67,7 +79,8 @@ bool FreeformLayout::setMinimized(LayoutWindowId window, bool minimized) {
   if (!d->entries.contains(window))
     return false;
   d->entries[window].minimized = minimized;
-  if (minimized && d->focused.value(d->entries[window].workspace) == window)
+  if (minimized &&
+      d->focusedWindow(d->entries[window].workspace) == window)
     focusRight(d->entries[window].workspace);
   return true;
 }
@@ -76,9 +89,11 @@ bool FreeformLayout::setMaximized(LayoutWindowId window, bool maximized) {
     return false;
   auto &entry = d->entries[window];
   if (maximized)
-    for (auto &other : d->entries)
+    for (auto &[id, other] : d->entries) {
+      (void)id;
       if (other.workspace == entry.workspace)
         other.maximized = false;
+    }
   entry.maximized = maximized;
   return true;
 }
@@ -91,8 +106,8 @@ bool FreeformLayout::moveToWorkspace(LayoutWindowId window,
     return true;
   const auto previous = entry.workspace;
   entry.workspace = workspace;
-  if (d->focused.value(previous) == window) {
-    d->focused.remove(previous);
+  if (d->focusedWindow(previous) == window) {
+    d->focused.erase(previous);
     focusRight(previous);
   }
   return focus(window);
@@ -101,21 +116,21 @@ bool FreeformLayout::focus(LayoutWindowId window) {
   if (!d->entries.contains(window) || d->entries[window].minimized)
     return false;
   d->focused[d->entries[window].workspace] = window;
-  d->order.removeAll(window);
-  d->order.append(window);
+  d->removeFromOrder(window);
+  d->order.push_back(window);
   return true;
 }
 bool FreeformLayout::focusRight(LayoutWorkspaceId workspace) {
   for (auto id : d->order)
     if (d->entries[id].workspace == workspace && !d->entries[id].minimized)
       return focus(id);
-  d->focused.remove(workspace);
+  d->focused.erase(workspace);
   return false;
 }
 bool FreeformLayout::focusLeft(LayoutWorkspaceId workspace) {
   for (auto it = d->order.crbegin(); it != d->order.crend(); ++it)
     if (d->entries[*it].workspace == workspace && !d->entries[*it].minimized &&
-        *it != d->focused.value(workspace))
+        *it != d->focusedWindow(workspace))
       return focus(*it);
   return false;
 }
@@ -186,7 +201,7 @@ bool FreeformLayout::resize(LayoutWindowId window, int width) {
   auto &entry = d->entries[window];
   entry.geometry.setWidth(std::clamp(width, 120, 32768));
   entry.geometry =
-      Impl::bounded(entry.geometry, d->areas.value(entry.workspace));
+      Impl::bounded(entry.geometry, d->area(entry.workspace));
   return true;
 }
 bool FreeformLayout::resizeHeight(LayoutWindowId window, int height) {
@@ -195,7 +210,7 @@ bool FreeformLayout::resizeHeight(LayoutWindowId window, int height) {
   auto &entry = d->entries[window];
   entry.geometry.setHeight(std::clamp(height, 80, 32768));
   entry.geometry =
-      Impl::bounded(entry.geometry, d->areas.value(entry.workspace));
+      Impl::bounded(entry.geometry, d->area(entry.workspace));
   return true;
 }
 bool FreeformLayout::moveSingle(LayoutWindowId window, QPoint delta,
@@ -212,8 +227,8 @@ bool FreeformLayout::reorder(LayoutWindowId window, int direction) {
     return false;
   if (direction >= 0)
     return focus(window);
-  d->order.removeAll(window);
-  d->order.prepend(window);
+  d->removeFromOrder(window);
+  d->order.insert(d->order.begin(), window);
   return true;
 }
 bool FreeformLayout::center(LayoutWindowId window, QRect area) {
@@ -227,7 +242,8 @@ QList<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
   if (!area.isValid())
     return {};
   d->areas[workspace] = area;
-  for (auto &entry : d->entries) {
+  for (auto &[id, entry] : d->entries) {
+    (void)id;
     if (entry.workspace != workspace || entry.minimized)
       continue;
     if (!entry.geometry.isValid()) {
@@ -262,7 +278,7 @@ WorkspaceLayoutSnapshot
 FreeformLayout::snapshot(LayoutWorkspaceId workspace) const {
   WorkspaceLayoutSnapshot result;
   result.workspace = workspace;
-  result.focusedWindow = d->focused.value(workspace);
+  result.focusedWindow = d->focusedWindow(workspace);
   for (auto id : d->order) {
     const auto &entry = d->entries[id];
     if (entry.workspace != workspace)
