@@ -14,7 +14,7 @@ then
   exit 0
 fi
 
-installer=/tmp/lunadash-rustup-init
+installer=/tmp/rustup-init
 rust_arch=$(uname -m)
 if [[ $rust_arch != x86_64 ]]; then
     printf 'No CI rustup bootstrap target is configured for %s.\n' "$rust_arch" >&2
