@@ -272,8 +272,7 @@ bool WaylandCompositor::Impl::fail(const char *message) {
 void WaylandCompositor::Impl::dispatch() {
   if (!eventLoop)
     return;
-  QElapsedTimer elapsed;
-  elapsed.start();
+  const auto started = std::chrono::steady_clock::now();
   if (wl_event_loop_dispatch(eventLoop, 0) < 0) {
     q->processFailure_ = true;
     qCritical("LunaDash wlroots event dispatch failed.");
@@ -283,7 +282,9 @@ void WaylandCompositor::Impl::dispatch() {
   if (display)
     wl_display_flush_clients(display);
   ++dispatchCalls;
-  lastDispatchUsec = elapsed.nsecsElapsed() / 1000;
+  lastDispatchUsec = std::chrono::duration_cast<std::chrono::microseconds>(
+                         std::chrono::steady_clock::now() - started)
+                         .count();
   maxDispatchUsec = std::max(maxDispatchUsec, lastDispatchUsec);
   if (lastDispatchUsec >= 8000)
     ++slowDispatches;

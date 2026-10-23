@@ -6,8 +6,8 @@
 #include <QAbstractEventDispatcher>
 #include <QCommandLineParser>
 #include <QCoreApplication>
-#include <QElapsedTimer>
 #include <algorithm>
+#include <chrono>
 #include <csignal>
 #include <unistd.h>
 
@@ -79,16 +79,23 @@ int SessionApplication::run(int argc, char **argv) {
                     << "executable:" << app.applicationFilePath();
   qInfo("LunaDash input: wlroots seat + libinput/xkbcommon (no Qt input path)");
 
-  QElapsedTimer activeTurn;
+  std::chrono::steady_clock::time_point activeTurn;
+  bool activeTurnValid = false;
   if (parser.isSet("profile")) {
     auto *dispatcher = QAbstractEventDispatcher::instance();
     QObject::connect(dispatcher, &QAbstractEventDispatcher::awake, &app,
-                     [&] { activeTurn.restart(); });
+                     [&] {
+                       activeTurn = std::chrono::steady_clock::now();
+                       activeTurnValid = true;
+                     });
     QObject::connect(
         dispatcher, &QAbstractEventDispatcher::aboutToBlock, &app, [&] {
-          if (!activeTurn.isValid())
+          if (!activeTurnValid)
             return;
-          const qint64 elapsed = activeTurn.elapsed();
+          const auto elapsed = std::chrono::duration_cast<
+              std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                         activeTurn)
+                                   .count();
           if (elapsed > 25)
             qWarning() << "LunaDash event-loop stall:" << elapsed << "ms";
         });

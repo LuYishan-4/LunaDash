@@ -30,7 +30,7 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
   }
   pointerLast = QPointF(cursor->x, cursor->y);
   pointerStartGeometry = client->geometry;
-  pointerPublishClock.invalidate();
+  pointerPublishTimeValid = false;
   pointerTarget = 0;
   pointerEdge = 0;
   client->manualResize = true;
@@ -76,7 +76,7 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   pointerResize = edges != 0;
   pointerLast = QPointF(cursor->x, cursor->y);
   pointerStartGeometry = client->geometry;
-  pointerPublishClock.invalidate();
+  pointerPublishTimeValid = false;
   pointerTarget = pointerEdge = 0;
   client->manualResize = true;
   if (client->toplevel)
@@ -98,9 +98,12 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   }
   auto *client = found->get();
   const auto publishGeometry = [this] {
-    if (!pointerPublishClock.isValid() || pointerPublishClock.elapsed() >= 33) {
+    const auto now = std::chrono::steady_clock::now();
+    if (!pointerPublishTimeValid ||
+        now - pointerPublishTime >= std::chrono::milliseconds(33)) {
       q->publishWindowLayout();
-      pointerPublishClock.restart();
+      pointerPublishTime = now;
+      pointerPublishTimeValid = true;
     }
   };
   const auto configureDragged = [this, client]() {
@@ -328,7 +331,7 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
   pointerResize = pointerClientGrab = false;
   pointerButton = pointerResizeEdges = 0;
   pointerStartGeometry = {};
-  pointerPublishClock.invalidate();
+  pointerPublishTimeValid = false;
   q->windowSwitcher_->setDrag({});
   // Release the interactive geometry override before arranging. Dropped,
   // swapped and regrouped windows then use the normal layout transition.

@@ -3,7 +3,6 @@
 #include "config/plugins/ExtensionRegistry.hpp"
 #include "core/plugins/PluginApi.h"
 #include <QCryptographicHash>
-#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -22,6 +21,7 @@
 #include <QTemporaryDir>
 #include <QUrl>
 #include <algorithm>
+#include <chrono>
 
 namespace LunaDash {
 struct PluginManager::Native {
@@ -578,7 +578,9 @@ void PluginManager::installBuiltStorePackage(StoreInstall *job) {
   const auto destination = QDir(root).filePath(job->id);
   const auto backupName =
       ".old-" + job->id + "-" +
-      QString::number(QDateTime::currentMSecsSinceEpoch());
+      QString::number(std::chrono::duration_cast<std::chrono::milliseconds>(
+                          std::chrono::system_clock::now().time_since_epoch())
+                          .count());
   const auto backup = QDir(root).filePath(backupName);
 
   auto configDocument = readExtensionConfiguration();
@@ -611,7 +613,9 @@ void PluginManager::installBuiltStorePackage(StoreInstall *job) {
     // built package via an intermediate directory in the same filesystem.
     const auto stagedName =
         ".built-" + job->id + "-" +
-        QString::number(QDateTime::currentMSecsSinceEpoch());
+        QString::number(std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch())
+                            .count());
     const auto stagedPath = QDir(root).filePath(stagedName);
     if (!QDir().rename(builtDirectory, stagedPath) ||
         !QDir(root).rename(stagedName, job->id)) {

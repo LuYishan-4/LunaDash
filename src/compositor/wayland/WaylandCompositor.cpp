@@ -51,7 +51,6 @@
 
 #include <QAbstractEventDispatcher>
 #include <QCoreApplication>
-#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -68,14 +67,18 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
+#include <iomanip>
 #include <map>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 
 namespace LunaDash {
@@ -101,6 +104,27 @@ QJsonObject qtJsonObject(const nlohmann::json &object) {
 QJsonObject synchronizeApplicationThemeAtQtBoundary(
     const nlohmann::json &preferences, const nlohmann::json &palette) {
   return qtJsonObject(synchronizeApplicationTheme(preferences, palette));
+}
+
+std::int64_t currentMillisecondsSinceEpoch() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+
+std::string currentTimestamp() {
+  const auto now = std::chrono::system_clock::now();
+  const auto milliseconds =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          now.time_since_epoch())
+          .count();
+  const auto time = std::chrono::system_clock::to_time_t(now);
+  std::tm localTime{};
+  localtime_r(&time, &localTime);
+  std::ostringstream result;
+  result << std::put_time(&localTime, "%Y%m%d-%H%M%S-")
+         << std::setw(3) << std::setfill('0') << milliseconds % 1000;
+  return result.str();
 }
 
 SceneAnimationRectangle animationRectangle(const QRect &rectangle) {
@@ -1885,7 +1909,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!ctrl || !key)
       return {{"error", "Keymap does not contain the requested keys."}};
     const uint32_t now =
-        static_cast<uint32_t>(QDateTime::currentMSecsSinceEpoch() & 0xffffffff);
+        static_cast<uint32_t>(currentMillisecondsSinceEpoch() & 0xffffffff);
     wlr_seat_keyboard_notify_key(d->seat, now, ctrl - 8,
                                  WL_KEYBOARD_KEY_STATE_PRESSED);
     wlr_seat_keyboard_notify_key(d->seat, now, key - 8,
@@ -2455,8 +2479,8 @@ QString WaylandCompositor::nextCapturePath() const {
   directory += "/Screenshots";
   if (!QDir().mkpath(directory))
     return {};
-  return directory + "/LunaDash-" +
-         QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss-zzz") + ".png";
+  return directory + "/LunaDash-" + QString::fromStdString(currentTimestamp()) +
+         ".png";
 }
 
 void WaylandCompositor::captureScreen() {
