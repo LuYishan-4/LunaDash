@@ -15,6 +15,11 @@ endif()
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 6.4 REQUIRED COMPONENTS Test Widgets DBus)
+    add_executable(ludash-sha256-test tests/core/Sha256Tests.cpp)
+    set_target_properties(ludash-sha256-test PROPERTIES AUTOMOC OFF)
+    target_link_libraries(ludash-sha256-test PRIVATE ludash-crypto)
+    add_test(NAME ludash-sha256 COMMAND ludash-sha256-test)
+
     add_executable(lunadash-input-settings-test
         tests/input/InputSettingsTests.cpp)
     set_target_properties(lunadash-input-settings-test PROPERTIES AUTOMOC OFF)

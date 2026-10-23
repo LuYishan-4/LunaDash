@@ -1,12 +1,15 @@
 #pragma once
+#include "core/crypto/Sha256.hpp"
 #include "core/settings/SettingsSchema.hpp"
-#include <QCryptographicHash>
 
 namespace LunaDash::Settings {
 inline QString revision(const QJsonObject &schema, const QJsonObject &values) {
-  return QString::fromLatin1(QCryptographicHash::hash(
+  const auto document =
       QJsonDocument(QJsonObject{{"schema", schema}, {"values", values}})
-          .toJson(QJsonDocument::Compact), QCryptographicHash::Sha256).toHex());
+          .toJson(QJsonDocument::Compact);
+  return QString::fromStdString(
+      sha256Hex(std::string_view(document.constData(),
+                                 static_cast<std::size_t>(document.size()))));
 }
 inline QJsonObject target(const QString &id, const QString &name,
                           const QString &type, const QString &category,

@@ -1,8 +1,8 @@
 #include "compositor/plugins/PluginManager.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
+#include "core/crypto/Sha256.hpp"
 #include "core/plugins/PluginApi.h"
-#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -22,6 +22,7 @@
 #include <QUrl>
 #include <algorithm>
 #include <chrono>
+#include <string_view>
 
 namespace LunaDash {
 struct PluginManager::Native {
@@ -424,9 +425,9 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
               finishStoreInstall(job, "Plugin file exceeds the 4 MiB limit");
               return;
             }
-            const auto actual = QString::fromLatin1(
-                QCryptographicHash::hash(data, QCryptographicHash::Sha256)
-                    .toHex());
+            const auto actual = QString::fromStdString(sha256Hex(
+                std::string_view(data.constData(),
+                                 static_cast<std::size_t>(data.size()))));
             if (actual != expectedSha) {
               finishStoreInstall(job, "Plugin file hash verification failed");
               return;

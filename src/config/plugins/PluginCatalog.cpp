@@ -1,9 +1,9 @@
 #include "config/plugins/PluginCatalog.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
+#include "core/crypto/Sha256.hpp"
 #include "core/settings/SettingsSchema.hpp"
 #include <QCoreApplication>
-#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -17,6 +17,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 #include <algorithm>
+#include <string_view>
 
 namespace LunaDash {
 namespace {
@@ -82,9 +83,10 @@ QString pluginStoreFingerprint(const QJsonObject &storeItem) {
   const QJsonObject package{{"id", storeItem.value("id")},
                             {"version", storeItem.value("version")},
                             {"files", hashes}};
-  return QString::fromLatin1(QCryptographicHash::hash(
-      QJsonDocument(package).toJson(QJsonDocument::Compact),
-      QCryptographicHash::Sha256).toHex());
+  const auto data = QJsonDocument(package).toJson(QJsonDocument::Compact);
+  return QString::fromStdString(
+      sha256Hex(std::string_view(data.constData(),
+                                 static_cast<std::size_t>(data.size()))));
 }
 
 bool pluginMatchesStore(const PluginDescriptor &plugin,
@@ -182,7 +184,9 @@ QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
     if (receiptPath.isEmpty() || !receipt.open(QIODevice::ReadOnly) ||
         receipt.size() > 4096 ||
         QJsonDocument::fromJson(receipt.readAll()).object().value("metadataSha256").toString() !=
-            QString::fromLatin1(QCryptographicHash::hash(metadataBytes, QCryptographicHash::Sha256).toHex())) {
+            QString::fromStdString(sha256Hex(std::string_view(
+                metadataBytes.constData(),
+                static_cast<std::size_t>(metadataBytes.size()))))) {
       base.error = "Missing or stale LunaDash CMake SDK build receipt; rebuild the plugin";
       return {base};
     }

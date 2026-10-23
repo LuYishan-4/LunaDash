@@ -116,6 +116,10 @@ add_library(ludash-process-runner src/core/process/ProcessRunner.cpp)
 target_include_directories(ludash-process-runner PUBLIC src)
 set_target_properties(ludash-process-runner PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-process-runner PUBLIC PkgConfig::WAYLAND_SERVER)
+add_library(ludash-crypto src/core/crypto/Sha256.cpp)
+target_include_directories(ludash-crypto PUBLIC src)
+set_target_properties(ludash-crypto PROPERTIES AUTOMOC OFF)
+target_link_libraries(ludash-crypto PUBLIC PkgConfig::LUDASH_GIO)
 add_library(ludash-audio-settings src/desktop/audio/AudioSettings.cpp)
 target_include_directories(ludash-audio-settings PUBLIC src)
 set_target_properties(ludash-audio-settings PROPERTIES AUTOMOC OFF)
@@ -244,7 +248,7 @@ add_library(ludash-plugin-catalog
     src/config/plugins/ExtensionRegistry.cpp
     src/config/plugins/ExtensionConfiguration.cpp)
 target_include_directories(ludash-plugin-catalog PUBLIC src)
-target_link_libraries(ludash-plugin-catalog PUBLIC Qt6::Core)
+target_link_libraries(ludash-plugin-catalog PUBLIC ludash-crypto Qt6::Core)
 target_compile_definitions(ludash-plugin-catalog PRIVATE
     LUDASH_PLUGIN_TARGETS_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/targets.json"
     LUDASH_PLUGIN_TARGETS_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/targets.json")
@@ -254,7 +258,8 @@ add_library(ludash-plugins src/compositor/plugins/PluginManager.hpp
     src/compositor/plugins/PluginManager.cpp
     src/compositor/plugins/ExtensionHooks.cpp)
 target_include_directories(ludash-plugins PUBLIC src)
-target_link_libraries(ludash-plugins PUBLIC ludash-plugin-catalog ludash-tiling Qt6::Core Qt6::Network)
+target_link_libraries(ludash-plugins PUBLIC
+    ludash-plugin-catalog ludash-tiling ludash-crypto Qt6::Core Qt6::Network)
 target_compile_definitions(ludash-plugins PRIVATE
     LUDASH_PLUGIN_CATALOG_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/catalog.json"
     LUDASH_PLUGIN_CATALOG_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/catalog.json")
@@ -476,6 +481,7 @@ target_link_libraries(ludash-wayland
         ludash-weather
         ludash-localization
         ludash-plugins
+        ludash-crypto
         Qt6::Core
         Qt6::Network
         PkgConfig::WAYLAND_SERVER
