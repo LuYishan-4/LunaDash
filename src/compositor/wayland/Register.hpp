@@ -12,9 +12,9 @@
 #include <QList>
 #include <QPointF>
 #include <QSize>
+#include <chrono>
 #include <wayland-server-core.h>
 class QSocketNotifier;
-class QTimer;
 
 namespace LunaDash {
 using Templates::WaylandSlot;
@@ -30,7 +30,8 @@ public:
     // Keep a short frame tail after a screencopy request is consumed so
     // portal clients have time to queue their next streaming frame.
     int screencopyKeepalive = 0;
-    QTimer *screencopyTimer = nullptr;
+    wl_event_source *screencopyTimer = nullptr;
+    bool screencopyTimerScheduled = false;
     bool softwareCursorLocked = false;
     bool forceSoftwareCursor = false;
     quint64 lastAnimationPublishNs = 0;
@@ -194,7 +195,8 @@ public:
   wlr_output *primaryOutput = nullptr;
   wlr_output *pendingDisplay = nullptr;
   wlr_output_state previousDisplay{};
-  QTimer *displayRevertTimer = nullptr;
+  wl_event_source *displayRevertTimer = nullptr;
+  std::chrono::steady_clock::time_point displayRevertDeadline{};
   QString displayError;
   QRect usableArea{0, 0, 1440, 900};
   bool eyeCareActive = false;
@@ -306,6 +308,7 @@ public:
   void confirmDisplay();
   void revertDisplay();
   void clearPendingDisplay();
+  static int handleDisplayRevertTimer(void *data);
 
   int mappedLayerCount() const;
 
@@ -366,6 +369,7 @@ public:
   static void handleNewOutput(wl_listener *listener, void *data);
 
   static void handleOutputFrame(wl_listener *listener, void *);
+  static int handleScreencopyTimer(void *data);
 
   static void handleOutputRequestState(wl_listener *listener, void *data);
 

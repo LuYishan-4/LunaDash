@@ -6,8 +6,8 @@
 #include "config/desktop/DesktopPreferences.hpp"
 #include <QJsonArray>
 #include <QSettings>
-#include <QTimer>
 #include <algorithm>
+#include <chrono>
 #include <ctime>
 #include <vector>
 
@@ -40,6 +40,14 @@ QSize WaylandCompositor::Impl::outputSize() const {
 
 QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
   const QSize size = outputSize();
+  const auto now = std::chrono::steady_clock::now();
+  const int revertSeconds =
+      pendingDisplay && displayRevertDeadline > now
+          ? static_cast<int>(
+                std::chrono::ceil<std::chrono::seconds>(
+                    displayRevertDeadline - now)
+                    .count())
+          : 0;
   QJsonArray nightLight;
   quint64 frameCallbacks = 0;
   quint64 slowFrames = 0;
@@ -77,9 +85,7 @@ QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
                                             : primaryOutput->refresh)
                              : QString()},
       {"pending", pendingDisplay != nullptr},
-      {"revertSeconds", displayRevertTimer && displayRevertTimer->isActive()
-                            ? (displayRevertTimer->remainingTime() + 999) / 1000
-                            : 0},
+      {"revertSeconds", revertSeconds},
       {"error", displayError},
       {"height", size.height()},
       {"scale", primaryOutput ? primaryOutput->scale : 1.0},
@@ -383,14 +389,17 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
     // Coalesce callbacks from capture, client damage and animation into one
     // wakeup per output. Several frames inside 16 ms must not grow a timer tail.
     if (!state->screencopyTimer) {
-      state->screencopyTimer = new QTimer(state->impl->q);
-      state->screencopyTimer->setSingleShot(true);
-      state->screencopyTimer->setInterval(16);
-      QObject::connect(state->screencopyTimer, &QTimer::timeout, state->impl->q,
-                       [state] { wlr_output_schedule_frame(state->output); });
+      state->screencopyTimer = wl_event_loop_add_timer(
+          state->impl->eventLoop, handleScreencopyTimer, state);
     }
-    if (!state->screencopyTimer->isActive())
-      state->screencopyTimer->start();
+    if (state->screencopyTimer && !state->screencopyTimerScheduled) {
+      if (wl_event_source_timer_update(state->screencopyTimer, 16) == 0)
+        state->screencopyTimerScheduled = true;
+      else
+        wlr_log(WLR_ERROR, "Could not schedule screencopy continuation.");
+    } else if (!state->screencopyTimer) {
+      wlr_log(WLR_ERROR, "Could not create screencopy continuation timer.");
+    }
   }
 
   timespec finished{};
@@ -404,6 +413,16 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
       std::max(state->maxFrameWorkUsec, state->lastFrameWorkUsec);
   if (state->lastFrameWorkUsec >= 8000)
     ++state->slowFrames;
+}
+
+int WaylandCompositor::Impl::handleScreencopyTimer(void *data) {
+  auto *state = static_cast<OutputState *>(data);
+  if (!state)
+    return 0;
+  state->screencopyTimerScheduled = false;
+  if (state->output)
+    wlr_output_schedule_frame(state->output);
+  return 0;
 }
 
 void WaylandCompositor::Impl::handleOutputRequestState(wl_listener *listener,
@@ -423,7 +442,8 @@ void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
   if (!state)
     return;
   auto *self = state->impl;
-  delete state->screencopyTimer;
+  if (state->screencopyTimer)
+    wl_event_source_remove(state->screencopyTimer);
   state->screencopyTimer = nullptr;
   if (self->pendingDisplay == state->output)
     self->clearPendingDisplay();

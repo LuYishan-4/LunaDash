@@ -2,7 +2,7 @@
 #include "compositor/wayland/SurfaceText.hpp"
 #include <QJsonArray>
 #include <QSettings>
-#include <QTimer>
+#include <chrono>
 #include <cmath>
 
 namespace LunaDash {
@@ -108,17 +108,37 @@ bool WaylandCompositor::Impl::configureDisplay(const QJsonObject &changes,
   wlr_output_state_finish(&next);
   pendingDisplay = primaryOutput;
   displayError.clear();
-  if (!displayRevertTimer) {
-    displayRevertTimer = new QTimer(q);
-    displayRevertTimer->setSingleShot(true);
-    QObject::connect(displayRevertTimer, &QTimer::timeout, q,
-                     [this] { revertDisplay(); });
+  if (!displayRevertTimer)
+    displayRevertTimer =
+        wl_event_loop_add_timer(eventLoop, handleDisplayRevertTimer, this);
+  if (!displayRevertTimer ||
+      wl_event_source_timer_update(displayRevertTimer, 15000) < 0) {
+    const bool restored =
+        wlr_output_commit_state(primaryOutput, &previousDisplay);
+    displayError = restored
+                       ? "Could not schedule display confirmation timeout."
+                       : "Could not schedule confirmation timeout or restore "
+                         "the previous display mode.";
+    *error = displayError;
+    clearPendingDisplay();
+    updateBackground();
+    arrangeLayers();
+    q->arrange();
+    return false;
   }
-  displayRevertTimer->start(15000);
+  displayRevertDeadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(15000);
   updateBackground();
   arrangeLayers();
   q->arrange();
   return true;
+}
+
+int WaylandCompositor::Impl::handleDisplayRevertTimer(void *data) {
+  auto *self = static_cast<Impl *>(data);
+  if (self)
+    self->revertDisplay();
+  return 0;
 }
 
 void WaylandCompositor::Impl::confirmDisplay() {
@@ -134,8 +154,11 @@ void WaylandCompositor::Impl::confirmDisplay() {
 }
 
 void WaylandCompositor::Impl::clearPendingDisplay() {
-  if (displayRevertTimer)
-    displayRevertTimer->stop();
+  if (displayRevertTimer) {
+    wl_event_source_remove(displayRevertTimer);
+    displayRevertTimer = nullptr;
+  }
+  displayRevertDeadline = {};
   if (pendingDisplay)
     wlr_output_state_finish(&previousDisplay);
   pendingDisplay = nullptr;
