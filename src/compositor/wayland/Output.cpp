@@ -7,8 +7,11 @@
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include <QJsonArray>
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <ctime>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace LunaDash {
@@ -199,22 +202,27 @@ void WaylandCompositor::Impl::arrangeLayers() {
 
 bool WaylandCompositor::Impl::resizePrimaryOutput(const QString &preset,
                                                   QString *error) {
-  static const QHash<QString, QSize> sizes{
+  static const std::array<std::pair<std::string_view, QSize>, 4> sizes{{
       {"800x600", {800, 600}},
       {"1280x720", {1280, 720}},
       {"1440x900", {1440, 900}},
       {"1920x1080", {1920, 1080}},
-  };
-  if (!nested || fullscreen || !sizes.contains(preset) || !primaryOutput) {
+  }};
+  const auto presetName = preset.toStdString();
+  const auto size = std::find_if(sizes.begin(), sizes.end(),
+                                 [&presetName](const auto &entry) {
+                                   return entry.first == presetName;
+                                 });
+  if (!nested || fullscreen || size == sizes.end() || !primaryOutput) {
     if (error)
       *error = "Choose a supported size in a windowed nested wlroots session.";
     return false;
   }
 
-  const QSize size = sizes.value(preset);
   wlr_output_state state;
   wlr_output_state_init(&state);
-  wlr_output_state_set_custom_mode(&state, size.width(), size.height(),
+  wlr_output_state_set_custom_mode(&state, size->second.width(),
+                                   size->second.height(),
                                    kDefaultOutputRefreshMilliHz);
   const bool ok = wlr_output_commit_state(primaryOutput, &state);
   wlr_output_state_finish(&state);
