@@ -2,9 +2,12 @@
 #include <nlohmann/json.hpp>
 
 #include <string>
+#include <string_view>
 
 namespace LunaDash {
 nlohmann::json desktopPreferences();
+nlohmann::json loadDisplayConfiguration(std::string_view output,
+                                       std::string *error);
 void ensureLegacyDesktopSettingsImported();
 bool updateDesktopPreferences(const nlohmann::json &changes,
                               std::string *error);

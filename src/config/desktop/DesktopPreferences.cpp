@@ -65,6 +65,54 @@ std::string keyString(GKeyFile *file, const char *group, const char *key) {
   return result;
 }
 
+Json loadLegacyDisplayConfiguration(std::string_view output,
+                                    std::string *error) {
+  if (error)
+    error->clear();
+  auto settings = loadDisplaySettings(output);
+  if (!settings.empty())
+    return settings;
+
+  const auto legacy = readLegacySettings();
+  if (!legacy || output.empty() || output.size() > 255 ||
+      output.find('\0') != std::string_view::npos)
+    return Json::object();
+
+  const std::string group = "display/" + std::string(output);
+  for (const auto *key : {"width", "height", "refresh"}) {
+    if (!g_key_file_has_key(legacy.get(), group.c_str(), key, nullptr))
+      continue;
+    GError *readError = nullptr;
+    const int value =
+        g_key_file_get_integer(legacy.get(), group.c_str(), key, &readError);
+    if (readError) {
+      g_error_free(readError);
+      continue;
+    }
+    settings[key] = value;
+  }
+  if (g_key_file_has_key(legacy.get(), group.c_str(), "scale", nullptr)) {
+    GError *readError = nullptr;
+    const double value =
+        g_key_file_get_double(legacy.get(), group.c_str(), "scale", &readError);
+    if (readError) {
+      g_error_free(readError);
+    } else {
+      settings["scale"] = value;
+    }
+  }
+  if (settings.empty())
+    return settings;
+
+  std::string saveError;
+  if (!saveDisplaySettings(output, settings, &saveError)) {
+    if (error)
+      *error = std::move(saveError);
+    return Json::object();
+  }
+  return settings;
+}
+
 Json parseLegacyList(std::string_view source) {
   if (source.starts_with("@StringList(") && source.ends_with(')')) {
     source.remove_prefix(std::string_view("@StringList(").size());
@@ -213,6 +261,10 @@ void importLegacySettings(GKeyFile *file) {
 }
 
 } // namespace
+
+Json loadDisplayConfiguration(std::string_view output, std::string *error) {
+  return loadLegacyDisplayConfiguration(output, error);
+}
 
 void ensureLegacyDesktopSettingsImported() {
   const auto settings = readLegacySettings();

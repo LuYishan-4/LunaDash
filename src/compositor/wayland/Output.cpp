@@ -4,8 +4,8 @@
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include "config/desktop/DesktopPreferenceStore.hpp"
 #include <QJsonArray>
-#include <QSettings>
 #include <algorithm>
 #include <chrono>
 #include <ctime>
@@ -254,14 +254,17 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
         chosen = candidate;
     }
   }
-  QSettings settings;
-  const QString prefix = "display/" + safeUtf8(output->name) + "/";
+  std::string settingsError;
+  const auto settings = loadDisplayConfiguration(output->name, &settingsError);
+  if (!settingsError.empty())
+    qWarning("Could not migrate saved display settings: %s",
+             settingsError.c_str());
   if (!self->nested) {
     wlr_output_mode *candidate = nullptr;
     wl_list_for_each(candidate, &output->modes, link) {
-      if (candidate->width == settings.value(prefix + "width").toInt() &&
-          candidate->height == settings.value(prefix + "height").toInt() &&
-          candidate->refresh == settings.value(prefix + "refresh").toInt()) {
+      if (candidate->width == settings.value("width", 0) &&
+          candidate->height == settings.value("height", 0) &&
+          candidate->refresh == settings.value("refresh", 0)) {
         chosen = candidate;
         break;
       }
@@ -273,7 +276,7 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
     wlr_output_state_set_custom_mode(&pending, 1440, 900,
                                      kDefaultOutputRefreshMilliHz);
   const float scale =
-      std::clamp(settings.value(prefix + "scale", 1.0).toFloat(), 1.0f, 3.0f);
+      std::clamp(static_cast<float>(settings.value("scale", 1.0)), 1.0f, 3.0f);
   wlr_output_state_set_scale(&pending, scale);
   if (!wlr_output_test_state(output, &pending) ||
       !wlr_output_commit_state(output, &pending)) {

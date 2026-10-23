@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace LunaDash {
 
@@ -25,6 +26,9 @@ bool saveShortcutBindings(const nlohmann::json &bindings, std::string *error);
 bool hasStoredShortcutBindings();
 bool importLegacyShortcutBindings(const nlohmann::json &bindings,
                                   std::string *error);
+nlohmann::json loadDisplaySettings(std::string_view output);
+bool saveDisplaySettings(std::string_view output,
+                         const nlohmann::json &settings, std::string *error);
 bool isDesktopSetupComplete();
 bool setDesktopSetupComplete(bool complete, std::string *error);
 

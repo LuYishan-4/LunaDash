@@ -132,7 +132,8 @@ Json emptyStore() {
           {"preferences", Json::object()},
           {"setupComplete", false},
           {"desktopPreferencesImported", false},
-          {"legacyLanguagePreferenceIgnored", false}};
+          {"legacyLanguagePreferenceIgnored", false},
+          {"displays", Json::object()}};
 }
 
 Json readStore() {
@@ -172,6 +173,9 @@ Json readStore() {
     const auto shortcuts = parsed.find("shortcuts");
     if (shortcuts != parsed.end() && shortcuts->is_object())
       result["shortcuts"] = *shortcuts;
+    const auto displays = parsed.find("displays");
+    if (displays != parsed.end() && displays->is_object())
+      result["displays"] = *displays;
   } catch (const Json::exception &) {
   }
   return result;
@@ -521,6 +525,20 @@ Json wallpaperSettingsFromStore(const Json &store) {
   return result;
 }
 
+bool integerWithin(const Json &value, std::int64_t minimum,
+                   std::int64_t maximum) {
+  if (!value.is_number_integer())
+    return false;
+  if (value.is_number_unsigned()) {
+    const auto number = value.get<std::uint64_t>();
+    return maximum >= 0 &&
+           number >= static_cast<std::uint64_t>(std::max<std::int64_t>(0, minimum)) &&
+           number <= static_cast<std::uint64_t>(maximum);
+  }
+  const auto number = value.get<std::int64_t>();
+  return number >= minimum && number <= maximum;
+}
+
 } // namespace
 
 Json defaultDesktopPreferenceValues() {
@@ -780,6 +798,91 @@ bool importLegacyShortcutBindings(const Json &bindings, std::string *error) {
   }
   auto store = readStore();
   store["shortcuts"] = std::move(imported);
+  return writeStore(store, error);
+}
+
+Json loadDisplaySettings(std::string_view output) {
+  if (output.empty() || output.size() > 255 ||
+      output.find('\0') != std::string_view::npos)
+    return Json::object();
+  const auto store = readStore();
+  const auto displays = store.find("displays");
+  if (displays == store.end() || !displays->is_object())
+    return Json::object();
+  const auto settings = displays->find(std::string(output));
+  if (settings == displays->end() || !settings->is_object())
+    return Json::object();
+
+  Json valid = Json::object();
+  for (auto it = settings->begin(); it != settings->end(); ++it) {
+    if (it.key() == "width" || it.key() == "height" ||
+        it.key() == "refresh") {
+      const auto minimum = it.key() == "refresh" ? 0 : 1;
+      const auto maximum = it.key() == "refresh" ? 1000000 : 32768;
+      if (integerWithin(it.value(), minimum, maximum))
+        valid[it.key()] = it.value();
+    } else if (it.key() == "scale" && it.value().is_number()) {
+      const auto value = it.value().get<double>();
+      if (std::isfinite(value) && value >= 1.0 && value <= 3.0)
+        valid[it.key()] = value;
+    }
+  }
+  return valid;
+}
+
+bool saveDisplaySettings(std::string_view output, const Json &settings,
+                         std::string *error) {
+  if (error)
+    error->clear();
+  if (output.empty() || output.size() > 255 ||
+      output.find('\0') != std::string_view::npos ||
+      !settings.is_object() || settings.empty()) {
+    setError(error, "Display settings have an invalid output or value.");
+    return false;
+  }
+  for (auto it = settings.begin(); it != settings.end(); ++it) {
+    if (it.key() == "width" || it.key() == "height") {
+      if (!integerWithin(it.value(), 1, 32768)) {
+        setError(error, "Display dimensions must be between 1 and 32768.");
+        return false;
+      }
+    } else if (it.key() == "refresh") {
+      if (!integerWithin(it.value(), 0, 1000000)) {
+        setError(error, "Display refresh rate is invalid.");
+        return false;
+      }
+    } else if (it.key() == "scale") {
+      if (!it.value().is_number() ||
+          !std::isfinite(it.value().get<double>()) ||
+          it.value().get<double>() < 1.0 ||
+          it.value().get<double>() > 3.0) {
+        setError(error, "Display scale must be between 1 and 3.");
+        return false;
+      }
+    } else {
+      setError(error, "Unknown display setting: " + it.key());
+      return false;
+    }
+  }
+
+  StoreLock lock(error);
+  if (!lock)
+    return false;
+  auto store = readStore();
+  auto &displays = store["displays"];
+  if (!displays.is_object())
+    displays = Json::object();
+  const std::string outputName(output);
+  if (!displays.contains(outputName) && displays.size() >= 64) {
+    setError(error, "Too many saved display configurations.");
+    return false;
+  }
+  auto saved = displays.value(outputName, Json::object());
+  if (!saved.is_object())
+    saved = Json::object();
+  for (auto it = settings.begin(); it != settings.end(); ++it)
+    saved[it.key()] = it.value();
+  displays[outputName] = std::move(saved);
   return writeStore(store, error);
 }
 

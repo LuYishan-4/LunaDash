@@ -101,6 +101,19 @@ int main() {
   assert(LunaDash::loadWallpaperSettings().at("mode") == "image");
   assert(LunaDash::loadShortcutBindings().at("closeWindow") == "Meta+Q");
 
+  assert(LunaDash::saveDisplaySettings(
+      "DP-1",
+      {{"width", 1920}, {"height", 1080}, {"refresh", 60000}, {"scale", 1.5}},
+      &error));
+  assert(LunaDash::loadDisplaySettings("DP-1") ==
+         nlohmann::json({{"width", 1920},
+                         {"height", 1080},
+                         {"refresh", 60000},
+                         {"scale", 1.5}}));
+  assert(!LunaDash::saveDisplaySettings("DP-1", {{"scale", 4.0}}, &error));
+  assert(LunaDash::loadDisplaySettings("DP-1").at("scale") == 1.5);
+  assert(LunaDash::loadDisplaySettings(std::string(256, 'x')).empty());
+
   const std::filesystem::path file =
       std::filesystem::path(directory) / "LunaDash/desktop-preferences.json";
   struct stat status{};

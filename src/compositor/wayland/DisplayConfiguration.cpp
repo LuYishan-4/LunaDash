@@ -1,7 +1,7 @@
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
+#include "config/desktop/DesktopPreferenceStore.hpp"
 #include <QJsonArray>
-#include <QSettings>
 #include <chrono>
 #include <cmath>
 
@@ -144,12 +144,15 @@ int WaylandCompositor::Impl::handleDisplayRevertTimer(void *data) {
 void WaylandCompositor::Impl::confirmDisplay() {
   if (!pendingDisplay)
     return;
-  QSettings settings;
-  const QString prefix = "display/" + safeUtf8(pendingDisplay->name) + "/";
-  settings.setValue(prefix + "width", pendingDisplay->width);
-  settings.setValue(prefix + "height", pendingDisplay->height);
-  settings.setValue(prefix + "refresh", pendingDisplay->refresh);
-  settings.setValue(prefix + "scale", pendingDisplay->scale);
+  std::string error;
+  if (!saveDisplaySettings(
+          pendingDisplay->name,
+          {{"width", pendingDisplay->width},
+           {"height", pendingDisplay->height},
+           {"refresh", pendingDisplay->refresh},
+           {"scale", pendingDisplay->scale}},
+          &error))
+    qWarning("Could not save display settings: %s", error.c_str());
   clearPendingDisplay();
 }
 
