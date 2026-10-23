@@ -1,23 +1,27 @@
 #include "core/plugins/PluginApi.h"
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <nlohmann/json.hpp>
 
 namespace LunaDash {
 extern "C" int ludash_plugin_process(const char *request, char *response,
                                      size_t capacity) {
-  const auto input = QJsonDocument::fromJson(request).object();
-  auto profile = input.value(input.value("mode").toString() == "replace"
-                                 ? "builtin"
-                                 : "current")
-                     .toObject();
-  const auto settings = input.value("settings").toObject();
+  using Json = nlohmann::json;
+  const auto input = request ? Json::parse(request, nullptr, false) : Json{};
+  if (!input.is_object())
+    return ludash_plugin_write_json("{}", response, capacity);
+  const bool replace =
+      input.contains("mode") && input["mode"].is_string() &&
+      input["mode"] == "replace";
+  auto profile = input.value(replace ? "builtin" : "current", Json::object());
+  const auto settings = input.value("settings", Json::object());
+  if (!profile.is_object() || !settings.is_object())
+    return ludash_plugin_write_json("{}", response, capacity);
 
   for (const auto &key : {"duration", "enterOffset", "focusOpacity",
                           "exitScale", "easing"})
     if (settings.contains(key))
-      profile[key] = settings.value(key);
+      profile[key] = settings[key];
 
-  const auto bytes = QJsonDocument(profile).toJson(QJsonDocument::Compact);
-  return ludash_plugin_write_json(bytes.constData(), response, capacity);
+  const auto bytes = profile.dump();
+  return ludash_plugin_write_json(bytes.c_str(), response, capacity);
 }
 } // namespace LunaDash

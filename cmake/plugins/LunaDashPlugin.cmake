@@ -3,6 +3,20 @@ include(GNUInstallDirs)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 set(LUNADASH_PLUGIN_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
+function(lunadash_require_nlohmann_json)
+    find_package(nlohmann_json 3.11 CONFIG QUIET)
+    if(nlohmann_json_FOUND)
+        return()
+    endif()
+
+    include(FetchContent)
+    set(JSON_BuildTests OFF CACHE INTERNAL "Disable dependency tests")
+    FetchContent_Declare(nlohmann_json
+        URL https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.tar.gz
+        URL_HASH SHA256=0d8ef5af7f9794e3263480193c491549b2ba6cc74bb018906202ada498a79406)
+    FetchContent_MakeAvailable(nlohmann_json)
+endfunction()
+
 function(lunadash_add_plugin target)
     cmake_parse_arguments(PLUGIN "" "METADATA" "SOURCES;FILES" ${ARGN})
     if(NOT PLUGIN_METADATA OR PLUGIN_UNPARSED_ARGUMENTS)

@@ -46,15 +46,20 @@ def main():
     if args.type == "effect" and template == "effect-cpp":
         manifest["settings"] = {}
         (args.output / "Effect.cpp").write_text('''#include "core/plugins/PluginApi.h"
-#include <QJsonDocument>
-#include <QJsonObject>
+#include <nlohmann/json.hpp>
 namespace LunaDash {
 extern "C" int ludash_plugin_process(const char *request, char *response, size_t capacity) {
-    const auto input = QJsonDocument::fromJson(request).object();
-    auto output = input.value(input.value("mode").toString() == "replace" ? "builtin" : "current").toObject();
+    using Json = nlohmann::json;
+    const auto input = request ? Json::parse(request, nullptr, false) : Json{};
+    if (!input.is_object())
+        return ludash_plugin_write_json("{}", response, capacity);
+    const bool replace = input.contains("mode") && input["mode"].is_string() && input["mode"] == "replace";
+    auto output = input.value(replace ? "builtin" : "current", Json::object());
+    if (!output.is_object())
+        return ludash_plugin_write_json("{}", response, capacity);
     // Customize the feature result here. See PLUGIN_TARGETS.md for its contract.
-    const auto bytes = QJsonDocument(output).toJson(QJsonDocument::Compact);
-    return ludash_plugin_write_json(bytes.constData(), response, capacity);
+    const auto bytes = output.dump();
+    return ludash_plugin_write_json(bytes.c_str(), response, capacity);
 }
 } // namespace LunaDash
 ''')

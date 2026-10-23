@@ -14,7 +14,7 @@ LunaDash Plugin SDK 2 provides feature hooks, visual slots and shared metadata f
 
 ## Create and build
 
-The SDK is installed with LunaDash. Python 3 and CMake are required. Native C++ examples also use Qt Core; shader plugins additionally require Qt Shader Tools (`qt6-shadertools` on Arch). QML plugins also go through CMake so they receive validated metadata and a build receipt.
+The SDK is installed with LunaDash. Python 3 and CMake are required. Native C++ examples use nlohmann_json 3.11+; shader plugins additionally require Qt Shader Tools (`qt6-shadertools` on Arch). QML plugins also go through CMake so they receive validated metadata and a build receipt.
 
 ```sh
 lunadash-create-plugin --list

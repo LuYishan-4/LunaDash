@@ -14,6 +14,8 @@ LunaDash Plugin SDK 2 提供 feature hook、visual slot 與共用 metadata。內
 
 Registry 是 `data/plugins/targets.json`。
 
+原生 C++ 範本使用 nlohmann_json 3.11+，不需要 Qt Core；OpenGL shader package 仍使用 Qt Quick 的 `qsb` 格式。
+
 ## 建立與安裝
 
 ```sh

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 
 
@@ -31,9 +32,18 @@ def main():
     parser.add_argument("--sdk", type=Path, required=True)
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[2]
+    for name in ("effect-cpp", "window-animation"):
+        template = source / "templates/plugins" / name
+        assert "Qt6" not in (template / "CMakeLists.txt").read_text()
+        assert "#include <Q" not in next(template.glob("*.cpp")).read_text()
     with tempfile.TemporaryDirectory(prefix="lunadash-sdk-test-") as directory:
         root = Path(directory)
         prefix = root / "install"
+        generated = root / "generated-effect"
+        run(sys.executable, str(source / "scripts/create-plugin.py"),
+            "--type", "effect", "--target", "window-layout", "--id",
+            "org.example.generated", "--output", str(generated))
+        assert "#include <Q" not in (generated / "Effect.cpp").read_text()
         for name in ("effect-c", "effect-cpp", "window-animation", "quickshell", "opengl"):
             project = root / name
             shutil.copytree(source / "templates/plugins" / name, project)
