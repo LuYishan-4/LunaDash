@@ -36,7 +36,7 @@ src/
 
 C++ 檔名使用 PascalCase 的 `.hpp/.cpp`，資料夾使用小寫 domain；C 介面維持 `.h/.c` 與既有 `ludash_` symbol。每個可執行入口的 `Main.cpp` 只負責把控制交給對應 module。
 
-根 repository 以 Git submodule 固定 LunaDash-docs 的 Astro 網站於 `site/`，並固定 LunaDash-Shell 的 QML shell 於 `qml/`。Compositor 原始碼、C++ 宿主 API 與建置整合則留在根 repository 的 `src/compositor/`。詳見[repository 工作流程](COMPONENT_REPOS.md)。Compositor 目前不能獨立使用 CMake 建置。
+根 repository 不含 Astro 網站或 QML shell 原始碼。LunaDash 使用 `packaging/shell-revision` 記錄的 Shell revision；安裝指令會另外抓取該版本。Website CI 與 Pages 部署只會在 runner 暫存目錄 clone LunaDash-docs。Compositor 原始碼、C++ 宿主 API 與建置整合留在根 repository 的 `src/compositor/`。詳見[repository 工作流程](COMPONENT_REPOS.md)。Compositor 目前不能獨立使用 CMake 建置。
 
 ## 相依與生命週期
 
@@ -75,7 +75,7 @@ Plugin metadata discovery 在 `src/config/plugins/`，因此設定 UI 可以檢�
 1. 選既有 domain，新增同一職責的 interface/implementation。
 2. 明確決定 lifetime owner。
 3. 將 source 明確加入對應 CMake target。
-4. QML 放 `qml/<feature>/`；翻譯放外部 catalog。
+4. QML 放 `LunaDash-Shell/<feature>/`；翻譯放外部 catalog。
 5. 只有真的需要 extension boundary 時才新增 manager/provider 抽象。
 6. renderer、input、Wayland lifetime 與 plugin contract 都要補對應測試。
 
@@ -94,7 +94,7 @@ CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless composi
 
 ## NyxNiri 桌面整合、Orbit 與動態桌布
 
-參照布局沿用 `panel`、`overview`、`launcher` 與 `dock` 模組。`qml/panel/` 負責面板顯示、`qml/overview/` 負責控制中心；`qml/settings/pages/appearance.qml` 與通用模組編輯器修改同一份面板設定。`data/modules/registry.json` 宣告經驗證的欄位及預設值，`src/shell/modules/` 管理正規化、儲存及檔案監看，`src/config/desktop/` 繼續管理 Dock 顯示等桌面偏好。底部 Dock 預設關閉，已有的明確偏好保持有效。
+參照布局沿用 `panel`、`overview`、`launcher` 與 `dock` 模組。`LunaDash-Shell/panel/` 負責面板顯示、`LunaDash-Shell/overview/` 負責控制中心；`LunaDash-Shell/settings/pages/appearance.qml` 與通用模組編輯器修改同一份面板設定。`data/modules/registry.json` 宣告經驗證的欄位及預設值，`src/shell/modules/` 管理正規化、儲存及檔案監看，`src/config/desktop/` 繼續管理 Dock 顯示等桌面偏好。底部 Dock 預設關閉，已有的明確偏好保持有效。
 
 面板工作區篩選只是顯示選項，不變更 compositor 的工作區配置。置中啟動器、視窗標題及 CPU／記憶體資訊使用既有 shell 狀態。作者風格配置維持使用 LunaDash 原有 JSON／設定介面供使用者編輯，不引入 Niri 設定解析器、替代 compositor 或第二套桌面 shell。首次安裝引導擴充原有安裝腳本並選擇性匯入應用程式設定，compositor 設定仍歸 LunaDash 管理。
 
@@ -104,7 +104,7 @@ CI 會覆蓋 source layout、protocol globals、xdg lifecycle、headless composi
 
 ## 目前渲染與 shell 邊界
 
-Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；場景動畫由 `window/animation/SceneAnimation` 負責。Welcome 的共用 QML 位於 `qml/welcome`，`desktop/welcome` 僅負責獨立視窗宿主與 IPC 轉接。不使用 QtWayland compositor／server API。目前 compositor 程序的事件派送、設定與桌面服務仍連結 Qt Core／Gui／Network／DBus；無 Qt 的 C 渲染選擇程式不等於完整 compositor 已去除 Qt。
+Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；場景動畫由 `window/animation/SceneAnimation` 負責。Welcome 的共用 QML 位於 `LunaDash-Shell/welcome`，`desktop/welcome` 僅負責獨立視窗宿主與 IPC 轉接。不使用 QtWayland compositor／server API。目前 compositor 程序的事件派送、設定與桌面服務仍連結 Qt Core／Gui／Network／DBus；無 Qt 的 C 渲染選擇程式不等於完整 compositor 已去除 Qt。
 
 Shell 輪詢可使用 `status <已知語言>`，語言相符時省略翻譯字典。一般 `status` 仍回傳完整狀態。QML 補回快取字典，並抑制不可見的 frame／event-loop 計數更新，同時保留螢幕模式、幾何、錯誤與確認狀態。開啟控制中心或關於頁時恢復即時資訊。
 

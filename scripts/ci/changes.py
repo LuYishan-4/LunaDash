@@ -18,14 +18,14 @@ def select(paths, full=False):
     for path in paths:
         if path.startswith((".github/", "scripts/ci/", "tests/ci/", "scripts/security/", "tests/security/")) or path == ".clang-tidy":
             return dict.fromkeys(SUITES, True)
-        if path == "site" or path.startswith(("site/", "tests/site/", "scripts/site/", "docs/brand/", "docs/image/")):
+        if path.startswith(("tests/site/", "scripts/site/", "docs/brand/", "docs/image/")):
             selected["website"] = True
         elif path.startswith(("docs/",)) or path.endswith(".md") or path in ("LICENSE", ".gitignore", ".clang-format"):
             continue
         elif path in ("flake.nix", "flake.lock") or path.startswith("nix/"):
             selected["nix"] = True
-        elif path == "qml" or path.startswith(("qml/", "tests/qml/")):
-            selected.update(qml=True, native=True, nix=True)
+        elif path.startswith("tests/qml/") or path == "packaging/shell-revision":
+            selected.update(qml=True, native=True, nix=True, distro=True)
         elif path.startswith(("src/", "cmake/", "data/", "protocols/", "templates/", "tests/", "scripts/", "packaging/")) or path in ("CMakeLists.txt", "install.sh"):
             selected.update(native=True, qml=True, nix=True, distro=True)
         else:

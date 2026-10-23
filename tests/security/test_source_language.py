@@ -1,17 +1,21 @@
 """UI translations belong in data packs, not C++ or QML source."""
 import pathlib
+import os
 import re
 import sys
 root = pathlib.Path(__file__).resolve().parents[2]
 violations = []
 translation_link = re.compile(r'\[[^\]\n]+\]\((docs/readme/README\.[a-z]{2}(?:-[A-Za-z]{2,4})?\.md)\)')
-for directory in ('src', 'include', 'qml'):
+for directory in ('src', 'include'):
     for path in (root / directory).rglob('*'):
         if path.suffix in {'.cpp', '.c', '.h', '.hpp', '.qml'} and re.search(r'[\u3400-\u9fff]', path.read_text()):
             violations.append(str(path.relative_to(root)))
+qml_root = pathlib.Path(os.environ.get('LUDASH_QML_SOURCE_DIR', root / 'qml'))
+for path in qml_root.rglob('*.qml'):
+    if re.search(r'[\u3400-\u9fff]', path.read_text()):
+        violations.append(str(path))
 for path in [root / 'README.md', root / 'AGENTS.md', *(root / 'docs').glob('*.md'),
-             *(root / 'docs/en').glob('*.md'), root / '.github/pull_request_template.md',
-             *(root / 'site').glob('*'), *(root / 'site/src').rglob('*')]:
+             *(root / 'docs/en').glob('*.md'), root / '.github/pull_request_template.md']:
     # Compatibility root docs and docs/en stay English. Translations live under docs/zh.
     if path == root / 'docs/LOGIN_SESSION.zh-TW.md':
         continue

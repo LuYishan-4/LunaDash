@@ -136,7 +136,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-customization-") as runtime:
             )
             # Dismiss settings from the restored built-in panel. With the default
             # 40 px panel, zero margin and a 114 px centred selector the settings
-            # button is centred on 763, 20 (qml/panel/TopPanel.qml).
+            # button is centred on 763, 20 (LunaDash-Shell/panel/TopPanel.qml).
             time.sleep(1)
             subprocess.run(
                 ["xdotool", "mousemove", "--window", window, "763", "20", "click", "1"],

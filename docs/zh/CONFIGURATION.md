@@ -56,4 +56,4 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 未知 key、錯誤型別、超出範圍或壞掉的 JSON 會在修改任何偏好前被拒絕。桌布選擇器位於 Shell 內，支援 PNG/JPEG/WebP、目錄瀏覽與 bounded preview；單檔超過 64 MiB 不可選，compositor 還會再次驗證可讀性與像素上限。
 
-更深入的介面自訂可修改 `qml/`，但那是可信任的本機程式碼，不是 sandbox theme。Plugin 另見 [Plugin SDK 2](PLUGINS.md)，完整設定中心見 [Settings](SETTINGS.md)。
+更深入的介面自訂可修改 `LunaDash-Shell/`，但那是可信任的本機程式碼，不是 sandbox theme。Plugin 另見 [Plugin SDK 2](PLUGINS.md)，完整設定中心見 [Settings](SETTINGS.md)。

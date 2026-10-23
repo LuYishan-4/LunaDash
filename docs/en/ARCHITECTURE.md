@@ -40,7 +40,7 @@ src/
 
 Each `Main.cpp` delegates to a module implementing `run(argc, argv)`. `SessionApplication`, `DesktopApplication`, `ControlClient`, `ShellTool` and `Portal` own their startup and event loop. The portal's file chooser implementation is separate from D-Bus service registration. `JsonTranslator` is separate from dictionary loading. Shell module configuration belongs to `shell/modules`; metrics, status and update checking belong to `desktop/system`.
 
-The root repository pins the Astro website from LunaDash-docs at `site/` and the QML shell from LunaDash-Shell at `qml/`, both as Git submodules. Compositor sources and their C++ host APIs and build integration remain in the root repository under `src/compositor/`. See the [repository workflow](COMPONENT_REPOS.md). The compositor is not an independent CMake build.
+The root repository contains neither the Astro website nor the QML shell source. LunaDash uses the Shell revision recorded in `packaging/shell-revision`; the install script fetches that revision separately. Website CI and Pages deployment clone LunaDash-docs into a temporary runner directory. Compositor sources and their C++ host APIs and build integration remain in the root repository under `src/compositor/`. See the [repository workflow](COMPONENT_REPOS.md). The compositor is not an independent CMake build.
 
 ## Dependency and ownership rules
 
@@ -66,7 +66,7 @@ Built-in shaders are listed explicitly in `cmake/modules/Renderer.cmake` and emb
 
 ## Extending a feature
 
-Choose an existing domain, add a cohesive interface/implementation pair, identify the lifetime owner, and list each source in the owning CMake target. Add shared types only when needed. Keep QML under `qml/<feature>/`, translation strings in external catalogs, and platform switches near implementation boundaries. The public compile definitions use `LUDASH_*`; `core/Defines.hpp` and `config/BuildConfig.hpp` expose common capabilities and version metadata. Native rendering selection is centralized rather than repeated throughout feature code.
+Choose an existing domain, add a cohesive interface/implementation pair, identify the lifetime owner, and list each source in the owning CMake target. Add shared types only when needed. Keep QML under `LunaDash-Shell/<feature>/`, translation strings in external catalogs, and platform switches near implementation boundaries. The public compile definitions use `LUDASH_*`; `core/Defines.hpp` and `config/BuildConfig.hpp` expose common capabilities and version metadata. Native rendering selection is centralized rather than repeated throughout feature code.
 
 Reusable module contracts use composition and C++20 concepts. Runtime virtual dispatch is appropriate for existing render elements and the native plugin boundary. Do not introduce an inheritance hierarchy, empty directory or singleton merely to match a diagram.
 
@@ -78,11 +78,11 @@ The renderer regression tests load embedded assets from an unrelated directory, 
 
 Wayland CI exercises protocol globals, xdg-toplevel commit/map/unmap/destroy, client startup, on-demand XWayland and clean shutdown. Chrome, Zed, Fcitx candidate placement, physical input, multiple physical outputs and display-manager login still need application/hardware testing. The current file chooser portal is not a complete screen-sharing/PipeWire portal. There is no complete screen-locking or polkit-agent implementation. See [testing](TESTING_AND_FILES.md), [graphics](GRAPHICS.md), [input methods](INPUT_METHODS.md) and [release process](RELEASE_PROCESS.md).
 
-Media discovery and control are owned by `src/shell/media/`, with QML presentation under `qml/overview/`. See [Media](MEDIA.md) and [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
+Media discovery and control are owned by `src/shell/media/`, with QML presentation under `LunaDash-Shell/overview/`. See [Media](MEDIA.md) and [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
 
 ## NyxNiri-inspired desktop, Orbit and live wallpapers
 
-The reference layout is implemented through the existing `panel`, `overview`, `launcher` and `dock` modules. `qml/panel/` owns panel presentation; `qml/overview/` owns the control center; `qml/settings/pages/appearance.qml` writes the same panel configuration as the generic module editor. `data/modules/registry.json` declares validated fields and defaults, `src/shell/modules/` owns normalization, persistence and file watching, and `src/config/desktop/` continues to own desktop preferences such as dock visibility. The bottom dock is disabled by default; explicit saved preferences are retained.
+The reference layout is implemented through the existing `panel`, `overview`, `launcher` and `dock` modules. `LunaDash-Shell/panel/` owns panel presentation; `LunaDash-Shell/overview/` owns the control center; `LunaDash-Shell/settings/pages/appearance.qml` writes the same panel configuration as the generic module editor. `data/modules/registry.json` declares validated fields and defaults, `src/shell/modules/` owns normalization, persistence and file watching, and `src/config/desktop/` continues to own desktop preferences such as dock visibility. The bottom dock is disabled by default; explicit saved preferences are retained.
 
 Panel workspace filtering is a presentation option and does not change compositor workspace allocation. Centered launcher placement, window titles and CPU/memory readings consume existing shell state. Author-inspired configuration stays editable through LunaDash's current JSON/settings interfaces; no Niri configuration parser, replacement compositor or second desktop shell is introduced. The first-install wizard extends the existing installation scripts and selectively imports application profiles, keeping compositor configuration under LunaDash ownership.
 
@@ -92,7 +92,7 @@ File-manager launches resolve the external files role (Dolphin by default). The 
 
 ## Current rendering and shell boundary
 
-Renderer selection is C11 in `renderer/selection/RenderSelection.c`; scene transitions use `window/animation/SceneAnimation`. The Welcome UI is shared QML under `qml/welcome`, with `desktop/welcome` providing only the native host/IPC adapter. No QtWayland compositor/server API is used. The current compositor process still links Qt Core/Gui/Network/DBus for event dispatch, settings and desktop services; the toolkit-free C rendering selection must not be described as a fully Qt-free compositor.
+Renderer selection is C11 in `renderer/selection/RenderSelection.c`; scene transitions use `window/animation/SceneAnimation`. The Welcome UI is shared QML under `LunaDash-Shell/welcome`, with `desktop/welcome` providing only the native host/IPC adapter. No QtWayland compositor/server API is used. The current compositor process still links Qt Core/Gui/Network/DBus for event dispatch, settings and desktop services; the toolkit-free C rendering selection must not be described as a fully Qt-free compositor.
 
 For shell polling, `status <known-language>` omits the translation dictionary when the language matches. Ordinary `status` continues returning the complete state. QML restores its cached dictionary and suppresses invisible frame/event-loop counters without dropping display mode, geometry, error or confirmation changes. Live metrics resume in the control center or About page.
 

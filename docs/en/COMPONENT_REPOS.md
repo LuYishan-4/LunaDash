@@ -1,47 +1,55 @@
-# Source repository layout
+# Component repositories
 
-The LunaDash root repository keeps the compositor, desktop services and build integration. The Quickshell UI and Astro website have their own organization repositories and are pinned into the root checkout as Git submodules.
+LunaDash keeps the native desktop and Wayland compositor in this repository. The QML shell and Astro website have independent source repositories. Neither repository's source is present in a LunaDash checkout.
 
-| Path | Source | Role |
+| Component | Repository | How LunaDash uses it |
 | --- | --- | --- |
-| `src/compositor/` | LunaDash root repository | Wayland compositor built with shared LunaDash APIs |
-| `qml/` | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | Quickshell UI loaded by the desktop session |
-| `site/` | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | Astro website deployed by the root Pages workflow |
+| Native desktop and compositor | [LunaDash](https://github.com/LuYishan-4/LunaDash) | C++20, C11 rendering core, Wayland integration and packaging |
+| Quickshell UI | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | QML source is installed separately; the selected commit is recorded in `packaging/shell-revision` |
+| Astro website | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | Website CI runs in that repository; LunaDash workflows clone it into a temporary runner directory |
 
-Each root commit records the exact QML and website commits at `qml/` and `site/`. A new commit in either organization repository does not change the version selected by LunaDash until the root submodule pointer is updated. C++ host APIs, translations, assets and CMake integration remain in the root repository.
+The Shell commit selected by LunaDash changes only when `packaging/shell-revision` changes on the root `dev` branch. A new Shell commit does not update an existing LunaDash checkout or installation automatically. The website has its own history and is not pinned in LunaDash; each website check or Pages deployment fetches the current `main` branch of LunaDash-docs.
 
-## Clone and build
+## Clone and install
 
-Fetch the root repository and its pinned components together:
+The root checkout has no recursive submodules:
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
-git submodule status
-cmake -S . -B build -G Ninja
+./scripts/install-session.sh
+```
+
+The normal install command fetches the pinned Shell source and installs it with LunaDash. To build from CMake directly, fetch the selected Shell revision first and pass its checkout path:
+
+```sh
+bash scripts/fetch-shell.sh ../LunaDash-Shell
+cmake -S . -B build -G Ninja -DLUDASH_QML_SOURCE_DIR="$PWD/../LunaDash-Shell"
 cmake --build build --parallel 2
 ```
 
-For an existing checkout, initialize or restore the pinned sources with:
+LunaDash-Shell can also be installed on its own, without the integration repository:
 
 ```sh
-git submodule update --init --recursive
+git clone https://github.com/LunaDash-DE/LunaDash-Shell.git
+cd LunaDash-Shell
+./install.sh
 ```
 
-## Change the shell or website
+The standalone script installs Shell UI files to the user's data directory. `sudo ./install.sh --prefix /usr` installs them system-wide. This does not install Quickshell or LunaDash's native services.
 
-Commit and push a QML change in LunaDash-Shell or a website change in LunaDash-docs first. Then update the root repository's pinned revisions and commit those pointers on a branch targeting `dev`:
+## Change a component
+
+Make QML changes in a LunaDash-Shell checkout. Commit and push them to its `main` branch, then update the Shell revision on LunaDash `dev` when that version should be integrated:
 
 ```sh
-git -C qml switch main
-git -C qml pull --ff-only origin main
-git -C site switch main
-git -C site pull --ff-only origin main
-git submodule update --remote qml site
-git diff --submodule=log -- qml site
-git add qml site
-git commit -m "Update pinned shell and website"
-git push
+git -C ../LunaDash-Shell switch main
+git -C ../LunaDash-Shell pull --ff-only origin main
+git -C ../LunaDash-Shell rev-parse HEAD
 ```
 
-If only one component changed, stage only its path. The root commit contains the new submodule pointer, not another copy of the component files. Keep related root API, CMake, translation or documentation changes in the root repository. The compositor is not an independent CMake project because it consumes shared APIs from LunaDash.
+Write the reviewed 40-character Shell commit to `packaging/shell-revision` in LunaDash. The Nix flake reads the same file. Commit that change on LunaDash `dev`; CI fetches the selected Shell commit and runs the native and QML suites.
+
+Website changes belong in LunaDash-docs. Run its `npm ci`, `npm run check`, `npm run build`, and `python3 scripts/test-site.py dist` commands there, then commit and push to its `main` branch. The root Pages workflow fetches that branch when it deploys. It does not require a corresponding website pointer commit in LunaDash.
+
+Keep compositor APIs, translations, native assets, CMake integration and technical documentation in LunaDash. The compositor uses shared LunaDash APIs, so it is not an independent CMake project.

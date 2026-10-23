@@ -2,14 +2,8 @@ name: Website Pages deployment
 on:
     push:
         branches: [main]
-        paths:
-            - "site"
-            - "site/**"
-            - "docs/brand/**"
-            - "docs/image/**"
-            - "tests/site/**"
-            - "scripts/site/**"
-            - ".github/workflows/site-pages.yml"
+    schedule:
+        - cron: "17 7 * * *"
     release:
         types: [published, edited, deleted]
     workflow_dispatch:
@@ -32,32 +26,32 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   ref: main
-                  submodules: recursive
                   persist-credentials: false
+            - name: Fetch website source
+              run: git clone --quiet --depth 1 https://github.com/LunaDash-DE/LunaDash-docs.git "$RUNNER_TEMP/LunaDash-docs"
             - name: Sync published GitHub Release Markdown
               env:
                   GITHUB_TOKEN: ${{ github.token }}
+                  LUDASH_SITE_SOURCE_DIR: ${{ runner.temp }}/LunaDash-docs
               run: python3 scripts/site/sync-releases.py
             - name: Set up Node.js
               uses: actions/setup-node@v4
               with:
                   node-version: "22"
-                  cache: npm
-                  cache-dependency-path: site/package-lock.json
             - name: Install website dependencies
-              run: npm ci --prefix site --include=dev --ignore-scripts
+              run: npm ci --prefix "$RUNNER_TEMP/LunaDash-docs" --include=dev --ignore-scripts
             - name: Check the website
-              run: npm run check --prefix site
+              run: npm run check --prefix "$RUNNER_TEMP/LunaDash-docs"
             - name: Build the website
-              run: npm run build --prefix site
+              run: npm run build --prefix "$RUNNER_TEMP/LunaDash-docs"
             - name: Test the built website
-              run: python3 tests/site/test_site.py site/dist
+              run: python3 "$RUNNER_TEMP/LunaDash-docs/scripts/test-site.py" "$RUNNER_TEMP/LunaDash-docs/dist"
             - name: Configure Pages
               uses: actions/configure-pages@v5
             - name: Upload the Pages artifact
               uses: actions/upload-pages-artifact@v3
               with:
-                  path: site/dist
+                  path: ${{ runner.temp }}/LunaDash-docs/dist
             - name: Deploy to GitHub Pages
               id: deployment
               uses: actions/deploy-pages@v4

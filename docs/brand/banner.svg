@@ -2,7 +2,7 @@
   <title>LunaDash</title>
   <!-- README banner: the app mark next to the wordmark, centred on a dark
        gradient. The mark reuses the crescent, orbit and star paths from
-       qml/components/LunaDashLogo.qml, which are centred on their ink box
+       LunaDash-Shell/components/LunaDashLogo.qml, which are centred on their ink box
        (x 18..118, y 8..117), so translate = tile centre - (68, 62.5) * scale. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">

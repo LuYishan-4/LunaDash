@@ -2,6 +2,7 @@
 """SDK/runtime fixtures and the shipped module/plugin settings contracts."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -31,8 +32,10 @@ class SettingsSchemaTests(unittest.TestCase):
     def test_all_shipped_schemas(self):
         for target in json.loads((ROOT / 'data/plugins/targets.json').read_text()):
             validate_schema(target['settings'])
-        for directory in ('data/plugins', 'templates/plugins', 'qml/plugins'):
-            for path in (ROOT / directory).rglob('metadata.json'):
+        directories = (ROOT / 'data/plugins', ROOT / 'templates/plugins')
+        shell_root = Path(os.environ.get('LUDASH_QML_SOURCE_DIR', ROOT / 'qml'))
+        for directory in (*directories, shell_root / 'plugins'):
+            for path in directory.rglob('metadata.json'):
                 manifest = json.loads(path.read_text())
                 if manifest.get('schemaVersion') == 2:
                     validate_schema(manifest['settings'])

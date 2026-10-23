@@ -60,7 +60,7 @@
 获取开发分支后，运行会话安装程序：
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```
@@ -105,7 +105,7 @@ cd LunaDash
 
 PR 请以 **`dev`** 为目标分支。标题应清楚描述改动，说明用户可见的结果、实际运行的检查，以及影响的是默认行为还是可选的自定义功能。同步更新相关 **`docs/` 文档与网站内容**。
 
-**PR 不得新增、修改、删除或重命名 `.github/workflows/` 下的文件、`site/src/pages/releases/` 下的发布 Markdown（`.md`／`.mdx`），或 `site/src/data/releases.json`。** 发布影响写在 PR 说明中，网站发布记录由 GitHub Release 自动生成。详见[贡献指南](../../CONTRIBUTING.md)与 [PR 模板](../../.github/pull_request_template.md)。
+**PR 不得新增、修改、删除或重命名 `.github/workflows/` 下的文件。** 不要把网站部署时生成的 release 页面和索引提交到 LunaDash-docs；发布影响写在 LunaDash PR 说明中，网站发布记录由 GitHub Release 自动生成。详见[贡献指南](../../CONTRIBUTING.md)与 [PR 模板](../../.github/pull_request_template.md)。
 
 ---
 

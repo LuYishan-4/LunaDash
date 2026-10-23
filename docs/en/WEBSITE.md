@@ -1,38 +1,40 @@
 # Website and GitHub Pages
 
-The English Astro site lives in the LunaDash-docs repository and appears at `site/` in a recursive LunaDash checkout. It uses Astro, CSS and TypeScript. Its introduction follows LunaDash's goal: a useful desktop from the first login, with room for customization. README and website installation examples use `./scripts/install-session.sh`; manual builds belong in the technical guides.
+The English Astro site source lives only in [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs). LunaDash does not check it out under the root repository. LunaDash-docs owns its website CI; the root Pages workflow clones its current `main` branch in the GitHub Actions runner when publishing.
 
-The home page presents the desktop, its customization options, screenshots, installation and contribution guidance. The short opening animation respects reduced motion. There are no analytics or font services. The contributor avatar loads from the maintainer's host. Clipboard access occurs only when Copy is clicked.
+The home page presents the desktop, customization options, screenshots, installation and contribution guidance. The short opening animation respects reduced motion. There are no analytics or font services. The contributor avatar loads from the maintainer's host. Clipboard access occurs only when Copy is clicked.
 
 ## Screenshots and badges
 
-The four original screenshots are maintained in `docs/image/` and referenced by both README and the website. `ScreenshotCard.astro` imports those originals and uses Astro's image pipeline for responsive WebP previews. Full-size links work without JavaScript; the website additionally offers a keyboard-accessible image dialog with Escape, a close button and focus restoration.
+The four original screenshots are maintained in LunaDash `docs/image/` and copied into LunaDash-docs `docs/image/` for its independent build. `ScreenshotCard.astro` imports the website copies and uses Astro's image pipeline for responsive WebP previews. Full-size links work without JavaScript; the website additionally offers a keyboard-accessible image dialog with Escape, a close button and focus restoration.
 
 Update each image's caption and alternative text when replacing it. Show real desktop behavior and keep examples distinct: dashboard, appearance, grouped windows and calendar. The screenshot dates describe when the images were captured, not a release date or a claim about every machine.
 
-Distribution badges belong in README, using Shields.io’s `flat-square` style and white logos. Keep their versions and coverage labels aligned with the dependency installer and configured CI. The website keeps its installation section short and links to the installation guide for distribution details. CI labels do not establish physical hardware compatibility.
+Distribution badges belong in README, using Shields.io's `flat-square` style and white logos. Keep their versions and coverage labels aligned with the dependency installer and configured CI. The website keeps its installation section short and links to the installation guide for distribution details. CI labels do not establish physical hardware compatibility.
 
 ## Preview and validation
 
-From the repository root:
+Clone LunaDash-docs and run its checks from that repository:
 
 ```sh
-npm ci --prefix site --include=dev --ignore-scripts
-npm run check --prefix site
-npm run build --prefix site
-python3 tests/site/test_site.py site/dist
-npm run preview --prefix site -- --host 127.0.0.1
+git clone https://github.com/LunaDash-DE/LunaDash-docs.git
+cd LunaDash-docs
+npm ci --include=dev --ignore-scripts
+npm run check
+npm run build
+python3 scripts/test-site.py dist
+npm run preview -- --host 127.0.0.1
 ```
 
-Open `http://localhost:4321/LunaDash/` while the preview server is running. Check desktop and mobile layouts, all four images, the image dialog, keyboard focus, copy feedback and documentation links. Generated output under `site/dist/` is ignored. The shared brand banner remains in `docs/brand/banner.svg` and `site/public/assets/banner.svg`; the site checks keep the copies aligned. The navigation icon uses the same crescent mark as `docs/brand/icon.svg`.
+Open `http://localhost:4321/LunaDash/` while the preview server is running. Check desktop and mobile layouts, all four images, the image dialog, keyboard focus, copy feedback and documentation links. Generated output under `dist/` is ignored. LunaDash keeps the shared brand banner at `docs/brand/banner.svg`; the website keeps its matching copy at `public/assets/banner.svg`. The website CI checks the built copy against its source asset.
 
 ## Contributions and publishing
 
-Normal LunaDash pull requests target `dev`; website commits belong in LunaDash-docs, then the root `site/` pointer is updated for integration. Generated release Markdown (`.md` or `.mdx`) under `site/src/pages/releases/` and the `site/src/data/releases.json` index remain protected. Release impact belongs in the PR body; maintainers publish it through GitHub Releases. Describe the visible result, the effect on defaults or optional customization, and the validation actually performed. See [CONTRIBUTING.md](../../CONTRIBUTING.md) and the [PR template](../../.github/pull_request_template.md).
+Website commits belong in LunaDash-docs and run through its own CI. Keep generated release Markdown (`.md` or `.mdx`) under `src/pages/releases/` and the generated `src/data/releases.json` index out of repository commits. Release impact belongs in the LunaDash PR body; deployments generate these files from GitHub Releases.
 
-- `main-site.yml` checks types, builds and validates local links/assets on pushes, pull requests, merge groups and manual runs.
-- `site-pages.yml` deploys from `main` when website, brand or screenshot assets change, when a GitHub Release changes, or when manually dispatched. It synchronizes published Release Markdown, repeats validation and deploys `site/dist` to GitHub Pages.
+- `main-site.yml` in LunaDash fetches LunaDash-docs `main`, checks types, builds the site and validates links/assets.
+- `site-pages.yml` in LunaDash fetches the same source, synchronizes published Release Markdown, repeats validation and deploys `dist/` to GitHub Pages. It runs after pushes to LunaDash `main`, on a daily schedule, for GitHub Releases and when manually dispatched.
 
-A successful build on `dev` does not publish the website. After the intended revision reaches `main`, inspect the Pages workflow and the URL reported by its deployment. The configured address is `https://luyishan-4.github.io/LunaDash/`; Pages must use GitHub Actions as its publishing source. Update both `site` and `base` in `site/astro.config.mjs` if the repository URL changes. Roll back with a revert and redeployment rather than rewriting shared history.
+A successful website build on LunaDash `dev` does not publish the website. After the intended revision reaches LunaDash-docs `main`, inspect its CI and the next Pages run. Pages refreshes on the next LunaDash `main` push or daily run; maintainers can also dispatch the root workflow manually. The configured address is `https://luyishan-4.github.io/LunaDash/`; Pages must use GitHub Actions as its publishing source. Update both `site` and `base` in LunaDash-docs `astro.config.mjs` if the repository URL changes. Roll back with a revert and redeployment rather than rewriting shared history.
 
-Repository source guides live under `docs/en/` and `docs/zh/`; those paths are different from the website's public `/docs/` routes. Release notes live under the public `/releases/` route. Keep technical detail in the source guides so the home page can stay focused on the desktop and how to install it.
+Repository technical guides live under LunaDash `docs/en/` and `docs/zh/`; those paths differ from the website's public `/docs/` routes. Release notes live under the public `/releases/` route. Keep technical detail in the source guides so the home page can stay focused on the desktop and how to install it.

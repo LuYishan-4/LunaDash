@@ -37,21 +37,8 @@ class SourceArchiveTests(unittest.TestCase):
             destination = self.project / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination, follow_symlinks=False)
-        component_paths = subprocess.run(
-            ["git", "-C", str(ROOT), "config", "-f", ".gitmodules", "--get-regexp", r"^submodule\..*\.path$"],
-            check=True, capture_output=True, text=True, timeout=10,
-        ).stdout.splitlines()
-        for entry in component_paths:
-            _, relative = entry.split(maxsplit=1)
-            if relative == "site":
-                continue  # The desktop source archive does not ship the website.
-            source = ROOT / relative
-            if source.is_dir():
-                destination = self.project / relative
-                shutil.copytree(
-                    source, destination, dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns(".git"),
-                )
+        self.assertFalse((self.project / "qml").exists())
+        self.assertFalse((self.project / "site").exists())
         self.git("init", "-q")
         self.git("add", "-A")
         self.git("-c", "user.name=Packaging Test",
@@ -59,6 +46,7 @@ class SourceArchiveTests(unittest.TestCase):
                  "-c", "commit.gpgsign=false", "commit", "-qm", "Test input")
         self.revision = self.git("rev-parse", "HEAD").stdout.strip()
         self.archive = self.project / "packaging/arch/ludash-1.0.1a.tar.gz"
+        self.shell_archive = self.project / "packaging/arch/ludash-shell.tar.gz"
 
     def git(self, *args):
         # Git may detach automatic maintenance after add/commit and return
@@ -84,6 +72,7 @@ class SourceArchiveTests(unittest.TestCase):
         result = self.package()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(self.archive.is_file())
+        self.assertTrue(self.shell_archive.is_file())
         self.assert_no_staging_files()
 
     def assert_no_staging_files(self):
@@ -106,9 +95,9 @@ class SourceArchiveTests(unittest.TestCase):
                 "templates/plugins/effect-cpp/Effect.cpp",
                 "templates/plugins/quickshell/Main.qml",
                 "templates/plugins/opengl/Effect.frag",
-                "qml/settings/components/SchemaOptions.qml",
                 "protocols/wlr-layer-shell-unstable-v1.xml",
                 "tests/settings/contract.json", "scripts/install-session.sh",
+                "scripts/fetch-shell.sh", "packaging/shell-revision",
                 "src/compositor/Main.cpp",
                 "docs/en/SETTINGS_API.md", "docs/zh/SETTINGS_API.md",
                 "packaging/arch/PKGBUILD", "flake.nix", "flake.lock",
@@ -120,6 +109,7 @@ class SourceArchiveTests(unittest.TestCase):
                                  for name in names))
             self.assertFalse(any(name.endswith("/.git") for name in names))
             self.assertFalse(any(name.startswith(PREFIX + "site/") for name in names))
+            self.assertFalse(any(name.startswith(PREFIX + "qml/") for name in names))
             self.assertNotIn(PREFIX + ".git", names)
             self.assertFalse(any(
                 name.startswith(PREFIX + "data/plugins/fade/") or
@@ -132,6 +122,14 @@ class SourceArchiveTests(unittest.TestCase):
                 self.revision,
             )
             self.assertTrue(archive.getmember(PREFIX + "scripts/install-session.sh").mode & 0o111)
+        with tarfile.open(self.shell_archive, "r:gz") as archive:
+            names = archive.getnames()
+            self.assertIn("LunaDash-Shell/shell.qml", names)
+            self.assertIn("LunaDash-Shell/settings/pages/about.qml", names)
+            self.assertIn("LunaDash-Shell/settings/components/SchemaOptions.qml", names)
+            self.assertFalse(any(name.startswith("LunaDash-Shell/tests/") for name in names))
+            self.assertFalse(any(name == "LunaDash-Shell/.git" or
+                                 name.startswith("LunaDash-Shell/.git/") for name in names))
         # Generating an archive must not make the next package appear dirty.
         self.assert_packaged()
         with tarfile.open(self.archive, "r:gz") as archive:
@@ -200,11 +198,13 @@ class SourceArchiveTests(unittest.TestCase):
     def test_missing_required_input_preserves_previous_archive(self):
         self.assert_packaged()
         previous = self.archive.read_bytes()
-        shutil.rmtree(self.project / "qml")
-        result = self.package()
+        previous_shell = self.shell_archive.read_bytes()
+        env = dict(os.environ, LUDASH_QML_SOURCE_DIR=str(self.project / "missing-shell"))
+        result = self.package(env)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Missing required source path: qml", result.stderr)
+        self.assertIn("LunaDash-Shell source is unavailable", result.stderr)
         self.assertEqual(self.archive.read_bytes(), previous)
+        self.assertEqual(self.shell_archive.read_bytes(), previous_shell)
         self.assert_no_staging_files()
 
     def failing_tar_environment(self):
@@ -218,9 +218,11 @@ class SourceArchiveTests(unittest.TestCase):
     def test_tar_failure_preserves_previous_archive_and_cleans_staging(self):
         self.assert_packaged()
         previous = self.archive.read_bytes()
+        previous_shell = self.shell_archive.read_bytes()
         result = self.package(self.failing_tar_environment())
         self.assertEqual(result.returncode, 7, result.stdout + result.stderr)
         self.assertEqual(self.archive.read_bytes(), previous)
+        self.assertEqual(self.shell_archive.read_bytes(), previous_shell)
         self.assert_no_staging_files()
 
     def test_tar_failure_does_not_publish_a_partial_first_archive(self):

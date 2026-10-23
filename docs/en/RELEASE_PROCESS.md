@@ -4,9 +4,9 @@
 
 Contribution pull requests target `dev`. A same-repository `dev` → `main` promotion is allowed; forks and feature branches cannot use that exception. The policy runs from the base commit and inspects the diff without checking out or executing proposed code.
 
-Keep relevant public behavior documented in paired `docs/en/` and `docs/zh/` pages and matching `site/` content. Root `docs/*.md` files remain small English forwarding pages. The automated gate does not require unrelated documentation or website edits.
+Keep relevant public behavior documented in paired `docs/en/` and `docs/zh/` pages and matching LunaDash-docs content. Root `docs/*.md` files remain small English forwarding pages. The automated gate does not require unrelated documentation or website edits.
 
-Contribution PRs cannot modify `.github/workflows/`, generated release Markdown/MDX under `site/src/pages/releases/`, or `site/src/data/releases.json`. Maintainer workflow changes made on `dev` can be carried by the same-repository promotion PR. Describe release impact in the PR body.
+Contribution PRs cannot modify `.github/workflows/`. Do not commit generated release Markdown/MDX under `LunaDash-docs/src/pages/releases/` or the generated `LunaDash-docs/src/data/releases.json`. Maintainer workflow changes made on `dev` can be carried by the same-repository promotion PR. Describe release impact in the PR body.
 
 [Dev CI](CI.md) selects broad shared suites from the complete diff. [Main CI](CI.md), scheduled checks and full runs cover all suites and distribution builds, including NixOS, clang-tidy and CodeQL. Small features belong in maintained suites rather than separate workflows. Require the aggregate `CI result` in branch protection and inspect results for the exact promotion commit. A skipped suite does not establish successful execution.
 
@@ -19,10 +19,10 @@ GitHub Release Markdown is the canonical release-note source. Do not maintain a 
 The Pages deployment workflow handles release notes without committing generated files back into `dev` or `main`:
 
 1. A GitHub Release is published, edited, or deleted.
-2. `.github/workflows/site-pages.yml` checks out the root `main` commit and its pinned website submodule.
+2. `.github/workflows/site-pages.yml` checks out LunaDash `main` and clones LunaDash-docs `main` into a temporary runner directory.
 3. `scripts/site/sync-releases.py` reads all non-draft releases through the GitHub Releases API.
-4. Every Release body is written into the deployment workspace as `site/src/pages/releases/<tag>.md` with Astro frontmatter.
-5. `site/src/data/releases.json` is regenerated for the `/releases/` index.
+4. Every Release body is written into the deployment workspace as `LunaDash-docs/src/pages/releases/<tag>.md` with Astro frontmatter.
+5. `LunaDash-docs/src/data/releases.json` is regenerated for the `/releases/` index.
 6. Astro checks/builds the site and GitHub Pages deploys the resulting release pages.
 
 This means GitHub remains the source of truth: editing the GitHub Release Markdown changes the website on the next release-triggered deployment, and deleting a Release removes it from the next generated release index/page set. Generated Markdown is not committed to the repository.

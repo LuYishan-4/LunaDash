@@ -66,20 +66,20 @@ or the [Traditional Chinese guide](docs/zh/GUIDED_INSTALL.md).
 curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/LuYishan-4/LunaDash/dev/install.sh | bash
 ```
 
-For developer/testing installs or other distributions, the existing session
-installer remains available and unchanged:
+For developer/testing installs or other distributions, use the session
+installer. It fetches the pinned LunaDash-Shell source automatically:
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```
 
-The installer handles distribution dependencies, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to choose your language and personalize the desktop.
+The installer handles distribution dependencies, fetches and installs the pinned LunaDash-Shell, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to choose your language and personalize the desktop.
 
 Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
 
-The compositor remains in this repository. The Astro website and Quickshell UI live in [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) and [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell), pinned as the `site/` and `qml/` submodules. The root repo records an exact commit for each. See the [repository workflow](docs/COMPONENT_REPOS.md) to change and integrate either component.
+The compositor and desktop services remain in this repository. The Quickshell UI and Astro website live in the independent [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) and [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) repositories; neither source tree is included here. The normal installer fetches the Shell commit recorded in `packaging/shell-revision`; website workflows clone LunaDash-docs into a temporary runner directory. See the [repository workflow](docs/COMPONENT_REPOS.md) to work on either component.
 
 ## A few shortcuts
 
@@ -122,7 +122,7 @@ Help make the default experience useful and customization approachable. Bug repo
 
 Send contribution pull requests to **`dev`**. Same-repository `dev` → `main` promotion PRs are allowed. Use a clear title describing the change, and explain the user-visible result, the checks you actually ran, and whether the change affects default behavior or optional customization. Update the relevant **`docs/` documentation and website content**.
 
-**Contribution PRs must not add, modify, delete, or rename files under `.github/workflows/`, release Markdown (`.md`/`.mdx`) under `site/src/pages/releases/`, or `site/src/data/releases.json`.** Describe release impact in the PR body; website release notes are generated from GitHub Releases. See the [contribution guide](CONTRIBUTING.md) and [PR template](.github/pull_request_template.md).
+**Contribution PRs must not add, modify, delete, or rename files under `.github/workflows/`.** Website release pages and their index are generated from GitHub Releases during deployment; keep generated release files out of LunaDash-docs commits. Describe release impact in the PR body. See the [contribution guide](CONTRIBUTING.md) and [PR template](.github/pull_request_template.md).
 
 ---
 

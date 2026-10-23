@@ -11,8 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
           persist-credentials: false
+      - name: Fetch pinned LunaDash-Shell source
+        run: bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
       - uses: ./.github/actions/ubuntu-dependencies
       - name: Verify Qt lifetime analyzer
         run: python3 tests/security/test_analyzer.py clang-tidy
@@ -20,6 +21,7 @@ jobs:
         run: |
           cmake -S . -B build-pr -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DLUDASH_QML_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DBUILD_TESTING=OFF \

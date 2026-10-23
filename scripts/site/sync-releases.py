@@ -2,7 +2,8 @@
 """Generate Astro release-note pages from GitHub Releases.
 
 GitHub Release bodies remain the source of truth. This script is intended for the
-Pages deployment workflow and writes only generated files inside site/src.
+Pages deployment workflow and writes only generated files inside the fetched
+LunaDash-docs checkout.
 """
 from __future__ import annotations
 
@@ -14,8 +15,13 @@ import shutil
 import sys
 import urllib.request
 
-ROOT = Path(__file__).resolve().parents[2]
-SITE = ROOT / "site" / "src"
+SITE_SOURCE_VALUE = os.environ.get("LUDASH_SITE_SOURCE_DIR", "")
+if not SITE_SOURCE_VALUE:
+    raise SystemExit("Set LUDASH_SITE_SOURCE_DIR to a LunaDash-docs checkout.")
+SITE_SOURCE = Path(SITE_SOURCE_VALUE).resolve()
+if not (SITE_SOURCE / "astro.config.mjs").is_file():
+    raise SystemExit(f"Not a LunaDash-docs source checkout: {SITE_SOURCE}")
+SITE = SITE_SOURCE / "src"
 PAGES = SITE / "pages" / "releases"
 DATA = SITE / "data" / "releases.json"
 REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "LuYishan-4/LunaDash")

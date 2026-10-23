@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.21)
 set(LUDASH_RELEASE_VERSION "1.0.1a")
 project(LunaDash VERSION 1.0.1 LANGUAGES C CXX)
 
+set(LUDASH_QML_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE PATH
+    "External LunaDash-Shell checkout used for development and installation")
+if(NOT EXISTS "${LUDASH_QML_SOURCE_DIR}/shell.qml")
+    message(FATAL_ERROR
+        "LunaDash-Shell source is required. Run scripts/fetch-shell.sh <directory> and configure with -DLUDASH_QML_SOURCE_DIR=<directory>.")
+endif()
+
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashMain.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashShellTool.cmake)
 

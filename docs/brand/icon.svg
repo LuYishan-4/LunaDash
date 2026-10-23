@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="LunaDash">
   <title>LunaDash</title>
   <!-- The mark reuses the crescent, orbit and star paths that the shell draws in
-       qml/components/LunaDashLogo.qml, so the icon and the desktop logo match.
+       LunaDash-Shell/components/LunaDashLogo.qml, so the icon and the desktop logo match.
        The 126-unit artwork is centred on its ink box, which spans x 18..118 and
        y 8..117, so translate = tile centre - (68, 62.5) * scale. -->
   <defs>

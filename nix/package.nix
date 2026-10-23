@@ -3,7 +3,7 @@
 , libxkbcommon, libGL, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, quickshell
 , coreutils, bash, gnused, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages
-, xdg-desktop-portal-wlr, revision ? "unknown"
+, xdg-desktop-portal-wlr, revision ? "unknown", shellSource
 }:
 let
   # Quickshell must inherit the QML modules imported by LunaDash, including
@@ -27,7 +27,7 @@ stdenv.mkDerivation {
   src = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.unions [
-      ../CMakeLists.txt ../cmake ../src ../qml ../data
+      ../CMakeLists.txt ../cmake ../src ../data
       ../protocols ../scripts ../templates ../tests ../LICENSE
       ../docs/PLUGIN_TARGETS.md ../docs/PLUGINS.md
     ];
@@ -43,6 +43,7 @@ stdenv.mkDerivation {
     "-DBUILD_TESTING=OFF"
     "-DCMAKE_INSTALL_SYSCONFDIR=etc"
     "-DCMAKE_INSTALL_LIBEXECDIR=libexec"
+    "-DLUDASH_QML_SOURCE_DIR=${shellSource}"
   ];
   postPatch = ''
     printf '%s\n' '${revision}' > .lunadash-revision

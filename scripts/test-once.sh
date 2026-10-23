@@ -3,17 +3,40 @@ set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_dir=${LUNADASH_TEST_BUILD_DIR:-"$project_dir/build-once"}
+shell_source_dir=${LUDASH_QML_SOURCE_DIR:-}
 
 if [ "${XDG_SESSION_TYPE:-}" != wayland ] || [ -z "${WAYLAND_DISPLAY:-}" ]; then
   echo 'Run this one-shot window test from an existing Wayland session.' >&2
   exit 2
 fi
 
-cmake -S "$project_dir" -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=Debug
+if [ -z "$shell_source_dir" ]; then
+  shell_source_dir="$build_dir/_deps/LunaDash-Shell"
+  expected_revision=$(cat "$project_dir/packaging/shell-revision")
+  if [ -d "$shell_source_dir/.git" ]; then
+    actual_revision=$(git -C "$shell_source_dir" rev-parse HEAD)
+    if [ "$actual_revision" != "$expected_revision" ]; then
+      printf 'Existing LunaDash-Shell checkout is %s; expected %s. Remove %s and retry.\n' \
+        "$actual_revision" "$expected_revision" "$shell_source_dir" >&2
+      exit 1
+    fi
+  else
+    mkdir -p "$(dirname -- "$shell_source_dir")"
+    bash "$project_dir/scripts/fetch-shell.sh" "$shell_source_dir"
+  fi
+fi
+if [ ! -f "$shell_source_dir/shell.qml" ]; then
+  printf 'LUDASH_QML_SOURCE_DIR does not contain shell.qml: %s\n' "$shell_source_dir" >&2
+  exit 1
+fi
+shell_source_dir=$(CDPATH= cd -- "$shell_source_dir" && pwd)
+
+cmake -S "$project_dir" -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DLUDASH_QML_SOURCE_DIR="$shell_source_dir"
 cmake --build "$build_dir" --parallel "${LUNADASH_TEST_JOBS:-2}"
 
 if command -v qmllint >/dev/null 2>&1; then
-  find "$project_dir/qml" -type f -name '*.qml' -exec qmllint -I "$project_dir/qml" '{}' +
+  find "$shell_source_dir" -type f -name '*.qml' -exec qmllint -I "$shell_source_dir" '{}' +
 fi
 
 LUDASH_BUILD_DIR="$build_dir" \

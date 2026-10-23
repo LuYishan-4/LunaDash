@@ -213,11 +213,13 @@ $non_interactive && exec </dev/null
 # An already registered session agent remains authoritative; duplicate agents
 # exit on registration failure. Only the child started here is cleaned up.
 auth_agent_pid=0
+shell_work=''
 cleanup_auth_agent() {
     if (( auth_agent_pid > 0 )); then
         kill "$auth_agent_pid" 2>/dev/null || true
         wait "$auth_agent_pid" 2>/dev/null || true
     fi
+    [[ -z $shell_work ]] || rm -rf -- "$shell_work"
 }
 if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]] && ! $dry_run; then
     if "$project_dir/scripts/lunadash-polkit-agent" --print >/dev/null 2>&1; then
@@ -227,6 +229,7 @@ if [[ ${LUDASH_PREFER_PKEXEC:-0} == 1 ]] && ! $dry_run; then
         trap 'exit 130' HUP INT TERM
     fi
 fi
+trap 'cleanup_auth_agent' EXIT
 
 report_progress 36 prepare "Preparing the LunaDash installation script."
 
@@ -265,9 +268,24 @@ else
     for tool in cmake ninja; do
         command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required. Run bash scripts/install-dependencies.sh first." >&2; exit 1; }
     done
+    if [[ -n ${LUDASH_QML_SOURCE_DIR:-} ]]; then
+        shell_source_dir=$(cd -- "$LUDASH_QML_SOURCE_DIR" && pwd)
+        [[ -f $shell_source_dir/shell.qml ]] || {
+            printf 'LUDASH_QML_SOURCE_DIR does not contain shell.qml: %s\n' "$shell_source_dir" >&2
+            exit 1
+        }
+    elif $dry_run; then
+        shell_source_dir="${TMPDIR:-/tmp}/lunadash-shell-pinned"
+        printf '+ Fetch the pinned LunaDash-Shell revision into %s\n' "$shell_source_dir"
+    else
+        shell_work=$(mktemp -d "${TMPDIR:-/tmp}/lunadash-shell-install.XXXXXXXX")
+        shell_source_dir="$shell_work/source"
+        run bash "$project_dir/scripts/fetch-shell.sh" "$shell_source_dir"
+    fi
     report_progress 44 configure "Configuring the LunaDash release build."
     run cmake -S "$project_dir" -B "$build_dir" -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+        -DLUDASH_QML_SOURCE_DIR="$shell_source_dir"
     report_progress 58 build "Building LunaDash."
     run cmake --build "$build_dir" --parallel
     install_system "Installing LunaDash system files." cmake --install "$build_dir"

@@ -31,6 +31,19 @@ class TranslationChecks(unittest.TestCase):
         source = 'LineIcon { name: "search" } property var entries: [{name:"Search"}]'
         self.assertEqual(checker.literals(source, ('name',)), {'Search'})
 
+    def test_sources_include_external_shell_but_skip_its_tests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'root'
+            shell = Path(directory) / 'shell'
+            (root / 'src').mkdir(parents=True)
+            (shell / 'tests').mkdir(parents=True)
+            (root / 'src' / 'Main.cpp').write_text('tr("Native text");', encoding='utf-8')
+            (shell / 'shell.qml').write_text('tr("Shell text");', encoding='utf-8')
+            (shell / 'tests' / 'tst_shell.qml').write_text('tr("Test text");', encoding='utf-8')
+            messages = checker.source_messages(root, shell)
+            self.assertEqual(set(messages), {'Native text', 'Shell text'})
+            self.assertEqual(messages['Shell text'], ['LunaDash-Shell/shell.qml'])
+
     def validate(self, content):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'catalog.json'

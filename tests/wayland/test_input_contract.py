@@ -1,14 +1,16 @@
 """Lock keyboard/launcher ownership rules that keep QML and apps typable."""
 
 from pathlib import Path
+import os
 
 root = Path(__file__).resolve().parents[2]
+shell_root = Path(os.environ.get("LUDASH_QML_SOURCE_DIR", root / "qml"))
 input_cpp = (root / "src/compositor/input/Input.cpp").read_text(encoding="utf-8")
 compositor = (root / "src/compositor/wayland/WaylandCompositor.cpp").read_text(
     encoding="utf-8"
 )
-launcher = (root / "qml/launcher/Launcher.qml").read_text(encoding="utf-8")
-shell = (root / "qml/shell.qml").read_text(encoding="utf-8")
+launcher = (shell_root / "launcher/Launcher.qml").read_text(encoding="utf-8")
+shell = (shell_root / "shell.qml").read_text(encoding="utf-8")
 
 # An input-method keyboard grab is valid only while an enabled text-input-v3
 # client actually owns focus. Otherwise QML layer-shell TextFields need the

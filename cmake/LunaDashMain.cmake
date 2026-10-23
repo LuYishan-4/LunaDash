@@ -167,7 +167,7 @@ add_library(ludash-welcome src/desktop/welcome/Welcome.hpp src/desktop/welcome/W
 target_include_directories(ludash-welcome PUBLIC src)
 target_link_libraries(ludash-welcome PRIVATE ludash-configuration ludash-localization
     ludash-shortcut-settings Qt6::QuickWidgets)
-target_compile_definitions(ludash-welcome PRIVATE LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+target_compile_definitions(ludash-welcome PRIVATE LUDASH_QML_SOURCE_DIR="${LUDASH_QML_SOURCE_DIR}")
 add_library(ludash-apps src/desktop/theme/DesktopTheme.cpp src/desktop/app/ApplicationWindow.cpp src/desktop/package/PackageManager.cpp)
 target_include_directories(ludash-apps PUBLIC src)
 target_link_libraries(ludash-apps PUBLIC ludash-default-applications ludash-system-metrics ludash-localization ludash-wallpaper Qt6::Widgets)
@@ -273,7 +273,7 @@ target_include_directories(ludash-wayland
 target_compile_definitions(ludash-wayland
     PRIVATE
         WLR_USE_UNSTABLE=1
-        LUDASH_QML_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
+        LUDASH_QML_SOURCE_DIR="${LUDASH_QML_SOURCE_DIR}"
         LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
 target_link_libraries(ludash-wayland
     PUBLIC
@@ -340,8 +340,14 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop ${CMAKE_CURRENT_BINA
 install(PROGRAMS scripts/lunadash-session scripts/ludash-session scripts/lunadash-clipboard-history DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash.desktop ${CMAKE_CURRENT_BINARY_DIR}/ludash.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash-app.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(DIRECTORY qml/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/shell
-    PATTERN ".git" EXCLUDE)
+install(DIRECTORY "${LUDASH_QML_SOURCE_DIR}/"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/shell
+    FILES_MATCHING
+        REGEX ".*\\.(qml|js|svg|png|jpg|jpeg|webp|gif)$"
+        PATTERN "qmldir"
+        PATTERN ".git" EXCLUDE
+        PATTERN ".github" EXCLUDE
+        PATTERN "tests" EXCLUDE)
 install(DIRECTORY data/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/data/assets)
 install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps)
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)

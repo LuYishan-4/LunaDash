@@ -4,7 +4,7 @@
 
 Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後再建置；CI 設定本身不等於某個 commit 的實際 workflow 已成功。
 
-請使用 `git clone --recurse-submodules --branch dev ...` 取得開發分支；既有 checkout 可執行 `git submodule update --init --recursive` 取得 QML 與網站原始碼。根 repository 會固定建置及網站 workflow 所用的 component commit。修改與提交方式見[repository 工作流程](COMPONENT_REPOS.md)。
+請使用 `git clone --branch dev ...` 取得開發分支。一般安裝指令會下載 `packaging/shell-revision` 記錄的 Shell 版本；網站 workflow 會在暫存目錄另外抓取 LunaDash-docs。不需要遞迴 clone。修改與提交方式見[repository 工作流程](COMPONENT_REPOS.md)。
 
 ## 建置與靜態檢查
 
@@ -94,10 +94,10 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 | `src/shell` | modules/media |
 | `src/ctl` | control client |
 | `nix`、`flake.nix`、`flake.lock` | Nix 套件、NixOS 模組與鎖定的相依來源 |
-| `qml` | Shell UI，固定使用 LunaDash-Shell 的版本 |
+| LunaDash-Shell | Shell UI，透過 `packaging/shell-revision` 固定版本並獨立安裝 |
 | `data` | assets/translations/metadata |
 | `scripts`, `tests` | install/diagnostics/regression |
-| `site` | 公開網站，固定使用 LunaDash-docs 的版本並由根 repository 部署 |
+| LunaDash-docs | 公開網站，由各自的 CI 驗證並由根 Pages workflow 抓取部署 |
 | `src/compositor` | compositor 原始碼，透過根目錄 CMake targets 建置 |
 
 架構原則見 [原始碼架構](ARCHITECTURE.md)。

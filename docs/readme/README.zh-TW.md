@@ -61,7 +61,7 @@
 取得開發分支後，執行工作階段安裝程式：
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```
@@ -106,7 +106,7 @@ cd LunaDash
 
 PR 請以 **`dev`** 為目標分支。主旨要清楚描述改動，說明使用者可見的結果、實際執行的檢查，以及影響的是預設行為還是選用的客製化功能。同步更新相關 **`docs/` 文件與網站內容**。
 
-**PR 不得新增、修改、刪除或重新命名 `.github/workflows/` 下的檔案、`site/src/pages/releases/` 下的發布 Markdown（`.md`／`.mdx`），或 `site/src/data/releases.json`。** 發布影響寫在 PR 說明中，網站發布紀錄由 GitHub Release 自動產生。詳見[貢獻指南](../../CONTRIBUTING.md)與 [PR 範本](../../.github/pull_request_template.md)。
+**PR 不得新增、修改、刪除或重新命名 `.github/workflows/` 下的檔案。** 不要把網站部署時產生的 release 頁面和索引 commit 到 LunaDash-docs；發布影響寫在 LunaDash PR 說明中，網站發布紀錄由 GitHub Release 自動產生。詳見[貢獻指南](../../CONTRIBUTING.md)與 [PR 範本](../../.github/pull_request_template.md)。
 
 ---
 

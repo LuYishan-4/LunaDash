@@ -22,7 +22,7 @@ lunadashctl default-apps '{"terminal":[],"files":[]}'
 
 ## Wallpaper picker
 
-`qml/imagepicker/ImagePicker.qml` 畫在 Settings surface 內，因此不會變成另一個被壓在 overlay 後方的 window。它透過 `Qt.labs.folderlistmodel` 列目錄與 PNG/JPEG/WebP，提供 Home/Pictures/parent、list/grid 與最多 512×512 preview。
+`LunaDash-Shell/imagepicker/ImagePicker.qml` 畫在 Settings surface 內，因此不會變成另一個被壓在 overlay 後方的 window。它透過 `Qt.labs.folderlistmodel` 列目錄與 PNG/JPEG/WebP，提供 Home/Pictures/parent、list/grid 與最多 512×512 preview。
 
 超過 64 MiB 的檔案不可選；真正套用前 compositor 還會驗可讀性與 32-megapixel 上限。確認後透過 `lunadashctl wallpaper-image` 套用，取消則完全不改設定。
 

@@ -24,18 +24,18 @@ Every pull request must:
 
 1. Target the `dev` branch.
 2. Keep the PR focused on the implementation being changed. Documentation and website updates are optional and should only be included when they are genuinely needed for that change.
-3. Workflow changes are welcome and run the full CI suites. Do not add, edit, delete or rename generated release Markdown under `site/src/pages/releases/` (`.md` or `.mdx`), or `site/src/data/releases.json`.
+3. Workflow changes are welcome and run the full CI suites. Keep generated website release pages and their index out of LunaDash-docs commits; deployments regenerate them from GitHub Releases.
 4. Describe the observable behavior before and after the change.
 5. List the validation actually run and any unverified platform or hardware scope.
 6. Review security-sensitive input, process execution, file paths, permissions, QObject lifetimes, and Wayland client lifetime when applicable.
 
-The `PR policy gate` workflow enforces the target branch and protected paths above. It checks generated website release files in the pinned LunaDash-docs commits when a PR changes the `site/` pointer. Same-repository `dev` → `main` promotion PRs are exempt from those contribution restrictions; forks and other source branches are not. It does **not** require every PR to modify `docs/` or `site/`. Dev CI selects shared suites from the complete diff; Main CI and full runs include every suite. Expensive analyzer builds run on full checks or CI/security changes. See [CI policy](docs/en/CI.md), [repository workflow](docs/en/COMPONENT_REPOS.md) and [NixOS packaging](docs/en/NIXOS.md).
+The `PR policy gate` workflow enforces the target branch rules. Same-repository `dev` → `main` promotion PRs are exempt from contribution restrictions; forks and other source branches are not. Dev CI selects shared suites from the complete diff; Main CI and full runs include every suite. Expensive analyzer builds run on full checks or CI/security changes. See [CI policy](docs/en/CI.md), [repository workflow](docs/en/COMPONENT_REPOS.md) and [NixOS packaging](docs/en/NIXOS.md).
 
 ## Branch flow
 
 - Feature/fix branch -> pull request -> `dev`
-- QML commit in LunaDash-Shell -> reviewed `qml/` pin update in LunaDash -> `dev`
-- Website commit in LunaDash-docs -> reviewed `site/` pin update in LunaDash -> `dev`
+- QML commit in LunaDash-Shell -> reviewed `packaging/shell-revision` update in LunaDash -> `dev`
+- Website commit in LunaDash-docs -> website repository CI -> root Pages workflow fetches `main` on deployment
 - `dev` -> stabilization / merge queue -> `main`
 - Release tags are created from the intended release commit.
 
@@ -45,7 +45,7 @@ The `PR policy gate` workflow enforces the target branch and protected paths abo
 
 Documentation and website updates are **not mandatory for every pull request**. Add them when the change alters public behavior, user-facing configuration, installation steps, compatibility requirements, APIs, plugin contracts, or other information users need to understand.
 
-Technical documentation belongs in `docs/en/` and its Traditional Chinese translation in `docs/zh/`. Keep matching filenames in both language directories when those documents are updated. Shared screenshots/branding stay under `docs/image/` and `docs/brand/`. Public-facing summaries, guides, API changes, screenshots, navigation, or release-facing copy belong in LunaDash-docs (`site/` in a recursive LunaDash checkout). Commit the website change there, then update the root repository's pinned `site/` revision when integrating it.
+Technical documentation belongs in `docs/en/` and its Traditional Chinese translation in `docs/zh/`. Keep matching filenames in both language directories when those documents are updated. Shared screenshots/branding stay under `docs/image/` and `docs/brand/`. Public-facing summaries, guides, API changes, screenshots, navigation, or release-facing copy belong in LunaDash-docs. Commit website changes there; the website is not checked out inside LunaDash and has no root revision pointer.
 
 README translations live in `docs/readme/`: Traditional Chinese (`README.zh-TW.md`), Simplified Chinese (`README.zh-CN.md`) and Japanese (`README.ja.md`). When README content is changed, use the Traditional Chinese README as the content reference and synchronize the root English README, Simplified Chinese and Japanese editions with it.
 

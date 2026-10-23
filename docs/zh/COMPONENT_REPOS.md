@@ -1,47 +1,55 @@
-# 原始碼 repository 布局
+# 元件 repository
 
-LunaDash 根 repository 保留 compositor、桌面服務與建置整合。Quickshell UI 和 Astro 網站各自放在組織 repository，並以 Git submodule 固定在根 checkout。
+LunaDash 根 repository 保留 native desktop 與 Wayland compositor。QML shell 和 Astro 網站各自有獨立的原始碼 repository；LunaDash checkout 不含這兩個 repository 的原始碼。
 
-| 路徑 | 來源 | 職責 |
+| 元件 | Repository | LunaDash 的使用方式 |
 | --- | --- | --- |
-| `src/compositor/` | LunaDash 根 repository | 使用 LunaDash 共用 API 建置的 Wayland compositor |
-| `qml/` | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | 桌面工作階段載入的 Quickshell UI |
-| `site/` | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | 由根 Pages workflow 部署的 Astro 網站 |
+| Native desktop 與 compositor | [LunaDash](https://github.com/LuYishan-4/LunaDash) | C++20、C11 rendering core、Wayland 整合與 packaging |
+| Quickshell UI | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | 獨立安裝 QML 原始碼；LunaDash 使用的 commit 記錄於 `packaging/shell-revision` |
+| Astro 網站 | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | 在該 repository 執行 website CI；LunaDash workflow 只在 runner 暫存目錄 clone |
 
-根 repository 的每個 commit 都會在 `qml/` 和 `site/` 記錄確切的 QML 與網站 commit。組織 repository 有新 commit 時，LunaDash 使用的版本不會自動改變；必須更新根 repository 的 submodule 指標。C++ 宿主 API、翻譯、素材與 CMake 整合仍留在根 repository。
+只有根 `dev` branch 的 `packaging/shell-revision` 改變時，LunaDash 才會採用新的 Shell commit。Shell repository 有新 commit 不會自動更新既有 LunaDash checkout 或安裝版本。網站有自己的歷史，不由 LunaDash 固定 revision；網站檢查和 Pages 部署會抓取 LunaDash-docs 的 `main` branch。
 
-## Clone 與建置
+## Clone 與安裝
 
-Clone 根 repository 時一併取得固定版本的元件：
+根 checkout 不使用遞迴 submodule：
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
-git submodule status
-cmake -S . -B build -G Ninja
+./scripts/install-session.sh
+```
+
+一般安裝指令會抓取固定版本的 Shell source，並與 LunaDash 一起安裝。若直接用 CMake 建置，先抓取選定的 Shell revision，再傳入 checkout 路徑：
+
+```sh
+bash scripts/fetch-shell.sh ../LunaDash-Shell
+cmake -S . -B build -G Ninja -DLUDASH_QML_SOURCE_DIR="$PWD/../LunaDash-Shell"
 cmake --build build --parallel 2
 ```
 
-既有 checkout 可初始化或還原固定版本：
+LunaDash-Shell 也能不依賴整合 repository 單獨安裝：
 
 ```sh
-git submodule update --init --recursive
+git clone https://github.com/LunaDash-DE/LunaDash-Shell.git
+cd LunaDash-Shell
+./install.sh
 ```
 
-## 修改 Shell 或網站
+獨立安裝腳本預設把 Shell UI 檔案安裝到使用者資料目錄。使用 `sudo ./install.sh --prefix /usr` 可安裝到系統路徑；這不會安裝 Quickshell 或 LunaDash native services。
 
-先在 LunaDash-Shell 提交並 push QML 變更，或先在 LunaDash-docs 提交並 push 網站變更。接著更新根 repository 固定的版本，並將指標 commit 到目標為 `dev` 的分支：
+## 修改元件
+
+在 LunaDash-Shell checkout 修改 QML。將變更 commit 並 push 到其 `main` branch；若要讓 LunaDash 採用新版本，再更新 LunaDash `dev` 的 Shell revision：
 
 ```sh
-git -C qml switch main
-git -C qml pull --ff-only origin main
-git -C site switch main
-git -C site pull --ff-only origin main
-git submodule update --remote qml site
-git diff --submodule=log -- qml site
-git add qml site
-git commit -m "Update pinned shell and website"
-git push
+git -C ../LunaDash-Shell switch main
+git -C ../LunaDash-Shell pull --ff-only origin main
+git -C ../LunaDash-Shell rev-parse HEAD
 ```
 
-若只修改一個元件，只 stage 對應路徑。根 repo 的 commit 只包含新的 submodule 指標，不會複製元件檔案。相關的根 API、CMake、翻譯或技術文件仍在根 repository 修改。Compositor 使用 LunaDash 共用 API，因此目前不是獨立的 CMake 專案。
+把確認過的 40 字元 Shell commit 寫入 LunaDash 的 `packaging/shell-revision`。Nix flake 會讀取同一個檔案。在 LunaDash `dev` commit 這項變更後，CI 會抓取選定的 Shell commit 並執行 native 與 QML suites。
+
+網站修改放在 LunaDash-docs。在該 repository 執行 `npm ci`、`npm run check`、`npm run build` 和 `python3 scripts/test-site.py dist`，再 commit 並 push 到 `main`。根 Pages workflow 部署時會抓取該 branch，不必在 LunaDash 更新網站指標。
+
+Compositor API、翻譯、native 素材、CMake 整合與技術文件仍放在 LunaDash。Compositor 使用 LunaDash 共用 API，因此不是獨立的 CMake 專案。

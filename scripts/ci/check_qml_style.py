@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import os
 import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-QML = ROOT / "qml"
+QML = Path(os.environ.get("LUDASH_QML_SOURCE_DIR", ROOT / "qml")).resolve()
 CANONICAL = QML / "components"
 violations = []
 
@@ -23,10 +24,10 @@ for manifest in sorted(QML.rglob("qmldir")):
     declared = set(re.findall(r"\b([A-Za-z][A-Za-z0-9_]*\.qml)\b", manifest.read_text(encoding="utf-8")))
     for component in sorted(manifest.parent.glob("*.qml")):
         if component.name[0].isupper() and component.name not in declared:
-            violations.append(f"{component.relative_to(ROOT)}: missing from {manifest.relative_to(ROOT)}")
+            violations.append(f"{component.relative_to(QML)}: missing from {manifest.relative_to(QML)}")
     for filename in sorted(declared):
         if not (manifest.parent / filename).is_file():
-            violations.append(f"{manifest.relative_to(ROOT)}: declared component does not exist: {filename}")
+            violations.append(f"{manifest.relative_to(QML)}: declared component does not exist: {filename}")
 
 def root_property_lines(text, root_type):
     lines = text.splitlines()
@@ -53,8 +54,10 @@ def root_property_lines(text, root_type):
 
 
 for path in sorted(QML.rglob("*.qml")):
+    if "tests" in path.relative_to(QML).parts:
+        continue
     text = path.read_text(encoding="utf-8")
-    rel = path.relative_to(ROOT)
+    rel = path.relative_to(QML)
     for line, name in root_property_lines(text, "ModuleSurface"):
         if name == "clip":
             violations.append(

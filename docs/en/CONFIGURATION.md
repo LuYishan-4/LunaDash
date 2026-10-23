@@ -50,7 +50,7 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 Malformed JSON, unknown keys, wrong types and invalid ranges are rejected before any preference is changed. `finish-setup` completes the guide; `configure-network` opens the available editor. `choose-wallpaper` opens the in-shell picker inside the settings surface; a confirmed PNG/JPEG/WebP path returns through `lunadashctl wallpaper-image`, while cancellation makes no change. The picker uses list/grid directory navigation, a bounded preview and a 64 MiB per-file limit. Shell state updates within about 700 ms. Native application colors are currently fixed; accent customization applies to the single `TopPanel`, its inline grouped-application cells and compositor frame borders.
 
-For deeper customization, edit the feature QML under `qml/` and restart. This is trusted local code, not a sandboxed theme package. Native effect plugins are separately opt-in; see [Plugins](PLUGINS.md).
+For deeper customization, edit the feature QML under `LunaDash-Shell/` and restart. This is trusted local code, not a sandboxed theme package. Native effect plugins are separately opt-in; see [Plugins](PLUGINS.md).
 
 Reference: [NetworkManager D-Bus API](https://networkmanager.dev/docs/api/latest/gdbus-org.freedesktop.NetworkManager.html).
 

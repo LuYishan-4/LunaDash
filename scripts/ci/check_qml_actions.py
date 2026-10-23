@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import os
 import re
 import sys
 
 root = Path(__file__).resolve().parents[2]
-qml_root = root / "qml"
+qml_root = Path(os.environ.get("LUDASH_QML_SOURCE_DIR", root / "qml")).resolve()
 compositor = (root / "src/compositor/wayland/WaylandCompositor.cpp").read_text(encoding="utf-8")
 desktop = (root / "src/desktop/app/DesktopApplication.cpp").read_text(encoding="utf-8")
 shell = (qml_root / "shell.qml").read_text(encoding="utf-8")
@@ -19,6 +20,8 @@ qml_launches = set()
 direct_url_calls = []
 
 for path in qml_root.rglob("*.qml"):
+    if "tests" in path.relative_to(qml_root).parts:
+        continue
     text = path.read_text(encoding="utf-8")
     qml_methods.update(
         re.findall(r'\b(?:[A-Za-z_]\w*\.)*command\(\s*"([^"]+)"', text)
@@ -27,7 +30,7 @@ for path in qml_root.rglob("*.qml"):
         re.findall(r'\b(?:[A-Za-z_]\w*\.)*launch\(\s*"([^"]+)"', text)
     )
     if "Qt.openUrlExternally" in text:
-        direct_url_calls.append(str(path.relative_to(root)))
+        direct_url_calls.append(str(path.relative_to(qml_root)))
 
 missing_methods = sorted(qml_methods - supported_methods)
 if missing_methods:

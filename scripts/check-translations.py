@@ -10,6 +10,7 @@ add it to COMPLETE_LOCALES when it becomes a selectable shipped language.
 import ast
 from collections import Counter
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -109,11 +110,14 @@ def discover_locales(directory):
                   if LOCALE_FILE.match(path.name) and path.stem != 'en_US')
 
 
-def source_messages(root):
+def source_messages(root, shell_root):
     found = {}
-    for folder in ('qml', 'src'):
-        for path in sorted((root / folder).rglob('*')):
+    for folder, source_root in (('src', root / 'src'), ('LunaDash-Shell', shell_root)):
+        for path in sorted(source_root.rglob('*')):
             if path.suffix not in ('.qml', '.cpp'):
+                continue
+            relative_path = path.relative_to(source_root)
+            if 'tests' in relative_path.parts:
                 continue
             model_fields = {
                 'SettingsCatalog.qml': ('name', 'pageName', 'keywords'),
@@ -122,14 +126,18 @@ def source_messages(root):
                 'Launcher.qml': ('name', 'genericName'),
             }.get(path.name, ())
             for text in literals(path.read_text(encoding='utf-8'), model_fields):
-                found.setdefault(text, []).append(str(path.relative_to(root)))
+                found.setdefault(text, []).append(f"{folder}/{relative_path}")
     return found
 
 
 def main():
     root = Path(__file__).resolve().parents[1]
     directory = root / 'data/translations'
-    sources = source_messages(root)
+    shell_root = Path(os.environ.get('LUDASH_QML_SOURCE_DIR', root / 'qml')).resolve()
+    if not (shell_root / 'shell.qml').is_file():
+        print(f'LunaDash-Shell source is unavailable: {shell_root}', file=sys.stderr)
+        return True
+    sources = source_messages(root, shell_root)
     locales = discover_locales(directory)
     fatal = False
 

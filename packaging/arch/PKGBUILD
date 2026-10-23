@@ -15,12 +15,13 @@ optdepends=('kitty: Optional default terminal'
             'mesa: Mesa OpenGL drivers')
 optdepends+=('vulkan-icd-loader: Vulkan loader for Vulkan rendering'
              'vulkan-driver: GPU-specific Vulkan driver')
-source=("ludash-${pkgver}.tar.gz")
-sha256sums=('SKIP') # Local generated source, not a downloaded release.
+source=("ludash-${pkgver}.tar.gz" "ludash-shell.tar.gz")
+sha256sums=('SKIP' 'SKIP') # Locally generated sources, not downloaded releases.
 
 build() {
   cmake -S "ludash-${pkgver}" -B build -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+    -DLUDASH_QML_SOURCE_DIR="$srcdir/LunaDash-Shell"
   cmake --build build
 }
 

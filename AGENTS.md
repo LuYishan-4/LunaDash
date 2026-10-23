@@ -12,7 +12,7 @@
 - Finish the intended code, packaging, and documentation changes before building. Do not build after each intermediate edit.
 - Target Arch Linux first, with portable CMake support and documented dependencies for other Linux distributions. Distinguish configured CI from actually verified platforms.
 - Do not describe this development version as a production-ready KDE replacement. Document missing protocol and session features accurately.
-- Implement the desktop shell UI in Quickshell/QML under `qml/<feature>/`; keep the compositor and backend in C++.
+- Implement the desktop shell UI in the independent LunaDash-Shell repository, organized by feature; keep the compositor and backend in this repository in C++.
 - Keep C, C++ and QML source text in English. Traditional Chinese belongs only in the external language pack under `data/translations/`.
 - Keep native plugins disabled by default. Plugin metadata is not a sandbox and does not make native code safe.
 

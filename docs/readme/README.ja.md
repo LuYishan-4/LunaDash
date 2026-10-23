@@ -60,7 +60,7 @@
 開発ブランチを取得し、セッションインストーラーを実行します。
 
 ```sh
-git clone --recurse-submodules --branch dev https://github.com/LuYishan-4/LunaDash.git
+git clone --branch dev https://github.com/LuYishan-4/LunaDash.git
 cd LunaDash
 ./scripts/install-session.sh
 ```
@@ -105,7 +105,7 @@ cd LunaDash
 
 PR の対象ブランチは **`dev`** です。変更内容が伝わるタイトルを付け、利用者から見た結果、実際に行った検証、既定の動作と任意のカスタマイズのどちらに影響するかを説明してください。関連する **`docs/` とウェブサイトの内容** も更新してください。
 
-**PR では `.github/workflows/` 内のファイル、`site/src/pages/releases/` 内のリリース Markdown（`.md`／`.mdx`）、`site/src/data/releases.json` の追加・変更・削除・名前変更は禁止です。** リリースへの影響は PR 本文に記載してください。サイトのリリースノートは GitHub Release から自動生成されます。[貢献ガイド](../../CONTRIBUTING.md)と [PR テンプレート](../../.github/pull_request_template.md)も参照してください。
+**PR では `.github/workflows/` 内のファイルの追加・変更・削除・名前変更は禁止です。** サイト公開時に生成されるリリースページと index は LunaDash-docs に commit しないでください。リリースへの影響は LunaDash の PR 本文に記載してください。サイトのリリースノートは GitHub Release から自動生成されます。[貢献ガイド](../../CONTRIBUTING.md)と [PR テンプレート](../../.github/pull_request_template.md)も参照してください。
 
 ---
 
