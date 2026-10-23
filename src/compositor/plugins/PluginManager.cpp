@@ -562,7 +562,7 @@ void PluginManager::installBuiltStorePackage(StoreInstall *job) {
           .filePath("share/lunadash/plugins/" + job->id);
   const auto metadataPath = QDir(builtDirectory).filePath("metadata.json");
   const auto descriptors = readPluginMetadataTargets(metadataPath, false);
-  if (descriptors.isEmpty() ||
+  if (descriptors.empty() ||
       std::any_of(descriptors.cbegin(), descriptors.cend(),
                   [&](const auto &descriptor) {
                     return descriptor.id != job->id ||
@@ -678,7 +678,7 @@ bool PluginManager::removeInstalledPlugin(const QString &id, QString *error) {
 
   const auto metadataPath = QDir(destinationCanonical).filePath("metadata.json");
   const auto descriptors = readPluginMetadataTargets(metadataPath, false);
-  if (descriptors.isEmpty() ||
+  if (descriptors.empty() ||
       std::none_of(descriptors.cbegin(), descriptors.cend(),
                    [&](const auto &descriptor) { return descriptor.id == id; })) {
     if (error)

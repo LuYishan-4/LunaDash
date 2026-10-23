@@ -1,8 +1,8 @@
 #pragma once
 #include <QJsonObject>
-#include <QList>
 #include <QString>
 #include <QStringList>
+#include <vector>
 
 namespace LunaDash {
 struct PluginDescriptor {
@@ -30,10 +30,10 @@ struct PluginDescriptor {
 };
 PluginDescriptor readPluginMetadata(const QString &metadataPath,
                                     bool applyConfiguration = true);
-QList<PluginDescriptor> readPluginMetadataTargets(
+std::vector<PluginDescriptor> readPluginMetadataTargets(
     const QString &metadataPath, bool applyConfiguration = true);
 QString pluginInstanceId(const PluginDescriptor &plugin);
-QList<PluginDescriptor> discoverPlugins();
+std::vector<PluginDescriptor> discoverPlugins();
 QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin);
 QString pluginStoreFingerprint(const QJsonObject &storeItem);
 bool pluginMatchesStore(const PluginDescriptor &plugin,

@@ -6,9 +6,10 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QSaveFile>
-#include <QSet>
 #include <QStandardPaths>
 #include <algorithm>
+#include <map>
+#include <set>
 
 namespace LunaDash {
 namespace {
@@ -198,9 +199,9 @@ bool saveExtensionConfiguration(const QByteArray &json, QString *error) {
       return false;
   }
 
-  QHash<QString, QString> selected;
-  QHash<QString, QString> replacements;
-  QSet<QString> visitedPackages;
+  std::map<QString, QString> selected;
+  std::map<QString, QString> replacements;
+  std::set<QString> visitedPackages;
   for (const auto &installed : catalog) {
     if (visitedPackages.contains(installed.id + "@" + installed.target))
       continue;
@@ -221,16 +222,17 @@ bool saveExtensionConfiguration(const QByteArray &json, QString *error) {
     const auto targetSpec = extensionTarget(descriptor->target);
     const auto owner = descriptor->id + "@" + descriptor->target;
     if (targetSpec.value("selection").toString("single") == "single") {
-      if (selected.contains(descriptor->target) &&
-          selected.value(descriptor->target) != owner)
+      const auto selectedOwner = selected.find(descriptor->target);
+      if (selectedOwner != selected.end() && selectedOwner->second != owner)
         return fail(error, "Only one plugin can be enabled for: " +
                                descriptor->target);
       selected[descriptor->target] = owner;
     }
 
     if (effectiveMode(*descriptor, package) == "replace") {
-      if (replacements.contains(descriptor->target) &&
-          replacements.value(descriptor->target) != owner)
+      const auto replacementOwner = replacements.find(descriptor->target);
+      if (replacementOwner != replacements.end() &&
+          replacementOwner->second != owner)
         return fail(error, "Only one replacement can be enabled for: " +
                                descriptor->target);
       replacements[descriptor->target] = owner;

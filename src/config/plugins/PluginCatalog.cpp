@@ -13,10 +13,10 @@
 #include <QJsonObject>
 #include <QLocale>
 #include <QRegularExpression>
-#include <QSet>
 #include <QStandardPaths>
 #include <QUrl>
 #include <algorithm>
+#include <set>
 #include <string_view>
 
 namespace LunaDash {
@@ -104,8 +104,8 @@ bool pluginMatchesStore(const PluginDescriptor &plugin,
              .value("fingerprint").toString() == fingerprint;
 }
 
-QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
-                                                  bool applyConfiguration) {
+std::vector<PluginDescriptor>
+readPluginMetadataTargets(const QString &path, bool applyConfiguration) {
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly) || file.size() > 65536)
     return {errorDescriptor(path, "Unreadable or oversized metadata")};
@@ -162,7 +162,7 @@ QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
 
   const auto tagsValue = metadata.value("tags");
   if (tagsValue.isArray()) {
-    QSet<QString> seenTags;
+    std::set<QString> seenTags;
     for (const auto &value : tagsValue.toArray()) {
       const auto tag = value.toString().trimmed();
       if (tag.isEmpty() || tag.size() > 32 || seenTags.contains(tag))
@@ -231,8 +231,8 @@ QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
           ? packageConfig.value("enabled").toBool(packageDefault)
           : packageDefault;
 
-  QList<PluginDescriptor> results;
-  QSet<QString> targetIds;
+  std::vector<PluginDescriptor> results;
+  std::set<QString> targetIds;
   for (const auto &value : implementations) {
     if (!value.isObject()) {
       auto invalid = base;
@@ -344,7 +344,7 @@ QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
     for (auto it = changes.begin(); it != changes.end(); ++it)
       result.settings[it.key()] = it.value();
 
-    results.append(result);
+    results.push_back(result);
   }
 
   return results;
@@ -353,13 +353,13 @@ QList<PluginDescriptor> readPluginMetadataTargets(const QString &path,
 PluginDescriptor readPluginMetadata(const QString &path,
                                     bool applyConfiguration) {
   const auto values = readPluginMetadataTargets(path, applyConfiguration);
-  return values.isEmpty() ? errorDescriptor(path, "Plugin has no targets")
-                          : values.first();
+  return values.empty() ? errorDescriptor(path, "Plugin has no targets")
+                        : values.front();
 }
 
 QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
   QJsonArray tags;
-  QSet<QString> seen;
+  std::set<QString> seen;
   const auto appendTag = [&](const QString &tag) {
     if (!tag.isEmpty() && !seen.contains(tag)) {
       seen.insert(tag);
@@ -398,7 +398,7 @@ QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
       {"restartRequired", false}};
 }
 
-QList<PluginDescriptor> discoverPlugins() {
+std::vector<PluginDescriptor> discoverPlugins() {
   QStringList roots;
   for (const auto &path :
        QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
@@ -409,22 +409,22 @@ QList<PluginDescriptor> discoverPlugins() {
   }
   roots << QCoreApplication::applicationDirPath() + "/plugins";
 
-  QList<PluginDescriptor> result;
-  QSet<QString> seenPackages;
+  std::vector<PluginDescriptor> result;
+  std::set<QString> seenPackages;
   for (const auto &root : roots) {
     const QDir directory(root);
     for (const auto &name :
          directory.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
       const auto values = readPluginMetadataTargets(
           directory.filePath(name + "/metadata.json"));
-      if (values.isEmpty())
+      if (values.empty())
         continue;
-      const auto id = values.first().id;
+      const auto id = values.front().id;
       if (!id.isEmpty() && seenPackages.contains(id))
         continue;
       if (!id.isEmpty())
         seenPackages.insert(id);
-      result.append(values);
+      result.insert(result.end(), values.begin(), values.end());
     }
   }
   std::sort(result.begin(), result.end(), [](const auto &a, const auto &b) {
