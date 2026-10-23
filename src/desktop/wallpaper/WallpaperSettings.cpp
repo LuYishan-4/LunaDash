@@ -1,110 +1,172 @@
 #include "desktop/wallpaper/WallpaperSettings.hpp"
+
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gio/gio.h>
+
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 
-#include <QDir>
-#include <QDirIterator>
-#include <QFileInfo>
-#include <QImageReader>
-#include <QJsonObject>
-#include <QMimeDatabase>
-#include <QRandomGenerator>
-#include <QStandardPaths>
-#include <QStringList>
-#include <QUrl>
-#include <QUuid>
-
-#include <cstdint>
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <filesystem>
+#include <fstream>
 #include <limits>
+#include <string>
 #include <string_view>
+#include <system_error>
+#include <vector>
+#include <unistd.h>
 
 namespace LunaDash {
 namespace {
-constexpr int kWallpaperHistoryLimit = 12;
-constexpr int kWallpaperFavoriteLimit = 256;
-
-QString bundledWallpaperPath() {
-  auto path = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                     "ludash/wallpapers/florist.png");
-  if (path.isEmpty())
-    path = QStringLiteral(LUDASH_WALLPAPER_SOURCE_DIR) + "/florist.png";
-  return QFileInfo::exists(path) ? QFileInfo(path).canonicalFilePath()
-                                 : QString{};
-}
-
-QString canonicalExistingFile(const QString &path) {
-  const QFileInfo file(path);
-  if (!file.isFile() || !file.isReadable())
-    return {};
-  return file.canonicalFilePath();
-}
-
+constexpr std::size_t kWallpaperHistoryLimit = 12;
+constexpr std::size_t kWallpaperFavoriteLimit = 256;
 using Json = nlohmann::json;
+using PathList = std::vector<std::filesystem::path>;
+
+std::filesystem::path bundledWallpaperPath() {
+  std::vector<std::filesystem::path> roots;
+  roots.emplace_back(g_get_user_data_dir());
+  for (const auto *const *directory = g_get_system_data_dirs(); *directory;
+       ++directory)
+    roots.emplace_back(*directory);
+  for (const auto &root : roots) {
+    const auto candidate = root / "ludash/wallpapers/florist.png";
+    std::error_code error;
+    if (std::filesystem::is_regular_file(candidate, error))
+      return std::filesystem::canonical(candidate, error);
+  }
+  const auto fallback =
+      std::filesystem::path(LUDASH_WALLPAPER_SOURCE_DIR) / "florist.png";
+  std::error_code error;
+  return std::filesystem::is_regular_file(fallback, error) ? fallback
+                                                            : std::filesystem::path{};
+}
+
+std::filesystem::path canonicalExistingFile(const std::filesystem::path &path) {
+  std::error_code error;
+  if (!std::filesystem::is_regular_file(path, error) ||
+      ::access(path.c_str(), R_OK) != 0)
+    return {};
+  auto canonical = std::filesystem::canonical(path, error);
+  return error ? std::filesystem::path{} : canonical;
+}
 
 Json wallpaperSettings() {
   ensureLegacyDesktopSettingsImported();
   return loadWallpaperSettings();
 }
 
-QString settingString(const Json &settings, std::string_view key) {
+std::string settingString(const Json &settings, std::string_view key) {
   const auto value = settings.find(key);
   return value != settings.end() && value->is_string()
-             ? QString::fromStdString(value->get<std::string>())
-             : QString{};
+             ? value->get<std::string>()
+             : std::string{};
 }
 
-QStringList settingStringList(const Json &settings, std::string_view key) {
-  QStringList result;
+PathList settingPathList(const Json &settings, std::string_view key) {
+  PathList result;
   const auto value = settings.find(key);
   if (value == settings.end() || !value->is_array())
     return result;
   for (const auto &entry : *value)
     if (entry.is_string())
-      result.append(QString::fromStdString(entry.get<std::string>()));
+      result.emplace_back(entry.get<std::string>());
   return result;
 }
 
-Json toJson(const QStringList &values) {
+Json toJson(const PathList &values) {
   auto result = Json::array();
   for (const auto &value : values)
-    result.push_back(value.toStdString());
+    result.push_back(value.string());
   return result;
 }
 
-QString activeWallpaperPath(const Json &settings) {
+std::filesystem::path activeWallpaperPath(const Json &settings) {
   if (settings.value("mode", std::string("image")) == "shader")
     return {};
-  const QString configured =
+  const auto configured =
       canonicalExistingFile(settingString(settings, "image"));
-  return configured.isEmpty() ? bundledWallpaperPath() : configured;
+  return configured.empty() ? bundledWallpaperPath() : configured;
 }
 
-QStringList normalizedWallpaperHistory(const Json &settings) {
-  const QStringList source = settingStringList(settings, "history");
-  QStringList history;
-  for (const auto &entry : source) {
-    const QString canonical = canonicalExistingFile(entry);
-    if (!canonical.isEmpty() && !history.contains(canonical))
-      history.append(canonical);
+std::string fileUrl(const std::filesystem::path &path) {
+  if (path.empty())
+    return {};
+  GError *error = nullptr;
+  gchar *uri = g_filename_to_uri(path.c_str(), nullptr, &error);
+  if (!uri) {
+    if (error)
+      g_error_free(error);
+    return {};
+  }
+  std::string result(uri);
+  g_free(uri);
+  return result;
+}
+
+bool supportedImage(const std::filesystem::path &path) {
+  static const std::vector<std::string> extensions{
+      ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"};
+  auto extension = path.extension().string();
+  std::transform(extension.begin(), extension.end(), extension.begin(),
+                 [](unsigned char value) {
+                   return static_cast<char>(std::tolower(value));
+                 });
+  return std::find(extensions.begin(), extensions.end(), extension) !=
+         extensions.end();
+}
+
+bool readableImage(const std::filesystem::path &path) {
+  int width = 0;
+  int height = 0;
+  return gdk_pixbuf_get_file_info(path.c_str(), &width, &height) != nullptr &&
+         width > 0 && height > 0;
+}
+
+bool isVideoContent(const std::filesystem::path &path) {
+  std::array<char, 8192> header{};
+  std::ifstream input(path, std::ios::binary);
+  input.read(header.data(), header.size());
+  const auto length = static_cast<gsize>(input.gcount());
+  gboolean uncertain = FALSE;
+  gchar *contentType =
+      g_content_type_guess(path.c_str(), reinterpret_cast<const guchar *>(
+                                                 header.data()),
+                           length, &uncertain);
+  if (!contentType)
+    return false;
+  gchar *mimeType = g_content_type_get_mime_type(contentType);
+  const bool video = mimeType && std::string_view(mimeType).starts_with("video/");
+  g_free(mimeType);
+  g_free(contentType);
+  return video;
+}
+
+bool supportedWallpaper(const std::filesystem::path &path) {
+  return wallpaperIsVideo(path) || supportedImage(path);
+}
+
+void rememberWallpaper(Json &settings, const std::filesystem::path &path) {
+  const auto canonical = canonicalExistingFile(path);
+  const auto bundled = bundledWallpaperPath();
+  if (canonical.empty() || canonical == bundled)
+    return;
+
+  PathList history;
+  for (const auto &entry : settingPathList(settings, "history")) {
+    const auto normalized = canonicalExistingFile(entry);
+    if (!normalized.empty() && normalized != canonical &&
+        std::find(history.begin(), history.end(), normalized) == history.end())
+      history.push_back(normalized);
     if (history.size() >= kWallpaperHistoryLimit)
       break;
   }
-
-  return history;
-}
-
-void rememberWallpaper(Json &settings, const QString &path) {
-  const QString canonical = canonicalExistingFile(path);
-  const QString bundled = bundledWallpaperPath();
-  if (canonical.isEmpty() || canonical == bundled)
-    return;
-
-  QStringList history = normalizedWallpaperHistory(settings);
-  history.removeAll(canonical);
-  history.prepend(canonical);
+  history.insert(history.begin(), canonical);
   while (history.size() > kWallpaperHistoryLimit)
-    history.removeLast();
+    history.pop_back();
   settings["history"] = toJson(history);
 }
 
@@ -115,169 +177,207 @@ void bumpWallpaperRevision(Json &settings) {
   settings["revision"] = revision;
 }
 
-QJsonObject wallpaperEntry(const QString &path, const QString &current,
-                           bool bundled) {
+Json wallpaperEntry(const std::filesystem::path &path,
+                    const std::filesystem::path &current, bool bundled) {
   const bool video = wallpaperIsVideo(path);
-  const QString poster = video ? wallpaperPoster(path) : path;
-  const QString playback = video ? wallpaperPlaybackPath(path) : path;
-  return QJsonObject{{"path", path},
-                     {"url", playback.isEmpty()
-                                 ? QString()
-                                 : QUrl::fromLocalFile(playback).toString()},
-                     {"preview", QFileInfo::exists(poster)
-                                     ? QUrl::fromLocalFile(poster).toString()
-                                     : QString{}},
-                     {"name", QFileInfo(path).completeBaseName()},
-                     {"category", bundled ? QStringLiteral("Bundled")
-                                          : QFileInfo(path).dir().dirName()},
-                     {"type", video ? "video" : "image"},
-                     {"bundled", bundled},
-                     {"current", path == current}};
+  const auto poster = video ? wallpaperPoster(path) : path;
+  const auto playback = video ? wallpaperPlaybackPath(path) : path;
+  std::error_code error;
+  return {{"path", path.string()},
+          {"url", fileUrl(playback)},
+          {"preview", std::filesystem::is_regular_file(poster, error)
+                          ? fileUrl(poster)
+                          : std::string{}},
+          {"name", path.stem().string()},
+          {"category", bundled ? "Bundled" : path.parent_path().filename().string()},
+          {"type", video ? "video" : "image"},
+          {"bundled", bundled},
+          {"current", path == current}};
+}
+
+std::string pathSortKey(const std::filesystem::path &path) {
+  auto key = path.string();
+  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char value) {
+    return static_cast<char>(std::tolower(value));
+  });
+  return key;
 }
 } // namespace
 
-bool wallpaperIsVideo(const QString &path) {
-  return QStringList{"mp4", "webm", "mkv", "mov", "m4v"}.contains(
-      QFileInfo(path).suffix().toLower());
+bool wallpaperIsVideo(const std::filesystem::path &path) {
+  static const std::vector<std::string> extensions{
+      ".mp4", ".webm", ".mkv", ".mov", ".m4v"};
+  auto extension = path.extension().string();
+  std::transform(extension.begin(), extension.end(), extension.begin(),
+                 [](unsigned char value) {
+                   return static_cast<char>(std::tolower(value));
+                 });
+  return std::find(extensions.begin(), extensions.end(), extension) !=
+         extensions.end();
 }
 
-QString wallpaperImageUrl() {
-  const auto settings = wallpaperSettings();
-  const QString path = activeWallpaperPath(settings);
-  return path.isEmpty() ? QString{} : QUrl::fromLocalFile(path).toString();
+std::filesystem::path wallpaperImagePath() {
+  return activeWallpaperPath(wallpaperSettings());
 }
 
-QJsonArray wallpaperLibrarySnapshot() {
+Json wallpaperLibrarySnapshot() {
   auto settings = wallpaperSettings();
-  const QString current = activeWallpaperPath(settings);
-  const QString bundled = bundledWallpaperPath();
-  QStringList history = normalizedWallpaperHistory(settings);
-  if (history != settingStringList(settings, "history")) {
-    std::string error;
-    saveWallpaperSettings({{"history", toJson(history)}}, &error);
-    settings["history"] = toJson(history);
-  }
-
-  QJsonArray result;
-  if (!bundled.isEmpty())
-    result.append(wallpaperEntry(bundled, current, true));
-
-  if (!current.isEmpty() && current != bundled)
-    result.append(wallpaperEntry(current, current, false));
-
-  for (const auto &path : history) {
-    if (path == bundled || path == current)
-      continue;
-    result.append(wallpaperEntry(path, current, false));
-  }
-  // Favorites remain reachable after switching libraries or rotating history.
-  // Ignore stale paths without ever making the shell open arbitrary file types.
-  const QStringList favorites = settingStringList(settings, "favorites");
-  int favoriteCount = 0;
-  for (const auto &entry : favorites) {
-    if (++favoriteCount > kWallpaperFavoriteLimit)
+  const auto current = activeWallpaperPath(settings);
+  const auto bundled = bundledWallpaperPath();
+  PathList history;
+  for (const auto &entry : settingPathList(settings, "history")) {
+    const auto normalized = canonicalExistingFile(entry);
+    if (!normalized.empty() &&
+        std::find(history.begin(), history.end(), normalized) == history.end())
+      history.push_back(normalized);
+    if (history.size() >= kWallpaperHistoryLimit)
       break;
-    const QString path = canonicalExistingFile(entry);
-    const auto suffix = QFileInfo(path).suffix().toLower();
-    const bool supported =
-        wallpaperIsVideo(path) ||
-        QStringList{"png", "jpg", "jpeg", "webp", "gif", "bmp"}.contains(
-            suffix);
-    if (path.isEmpty() || !supported || path == current || path == bundled ||
-        history.contains(path))
-      continue;
-    result.append(wallpaperEntry(path, current, false));
   }
-  // Bound discovery and cache it between shell polls. Categories are folders
-  // one level below the user-selected library; symlinks are not traversed.
-  static QString cachedDirectory;
-  static QStringList library;
-  static QString cachedRevision;
+  if (history != settingPathList(settings, "history")) {
+    std::string error;
+    if (saveWallpaperSettings({{"history", toJson(history)}}, &error))
+      settings["history"] = toJson(history);
+  }
+
+  Json result = Json::array();
+  if (!bundled.empty())
+    result.push_back(wallpaperEntry(bundled, current, true));
+  if (!current.empty() && current != bundled)
+    result.push_back(wallpaperEntry(current, current, false));
+  for (const auto &path : history) {
+    if (path != bundled && path != current)
+      result.push_back(wallpaperEntry(path, current, false));
+  }
+
+  const auto favorites = settingPathList(settings, "favorites");
+  for (std::size_t index = 0; index < favorites.size() &&
+                               index < kWallpaperFavoriteLimit;
+       ++index) {
+    const auto path = canonicalExistingFile(favorites[index]);
+    if (path.empty() || !supportedWallpaper(path) || path == current ||
+        path == bundled ||
+        std::find(history.begin(), history.end(), path) != history.end())
+      continue;
+    result.push_back(wallpaperEntry(path, current, false));
+  }
+
+  static std::filesystem::path cachedDirectory;
+  static PathList library;
+  static std::string cachedRevision;
   static bool initialized = false;
-  const QString libraryRevision = settingString(settings, "libraryRefresh");
-  const auto directory = QString::fromStdString(
+  const auto directory = std::filesystem::path(
       desktopPreferences().value("wallpaperDirectory", std::string{}));
+  const auto libraryRevision = settingString(settings, "libraryRefresh");
   if (!initialized || directory != cachedDirectory ||
       cachedRevision != libraryRevision) {
     initialized = true;
     cachedRevision = libraryRevision;
     cachedDirectory = directory;
     library.clear();
-    const auto addDirectory = [](const QString &folder) {
-      if (!QDir::isAbsolutePath(folder) || !QFileInfo(folder).isDir())
+    const auto addDirectory = [](const std::filesystem::path &folder) {
+      std::error_code error;
+      if (!folder.is_absolute() ||
+          !std::filesystem::is_directory(folder, error))
         return;
-      QDirIterator entries(folder,
-                           QDir::Files | QDir::Readable | QDir::NoSymLinks);
-      int inspected = 0;
-      while (entries.hasNext() && library.size() < 512 && ++inspected <= 2048) {
-        const auto entry = entries.next();
-        const auto suffix = QFileInfo(entry).suffix().toLower();
-        if (wallpaperIsVideo(entry) ||
-            QStringList{"png", "jpg", "jpeg", "webp", "gif", "bmp"}.contains(
-                suffix))
-          library.append(QFileInfo(entry).canonicalFilePath());
+      std::filesystem::directory_iterator entries(
+          folder, std::filesystem::directory_options::skip_permission_denied,
+          error);
+      std::size_t inspected = 0;
+      for (const auto &entry : entries) {
+        if (library.size() >= 512 || ++inspected > 2048)
+          break;
+        const auto status = entry.symlink_status(error);
+        if (error || std::filesystem::is_symlink(status) ||
+            !std::filesystem::is_regular_file(status) ||
+            ::access(entry.path().c_str(), R_OK) != 0 ||
+            !supportedWallpaper(entry.path()))
+          continue;
+        const auto canonical = canonicalExistingFile(entry.path());
+        if (!canonical.empty())
+          library.push_back(canonical);
       }
     };
+
     addDirectory(directory);
-    if (QDir::isAbsolutePath(directory) && QFileInfo(directory).isDir()) {
-      QDirIterator categories(directory, QDir::Dirs | QDir::NoDotAndDotDot |
-                                             QDir::NoSymLinks);
-      int count = 0;
-      while (categories.hasNext() && library.size() < 512 && ++count <= 64)
-        addDirectory(categories.next());
+    std::error_code error;
+    if (directory.is_absolute() &&
+        std::filesystem::is_directory(directory, error)) {
+      std::filesystem::directory_iterator categories(
+          directory, std::filesystem::directory_options::skip_permission_denied,
+          error);
+      std::size_t count = 0;
+      for (const auto &entry : categories) {
+        if (library.size() >= 512 || ++count > 64)
+          break;
+        const auto status = entry.symlink_status(error);
+        if (!error && std::filesystem::is_directory(status) &&
+            !std::filesystem::is_symlink(status))
+          addDirectory(entry.path());
+      }
     }
-    library.sort(Qt::CaseInsensitive);
+    std::sort(library.begin(), library.end(),
+              [](const auto &left, const auto &right) {
+                return pathSortKey(left) < pathSortKey(right);
+              });
   }
+
   for (const auto &path : library) {
-    if (path != bundled && path != current && !history.contains(path) &&
-        !favorites.contains(path))
-      result.append(wallpaperEntry(path, current, false));
+    if (path != bundled && path != current &&
+        std::find(history.begin(), history.end(), path) == history.end() &&
+        std::find(favorites.begin(), favorites.end(), path) == favorites.end())
+      result.push_back(wallpaperEntry(path, current, false));
   }
   return result;
 }
 
-QJsonObject wallpaperSnapshot() {
+Json wallpaperSnapshot() {
   const auto settings = wallpaperSettings();
   const auto path = activeWallpaperPath(settings);
   auto result = wallpaperMediaStatus();
   result["current"] =
       wallpaperEntry(path, path, path == bundledWallpaperPath());
   auto library = wallpaperLibrarySnapshot();
-  const QStringList favorites = settingStringList(settings, "favorites");
-  for (qsizetype i = 0; i < library.size(); ++i) {
-    auto entry = library[i].toObject();
-    entry["favorite"] = favorites.contains(entry.value("path").toString());
-    library[i] = entry;
-  }
-  result["library"] = library;
-  const QString directory = QString::fromStdString(
+  const auto favorites = settingPathList(settings, "favorites");
+  for (auto &entry : library)
+    entry["favorite"] =
+        std::find(favorites.begin(), favorites.end(),
+                  std::filesystem::path(entry.value("path", std::string{}))) !=
+        favorites.end();
+  result["library"] = std::move(library);
+
+  const auto directory = std::filesystem::path(
       desktopPreferences().value("wallpaperDirectory", std::string{}));
-  const QFileInfo info(directory);
-  result["directory"] = directory;
+  std::error_code error;
+  const bool exists = std::filesystem::exists(directory, error);
+  result["directory"] = directory.string();
   result["resolvedDirectory"] =
-      info.exists() ? info.canonicalFilePath() : QDir::cleanPath(directory);
-  result["directoryExists"] = info.isDir();
-  result["directoryUrl"] = QUrl::fromLocalFile(directory).toString();
+      exists ? std::filesystem::canonical(directory, error).string()
+             : directory.lexically_normal().string();
+  result["directoryExists"] =
+      !error && std::filesystem::is_directory(directory, error);
+  result["directoryUrl"] = fileUrl(directory);
   return result;
 }
 
-bool refreshWallpaperLibrary(QString *error) {
+bool refreshWallpaperLibrary(std::string *error) {
   ensureLegacyDesktopSettingsImported();
-  std::string nativeError;
-  if (!saveWallpaperSettings(
-          {{"libraryRefresh", QUuid::createUuid().toString().toStdString()}},
-          &nativeError)) {
-    if (error)
-      *error = QString::fromStdString(nativeError);
-    return false;
-  }
-  return true;
+  gchar *uuid = g_uuid_string_random();
+  const bool saved = saveWallpaperSettings({{"libraryRefresh", uuid}}, error);
+  g_free(uuid);
+  return saved;
 }
 
-bool createWallpaperDirectory(QString *error) {
-  const QString directory = QString::fromStdString(
+bool createWallpaperDirectory(std::string *error) {
+  const auto directory = std::filesystem::path(
       desktopPreferences().value("wallpaperDirectory", std::string{}));
-  if (!QDir::isAbsolutePath(directory) || !QDir().mkpath(directory)) {
+  std::error_code filesystemError;
+  if (!directory.is_absolute()) {
+    if (error)
+      *error = "Could not create the wallpaper library directory.";
+    return false;
+  }
+  std::filesystem::create_directories(directory, filesystemError);
+  if (filesystemError) {
     if (error)
       *error = "Could not create the wallpaper library directory.";
     return false;
@@ -285,116 +385,117 @@ bool createWallpaperDirectory(QString *error) {
   return refreshWallpaperLibrary(error);
 }
 
-bool setWallpaperFavorite(const QString &path, bool favorite, QString *error) {
-  const QString canonical = canonicalExistingFile(path);
-  if (canonical.isEmpty() ||
-      (!wallpaperIsVideo(canonical) && !QImageReader(canonical).canRead())) {
+bool setWallpaperFavorite(const std::filesystem::path &path, bool favorite,
+                          std::string *error) {
+  const auto canonical = canonicalExistingFile(path);
+  if (canonical.empty() ||
+      (!wallpaperIsVideo(canonical) && !readableImage(canonical))) {
     if (error)
       *error = "The wallpaper is no longer readable.";
     return false;
   }
   auto settings = wallpaperSettings();
-  QStringList favorites = settingStringList(settings, "favorites");
-  favorites.removeDuplicates();
-  favorites.removeAll(canonical);
+  auto favorites = settingPathList(settings, "favorites");
+  PathList uniqueFavorites;
+  for (const auto &entry : favorites)
+    if (std::find(uniqueFavorites.begin(), uniqueFavorites.end(), entry) ==
+        uniqueFavorites.end())
+      uniqueFavorites.push_back(entry);
+  favorites = std::move(uniqueFavorites);
+  favorites.erase(std::remove(favorites.begin(), favorites.end(), canonical),
+                  favorites.end());
   if (favorite)
-    favorites.prepend(canonical);
-  while (favorites.size() > kWallpaperFavoriteLimit)
-    favorites.removeLast();
-  std::string nativeError;
-  if (!saveWallpaperSettings({{"favorites", toJson(favorites)}},
-                             &nativeError)) {
-    if (error)
-      *error = QString::fromStdString(nativeError);
+    favorites.insert(favorites.begin(), canonical);
+  if (favorites.size() > kWallpaperFavoriteLimit)
+    favorites.resize(kWallpaperFavoriteLimit);
+  if (!saveWallpaperSettings({{"favorites", toJson(favorites)}}, error))
     return false;
-  }
   return true;
 }
 
-bool selectRandomWallpaper(QString *error) {
+bool selectRandomWallpaper(std::string *error) {
   auto candidates = wallpaperLibrarySnapshot();
-  for (qsizetype index = candidates.size(); index-- > 0;)
-    if (candidates[index].toObject().value("current").toBool())
-      candidates.removeAt(index);
-  if (candidates.isEmpty()) {
+  candidates.erase(
+      std::remove_if(candidates.begin(), candidates.end(),
+                     [](const Json &entry) { return entry.value("current", false); }),
+      candidates.end());
+  if (candidates.empty()) {
     if (error)
       *error = "Add another image or video to the wallpaper library first.";
     return false;
   }
-  const auto index =
-      QRandomGenerator::global()->bounded(int(candidates.size()));
-  return setWallpaperImage(
-      candidates[index].toObject().value("path").toString(), error);
+  const auto index = static_cast<std::size_t>(g_random_int_range(
+      0, static_cast<gint>(candidates.size())));
+  return setWallpaperImage(candidates[index].value("path", std::string{}),
+                           error);
 }
 
-quint64 wallpaperRevision() {
+std::uint64_t wallpaperRevision() {
   return wallpaperSettings().value("revision", std::uint64_t{0});
 }
 
-bool setWallpaperImage(const QString &path, QString *error) {
-  const QFileInfo file(path);
-  QImageReader reader(file.canonicalFilePath());
-  const auto size = reader.size();
-  const bool video = wallpaperIsVideo(path);
+bool setWallpaperImage(const std::filesystem::path &path, std::string *error) {
+  const auto canonicalPath = canonicalExistingFile(path);
+  std::error_code filesystemError;
+  const auto fileSize = std::filesystem::file_size(canonicalPath,
+                                                   filesystemError);
+  const bool video = wallpaperIsVideo(canonicalPath);
+  bool validImage = false;
+  if (!video && !filesystemError && fileSize <= 64 * 1024 * 1024) {
+    int width = 0;
+    int height = 0;
+    validImage = gdk_pixbuf_get_file_info(canonicalPath.c_str(), &width,
+                                          &height) != nullptr &&
+                 width > 0 && height > 0 &&
+                 static_cast<std::uint64_t>(width) *
+                         static_cast<std::uint64_t>(height) <=
+                     32 * 1024 * 1024;
+  }
   const bool validVideo =
-      video && file.size() <= qint64(2) * 1024 * 1024 * 1024 &&
-      QMimeDatabase()
-          .mimeTypeForFile(file, QMimeDatabase::MatchContent)
-          .name()
-          .startsWith("video/");
-  if (!file.isFile() || !file.isReadable() ||
-      (video ? !validVideo
-             : (file.size() > 64 * 1024 * 1024 || !size.isValid() ||
-                static_cast<qint64>(size.width()) * size.height() >
-                    32 * 1024 * 1024 ||
-                !reader.canRead()))) {
+      video && !filesystemError &&
+      fileSize <= 2ULL * 1024 * 1024 * 1024 &&
+      isVideoContent(canonicalPath);
+  if (canonicalPath.empty() || filesystemError ||
+      (video ? !validVideo : !validImage)) {
     if (error)
       *error = "Choose an image below 64 MiB / 32 megapixels or a local video "
                "below 2 GiB.";
     return false;
   }
 
-  const QString canonicalPath = file.canonicalFilePath();
   auto settings = wallpaperSettings();
-  const QString previous = activeWallpaperPath(settings);
-  if (!previous.isEmpty() && previous != canonicalPath)
+  const auto previous = activeWallpaperPath(settings);
+  if (!previous.empty() && previous != canonicalPath)
     rememberWallpaper(settings, previous);
-
-  settings["image"] = canonicalPath.toStdString();
+  settings["image"] = canonicalPath.string();
   settings["mode"] = "image";
   rememberWallpaper(settings, canonicalPath);
   bumpWallpaperRevision(settings);
-  std::string nativeError;
   if (!saveWallpaperSettings({{"image", settings["image"]},
                               {"mode", settings["mode"]},
                               {"history", settings["history"]},
                               {"revision", settings["revision"]}},
-                             &nativeError)) {
+                             error)) {
     if (error)
-      *error = "Could not save the wallpaper selection: " +
-               QString::fromStdString(nativeError);
+      *error = "Could not save the wallpaper selection: " + *error;
     return false;
   }
-  refreshWallpaperPalette(canonicalPath, video);
   return true;
 }
 
-void resetWallpaperImage() {
+bool resetWallpaperImage(std::string *error) {
   auto settings = wallpaperSettings();
-  const QString previous = activeWallpaperPath(settings);
-  const QString bundled = bundledWallpaperPath();
-  if (!previous.isEmpty() && previous != bundled)
+  const auto previous = activeWallpaperPath(settings);
+  const auto bundled = bundledWallpaperPath();
+  if (!previous.empty() && previous != bundled)
     rememberWallpaper(settings, previous);
   settings["image"] = "";
   settings["mode"] = "image";
   bumpWallpaperRevision(settings);
-  std::string error;
-  if (!saveWallpaperSettings({{"image", settings["image"]},
-                              {"mode", settings["mode"]},
-                              {"history", settings["history"]},
-                              {"revision", settings["revision"]}},
-                             &error))
-    return;
-  refreshWallpaperPalette(bundled, false);
+  return saveWallpaperSettings({{"image", settings["image"]},
+                                {"mode", settings["mode"]},
+                                {"history", settings["history"]},
+                                {"revision", settings["revision"]}},
+                               error);
 }
 } // namespace LunaDash

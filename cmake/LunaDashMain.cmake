@@ -75,7 +75,9 @@ target_link_libraries(ludash-xwayland PUBLIC
 add_library(ludash-wallpaper src/desktop/wallpaper/WallpaperSettings.cpp
     src/desktop/wallpaper/WallpaperPalette.cpp)
 target_include_directories(ludash-wallpaper PUBLIC src)
-target_link_libraries(ludash-wallpaper PUBLIC Qt6::Gui ludash-configuration)
+target_link_libraries(ludash-wallpaper PUBLIC
+    ludash-configuration ludash-process-runner
+    PkgConfig::LUDASH_GIO PkgConfig::LUDASH_GDK_PIXBUF)
 target_compile_definitions(ludash-wallpaper PRIVATE LUDASH_WALLPAPER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/wallpapers")
 add_library(ludash-desktop-preferences
     src/config/desktop/DesktopPreferenceStore.cpp)

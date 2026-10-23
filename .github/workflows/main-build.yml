@@ -151,6 +151,7 @@ jobs:
       - name: Relocated software OpenGL renderer
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
+          cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Runtime
           cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Tests
           cd "$RUNNER_TEMP"
           QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \

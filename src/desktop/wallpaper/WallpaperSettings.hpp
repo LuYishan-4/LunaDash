@@ -1,19 +1,23 @@
 #pragma once
 
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QString>
+#include <nlohmann/json.hpp>
+
+#include <cstdint>
+#include <filesystem>
+#include <string>
 
 namespace LunaDash {
-QString wallpaperImageUrl();
-QJsonArray wallpaperLibrarySnapshot();
-QJsonObject wallpaperSnapshot();
-bool wallpaperIsVideo(const QString &path);
-bool refreshWallpaperLibrary(QString *error = nullptr);
-bool createWallpaperDirectory(QString *error);
-bool setWallpaperFavorite(const QString &path, bool favorite, QString *error);
-bool selectRandomWallpaper(QString *error);
-quint64 wallpaperRevision();
-bool setWallpaperImage(const QString &path, QString *error = nullptr);
-void resetWallpaperImage();
+std::filesystem::path wallpaperImagePath();
+nlohmann::json wallpaperLibrarySnapshot();
+nlohmann::json wallpaperSnapshot();
+bool wallpaperIsVideo(const std::filesystem::path &path);
+bool refreshWallpaperLibrary(std::string *error = nullptr);
+bool createWallpaperDirectory(std::string *error);
+bool setWallpaperFavorite(const std::filesystem::path &path, bool favorite,
+                          std::string *error);
+bool selectRandomWallpaper(std::string *error);
+std::uint64_t wallpaperRevision();
+bool setWallpaperImage(const std::filesystem::path &path,
+                       std::string *error = nullptr);
+bool resetWallpaperImage(std::string *error = nullptr);
 } // namespace LunaDash

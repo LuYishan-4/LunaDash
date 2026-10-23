@@ -73,6 +73,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <optional>
@@ -290,10 +291,10 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
         preferences.value("weatherLongitude", 0.0),
         preferences.value("weatherLocation", std::string{})};
   });
-  QTimer::singleShot(0, this, [] {
-    const auto path = QUrl(wallpaperImageUrl()).toLocalFile();
-    if (!path.isEmpty())
-      refreshWallpaperPalette(path, wallpaperIsVideo(path));
+  QTimer::singleShot(0, this, [this] {
+    const auto path = wallpaperImagePath();
+    if (!path.empty())
+      refreshWallpaperPalette(d->eventLoop, path, wallpaperIsVideo(path));
   });
   audioSettings_ = new AudioSettings(d->eventLoop);
   powerSettings_ = new PowerSettings(d->eventLoop);
@@ -417,6 +418,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
 
 WaylandCompositor::~WaylandCompositor() {
   shuttingDown_ = true;
+  cancelWallpaperPalette();
   delete shellModules_;
   shellModules_ = nullptr;
   sessionServices_.reset();
@@ -562,7 +564,14 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       process->deleteLater();
       return nullptr;
     }
-    environment["LUNADASH_WALLPAPER"] = wallpaperImageUrl().toStdString();
+    const auto wallpaperPath = wallpaperImagePath();
+    environment["LUNADASH_WALLPAPER"] =
+        wallpaperPath.empty()
+            ? std::string{}
+            : QUrl::fromLocalFile(
+                  QString::fromStdString(wallpaperPath.string()))
+                  .toString()
+                  .toStdString();
     // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
     // only for the LunaDash shell on NVIDIA hosts and only when the user did
     // not choose a backend explicitly. Unsupported systems still use Qt's
@@ -1746,7 +1755,10 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
            QByteArray::fromStdString(appearancePresets().dump()))
            .array()},
       {"orbit", qtJsonObject(orbitSettings())},
-      {"wallpapers", wallpaperSnapshot()},
+      {"wallpapers",
+       QJsonDocument::fromJson(
+           QByteArray::fromStdString(wallpaperSnapshot().dump()))
+           .object()},
       {"shellAction", shellAction_},
       {"shellActionSerial", shellActionSerial_},
       {"scratchpad", QJsonObject{{"window", scratchpadWindow_},
@@ -1764,7 +1776,12 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
        QJsonDocument::fromJson(
            QByteArray::fromStdString(weatherStatus_->snapshot().dump()))
            .object()},
-      {"wallpaperImage", wallpaperImageUrl()},
+      {"wallpaperImage",
+       wallpaperImagePath().empty()
+           ? QString{}
+           : QUrl::fromLocalFile(
+                 QString::fromStdString(wallpaperImagePath().string()))
+                 .toString()},
       {"workspace", workspace_},
       {"processFailure", processFailure_},
       {"clients", entries},
@@ -2173,9 +2190,11 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
       d->updateNightLight();
     arrange();
   } else if (method == "wallpaper-random") {
-    QString error;
+    std::string error;
     if (!selectRandomWallpaper(&error))
-      return {{"error", error}};
+      return {{"error", QString::fromStdString(error)}};
+    const auto path = wallpaperImagePath();
+    refreshWallpaperPalette(d->eventLoop, path, wallpaperIsVideo(path));
   } else if (method == "appearance") {
     QJsonParseError parseError;
     const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
@@ -2199,8 +2218,8 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         break;
       }
     if (changes.value("wallpaperColors", false)) {
-      const auto path = QUrl(wallpaperImageUrl()).toLocalFile();
-      refreshWallpaperPalette(path, wallpaperIsVideo(path));
+      const auto path = wallpaperImagePath();
+      refreshWallpaperPalette(d->eventLoop, path, wallpaperIsVideo(path));
     }
     if (d) {
       d->updateBackground();
@@ -2291,18 +2310,28 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     // Super+W is a standalone wallpaper-gallery toggle. Refresh discovery only
     // when the user opens the gallery; background status polls reuse the cache
     // and never rescan a large Pictures/Wallpapers tree on a timer.
-    QString refreshError;
+    std::string refreshError;
     if (!refreshWallpaperLibrary(&refreshError))
-      return {{"error", refreshError}};
+      return {{"error", QString::fromStdString(refreshError)}};
     pickerSerial_ = (pickerSerial_ + 1) % 1000000;
   } else if (method == "wallpaper-image") {
-    QString error;
+    std::string error;
     const QUrl url(value);
-    if (!setWallpaperImage(url.isLocalFile() ? url.toLocalFile() : value,
-                           &error))
-      return {{"error", error}};
+    const auto path = url.isLocalFile()
+                          ? std::filesystem::path(url.toLocalFile().toStdString())
+                          : std::filesystem::path(value.toStdString());
+    if (!setWallpaperImage(path, &error))
+      return {{"error", QString::fromStdString(error)}};
+    const auto selected = wallpaperImagePath();
+    refreshWallpaperPalette(d->eventLoop, selected,
+                            wallpaperIsVideo(selected));
   } else if (method == "wallpaper-default") {
-    resetWallpaperImage();
+    std::string error;
+    if (!resetWallpaperImage(&error))
+      return {{"error", QString::fromStdString(error)}};
+    const auto selected = wallpaperImagePath();
+    refreshWallpaperPalette(d->eventLoop, selected,
+                            wallpaperIsVideo(selected));
   } else if (method == "wallpaper" && numberValid && number >= 0 &&
              number <= 1) {
     ensureLegacyDesktopSettingsImported();

@@ -1,3 +1,5 @@
+#include <gdk-pixbuf/gdk-pixbuf.h>
+
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/renderer/capture/ThumbnailReadback.h"
 #include "compositor/wayland/Register.hpp"
@@ -6,13 +8,15 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
-#include <QFile>
-#include <QImage>
 #include <QTimer>
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <filesystem>
 #include <future>
+#include <memory>
 #include <utility>
+#include <vector>
 
 namespace LunaDash {
 struct WaylandCompositor::ThumbnailWriteState {
@@ -193,23 +197,30 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
       std::find_if(clients_.begin(), clients_.end(), [id](const auto &client) {
         return client->id == id && client->mapped;
       });
-  QImage image;
+  int width = 0;
+  int height = 0;
+  std::vector<std::uint8_t> pixels;
+  bool captured = false;
   if (found != clients_.end() && (*found)->wlSurface) {
     auto *surface = (*found)->wlSurface;
     auto *texture = wlr_surface_get_texture(surface);
-    const QSize size = QSize(std::max(1, surface->current.width),
-                             std::max(1, surface->current.height))
-                           .scaled(320, 200, Qt::KeepAspectRatio);
-    image = QImage(size, QImage::Format_RGBA8888);
+    const auto sourceWidth = std::max(1, surface->current.width);
+    const auto sourceHeight = std::max(1, surface->current.height);
+    const double scale =
+        std::min({1.0, 320.0 / sourceWidth, 200.0 / sourceHeight});
+    width = std::max(1, static_cast<int>(sourceWidth * scale));
+    height = std::max(1, static_cast<int>(sourceHeight * scale));
+    pixels.resize(static_cast<std::size_t>(width) * height * 4);
     wlr_fbox source{};
     wlr_surface_get_buffer_source_box(surface, &source);
-    if (!texture || !ludash_thumbnail_read(
-                        d->renderer, d->allocator, texture, &source,
-                        wlr_output_transform_invert(surface->current.transform),
-                        image.width(), image.height(), image.bits()))
-      image = {};
+    captured =
+        texture && ludash_thumbnail_read(
+                       d->renderer, d->allocator, texture, &source,
+                       wlr_output_transform_invert(
+                           surface->current.transform),
+                       width, height, pixels.data());
   }
-  if (image.isNull()) {
+  if (!captured) {
     QTimer::singleShot(16, this, [this, serial, windows] {
       captureWorkspaceThumbnail(serial, windows);
     });
@@ -222,10 +233,23 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
   write->path = path;
   write->remaining = std::move(windows);
   try {
-    write->result = std::async(std::launch::async,
-                               [image = std::move(image), path] {
-                                 return image.save(path, "PNG");
-                               });
+    auto image = std::make_shared<std::vector<std::uint8_t>>(
+        std::move(pixels));
+    write->result = std::async(std::launch::async, [image, path, width,
+                                                    height] {
+      auto *pixbuf = gdk_pixbuf_new_from_data(
+          image->data(), GDK_COLORSPACE_RGB, TRUE, 8, width, height, width * 4,
+          nullptr, nullptr);
+      if (!pixbuf)
+        return false;
+      GError *error = nullptr;
+      const bool saved = gdk_pixbuf_save(pixbuf, path.toUtf8().constData(),
+                                         "png", &error, nullptr);
+      g_object_unref(pixbuf);
+      if (error)
+        g_error_free(error);
+      return saved;
+    });
   } catch (...) {
     QTimer::singleShot(16, this, [this, serial, remaining = write->remaining] {
       captureWorkspaceThumbnail(serial, remaining);
@@ -256,8 +280,10 @@ void WaylandCompositor::pollThumbnailWrite() {
   if (saved && current)
     windowSwitcher_->setThumbnail(completed->serial, completed->window,
                                    completed->path);
-  else if (saved)
-    QFile::remove(completed->path);
+  else if (saved) {
+    std::error_code error;
+    std::filesystem::remove(completed->path.toStdString(), error);
+  }
 
   if (queuedThumbnailSerial_ != 0) {
     const int serial = std::exchange(queuedThumbnailSerial_, 0);
