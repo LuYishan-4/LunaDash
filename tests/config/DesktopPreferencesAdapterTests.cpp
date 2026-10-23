@@ -31,6 +31,9 @@ int main(int argc, char **argv) {
     legacy.setValue("appearance/wallpaperFavorites",
                     QStringList{"/tmp/favorite-wallpaper.jpg"});
     legacy.setValue("appearance/wallpaperRevision", qulonglong{8});
+    legacy.setValue("windowLayout/tiling/gap", 22);
+    legacy.setValue("windowLayout/tiling/defaultWidth", 1100);
+    legacy.setValue("windowLayout/tiling/splitTarget", "focused");
     legacy.sync();
     assert(legacy.status() == QSettings::NoError);
   }
@@ -49,6 +52,15 @@ int main(int argc, char **argv) {
   assert(wallpaper.at("image") == "/tmp/selected-wallpaper.png");
   assert(wallpaper.at("shader") == 1);
   assert(wallpaper.at("favorites").at(0) == "/tmp/favorite-wallpaper.jpg");
+  const auto legacyLayout = LunaDash::loadWindowLayoutSettings(
+      "tiling",
+      {{"gap", {{"type", "integer"}}},
+       {"defaultWidth", {{"type", "integer"}}},
+       {"splitTarget", {{"type", "string"}}}},
+      nullptr);
+  assert(legacyLayout.at("gap") == 22);
+  assert(legacyLayout.at("defaultWidth") == 1100);
+  assert(legacyLayout.at("splitTarget") == "focused");
 
   std::string error;
   assert(LunaDash::updateDesktopPreferences({{"themeMode", "dark"}}, &error));

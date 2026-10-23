@@ -758,13 +758,16 @@ QJsonObject WaylandCompositor::currentWindowLayoutSettings() const {
       values["gap"] = legacyGap;
   }
 
-  QSettings settings;
-  const QString prefix = "windowLayout/" + windowTemplate_->key + "/";
-  for (auto it = windowTemplate_->layoutSettingsSchema.begin();
-       it != windowTemplate_->layoutSettingsSchema.end(); ++it)
-    if (settings.contains(prefix + it.key()))
-      values[it.key()] = Settings::fromStoredValue(
-          it.value().toObject(), settings.value(prefix + it.key()));
+  std::string storageError;
+  const auto stored = LunaDash::loadWindowLayoutSettings(
+      windowTemplate_->key.toStdString(),
+      nativeJsonObject(windowTemplate_->layoutSettingsSchema), &storageError);
+  if (!storageError.empty())
+    qWarning("Could not load window layout settings: %s",
+             storageError.c_str());
+  const auto storedValues = qtJsonObject(stored);
+  for (auto it = storedValues.begin(); it != storedValues.end(); ++it)
+    values[it.key()] = it.value();
 
   if (!validateWindowLayoutSettings(*windowTemplate_, values, nullptr))
     return windowTemplate_->layoutSettingsDefaults;
@@ -787,14 +790,12 @@ bool WaylandCompositor::updateWindowLayoutSettings(const QJsonObject &changes,
   if (!validateWindowLayoutSettings(*windowTemplate_, values, error))
     return false;
 
-  QSettings settings;
-  const QString prefix = "windowLayout/" + windowTemplate_->key + "/";
-  for (auto it = changes.begin(); it != changes.end(); ++it)
-    settings.setValue(prefix + it.key(), it.value().toVariant());
-  settings.sync();
-  if (settings.status() != QSettings::NoError) {
+  std::string storageError;
+  if (!LunaDash::saveWindowLayoutSettings(
+          windowTemplate_->key.toStdString(), nativeJsonObject(values),
+          &storageError)) {
     if (error)
-      *error = "Could not save window layout settings.";
+      *error = QString::fromStdString(storageError);
     return false;
   }
   return true;

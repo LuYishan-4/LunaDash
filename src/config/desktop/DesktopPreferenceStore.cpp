@@ -133,6 +133,7 @@ Json emptyStore() {
           {"setupComplete", false},
           {"desktopPreferencesImported", false},
           {"legacyLanguagePreferenceIgnored", false},
+          {"windowLayouts", Json::object()},
           {"displays", Json::object()}};
 }
 
@@ -176,6 +177,9 @@ Json readStore() {
     const auto displays = parsed.find("displays");
     if (displays != parsed.end() && displays->is_object())
       result["displays"] = *displays;
+    const auto windowLayouts = parsed.find("windowLayouts");
+    if (windowLayouts != parsed.end() && windowLayouts->is_object())
+      result["windowLayouts"] = *windowLayouts;
   } catch (const Json::exception &) {
   }
   return result;
@@ -798,6 +802,43 @@ bool importLegacyShortcutBindings(const Json &bindings, std::string *error) {
   }
   auto store = readStore();
   store["shortcuts"] = std::move(imported);
+  return writeStore(store, error);
+}
+
+Json loadWindowLayoutSettings(std::string_view templateKey) {
+  const auto store = readStore();
+  const auto layouts = store.find("windowLayouts");
+  if (layouts == store.end() || !layouts->is_object())
+    return Json::object();
+  const auto settings = layouts->find(templateKey);
+  return settings != layouts->end() && settings->is_object() ? *settings
+                                                              : Json::object();
+}
+
+bool hasStoredWindowLayoutSettings(std::string_view templateKey) {
+  const auto store = readStore();
+  const auto layouts = store.find("windowLayouts");
+  return layouts != store.end() && layouts->is_object() &&
+         layouts->contains(std::string(templateKey));
+}
+
+bool saveWindowLayoutSettings(std::string_view templateKey,
+                              const Json &settings, std::string *error) {
+  if (error)
+    error->clear();
+  if (templateKey.empty() || templateKey.size() > 128 ||
+      templateKey.find_first_of("/\\") != std::string_view::npos ||
+      templateKey.find('\0') != std::string_view::npos ||
+      !settings.is_object() || settings.size() > 128 ||
+      settings.dump().size() > 32768) {
+    setError(error, "Window layout settings are invalid or oversized.");
+    return false;
+  }
+  StoreLock lock(error);
+  if (!lock)
+    return false;
+  auto store = readStore();
+  store["windowLayouts"][std::string(templateKey)] = settings;
   return writeStore(store, error);
 }
 

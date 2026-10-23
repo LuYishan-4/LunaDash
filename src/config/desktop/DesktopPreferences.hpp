@@ -8,6 +8,9 @@ namespace LunaDash {
 nlohmann::json desktopPreferences();
 nlohmann::json loadDisplayConfiguration(std::string_view output,
                                        std::string *error);
+nlohmann::json loadWindowLayoutSettings(std::string_view templateKey,
+                                        const nlohmann::json &schema,
+                                        std::string *error);
 void ensureLegacyDesktopSettingsImported();
 bool updateDesktopPreferences(const nlohmann::json &changes,
                               std::string *error);

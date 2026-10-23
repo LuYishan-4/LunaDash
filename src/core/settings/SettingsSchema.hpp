@@ -7,7 +7,6 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
-#include <QVariant>
 #include <algorithm>
 #include <cmath>
 
@@ -147,22 +146,6 @@ inline bool validateSchema(const QJsonObject &schema, QString *error = nullptr) 
       return fail(it.key());
   }
   return true;
-}
-
-// QSettings INI storage returns numeric values as QString. Decode only when
-// reading that legacy storage; IPC value validation remains strictly typed.
-inline QJsonValue fromStoredValue(const QJsonObject &rule, const QVariant &stored) {
-  auto value = QJsonValue::fromVariant(stored);
-  const auto type = rule.value("type").toString();
-  if (value.isString() && (type == "number" || type == "integer")) {
-    bool ok = false;
-    const auto number = value.toString().toDouble(&ok);
-    if (ok) value = number;
-  } else if (value.isString() && type == "boolean") {
-    if (value.toString() == "true") value = true;
-    else if (value.toString() == "false") value = false;
-  }
-  return value;
 }
 
 inline bool validatePluginSchema(const QJsonObject &schema,

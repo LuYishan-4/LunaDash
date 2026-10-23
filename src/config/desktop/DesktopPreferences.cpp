@@ -65,6 +65,8 @@ std::string keyString(GKeyFile *file, const char *group, const char *key) {
   return result;
 }
 
+Json parseLegacyList(std::string_view source);
+
 Json loadLegacyDisplayConfiguration(std::string_view output,
                                     std::string *error) {
   if (error)
@@ -109,6 +111,57 @@ Json loadLegacyDisplayConfiguration(std::string_view output,
     if (error)
       *error = std::move(saveError);
     return Json::object();
+  }
+  return settings;
+}
+
+Json legacyWindowLayoutSettings(std::string_view templateKey,
+                                const Json &schema) {
+  if (templateKey.empty() || templateKey.size() > 128 ||
+      templateKey.find_first_of("/\\") != std::string_view::npos ||
+      templateKey.find('\0') != std::string_view::npos || !schema.is_object())
+    return Json::object();
+  const auto legacy = readLegacySettings();
+  if (!legacy)
+    return Json::object();
+
+  constexpr std::string_view group = "windowLayout";
+  Json settings = Json::object();
+  for (auto it = schema.begin(); it != schema.end(); ++it) {
+    const auto key = std::string(templateKey) + "\\" + it.key();
+    if (!it.value().is_object() ||
+        !g_key_file_has_key(legacy.get(), group.data(), key.c_str(), nullptr))
+      continue;
+    const auto type = it.value().value("type", std::string{});
+    GError *error = nullptr;
+    if (type == "boolean") {
+      const auto value =
+          g_key_file_get_boolean(legacy.get(), group.data(), key.c_str(),
+                                 &error);
+      if (!error)
+        settings[it.key()] = static_cast<bool>(value);
+    } else if (type == "integer") {
+      const auto value =
+          g_key_file_get_int64(legacy.get(), group.data(), key.c_str(),
+                               &error);
+      if (!error)
+        settings[it.key()] = value;
+    } else if (type == "number") {
+      const auto value =
+          g_key_file_get_double(legacy.get(), group.data(), key.c_str(),
+                                &error);
+      if (!error && std::isfinite(value))
+        settings[it.key()] = value;
+    } else if (type == "string") {
+      auto value = keyString(legacy.get(), group.data(), key.c_str());
+      if (value.size() <= 4096)
+        settings[it.key()] = std::move(value);
+    } else if (type == "array") {
+      settings[it.key()] =
+          parseLegacyList(keyString(legacy.get(), group.data(), key.c_str()));
+    }
+    if (error)
+      g_error_free(error);
   }
   return settings;
 }
@@ -264,6 +317,21 @@ void importLegacySettings(GKeyFile *file) {
 
 Json loadDisplayConfiguration(std::string_view output, std::string *error) {
   return loadLegacyDisplayConfiguration(output, error);
+}
+
+Json loadWindowLayoutSettings(std::string_view templateKey,
+                              const Json &schema, std::string *error) {
+  if (error)
+    error->clear();
+  if (hasStoredWindowLayoutSettings(templateKey))
+    return LunaDash::loadWindowLayoutSettings(templateKey);
+
+  auto settings = legacyWindowLayoutSettings(templateKey, schema);
+  if (settings.empty())
+    return settings;
+  if (!saveWindowLayoutSettings(templateKey, settings, error))
+    return Json::object();
+  return settings;
 }
 
 void ensureLegacyDesktopSettingsImported() {

@@ -26,6 +26,11 @@ bool saveShortcutBindings(const nlohmann::json &bindings, std::string *error);
 bool hasStoredShortcutBindings();
 bool importLegacyShortcutBindings(const nlohmann::json &bindings,
                                   std::string *error);
+nlohmann::json loadWindowLayoutSettings(std::string_view templateKey);
+bool hasStoredWindowLayoutSettings(std::string_view templateKey);
+bool saveWindowLayoutSettings(std::string_view templateKey,
+                              const nlohmann::json &settings,
+                              std::string *error);
 nlohmann::json loadDisplaySettings(std::string_view output);
 bool saveDisplaySettings(std::string_view output,
                          const nlohmann::json &settings, std::string *error);

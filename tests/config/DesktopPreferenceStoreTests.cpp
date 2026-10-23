@@ -110,6 +110,15 @@ int main() {
                          {"height", 1080},
                          {"refresh", 60000},
                          {"scale", 1.5}}));
+  assert(LunaDash::saveWindowLayoutSettings(
+      "tiling", {{"gap", 18}, {"splitTarget", "focused"}}, &error));
+  assert(LunaDash::hasStoredWindowLayoutSettings("tiling"));
+  assert(LunaDash::loadWindowLayoutSettings("tiling") ==
+         nlohmann::json({{"gap", 18}, {"splitTarget", "focused"}}));
+  assert(!LunaDash::saveWindowLayoutSettings("../tiling", {{"gap", 20}},
+                                              &error));
+  assert(!LunaDash::saveWindowLayoutSettings("tiling", nlohmann::json::array(),
+                                              &error));
   assert(!LunaDash::saveDisplaySettings("DP-1", {{"scale", 4.0}}, &error));
   assert(LunaDash::loadDisplaySettings("DP-1").at("scale") == 1.5);
   assert(LunaDash::loadDisplaySettings(std::string(256, 'x')).empty());
