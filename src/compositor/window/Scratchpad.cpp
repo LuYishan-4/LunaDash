@@ -2,8 +2,9 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "desktop/app/DefaultApplications.hpp"
-#include <QFile>
+#include <fstream>
 #include <iterator>
+#include <sstream>
 #include <string>
 
 namespace LunaDash {
@@ -14,17 +15,18 @@ bool belongsToProcess(qint64 candidate, qint64 launched) {
   for (int depth = 0; candidate > 1 && depth < 16; ++depth) {
     if (candidate == launched)
       return true;
-    QFile file(QString("/proc/%1/stat").arg(candidate));
-    if (!file.open(QIODevice::ReadOnly))
+    std::ifstream file("/proc/" + std::to_string(candidate) + "/stat");
+    std::string stat;
+    if (!std::getline(file, stat))
       return false;
-    const auto stat = file.read(4096);
-    const auto end = stat.lastIndexOf(')');
-    if (end < 0)
+    const auto end = stat.rfind(')');
+    if (end == std::string::npos)
       return false;
-    const auto fields = stat.mid(end + 2).split(' ');
-    if (fields.size() < 2)
+    std::istringstream fields(stat.substr(end + 2));
+    char state = '\0';
+    qint64 parent = 0;
+    if (!(fields >> state >> parent))
       return false;
-    const auto parent = fields[1].toLongLong();
     if (parent == candidate)
       return false;
     candidate = parent;
