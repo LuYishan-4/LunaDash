@@ -41,8 +41,6 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper rustc cargo
     rustPlatform.cargoSetupHook corrosion wayland-scanner qt6.wrapQtAppsHook ];
   cargoDeps = slintCargoDeps;
-  # The vendored lockfile belongs to the separately fetched Slint workspace.
-  dontCargoSetupPostPatchHook = true;
   buildInputs = [
     qt6.qtbase qt6.qtdeclarative qt6.qtwayland qt6.qtsvg qt6.qtmultimedia fontconfig freetype
     vulkan-headers vulkan-loader wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
@@ -58,6 +56,7 @@ stdenv.mkDerivation {
   ];
   postPatch = ''
     printf '%s\n' '${revision}' > .lunadash-revision
+    cp ${slintSource}/Cargo.lock Cargo.lock
   '';
   preFixup = ''
     qtWrapperArgs+=(--prefix PATH : "$out/bin:${runtimePath}")

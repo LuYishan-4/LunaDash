@@ -8,7 +8,7 @@ Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後�
 
 ## 建置與靜態檢查
 
-需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Rust/Cargo 1.92+（建置固定版本 Slint 1.18.1）、Qt 6.4+（仍有其他 native targets 使用 Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、pixman、libdrm、GL headers 與 GLib。Welcome 使用 Slint Winit Wayland backend 與 FemtoVG，明確停用 Slint Qt 和 X11 backends。`lunadashctl` 使用 POSIX Unix socket 與 nlohmann/json；CMake 會使用已安裝的 nlohmann_json 3.11+，或抓取固定版本 v3.11.3。獨立 Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
+需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Rust/Cargo 1.92+（建置固定版本 Slint 1.18.1）、Qt 6.4+（仍有其他 native targets 使用 Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、pixman、libdrm、GL headers、GLib 與 Fontconfig 開發檔案。Welcome 使用 Slint Winit Wayland backend 與 FemtoVG，明確停用 Slint Qt 和 X11 backends。`lunadashctl` 使用 POSIX Unix socket 與 nlohmann/json；CMake 會使用已安裝的 nlohmann_json 3.11+，或抓取固定版本 v3.11.3。獨立 Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
 
 ```sh
 python3 scripts/check-source-layout.py
