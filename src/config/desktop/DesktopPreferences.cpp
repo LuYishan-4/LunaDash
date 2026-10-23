@@ -10,8 +10,11 @@
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <optional>
+#include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace LunaDash {
 namespace {
@@ -66,6 +69,169 @@ std::string keyString(GKeyFile *file, const char *group, const char *key) {
 }
 
 Json parseLegacyList(std::string_view source);
+
+bool decodeLegacyQtString(std::span<const unsigned char> bytes,
+                          std::size_t &offset, std::string &result) {
+  if (offset + 4 > bytes.size())
+    return false;
+  const std::uint32_t length =
+      (static_cast<std::uint32_t>(bytes[offset]) << 24) |
+      (static_cast<std::uint32_t>(bytes[offset + 1]) << 16) |
+      (static_cast<std::uint32_t>(bytes[offset + 2]) << 8) |
+      static_cast<std::uint32_t>(bytes[offset + 3]);
+  offset += 4;
+  if (length == 0xffffffffU) {
+    result.clear();
+    return true;
+  }
+  if (length > 4096 || (length & 1U) != 0 || offset + length > bytes.size())
+    return false;
+
+  std::vector<gunichar2> characters;
+  characters.reserve(length / 2);
+  for (std::size_t end = offset + length; offset < end; offset += 2)
+    characters.push_back(static_cast<gunichar2>(
+        (static_cast<unsigned int>(bytes[offset]) << 8) | bytes[offset + 1]));
+  GError *error = nullptr;
+  char *utf8 = g_utf16_to_utf8(characters.data(), characters.size(), nullptr,
+                               nullptr, &error);
+  if (error) {
+    g_error_free(error);
+    return false;
+  }
+  result = utf8 ? utf8 : "";
+  g_free(utf8);
+  return true;
+}
+
+std::optional<Json> legacyShortcutBindings(GKeyFile *file) {
+  constexpr std::string_view prefix = "@Variant(";
+  if (!file ||
+      !g_key_file_has_key(file, "shortcuts", "bindings", nullptr))
+    return std::nullopt;
+  GError *keyError = nullptr;
+  char *raw = g_key_file_get_value(file, "shortcuts", "bindings", &keyError);
+  if (keyError) {
+    g_error_free(keyError);
+    return std::nullopt;
+  }
+  const std::string encoded = raw ? raw : "";
+  g_free(raw);
+  if (!std::string_view(encoded).starts_with(prefix) ||
+      !std::string_view(encoded).ends_with(')'))
+    return std::nullopt;
+
+  std::vector<unsigned char> bytes;
+  const auto payload = std::string_view(encoded).substr(
+      prefix.size(), encoded.size() - prefix.size() - 1);
+  bytes.reserve(payload.size());
+  for (std::size_t index = 0; index < payload.size(); ++index) {
+    if (payload[index] != '\\') {
+      bytes.push_back(static_cast<unsigned char>(payload[index]));
+      continue;
+    }
+    if (++index >= payload.size())
+      return std::nullopt;
+    if (payload[index] == '0') {
+      unsigned int value = 0;
+      std::size_t digits = 0;
+      while (digits < 3 && index < payload.size() && payload[index] >= '0' &&
+             payload[index] <= '7') {
+        value = value * 8 + static_cast<unsigned int>(payload[index] - '0');
+        ++digits;
+        if (digits < 3 && index + 1 < payload.size() &&
+            payload[index + 1] >= '0' && payload[index + 1] <= '7')
+          ++index;
+        else
+          break;
+      }
+      bytes.push_back(static_cast<unsigned char>(value));
+    } else if (payload[index] == 'x') {
+      unsigned int value = 0;
+      std::size_t digits = 0;
+      while (digits < 2 && index + 1 < payload.size()) {
+        const auto character = payload[index + 1];
+        unsigned int digit = 0;
+        if (character >= '0' && character <= '9')
+          digit = static_cast<unsigned int>(character - '0');
+        else if (character >= 'a' && character <= 'f')
+          digit = static_cast<unsigned int>(character - 'a' + 10);
+        else if (character >= 'A' && character <= 'F')
+          digit = static_cast<unsigned int>(character - 'A' + 10);
+        else
+          break;
+        value = value * 16 + digit;
+        ++digits;
+        ++index;
+      }
+      if (digits == 0)
+        return std::nullopt;
+      bytes.push_back(static_cast<unsigned char>(value));
+    } else {
+      switch (payload[index]) {
+      case 'a':
+        bytes.push_back('\a');
+        break;
+      case 'b':
+        bytes.push_back('\b');
+        break;
+      case 'f':
+        bytes.push_back('\f');
+        break;
+      case 'n':
+        bytes.push_back('\n');
+        break;
+      case 'r':
+        bytes.push_back('\r');
+        break;
+      case 't':
+        bytes.push_back('\t');
+        break;
+      case 'v':
+        bytes.push_back('\v');
+        break;
+      default:
+        bytes.push_back(static_cast<unsigned char>(payload[index]));
+        break;
+      }
+    }
+    if (bytes.size() > 32768)
+      return std::nullopt;
+  }
+
+  const auto readInteger = [&bytes](std::size_t &offset,
+                                    std::uint32_t &value) {
+    if (offset + 4 > bytes.size())
+      return false;
+    value = (static_cast<std::uint32_t>(bytes[offset]) << 24) |
+            (static_cast<std::uint32_t>(bytes[offset + 1]) << 16) |
+            (static_cast<std::uint32_t>(bytes[offset + 2]) << 8) |
+            static_cast<std::uint32_t>(bytes[offset + 3]);
+    offset += 4;
+    return true;
+  };
+  std::size_t offset = 0;
+  std::uint32_t type = 0;
+  std::uint32_t count = 0;
+  if (!readInteger(offset, type) || type != 8 ||
+      !readInteger(offset, count) || count > 256)
+    return std::nullopt;
+
+  Json result = Json::object();
+  for (std::uint32_t index = 0; index < count; ++index) {
+    std::string key;
+    std::string value;
+    if (!decodeLegacyQtString(bytes, offset, key) ||
+        !readInteger(offset, type) || type != 10 ||
+        !decodeLegacyQtString(bytes, offset, value) || key.empty() ||
+        key.size() > 80 || value.size() > 80)
+      return std::nullopt;
+    result[key] = value;
+  }
+  if (offset != bytes.size())
+    return std::nullopt;
+  return result;
+}
 
 Json loadLegacyDisplayConfiguration(std::string_view output,
                                     std::string *error) {
@@ -310,6 +476,13 @@ void importLegacySettings(GKeyFile *file) {
         {"libraryRefresh", refresh}};
     std::string error;
     importLegacyWallpaperSettings(legacy, &error);
+  }
+
+  if (!hasStoredShortcutBindings()) {
+    if (const auto bindings = legacyShortcutBindings(file)) {
+      std::string error;
+      importLegacyShortcutBindings(*bindings, &error);
+    }
   }
 }
 

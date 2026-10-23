@@ -34,6 +34,10 @@ int main(int argc, char **argv) {
     legacy.setValue("windowLayout/tiling/gap", 22);
     legacy.setValue("windowLayout/tiling/defaultWidth", 1100);
     legacy.setValue("windowLayout/tiling/splitTarget", "focused");
+    legacy.setValue(
+        "shortcuts/bindings",
+        QVariantMap{{"closeWindow", "Meta+Q"},
+                    {"launchTerminal", "Meta+Return"}});
     legacy.sync();
     assert(legacy.status() == QSettings::NoError);
   }
@@ -47,6 +51,9 @@ int main(int argc, char **argv) {
          "/tmp/wallpaper-one.jpg");
   assert(preferences.at("wallpaperRevision") == 8);
   assert(LunaDash::setupComplete());
+  assert(LunaDash::loadShortcutBindings() ==
+         nlohmann::json({{"closeWindow", "Meta+Q"},
+                         {"launchTerminal", "Meta+Return"}}));
   const auto wallpaper = LunaDash::loadWallpaperSettings();
   assert(wallpaper.at("mode") == "shader");
   assert(wallpaper.at("image") == "/tmp/selected-wallpaper.png");

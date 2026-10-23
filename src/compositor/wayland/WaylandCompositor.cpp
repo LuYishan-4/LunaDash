@@ -60,7 +60,6 @@
 #include <QPointer>
 #include <QProcess>
 #include <QProcessEnvironment>
-#include <QSettings>
 #include <QSocketNotifier>
 #include <QStandardPaths>
 #include <QUrl>
@@ -322,14 +321,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   audioSettings_ = new AudioSettings(d->eventLoop);
   powerSettings_ = new PowerSettings(d->eventLoop);
   sessionActions_ = std::make_unique<SessionActions>();
-  const auto legacyShortcutObject = QJsonObject::fromVariantMap(
-      QSettings().value("shortcuts/bindings").toMap());
-  const auto legacyShortcutBindings =
-      nlohmann::json::parse(QJsonDocument(legacyShortcutObject)
-                                .toJson(QJsonDocument::Compact)
-                                .toStdString(),
-                            nullptr, false);
-  shortcutSettings_ = new ShortcutSettings(legacyShortcutBindings);
+  shortcutSettings_ = new ShortcutSettings();
   updateChecker_ = new UpdateChecker(d->eventLoop, [] {
     return desktopPreferences().value("updateChannel", std::string("stable"));
   });
