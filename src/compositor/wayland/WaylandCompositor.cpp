@@ -80,6 +80,9 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace LunaDash {
 namespace {
@@ -995,14 +998,17 @@ void WaylandCompositor::arrange() {
 
   if (templateChanged && focused_ && focused_->mapped && !focused_->minimized)
     windowLayout_->focus(focused_->id);
-  QList<ClientWindow *> revealed;
-  QHash<int, LayoutWindowId> maximizedWindows;
+  std::vector<ClientWindow *> revealed;
+  std::unordered_map<int, LayoutWindowId> maximizedWindows;
   for (const auto &client : clients_) {
-    if (!maximizedWindows.contains(client->workspace))
-      maximizedWindows.insert(
-          client->workspace,
-          windowLayout_->snapshot(client->workspace).maximizedWindow);
-    const auto maximized = maximizedWindows.value(client->workspace);
+    auto maximizedIt = maximizedWindows.find(client->workspace);
+    if (maximizedIt == maximizedWindows.end())
+      maximizedIt = maximizedWindows
+                        .emplace(client->workspace,
+                                 windowLayout_->snapshot(client->workspace)
+                                     .maximizedWindow)
+                        .first;
+    const auto maximized = maximizedIt->second;
     if (!client->floating && (client->mapped || client->layoutPending))
       client->maximized = maximized == static_cast<LayoutWindowId>(client->id);
     bool inMaximizedFamily = client->id == static_cast<int>(maximized);
@@ -1052,7 +1058,7 @@ void WaylandCompositor::arrange() {
       if (!visible && wasVisible && client->mapped && windowAnimations_)
         windowAnimations_->close(client->sceneTree, d->animationLayer);
       if (visible && !wasVisible && client->geometry.isValid())
-        revealed.append(client.get());
+        revealed.push_back(client.get());
       if (!visible && windowAnimations_)
         windowAnimations_->cancel(client->sceneTree);
       wlr_scene_node_set_enabled(&client->sceneTree->node, visible);
@@ -1090,10 +1096,12 @@ void WaylandCompositor::arrange() {
 
   // Pending clients need their first size even when a rule sends them to a
   // different workspace, or an existing fullscreen window covers this one.
-  QList<int> layoutWorkspaces{workspace_};
+  std::vector<int> layoutWorkspaces{workspace_};
   for (const auto &client : clients_)
-    if (client->layoutPending && !layoutWorkspaces.contains(client->workspace))
-      layoutWorkspaces.append(client->workspace);
+    if (client->layoutPending &&
+        std::find(layoutWorkspaces.begin(), layoutWorkspaces.end(),
+                  client->workspace) == layoutWorkspaces.end())
+      layoutWorkspaces.push_back(client->workspace);
   std::vector<WindowPlacement> placements;
   for (const int workspace : layoutWorkspaces)
     for (auto &placement : windowLayout_->presentation(workspace, area))
@@ -1199,12 +1207,12 @@ void WaylandCompositor::focus(ClientWindow *client) {
 }
 
 void WaylandCompositor::focusNext(int direction) {
-  QList<ClientWindow *> visible;
+  std::vector<ClientWindow *> visible;
   for (const auto &client : clients_)
     if (client->mapped && !client->minimized && !client->utility &&
         client->workspace == workspace_)
-      visible << client.get();
-  if (visible.isEmpty()) {
+      visible.push_back(client.get());
+  if (visible.empty()) {
     ClientWindow *previous = focused_;
     if (previous && clientReady(previous))
       setClientActivated(previous, false);
@@ -1217,8 +1225,12 @@ void WaylandCompositor::focusNext(int direction) {
       wlr_seat_keyboard_notify_clear_focus(d->seat);
     return;
   }
-  const qsizetype index = visible.indexOf(focused_);
-  focus(visible[(index + direction + visible.size()) % visible.size()]);
+  const auto found = std::find(visible.begin(), visible.end(), focused_);
+  const auto index =
+      found == visible.end() ? std::ptrdiff_t{-1}
+                             : std::distance(visible.begin(), found);
+  const auto count = static_cast<std::ptrdiff_t>(visible.size());
+  focus(visible[static_cast<std::size_t>((index + direction + count) % count)]);
 }
 
 void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
@@ -1574,7 +1586,7 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
   const auto tilingSnapshot = windowLayout_->snapshot(workspace_);
   QJsonArray tilingColumns;
   QJsonArray tilingGroups;
-  QSet<int> emittedGroups;
+  std::unordered_set<int> emittedGroups;
   int fallbackGroup = 0;
   for (const auto &column : tilingSnapshot.columns) {
     const int group = column.metadata.value("group").toInt(fallbackGroup++);
