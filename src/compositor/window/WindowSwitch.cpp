@@ -23,7 +23,7 @@ struct WaylandCompositor::ThumbnailWriteState {
   int serial = 0;
   int window = 0;
   QString path;
-  QList<int> remaining;
+  std::vector<int> remaining;
 };
 
 void WaylandCompositor::publishWindowLayout() {
@@ -115,14 +115,14 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
   if (d->pointerWindow)
     d->finishWindowPointer(false);
   QJsonArray choices;
-  QList<int> capture;
+  std::vector<int> capture;
   const auto area = workArea();
   if (!workspaces) {
     publishWindowLayout();
     choices = WindowSwitcher::windowsForWorkspace(
         windowSwitcher_->snapshot().value("clients").toArray(), workspace_);
     for (const auto &choice : choices)
-      capture.append(choice.toObject().value("id").toInt());
+      capture.push_back(choice.toObject().value("id").toInt());
     if (windowSwitcher_->begin(choices, focused_ ? focused_->id : 0,
                                 direction, clientEnvironment_, scope)) {
       const int serial = windowSwitcher_->serial();
@@ -159,7 +159,7 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
                                  {"hiddenByMaximize", client->hiddenByMaximize},
                                  {"focused", focused_ == client.get()}});
       if (!client->minimized && !client->hiddenByMaximize)
-        capture.append(client->id);
+        capture.push_back(client->id);
     }
     for (int i = 0; i < windows.size(); ++i) {
       auto window = windows[i].toObject();
@@ -180,7 +180,7 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
   });
 }
 void WaylandCompositor::captureWorkspaceThumbnail(int serial,
-                                                  QList<int> windows) {
+                                                  std::vector<int> windows) {
   if (thumbnailWrite_) {
     if (thumbnailWrite_->serial != serial) {
       queuedThumbnailSerial_ = serial;
@@ -189,9 +189,10 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
     return;
   }
   if (!windowSwitcher_->active() || serial != windowSwitcher_->serial() ||
-      windows.isEmpty())
+      windows.empty())
     return;
-  const int id = windows.takeFirst();
+  const int id = windows.front();
+  windows.erase(windows.begin());
   auto found =
       std::find_if(clients_.begin(), clients_.end(), [id](const auto &client) {
         return client->id == id && client->mapped;

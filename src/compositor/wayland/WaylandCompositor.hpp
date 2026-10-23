@@ -82,7 +82,7 @@ private:
   std::shared_ptr<ThumbnailWriteState> thumbnailWrite_;
   QList<QProcess *> processes_;
   int queuedThumbnailSerial_ = 0;
-  QList<int> queuedThumbnailWindows_;
+  std::vector<int> queuedThumbnailWindows_;
   ClientWindow *focused_ = nullptr;
 
   int nextWindowId_ = 1;
@@ -141,7 +141,7 @@ private:
   void beginWindowSwitch(int direction, bool workspaces = false);
   void selectWorkspace(int workspace);
   void publishWindowLayout();
-  void captureWorkspaceThumbnail(int serial, QList<int> windows);
+  void captureWorkspaceThumbnail(int serial, std::vector<int> windows);
   void pollThumbnailWrite();
   void finishWindowSwitch(bool accept);
   void setMaximized(ClientWindow *client, bool maximized);
