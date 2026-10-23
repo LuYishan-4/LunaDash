@@ -536,7 +536,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
                   << "LunaDash child exited abnormally:" << process->program()
                   << "code" << code;
             }
-            processes_.removeAll(process);
+            std::erase(processes_, process);
             process->deleteLater();
           });
 
@@ -653,7 +653,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
           executable =
               QCoreApplication::applicationDirPath() + "/ludash-welcome";
         process->start(executable, {});
-        processes_ << process;
+        processes_.push_back(process);
         return process;
       }
       executable = QCoreApplication::applicationDirPath() + "/lunadash-desktop";
@@ -663,7 +663,7 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
     process->start(executable, arguments);
   }
 
-  processes_ << process;
+  processes_.push_back(process);
   return process;
 }
 

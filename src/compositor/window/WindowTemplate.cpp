@@ -134,7 +134,7 @@ const WindowTemplate &stackingTemplate() {
 }
 } // namespace
 
-QList<WindowTemplate> windowTemplates() {
+std::vector<WindowTemplate> windowTemplates() {
   return {tilingTemplate(), stackingTemplate()};
 }
 

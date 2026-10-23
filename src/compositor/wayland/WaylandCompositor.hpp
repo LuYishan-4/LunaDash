@@ -3,12 +3,10 @@
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/window/animation/WindowAnimation.hpp"
 #include "core/process/ProcessEnvironment.hpp"
-#include <QHash>
 #include <QJsonObject>
 #include <QObject>
 #include <QProcess>
 #include <QRect>
-#include <QSet>
 #include <functional>
 #include <memory>
 #include <string_view>
@@ -80,7 +78,7 @@ private:
   ProcessEnvironment clientEnvironment_;
   std::vector<std::unique_ptr<ClientWindow>> clients_;
   std::shared_ptr<ThumbnailWriteState> thumbnailWrite_;
-  QList<QProcess *> processes_;
+  std::vector<QProcess *> processes_;
   int queuedThumbnailSerial_ = 0;
   std::vector<int> queuedThumbnailWindows_;
   ClientWindow *focused_ = nullptr;
@@ -101,7 +99,6 @@ private:
   bool launcherVisible_ = false;
   const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
-  QHash<int, int> resizeOriginalWidths_;
   bool shuttingDown_ = false;
   bool logoutPending_ = false;
   bool testStopping_ = false;

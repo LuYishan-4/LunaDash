@@ -3,9 +3,9 @@
 #include "compositor/layout/WindowLayout.hpp"
 
 #include <QJsonObject>
-#include <QList>
 #include <QString>
 #include <memory>
+#include <vector>
 
 namespace LunaDash {
 
@@ -23,7 +23,7 @@ struct WindowTemplate {
   QJsonObject animation;
 };
 
-QList<WindowTemplate> windowTemplates();
+std::vector<WindowTemplate> windowTemplates();
 const WindowTemplate &windowTemplateForKey(const QString &key);
 std::unique_ptr<WindowLayout>
 createWindowLayout(const WindowTemplate &windowTemplate);
