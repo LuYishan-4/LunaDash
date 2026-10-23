@@ -170,7 +170,7 @@ void WaylandCompositor::Impl::updateSeatCapabilities() {
   uint32_t caps = 0;
   if (pointerDevices > 0)
     caps |= WL_SEAT_CAPABILITY_POINTER;
-  if (!keyboards.isEmpty())
+  if (!keyboards.empty())
     caps |= WL_SEAT_CAPABILITY_KEYBOARD;
   if (!caps)
     caps = WL_SEAT_CAPABILITY_POINTER | WL_SEAT_CAPABILITY_KEYBOARD;
@@ -199,7 +199,7 @@ void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
                  handleKeyboardModifiers);
   attachListener(&keyboard->base.events.destroy, state->destroy, state,
                  handleKeyboardDestroy);
-  keyboards.append(state);
+  keyboards.push_back(state);
   if (!isVirtual)
     wlr_seat_set_keyboard(seat, keyboard);
   else
@@ -617,7 +617,7 @@ void WaylandCompositor::Impl::handleKeyboardDestroy(wl_listener *listener,
   detachListener(state->keymap);
   detachListener(state->modifiers);
   detachListener(state->destroy);
-  self->keyboards.removeAll(state);
+  std::erase(self->keyboards, state);
   delete state;
 
   if (physical) {
@@ -845,7 +845,7 @@ void WaylandCompositor::Impl::handleInputMethodPopup(wl_listener *listener,
       wlr_scene_subsurface_tree_create(self->overlayLayer, popup->surface);
   attachListener(&popup->events.destroy, popupState->destroy, popupState,
                  handleInputPopupDestroy);
-  self->inputPopups.append(popupState);
+  self->inputPopups.push_back(popupState);
   self->positionInputPopup(popupState);
 }
 
@@ -856,7 +856,7 @@ void WaylandCompositor::Impl::handleInputPopupDestroy(wl_listener *listener,
     return;
   auto *self = state->impl;
   detachListener(state->destroy);
-  self->inputPopups.removeAll(state);
+  std::erase(self->inputPopups, state);
   delete state;
 }
 
@@ -906,7 +906,7 @@ void WaylandCompositor::Impl::handleNewTextInput(wl_listener *listener,
   auto *state = new TextInputState;
   state->impl = self;
   state->text = text;
-  self->textInputs.append(state);
+  self->textInputs.push_back(state);
   attachListener(&text->events.enable, state->enable, state,
                  handleTextInputEnable);
   attachListener(&text->events.commit, state->commit, state,
@@ -956,7 +956,7 @@ void WaylandCompositor::Impl::handleTextInputDestroy(wl_listener *listener,
   detachListener(state->commit);
   detachListener(state->disable);
   detachListener(state->destroy);
-  self->textInputs.removeAll(state);
+  std::erase(self->textInputs, state);
   delete state;
 }
 

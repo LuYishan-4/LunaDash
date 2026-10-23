@@ -315,7 +315,7 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
                  handleOutputDestroy);
   attachListener(&output->events.request_state, state->requestState, state,
                  handleOutputRequestState);
-  self->outputs.append(state);
+  self->outputs.push_back(state);
   self->updateNightLight();
 
   if (!self->primaryOutput)
@@ -455,7 +455,7 @@ void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
   detachListener(state->requestState);
   if (self->primaryOutput == state->output)
     self->primaryOutput = nullptr;
-  self->outputs.removeAll(state);
+  std::erase(self->outputs, state);
   ludash_night_color_destroy(state->nightColor);
   for (auto *candidate : self->outputs)
     if (candidate && candidate->output) {

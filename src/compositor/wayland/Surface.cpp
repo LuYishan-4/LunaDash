@@ -603,7 +603,7 @@ void WaylandCompositor::Impl::handleNewLayerSurface(wl_listener *listener,
     delete state;
     return;
   }
-  self->layers.append(state);
+  self->layers.push_back(state);
   attachListener(&surface->surface->events.map, state->map, state,
                  handleLayerMap);
   attachListener(&surface->surface->events.unmap, state->unmap, state,
@@ -683,7 +683,7 @@ void WaylandCompositor::Impl::handleLayerDestroy(wl_listener *listener,
   detachListener(state->unmap);
   detachListener(state->commit);
   detachListener(state->destroy);
-  self->layers.removeAll(state);
+  std::erase(self->layers, state);
   delete state;
   self->arrangeLayers();
   self->q->arrange();

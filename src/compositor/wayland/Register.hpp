@@ -11,9 +11,11 @@
 #include <QList>
 #include <QPointF>
 #include <QSize>
+#include <algorithm>
 #include <chrono>
 #include <functional>
 #include <unordered_set>
+#include <vector>
 #include <wayland-server-core.h>
 class QSocketNotifier;
 
@@ -252,13 +254,13 @@ public:
   wlr_virtual_keyboard_manager_v1 *virtualKeyboardManager = nullptr;
 
   QSocketNotifier *waylandNotifier = nullptr;
-  QList<OutputState *> outputs;
-  QList<XWaylandState *> xwaylandSurfaces;
-  QList<LayerState *> layers;
-  QList<XdgPopupState *> xdgPopups;
-  QList<KeyboardState *> keyboards;
-  QList<TextInputState *> textInputs;
-  QList<PopupState *> inputPopups;
+  std::vector<OutputState *> outputs;
+  std::vector<XWaylandState *> xwaylandSurfaces;
+  std::vector<LayerState *> layers;
+  std::vector<XdgPopupState *> xdgPopups;
+  std::vector<KeyboardState *> keyboards;
+  std::vector<TextInputState *> textInputs;
+  std::vector<PopupState *> inputPopups;
   std::vector<std::unique_ptr<DeferredClientRemoval>> deferredClientRemovals;
   std::vector<std::unique_ptr<ScheduledCallback>> scheduledCallbacks;
   InputMethodState *inputMethod = nullptr;

@@ -79,7 +79,7 @@ void WaylandCompositor::Impl::addXWaylandSurface(
                  handleXWaylandMetadata);
   attachListener(&surface->events.set_override_redirect,
                  state->setOverrideRedirect, state, handleXWaylandMetadata);
-  xwaylandSurfaces.append(state);
+  xwaylandSurfaces.push_back(state);
 #endif
 }
 
@@ -254,7 +254,7 @@ void WaylandCompositor::Impl::handleXWaylandDestroy(wl_listener *listener,
   detachListener(state->setOverrideRedirect);
   if (state->surface)
     state->surface->data = nullptr;
-  self->xwaylandSurfaces.removeAll(state);
+  std::erase(self->xwaylandSurfaces, state);
   client->nativeState = nullptr;
 
   // Keep ClientWindow alive until the current Wayland/XWM signal dispatch has

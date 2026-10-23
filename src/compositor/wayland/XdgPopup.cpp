@@ -82,7 +82,7 @@ void WaylandCompositor::Impl::addXdgPopup(wlr_xdg_popup *popup) {
   auto *state = new XdgPopupState;
   state->impl = this;
   state->popup = popup;
-  xdgPopups.append(state);
+  xdgPopups.push_back(state);
   attachListener(&popup->base->surface->events.commit, state->commit, state,
                  handleXdgPopupCommit);
   attachListener(&popup->events.reposition, state->reposition, state,
@@ -129,7 +129,7 @@ void WaylandCompositor::Impl::handleXdgPopupDestroy(wl_listener *listener,
   detachListener(state->destroy);
   // The scene helper owns its surface/node listeners and destroys the tree.
   state->popup->base->data = nullptr;
-  state->impl->xdgPopups.removeAll(state);
+  std::erase(state->impl->xdgPopups, state);
   delete state;
 }
 } // namespace LunaDash
