@@ -227,7 +227,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     : d(std::make_unique<Impl>(this, socket, fullscreen, rendererPreference)) {
   windowTemplate_ = &windowTemplateForKey("tiling");
   windowLayout_ = createWindowLayout(*windowTemplate_);
-  windowSwitcher_ = new WindowSwitcher(d->eventLoop, this);
+  windowSwitcher_ = std::make_unique<WindowSwitcher>(d->eventLoop);
   screenCapture_ = new ScreenCapture(d->eventLoop);
   screenCapture_->setCompletion(
       [this](const std::string &path, const std::string &error) {

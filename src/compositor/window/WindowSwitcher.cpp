@@ -4,22 +4,20 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QSaveFile>
-#include <QTimer>
 #include <QUrl>
 #include <algorithm>
 
 namespace LunaDash {
-WindowSwitcher::WindowSwitcher(QObject *parent) : WindowSwitcher(nullptr, parent) {}
-WindowSwitcher::WindowSwitcher(wl_event_loop *eventLoop, QObject *parent)
-    : QObject(parent) {
+WindowSwitcher::WindowSwitcher(wl_event_loop *eventLoop) {
   if (eventLoop)
     captureRunner_ = std::make_unique<ProcessRunner>(eventLoop, false);
-  feedbackTimer_.setSingleShot(true);
-  feedbackTimer_.setInterval(16);
-  connect(&feedbackTimer_, &QTimer::timeout, this,
-          &WindowSwitcher::writeSnapshot);
+  if (eventLoop)
+    feedbackTimer_ = wl_event_loop_add_timer(eventLoop, handleFeedbackTimer,
+                                             this);
 }
 WindowSwitcher::~WindowSwitcher() {
+  if (feedbackTimer_)
+    wl_event_source_remove(feedbackTimer_);
   if (captureRunner_)
     captureRunner_->cancel();
   if (!channelPath_.isEmpty())
@@ -43,6 +41,14 @@ QJsonArray WindowSwitcher::windowsForWorkspace(const QJsonArray &clients,
 }
 bool WindowSwitcher::active() const { return active_; }
 WindowSwitcher::Scope WindowSwitcher::scope() const { return scope_; }
+int WindowSwitcher::handleFeedbackTimer(void *data) {
+  auto *self = static_cast<WindowSwitcher *>(data);
+  if (!self)
+    return 0;
+  self->feedbackPending_ = false;
+  self->writeSnapshot();
+  return 0;
+}
 void WindowSwitcher::dismissPopups() {
   dismissSerial_ = dismissSerial_ >= 999999 ? 1 : dismissSerial_ + 1;
   publish();
@@ -203,8 +209,17 @@ QJsonObject WindowSwitcher::snapshot() const {
           {"launcherOpen", launcherOpen_}};
 }
 void WindowSwitcher::publish() {
-  if (!feedbackTimer_.isActive())
-    feedbackTimer_.start();
+  if (!feedbackTimer_) {
+    writeSnapshot();
+    return;
+  }
+  if (!feedbackPending_) {
+    feedbackPending_ = true;
+    if (wl_event_source_timer_update(feedbackTimer_, 16) < 0) {
+      feedbackPending_ = false;
+      writeSnapshot();
+    }
+  }
 }
 void WindowSwitcher::writeSnapshot() {
   if (channelPath_.isEmpty())

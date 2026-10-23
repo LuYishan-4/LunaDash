@@ -54,7 +54,7 @@ private:
   struct ThumbnailWriteState;
   std::unique_ptr<Impl> d;
 
-  WindowSwitcher *windowSwitcher_ = nullptr;
+  std::unique_ptr<WindowSwitcher> windowSwitcher_;
   ScreenCapture *screenCapture_ = nullptr;
   BrightnessSettings *brightnessSettings_ = nullptr;
   DdcBrightnessSettings *ddcBrightnessSettings_ = nullptr;

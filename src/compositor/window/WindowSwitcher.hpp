@@ -5,20 +5,17 @@
 
 #include <QJsonArray>
 #include <QJsonObject>
-#include <QObject>
 #include <QTemporaryDir>
-#include <QTimer>
 
 #include <memory>
 
 namespace LunaDash {
 // Owns one selection session and its private, event-driven shell feedback file.
-class WindowSwitcher final : public QObject {
+class WindowSwitcher final {
 public:
   enum class Scope { Windows, Workspaces };
-  explicit WindowSwitcher(QObject *parent = nullptr);
-  WindowSwitcher(wl_event_loop *eventLoop, QObject *parent = nullptr);
-  ~WindowSwitcher() override;
+  explicit WindowSwitcher(wl_event_loop *eventLoop = nullptr);
+  ~WindowSwitcher();
   void setChannelPath(const QString &path);
   bool begin(const QJsonArray &windows, int focused, int direction,
              const ProcessEnvironment &environment,
@@ -51,7 +48,8 @@ private:
   bool dragging_ = false;
   int launcherSerial_ = 0;
   bool launcherOpen_ = false;
-  QTimer feedbackTimer_;
+  wl_event_source *feedbackTimer_ = nullptr;
+  bool feedbackPending_ = false;
   int index_ = 0;
   int serial_ = 0;
   bool active_ = false;
@@ -59,6 +57,7 @@ private:
   QString background_;
   QTemporaryDir captureDirectory_;
   std::unique_ptr<ProcessRunner> captureRunner_;
+  static int handleFeedbackTimer(void *data);
   void publish();
   void writeSnapshot();
   void captureBackground(const ProcessEnvironment &environment);
