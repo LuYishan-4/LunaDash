@@ -14,7 +14,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-    find_package(Qt6 6.4 REQUIRED COMPONENTS Test Widgets)
+    find_package(Qt6 6.4 REQUIRED COMPONENTS Test Widgets DBus)
     add_executable(lunadash-input-settings-test
         tests/input/InputSettingsTests.cpp)
     set_target_properties(lunadash-input-settings-test PROPERTIES AUTOMOC OFF)
