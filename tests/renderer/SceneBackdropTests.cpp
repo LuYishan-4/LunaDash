@@ -207,7 +207,7 @@ public:
     VERIFY(wlr_scene_rect_create(target, 64, 64, blue));
     VERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, green));
     const auto image = capture(&target->node);
-    VERIFY(!image.pixels.isEmpty());
+    VERIFY(!image.pixels.empty());
     COMPARE(image.channel(8, 8, 16), 255);
     COMPARE(image.channel(8, 8, 8), 0);
     COMPARE(image.channel(8, 8, 0), 0);
@@ -231,7 +231,7 @@ public:
     wlr_scene_rect_set_color(background, blue);
     for (int attempt = 0; attempt < 3; ++attempt) {
       const auto image = capture(&target->node, &previous->node);
-      VERIFY(!image.pixels.isEmpty());
+      VERIFY(!image.pixels.empty());
       COMPARE(image.channel(8, 8, 16), 0);
       COMPARE(image.channel(8, 8, 0), 255);
     }
@@ -249,7 +249,7 @@ public:
     auto *stop = wlr_scene_tree_create(&scene_->tree);
     VERIFY(stop);
     const auto image = capture(&stop->node);
-    VERIFY(!image.pixels.isEmpty());
+    VERIFY(!image.pixels.empty());
     COMPARE(image.channel(8, 8, 16), 255);
     COMPARE(image.channel(8, 8, 8), 0);
     COMPARE(image.channel(8, 8, 0), 0);
@@ -320,7 +320,7 @@ public:
     VERIFY(foreign);
     const auto image = capture(&foreign->tree.node);
     wlr_scene_node_destroy(&foreign->tree.node);
-    VERIFY(image.pixels.isEmpty());
+    VERIFY(image.pixels.empty());
     COMPARE(allocator_->liveBuffers, 0);
   }
 
@@ -332,7 +332,7 @@ public:
                             wlr_box{0, 0, 16384, 1},
                             wlr_box{0, 0, 1, 16384}}) {
       const auto image = capture(&stop->node, nullptr, area, 32);
-      VERIFY(!image.pixels.isEmpty());
+      VERIFY(!image.pixels.empty());
       VERIFY(image.width <= 1024);
       VERIFY(image.height <= 1024);
       COMPARE(allocator_->liveBuffers, 0);
@@ -340,10 +340,10 @@ public:
     VERIFY(allocator_->largestWidth <= 1024);
     VERIFY(allocator_->largestHeight <= 1024);
     allocator_->failAt = allocator_->calls + 2;
-    VERIFY(capture(&stop->node).pixels.isEmpty());
+    VERIFY(capture(&stop->node).pixels.empty());
     COMPARE(allocator_->liveBuffers, 0);
     allocator_->fail = true;
-    VERIFY(capture(&stop->node).pixels.isEmpty());
+    VERIFY(capture(&stop->node).pixels.empty());
     COMPARE(allocator_->liveBuffers, 0);
   }
 };
