@@ -49,13 +49,9 @@
 #include "shell/launcher/OrbitSettings.hpp"
 #include "shell/modules/ShellModules.hpp"
 
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QPointer>
 #include <QUrl>
 #include <glib.h>
 #include <nlohmann/json.hpp>
@@ -69,6 +65,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <map>
 #include <memory>
@@ -87,6 +84,32 @@ using Templates::attachListener;
 using Templates::detachListener;
 using Templates::listenerOwner;
 using Templates::WaylandSlot;
+
+std::filesystem::path filePath(const QString &path) {
+  return std::filesystem::path(path.toStdString());
+}
+
+bool fileExists(const QString &path) {
+  std::error_code error;
+  const bool exists = std::filesystem::exists(filePath(path), error);
+  return exists && !error;
+}
+
+bool fileIsExecutable(const QString &path) {
+  std::error_code error;
+  const auto permissions = std::filesystem::status(filePath(path), error).permissions();
+  using Permissions = std::filesystem::perms;
+  return !error &&
+         (permissions & (Permissions::owner_exec | Permissions::group_exec |
+                         Permissions::others_exec)) != Permissions::none;
+}
+
+bool createDirectories(const QString &path) {
+  std::error_code error;
+  std::filesystem::create_directories(filePath(path), error);
+  return !error && std::filesystem::is_directory(filePath(path), error) &&
+         !error;
+}
 
 QString executableDirectory() {
   std::error_code error;
@@ -122,6 +145,19 @@ QString locateDataFile(const QString &relativePath) {
     if (auto path = findIn(*directory); !path.isEmpty())
       return path;
   return {};
+}
+
+QString localFileUri(const std::filesystem::path &path) {
+  GError *error = nullptr;
+  gchar *uri = g_filename_to_uri(path.c_str(), nullptr, &error);
+  if (!uri) {
+    if (error)
+      g_error_free(error);
+    return {};
+  }
+  const QString result = QString::fromUtf8(uri);
+  g_free(uri);
+  return result;
 }
 
 nlohmann::json nativeJsonObject(const QJsonObject &object) {
@@ -290,7 +326,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
           if (helper.isEmpty()) {
             const QString source = QStringLiteral(LUDASH_SCRIPT_SOURCE_DIR) +
                                    "/lunadash-clipboard-history";
-            if (QFileInfo(source).isExecutable())
+            if (fileIsExecutable(source))
               helper = source;
           }
 
@@ -312,7 +348,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
           const bool saved =
                       error.empty() && QString::fromStdString(path) ==
                                            screenshotDestination_ &&
-                      QFileInfo::exists(screenshotDestination_);
+                      fileExists(screenshotDestination_);
           screenshotDestination_.clear();
           completion(saved);
         }
@@ -532,10 +568,13 @@ ProcessRunner *WaylandCompositor::spawn(
         QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
     // Use assets next to the installed executable before any build checkout.
     // This also supports a staged/relocated installation in CI.
-    QString config = QDir(executableDirectory())
-                         .absoluteFilePath("../share/lunadash/shell/shell.qml");
-    if (!QFileInfo::exists(config))
-      config = QFileInfo::exists(sourceConfig)
+    const auto configPath =
+        (filePath(executableDirectory()) /
+         "../share/lunadash/shell/shell.qml")
+            .lexically_normal();
+    QString config = QString::fromStdString(configPath.string());
+    if (!fileExists(config))
+      config = fileExists(sourceConfig)
                    ? sourceConfig
                    : locateDataFile("lunadash/shell/shell.qml");
     if (config.isEmpty())
@@ -557,10 +596,7 @@ ProcessRunner *WaylandCompositor::spawn(
     environment["LUNADASH_WALLPAPER"] =
         wallpaperPath.empty()
             ? std::string{}
-            : QUrl::fromLocalFile(
-                  QString::fromStdString(wallpaperPath.string()))
-                  .toString()
-                  .toStdString();
+            : localFileUri(wallpaperPath).toStdString();
     // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
     // only for the LunaDash shell on NVIDIA hosts and only when the user did
     // not choose a backend explicitly. Unsupported systems still use Qt's
@@ -569,8 +605,8 @@ ProcessRunner *WaylandCompositor::spawn(
         environment.find("QT_FFMPEG_DECODING_HW_DEVICE_TYPES");
     if ((decoderPreference == environment.end() ||
          decoderPreference->second.empty()) &&
-        (QFileInfo::exists("/sys/module/nvidia") ||
-         QFileInfo::exists("/proc/driver/nvidia/version")))
+        (fileExists("/sys/module/nvidia") ||
+         fileExists("/proc/driver/nvidia/version")))
       environment["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "cuda";
     // The shell draws its own theme. A blocking portal Settings query here
     // would prevent even the startup splash from reaching its first frame.
@@ -585,7 +621,7 @@ ProcessRunner *WaylandCompositor::spawn(
         shellRenderingEnvironment.emplace(key, value->second);
     }
     if (!configureShellRendering(shellRenderingEnvironment,
-                                 QFileInfo::exists("/sys/module/nvidia"))) {
+                                 fileExists("/sys/module/nvidia"))) {
       qWarning(
           "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
       processFailure_ = true;
@@ -606,11 +642,11 @@ ProcessRunner *WaylandCompositor::spawn(
       if (arguments.size() >= 2 && arguments[0] == "--app" &&
           arguments[1] == "welcome") {
         executable = executableDirectory() + "/lunadash-welcome";
-        if (!QFileInfo::exists(executable))
+        if (!fileExists(executable))
           executable = executableDirectory() + "/ludash-welcome";
       } else {
         executable = executableDirectory() + "/lunadash-desktop";
-        if (!QFileInfo::exists(executable))
+        if (!fileExists(executable))
           executable = executableDirectory() + "/ludash-desktop";
       }
     }
@@ -709,8 +745,8 @@ bool WaylandCompositor::launchExternalCommand(QStringList command,
 
 bool WaylandCompositor::saveScreenshot(
     const QString &path, const std::function<void(bool)> &finished) {
-  if (!d || !d->primaryOutput || !QFileInfo(path).isAbsolute() ||
-      QFileInfo::exists(path) || screenCapture_->busy())
+  if (!d || !d->primaryOutput || !filePath(path).is_absolute() ||
+      fileExists(path) || screenCapture_->busy())
     return false;
 
   captureError_.clear();
@@ -730,10 +766,11 @@ bool WaylandCompositor::saveScreenshot(
 }
 
 void WaylandCompositor::saveState(const QString &path) {
-  QFile file(path);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+  std::ofstream file(filePath(path), std::ios::binary | std::ios::trunc);
+  if (!file)
     return;
-  file.write(QJsonDocument(state()).toJson(QJsonDocument::Indented));
+  const auto bytes = QJsonDocument(state()).toJson(QJsonDocument::Indented);
+  file.write(bytes.constData(), bytes.size());
 }
 
 bool WaylandCompositor::hasProcessFailure() const { return processFailure_; }
@@ -1840,9 +1877,7 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
       {"wallpaperImage",
        wallpaperImagePath().empty()
            ? QString{}
-           : QUrl::fromLocalFile(
-                 QString::fromStdString(wallpaperImagePath().string()))
-                 .toString()},
+           : localFileUri(wallpaperImagePath())},
       {"workspace", workspace_},
       {"processFailure", processFailure_},
       {"clients", entries},
@@ -1908,7 +1943,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   } else if (method == "capture") {
     if (!value.startsWith('/'))
       return {{"error", "Capture requires an absolute path."}};
-    if (QFileInfo::exists(value))
+    if (fileExists(value))
       return {{"error", "Refusing to overwrite " + value}};
     if (!saveScreenshot(value))
       return {{"error", captureError_.isEmpty()
@@ -2523,7 +2558,7 @@ QString WaylandCompositor::nextCapturePath() const {
       pictures ? QString::fromUtf8(pictures)
                : QString::fromUtf8(g_get_home_dir()) + "/Pictures";
   directory += "/Screenshots";
-  if (!QDir().mkpath(directory))
+  if (!createDirectories(directory))
     return {};
   return directory + "/LunaDash-" + QString::fromStdString(currentTimestamp()) +
          ".png";
