@@ -260,7 +260,7 @@ add_library(ludash-plugins src/compositor/plugins/PluginManager.hpp
 target_include_directories(ludash-plugins PUBLIC src)
 target_link_libraries(ludash-plugins PUBLIC
     ludash-plugin-catalog ludash-tiling ludash-crypto ludash-process-runner
-    Qt6::Core)
+    Qt6::Core ${CMAKE_DL_LIBS})
 target_compile_definitions(ludash-plugins PRIVATE
     LUDASH_PLUGIN_CATALOG_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/catalog.json"
     LUDASH_PLUGIN_CATALOG_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/catalog.json")

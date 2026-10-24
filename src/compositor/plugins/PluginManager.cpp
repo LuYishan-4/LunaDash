@@ -8,7 +8,6 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QLibrary>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QScopedValueRollback>
@@ -17,6 +16,7 @@
 #include <QUrl>
 #include <algorithm>
 #include <chrono>
+#include <dlfcn.h>
 #include <fstream>
 #include <map>
 #include <set>
@@ -27,13 +27,17 @@ struct PluginManager::Native {
   // Load native code from an immutable private path. Some libc/loader
   // implementations keep mappings alive after dlclose(); mutating the
   // installed .so in place would then invalidate executable pages.
-  // QTemporaryDir is declared before QLibrary so the library is destroyed
-  // before its staged file is unlinked.
+  // Keep the staged shared object immutable for the lifetime of the mapping.
   QTemporaryDir stage;
-  QLibrary library;
+  void *library = nullptr;
   PluginDescriptor descriptor;
   PluginDescriptor current;
   const ludash_plugin_api *api = nullptr;
+
+  ~Native() {
+    if (library)
+      ::dlclose(library);
+  }
 };
 
 struct PluginManager::StoreInstall {
@@ -847,13 +851,23 @@ void PluginManager::refresh() {
         } else if (!sourceLibrary.copy(stagedLibrary)) {
           errors_[key] = sourceLibrary.errorString();
         } else {
-          native->library.setFileName(stagedLibrary);
-
+          native->library =
+              ::dlopen(stagedLibrary.toStdString().c_str(), RTLD_NOW | RTLD_LOCAL);
+          const char *openError = native->library ? nullptr : ::dlerror();
+          const std::string libraryError =
+              openError ? openError : "Could not load the plugin library.";
           using Entry = const ludash_plugin_api *(*)();
-          const auto entry = reinterpret_cast<Entry>(
-              native->library.resolve("ludash_plugin_entry_v2"));
-          if (!entry) {
-            errors_[key] = native->library.errorString();
+          ::dlerror();
+          const auto symbol =
+              native->library
+                  ? ::dlsym(native->library, "ludash_plugin_entry_v2")
+                  : nullptr;
+          const char *loadError = ::dlerror();
+          const auto entry = reinterpret_cast<Entry>(symbol);
+          if (!native->library || loadError || !entry) {
+            errors_[key] = native->library && loadError
+                               ? QString::fromUtf8(loadError)
+                               : QString::fromStdString(libraryError);
           } else {
             native->api = entry();
             const auto *api = native->api;
