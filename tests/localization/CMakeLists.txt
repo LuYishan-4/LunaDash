@@ -12,13 +12,11 @@ get_filename_component(REPOSITORY_ROOT ${CMAKE_CURRENT_LIST_DIR}/../.. ABSOLUTE)
 add_library(ludash-desktop-preferences
     ${REPOSITORY_ROOT}/src/config/desktop/DesktopPreferenceStore.cpp)
 target_include_directories(ludash-desktop-preferences PUBLIC ${REPOSITORY_ROOT}/src)
-set_target_properties(ludash-desktop-preferences PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-desktop-preferences PUBLIC nlohmann_json::nlohmann_json)
 
 add_library(ludash-localization
     ${REPOSITORY_ROOT}/src/config/localization/Localization.cpp)
 target_include_directories(ludash-localization PUBLIC ${REPOSITORY_ROOT}/src)
-set_target_properties(ludash-localization PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-localization
     PUBLIC ludash-desktop-preferences nlohmann_json::nlohmann_json
     PRIVATE PkgConfig::LUDASH_GIO)
@@ -27,7 +25,6 @@ target_compile_definitions(ludash-localization PRIVATE
     LUDASH_TRANSLATIONS_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ludash/translations")
 
 add_executable(localization-test main.cpp)
-set_target_properties(localization-test PROPERTIES AUTOMOC OFF)
 target_link_libraries(localization-test PRIVATE ludash-localization)
 enable_testing()
 add_test(NAME localization-contract
