@@ -2,10 +2,9 @@
 
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/window/animation/WindowAnimation.hpp"
+#include "core/process/ProcessRunner.hpp"
 #include "core/process/ProcessEnvironment.hpp"
 #include <QJsonObject>
-#include <QObject>
-#include <QProcess>
 #include <QRect>
 #include <functional>
 #include <memory>
@@ -34,18 +33,22 @@ class ShortcutSettings;
 class UpdateChecker;
 struct ClientWindow;
 
-class WaylandCompositor final : public QObject {
+class WaylandCompositor final {
 public:
   WaylandCompositor(const QByteArray &socket, bool fullscreen, bool startShell,
                     const QString &rendererPreference);
-  ~WaylandCompositor() override;
+  ~WaylandCompositor();
 
-  QProcess *spawn(const QStringList &arguments, const QString &program = {},
-                  bool required = true);
+  ProcessRunner *spawn(
+      const QStringList &arguments, const QString &program = {},
+      bool required = true,
+      std::function<void(const ProcessResult &)> completion = {});
   bool saveScreenshot(const QString &path,
                       const std::function<void(bool)> &finished = {});
   void saveState(const QString &path);
   bool hasProcessFailure() const;
+  int runEventLoop(bool profile = false);
+  void terminateEventLoop(int exitCode);
   bool scheduleEventLoopCallback(int delayMilliseconds,
                                  std::function<void()> callback);
   void closeTestSession(const std::function<void(bool)> &finished);
@@ -78,7 +81,7 @@ private:
   ProcessEnvironment clientEnvironment_;
   std::vector<std::unique_ptr<ClientWindow>> clients_;
   std::shared_ptr<ThumbnailWriteState> thumbnailWrite_;
-  std::vector<QProcess *> processes_;
+  std::vector<std::shared_ptr<ProcessRunner>> processes_;
   int queuedThumbnailSerial_ = 0;
   std::vector<int> queuedThumbnailWindows_;
   ClientWindow *focused_ = nullptr;

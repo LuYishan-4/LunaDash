@@ -49,7 +49,6 @@
 #include "shell/launcher/OrbitSettings.hpp"
 #include "shell/modules/ShellModules.hpp"
 
-#include <QAbstractEventDispatcher>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -58,11 +57,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
-#include <QProcess>
-#include <QProcessEnvironment>
-#include <QSocketNotifier>
 #include <QStandardPaths>
 #include <QUrl>
+#include <glib.h>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -78,6 +75,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <poll.h>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -217,13 +215,6 @@ bool groupWindowIds(const QString &text, int *window, int *target) {
   return true;
 }
 
-QProcessEnvironment processEnvironment(const ProcessEnvironment &environment) {
-  QProcessEnvironment result;
-  for (const auto &[name, value] : environment)
-    result.insert(QString::fromStdString(name), QString::fromStdString(value));
-  return result;
-}
-
 void applyXWaylandEnvironment(ProcessEnvironment &environment,
                               const XWaylandSupport *support) {
   ProcessEnvironment displayEnvironment;
@@ -273,24 +264,12 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
           if (helper.isEmpty()) {
             qWarning("Screenshot saved, but clipboard helper is unavailable.");
           } else {
-            auto *publisher = new QProcess(this);
-            publisher->setProcessEnvironment(
-                processEnvironment(clientEnvironment_));
-            publisher->setProcessChannelMode(QProcess::ForwardedChannels);
-            connect(publisher, &QProcess::finished, this,
-                    [publisher](int code, QProcess::ExitStatus status) {
-                      if (status != QProcess::NormalExit || code != 0)
-                        qWarning("Screenshot saved, but publishing it to the "
-                                 "clipboard failed.");
-                      publisher->deleteLater();
-                    });
-            connect(publisher, &QProcess::errorOccurred, this,
-                    [publisher](QProcess::ProcessError) {
-                      qWarning("Screenshot saved, but clipboard publisher "
-                               "could not start.");
-                      publisher->deleteLater();
-                    });
-                    publisher->start(helper, {"publish-file", "image/png", capturePath});
+            spawn({"publish-file", "image/png", capturePath}, helper, false,
+                  [](const ProcessResult &result) {
+                    if (!result.success)
+                      qWarning("Screenshot saved, but publishing it to the "
+                               "clipboard failed.");
+                  });
           }
         }
         captureError_ = QString::fromStdString(error);
@@ -473,17 +452,10 @@ WaylandCompositor::~WaylandCompositor() {
   }
   const auto childProcesses = processes_;
   processes_.clear();
-  for (auto *process : childProcesses) {
+  for (const auto &process : childProcesses) {
     if (!process)
       continue;
-    disconnect(process, nullptr, this, nullptr);
-    if (process->state() == QProcess::NotRunning)
-      continue;
-    process->terminate();
-    if (!process->waitForFinished(500)) {
-      process->kill();
-      process->waitForFinished(500);
-    }
+    process->cancel();
   }
   delete shortcutSettings_;
   shortcutSettings_ = nullptr;
@@ -510,52 +482,19 @@ void WaylandCompositor::scheduleShellRestart() {
   });
 }
 
-QProcess *WaylandCompositor::spawn(const QStringList &arguments,
-                                   const QString &program, bool required) {
+ProcessRunner *WaylandCompositor::spawn(
+    const QStringList &arguments, const QString &program, bool required,
+    std::function<void(const ProcessResult &)> completion) {
   auto environment = clientEnvironment_;
   applyXWaylandEnvironment(environment, xwayland_);
 
-  auto *process = new QProcess(this);
-  process->setProcessEnvironment(processEnvironment(environment));
-  process->setProcessChannelMode(QProcess::ForwardedChannels);
-  connect(process, &QProcess::errorOccurred, this,
-          [this, process, required](QProcess::ProcessError) {
-            if (shuttingDown_)
-              return;
-            if (required)
-              processFailure_ = true;
-            qWarning().noquote()
-                << "LunaDash child process error:" << process->errorString();
-          });
-  connect(process, &QProcess::finished, this,
-          [this, process, required](int code, QProcess::ExitStatus status) {
-            if (!shuttingDown_ &&
-                (code != 0 || status != QProcess::NormalExit)) {
-              if (required)
-                processFailure_ = true;
-              qWarning().noquote()
-                  << "LunaDash child exited abnormally:" << process->program()
-                  << "code" << code;
-            }
-            std::erase(processes_, process);
-            process->deleteLater();
-          });
-
-  if (program.isEmpty() && arguments.contains("--session")) {
-    connect(process, &QProcess::finished, this,
-            [this](int code, QProcess::ExitStatus status) {
-              if (shuttingDown_ || testStopping_ || logoutPending_)
-                return;
-              qWarning().noquote()
-                  << "LunaDash shell exited; scheduling restart:"
-                  << "code" << code << "status" << status;
-              scheduleShellRestart();
-            });
-    connect(process, &QProcess::errorOccurred, this,
-            [this](QProcess::ProcessError) {
-              if (!shuttingDown_ && !testStopping_ && !logoutPending_)
-                scheduleShellRestart();
-            });
+  const bool sessionShell =
+      program.isEmpty() &&
+      std::find(arguments.cbegin(), arguments.cend(), "--session") !=
+          arguments.cend();
+  std::vector<std::string> nativeArguments;
+  QString executable = program;
+  if (sessionShell) {
 
     const QString sourceConfig =
         QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
@@ -572,12 +511,9 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       config = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
                                       "ludash/shell/shell.qml");
     if (config.isEmpty()) {
-      // Starting Quickshell with an empty --path only produces a silent,
-      // windowless shell. Report the missing shell asset instead.
       if (required)
         processFailure_ = true;
       qWarning("LunaDash shell.qml was not found in any search location.");
-      process->deleteLater();
       return nullptr;
     }
     const QString quickshell = QStandardPaths::findExecutable("quickshell");
@@ -585,7 +521,6 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       if (required)
         processFailure_ = true;
       qWarning("Quickshell is unavailable.");
-      process->deleteLater();
       return nullptr;
     }
     const auto wallpaperPath = wallpaperImagePath();
@@ -624,7 +559,6 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       qWarning(
           "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
       processFailure_ = true;
-      process->deleteLater();
       return nullptr;
     }
     for (const auto *key :
@@ -635,16 +569,9 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
       else
         environment[key] = value->second;
     }
-    process->setProcessEnvironment(processEnvironment(environment));
-    process->start(quickshell, {"--path", config, "--no-color"});
-
-    const QPointer<QProcess> shellGuard(process);
-    d->scheduleCallback(10000, [this, shellGuard] {
-      if (shellGuard && shellGuard->state() != QProcess::NotRunning)
-        shellRestartFailures_ = 0;
-    });
+    executable = quickshell;
+    nativeArguments = {"--path", config.toStdString(), "--no-color"};
   } else {
-    auto executable = program;
     if (executable.isEmpty()) {
       if (arguments.size() >= 2 && arguments[0] == "--app" &&
           arguments[1] == "welcome") {
@@ -653,19 +580,71 @@ QProcess *WaylandCompositor::spawn(const QStringList &arguments,
         if (!QFileInfo::exists(executable))
           executable =
               QCoreApplication::applicationDirPath() + "/ludash-welcome";
-        process->start(executable, {});
-        processes_.push_back(process);
-        return process;
+      } else {
+        executable =
+            QCoreApplication::applicationDirPath() + "/lunadash-desktop";
+        if (!QFileInfo::exists(executable))
+          executable =
+              QCoreApplication::applicationDirPath() + "/ludash-desktop";
       }
-      executable = QCoreApplication::applicationDirPath() + "/lunadash-desktop";
-      if (!QFileInfo::exists(executable))
-        executable = QCoreApplication::applicationDirPath() + "/ludash-desktop";
     }
-    process->start(executable, arguments);
+    if (!(arguments.size() >= 2 && arguments[0] == "--app" &&
+          arguments[1] == "welcome"))
+      for (const auto &argument : arguments)
+        nativeArguments.push_back(argument.toStdString());
   }
 
+  if (executable.isEmpty()) {
+    if (required)
+      processFailure_ = true;
+    return nullptr;
+  }
+
+  auto process = std::make_shared<ProcessRunner>(d->eventLoop, false, true);
+  auto *raw = process.get();
   processes_.push_back(process);
-  return process;
+  const std::weak_ptr<ProcessRunner> weakProcess = process;
+  const bool started = process->runDetailed(
+      executable.toStdString(), nativeArguments,
+      [this, raw, weakProcess, required, sessionShell,
+       completion = std::move(completion)](const ProcessResult &result) {
+        if (!shuttingDown_ && !result.success) {
+          if (required)
+            processFailure_ = true;
+          qWarning("LunaDash child process exited unsuccessfully.");
+        }
+        if (completion)
+          completion(result);
+        if (sessionShell && !shuttingDown_ && !testStopping_ &&
+            !logoutPending_) {
+          qWarning("LunaDash shell exited; scheduling restart.");
+          scheduleShellRestart();
+        }
+        const auto weakOwner = weakProcess;
+        if (d)
+          d->scheduleCallback(0, [this, raw, weakOwner] {
+            const auto locked = weakOwner.lock();
+            if (locked && !locked->busy())
+              std::erase(processes_, locked);
+            else if (!locked)
+              std::erase_if(processes_, [raw](const auto &entry) {
+                return entry.get() == raw;
+              });
+          });
+      },
+      0, environment);
+  if (!started) {
+    std::erase(processes_, process);
+    if (required)
+      processFailure_ = true;
+    return nullptr;
+  }
+  if (sessionShell)
+    d->scheduleCallback(10000, [this, weakProcess] {
+      if (const auto active = weakProcess.lock(); active && active->busy())
+        shellRestartFailures_ = 0;
+    });
+  return raw;
 }
 
 bool WaylandCompositor::launchExternalCommand(QStringList command,
@@ -732,6 +711,15 @@ void WaylandCompositor::saveState(const QString &path) {
 }
 
 bool WaylandCompositor::hasProcessFailure() const { return processFailure_; }
+
+int WaylandCompositor::runEventLoop(bool profile) {
+  return d ? d->runEventLoop(profile) : 2;
+}
+
+void WaylandCompositor::terminateEventLoop(int exitCode) {
+  if (d)
+    d->terminateEventLoop(exitCode);
+}
 
 bool WaylandCompositor::scheduleEventLoopCallback(
     int delayMilliseconds, std::function<void()> callback) {
@@ -1342,7 +1330,7 @@ void WaylandCompositor::removeClient(ClientWindow *client) {
   arrange();
   synchronizeWindowFocus();
   if (logoutPending_ && clients_.empty())
-    QCoreApplication::exit(hasProcessFailure() ? 2 : 0);
+    terminateEventLoop(hasProcessFailure() ? 2 : 0);
 }
 
 void WaylandCompositor::applyKeyboardConfiguration() {
@@ -2276,10 +2264,22 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     arrange();
   } else if (method == "launch-x11") {
     std::vector<std::string> command;
-    const auto parsed = QProcess::splitCommand(value);
-    command.reserve(static_cast<std::size_t>(parsed.size()));
-    for (const auto &argument : parsed)
-      command.push_back(argument.toStdString());
+    const auto utf8 = value.toUtf8();
+    gchar **parsed = nullptr;
+    gint count = 0;
+    GError *parseError = nullptr;
+    if (!g_shell_parse_argv(utf8.constData(), &count, &parsed, &parseError)) {
+      const QString message = parseError
+                                  ? QString::fromUtf8(parseError->message)
+                                  : QStringLiteral("Invalid command line.");
+      if (parseError)
+        g_error_free(parseError);
+      return {{"error", message}};
+    }
+    command.reserve(static_cast<std::size_t>(count));
+    for (gint index = 0; index < count; ++index)
+      command.emplace_back(parsed[index]);
+    g_strfreev(parsed);
     std::string error;
     if (!xwayland_ || !xwayland_->launch(command, &error))
       return {{"error", error.empty() ? "XWayland is unavailable."
@@ -2533,8 +2533,8 @@ void WaylandCompositor::closeTestSession(
       xwayland_->stop();
     const bool xwaylandDone = !xwayland_ || xwayland_->stopped();
     const bool processesDone = std::all_of(
-        processes_.cbegin(), processes_.cend(), [](const QProcess *process) {
-          return !process || process->state() == QProcess::NotRunning;
+        processes_.cbegin(), processes_.cend(), [](const auto &process) {
+          return !process || !process->busy();
         });
     if ((clients_.empty() && processesDone && xwaylandDone) ||
         *elapsed >= 5000) {
@@ -2561,7 +2561,7 @@ void WaylandCompositor::requestShutdown() {
     closeClient(client.get());
   }
   if (!applications)
-    QCoreApplication::exit(hasProcessFailure() ? 2 : 0);
+    terminateEventLoop(hasProcessFailure() ? 2 : 0);
 }
 
 } // namespace LunaDash

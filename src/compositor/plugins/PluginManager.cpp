@@ -133,17 +133,20 @@ bool PluginManager::defer(std::function<void()> callback) {
   deferred->callback = std::move(callback);
   auto *raw = deferred.get();
   deferredCallbacks_.push_back(std::move(deferred));
-  raw->source = wl_event_loop_add_idle(
-      eventLoop_,
-      [](void *data) {
-        auto *pending = static_cast<DeferredCallback *>(data);
-        pending->manager->dispatchDeferred(pending);
-      },
-      raw);
-  if (raw->source)
+  raw->source = wl_event_loop_add_timer(eventLoop_, handleDeferredTimer, raw);
+  if (raw->source && wl_event_source_timer_update(raw->source, 0) >= 0)
     return true;
+  if (raw->source)
+    wl_event_source_remove(raw->source);
   deferredCallbacks_.pop_back();
   return false;
+}
+
+int PluginManager::handleDeferredTimer(void *data) {
+  auto *pending = static_cast<DeferredCallback *>(data);
+  if (pending && pending->manager)
+    pending->manager->dispatchDeferred(pending);
+  return 0;
 }
 
 void PluginManager::dispatchDeferred(DeferredCallback *callback) {

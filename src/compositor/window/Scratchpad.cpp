@@ -62,31 +62,32 @@ bool WaylandCompositor::toggleScratchpad(QString *error) {
     *error = QString::fromStdString(nativeError);
   if (command.empty())
     return false;
+  scratchpadPending_ = true;
+  const auto generation = ++scratchpadGeneration_;
+  scratchpadError_.clear();
   const auto executable = QString::fromStdString(command.front());
   QStringList arguments;
   for (auto argument = std::next(command.begin()); argument != command.end();
        ++argument)
     arguments.push_back(QString::fromStdString(*argument));
-  auto *process = spawn(arguments, executable, false);
+  auto *process = spawn(arguments, executable, false,
+                        [this, generation](const ProcessResult &result) {
+                          if (result.success || !scratchpadPending_ ||
+                              scratchpadGeneration_ != generation)
+                            return;
+                          d->cancelScratchpadTimeout();
+                          scratchpadPending_ = false;
+                          scratchpadProcess_ = 0;
+                          scratchpadError_ =
+                              "Could not launch the configured terminal.";
+                        });
   if (!process) {
+    scratchpadPending_ = false;
     if (error)
       *error = "Could not launch the configured terminal.";
     return false;
   }
-  scratchpadPending_ = true;
-  const auto generation = ++scratchpadGeneration_;
-  scratchpadError_.clear();
-  connect(process, &QProcess::started, this,
-          [this, process] { scratchpadProcess_ = process->processId(); });
-  connect(process, &QProcess::errorOccurred, this,
-          [this](QProcess::ProcessError errorCode) {
-            if (errorCode == QProcess::FailedToStart) {
-              d->cancelScratchpadTimeout();
-              scratchpadPending_ = false;
-              scratchpadProcess_ = 0;
-              scratchpadError_ = "Could not launch the configured terminal.";
-            }
-          });
+  scratchpadProcess_ = process->processId();
   if (!d->scheduleScratchpadTimeout(generation)) {
     scratchpadPending_ = false;
     scratchpadError_ = "Could not monitor the configured terminal launch.";

@@ -8,7 +8,6 @@
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/WaylandSlot.hpp"
 #include <QJsonArray>
-#include <QList>
 #include <QPointF>
 #include <QSize>
 #include <algorithm>
@@ -17,8 +16,6 @@
 #include <unordered_set>
 #include <vector>
 #include <wayland-server-core.h>
-class QSocketNotifier;
-
 namespace LunaDash {
 using Templates::WaylandSlot;
 inline constexpr int kDefaultOutputRefreshMilliHz = 60000;
@@ -222,6 +219,8 @@ public:
   quint64 slowDispatches = 0;
   qint64 lastDispatchUsec = 0;
   qint64 maxDispatchUsec = 0;
+  int exitCode = 0;
+  bool eventLoopRunning = true;
 
   wlr_xdg_shell *xdgShell = nullptr;
   wlr_layer_shell_v1 *layerShell = nullptr;
@@ -253,7 +252,6 @@ public:
   wlr_text_input_manager_v3 *textInputManager = nullptr;
   wlr_virtual_keyboard_manager_v1 *virtualKeyboardManager = nullptr;
 
-  QSocketNotifier *waylandNotifier = nullptr;
   std::vector<OutputState *> outputs;
   std::vector<XWaylandState *> xwaylandSurfaces;
   std::vector<LayerState *> layers;
@@ -316,7 +314,9 @@ public:
 
   bool fail(const char *message);
 
-  void dispatch();
+  int runEventLoop(bool profile);
+
+  void terminateEventLoop(int exitCode);
 
   void shutdown();
 

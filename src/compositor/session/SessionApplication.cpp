@@ -3,10 +3,8 @@
 #include "config/BuildConfig.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
 
-#include <QAbstractEventDispatcher>
 #include <QCoreApplication>
 #include <algorithm>
-#include <chrono>
 #include <csignal>
 #include <charconv>
 #include <iostream>
@@ -143,9 +141,6 @@ void installFatalSignalDiagnostics() {
 int SessionApplication::run(int argc, char **argv) {
   QCoreApplication app(argc, argv);
   installFatalSignalDiagnostics();
-  QObject::connect(&app, &QCoreApplication::aboutToQuit, [] {
-    qInfo("LunaDash compositor event loop is quitting cleanly.");
-  });
   app.setApplicationName("LunaDash");
   app.setOrganizationName("LunaDash");
   app.setApplicationVersion(QString::fromLatin1(BuildConfig::version) + " (" +
@@ -175,28 +170,6 @@ int SessionApplication::run(int argc, char **argv) {
                     << "executable:" << app.applicationFilePath();
   qInfo("LunaDash input: wlroots seat + libinput/xkbcommon (no Qt input path)");
 
-  std::chrono::steady_clock::time_point activeTurn;
-  bool activeTurnValid = false;
-  if (options.profile) {
-    auto *dispatcher = QAbstractEventDispatcher::instance();
-    QObject::connect(dispatcher, &QAbstractEventDispatcher::awake, &app,
-                     [&] {
-                       activeTurn = std::chrono::steady_clock::now();
-                       activeTurnValid = true;
-                     });
-    QObject::connect(
-        dispatcher, &QAbstractEventDispatcher::aboutToBlock, &app, [&] {
-          if (!activeTurnValid)
-            return;
-          const auto elapsed = std::chrono::duration_cast<
-              std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                         activeTurn)
-                                   .count();
-          if (elapsed > 25)
-            qWarning() << "LunaDash event-loop stall:" << elapsed << "ms";
-        });
-  }
-
   LunaDash::WaylandCompositor compositor(
       QString::fromStdString(options.socket).toUtf8(), options.fullscreen,
       !options.noShell, renderer);
@@ -216,12 +189,12 @@ int SessionApplication::run(int argc, char **argv) {
               if (!options.state.empty())
                 compositor.saveState(
                     QString::fromStdString(options.state));
-              const auto finish = [&app, &compositor](bool ok) {
+              const auto finish = [&compositor](bool ok) {
                 compositor.closeTestSession(
-                    [&app, &compositor, ok](bool clean) {
-                      app.exit(ok && clean && !compositor.hasProcessFailure()
-                                   ? 0
-                                   : 2);
+                    [&compositor, ok](bool clean) {
+                      compositor.terminateEventLoop(
+                          ok && clean && !compositor.hasProcessFailure() ? 0
+                                                                        : 2);
                     });
               };
               if (options.screenshot.empty()) {
@@ -235,7 +208,7 @@ int SessionApplication::run(int argc, char **argv) {
       return 2;
   }
 
-  return app.exec();
+  return compositor.runEventLoop(options.profile);
 }
 
 } // namespace LunaDash

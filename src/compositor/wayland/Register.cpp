@@ -2,10 +2,9 @@
 #include "compositor/renderer/selection/RenderSelection.h"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
-#include <QAbstractEventDispatcher>
-#include <QCoreApplication>
-#include <QSocketNotifier>
 #include <algorithm>
+#include <cerrno>
+#include <poll.h>
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -243,15 +242,6 @@ bool WaylandCompositor::Impl::initialize() {
     }
   }
 
-  const int fd = wl_event_loop_get_fd(eventLoop);
-  waylandNotifier = new QSocketNotifier(fd, QSocketNotifier::Read, q);
-  QObject::connect(waylandNotifier, &QSocketNotifier::activated, q,
-                   [this] { dispatch(); });
-  if (auto *dispatcher = QAbstractEventDispatcher::instance()) {
-    QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock, q,
-                     [this] { dispatch(); });
-  }
-
   if (!wlr_backend_start(backend))
     return fail("wlroots could not start the backend.");
 
@@ -265,29 +255,57 @@ bool WaylandCompositor::Impl::initialize() {
 bool WaylandCompositor::Impl::fail(const char *message) {
   qCritical().noquote() << "LunaDash wlroots:" << message;
   q->processFailure_ = true;
-  scheduleCallback(0, [] { QCoreApplication::exit(2); });
+  terminateEventLoop(2);
   return false;
 }
 
-void WaylandCompositor::Impl::dispatch() {
-  if (!eventLoop)
-    return;
-  const auto started = std::chrono::steady_clock::now();
-  if (wl_event_loop_dispatch(eventLoop, 0) < 0) {
-    q->processFailure_ = true;
-    qCritical("LunaDash wlroots event dispatch failed.");
-    QCoreApplication::exit(2);
-    return;
-  }
-  if (display)
+int WaylandCompositor::Impl::runEventLoop(bool profile) {
+  if (!display || !eventLoop)
+    return 2;
+  const int eventLoopFd = wl_event_loop_get_fd(eventLoop);
+  if (eventLoopFd < 0)
+    return 2;
+  while (eventLoopRunning) {
+    const auto started = std::chrono::steady_clock::now();
+    if (wl_event_loop_dispatch(eventLoop, 0) < 0) {
+      qCritical("LunaDash wlroots event dispatch failed.");
+      q->processFailure_ = true;
+      exitCode = 2;
+      break;
+    }
     wl_display_flush_clients(display);
-  ++dispatchCalls;
-  lastDispatchUsec = std::chrono::duration_cast<std::chrono::microseconds>(
-                         std::chrono::steady_clock::now() - started)
-                         .count();
-  maxDispatchUsec = std::max(maxDispatchUsec, lastDispatchUsec);
-  if (lastDispatchUsec >= 8000)
-    ++slowDispatches;
+    ++dispatchCalls;
+    lastDispatchUsec =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - started)
+            .count();
+    maxDispatchUsec = std::max(maxDispatchUsec, lastDispatchUsec);
+    if (lastDispatchUsec >= 8000)
+      ++slowDispatches;
+    if (profile && lastDispatchUsec > 25000)
+      qWarning() << "LunaDash event-loop dispatch:"
+                 << static_cast<double>(lastDispatchUsec) / 1000.0 << "ms";
+    if (!eventLoopRunning)
+      break;
+    pollfd descriptor{eventLoopFd, POLLIN, 0};
+    int result;
+    do {
+      result = ::poll(&descriptor, 1, -1);
+    } while (result < 0 && errno == EINTR);
+    if (result < 0 ||
+        (descriptor.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+      qCritical("LunaDash could not poll the wlroots event loop.");
+      q->processFailure_ = true;
+      exitCode = 2;
+      break;
+    }
+  }
+  return exitCode;
+}
+
+void WaylandCompositor::Impl::terminateEventLoop(int status) {
+  exitCode = status;
+  eventLoopRunning = false;
 }
 
 bool WaylandCompositor::Impl::scheduleScratchpadTimeout(quint64 generation) {
@@ -395,11 +413,6 @@ void WaylandCompositor::Impl::shutdown() {
   clearPendingDisplay();
   if (!display)
     return;
-  if (waylandNotifier) {
-    waylandNotifier->setEnabled(false);
-    waylandNotifier->deleteLater();
-    waylandNotifier = nullptr;
-  }
 
   // Underlays retain renderer buffers and listeners on client scene nodes.
   // Release them while both the scene and renderer are still alive.

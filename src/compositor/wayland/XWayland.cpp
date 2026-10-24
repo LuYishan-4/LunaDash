@@ -274,7 +274,16 @@ void WaylandCompositor::Impl::deferClientRemoval(ClientWindow *client) {
   removal->client = client;
   auto *data = removal.get();
   deferredClientRemovals.push_back(std::move(removal));
-  if (!wl_event_loop_add_idle(eventLoop, handleDeferredClientRemoval, data)) {
+  auto *source = wl_event_loop_add_timer(
+      eventLoop,
+      [](void *callbackData) {
+        handleDeferredClientRemoval(callbackData);
+        return 0;
+      },
+      data);
+  if (!source || wl_event_source_timer_update(source, 0) < 0) {
+    if (source)
+      wl_event_source_remove(source);
     deferredClientRemovals.pop_back();
     qCritical("Could not schedule deferred XWayland client removal.");
   }

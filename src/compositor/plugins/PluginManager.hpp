@@ -50,6 +50,7 @@ private:
 
   void notifyChanged();
   bool defer(std::function<void()> callback);
+  static int handleDeferredTimer(void *data);
   void dispatchDeferred(DeferredCallback *callback);
   void refreshStore();
   bool applyStoreCatalog(const QByteArray &bytes, QString *error);

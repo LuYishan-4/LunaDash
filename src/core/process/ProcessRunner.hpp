@@ -25,7 +25,8 @@ public:
   using Completion = std::function<void(bool, const std::string &)>;
   using DetailedCompletion = std::function<void(const ProcessResult &)>;
 
-  explicit ProcessRunner(wl_event_loop *eventLoop, bool collectOutput = true);
+  explicit ProcessRunner(wl_event_loop *eventLoop, bool collectOutput = true,
+                         bool forwardOutput = false);
   ~ProcessRunner();
 
   ProcessRunner(const ProcessRunner &) = delete;
@@ -46,6 +47,7 @@ public:
                    DetailedCompletion completion, int timeoutMilliseconds,
                    const ProcessEnvironment &environment);
   bool busy() const noexcept;
+  pid_t processId() const noexcept;
   void cancel() noexcept;
 
 private:
@@ -62,6 +64,7 @@ private:
 
   wl_event_loop *eventLoop_ = nullptr;
   const bool collectOutput_ = true;
+  const bool forwardOutput_ = false;
   wl_event_source *outputSource_ = nullptr;
   wl_event_source *timerSource_ = nullptr;
   int outputFd_ = -1;

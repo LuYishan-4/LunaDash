@@ -35,8 +35,10 @@ void closeDescriptor(int &fd) {
 }
 } // namespace
 
-ProcessRunner::ProcessRunner(wl_event_loop *eventLoop, bool collectOutput)
-    : eventLoop_(eventLoop), collectOutput_(collectOutput) {}
+ProcessRunner::ProcessRunner(wl_event_loop *eventLoop, bool collectOutput,
+                             bool forwardOutput)
+    : eventLoop_(eventLoop), collectOutput_(collectOutput),
+      forwardOutput_(forwardOutput) {}
 
 ProcessRunner::~ProcessRunner() {
   completion_ = {};
@@ -109,14 +111,16 @@ bool ProcessRunner::runWithEnvironment(
         return false;
 
   int pipeFds[2] = {-1, -1};
-  if (::pipe2(pipeFds, O_CLOEXEC) != 0)
-    return false;
-  const int readFlags = ::fcntl(pipeFds[0], F_GETFL, 0);
-  if (readFlags < 0 ||
-      ::fcntl(pipeFds[0], F_SETFL, readFlags | O_NONBLOCK) < 0) {
-    closeDescriptor(pipeFds[0]);
-    closeDescriptor(pipeFds[1]);
-    return false;
+  if (!forwardOutput_) {
+    if (::pipe2(pipeFds, O_CLOEXEC) != 0)
+      return false;
+    const int readFlags = ::fcntl(pipeFds[0], F_GETFL, 0);
+    if (readFlags < 0 ||
+        ::fcntl(pipeFds[0], F_SETFL, readFlags | O_NONBLOCK) < 0) {
+      closeDescriptor(pipeFds[0]);
+      closeDescriptor(pipeFds[1]);
+      return false;
+    }
   }
 
   std::vector<std::string> argumentStorage;
@@ -154,16 +158,16 @@ bool ProcessRunner::runWithEnvironment(
   posix_spawn_file_actions_t actions;
   int spawnError = ::posix_spawn_file_actions_init(&actions);
   const bool actionsInitialized = spawnError == 0;
-  if (spawnError == 0)
+  if (spawnError == 0 && !forwardOutput_)
     spawnError =
         ::posix_spawn_file_actions_adddup2(&actions, pipeFds[1], STDOUT_FILENO);
-  if (spawnError == 0)
+  if (spawnError == 0 && !forwardOutput_)
     spawnError =
         ::posix_spawn_file_actions_adddup2(&actions, pipeFds[1], STDERR_FILENO);
-  if (spawnError == 0 && pipeFds[0] != STDOUT_FILENO &&
+  if (spawnError == 0 && !forwardOutput_ && pipeFds[0] != STDOUT_FILENO &&
       pipeFds[0] != STDERR_FILENO)
     spawnError = ::posix_spawn_file_actions_addclose(&actions, pipeFds[0]);
-  if (spawnError == 0 && pipeFds[1] != STDOUT_FILENO &&
+  if (spawnError == 0 && !forwardOutput_ && pipeFds[1] != STDOUT_FILENO &&
       pipeFds[1] != STDERR_FILENO)
     spawnError = ::posix_spawn_file_actions_addclose(&actions, pipeFds[1]);
 
@@ -193,11 +197,13 @@ bool ProcessRunner::runWithEnvironment(
   timerIntervalMilliseconds_ =
       timeoutMilliseconds <= 0 ? 100 : kReapIntervalMilliseconds;
 
-  outputSource_ = wl_event_loop_add_fd(
-      eventLoop_, outputFd_,
-      WL_EVENT_READABLE | WL_EVENT_HANGUP | WL_EVENT_ERROR, handleOutput, this);
+  if (outputFd_ >= 0)
+    outputSource_ = wl_event_loop_add_fd(
+        eventLoop_, outputFd_,
+        WL_EVENT_READABLE | WL_EVENT_HANGUP | WL_EVENT_ERROR, handleOutput,
+        this);
   timerSource_ = wl_event_loop_add_timer(eventLoop_, handleTimer, this);
-  if (!outputSource_ || !timerSource_ ||
+  if ((!forwardOutput_ && !outputSource_) || !timerSource_ ||
       wl_event_source_timer_update(timerSource_, timerIntervalMilliseconds_) <
           0) {
     failed_ = true;
@@ -215,6 +221,8 @@ bool ProcessRunner::runWithEnvironment(
 }
 
 bool ProcessRunner::busy() const noexcept { return busy_; }
+
+pid_t ProcessRunner::processId() const noexcept { return childPid_; }
 
 void ProcessRunner::cancel() noexcept {
   if (!busy_)
