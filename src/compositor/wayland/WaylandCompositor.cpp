@@ -1709,10 +1709,10 @@ Json WaylandCompositor::state(bool includeTranslations) const {
            {"allowOverlap",
             windowTemplate_ ? windowTemplate_->allowOverlap : false},
            {"schema", windowTemplate_ ? windowTemplate_->layoutSettingsSchema
-                                      : Json{}},
+                                      : Json::object()},
            {"values", layoutSettings},
            {"actions",
-            windowTemplate_ ? windowTemplate_->layoutActions : Json{}}})},
+            windowTemplate_ ? windowTemplate_->layoutActions : Json::object()}})},
       {"defaultApps", defaultApplications()},
       {"shellModules", moduleState},
       {"extensions", extensions},
@@ -1865,7 +1865,7 @@ Json WaylandCompositor::control(const Json &request) {
   if (method == "status")
     return state(value != selectedLanguage());
 
-  const auto parsedNumber = parseInteger(value);
+  const auto parsedNumber = parseInteger(trimmed(value));
   const bool numberValid = parsedNumber.has_value();
   const int number = parsedNumber.value_or(0);
 

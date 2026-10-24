@@ -161,11 +161,11 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
       if (!client->minimized && !client->hiddenByMaximize)
         capture.push_back(client->id);
     }
-    for (int i = 0; i < windows.size(); ++i) {
-      auto window = jsonObject(windows, i);
+    for (auto &window : windows) {
+      if (!window.is_object())
+        window = Json::object();
       window["x"] = jsonInt(window, "x") + area.x() - bounds.x();
       window["y"] = jsonInt(window, "y") + area.y() - bounds.y();
-      windows[i] = window;
     }
     choices.push_back(Json::object({{"id", workspace + 1},
                                   {"windows", windows},

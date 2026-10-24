@@ -6,6 +6,7 @@
 // name. Failures throw out of the running test, so later tests still run.
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
