@@ -3,10 +3,10 @@
 #include "config/BuildConfig.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
 
-#include <QCoreApplication>
 #include <algorithm>
 #include <csignal>
 #include <charconv>
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -139,12 +139,9 @@ void installFatalSignalDiagnostics() {
 } // namespace
 
 int SessionApplication::run(int argc, char **argv) {
-  QCoreApplication app(argc, argv);
   installFatalSignalDiagnostics();
-  app.setApplicationName("LunaDash");
-  app.setOrganizationName("LunaDash");
-  app.setApplicationVersion(QString::fromLatin1(BuildConfig::version) + " (" +
-                            QString::fromLatin1(BuildConfig::commit) + ")");
+  const std::string applicationVersion =
+      std::string(BuildConfig::version) + " (" + BuildConfig::commit + ")";
   const auto parsedOptions = parseOptions(argc, argv);
   if (!parsedOptions) {
     std::cerr << "Invalid command-line arguments. Use --help for usage.\n";
@@ -156,7 +153,7 @@ int SessionApplication::run(int argc, char **argv) {
     return 0;
   }
   if (options.version) {
-    std::cout << app.applicationVersion().toStdString() << '\n';
+    std::cout << applicationVersion << '\n';
     return 0;
   }
 
@@ -166,8 +163,13 @@ int SessionApplication::run(int argc, char **argv) {
     return 2;
   }
 
-  qInfo().noquote() << "LunaDash version:" << app.applicationVersion()
-                    << "executable:" << app.applicationFilePath();
+  std::error_code executablePathError;
+  const auto executablePath =
+      std::filesystem::read_symlink("/proc/self/exe", executablePathError);
+  qInfo().noquote() << "LunaDash version:"
+                    << QString::fromStdString(applicationVersion)
+                    << "executable:"
+                    << QString::fromStdString(executablePath.string());
   qInfo("LunaDash input: wlroots seat + libinput/xkbcommon (no Qt input path)");
 
   LunaDash::WaylandCompositor compositor(

@@ -49,7 +49,6 @@
 #include "shell/launcher/OrbitSettings.hpp"
 #include "shell/modules/ShellModules.hpp"
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -57,7 +56,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
-#include <QStandardPaths>
 #include <QUrl>
 #include <glib.h>
 #include <nlohmann/json.hpp>
@@ -89,6 +87,42 @@ using Templates::attachListener;
 using Templates::detachListener;
 using Templates::listenerOwner;
 using Templates::WaylandSlot;
+
+QString executableDirectory() {
+  std::error_code error;
+  const auto executable =
+      std::filesystem::read_symlink("/proc/self/exe", error);
+  return error ? QString{} : QString::fromStdString(
+                                  executable.parent_path().string());
+}
+
+QString findExecutable(const QString &name) {
+  const QByteArray encodedName = name.toUtf8();
+  gchar *path = g_find_program_in_path(encodedName.constData());
+  const QString result = path ? QString::fromUtf8(path) : QString{};
+  g_free(path);
+  return result;
+}
+
+QString locateDataFile(const QString &relativePath) {
+  const auto relative = std::filesystem::path(relativePath.toStdString());
+  const auto findIn = [&relative](const char *base) -> QString {
+    if (!base)
+      return {};
+    const auto candidate = std::filesystem::path(base) / relative;
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(candidate, error) || error)
+      return {};
+    return QString::fromStdString(candidate.string());
+  };
+  if (auto path = findIn(g_get_user_data_dir()); !path.isEmpty())
+    return path;
+  for (const char *const *directory = g_get_system_data_dirs(); *directory;
+       ++directory)
+    if (auto path = findIn(*directory); !path.isEmpty())
+      return path;
+  return {};
+}
 
 nlohmann::json nativeJsonObject(const QJsonObject &object) {
   const auto bytes = QJsonDocument(object).toJson(QJsonDocument::Compact);
@@ -252,8 +286,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
           const QString capturePath = QString::fromStdString(path);
           lastCapture_ = capturePath;
 
-          QString helper =
-              QStandardPaths::findExecutable("lunadash-clipboard-history");
+          QString helper = findExecutable("lunadash-clipboard-history");
           if (helper.isEmpty()) {
             const QString source = QStringLiteral(LUDASH_SCRIPT_SOURCE_DIR) +
                                    "/lunadash-clipboard-history";
@@ -335,7 +368,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     controlPath_ = qEnvironmentVariable("LUDASH_CONTROL");
   if (controlPath_.isEmpty())
     controlPath_ =
-        QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/" +
+        QString::fromUtf8(g_get_user_runtime_dir()) + "/" +
         QString::fromUtf8(socket) + "-control";
   windowSwitcher_->setChannelPath(controlPath_ + "-interaction.json");
   controlServer_ = std::make_unique<ControlServer>(
@@ -357,7 +390,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   ensureLegacyDesktopSettingsImported();
   const auto clientEnvironment = createClientEnvironment(
       socket.toStdString(), controlPath_.toStdString(),
-      QCoreApplication::applicationDirPath().toStdString(),
+      executableDirectory().toStdString(),
       loadDesktopPreferences());
   clientEnvironment_ = clientEnvironment;
   publishClientEnvironment(clientEnvironment);
@@ -384,13 +417,12 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
       return;
 
     if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
-      const QString agent =
-          QStandardPaths::findExecutable("lunadash-polkit-agent");
+      const QString agent = findExecutable("lunadash-polkit-agent");
       if (!agent.isEmpty())
         spawn({}, agent, false);
 
       if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
-        const QString fcitx = QStandardPaths::findExecutable("fcitx5");
+        const QString fcitx = findExecutable("fcitx5");
         if (!fcitx.isEmpty())
           spawn({"--replace"}, fcitx, false);
       }
@@ -500,23 +532,21 @@ ProcessRunner *WaylandCompositor::spawn(
         QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
     // Use assets next to the installed executable before any build checkout.
     // This also supports a staged/relocated installation in CI.
-    QString config = QDir(QCoreApplication::applicationDirPath())
+    QString config = QDir(executableDirectory())
                          .absoluteFilePath("../share/lunadash/shell/shell.qml");
     if (!QFileInfo::exists(config))
       config = QFileInfo::exists(sourceConfig)
                    ? sourceConfig
-                   : QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                            "lunadash/shell/shell.qml");
+                   : locateDataFile("lunadash/shell/shell.qml");
     if (config.isEmpty())
-      config = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
-                                      "ludash/shell/shell.qml");
+      config = locateDataFile("ludash/shell/shell.qml");
     if (config.isEmpty()) {
       if (required)
         processFailure_ = true;
       qWarning("LunaDash shell.qml was not found in any search location.");
       return nullptr;
     }
-    const QString quickshell = QStandardPaths::findExecutable("quickshell");
+    const QString quickshell = findExecutable("quickshell");
     if (quickshell.isEmpty()) {
       if (required)
         processFailure_ = true;
@@ -575,17 +605,13 @@ ProcessRunner *WaylandCompositor::spawn(
     if (executable.isEmpty()) {
       if (arguments.size() >= 2 && arguments[0] == "--app" &&
           arguments[1] == "welcome") {
-        executable =
-            QCoreApplication::applicationDirPath() + "/lunadash-welcome";
+        executable = executableDirectory() + "/lunadash-welcome";
         if (!QFileInfo::exists(executable))
-          executable =
-              QCoreApplication::applicationDirPath() + "/ludash-welcome";
+          executable = executableDirectory() + "/ludash-welcome";
       } else {
-        executable =
-            QCoreApplication::applicationDirPath() + "/lunadash-desktop";
+        executable = executableDirectory() + "/lunadash-desktop";
         if (!QFileInfo::exists(executable))
-          executable =
-              QCoreApplication::applicationDirPath() + "/ludash-desktop";
+          executable = executableDirectory() + "/ludash-desktop";
       }
     }
     if (!(arguments.size() >= 2 && arguments[0] == "--app" &&
@@ -2339,12 +2365,12 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     if (!setSetupComplete(false, &error))
       return {{"error", QString::fromStdString(error)}};
   } else if (method == "configure-network") {
-    auto program = QStandardPaths::findExecutable("nm-connection-editor");
+    auto program = findExecutable("nm-connection-editor");
     QStringList arguments;
     if (program.isEmpty() &&
-        !QStandardPaths::findExecutable("nmtui").isEmpty()) {
+        !findExecutable("nmtui").isEmpty()) {
       for (const auto &terminal : {"kitty", "konsole", "alacritty", "foot"}) {
-        program = QStandardPaths::findExecutable(terminal);
+        program = findExecutable(terminal);
         if (!program.isEmpty()) {
           arguments = {"-e", "nmtui"};
           break;
@@ -2492,10 +2518,10 @@ void WaylandCompositor::publishSessionActivationEnvironment(
 }
 
 QString WaylandCompositor::nextCapturePath() const {
+  const char *pictures = g_get_user_special_dir(G_USER_DIRECTORY_PICTURES);
   auto directory =
-      QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-  if (directory.isEmpty())
-    directory = QDir::homePath() + "/Pictures";
+      pictures ? QString::fromUtf8(pictures)
+               : QString::fromUtf8(g_get_home_dir()) + "/Pictures";
   directory += "/Screenshots";
   if (!QDir().mkpath(directory))
     return {};

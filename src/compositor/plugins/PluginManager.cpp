@@ -12,7 +12,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QScopedValueRollback>
-#include <QStandardPaths>
+#include <glib.h>
 #include <QTemporaryDir>
 #include <QUrl>
 #include <algorithm>
@@ -71,9 +71,7 @@ bool safeInstallPath(const QString &value) {
 }
 
 QString userPluginRoot() {
-  const auto data =
-      QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-  return data.isEmpty() ? QString() : data + "/lunadash/plugins";
+  return QString::fromUtf8(g_get_user_data_dir()) + "/lunadash/plugins";
 }
 
 bool directoryClaimsPluginId(const QString &directory, const QString &id) {
@@ -547,8 +545,14 @@ void PluginManager::startStoreBuild(StoreInstall *job) {
     return;
   }
 
-  job->cmakeExecutable = QStandardPaths::findExecutable("cmake");
-  const auto ninja = QStandardPaths::findExecutable("ninja");
+  const auto findExecutable = [](const char *name) {
+    gchar *path = g_find_program_in_path(name);
+    const QString result = path ? QString::fromUtf8(path) : QString{};
+    g_free(path);
+    return result;
+  };
+  job->cmakeExecutable = findExecutable("cmake");
+  const auto ninja = findExecutable("ninja");
   if (job->cmakeExecutable.isEmpty() || ninja.isEmpty()) {
     finishStoreInstall(
         job, "One-click plugin installation requires cmake and ninja");

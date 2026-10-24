@@ -6,7 +6,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QSaveFile>
-#include <QStandardPaths>
+#include <glib.h>
 #include <algorithm>
 #include <map>
 #include <set>
@@ -49,8 +49,7 @@ QString effectiveMode(const PluginDescriptor &descriptor,
 } // namespace
 
 QString extensionConfigurationPath() {
-  return QStandardPaths::writableLocation(
-             QStandardPaths::GenericConfigLocation) +
+  return QString::fromUtf8(g_get_user_config_dir()) +
          "/LuDash/extensions.json";
 }
 

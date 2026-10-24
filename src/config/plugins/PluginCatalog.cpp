@@ -4,7 +4,6 @@
 #include "config/desktop/DesktopPreferences.hpp"
 #include "core/crypto/Sha256.hpp"
 #include "core/settings/SettingsSchema.hpp"
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -13,9 +12,10 @@
 #include <QJsonObject>
 #include <QLocale>
 #include <QRegularExpression>
-#include <QStandardPaths>
 #include <QUrl>
 #include <algorithm>
+#include <filesystem>
+#include <glib.h>
 #include <set>
 #include <string_view>
 
@@ -400,14 +400,22 @@ QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin) {
 
 std::vector<PluginDescriptor> discoverPlugins() {
   QStringList roots;
-  for (const auto &path :
-       QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation)) {
+  QStringList dataDirectories{QString::fromUtf8(g_get_user_data_dir())};
+  for (const char *const *directory = g_get_system_data_dirs(); *directory;
+       ++directory)
+    dataDirectories << QString::fromUtf8(*directory);
+  for (const auto &path : dataDirectories) {
     // SDK 2 packages have one canonical location. Do not discover the old
     // lunadash/shell/plugins or ludash/plugins trees: stale files left by old
     // releases otherwise shadow Store packages with the same id.
     roots << path + "/lunadash/plugins";
   }
-  roots << QCoreApplication::applicationDirPath() + "/plugins";
+  std::error_code executablePathError;
+  const auto executable =
+      std::filesystem::read_symlink("/proc/self/exe", executablePathError);
+  if (!executablePathError)
+    roots << QString::fromStdString(executable.parent_path().string()) +
+                 "/plugins";
 
   std::vector<PluginDescriptor> result;
   std::set<QString> seenPackages;
