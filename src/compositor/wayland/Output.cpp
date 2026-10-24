@@ -227,7 +227,7 @@ bool WaylandCompositor::Impl::resizePrimaryOutput(const std::string &preset,
   wlr_output_state_init(&state);
   wlr_output_state_set_custom_mode(&state, size->second.width(),
                                    size->second.height(),
-                                   kDefaultOutputRefreshMilliHz);
+                                   0);
   const bool ok = wlr_output_commit_state(primaryOutput, &state);
   wlr_output_state_finish(&state);
   if (!ok) {
@@ -285,8 +285,9 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   if (chosen)
     wlr_output_state_set_mode(&pending, chosen);
   else if (!self->fullscreen)
-    wlr_output_state_set_custom_mode(&pending, 1440, 900,
-                                     kDefaultOutputRefreshMilliHz);
+    // A zero refresh lets nested backends choose their own rate; the X11
+    // backend rejects explicit custom refresh rates.
+    wlr_output_state_set_custom_mode(&pending, 1440, 900, 0);
   const float scale =
       std::clamp(static_cast<float>(settings.value("scale", 1.0)), 1.0f, 3.0f);
   wlr_output_state_set_scale(&pending, scale);

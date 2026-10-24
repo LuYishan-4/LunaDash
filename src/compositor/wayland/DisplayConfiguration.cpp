@@ -47,10 +47,9 @@ Json WaylandCompositor::Impl::displayModes() const {
     for (const Size size :
          {Size(1280, 720), Size(1440, 900), Size(1920, 1080)})
       result.push_back(Json::object({
-          {"id", modeId(size.width(), size.height(),
-                         kDefaultOutputRefreshMilliHz)},
-          {"label", modeLabel(size.width(), size.height(),
-                              kDefaultOutputRefreshMilliHz)}}));
+          {"id", modeId(size.width(), size.height(), 0)},
+          {"label", std::to_string(size.width()) + " \u00d7 " +
+                        std::to_string(size.height())}}));
   }
   return result;
 }
@@ -97,8 +96,7 @@ bool WaylandCompositor::Impl::configureDisplay(const Json &changes,
         if (size.size() != 2)
           continue;
         wlr_output_state_set_custom_mode(&next, parseDimension(size[0]),
-                                         parseDimension(size[1]),
-                                         kDefaultOutputRefreshMilliHz);
+                                         parseDimension(size[1]), 0);
         found = true;
         break;
       }

@@ -33,20 +33,26 @@ struct SessionOptions {
   bool version = false;
 };
 
-std::optional<SessionOptions> parseOptions(int argc, char **argv) {
+// Parses the command line. On failure, returns no options and stores a
+// diagnostic in error.
+std::optional<SessionOptions> parseOptions(int argc, char **argv,
+                                           std::string &error) {
   SessionOptions options;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument(argv[index]);
     const auto value = [&](std::string_view option) -> const char * {
       if (argument == option) {
-        if (index + 1 >= argc)
+        if (index + 1 >= argc ||
+            std::string_view(argv[index + 1]).starts_with("--")) {
+          error = "Missing value after '" + std::string(option) + "'.";
           return nullptr;
-        const char *text = argv[++index];
-        return std::string_view(text).starts_with("--") ? nullptr : text;
+        }
+        return argv[++index];
       }
       const std::string prefix = std::string(option) + "=";
       if (argument.starts_with(prefix))
         return argv[index] + prefix.size();
+      error = "Unknown option '" + std::string(argument) + "'.";
       return nullptr;
     };
     if (argument == "--help" || argument == "-h") {
@@ -91,10 +97,14 @@ std::optional<SessionOptions> parseOptions(int argc, char **argv) {
       const auto parsed = std::from_chars(number.data(),
                                           number.data() + number.size(),
                                           options.exitAfterMilliseconds);
-      if (parsed.ec != std::errc{} || parsed.ptr != number.data() + number.size())
+      if (parsed.ec != std::errc{} ||
+          parsed.ptr != number.data() + number.size()) {
+        error = "Invalid value for '--exit-after': " + std::string(number);
         return std::nullopt;
+      }
       options.exitAfterSet = true;
     } else {
+      error = "Unknown option '" + std::string(argument) + "'.";
       return std::nullopt;
     }
   }
@@ -144,10 +154,11 @@ int SessionApplication::run(int argc, char **argv) {
   installFatalSignalDiagnostics();
   const std::string applicationVersion =
       std::string(BuildConfig::version) + " (" + BuildConfig::commit + ")";
-  const auto parsedOptions = parseOptions(argc, argv);
+  std::string parseError;
+  const auto parsedOptions = parseOptions(argc, argv, parseError);
   if (!parsedOptions) {
-    std::cerr << "Invalid command-line arguments. Use --help for usage.\n";
-    return 2;
+    std::cerr << parseError << "\nUse --help for usage.\n";
+    return 1;
   }
   const auto &options = *parsedOptions;
   if (options.help) {
