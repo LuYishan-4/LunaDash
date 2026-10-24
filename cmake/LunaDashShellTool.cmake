@@ -1,11 +1,9 @@
 add_library(ludash-media src/shell/media/MediaPlayer.cpp)
 target_include_directories(ludash-media PUBLIC src)
-set_target_properties(ludash-media PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-media PUBLIC
     nlohmann_json::nlohmann_json PkgConfig::LUDASH_GIO)
 add_library(ludash-audio-spectrum src/shell/audio/AudioSpectrum.cpp)
 target_include_directories(ludash-audio-spectrum PUBLIC src)
-set_target_properties(ludash-audio-spectrum PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-audio-spectrum PUBLIC nlohmann_json::nlohmann_json)
 add_executable(ludash-shell-tool src/shell/Main.cpp src/shell/runtime/ShellTool.cpp
     src/desktop/wallpaper/WallpaperActions.cpp)

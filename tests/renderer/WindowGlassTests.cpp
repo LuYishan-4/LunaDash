@@ -1,7 +1,7 @@
 #include "compositor/renderer/blur/WindowGlass.hpp"
-#include <QByteArray>
-#include <QVector>
-#include <QtTest>
+#include "support/TestHarness.hpp"
+#include <string>
+#include <vector>
 #include <cstring>
 #include <drm_fourcc.h>
 #include <memory>
@@ -21,7 +21,7 @@ namespace LunaDash {
 namespace {
 struct ImageBuffer {
   wlr_buffer base{};
-  QByteArray pixels;
+  std::string pixels;
   int *liveBuffers = nullptr;
 };
 
@@ -126,8 +126,7 @@ constexpr float red[] = {1, 0, 0, 1};
 constexpr float blue[] = {0, 0, 1, 1};
 } // namespace
 
-class WindowGlassTests final : public QObject {
-  Q_OBJECT
+class WindowGlassTests final {
 private:
   wlr_renderer *renderer_ = nullptr;
   TestAllocator *allocator_ = nullptr;
@@ -146,17 +145,17 @@ private:
     return window;
   }
 
-private Q_SLOTS:
+public:
   void init() {
     renderer_ = wlr_pixman_renderer_create();
-    QVERIFY(renderer_);
+    VERIFY(renderer_);
     allocator_ = new TestAllocator;
     wlr_allocator_init(&allocator_->base, &allocatorImplementation,
                        WLR_BUFFER_CAP_DATA_PTR);
     scene_ = wlr_scene_create();
-    QVERIFY(scene_);
+    VERIFY(scene_);
     background_ = wlr_scene_rect_create(&scene_->tree, 512, 512, red);
-    QVERIFY(background_);
+    VERIFY(background_);
     glass_ = std::make_unique<WindowGlass>(renderer_, &allocator_->base,
                                            &scene_->tree.node);
     glass_->configure(true, 8, 0.8f);
@@ -167,7 +166,7 @@ private Q_SLOTS:
     if (scene_)
       wlr_scene_node_destroy(&scene_->tree.node);
     if (allocator_) {
-      QCOMPARE(allocator_->liveBuffers, 0);
+      COMPARE(allocator_->liveBuffers, 0);
       wlr_allocator_destroy(&allocator_->base);
     }
     if (renderer_)
@@ -180,90 +179,90 @@ private Q_SLOTS:
 
   void unchangedSceneDoesNotRecapture() {
     const auto window = addWindow();
-    QVERIFY(window.tree && window.content);
+    VERIFY(window.tree && window.content);
     const std::vector<WindowGlass::Surface> surfaces{
         {window.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
-    QVERIFY2(glass_->ready(),
-             qPrintable(QString::fromStdString(glass_->error())));
-    QVERIFY(!glass_->failed());
-    QCOMPARE(glass_->frames(), quint64{1});
+    VERIFY2(glass_->ready(),
+             (glass_->error()).c_str());
+    VERIFY(!glass_->failed());
+    COMPARE(glass_->frames(), quint64{1});
     const int allocations = allocator_->calls;
     for (int frame = 0; frame < 5; ++frame) {
       glass_->update(surfaces, false);
-      QVERIFY(glass_->ready());
+      VERIFY(glass_->ready());
     }
-    QCOMPARE(glass_->frames(), quint64{1});
-    QCOMPARE(allocator_->calls, allocations);
-    QVERIFY(!glass_->configure(true, 8, 0.8f));
+    COMPARE(glass_->frames(), quint64{1});
+    COMPARE(allocator_->calls, allocations);
+    VERIFY(!glass_->configure(true, 8, 0.8f));
     glass_->update(surfaces, false);
-    QCOMPARE(allocator_->calls, allocations);
+    COMPARE(allocator_->calls, allocations);
     wlr_scene_rect_set_color(background_, blue);
-    QTest::qWait(110);
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), quint64{2});
-    QVERIFY(allocator_->calls > allocations);
+    COMPARE(glass_->frames(), quint64{2});
+    VERIFY(allocator_->calls > allocations);
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), quint64{2});
   }
 
   void geometryChangesRecaptureAndMoveTheUnderlay() {
     const auto window = addWindow();
-    QVERIFY(window.tree && window.content);
+    VERIFY(window.tree && window.content);
     glass_->update({{window.tree, {64, 64}, true}}, false);
-    QVERIFY(glass_->ready());
-    QCOMPARE(glass_->frames(), quint64{1});
+    VERIFY(glass_->ready());
+    COMPARE(glass_->frames(), quint64{1});
     wlr_scene_node_set_position(&window.tree->node, 24, 16);
     glass_->update({{window.tree, {64, 64}, true}}, false);
-    QCOMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), quint64{2});
     auto *backdrop = underlay(window.tree);
-    QVERIFY(backdrop);
-    QCOMPARE(backdrop->node.x, 24);
-    QCOMPARE(backdrop->node.y, 16);
+    VERIFY(backdrop);
+    COMPARE(backdrop->node.x, 24);
+    COMPARE(backdrop->node.y, 16);
     glass_->update({{window.tree, {96, 80}, true}}, false);
-    QCOMPARE(glass_->frames(), quint64{3});
-    QVERIFY(childCount(backdrop) > 1);
-    QVector<int> coveredWidth(80, 0);
+    COMPARE(glass_->frames(), quint64{3});
+    VERIFY(childCount(backdrop) > 1);
+    std::vector<int> coveredWidth(80, 0);
     int bottom = 0;
     wlr_scene_node *child = nullptr;
     wl_list_for_each(child, &backdrop->children, link) {
-      QCOMPARE(child->type, WLR_SCENE_NODE_BUFFER);
+      COMPARE(child->type, WLR_SCENE_NODE_BUFFER);
       auto *part = wlr_scene_buffer_from_node(child);
-      QVERIFY(part->buffer);
-      QVERIFY(child->x >= 0 && child->y >= 0);
-      QVERIFY(part->dst_width > 0 && part->dst_height > 0);
-      QVERIFY(child->x + part->dst_width <= 96);
-      QVERIFY(child->y + part->dst_height <= 80);
-      QCOMPARE(child->y, bottom);
+      VERIFY(part->buffer);
+      VERIFY(child->x >= 0 && child->y >= 0);
+      VERIFY(part->dst_width > 0 && part->dst_height > 0);
+      VERIFY(child->x + part->dst_width <= 96);
+      VERIFY(child->y + part->dst_height <= 80);
+      COMPARE(child->y, bottom);
       bottom = child->y + part->dst_height;
-      QCOMPARE(part->src_box.x, double(child->x) * part->buffer->width / 96);
-      QCOMPARE(part->src_box.y, double(child->y) * part->buffer->height / 80);
-      QCOMPARE(part->src_box.width,
+      COMPARE(part->src_box.x, double(child->x) * part->buffer->width / 96);
+      COMPARE(part->src_box.y, double(child->y) * part->buffer->height / 80);
+      COMPARE(part->src_box.width,
                double(part->dst_width) * part->buffer->width / 96);
-      QCOMPARE(part->src_box.height,
+      COMPARE(part->src_box.height,
                double(part->dst_height) * part->buffer->height / 80);
       for (int row = child->y; row < bottom; ++row)
         coveredWidth[row] += part->dst_width;
     }
-    QCOMPARE(bottom, 80);
-    QVERIFY(coveredWidth.front() > 0 && coveredWidth.front() < 96);
-    QCOMPARE(coveredWidth.front(), coveredWidth.back());
-    QCOMPARE(coveredWidth[40], 96);
+    COMPARE(bottom, 80);
+    VERIFY(coveredWidth.front() > 0 && coveredWidth.front() < 96);
+    COMPARE(coveredWidth.front(), coveredWidth.back());
+    COMPARE(coveredWidth[40], 96);
     glass_->update({{window.tree, {96, 80}, true}}, false);
-    QCOMPARE(glass_->frames(), quint64{3});
+    COMPARE(glass_->frames(), quint64{3});
   }
 
   void offAreaActivityDoesNotInvalidateBackdrops() {
     auto *activity = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(activity);
+    VERIFY(activity);
     auto *indicator = wlr_scene_rect_create(activity, 16, 16, blue);
-    QVERIFY(indicator);
+    VERIFY(indicator);
     wlr_scene_node_set_position(&activity->node, 300, 200);
     const auto window = addWindow();
     const std::vector<WindowGlass::Surface> surfaces{
         {window.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), quint64{1});
+    COMPARE(glass_->frames(), quint64{1});
     const int allocations = allocator_->calls;
     const int live = allocator_->liveBuffers;
     for (int frame = 0; frame < 600; ++frame) {
@@ -271,53 +270,53 @@ private Q_SLOTS:
       wlr_scene_node_set_position(&activity->node, 300 + frame % 20, 200);
       glass_->update(surfaces, false);
     }
-    QCOMPARE(glass_->frames(), quint64{1});
-    QCOMPARE(allocator_->calls, allocations);
-    QCOMPARE(allocator_->liveBuffers, live);
+    COMPARE(glass_->frames(), quint64{1});
+    COMPARE(allocator_->calls, allocations);
+    COMPARE(allocator_->liveBuffers, live);
     // The filter samples beyond the window edge. Moving activity into that
     // padding must invalidate, even without overlapping the visible tile.
     wlr_scene_node_set_position(&activity->node, 66, 10);
-    QTest::qWait(110);
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), quint64{2});
     wlr_scene_node_set_position(&activity->node, 300, 200);
-    QTest::qWait(110);
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), quint64{3});
+    COMPARE(glass_->frames(), quint64{3});
     // Removing an unrelated subtree must not invalidate the cache either.
     wlr_scene_node_destroy(&activity->node);
-    QTest::qWait(110);
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), quint64{3});
+    COMPARE(glass_->frames(), quint64{3});
   }
 
   void animationRetainsAlphaAndDisablingRestoresSteadyState() {
     const auto window = addWindow();
-    QVERIFY(window.tree && window.content);
+    VERIFY(window.tree && window.content);
     const std::vector<WindowGlass::Surface> surfaces{
         {window.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
-    QCOMPARE(window.content->opacity, 0.8f);
+    COMPARE(window.content->opacity, 0.8f);
     wlr_scene_buffer_set_opacity(window.content, 0.25f);
     glass_->update(surfaces, true);
-    QCOMPARE(window.content->opacity, 0.25f);
-    QVERIFY(glass_->configure(false, 8, 1.0f));
+    COMPARE(window.content->opacity, 0.25f);
+    VERIFY(glass_->configure(false, 8, 1.0f));
     glass_->update(surfaces, true);
-    QCOMPARE(window.content->opacity, 0.25f);
-    QVERIFY(!glass_->ready());
-    QVERIFY(!underlay(window.tree));
-    QCOMPARE(allocator_->liveBuffers, 0);
+    COMPARE(window.content->opacity, 0.25f);
+    VERIFY(!glass_->ready());
+    VERIFY(!underlay(window.tree));
+    COMPARE(allocator_->liveBuffers, 0);
     glass_->update(surfaces, false);
-    QCOMPARE(window.content->opacity, 1.0f);
-    QVERIFY(!glass_->failed());
-    QVERIFY(glass_->error().empty());
+    COMPARE(window.content->opacity, 1.0f);
+    VERIFY(!glass_->failed());
+    VERIFY(glass_->error().empty());
     // Reduced/eye-care configurations can also suppress blur with a zero
     // radius.
     glass_->configure(true, 0, 1.0f);
     glass_->update(surfaces, false);
-    QVERIFY(!glass_->ready());
-    QVERIFY(!underlay(window.tree));
-    QCOMPARE(window.content->opacity, 1.0f);
+    VERIFY(!glass_->ready());
+    VERIFY(!underlay(window.tree));
+    COMPARE(window.content->opacity, 1.0f);
   }
 
   void shellSurfaceKeepsItsOwnAlphaAndLayerGeometry() {
@@ -329,131 +328,146 @@ private Q_SLOTS:
     std::vector<WindowGlass::Surface> targets{
         {app.tree, {64, 64}, true}, {panel.tree, {64, 64}, true, 24, 1.0f}};
     glass_->update(targets, false);
-    QVERIFY2(glass_->ready(),
-             qPrintable(QString::fromStdString(glass_->error())));
-    QCOMPARE(app.content->opacity, 0.8f);
-    QCOMPARE(panel.content->opacity, 1.0f);
+    VERIFY2(glass_->ready(),
+             (glass_->error()).c_str());
+    COMPARE(app.content->opacity, 0.8f);
+    COMPARE(panel.content->opacity, 1.0f);
     auto *backdrop = underlay(panel.tree);
-    QVERIFY(backdrop);
-    QCOMPARE(backdrop->node.parent, overlay);
+    VERIFY(backdrop);
+    COMPARE(backdrop->node.parent, overlay);
     // Maximize/restore follows the layer's geometry without recreating content.
     targets[1].size = {240, 180};
     glass_->update(targets, false);
-    QCOMPARE(panel.content->opacity, 1.0f);
-    QCOMPARE(underlay(panel.tree), backdrop);
+    COMPARE(panel.content->opacity, 1.0f);
+    COMPARE(underlay(panel.tree), backdrop);
     wlr_scene_node_set_enabled(&panel.tree->node, false);
     glass_->update(targets, false);
-    QVERIFY(!underlay(panel.tree));
+    VERIFY(!underlay(panel.tree));
     wlr_scene_node_destroy(&overlay->node);
     targets.pop_back();
     glass_->update(targets, false);
-    QCOMPARE(app.content->opacity, 0.8f);
+    COMPARE(app.content->opacity, 0.8f);
   }
 
   void invisibleAndExcludedWindowsHaveNoBackdrop() {
     const auto window = addWindow();
-    QVERIFY(window.tree && window.content);
+    VERIFY(window.tree && window.content);
     wlr_scene_node_set_enabled(&window.tree->node, false);
     glass_->update({{window.tree, {64, 64}, true}}, false);
-    QVERIFY(!glass_->ready());
-    QCOMPARE(allocator_->calls, 0);
-    QVERIFY(!underlay(window.tree));
+    VERIFY(!glass_->ready());
+    COMPARE(allocator_->calls, 0);
+    VERIFY(!underlay(window.tree));
     wlr_scene_node_set_enabled(&window.tree->node, true);
     glass_->update({{window.tree, {64, 64}, false}}, false);
-    QVERIFY(!glass_->ready());
-    QCOMPARE(window.content->opacity, 1.0f);
-    QCOMPARE(allocator_->calls, 0);
+    VERIFY(!glass_->ready());
+    COMPARE(window.content->opacity, 1.0f);
+    COMPARE(allocator_->calls, 0);
     glass_->update({{window.tree, {64, 64}, true}}, false);
-    QVERIFY(glass_->ready());
+    VERIFY(glass_->ready());
     wlr_scene_node_set_enabled(&window.tree->node, false);
     glass_->update({{window.tree, {64, 64}, true}}, false);
-    QVERIFY(!glass_->ready());
-    QVERIFY(!underlay(window.tree));
-    QCOMPARE(allocator_->liveBuffers, 0);
+    VERIFY(!glass_->ready());
+    VERIFY(!underlay(window.tree));
+    COMPARE(allocator_->liveBuffers, 0);
   }
 
   void targetAndRootDestructionReleaseUnderlays() {
     const auto window = addWindow();
-    QVERIFY(window.tree && window.content);
+    VERIFY(window.tree && window.content);
     glass_->update({{window.tree, {64, 64}, true}}, false);
-    QVERIFY(glass_->ready());
-    QCOMPARE(childCount(&scene_->tree), 3);
+    VERIFY(glass_->ready());
+    COMPARE(childCount(&scene_->tree), 3);
     wlr_scene_node_destroy(&window.tree->node);
-    QCOMPARE(childCount(&scene_->tree), 1);
-    QCOMPARE(allocator_->liveBuffers, 0);
+    COMPARE(childCount(&scene_->tree), 1);
+    COMPARE(allocator_->liveBuffers, 0);
     glass_->update({}, false);
-    QVERIFY(!glass_->ready());
+    VERIFY(!glass_->ready());
     const auto replacement = addWindow();
-    QVERIFY(replacement.tree && replacement.content);
+    VERIFY(replacement.tree && replacement.content);
     glass_->update({{replacement.tree, {64, 64}, true}}, false);
-    QVERIFY(glass_->ready());
+    VERIFY(glass_->ready());
     wlr_scene_node_destroy(&scene_->tree.node);
     scene_ = nullptr;
     background_ = nullptr;
-    QCOMPARE(allocator_->liveBuffers, 0);
+    COMPARE(allocator_->liveBuffers, 0);
     glass_->update({}, false);
-    QVERIFY(!glass_->ready());
-    QVERIFY(!glass_->failed());
+    VERIFY(!glass_->ready());
+    VERIFY(!glass_->failed());
     glass_.reset();
   }
 
   void restackingAndReparentingKeepEachUnderlayBelowItsTarget() {
     const auto first = addWindow();
     const auto second = addWindow();
-    QVERIFY(first.tree && first.content && second.tree && second.content);
+    VERIFY(first.tree && first.content && second.tree && second.content);
     // Input order is deliberately the reverse of scene painter order.
     const std::vector<WindowGlass::Surface> surfaces{
         {second.tree, {64, 64}, true}, {first.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
-    QVERIFY2(glass_->ready(),
-             qPrintable(QString::fromStdString(glass_->error())));
+    VERIFY2(glass_->ready(),
+             (glass_->error()).c_str());
     auto *firstBackdrop = underlay(first.tree);
     auto *secondBackdrop = underlay(second.tree);
-    QVERIFY(firstBackdrop && secondBackdrop && firstBackdrop != secondBackdrop);
-    QCOMPARE(glass_->frames(), quint64{2});
+    VERIFY(firstBackdrop && secondBackdrop && firstBackdrop != secondBackdrop);
+    COMPARE(glass_->frames(), quint64{2});
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), quint64{2});
     wlr_scene_node_raise_to_top(&first.tree->node);
     glass_->update(surfaces, false);
-    QCOMPARE(underlay(first.tree), firstBackdrop);
-    QCOMPARE(underlay(second.tree), secondBackdrop);
-    QVERIFY(glass_->frames() > 2);
+    COMPARE(underlay(first.tree), firstBackdrop);
+    COMPARE(underlay(second.tree), secondBackdrop);
+    VERIFY(glass_->frames() > 2);
     const auto restacked = glass_->frames();
     glass_->update(surfaces, false);
-    QCOMPARE(glass_->frames(), restacked);
+    COMPARE(glass_->frames(), restacked);
     auto *workspace = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(workspace);
+    VERIFY(workspace);
     wlr_scene_node_set_position(&workspace->node, 80, 40);
     wlr_scene_node_reparent(&first.tree->node, workspace);
     glass_->update(surfaces, false);
-    QCOMPARE(underlay(first.tree), firstBackdrop);
-    QCOMPARE(firstBackdrop->node.parent, workspace);
-    QCOMPARE(secondBackdrop->node.parent, &scene_->tree);
-    QVERIFY(glass_->frames() > restacked);
+    COMPARE(underlay(first.tree), firstBackdrop);
+    COMPARE(firstBackdrop->node.parent, workspace);
+    COMPARE(secondBackdrop->node.parent, &scene_->tree);
+    VERIFY(glass_->frames() > restacked);
   }
 
   void underlayNeverInterceptsClientInput() {
     const auto window = addWindow(32);
-    QVERIFY(window.tree && window.content);
+    VERIFY(window.tree && window.content);
     glass_->update({{window.tree, {64, 64}, true}}, false);
     auto *backdrop = underlay(window.tree);
-    QVERIFY(backdrop);
+    VERIFY(backdrop);
     wlr_scene_node *child = nullptr;
     wl_list_for_each(child, &backdrop->children, link) {
       auto *part = wlr_scene_buffer_from_node(child);
-      QVERIFY(part->point_accepts_input);
+      VERIFY(part->point_accepts_input);
       double x = 0, y = 0;
-      QVERIFY(!part->point_accepts_input(part, &x, &y));
+      VERIFY(!part->point_accepts_input(part, &x, &y));
     }
     double localX = 0, localY = 0;
-    QCOMPARE(wlr_scene_node_at(&scene_->tree.node, 16, 16, &localX, &localY),
+    COMPARE(wlr_scene_node_at(&scene_->tree.node, 16, 16, &localX, &localY),
              &window.content->node);
     // The larger glass rectangle must also let input through outside content.
-    QCOMPARE(wlr_scene_node_at(&scene_->tree.node, 48, 48, &localX, &localY),
+    COMPARE(wlr_scene_node_at(&scene_->tree.node, 48, 48, &localX, &localY),
              &background_->node);
   }
 };
 } // namespace LunaDash
 
-QTEST_GUILESS_MAIN(LunaDash::WindowGlassTests)
-#include "WindowGlassTests.moc"
+int main(int argc, char **argv) {
+  return LunaDash::Test::run<LunaDash::WindowGlassTests>(
+      "WindowGlassTests",
+      {
+      {"init", &LunaDash::WindowGlassTests::init},
+      {"cleanup", &LunaDash::WindowGlassTests::cleanup},
+      {"unchangedSceneDoesNotRecapture", &LunaDash::WindowGlassTests::unchangedSceneDoesNotRecapture},
+      {"geometryChangesRecaptureAndMoveTheUnderlay", &LunaDash::WindowGlassTests::geometryChangesRecaptureAndMoveTheUnderlay},
+      {"offAreaActivityDoesNotInvalidateBackdrops", &LunaDash::WindowGlassTests::offAreaActivityDoesNotInvalidateBackdrops},
+      {"animationRetainsAlphaAndDisablingRestoresSteadyState", &LunaDash::WindowGlassTests::animationRetainsAlphaAndDisablingRestoresSteadyState},
+      {"shellSurfaceKeepsItsOwnAlphaAndLayerGeometry", &LunaDash::WindowGlassTests::shellSurfaceKeepsItsOwnAlphaAndLayerGeometry},
+      {"invisibleAndExcludedWindowsHaveNoBackdrop", &LunaDash::WindowGlassTests::invisibleAndExcludedWindowsHaveNoBackdrop},
+      {"targetAndRootDestructionReleaseUnderlays", &LunaDash::WindowGlassTests::targetAndRootDestructionReleaseUnderlays},
+      {"restackingAndReparentingKeepEachUnderlayBelowItsTarget", &LunaDash::WindowGlassTests::restackingAndReparentingKeepEachUnderlayBelowItsTarget},
+      {"underlayNeverInterceptsClientInput", &LunaDash::WindowGlassTests::underlayNeverInterceptsClientInput}},
+      argc, argv);
+}

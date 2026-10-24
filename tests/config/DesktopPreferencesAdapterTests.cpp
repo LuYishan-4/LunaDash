@@ -1,46 +1,92 @@
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 
-#include <QCoreApplication>
-#include <QJsonArray>
-#include <QSettings>
-#include <QTemporaryDir>
-
 #include <cassert>
+#include <cstdint>
+#include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <string>
+#include <utility>
+#include <vector>
 
-int main(int argc, char **argv) {
-  QCoreApplication application(argc, argv);
-  QTemporaryDir temporary;
-  assert(temporary.isValid());
-  qputenv("XDG_CONFIG_HOME", temporary.path().toUtf8());
-  QCoreApplication::setOrganizationName("LunaDash");
-  QCoreApplication::setApplicationName("LunaDash");
+namespace {
+// Serialize a legacy settings map exactly as the old desktop stored it: a
+// big-endian map type (8), entry count and UTF-16BE string keys and values.
+void appendInteger(std::vector<unsigned char> &bytes, std::uint32_t value) {
+  for (int shift = 24; shift >= 0; shift -= 8)
+    bytes.push_back(static_cast<unsigned char>((value >> shift) & 0xff));
+}
 
-  {
-    QSettings legacy;
-    legacy.setValue("desktop/themeMode", "light");
-    legacy.setValue("desktop/workspaceCount", 4);
-    legacy.setValue("desktop/startupApps", QStringList{"files", "welcome"});
-    legacy.setValue("session/setupComplete", true);
-    legacy.setValue("appearance/wallpaperMode", "shader");
-    legacy.setValue("appearance/wallpaperImage", "/tmp/selected-wallpaper.png");
-    legacy.setValue("appearance/wallpaper", 1);
-    legacy.setValue("appearance/wallpaperHistory",
-                    QStringList{"/tmp/wallpaper-one.jpg"});
-    legacy.setValue("appearance/wallpaperFavorites",
-                    QStringList{"/tmp/favorite-wallpaper.jpg"});
-    legacy.setValue("appearance/wallpaperRevision", qulonglong{8});
-    legacy.setValue("windowLayout/tiling/gap", 22);
-    legacy.setValue("windowLayout/tiling/defaultWidth", 1100);
-    legacy.setValue("windowLayout/tiling/splitTarget", "focused");
-    legacy.setValue(
-        "shortcuts/bindings",
-        QVariantMap{{"closeWindow", "Meta+Q"},
-                    {"launchTerminal", "Meta+Return"}});
-    legacy.sync();
-    assert(legacy.status() == QSettings::NoError);
+void appendString(std::vector<unsigned char> &bytes, const std::string &text) {
+  appendInteger(bytes, static_cast<std::uint32_t>(text.size() * 2));
+  for (const char character : text) {
+    bytes.push_back(0);
+    bytes.push_back(static_cast<unsigned char>(character));
   }
+}
+
+std::string legacyStringMap(
+    const std::vector<std::pair<std::string, std::string>> &entries) {
+  std::vector<unsigned char> bytes;
+  appendInteger(bytes, 8);
+  appendInteger(bytes, static_cast<std::uint32_t>(entries.size()));
+  for (const auto &[key, value] : entries) {
+    appendString(bytes, key);
+    appendInteger(bytes, 10);
+    appendString(bytes, value);
+  }
+  static constexpr char digits[] = "0123456789abcdef";
+  std::string encoded = "@Variant(";
+  for (const auto byte : bytes) {
+    encoded += "\\x";
+    encoded.push_back(digits[byte >> 4]);
+    encoded.push_back(digits[byte & 15]);
+  }
+  return encoded + ")";
+}
+
+void writeLegacySettings(const std::filesystem::path &path,
+                         const std::string &contents) {
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream output(path, std::ios::binary | std::ios::trunc);
+  output << contents;
+  assert(output.good());
+}
+} // namespace
+
+int main() {
+  char pattern[] = "/tmp/lunadash-preferences-adapter-XXXXXX";
+  const char *created = ::mkdtemp(pattern);
+  assert(created);
+  const std::filesystem::path temporary(created);
+  ::setenv("XDG_CONFIG_HOME", temporary.c_str(), 1);
+  const auto legacyPath = temporary / "LunaDash/LunaDash.conf";
+
+  writeLegacySettings(
+      legacyPath,
+      "[appearance]\n"
+      "wallpaper=1\n"
+      "wallpaperFavorites=/tmp/favorite-wallpaper.jpg\n"
+      "wallpaperHistory=/tmp/wallpaper-one.jpg\n"
+      "wallpaperImage=/tmp/selected-wallpaper.png\n"
+      "wallpaperMode=shader\n"
+      "wallpaperRevision=8\n\n"
+      "[desktop]\n"
+      "startupApps=files, welcome\n"
+      "themeMode=light\n"
+      "workspaceCount=4\n\n"
+      "[session]\n"
+      "setupComplete=true\n\n"
+      "[shortcuts]\n"
+      "bindings=" +
+          legacyStringMap({{"closeWindow", "Meta+Q"},
+                           {"launchTerminal", "Meta+Return"}}) +
+          "\n\n"
+          "[windowLayout]\n"
+          "tiling\\defaultWidth=1100\n"
+          "tiling\\gap=22\n"
+          "tiling\\splitTarget=focused\n");
 
   auto preferences = LunaDash::desktopPreferences();
   assert(preferences.at("themeMode") == "light");
@@ -71,13 +117,11 @@ int main(int argc, char **argv) {
 
   std::string error;
   assert(LunaDash::updateDesktopPreferences({{"themeMode", "dark"}}, &error));
-  {
-    QSettings legacy;
-    legacy.setValue("desktop/themeMode", "auto");
-    legacy.setValue("appearance/wallpaperHistory",
-                    QStringList{"/tmp/wallpaper-two.jpg"});
-    legacy.sync();
-  }
+  // Legacy files are imported once; later edits to them must be ignored.
+  writeLegacySettings(legacyPath, "[appearance]\n"
+                                  "wallpaperHistory=/tmp/wallpaper-two.jpg\n\n"
+                                  "[desktop]\n"
+                                  "themeMode=auto\n");
   preferences = LunaDash::desktopPreferences();
   assert(preferences.at("themeMode") == "dark");
   assert(preferences.at("wallpaperHistory").at(0) ==
@@ -88,7 +132,7 @@ int main(int argc, char **argv) {
   assert(LunaDash::setSetupComplete(false, &error));
   assert(!LunaDash::setupComplete());
 
-  const auto store = std::filesystem::path(temporary.path().toStdString()) /
-                     "LunaDash/desktop-preferences.json";
+  const auto store = temporary / "LunaDash/desktop-preferences.json";
   assert(std::filesystem::is_regular_file(store));
+  std::filesystem::remove_all(temporary);
 }

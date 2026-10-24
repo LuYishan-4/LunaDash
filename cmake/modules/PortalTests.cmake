@@ -2,7 +2,7 @@
 # workflow. No display server is needed.
 find_program(LUDASH_DBUS_RUN_SESSION dbus-run-session REQUIRED)
 add_executable(lunadash-portal-protocol-test tests/portal/PortalProtocolTests.cpp)
-target_link_libraries(lunadash-portal-protocol-test PRIVATE Qt6::Core Qt6::DBus Qt6::Test)
+target_link_libraries(lunadash-portal-protocol-test PRIVATE ludash-test-harness PkgConfig::LUDASH_GIO)
 add_dependencies(lunadash-portal-protocol-test lunadash-portal)
 add_test(NAME lunadash-portal-protocol
     COMMAND ${LUDASH_DBUS_RUN_SESSION} -- $<TARGET_FILE:lunadash-portal-protocol-test>)

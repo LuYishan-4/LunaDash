@@ -6,30 +6,44 @@
 #include "core/process/ProcessEnvironment.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
-#include <QFile>
-#include <QJsonDocument>
-#include <QSettings>
-#include <QStandardPaths>
-#include <QTemporaryDir>
-#include <QtTest>
+#include "support/TestHarness.hpp"
+#include "core/filesystem/FileIo.hpp"
+#include "core/filesystem/TemporaryDirectory.hpp"
+#include <chrono>
 #include <climits>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <map>
+#include <thread>
 #include <string>
 #include <vector>
 
 namespace LunaDash {
 namespace {
-nlohmann::json nativeJson(const QJsonObject &object) {
-  return nlohmann::json::parse(
-      QJsonDocument(object).toJson(QJsonDocument::Compact).toStdString());
+void writeLegacySettings(const std::filesystem::path &path,
+                         const std::string &contents) {
+  std::filesystem::create_directories(path.parent_path());
+  std::ofstream output(path, std::ios::binary | std::ios::trunc);
+  output << contents;
 }
 } // namespace
 
-class WindowLayoutTests final : public QObject {
-  Q_OBJECT
-  const QRect area{10, 40, 1440, 900};
-  static QMap<LayoutWindowId, QRect>
+class WindowLayoutTests final {
+  TemporaryDirectory home_;
+  const Rect area{10, 40, 1440, 900};
+  // Window geometry by id; missing windows read as an empty rectangle.
+  struct GeometryMap : std::map<LayoutWindowId, Rect> {
+    using std::map<LayoutWindowId, Rect>::operator[];
+    Rect operator[](LayoutWindowId window) const { return value(window); }
+    Rect value(LayoutWindowId window) const {
+      const auto found = find(window);
+      return found == end() ? Rect() : found->second;
+    }
+  };
+  static GeometryMap
   geometries(const std::vector<WindowPlacement> &placements) {
-    QMap<LayoutWindowId, QRect> result;
+    GeometryMap result;
     for (const auto &slot : placements)
       if (!slot.minimized)
         result[slot.window] = slot.geometry;
@@ -39,13 +53,13 @@ class WindowLayoutTests final : public QObject {
     for (const auto &a : placements) {
       if (a.minimized)
         continue;
-      QVERIFY(a.geometry.isValid());
+      VERIFY(a.geometry.isValid());
       for (const auto &b : placements)
         if (!b.minimized && a.window != b.window)
-          QVERIFY(!a.geometry.intersects(b.geometry));
+          VERIFY(!a.geometry.intersects(b.geometry));
     }
   }
-  static QJsonObject areaJson(QRect area) {
+  static Json areaJson(Rect area) {
     return {{"x", area.x()},
             {"y", area.y()},
             {"width", area.width()},
@@ -54,139 +68,140 @@ class WindowLayoutTests final : public QObject {
   static bool focusDirection(WindowLayout &layout, LayoutWorkspaceId workspace,
                              int dx, int dy) {
     return layout.performAction("focus-direction",
-                                {{"workspace", static_cast<qint64>(workspace)},
+                                {{"workspace", static_cast<std::int64_t>(workspace)},
                                  {"dx", dx},
                                  {"dy", dy}});
   }
   static bool groupWith(WindowLayout &layout, LayoutWindowId window,
                         LayoutWindowId target) {
     return layout.performAction("group-with",
-                                {{"window", static_cast<qint64>(window)},
-                                 {"target", static_cast<qint64>(target)}});
+                                {{"window", static_cast<std::int64_t>(window)},
+                                 {"target", static_cast<std::int64_t>(target)}});
   }
   static bool expel(WindowLayout &layout, LayoutWindowId window) {
     return layout.performAction("expel",
-                                {{"window", static_cast<qint64>(window)}});
+                                {{"window", static_cast<std::int64_t>(window)}});
   }
   static bool swapWindows(WindowLayout &layout, LayoutWindowId window,
                           LayoutWindowId target) {
     return layout.performAction("swap",
-                                {{"window", static_cast<qint64>(window)},
-                                 {"target", static_cast<qint64>(target)}});
+                                {{"window", static_cast<std::int64_t>(window)},
+                                 {"target", static_cast<std::int64_t>(target)}});
   }
   static bool insertBeside(WindowLayout &layout, LayoutWindowId window,
                            LayoutWindowId target, bool after) {
     return layout.performAction("insert-beside",
-                                {{"window", static_cast<qint64>(window)},
-                                 {"target", static_cast<qint64>(target)},
+                                {{"window", static_cast<std::int64_t>(window)},
+                                 {"target", static_cast<std::int64_t>(target)},
                                  {"after", after}});
   }
   static bool resizeWidth(WindowLayout &layout, LayoutWindowId window,
                           int width) {
     return layout.performAction(
         "resize-width",
-        {{"window", static_cast<qint64>(window)}, {"width", width}});
+        {{"window", static_cast<std::int64_t>(window)}, {"width", width}});
   }
   static bool resizeHeight(WindowLayout &layout, LayoutWindowId window,
                            int height) {
     return layout.performAction(
         "resize-height",
-        {{"window", static_cast<qint64>(window)}, {"height", height}});
+        {{"window", static_cast<std::int64_t>(window)}, {"height", height}});
   }
-  static bool moveBy(WindowLayout &layout, LayoutWindowId window, QPoint delta,
-                     QRect area) {
+  static bool moveBy(WindowLayout &layout, LayoutWindowId window, Point delta,
+                     Rect area) {
     return layout.performAction("move-by",
-                                {{"window", static_cast<qint64>(window)},
+                                {{"window", static_cast<std::int64_t>(window)},
                                  {"dx", delta.x()},
                                  {"dy", delta.y()},
                                  {"area", areaJson(area)}});
   }
-private Q_SLOTS:
+public:
   void initTestCase() {
-    QCoreApplication::setOrganizationName("LunaDashTests");
-    QCoreApplication::setApplicationName("WindowLayout");
-    QStandardPaths::setTestModeEnabled(true);
+    VERIFY(home_.isValid());
+    for (const auto *name :
+         {"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"})
+      ::setenv(name, (home_.path() / name).c_str(), 1);
   }
   void layoutTemplateContract() {
     const auto templates = windowTemplates();
-    QCOMPARE(templates.size(), 2);
-    QCOMPARE(templates[0].key, QString("tiling"));
-    QVERIFY(!templates[0].clientMoveResize);
-    QVERIFY(templates[0].activationTogglesMaximize);
-    QCOMPARE(templates[1].key, QString("stacking"));
-    QVERIFY(templates[1].clientMoveResize);
-    QVERIFY(!templates[1].activationTogglesMaximize);
-    QVERIFY(createWindowLayout(windowTemplateForKey("stacking")));
+    COMPARE(templates.size(), 2);
+    COMPARE(templates[0].key, std::string("tiling"));
+    VERIFY(!templates[0].clientMoveResize);
+    VERIFY(templates[0].activationTogglesMaximize);
+    COMPARE(templates[1].key, std::string("stacking"));
+    VERIFY(templates[1].clientMoveResize);
+    VERIFY(!templates[1].activationTogglesMaximize);
+    VERIFY(createWindowLayout(windowTemplateForKey("stacking")));
     auto layout = createWindowLayout(windowTemplateForKey("tiling"));
-    QVERIFY(layout);
-    QVERIFY(!templates[0].allowOverlap);
-    QVERIFY(templates[1].allowOverlap);
-    QVERIFY(templates[0].layoutSettingsSchema.contains("gap"));
-    QVERIFY(templates[0].layoutSettingsSchema.contains("defaultWidth"));
-    QCOMPARE(
-        templates[0].layoutSettingsDefaults.value("splitTarget").toString(),
-        QString("focused"));
-    QCOMPARE(
-        templates[0].layoutSettingsDefaults.value("firstWindowSide").toString(),
-        QString("right"));
-    QVERIFY(templates[0].layoutActions.contains("group-direction"));
-    QVERIFY(templates[0].layoutActions.contains("insert-beside"));
-    QVERIFY(!templates[1].layoutActions.contains("group-direction"));
-    QString settingError;
-    QVERIFY(validateWindowLayoutSettings(
+    VERIFY(layout);
+    VERIFY(!templates[0].allowOverlap);
+    VERIFY(templates[1].allowOverlap);
+    VERIFY(templates[0].layoutSettingsSchema.contains("gap"));
+    VERIFY(templates[0].layoutSettingsSchema.contains("defaultWidth"));
+    COMPARE(
+        jsonString(templates[0].layoutSettingsDefaults, "splitTarget"),
+        std::string("focused"));
+    COMPARE(
+        jsonString(templates[0].layoutSettingsDefaults, "firstWindowSide"),
+        std::string("right"));
+    VERIFY(templates[0].layoutActions.contains("group-direction"));
+    VERIFY(templates[0].layoutActions.contains("insert-beside"));
+    VERIFY(!templates[1].layoutActions.contains("group-direction"));
+    std::string settingError;
+    VERIFY(validateWindowLayoutSettings(
         templates[0], {{"gap", 8}, {"defaultWidth", 1000}}, &settingError));
-    QVERIFY(!validateWindowLayoutSettings(templates[0], {{"gap", 999}},
+    VERIFY(!validateWindowLayoutSettings(templates[0], {{"gap", 999}},
                                           &settingError));
-    QVERIFY(validateWindowLayoutSettings(
+    VERIFY(validateWindowLayoutSettings(
         templates[0], {{"splitTarget", "largest"}, {"firstWindowSide", "left"}},
         &settingError));
-    QVERIFY(!validateWindowLayoutSettings(
+    VERIFY(!validateWindowLayoutSettings(
         templates[0], {{"splitTarget", "unknown"}}, &settingError));
-    QVERIFY(!validateWindowLayoutSettings(
+    VERIFY(!validateWindowLayoutSettings(
         templates[0], {{"firstWindowSide", "top"}}, &settingError));
     layout->configure(templates[0].layoutSettingsDefaults);
-    QVERIFY(!performWindowLayoutAction(*layout, templates[0], "missing"));
-    QVERIFY(layout->insert(0, 1));
-    QVERIFY(layout->insert(0, 2));
+    VERIFY(!performWindowLayoutAction(*layout, templates[0], "missing"));
+    VERIFY(layout->insert(0, 1));
+    VERIFY(layout->insert(0, 2));
     verifyNoOverlap(layout->layout(0, area));
-    QVERIFY(layout->setMaximized(2, true));
-    QCOMPARE(geometries(layout->presentation(0, area))[2], area);
-    QVERIFY(layout->setMaximized(2, false));
+    VERIFY(layout->setMaximized(2, true));
+    COMPARE(geometries(layout->presentation(0, area))[2], area);
+    VERIFY(layout->setMaximized(2, false));
     verifyNoOverlap(layout->presentation(0, area));
   }
   void stackingRetainsIndependentGeometry() {
     auto layout = createWindowLayout(windowTemplateForKey("stacking"));
-    QVERIFY(layout->insert(0, 1, QSize(800, 500)));
-    QVERIFY(layout->insert(0, 2, QSize(800, 500)));
+    VERIFY(layout->insert(0, 1, Size(800, 500)));
+    VERIFY(layout->insert(0, 2, Size(800, 500)));
     auto initial = geometries(layout->layout(0, area));
-    QVERIFY(initial[1].intersects(initial[2]));
-    QVERIFY(moveBy(*layout, 1, QPoint(-100, 80), area));
-    QVERIFY(resizeWidth(*layout, 1, 650));
-    QVERIFY(resizeHeight(*layout, 1, 450));
+    VERIFY(initial[1].intersects(initial[2]));
+    VERIFY(moveBy(*layout, 1, Point(-100, 80), area));
+    VERIFY(resizeWidth(*layout, 1, 650));
+    VERIFY(resizeHeight(*layout, 1, 450));
     const auto resized = geometries(layout->layout(0, area));
-    QCOMPARE(resized[1].size(), QSize(650, 450));
-    QCOMPARE(resized[2], initial[2]);
-    QVERIFY(layout->setMaximized(1, true));
+    COMPARE(resized[1].size(), Size(650, 450));
+    COMPARE(resized[2], initial[2]);
+    VERIFY(layout->setMaximized(1, true));
     const auto maximized = layout->presentation(0, area);
-    QCOMPARE(geometries(maximized)[1], area);
+    COMPARE(geometries(maximized)[1], area);
     for (const auto &window : maximized)
-      QVERIFY(!window.hiddenByMaximize);
-    QVERIFY(layout->setMaximized(1, false));
-    QCOMPARE(geometries(layout->presentation(0, area)), resized);
-    QVERIFY(layout->focus(1));
-    QCOMPARE(layout->snapshot(0).columns.back().window, LayoutWindowId(1));
-    QVERIFY(layout->setMinimized(1, true));
-    QCOMPARE(layout->snapshot(0).focusedWindow, LayoutWindowId(2));
-    QVERIFY(layout->setMinimized(1, false));
-    QCOMPARE(geometries(layout->layout(0, area)), resized);
-    QVERIFY(layout->moveToWorkspace(1, 1));
-    QCOMPARE(layout->snapshot(0).columns.size(), 1);
-    QCOMPARE(layout->snapshot(1).columns.size(), 1);
-    QVERIFY(moveBy(*layout, 1, QPoint(100000, -100000), area));
-    for (const auto &window : layout->layout(1, QRect(0, 0, 300, 200)))
-      QVERIFY(QRect(0, 0, 300, 200).contains(window.geometry));
-    QVERIFY(layout->remove(1));
-    QCOMPARE(layout->snapshot(1).focusedWindow, LayoutWindowId(0));
+      VERIFY(!window.hiddenByMaximize);
+    VERIFY(layout->setMaximized(1, false));
+    COMPARE(geometries(layout->presentation(0, area)), resized);
+    VERIFY(layout->focus(1));
+    COMPARE(layout->snapshot(0).columns.back().window, LayoutWindowId(1));
+    VERIFY(layout->setMinimized(1, true));
+    COMPARE(layout->snapshot(0).focusedWindow, LayoutWindowId(2));
+    VERIFY(layout->setMinimized(1, false));
+    COMPARE(geometries(layout->layout(0, area)), resized);
+    VERIFY(layout->moveToWorkspace(1, 1));
+    COMPARE(layout->snapshot(0).columns.size(), 1);
+    COMPARE(layout->snapshot(1).columns.size(), 1);
+    VERIFY(moveBy(*layout, 1, Point(100000, -100000), area));
+    for (const auto &window : layout->layout(1, Rect(0, 0, 300, 200)))
+      VERIFY(Rect(0, 0, 300, 200).contains(window.geometry));
+    VERIFY(layout->remove(1));
+    COMPARE(layout->snapshot(1).focusedWindow, LayoutWindowId(0));
   }
   void fixedSplitsStayOnScreen() {
     TilingLayout layout;
@@ -194,182 +209,182 @@ private Q_SLOTS:
                       {"gap", 6},
                       {"splitTarget", "largest"},
                       {"firstWindowSide", "left"}});
-    QVERIFY(layout.insert(0, 1, QSize(900, 600)));
-    QCOMPARE(layout.layout(0, area).front().geometry.size(), QSize(900, 600));
-    QVERIFY(layout.insert(0, 2));
+    VERIFY(layout.insert(0, 1, Size(900, 600)));
+    COMPARE(layout.layout(0, area).front().geometry.size(), Size(900, 600));
+    VERIFY(layout.insert(0, 2));
     auto two = geometries(layout.layout(0, area));
-    QCOMPARE(two[1].height(), area.height());
-    QCOMPARE(two[2].height(), area.height());
-    QCOMPARE(two[1].right() + 7, two[2].left());
-    QVERIFY(layout.insert(0, 3));
+    COMPARE(two[1].height(), area.height());
+    COMPARE(two[2].height(), area.height());
+    COMPARE(two[1].right() + 7, two[2].left());
+    VERIFY(layout.insert(0, 3));
     auto three = geometries(layout.layout(0, area));
-    QCOMPARE(three[1], two[1]);
-    QCOMPARE(three[2].left(), two[2].left());
-    QCOMPARE(three[3].left(), two[2].left());
-    QCOMPARE(three[2].bottom() + 7, three[3].top());
-    QVERIFY(layout.focus(1));
+    COMPARE(three[1], two[1]);
+    COMPARE(three[2].left(), two[2].left());
+    COMPARE(three[3].left(), two[2].left());
+    COMPARE(three[2].bottom() + 7, three[3].top());
+    VERIFY(layout.focus(1));
     const auto unchanged = geometries(layout.layout(0, area));
-    QCOMPARE(unchanged, three); // Focusing never scrolls or rearranges slots.
-    QVERIFY(focusDirection(layout, 0, 1, 0));
-    QVERIFY(focusDirection(layout, 0, 0, 1));
-    QCOMPARE(layout.snapshot(0).focusedWindow, LayoutWindowId(3));
-    QVERIFY(resizeWidth(layout, 3, 900));
-    QVERIFY(resizeHeight(layout, 3, 600));
+    COMPARE(unchanged, three); // Focusing never scrolls or rearranges slots.
+    VERIFY(focusDirection(layout, 0, 1, 0));
+    VERIFY(focusDirection(layout, 0, 0, 1));
+    COMPARE(layout.snapshot(0).focusedWindow, LayoutWindowId(3));
+    VERIFY(resizeWidth(layout, 3, 900));
+    VERIFY(resizeHeight(layout, 3, 600));
     auto resized = layout.layout(0, area);
     verifyNoOverlap(resized);
     for (const auto &slot : resized)
-      QVERIFY(area.contains(slot.geometry));
+      VERIFY(area.contains(slot.geometry));
     const auto beforeMinimize = geometries(resized);
-    QVERIFY(layout.setMinimized(2, true));
+    VERIFY(layout.setMinimized(2, true));
     verifyNoOverlap(layout.layout(0, area));
-    QVERIFY(layout.setMinimized(2, false));
-    QCOMPARE(geometries(layout.layout(0, area)), beforeMinimize);
-    QVERIFY(layout.remove(3));
-    QCOMPARE(geometries(layout.layout(0, area))[2].height(), area.height());
+    VERIFY(layout.setMinimized(2, false));
+    COMPARE(geometries(layout.layout(0, area)), beforeMinimize);
+    VERIFY(layout.remove(3));
+    COMPARE(geometries(layout.layout(0, area))[2].height(), area.height());
   }
   void focusedSplitsPreserveMainPane() {
     TilingLayout layout;
     layout.configure(
         {{"gap", 8}, {"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
-    const QRect bounds(16, 48, 1608, 1000);
-    QVERIFY(layout.insert(0, 1));
+    const Rect bounds(16, 48, 1608, 1000);
+    VERIFY(layout.insert(0, 1));
     layout.layout(0, bounds);
-    QVERIFY(layout.insert(0, 2));
+    VERIFY(layout.insert(0, 2));
     const auto pair = geometries(layout.layout(0, bounds));
-    QCOMPARE(pair[1], QRect(824, 48, 800, 1000));
-    QCOMPARE(pair[2], QRect(16, 48, 800, 1000));
+    COMPARE(pair[1], Rect(824, 48, 800, 1000));
+    COMPARE(pair[2], Rect(16, 48, 800, 1000));
 
-    QVERIFY(layout.insert(0, 3));
+    VERIFY(layout.insert(0, 3));
     const auto three = geometries(layout.layout(0, bounds));
-    QCOMPARE(three[1], pair[1]);
-    QCOMPARE(three[3], QRect(16, 552, 800, 496));
-    QVERIFY(layout.focus(2));
-    QCOMPARE(geometries(layout.layout(0, bounds)), three);
-    QVERIFY(layout.insert(0, 4));
+    COMPARE(three[1], pair[1]);
+    COMPARE(three[3], Rect(16, 552, 800, 496));
+    VERIFY(layout.focus(2));
+    COMPARE(geometries(layout.layout(0, bounds)), three);
+    VERIFY(layout.insert(0, 4));
     layout.layout(0, bounds);
-    QVERIFY(layout.insert(0, 5));
+    VERIFY(layout.insert(0, 5));
     const auto five = geometries(layout.layout(0, bounds));
-    QVERIFY(layout.insert(0, 6));
+    VERIFY(layout.insert(0, 6));
     const auto placements = layout.layout(0, bounds);
     const auto six = geometries(placements);
-    QCOMPARE(six.size(), 6);
-    QCOMPARE(six[1], pair[1]);
-    QCOMPARE(six[2], QRect(16, 48, 396, 496));
-    QCOMPARE(six[3], three[3]);
-    QCOMPARE(six[4], QRect(420, 48, 396, 244));
-    QCOMPARE(six[5], QRect(420, 300, 194, 244));
-    QCOMPARE(six[6], QRect(622, 300, 194, 244));
+    COMPARE(six.size(), 6);
+    COMPARE(six[1], pair[1]);
+    COMPARE(six[2], Rect(16, 48, 396, 496));
+    COMPARE(six[3], three[3]);
+    COMPARE(six[4], Rect(420, 48, 396, 244));
+    COMPARE(six[5], Rect(420, 300, 194, 244));
+    COMPARE(six[6], Rect(622, 300, 194, 244));
     verifyNoOverlap(placements);
     for (const auto &slot : placements)
-      QVERIFY(bounds.contains(slot.geometry));
+      VERIFY(bounds.contains(slot.geometry));
 
-    QVERIFY(layout.setMaximized(6, true));
-    QCOMPARE(geometries(layout.presentation(0, bounds))[6], bounds);
-    QVERIFY(layout.setMaximized(6, false));
-    QCOMPARE(geometries(layout.presentation(0, bounds)), six);
-    QVERIFY(layout.setMinimized(4, true));
+    VERIFY(layout.setMaximized(6, true));
+    COMPARE(geometries(layout.presentation(0, bounds))[6], bounds);
+    VERIFY(layout.setMaximized(6, false));
+    COMPARE(geometries(layout.presentation(0, bounds)), six);
+    VERIFY(layout.setMinimized(4, true));
     verifyNoOverlap(layout.layout(0, bounds));
-    QVERIFY(layout.setMinimized(4, false));
-    QCOMPARE(geometries(layout.layout(0, bounds)), six);
-    QVERIFY(layout.remove(6));
-    QCOMPARE(geometries(layout.layout(0, bounds)), five);
+    VERIFY(layout.setMinimized(4, false));
+    COMPARE(geometries(layout.layout(0, bounds)), six);
+    VERIFY(layout.remove(6));
+    COMPARE(geometries(layout.layout(0, bounds)), five);
 
     // A live policy edit only affects later insertions, never saved slots.
     layout.configure({{"splitTarget", "largest"}, {"firstWindowSide", "left"}});
-    QCOMPARE(geometries(layout.layout(0, bounds)), five);
-    QVERIFY(layout.insert(0, 7));
+    COMPARE(geometries(layout.layout(0, bounds)), five);
+    VERIFY(layout.insert(0, 7));
     const auto changed = geometries(layout.layout(0, bounds));
-    QCOMPARE(changed[2], five[2]);
-    QCOMPARE(changed[3], five[3]);
-    QCOMPARE(changed[4], five[4]);
-    QCOMPARE(changed[5], five[5]);
-    QCOMPARE(changed[1], QRect(824, 48, 800, 496));
-    QCOMPARE(changed[7], QRect(824, 552, 800, 496));
+    COMPARE(changed[2], five[2]);
+    COMPARE(changed[3], five[3]);
+    COMPARE(changed[4], five[4]);
+    COMPARE(changed[5], five[5]);
+    COMPARE(changed[1], Rect(824, 48, 800, 496));
+    COMPARE(changed[7], Rect(824, 552, 800, 496));
   }
   void focusedSplitUsesDestinationFocus() {
     TilingLayout layout;
     layout.configure({{"gap", 8}, {"firstWindowSide", "left"}});
-    const QRect bounds(16, 48, 1608, 1000);
-    QVERIFY(layout.insert(0, 1));
+    const Rect bounds(16, 48, 1608, 1000);
+    VERIFY(layout.insert(0, 1));
     layout.layout(0, bounds);
-    QVERIFY(layout.insert(0, 2));
+    VERIFY(layout.insert(0, 2));
     const auto pair = geometries(layout.layout(0, bounds));
-    QCOMPARE(pair[1], QRect(16, 48, 800, 1000));
-    QCOMPARE(pair[2], QRect(824, 48, 800, 1000));
-    QVERIFY(layout.focus(1));
-    QVERIFY(layout.insert(1, 10));
-    QVERIFY(layout.moveToWorkspace(10, 0));
+    COMPARE(pair[1], Rect(16, 48, 800, 1000));
+    COMPARE(pair[2], Rect(824, 48, 800, 1000));
+    VERIFY(layout.focus(1));
+    VERIFY(layout.insert(1, 10));
+    VERIFY(layout.moveToWorkspace(10, 0));
     const auto moved = geometries(layout.layout(0, bounds));
-    QCOMPARE(moved[2], pair[2]);
-    QCOMPARE(moved[1], QRect(16, 48, 800, 496));
-    QCOMPARE(moved[10], QRect(16, 552, 800, 496));
-    QCOMPARE(layout.snapshot(1).columns.size(), 0);
-    QCOMPARE(layout.snapshot(0).focusedWindow, LayoutWindowId(10));
+    COMPARE(moved[2], pair[2]);
+    COMPARE(moved[1], Rect(16, 48, 800, 496));
+    COMPARE(moved[10], Rect(16, 552, 800, 496));
+    COMPARE(layout.snapshot(1).columns.size(), 0);
+    COMPARE(layout.snapshot(0).focusedWindow, LayoutWindowId(10));
 
     for (const auto id : {1, 2, 10})
-      QVERIFY(layout.setMinimized(id, true));
-    QVERIFY(layout.insert(0, 11));
+      VERIFY(layout.setMinimized(id, true));
+    VERIFY(layout.insert(0, 11));
     for (const auto id : {1, 2, 10})
-      QVERIFY(layout.setMinimized(id, false));
+      VERIFY(layout.setMinimized(id, false));
     const auto restored = layout.layout(0, bounds);
-    QCOMPARE(restored.size(), 4);
+    COMPARE(restored.size(), 4);
     verifyNoOverlap(restored);
     for (const auto &slot : restored)
-      QVERIFY(bounds.contains(slot.geometry));
+      VERIFY(bounds.contains(slot.geometry));
   }
   void focusedSplitsPreferReadableTiles() {
     TilingLayout layout;
     layout.configure({{"gap", 12}});
-    const QRect bounds(12, 72, 1896, 996);
+    const Rect bounds(12, 72, 1896, 996);
     for (int id = 1; id <= 6; ++id) {
       if (id == 4)
-        QVERIFY(layout.focus(2));
-      QVERIFY(layout.insert(0, id));
+        VERIFY(layout.focus(2));
+      VERIFY(layout.insert(0, id));
       const auto placements = layout.layout(0, bounds);
       verifyNoOverlap(placements);
       for (const auto &slot : placements) {
-        QVERIFY(bounds.contains(slot.geometry));
-        QVERIFY(slot.geometry.width() >= 320);
-        QVERIFY(slot.geometry.height() >= 300);
+        VERIFY(bounds.contains(slot.geometry));
+        VERIFY(slot.geometry.width() >= 320);
+        VERIFY(slot.geometry.height() >= 300);
       }
     }
     const auto six = geometries(layout.layout(0, bounds));
     // The fifth window uses the large right tile instead of halving the
     // upper-left branch into two 240 px high windows. The sixth then fits
     // beside it without further reducing the content height.
-    QCOMPARE(six[1], QRect(966, 72, 942, 492));
-    QCOMPARE(six[6], QRect(1443, 576, 465, 492));
-    QCOMPARE(six[5], QRect(966, 576, 465, 492));
+    COMPARE(six[1], Rect(966, 72, 942, 492));
+    COMPARE(six[6], Rect(1443, 576, 465, 492));
+    COMPARE(six[5], Rect(966, 576, 465, 492));
 
     // On a crowded screen the preference remains a soft bound: every
     // application still has a non-overlapping, on-screen slot.
     for (int id = 7; id <= 20; ++id) {
-      QVERIFY(layout.insert(0, id));
+      VERIFY(layout.insert(0, id));
       const auto placements = layout.layout(0, bounds);
       verifyNoOverlap(placements);
       for (const auto &slot : placements)
-        QVERIFY(bounds.contains(slot.geometry));
+        VERIFY(bounds.contains(slot.geometry));
     }
   }
   void manyWindowsAndOutputChanges() {
-    for (const QRect bounds :
-         {area, QRect(-800, 20, 800, 1200), QRect(0, 0, 320, 240)}) {
+    for (const Rect bounds :
+         {area, Rect(-800, 20, 800, 1200), Rect(0, 0, 320, 240)}) {
       TilingLayout layout;
       layout.configure({{"defaultWidth", 960}, {"gap", 6}});
       for (int id = 1; id <= 64; ++id) {
-        QVERIFY(layout.insert(0, id));
+        VERIFY(layout.insert(0, id));
         const auto placements = layout.layout(0, bounds);
-        QCOMPARE(placements.size(), id);
+        COMPARE(placements.size(), id);
         verifyNoOverlap(placements);
         for (const auto &slot : placements)
-          QVERIFY(bounds.contains(slot.geometry));
+          VERIFY(bounds.contains(slot.geometry));
       }
-      for (const QRect resized : {QRect(0, 0, 500, 300), area}) {
+      for (const Rect resized : {Rect(0, 0, 500, 300), area}) {
         const auto placements = layout.layout(0, resized);
-        QCOMPARE(placements.size(), 64);
+        COMPARE(placements.size(), 64);
         verifyNoOverlap(placements);
         for (const auto &slot : placements)
-          QVERIFY(resized.contains(slot.geometry));
+          VERIFY(resized.contains(slot.geometry));
       }
     }
   }
@@ -378,7 +393,7 @@ private Q_SLOTS:
     layout.configure({{"defaultWidth", 960}, {"gap", 6}});
     for (int id = 1; id <= 16; ++id)
       layout.insert(0, id);
-    quint32 random = 12345;
+    std::uint32_t random = 12345;
     for (int step = 0; step < 400; ++step) {
       random = random * 1664525U + 1013904223U;
       const int id = 1 + (random >> 8) % 16;
@@ -416,22 +431,22 @@ private Q_SLOTS:
         verifyNoOverlap(placements);
         for (const auto &slot : placements)
           if (!slot.minimized)
-            QVERIFY(area.contains(slot.geometry));
+            VERIFY(area.contains(slot.geometry));
       }
-      QCOMPARE(total, 16);
+      COMPARE(total, 16);
     }
   }
   void singleWindowProportionsAndBounds() {
     TilingLayout layout;
-    layout.insert(0, 1, QSize(2400, 1600));
+    layout.insert(0, 1, Size(2400, 1600));
     const auto fitted = layout.layout(0, area).front().geometry;
-    QVERIFY(area.contains(fitted));
-    QCOMPARE(fitted.width() * 2, fitted.height() * 3);
-    QVERIFY(moveBy(layout, 1, QPoint(10000, -10000), area));
-    QVERIFY(area.contains(layout.layout(0, area).front().geometry));
-    QVERIFY(resizeWidth(layout, 1, 10000));
-    QVERIFY(resizeHeight(layout, 1, 10000));
-    QCOMPARE(layout.layout(0, area).front().geometry, area);
+    VERIFY(area.contains(fitted));
+    COMPARE(fitted.width() * 2, fitted.height() * 3);
+    VERIFY(moveBy(layout, 1, Point(10000, -10000), area));
+    VERIFY(area.contains(layout.layout(0, area).front().geometry));
+    VERIFY(resizeWidth(layout, 1, 10000));
+    VERIFY(resizeHeight(layout, 1, 10000));
+    COMPARE(layout.layout(0, area).front().geometry, area);
   }
   void eightRowsAndOverflow() {
     TilingLayout layout;
@@ -439,32 +454,32 @@ private Q_SLOTS:
     // Preferred split sizes have separate insertion coverage above.
     layout.configure({{"minimumTileWidth", 1}, {"minimumTileHeight", 1}});
     for (int i = 1; i <= 9; ++i)
-      QVERIFY(layout.insert(0, i));
+      VERIFY(layout.insert(0, i));
     auto placements = layout.layout(0, area);
     for (int i = 0; i < 9; ++i)
-      QCOMPARE(placements[i].metadata.value("group").toInt(), i);
+      COMPARE(jsonInt(placements[i].metadata, "group"), i);
     for (int i = 2; i <= 8; ++i)
-      QVERIFY(groupWith(layout, i, i - 1));
+      VERIFY(groupWith(layout, i, i - 1));
     placements = layout.layout(0, area);
-    QCOMPARE(placements.size(), 9);
+    COMPARE(placements.size(), 9);
     verifyNoOverlap(placements);
     for (int i = 0; i < 8; ++i) {
-      QCOMPARE(placements[i].metadata.value("group").toInt(), 0);
-      QCOMPARE(placements[i].metadata.value("row").toInt(), i);
+      COMPARE(jsonInt(placements[i].metadata, "group"), 0);
+      COMPARE(jsonInt(placements[i].metadata, "row"), i);
     }
-    QCOMPARE(placements[8].metadata.value("group").toInt(), 1);
-    QCOMPARE(placements[7].geometry.bottom(), area.bottom());
-    QVERIFY(!groupWith(layout, 9, 1));
-    QVERIFY(layout.setMinimized(4, true));
-    QVERIFY(!groupWith(layout, 9, 1)); // Minimized clients retain their slot.
+    COMPARE(jsonInt(placements[8].metadata, "group"), 1);
+    COMPARE(placements[7].geometry.bottom(), area.bottom());
+    VERIFY(!groupWith(layout, 9, 1));
+    VERIFY(layout.setMinimized(4, true));
+    VERIFY(!groupWith(layout, 9, 1)); // Minimized clients retain their slot.
     verifyNoOverlap(layout.layout(0, area));
-    QVERIFY(layout.setMinimized(4, false));
-    QVERIFY(layout.remove(4));
-    QVERIFY(groupWith(layout, 9, 1));
+    VERIFY(layout.setMinimized(4, false));
+    VERIFY(layout.remove(4));
+    VERIFY(groupWith(layout, 9, 1));
     placements = layout.layout(0, area);
-    QCOMPARE(placements.size(), 8);
+    COMPARE(placements.size(), 8);
     for (const auto &slot : placements)
-      QCOMPARE(slot.metadata.value("group").toInt(), 0);
+      COMPARE(jsonInt(slot.metadata, "group"), 0);
     verifyNoOverlap(placements);
   }
   void swapsPreserveSlots() {
@@ -474,364 +489,353 @@ private Q_SLOTS:
     groupWith(layout, 2, 1);
     groupWith(layout, 3, 2);
     layout.layout(0, area);
-    QVERIFY(resizeHeight(layout, 2, 500));
+    VERIFY(resizeHeight(layout, 2, 500));
     auto before = geometries(layout.layout(0, area));
-    QVERIFY(swapWindows(layout, 1, 2));
+    VERIFY(swapWindows(layout, 1, 2));
     auto after = geometries(layout.layout(0, area));
-    QCOMPARE(after[1], before[2]);
-    QCOMPARE(after[2], before[1]);
-    QCOMPARE(after[3], before[3]);
-    QVERIFY(expel(layout, 3));
-    QVERIFY(insertBeside(layout, 3, 1, false));
+    COMPARE(after[1], before[2]);
+    COMPARE(after[2], before[1]);
+    COMPARE(after[3], before[3]);
+    VERIFY(expel(layout, 3));
+    VERIFY(insertBeside(layout, 3, 1, false));
     auto placements = layout.layout(0, area);
-    QCOMPARE(placements[1].window, LayoutWindowId(3));
-    QCOMPARE(placements[2].window, LayoutWindowId(1));
+    COMPARE(placements[1].window, LayoutWindowId(3));
+    COMPARE(placements[2].window, LayoutWindowId(1));
     verifyNoOverlap(placements);
   }
   void resizingAndSingleMovement() {
     TilingLayout layout;
     layout.insert(0, 1);
     const auto before = layout.layout(0, area).front().geometry;
-    QVERIFY(moveBy(layout, 1, QPoint(60, 30), area));
+    VERIFY(moveBy(layout, 1, Point(60, 30), area));
     const auto moved = layout.layout(0, area).front().geometry;
-    QCOMPARE(moved.size(), before.size());
-    QCOMPARE(moved.topLeft(), before.topLeft() + QPoint(60, 30));
-    QVERIFY(resizeHeight(layout, 1, 400));
-    QCOMPARE(layout.layout(0, area).front().geometry.height(), 400);
-    QCOMPARE(layout.layout(0, area).front().geometry.topLeft(),
+    COMPARE(moved.size(), before.size());
+    COMPARE(moved.topLeft(), before.topLeft() + Point(60, 30));
+    VERIFY(resizeHeight(layout, 1, 400));
+    COMPARE(layout.layout(0, area).front().geometry.height(), 400);
+    COMPARE(layout.layout(0, area).front().geometry.topLeft(),
              moved.topLeft());
-    QVERIFY(resizeHeight(layout, 1, 700));
-    QCOMPARE(layout.layout(0, area).front().geometry.height(), 700);
+    VERIFY(resizeHeight(layout, 1, 700));
+    COMPARE(layout.layout(0, area).front().geometry.height(), 700);
     layout.insert(0, 2);
     layout.insert(0, 3);
     groupWith(layout, 2, 1);
     groupWith(layout, 3, 2);
     verifyNoOverlap(layout.layout(0, area));
-    QVERIFY(!moveBy(layout, 1, QPoint(10, 10), area));
+    VERIFY(!moveBy(layout, 1, Point(10, 10), area));
     for (const int height : {600, 50, 10000, 300}) {
-      QVERIFY(resizeHeight(layout, 2, height));
+      VERIFY(resizeHeight(layout, 2, height));
       auto placements = layout.layout(0, area);
       verifyNoOverlap(placements);
-      QCOMPARE(placements[1].window, LayoutWindowId(2));
-      QCOMPARE(placements.back().geometry.bottom(), area.bottom());
+      COMPARE(placements[1].window, LayoutWindowId(2));
+      COMPARE(placements.back().geometry.bottom(), area.bottom());
       if (height == 600 || height == 300)
-        QCOMPARE(placements[1].geometry.height(), height);
+        COMPARE(placements[1].geometry.height(), height);
     }
-    QVERIFY(layout.moveToWorkspace(2, 1));
-    QCOMPARE(layout.layout(0, area).size(), 2);
-    QCOMPARE(layout.layout(1, area).size(), 1);
+    VERIFY(layout.moveToWorkspace(2, 1));
+    COMPARE(layout.layout(0, area).size(), 2);
+    COMPARE(layout.layout(1, area).size(), 1);
   }
   void workspaceMaximizePreservesTiling() {
     TilingLayout layout;
     layout.configure({{"defaultWidth", 450}, {"gap", 6}});
     for (int id = 1; id <= 4; ++id)
-      QVERIFY(layout.insert(0, id));
-    QVERIFY(groupWith(layout, 2, 1));
-    QVERIFY(layout.insert(1, 10, QSize(500, 400)));
+      VERIFY(layout.insert(0, id));
+    VERIFY(groupWith(layout, 2, 1));
+    VERIFY(layout.insert(1, 10, Size(500, 400)));
     layout.layout(0, area);
-    QVERIFY(resizeHeight(layout, 2, 300));
-    QVERIFY(layout.focus(2));
+    VERIFY(resizeHeight(layout, 2, 300));
+    VERIFY(layout.focus(2));
     const auto tiled = geometries(layout.layout(0, area));
     const auto otherWorkspace = geometries(layout.layout(1, area));
-    QVERIFY(layout.setMaximized(2, true));
+    VERIFY(layout.setMaximized(2, true));
     const auto expanded = layout.presentation(0, area);
-    QCOMPARE(expanded.size(), 4);
+    COMPARE(expanded.size(), 4);
     for (const auto &slot : expanded) {
-      QCOMPARE(slot.hiddenByMaximize, slot.window != 2);
-      QVERIFY(!slot.minimized);
+      COMPARE(slot.hiddenByMaximize, slot.window != 2);
+      VERIFY(!slot.minimized);
       if (slot.window == 2)
-        QCOMPARE(slot.geometry, area);
+        COMPARE(slot.geometry, area);
     }
-    QCOMPARE(geometries(layout.layout(0, area)), tiled);
-    QCOMPARE(geometries(layout.presentation(1, area)), otherWorkspace);
-    QVERIFY(layout.setMaximized(2, false));
+    COMPARE(geometries(layout.layout(0, area)), tiled);
+    COMPARE(geometries(layout.presentation(1, area)), otherWorkspace);
+    VERIFY(layout.setMaximized(2, false));
     const auto restored = layout.presentation(0, area);
-    QCOMPARE(geometries(restored), tiled);
+    COMPARE(geometries(restored), tiled);
     for (const auto &slot : restored)
-      QVERIFY(!slot.hiddenByMaximize);
+      VERIFY(!slot.hiddenByMaximize);
     verifyNoOverlap(restored);
-    QVERIFY(layout.setMaximized(3, true));
-    QVERIFY(layout.setMaximized(1, true));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(1));
+    VERIFY(layout.setMaximized(3, true));
+    VERIFY(layout.setMaximized(1, true));
+    COMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(1));
     for (const auto &slot : layout.presentation(0, area))
-      QCOMPARE(slot.hiddenByMaximize, slot.window != 1);
-    QVERIFY(layout.setMinimized(4, true));
-    QVERIFY(layout.setMinimized(1, true));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
-    QVERIFY(!layout.setMaximized(1, true));
-    QVERIFY(layout.setMinimized(1, false));
-    QVERIFY(layout.setMaximized(2, true));
-    QVERIFY(layout.remove(2));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
-    QVERIFY(layout.setMaximized(3, true));
-    QVERIFY(layout.moveToWorkspace(3, 1));
-    QCOMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
+      COMPARE(slot.hiddenByMaximize, slot.window != 1);
+    VERIFY(layout.setMinimized(4, true));
+    VERIFY(layout.setMinimized(1, true));
+    COMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
+    VERIFY(!layout.setMaximized(1, true));
+    VERIFY(layout.setMinimized(1, false));
+    VERIFY(layout.setMaximized(2, true));
+    VERIFY(layout.remove(2));
+    COMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
+    VERIFY(layout.setMaximized(3, true));
+    VERIFY(layout.moveToWorkspace(3, 1));
+    COMPARE(layout.snapshot(0).maximizedWindow, LayoutWindowId(0));
     for (const auto &slot : layout.presentation(0, area)) {
-      QVERIFY(!slot.hiddenByMaximize);
+      VERIFY(!slot.hiddenByMaximize);
       if (slot.window == 4)
-        QVERIFY(slot.minimized);
+        VERIFY(slot.minimized);
     }
   }
   void freeformSwapExchangesWindowSlots() {
     const auto &stacking = windowTemplateForKey("stacking");
     auto layout = createWindowLayout(stacking);
-    QVERIFY(layout);
-    QVERIFY(layout->insert(0, 1, QSize(420, 320)));
-    QVERIFY(layout->insert(0, 2, QSize(420, 320)));
+    VERIFY(layout);
+    VERIFY(layout->insert(0, 1, Size(420, 320)));
+    VERIFY(layout->insert(0, 2, Size(420, 320)));
     layout->presentation(0, area);
-    QVERIFY(performWindowLayoutAction(
+    VERIFY(performWindowLayoutAction(
         *layout, stacking, "move-by",
         {{"window", 1}, {"dx", -180}, {"dy", 0}, {"area", areaJson(area)}}));
-    QVERIFY(performWindowLayoutAction(
+    VERIFY(performWindowLayoutAction(
         *layout, stacking, "move-by",
         {{"window", 2}, {"dx", 180}, {"dy", 0}, {"area", areaJson(area)}}));
     const auto before = geometries(layout->presentation(0, area));
-    QVERIFY(before.value(1) != before.value(2));
-    QVERIFY(performWindowLayoutAction(*layout, stacking, "swap",
+    VERIFY(before.value(1) != before.value(2));
+    VERIFY(performWindowLayoutAction(*layout, stacking, "swap",
                                       {{"window", 1}, {"target", 2}}));
     const auto after = geometries(layout->presentation(0, area));
-    QCOMPARE(after.value(1), before.value(2));
-    QCOMPARE(after.value(2), before.value(1));
+    COMPARE(after.value(1), before.value(2));
+    COMPARE(after.value(2), before.value(1));
   }
 
   void geometryBounds() {
     LuDashRectangle halves[2];
     for (const int vertical : {0, 1}) {
-      QVERIFY(ludash_split_rectangle({-10, 20, 31, 29}, vertical, 500000, 6, 1,
+      VERIFY(ludash_split_rectangle({-10, 20, 31, 29}, vertical, 500000, 6, 1,
                                      1, halves));
       const auto a =
-          QRect(halves[0].x, halves[0].y, halves[0].width, halves[0].height);
+          Rect(halves[0].x, halves[0].y, halves[0].width, halves[0].height);
       const auto b =
-          QRect(halves[1].x, halves[1].y, halves[1].width, halves[1].height);
-      QVERIFY(!a.intersects(b));
-      QVERIFY(QRect(-10, 20, 31, 29).contains(a));
-      QVERIFY(QRect(-10, 20, 31, 29).contains(b));
+          Rect(halves[1].x, halves[1].y, halves[1].width, halves[1].height);
+      VERIFY(!a.intersects(b));
+      VERIFY(Rect(-10, 20, 31, 29).contains(a));
+      VERIFY(Rect(-10, 20, 31, 29).contains(b));
     }
-    QVERIFY(ludash_split_rectangle({0, 0, 2, 8}, 1, 0, INT_MAX, 1, 1, halves));
-    QCOMPARE(halves[0].width, 1);
-    QCOMPARE(halves[1].x, 1);
-    QVERIFY(!ludash_split_rectangle({0, 0, 1, 8}, 1, 500000, 0, 1, 1, halves));
-    QVERIFY(!ludash_split_rectangle({INT_MAX, 0, 10, 8}, 1, 500000, 0, 1, 1,
+    VERIFY(ludash_split_rectangle({0, 0, 2, 8}, 1, 0, INT_MAX, 1, 1, halves));
+    COMPARE(halves[0].width, 1);
+    COMPARE(halves[1].x, 1);
+    VERIFY(!ludash_split_rectangle({0, 0, 1, 8}, 1, 500000, 0, 1, 1, halves));
+    VERIFY(!ludash_split_rectangle({INT_MAX, 0, 10, 8}, 1, 500000, 0, 1, 1,
                                     halves));
     LuDashRectangle output[9];
     for (int count = 1; count <= 8; ++count) {
       const LuDashRectangle small{0, 0, 120, count};
-      QCOMPARE(ludash_layout_column_windows(small, count, 100, output, 9),
+      COMPARE(ludash_layout_column_windows(small, count, 100, output, 9),
                size_t(count));
       for (int i = 0; i < count; ++i) {
-        QCOMPARE(output[i].height, 1);
-        QCOMPARE(output[i].y, i);
+        COMPARE(output[i].height, 1);
+        COMPARE(output[i].y, i);
       }
     }
-    QCOMPARE(ludash_layout_column_windows({0, 0, 100, 100}, 9, 4, output, 9),
+    COMPARE(ludash_layout_column_windows({0, 0, 100, 100}, 9, 4, output, 9),
              size_t(0));
     int invalid[] = {INT_MAX, 0};
-    QCOMPARE(ludash_layout_weighted_column_windows({0, 0, 100, 100}, invalid, 2,
+    COMPARE(ludash_layout_weighted_column_windows({0, 0, 100, 100}, invalid, 2,
                                                    4, output, 9),
              size_t(0));
   }
   void windowSelectionScopeAndLifetime() {
-    QJsonArray clients;
+    Json clients = Json::array();
     for (int i = 1; i <= 6; ++i)
-      clients.append(QJsonObject{{"id", i},
+      clients.push_back(Json::object({{"id", i},
                                  {"mapped", i != 5},
                                  {"workspace", i == 4 ? 1 : 0},
                                  {"utility", i == 6},
                                  {"desktop", i == 3},
-                                 {"minimized", i == 2}});
+                                 {"minimized", i == 2}}));
     const auto windows = WindowSwitcher::windowsForWorkspace(clients, 0);
-    QCOMPARE(windows.size(),
+    COMPARE(windows.size(),
              2); // Includes minimized peers, no other workspace.
     WindowSwitcher switcher;
     ProcessEnvironment environment;
-    QVERIFY(switcher.begin(windows, 1, 1, environment,
+    VERIFY(switcher.begin(windows, 1, 1, environment,
                            WindowSwitcher::Scope::Windows));
-    QCOMPARE(switcher.snapshot().value("scope").toString(), QString("windows"));
-    QVERIFY(switcher.snapshot().value("workspaces").toArray().isEmpty());
-    QCOMPARE(switcher.snapshot().value("windows").toArray().size(), 2);
-    QCOMPARE(switcher.finish(true), 2);
-    QVERIFY(switcher.begin(windows, 1, -1, environment,
+    COMPARE(jsonString(switcher.snapshot(), "scope"), std::string("windows"));
+    VERIFY(jsonArray(switcher.snapshot(), "workspaces").empty());
+    COMPARE(jsonArray(switcher.snapshot(), "windows").size(), 2);
+    COMPARE(switcher.finish(true), 2);
+    VERIFY(switcher.begin(windows, 1, -1, environment,
                            WindowSwitcher::Scope::Windows));
     switcher.remove(1);
-    QCOMPARE(switcher.snapshot().value("index").toInt(), 0);
-    QCOMPARE(switcher.finish(true), 2);
+    COMPARE(jsonInt(switcher.snapshot(), "index"), 0);
+    COMPARE(switcher.finish(true), 2);
     switcher.begin(windows, 1, 1, environment, WindowSwitcher::Scope::Windows);
     switcher.remove(2);
     switcher.remove(1);
-    QVERIFY(!switcher.active());
-    QCOMPARE(switcher.finish(true), 0);
+    VERIFY(!switcher.active());
+    COMPARE(switcher.finish(true), 0);
     switcher.dismissPopups();
-    QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 1);
+    COMPARE(jsonInt(switcher.snapshot(), "dismissSerial"), 1);
     switcher.dismissPopups();
-    QCOMPARE(switcher.snapshot().value("dismissSerial").toInt(), 2);
-    QVERIFY(
+    COMPARE(jsonInt(switcher.snapshot(), "dismissSerial"), 2);
+    VERIFY(
         !switcher.begin({}, 0, 1, environment, WindowSwitcher::Scope::Windows));
-    QTest::qWait(40);
+    std::this_thread::sleep_for(std::chrono::milliseconds(40));
   }
   void selectionLifecycle() {
-    QTemporaryDir runtime;
+    TemporaryDirectory runtime;
     WindowSwitcher switcher;
-    const QString channel = runtime.filePath("interaction.json");
+    const std::string channel = runtime.filePath("interaction.json");
     switcher.setChannelPath(channel);
     switcher.setLauncherState(7, true);
-    QCOMPARE(switcher.snapshot().value("launcherSerial").toInt(), 7);
-    QVERIFY(switcher.snapshot().value("launcherOpen").toBool());
+    COMPARE(jsonInt(switcher.snapshot(), "launcherSerial"), 7);
+    VERIFY(jsonBool(switcher.snapshot(), "launcherOpen"));
     switcher.setLauncherState(8, false);
-    QCOMPARE(switcher.snapshot().value("launcherSerial").toInt(), 8);
-    QVERIFY(!switcher.snapshot().value("launcherOpen").toBool());
+    COMPARE(jsonInt(switcher.snapshot(), "launcherSerial"), 8);
+    VERIFY(!jsonBool(switcher.snapshot(), "launcherOpen"));
     ProcessEnvironment environment{
-        {"XDG_RUNTIME_DIR", runtime.path().toStdString()},
-        {"WAYLAND_DISPLAY", runtime.filePath("no-display").toStdString()},
+        {"XDG_RUNTIME_DIR", runtime.path().string()},
+        {"WAYLAND_DISPLAY", runtime.filePath("no-display")},
     };
-    QJsonArray workspaces;
+    Json workspaces = Json::array();
     for (int i = 1; i <= 10; ++i)
-      workspaces.append(QJsonObject{
-          {"id", i}, {"windows", QJsonArray{QJsonObject{{"id", i * 10}}}}});
-    QVERIFY(switcher.begin(workspaces, 1, 1, environment));
+      workspaces.push_back(Json::object({
+          {"id", i}, {"windows", Json{Json{{"id", i * 10}}}}}));
+    VERIFY(switcher.begin(workspaces, 1, 1, environment));
     const int serial = switcher.serial();
-    QVERIFY(switcher.begin(workspaces, 1, 1, environment));
-    QCOMPARE(switcher.serial(), serial);
+    VERIFY(switcher.begin(workspaces, 1, 1, environment));
+    COMPARE(switcher.serial(), serial);
     switcher.step(-1);
-    QCOMPARE(switcher.finish(true), 2);
-    QVERIFY(switcher.begin(workspaces, 1, -1, environment));
-    QCOMPARE(switcher.finish(true), 10);
+    COMPARE(switcher.finish(true), 2);
+    VERIFY(switcher.begin(workspaces, 1, -1, environment));
+    COMPARE(switcher.finish(true), 10);
     switcher.begin(workspaces, 1, 5, environment);
-    QCOMPARE(switcher.finish(true), 6);
+    COMPARE(switcher.finish(true), 6);
     switcher.begin(workspaces, 1, 1, environment);
     switcher.remove(20);
-    QCOMPARE(switcher.snapshot().value("workspaces").toArray().size(), 10);
-    QVERIFY(switcher.snapshot()
-                .value("workspaces")
-                .toArray()[1]
-                .toObject()
-                .value("windows")
-                .toArray()
-                .isEmpty());
-    QVERIFY(switcher.select(10));
-    QVERIFY(!switcher.select(11));
-    QCOMPARE(switcher.finish(false), 0);
-    QTest::qWait(30);
-    QFile file(channel);
-    QVERIFY(file.open(QIODevice::ReadOnly));
-    QVERIFY(!QJsonDocument::fromJson(file.readAll())
-                 .object()
-                 .value("active")
-                 .toBool());
-    QVERIFY(!(file.permissions() & QFileDevice::ReadOther));
-    QTest::qWait(
-        50); // Reap only our failed captures; no compositor is started.
+    COMPARE(jsonArray(switcher.snapshot(), "workspaces").size(), 10);
+    VERIFY(jsonArray(jsonArray(switcher.snapshot(), "workspaces")[1], "windows")
+               .empty());
+    VERIFY(switcher.select(10));
+    VERIFY(!switcher.select(11));
+    COMPARE(switcher.finish(false), 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    const auto contents = readFile(channel);
+    VERIFY(contents.has_value());
+    VERIFY(!jsonBool(parseJson(*contents), "active"));
+    VERIFY((std::filesystem::status(channel).permissions() &
+            std::filesystem::perms::others_read) == std::filesystem::perms::none);
+    // Reap only our failed captures; no compositor is started.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
   void externalFileManagerDefaults() {
-    QTemporaryDir config;
-    qputenv("XDG_CONFIG_HOME", config.path().toUtf8());
-    QSettings::setDefaultFormat(QSettings::IniFormat);
-    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
-                       config.path());
-    QSettings().clear();
-    QVERIFY(defaultApplicationCommand("files", nullptr) ==
+    TemporaryDirectory config;
+    ::setenv("XDG_CONFIG_HOME", config.path().c_str(), 1);
+    VERIFY(defaultApplicationCommand("files", nullptr) ==
             (std::vector<std::string>{"dolphin", "--new-window"}));
     // Keep a user's explicit argv intact, including spaces and shell
     // characters.
-    const QStringList custom{"/usr/bin/printf", "--profile",
+    const std::vector<std::string> custom{"/usr/bin/printf", "--profile",
                              "Work $HOME; notes"};
-    QSettings legacy(config.path() + "/LunaDash/LunaDash.conf",
-                     QSettings::IniFormat);
-    legacy.setValue("defaultApps/files", custom);
-    legacy.sync();
+    writeLegacySettings(config.path() / "LunaDash/LunaDash.conf",
+                        "[defaultApps]\n"
+                        "files=/usr/bin/printf, --profile, \"Work $HOME; notes\"\n");
     auto configured = defaultApplicationCommand("files", nullptr);
-    QCOMPARE(configured.size(), static_cast<std::size_t>(custom.size()));
-    for (qsizetype index = 0; index < custom.size(); ++index)
-      QCOMPARE(
-          QString::fromStdString(configured[static_cast<std::size_t>(index)]),
-          custom[index]);
+    COMPARE(configured.size(), custom.size());
+    for (std::size_t index = 0; index < custom.size(); ++index)
+      COMPARE(configured[index], custom[index]);
     std::string error;
     for (const auto &launcher :
          {"ludash-desktop", "lunadash-desktop", "ludashctl", "lunadashctl"})
-      QVERIFY(!setDefaultApplications(
+      VERIFY(!setDefaultApplications(
           {{"files", nlohmann::json::array({launcher, "--app", "files"})}},
           &error));
-    QVERIFY(
+    VERIFY(
         setDefaultApplications({{"files", nlohmann::json::array()}}, &error));
-    QVERIFY(defaultApplicationCommand("files", nullptr) ==
+    VERIFY(defaultApplicationCommand("files", nullptr) ==
             (std::vector<std::string>{"dolphin", "--new-window"}));
   }
   void terminalAndShortcutMigration() {
-    QTemporaryDir config;
-    QSettings::setDefaultFormat(QSettings::IniFormat);
-    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
-                       config.path());
-    QSettings().clear();
+    TemporaryDirectory config;
     struct ConfigHomeRestore {
-      QByteArray value = qgetenv("XDG_CONFIG_HOME");
+      const char *previous = std::getenv("XDG_CONFIG_HOME");
+      std::string value = previous ? previous : "";
       ~ConfigHomeRestore() {
-        if (value.isNull())
-          qunsetenv("XDG_CONFIG_HOME");
+        if (!previous)
+          ::unsetenv("XDG_CONFIG_HOME");
         else
-          qputenv("XDG_CONFIG_HOME", value);
+          ::setenv("XDG_CONFIG_HOME", value.c_str(), 1);
       }
     } restoreConfigHome;
-    const auto useNativeConfig = [&config](const QString &name) {
-      qputenv("XDG_CONFIG_HOME", (config.path() + "/" + name).toUtf8());
+    const auto useNativeConfig = [&config](const std::string &name) {
+      ::setenv("XDG_CONFIG_HOME", (config.path() / name).c_str(), 1);
     };
     useNativeConfig("defaults");
-    QVERIFY(defaultApplicationCommand("terminal", nullptr) ==
+    VERIFY(defaultApplicationCommand("terminal", nullptr) ==
             (std::vector<std::string>{"kitty"}));
     ShortcutSettings settings;
-    QVERIFY(settings.actionFor(XKB_KEY_t, ShortcutMeta) == "launchTerminal");
-    QVERIFY(settings.actionFor(XKB_KEY_0, ShortcutMeta) == "workspace10");
-    QVERIFY(settings.actionFor(XKB_KEY_Return, ShortcutMeta).empty());
+    VERIFY(settings.actionFor(XKB_KEY_t, ShortcutMeta) == "launchTerminal");
+    VERIFY(settings.actionFor(XKB_KEY_0, ShortcutMeta) == "workspace10");
+    VERIFY(settings.actionFor(XKB_KEY_Return, ShortcutMeta).empty());
     std::string error;
-    QVERIFY(!settings.apply({{"closeWindow", "Alt+Tab"}}, &error));
-    QVERIFY(!settings.apply({{"closeWindow", "Meta+Tab"}}, &error));
-    QVERIFY(!settings.apply({{"closeWindow", "Meta+Shift+Tab"}}, &error));
-    QVERIFY(!settings.apply({{"closeWindow", "Alt+Shift+Tab"}}, &error));
+    VERIFY(!settings.apply({{"closeWindow", "Alt+Tab"}}, &error));
+    VERIFY(!settings.apply({{"closeWindow", "Meta+Tab"}}, &error));
+    VERIFY(!settings.apply({{"closeWindow", "Meta+Shift+Tab"}}, &error));
+    VERIFY(!settings.apply({{"closeWindow", "Alt+Shift+Tab"}}, &error));
 
     useNativeConfig("legacy");
-    QSettings().setValue("shortcuts/bindings",
-                         QJsonObject{{"launchTerminal", "Meta+Return"},
-                                     {"closeWindow", "Meta+T"},
-                                     {"toggleFloating", "Meta+Space"}}
-                             .toVariantMap());
-    ShortcutSettings migrated(
-        nativeJson(QJsonObject{{"launchTerminal", "Meta+Return"},
-                               {"closeWindow", "Meta+T"},
-                               {"toggleFloating", "Meta+Space"}}));
-    QVERIFY(migrated.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
-    QVERIFY(migrated.actionFor(XKB_KEY_Return, ShortcutMeta) ==
+    ShortcutSettings migrated(Json::object({{"launchTerminal", "Meta+Return"},
+                                            {"closeWindow", "Meta+T"},
+                                            {"toggleFloating", "Meta+Space"}}));
+    VERIFY(migrated.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
+    VERIFY(migrated.actionFor(XKB_KEY_Return, ShortcutMeta) ==
             "launchTerminal");
-    QVERIFY(!loadShortcutBindings().contains("toggleFloating"));
-    QVERIFY(QJsonObject::fromVariantMap(
-                QSettings().value("shortcuts/bindings").toMap())
-                .contains("toggleFloating"));
-    QSettings().setValue("shortcuts/bindings",
-                         QJsonObject{{"closeWindow", "Meta+Q"}}.toVariantMap());
-    ShortcutSettings retained(
-        nativeJson(QJsonObject{{"closeWindow", "Meta+Q"}}));
-    QVERIFY(retained.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
+    VERIFY(!loadShortcutBindings().contains("toggleFloating"));
+    ShortcutSettings retained(Json::object({{"closeWindow", "Meta+Q"}}));
+    VERIFY(retained.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
 
     // Removed shortcut IDs from older releases must not stay in the persistent
     // settings map or reappear in Settings. Valid custom bindings survive.
     useNativeConfig("cleanup");
-    QSettings().setValue("shortcuts/bindings",
-                         QJsonObject{{"removedLegacyAction", "Meta+Y"},
-                                     {"closeWindowAlternate", "Meta+Q"},
-                                     {"launchTerminalAlternate", "Meta+Return"},
-                                     {"closeWindow", "Meta+T"}}
-                             .toVariantMap());
     ShortcutSettings cleaned(
-        nativeJson(QJsonObject{{"removedLegacyAction", "Meta+Y"},
-                               {"closeWindowAlternate", "Meta+Q"},
-                               {"launchTerminalAlternate", "Meta+Return"},
-                               {"closeWindow", "Meta+T"}}));
+        Json::object({{"removedLegacyAction", "Meta+Y"},
+                      {"closeWindowAlternate", "Meta+Q"},
+                      {"launchTerminalAlternate", "Meta+Return"},
+                      {"closeWindow", "Meta+T"}}));
     const auto saved = loadShortcutBindings();
-    QVERIFY(!saved.contains("removedLegacyAction"));
-    QVERIFY(!saved.contains("closeWindowAlternate"));
-    QVERIFY(!saved.contains("launchTerminalAlternate"));
-    QCOMPARE(QString::fromStdString(saved.at("closeWindow").get<std::string>()),
-             QString("Meta+T"));
-    QVERIFY(cleaned.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
+    VERIFY(!saved.contains("removedLegacyAction"));
+    VERIFY(!saved.contains("closeWindowAlternate"));
+    VERIFY(!saved.contains("launchTerminalAlternate"));
+    COMPARE((saved.at("closeWindow").get<std::string>()),
+             std::string("Meta+T"));
+    VERIFY(cleaned.actionFor(XKB_KEY_t, ShortcutMeta) == "closeWindow");
   }
 };
 } // namespace LunaDash
-QTEST_GUILESS_MAIN(LunaDash::WindowLayoutTests)
-#include "WindowLayoutTests.moc"
+int main(int argc, char **argv) {
+  return LunaDash::Test::run<LunaDash::WindowLayoutTests>(
+      "WindowLayoutTests",
+      {
+      {"initTestCase", &LunaDash::WindowLayoutTests::initTestCase},
+      {"layoutTemplateContract", &LunaDash::WindowLayoutTests::layoutTemplateContract},
+      {"stackingRetainsIndependentGeometry", &LunaDash::WindowLayoutTests::stackingRetainsIndependentGeometry},
+      {"fixedSplitsStayOnScreen", &LunaDash::WindowLayoutTests::fixedSplitsStayOnScreen},
+      {"focusedSplitsPreserveMainPane", &LunaDash::WindowLayoutTests::focusedSplitsPreserveMainPane},
+      {"focusedSplitUsesDestinationFocus", &LunaDash::WindowLayoutTests::focusedSplitUsesDestinationFocus},
+      {"focusedSplitsPreferReadableTiles", &LunaDash::WindowLayoutTests::focusedSplitsPreferReadableTiles},
+      {"manyWindowsAndOutputChanges", &LunaDash::WindowLayoutTests::manyWindowsAndOutputChanges},
+      {"mixedLayoutEditsRemainBounded", &LunaDash::WindowLayoutTests::mixedLayoutEditsRemainBounded},
+      {"singleWindowProportionsAndBounds", &LunaDash::WindowLayoutTests::singleWindowProportionsAndBounds},
+      {"eightRowsAndOverflow", &LunaDash::WindowLayoutTests::eightRowsAndOverflow},
+      {"swapsPreserveSlots", &LunaDash::WindowLayoutTests::swapsPreserveSlots},
+      {"resizingAndSingleMovement", &LunaDash::WindowLayoutTests::resizingAndSingleMovement},
+      {"workspaceMaximizePreservesTiling", &LunaDash::WindowLayoutTests::workspaceMaximizePreservesTiling},
+      {"freeformSwapExchangesWindowSlots", &LunaDash::WindowLayoutTests::freeformSwapExchangesWindowSlots},
+      {"geometryBounds", &LunaDash::WindowLayoutTests::geometryBounds},
+      {"windowSelectionScopeAndLifetime", &LunaDash::WindowLayoutTests::windowSelectionScopeAndLifetime},
+      {"selectionLifecycle", &LunaDash::WindowLayoutTests::selectionLifecycle},
+      {"externalFileManagerDefaults", &LunaDash::WindowLayoutTests::externalFileManagerDefaults},
+      {"terminalAndShortcutMigration", &LunaDash::WindowLayoutTests::terminalAndShortcutMigration}},
+      argc, argv);
+}

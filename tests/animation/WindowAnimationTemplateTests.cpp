@@ -1,5 +1,5 @@
 #include "core/templates/WindowAnimation.hpp"
-#include <QtTest>
+#include "support/TestHarness.hpp"
 
 namespace LunaDash {
 namespace {
@@ -25,10 +25,8 @@ struct TestAnimation {
 };
 } // namespace
 
-class WindowAnimationTemplateTests final : public QObject {
-  Q_OBJECT
-
-private slots:
+class WindowAnimationTemplateTests final {
+public:
   void forwardsWindowLifecycle() {
     Templates::WindowAnimationTemplate<TestAnimation> animation;
     animation.configure(7);
@@ -37,23 +35,28 @@ private slots:
     animation.focus(12);
     animation.cancel(13);
 
-    QCOMPARE(animation.animation().configured, 7);
-    QCOMPARE(animation.animation().opened, 11);
-    QCOMPARE(animation.animation().relayouts, 15);
-    QCOMPARE(animation.animation().focused, 12);
-    QCOMPARE(animation.animation().cancelled, 13);
-    QCOMPARE(animation.activeCount(), 1);
+    COMPARE(animation.animation().configured, 7);
+    COMPARE(animation.animation().opened, 11);
+    COMPARE(animation.animation().relayouts, 15);
+    COMPARE(animation.animation().focused, 12);
+    COMPARE(animation.animation().cancelled, 13);
+    COMPARE(animation.activeCount(), 1);
 
     animation.close(11);
-    QCOMPARE(animation.activeCount(), 0);
+    COMPARE(animation.activeCount(), 0);
     animation.advance();
     animation.clear();
-    QCOMPARE(animation.animation().advances, 1);
-    QCOMPARE(animation.animation().clears, 1);
+    COMPARE(animation.animation().advances, 1);
+    COMPARE(animation.animation().clears, 1);
   }
 };
 
 } // namespace LunaDash
 
-QTEST_GUILESS_MAIN(LunaDash::WindowAnimationTemplateTests)
-#include "WindowAnimationTemplateTests.moc"
+int main(int argc, char **argv) {
+  return LunaDash::Test::run<LunaDash::WindowAnimationTemplateTests>(
+      "WindowAnimationTemplateTests",
+      {
+      {"forwardsWindowLifecycle", &LunaDash::WindowAnimationTemplateTests::forwardsWindowLifecycle}},
+      argc, argv);
+}

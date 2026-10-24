@@ -1,6 +1,7 @@
 #include "compositor/renderer/capture/ThumbnailReadback.h"
-#include <QByteArray>
-#include <QtTest>
+#include "support/TestHarness.hpp"
+#include <string>
+#include <vector>
 #include <drm_fourcc.h>
 #define static
 extern "C" {
@@ -17,7 +18,7 @@ namespace LunaDash {
 namespace {
 struct ImageBuffer {
   wlr_buffer base{};
-  QByteArray pixels;
+  std::string pixels;
 };
 void destroyImage(wlr_buffer *buffer) {
 #if WLR_VERSION_MINOR >= 19
@@ -51,12 +52,11 @@ void destroyAllocator(wlr_allocator *allocator) { delete allocator; }
 const wlr_allocator_interface allocatorImplementation{allocateImage,
                                                       destroyAllocator};
 } // namespace
-class ThumbnailReadbackTests final : public QObject {
-  Q_OBJECT
-private Q_SLOTS:
+class ThumbnailReadbackTests final {
+public:
   void scalesActualPixels() {
     auto *renderer = wlr_pixman_renderer_create();
-    QVERIFY(renderer);
+    VERIFY(renderer);
     auto *allocator = new wlr_allocator;
     wlr_allocator_init(allocator, &allocatorImplementation,
                        WLR_BUFFER_CAP_DATA_PTR);
@@ -67,9 +67,9 @@ private Q_SLOTS:
         0, 0, 255, 255, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255};
     auto *texture =
         wlr_texture_from_pixels(renderer, DRM_FORMAT_ABGR8888, 16, 4, 4, pixels);
-    QVERIFY(texture);
-    QByteArray result(8 * 8 * 4, '\0');
-    QVERIFY(ludash_thumbnail_read(renderer, allocator, texture, nullptr, 0, 8,
+    VERIFY(texture);
+    std::string result(8 * 8 * 4, '\0');
+    VERIFY(ludash_thumbnail_read(renderer, allocator, texture, nullptr, 0, 8,
                                   8,
                                   reinterpret_cast<uint8_t *>(result.data())));
     const auto byte = [&result](int offset) {
@@ -77,15 +77,15 @@ private Q_SLOTS:
     };
     // Check solid quadrants away from renderer-specific edge padding.
     const int top = (1 * 8 + 1) * 4;
-    QCOMPARE(byte(top), 255);
-    QCOMPARE(byte(top + 1), 0);
-    QCOMPARE(byte(top + 2), 0);
-    QCOMPARE(byte(top + 3), 255);
+    COMPARE(byte(top), 255);
+    COMPARE(byte(top + 1), 0);
+    COMPARE(byte(top + 2), 0);
+    COMPARE(byte(top + 3), 255);
     const int bottom = (6 * 8 + 1) * 4;
-    QCOMPARE(byte(bottom), 0);
-    QCOMPARE(byte(bottom + 2), 255);
-    QCOMPARE(byte(bottom + 3), 255);
-    QVERIFY(!ludash_thumbnail_read(renderer, allocator, texture, nullptr, 0,
+    COMPARE(byte(bottom), 0);
+    COMPARE(byte(bottom + 2), 255);
+    COMPARE(byte(bottom + 3), 255);
+    VERIFY(!ludash_thumbnail_read(renderer, allocator, texture, nullptr, 0,
                                    10000, 8,
                                    reinterpret_cast<uint8_t *>(result.data())));
     wlr_texture_destroy(texture);
@@ -94,5 +94,10 @@ private Q_SLOTS:
   }
 };
 } // namespace LunaDash
-QTEST_GUILESS_MAIN(LunaDash::ThumbnailReadbackTests)
-#include "ThumbnailReadbackTests.moc"
+int main(int argc, char **argv) {
+  return LunaDash::Test::run<LunaDash::ThumbnailReadbackTests>(
+      "ThumbnailReadbackTests",
+      {
+      {"scalesActualPixels", &LunaDash::ThumbnailReadbackTests::scalesActualPixels}},
+      argc, argv);
+}

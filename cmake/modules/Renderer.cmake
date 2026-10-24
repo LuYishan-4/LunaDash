@@ -20,7 +20,6 @@ unset(CMAKE_REQUIRED_LIBRARIES)
 unset(CMAKE_REQUIRED_DEFINITIONS)
 add_library(ludash-render-selection
     src/compositor/renderer/selection/RenderSelection.c)
-set_target_properties(ludash-render-selection PROPERTIES AUTOMOC OFF)
 target_include_directories(ludash-render-selection PUBLIC src)
 target_compile_definitions(ludash-render-selection PRIVATE WLR_USE_UNSTABLE=1
     LUDASH_HAS_VULKAN_RENDERER=$<AND:$<BOOL:${LUDASH_ENABLE_VULKAN}>,$<BOOL:${LUDASH_WLROOTS_VULKAN}>>)
@@ -99,12 +98,10 @@ target_link_libraries(ludash-blur PUBLIC ludash-renderer)
 add_library(ludash-animation
     src/compositor/window/animation/SceneAnimation.cpp)
 target_include_directories(ludash-animation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set_target_properties(ludash-animation PROPERTIES AUTOMOC OFF)
 target_compile_definitions(ludash-animation PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-animation
     PRIVATE PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
 
 add_library(ludash-shell-renderer
     src/shell/runtime/ShellRenderer.cpp)
-set_target_properties(ludash-shell-renderer PROPERTIES AUTOMOC OFF)
 target_include_directories(ludash-shell-renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

@@ -44,7 +44,7 @@ for token in (
     "center(",
 ):
     assert token not in layout, f"strategy method leaked into WindowLayout: {token}"
-assert "performAction(const QString &action" in layout
+assert "performAction(const std::string &action" in layout
 
 # Template behavior is capability/action driven rather than enum branches.
 assert "WindowPointerTemplate" not in template

@@ -1,6 +1,7 @@
 #include "compositor/renderer/blur/SceneBackdrop.h"
-#include <QByteArray>
-#include <QtTest>
+#include "support/TestHarness.hpp"
+#include <string>
+#include <vector>
 #include <algorithm>
 #include <cstring>
 #include <drm_fourcc.h>
@@ -21,7 +22,7 @@ namespace LunaDash {
 namespace {
 struct ImageBuffer {
   wlr_buffer base{};
-  QByteArray pixels;
+  std::string pixels;
   int *liveBuffers = nullptr;
 };
 
@@ -55,7 +56,7 @@ const wlr_buffer_impl imageImplementation{
 
 ImageBuffer *createImage(int width, int height) {
   auto *image = new ImageBuffer;
-  image->pixels = QByteArray(width * height * 4, '\0');
+  image->pixels = std::string(width * height * 4, '\0');
   wlr_buffer_init(&image->base, &imageImplementation, width, height);
   return image;
 }
@@ -96,11 +97,11 @@ const wlr_allocator_interface allocatorImplementation{allocateImage,
 struct Readback {
   int width = 0;
   int height = 0;
-  QByteArray pixels;
+  std::string pixels;
 
   int channel(int x, int y, int shift) const {
     uint32_t pixel = 0;
-    std::memcpy(&pixel, pixels.constData() + (y * width + x) * 4, 4);
+    std::memcpy(&pixel, pixels.data() + (y * width + x) * 4, 4);
     return static_cast<int>((pixel >> shift) & 255);
   }
 };
@@ -136,8 +137,7 @@ constexpr float black[] = {0, 0, 0, 1};
 constexpr float white[] = {1, 1, 1, 1};
 } // namespace
 
-class SceneBackdropTests final : public QObject {
-  Q_OBJECT
+class SceneBackdropTests final {
 private:
   wlr_renderer *renderer_ = nullptr;
   TestAllocator *allocator_ = nullptr;
@@ -150,15 +150,15 @@ private:
         radius));
   }
 
-private Q_SLOTS:
+public:
   void init() {
     renderer_ = wlr_pixman_renderer_create();
-    QVERIFY(renderer_);
+    VERIFY(renderer_);
     allocator_ = new TestAllocator;
     wlr_allocator_init(&allocator_->base, &allocatorImplementation,
                        WLR_BUFFER_CAP_DATA_PTR);
     scene_ = wlr_scene_create();
-    QVERIFY(scene_);
+    VERIFY(scene_);
   }
 
   void cleanup() {
@@ -183,118 +183,118 @@ private Q_SLOTS:
     }
     auto *surface = wlr_scene_buffer_create(&scene_->tree, &source->base);
     wlr_buffer_drop(&source->base);
-    QVERIFY(surface);
+    VERIFY(surface);
     auto *stop = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(stop);
+    VERIFY(stop);
     const auto image = capture(&stop->node);
-    QCOMPARE(image.width, 16);
-    QCOMPARE(image.height, 16);
-    QVERIFY(image.channel(2, 2, 16) < 30);
-    QVERIFY(image.channel(13, 13, 16) > 220);
+    COMPARE(image.width, 16);
+    COMPARE(image.height, 16);
+    VERIFY(image.channel(2, 2, 16) < 30);
+    VERIFY(image.channel(13, 13, 16) > 220);
     // These samples are inside the original black pixels next to each edge.
     // Downscaling alone leaves them black; a two-axis blur mixes the white side.
-    QVERIFY(image.channel(7, 12, 16) > 5);
-    QVERIFY(image.channel(7, 12, 16) < 245);
-    QVERIFY(image.channel(12, 7, 16) > 5);
-    QVERIFY(image.channel(12, 7, 16) < 245);
-    QCOMPARE(image.channel(7, 12, 24), 255);
+    VERIFY(image.channel(7, 12, 16) > 5);
+    VERIFY(image.channel(7, 12, 16) < 245);
+    VERIFY(image.channel(12, 7, 16) > 5);
+    VERIFY(image.channel(12, 7, 16) < 245);
+    COMPARE(image.channel(7, 12, 24), 255);
   }
 
   void excludesTargetSubtreeAndHigherWindows() {
-    QVERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
+    VERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
     auto *target = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(target);
-    QVERIFY(wlr_scene_rect_create(target, 64, 64, blue));
-    QVERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, green));
+    VERIFY(target);
+    VERIFY(wlr_scene_rect_create(target, 64, 64, blue));
+    VERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, green));
     const auto image = capture(&target->node);
-    QVERIFY(!image.pixels.isEmpty());
-    QCOMPARE(image.channel(8, 8, 16), 255);
-    QCOMPARE(image.channel(8, 8, 8), 0);
-    QCOMPARE(image.channel(8, 8, 0), 0);
+    VERIFY(!image.pixels.isEmpty());
+    COMPARE(image.channel(8, 8, 16), 255);
+    COMPARE(image.channel(8, 8, 8), 0);
+    COMPARE(image.channel(8, 8, 0), 0);
   }
 
   void doesNotCaptureItsPreviousBackdrop() {
     auto *background = wlr_scene_rect_create(&scene_->tree, 64, 64, red);
-    QVERIFY(background);
+    VERIFY(background);
     auto *target = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(target);
+    VERIFY(target);
     const wlr_box area{0, 0, 64, 64};
     auto *first = ludash_scene_backdrop_render(
         renderer_, &allocator_->base, &scene_->tree.node, &target->node,
         nullptr, &area, 8);
-    QVERIFY(first);
+    VERIFY(first);
     auto *previous = wlr_scene_buffer_create(&scene_->tree, first);
     wlr_buffer_drop(first);
-    QVERIFY(previous);
+    VERIFY(previous);
     wlr_scene_buffer_set_dest_size(previous, 64, 64);
     wlr_scene_node_place_below(&previous->node, &target->node);
     wlr_scene_rect_set_color(background, blue);
     for (int attempt = 0; attempt < 3; ++attempt) {
       const auto image = capture(&target->node, &previous->node);
-      QVERIFY(!image.pixels.isEmpty());
-      QCOMPARE(image.channel(8, 8, 16), 0);
-      QCOMPARE(image.channel(8, 8, 0), 255);
+      VERIFY(!image.pixels.isEmpty());
+      COMPARE(image.channel(8, 8, 16), 0);
+      COMPARE(image.channel(8, 8, 0), 255);
     }
   }
 
   void skipsDisabledNodesAndDisabledAncestors() {
-    QVERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
+    VERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
     auto *hiddenTree = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(hiddenTree);
-    QVERIFY(wlr_scene_rect_create(hiddenTree, 64, 64, blue));
+    VERIFY(hiddenTree);
+    VERIFY(wlr_scene_rect_create(hiddenTree, 64, 64, blue));
     wlr_scene_node_set_enabled(&hiddenTree->node, false);
     auto *hiddenRect = wlr_scene_rect_create(&scene_->tree, 64, 64, green);
-    QVERIFY(hiddenRect);
+    VERIFY(hiddenRect);
     wlr_scene_node_set_enabled(&hiddenRect->node, false);
     auto *stop = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(stop);
+    VERIFY(stop);
     const auto image = capture(&stop->node);
-    QVERIFY(!image.pixels.isEmpty());
-    QCOMPARE(image.channel(8, 8, 16), 255);
-    QCOMPARE(image.channel(8, 8, 8), 0);
-    QCOMPARE(image.channel(8, 8, 0), 0);
+    VERIFY(!image.pixels.isEmpty());
+    COMPARE(image.channel(8, 8, 16), 255);
+    COMPARE(image.channel(8, 8, 8), 0);
+    COMPARE(image.channel(8, 8, 0), 0);
   }
 
   void cropsLogicalAreaWithNestedCoordinates() {
-    QVERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
+    VERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
     auto *nested = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(nested);
+    VERIFY(nested);
     wlr_scene_node_set_position(&nested->node, 16, 8);
-    QVERIFY(wlr_scene_rect_create(nested, 16, 32, white));
+    VERIFY(wlr_scene_rect_create(nested, 16, 32, white));
     auto *stop = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(stop);
+    VERIFY(stop);
     const auto image = capture(&stop->node, nullptr, {16, 8, 32, 32}, 1);
-    QCOMPARE(image.width, 8);
-    QCOMPARE(image.height, 8);
-    QCOMPARE(image.channel(1, 4, 16), 255);
-    QVERIFY(image.channel(1, 4, 8) > 240);
-    QCOMPARE(image.channel(6, 4, 16), 255);
-    QVERIFY(image.channel(6, 4, 8) < 15);
+    COMPARE(image.width, 8);
+    COMPARE(image.height, 8);
+    COMPARE(image.channel(1, 4, 16), 255);
+    VERIFY(image.channel(1, 4, 8) > 240);
+    COMPARE(image.channel(6, 4, 16), 255);
+    VERIFY(image.channel(6, 4, 8) < 15);
   }
 
   void rejectsInvalidArgumentsBeforeAllocation() {
     auto *stop = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(stop);
+    VERIFY(stop);
     const wlr_box area{0, 0, 64, 64};
-    QVERIFY(!ludash_scene_backdrop_render(nullptr, &allocator_->base,
+    VERIFY(!ludash_scene_backdrop_render(nullptr, &allocator_->base,
                                          &scene_->tree.node, &stop->node,
                                          nullptr, &area, 8));
-    QVERIFY(!ludash_scene_backdrop_render(renderer_, nullptr,
+    VERIFY(!ludash_scene_backdrop_render(renderer_, nullptr,
                                          &scene_->tree.node, &stop->node,
                                          nullptr, &area, 8));
-    QVERIFY(!ludash_scene_backdrop_render(renderer_, &allocator_->base,
+    VERIFY(!ludash_scene_backdrop_render(renderer_, &allocator_->base,
                                          nullptr, &stop->node, nullptr, &area,
                                          8));
-    QVERIFY(!ludash_scene_backdrop_render(renderer_, &allocator_->base,
+    VERIFY(!ludash_scene_backdrop_render(renderer_, &allocator_->base,
                                          &scene_->tree.node, &stop->node,
                                          nullptr, nullptr, 8));
-    QVERIFY(!ludash_scene_backdrop_render(renderer_, &allocator_->base,
+    VERIFY(!ludash_scene_backdrop_render(renderer_, &allocator_->base,
                                          &scene_->tree.node, nullptr, nullptr,
                                          &area, 8));
-    QVERIFY(!ludash_scene_backdrop_render(
+    VERIFY(!ludash_scene_backdrop_render(
         renderer_, &allocator_->base, &scene_->tree.node, &scene_->tree.node,
         nullptr, &area, 8));
-    QVERIFY(!ludash_scene_backdrop_render(
+    VERIFY(!ludash_scene_backdrop_render(
         renderer_, &allocator_->base, &scene_->tree.node, &stop->node,
         &stop->node, &area, 8));
     for (const auto invalid : {wlr_box{0, 0, 0, 64}, wlr_box{0, 0, 64, -1},
@@ -302,52 +302,66 @@ private Q_SLOTS:
                                wlr_box{0, 0, 64, 16385},
                                wlr_box{-65537, 0, 64, 64},
                                wlr_box{0, 65537, 64, 64}}) {
-      QVERIFY(!ludash_scene_backdrop_render(
+      VERIFY(!ludash_scene_backdrop_render(
           renderer_, &allocator_->base, &scene_->tree.node, &stop->node,
           nullptr, &invalid, 8));
     }
     for (const int radius : {0, -1, 33}) {
-      QVERIFY(!ludash_scene_backdrop_render(
+      VERIFY(!ludash_scene_backdrop_render(
           renderer_, &allocator_->base, &scene_->tree.node, &stop->node,
           nullptr, &area, radius));
     }
-    QCOMPARE(allocator_->calls, 0);
+    COMPARE(allocator_->calls, 0);
   }
 
   void missingStopDoesNotLeakPartialCapture() {
-    QVERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
+    VERIFY(wlr_scene_rect_create(&scene_->tree, 64, 64, red));
     auto *foreign = wlr_scene_create();
-    QVERIFY(foreign);
+    VERIFY(foreign);
     const auto image = capture(&foreign->tree.node);
     wlr_scene_node_destroy(&foreign->tree.node);
-    QVERIFY(image.pixels.isEmpty());
-    QCOMPARE(allocator_->liveBuffers, 0);
+    VERIFY(image.pixels.isEmpty());
+    COMPARE(allocator_->liveBuffers, 0);
   }
 
   void capsAllocationsAndPropagatesAllocationFailure() {
-    QVERIFY(wlr_scene_rect_create(&scene_->tree, 16384, 16, black));
+    VERIFY(wlr_scene_rect_create(&scene_->tree, 16384, 16, black));
     auto *stop = wlr_scene_tree_create(&scene_->tree);
-    QVERIFY(stop);
+    VERIFY(stop);
     for (const auto area : {wlr_box{0, 0, 16384, 16},
                             wlr_box{0, 0, 16384, 1},
                             wlr_box{0, 0, 1, 16384}}) {
       const auto image = capture(&stop->node, nullptr, area, 32);
-      QVERIFY(!image.pixels.isEmpty());
-      QVERIFY(image.width <= 1024);
-      QVERIFY(image.height <= 1024);
-      QCOMPARE(allocator_->liveBuffers, 0);
+      VERIFY(!image.pixels.isEmpty());
+      VERIFY(image.width <= 1024);
+      VERIFY(image.height <= 1024);
+      COMPARE(allocator_->liveBuffers, 0);
     }
-    QVERIFY(allocator_->largestWidth <= 1024);
-    QVERIFY(allocator_->largestHeight <= 1024);
+    VERIFY(allocator_->largestWidth <= 1024);
+    VERIFY(allocator_->largestHeight <= 1024);
     allocator_->failAt = allocator_->calls + 2;
-    QVERIFY(capture(&stop->node).pixels.isEmpty());
-    QCOMPARE(allocator_->liveBuffers, 0);
+    VERIFY(capture(&stop->node).pixels.isEmpty());
+    COMPARE(allocator_->liveBuffers, 0);
     allocator_->fail = true;
-    QVERIFY(capture(&stop->node).pixels.isEmpty());
-    QCOMPARE(allocator_->liveBuffers, 0);
+    VERIFY(capture(&stop->node).pixels.isEmpty());
+    COMPARE(allocator_->liveBuffers, 0);
   }
 };
 } // namespace LunaDash
 
-QTEST_GUILESS_MAIN(LunaDash::SceneBackdropTests)
-#include "SceneBackdropTests.moc"
+int main(int argc, char **argv) {
+  return LunaDash::Test::run<LunaDash::SceneBackdropTests>(
+      "SceneBackdropTests",
+      {
+      {"init", &LunaDash::SceneBackdropTests::init},
+      {"cleanup", &LunaDash::SceneBackdropTests::cleanup},
+      {"blursTextureEdgesInBothAxes", &LunaDash::SceneBackdropTests::blursTextureEdgesInBothAxes},
+      {"excludesTargetSubtreeAndHigherWindows", &LunaDash::SceneBackdropTests::excludesTargetSubtreeAndHigherWindows},
+      {"doesNotCaptureItsPreviousBackdrop", &LunaDash::SceneBackdropTests::doesNotCaptureItsPreviousBackdrop},
+      {"skipsDisabledNodesAndDisabledAncestors", &LunaDash::SceneBackdropTests::skipsDisabledNodesAndDisabledAncestors},
+      {"cropsLogicalAreaWithNestedCoordinates", &LunaDash::SceneBackdropTests::cropsLogicalAreaWithNestedCoordinates},
+      {"rejectsInvalidArgumentsBeforeAllocation", &LunaDash::SceneBackdropTests::rejectsInvalidArgumentsBeforeAllocation},
+      {"missingStopDoesNotLeakPartialCapture", &LunaDash::SceneBackdropTests::missingStopDoesNotLeakPartialCapture},
+      {"capsAllocationsAndPropagatesAllocationFailure", &LunaDash::SceneBackdropTests::capsAllocationsAndPropagatesAllocationFailure}},
+      argc, argv);
+}

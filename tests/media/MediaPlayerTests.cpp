@@ -1,209 +1,326 @@
-#include <QCoreApplication>
-#include <QDBusConnection>
-#include <QDBusMessage>
-#include <QDBusObjectPath>
-#include <QDBusVariant>
-#include <QDBusVirtualObject>
-#include <QElapsedTimer>
-#include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QProcess>
-#include <QStandardPaths>
-#include <QTemporaryDir>
-#include <QtTest>
+#include "core/filesystem/TemporaryDirectory.hpp"
+#include "support/ProcessHarness.hpp"
+#include "support/TestHarness.hpp"
+
+#include <gio/gio.h>
+#include <nlohmann/json.hpp>
+
+#include <cstdint>
 #include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
 
 namespace LunaDash {
-class PlayerFixture final : public QDBusVirtualObject {
+namespace {
+constexpr char kPlayerPath[] = "/org/mpris/MediaPlayer2";
+
+// Answers every MPRIS call addressed to /org/mpris/MediaPlayer2 on one bus
+// connection, like a minimal media player.
+class PlayerFixture final {
 public:
-  QString status = "Playing";
-  QString title = "Test track";
+  std::string status = "Playing";
+  std::string title = "Test track";
   double volume = 0.65;
-  QString lastMethod;
-  qint64 position = 12000000;
+  std::string lastMethod;
+  std::int64_t position = 12000000;
   bool fail = false;
-  QString introspect(const QString &) const override { return {}; }
-  bool handleMessage(const QDBusMessage &message,
-                     const QDBusConnection &connection) override {
-    if (fail) {
-      connection.send(message.createErrorReply(
-          "org.freedesktop.DBus.Error.Failed", "Player unavailable"));
-      return true;
-    }
-    const auto args = message.arguments();
-    if (message.member() == "GetAll") {
-      QVariantMap properties;
-      if (args.value(0).toString() == "org.mpris.MediaPlayer2") {
-        properties = {{"Identity", "Fixture player"}, {"CanRaise", true}};
-      } else {
-        QVariantMap metadata{
-            {"xesam:title", title},
-            {"xesam:artist", QStringList{"Artist"}},
-            {"mpris:trackid",
-             QVariant::fromValue(QDBusObjectPath("/tracks/test"))},
-            {"mpris:length", qint64(180000000)},
-            {"xesam:lyrics", "[00:01.00]First line\n[00:12.00]Current line"}};
-        properties = {{"PlaybackStatus", status}, {"Metadata", metadata},
-                      {"Position", position},     {"Volume", volume},
-                      {"Shuffle", false},         {"LoopStatus", "None"},
-                      {"CanControl", true},       {"CanPlay", true},
-                      {"CanPause", true},         {"CanSeek", true},
-                      {"CanGoNext", true},        {"CanGoPrevious", true}};
-      }
-      connection.send(message.createReply(QVariantList{properties}));
-    } else if (message.member() == "Set") {
-      lastMethod = args.value(1).toString();
-      if (lastMethod == "Volume")
-        volume =
-            qvariant_cast<QDBusVariant>(args.value(2)).variant().toDouble();
-      connection.send(message.createReply());
+  std::mutex mutex;
+
+  GVariant *properties(const std::string &interface) {
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("a{sv}"));
+    if (interface == "org.mpris.MediaPlayer2") {
+      g_variant_builder_add(&builder, "{sv}", "Identity",
+                            g_variant_new_string("Fixture player"));
+      g_variant_builder_add(&builder, "{sv}", "CanRaise",
+                            g_variant_new_boolean(TRUE));
     } else {
-      lastMethod = message.member();
+      GVariantBuilder metadata;
+      g_variant_builder_init(&metadata, G_VARIANT_TYPE("a{sv}"));
+      g_variant_builder_add(&metadata, "{sv}", "xesam:title",
+                            g_variant_new_string(title.c_str()));
+      const char *artists[] = {"Artist", nullptr};
+      g_variant_builder_add(&metadata, "{sv}", "xesam:artist",
+                            g_variant_new_strv(artists, -1));
+      g_variant_builder_add(&metadata, "{sv}", "mpris:trackid",
+                            g_variant_new_object_path("/tracks/test"));
+      g_variant_builder_add(&metadata, "{sv}", "mpris:length",
+                            g_variant_new_int64(180000000));
+      g_variant_builder_add(
+          &metadata, "{sv}", "xesam:lyrics",
+          g_variant_new_string("[00:01.00]First line\n[00:12.00]Current line"));
+      g_variant_builder_add(&builder, "{sv}", "PlaybackStatus",
+                            g_variant_new_string(status.c_str()));
+      g_variant_builder_add(&builder, "{sv}", "Metadata",
+                            g_variant_builder_end(&metadata));
+      g_variant_builder_add(&builder, "{sv}", "Position",
+                            g_variant_new_int64(position));
+      g_variant_builder_add(&builder, "{sv}", "Volume",
+                            g_variant_new_double(volume));
+      g_variant_builder_add(&builder, "{sv}", "Shuffle",
+                            g_variant_new_boolean(FALSE));
+      g_variant_builder_add(&builder, "{sv}", "LoopStatus",
+                            g_variant_new_string("None"));
+      for (const auto *name : {"CanControl", "CanPlay", "CanPause", "CanSeek",
+                               "CanGoNext", "CanGoPrevious"})
+        g_variant_builder_add(&builder, "{sv}", name,
+                              g_variant_new_boolean(TRUE));
+    }
+    return g_variant_new("(a{sv})", &builder);
+  }
+
+  GDBusMessage *handle(GDBusMessage *message) {
+    std::lock_guard lock(mutex);
+    if (fail)
+      return g_dbus_message_new_method_error(
+          message, "org.freedesktop.DBus.Error.Failed", "Player unavailable");
+    const std::string member = g_dbus_message_get_member(message);
+    GVariant *body = g_dbus_message_get_body(message);
+    GDBusMessage *reply = g_dbus_message_new_method_reply(message);
+    if (member == "GetAll") {
+      const gchar *interface = nullptr;
+      g_variant_get(body, "(&s)", &interface);
+      g_dbus_message_set_body(reply, properties(interface ? interface : ""));
+    } else if (member == "Set") {
+      const gchar *interface = nullptr;
+      const gchar *property = nullptr;
+      GVariant *value = nullptr;
+      g_variant_get(body, "(&s&sv)", &interface, &property, &value);
+      lastMethod = property ? property : "";
+      if (lastMethod == "Volume" && value &&
+          g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE))
+        volume = g_variant_get_double(value);
+      if (value)
+        g_variant_unref(value);
+    } else {
+      lastMethod = member;
       if (lastMethod == "PlayPause")
         status = status == "Playing" ? "Paused" : "Playing";
-      if (lastMethod == "SetPosition")
-        position = args.value(1).toLongLong();
-      connection.send(message.createReply());
+      if (lastMethod == "SetPosition" && body) {
+        const gchar *track = nullptr;
+        gint64 requested = 0;
+        g_variant_get(body, "(&ox)", &track, &requested);
+        position = requested;
+      }
     }
-    return true;
+    return reply;
   }
 };
 
-class MediaPlayerTests final : public QObject {
-  Q_OBJECT
-  QTemporaryDir runtime;
-  QProcess sessionDaemon, userDaemon;
-  QString sessionAddress;
-  std::unique_ptr<QDBusConnection> pausedBus, playingBus, userBus;
-  PlayerFixture paused, playing, user;
+GDBusMessage *filterMessage(GDBusConnection *connection, GDBusMessage *message,
+                            gboolean incoming, gpointer data) {
+  if (!incoming ||
+      g_dbus_message_get_message_type(message) !=
+          G_DBUS_MESSAGE_TYPE_METHOD_CALL ||
+      g_strcmp0(g_dbus_message_get_path(message), kPlayerPath) != 0)
+    return message;
+  auto *fixture = static_cast<PlayerFixture *>(data);
+  GDBusMessage *reply = fixture->handle(message);
+  g_dbus_connection_send_message(connection, reply,
+                                 G_DBUS_SEND_MESSAGE_FLAGS_NONE, nullptr,
+                                 nullptr);
+  g_object_unref(reply);
+  g_object_unref(message);
+  return nullptr;
+}
 
-  QString startBus(QProcess &process, const QString &path) {
-    process.start("dbus-daemon",
-                  {"--session", "--nofork", "--address=unix:path=" + path,
-                   "--print-address=1"});
-    if (!process.waitForStarted(3000) || !process.waitForReadyRead(3000))
-      return {};
-    return QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+struct ConnectionDeleter {
+  void operator()(GDBusConnection *connection) const {
+    if (!connection)
+      return;
+    g_dbus_connection_close_sync(connection, nullptr, nullptr);
+    g_object_unref(connection);
   }
-  QJsonObject invoke(const QStringList &arguments, int expected = 0,
-                     bool sameBus = false) {
-    QProcess process;
-    auto environment = QProcessEnvironment::systemEnvironment();
-    environment.insert("DBUS_SESSION_BUS_ADDRESS",
-                       sameBus ? "unix:path=" + runtime.filePath("bus")
-                               : sessionAddress);
-    environment.insert("XDG_RUNTIME_DIR", runtime.path());
-    process.setProcessEnvironment(environment);
-    process.start(QCoreApplication::applicationDirPath() +
-                      "/lunadash-media-client",
-                  arguments);
-    if (!process.waitForStarted(2000)) {
-      QTest::qFail("Could not start media helper", __FILE__, __LINE__);
-      return {};
-    }
-    QElapsedTimer timer;
-    timer.start();
-    while (process.state() != QProcess::NotRunning && timer.elapsed() < 6000)
-      QTest::qWait(10); // Dispatch fixture D-Bus replies while the helper runs.
-    if (process.state() != QProcess::NotRunning) {
-      process.kill();
-      process.waitForFinished();
-      QTest::qFail("Media helper timed out", __FILE__, __LINE__);
-      return {};
-    }
-    if (process.exitCode() != expected)
-      QTest::qFail(process.readAllStandardError().constData(), __FILE__,
-                   __LINE__);
-    return QJsonDocument::fromJson(process.readAllStandardOutput()).object();
+};
+using Connection = std::unique_ptr<GDBusConnection, ConnectionDeleter>;
+
+Connection connectPlayer(const std::string &address, const char *service,
+                         PlayerFixture &fixture) {
+  GError *error = nullptr;
+  Connection connection(g_dbus_connection_new_for_address_sync(
+      address.c_str(),
+      static_cast<GDBusConnectionFlags>(
+          G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+          G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION),
+      nullptr, nullptr, &error));
+  if (error) {
+    g_error_free(error);
+    return {};
   }
-private Q_SLOTS:
+  g_dbus_connection_add_filter(connection.get(), filterMessage, &fixture,
+                               nullptr);
+  GVariant *reply = g_dbus_connection_call_sync(
+      connection.get(), "org.freedesktop.DBus", "/org/freedesktop/DBus",
+      "org.freedesktop.DBus", "RequestName", g_variant_new("(su)", service, 4u),
+      G_VARIANT_TYPE("(u)"), G_DBUS_CALL_FLAGS_NONE, 3000, nullptr, &error);
+  if (error) {
+    g_error_free(error);
+    return {};
+  }
+  guint32 result = 0;
+  g_variant_get(reply, "(u)", &result);
+  g_variant_unref(reply);
+  return result == 1 ? std::move(connection) : Connection{};
+}
+} // namespace
+
+class MediaPlayerTests final {
+  TemporaryDirectory runtime;
+  Test::ChildProcess sessionDaemon;
+  Test::ChildProcess userDaemon;
+  std::string sessionAddress;
+  Connection pausedBus;
+  Connection playingBus;
+  Connection userBus;
+  PlayerFixture paused;
+  PlayerFixture playing;
+  PlayerFixture user;
+
+  std::string startBus(Test::ChildProcess &process, const std::string &path) {
+    if (!process.start("dbus-daemon",
+                       {"--session", "--nofork", "--address=unix:path=" + path,
+                        "--print-address=1"}))
+      return {};
+    return process.readLine(3000);
+  }
+
+  nlohmann::json invoke(const std::vector<std::string> &arguments,
+                        int expected = 0, bool sameBus = false) {
+    auto environment = Test::currentEnvironment();
+    environment["DBUS_SESSION_BUS_ADDRESS"] =
+        sameBus ? "unix:path=" + runtime.filePath("bus") : sessionAddress;
+    environment["XDG_RUNTIME_DIR"] = runtime.path().string();
+    const auto result = Test::runProcess(
+        (Test::executableDirectory() / "lunadash-media-client").string(),
+        arguments, environment, 6000);
+    if (!result.started)
+      FAIL("Could not start media helper");
+    if (result.timedOut)
+      FAIL("Media helper timed out");
+    if (result.exitCode != expected)
+      FAIL("Unexpected media helper exit " + std::to_string(result.exitCode) +
+           ": " + result.standardError);
+    return nlohmann::json::parse(result.standardOutput, nullptr, false);
+  }
+
+public:
   void initTestCase() {
-    if (QStandardPaths::findExecutable("dbus-daemon").isEmpty())
-      QSKIP("dbus-daemon is unavailable");
-    QVERIFY(runtime.isValid());
+    if (Test::findExecutable("dbus-daemon").empty())
+      SKIP("dbus-daemon is unavailable");
+    VERIFY(runtime.isValid());
     sessionAddress = startBus(sessionDaemon, runtime.filePath("private-bus"));
-    const QString userAddress = startBus(userDaemon, runtime.filePath("bus"));
-    QVERIFY(!sessionAddress.isEmpty());
-    QVERIFY(!userAddress.isEmpty());
-    pausedBus = std::make_unique<QDBusConnection>(
-        QDBusConnection::connectToBus(sessionAddress, "test-paused"));
-    playingBus = std::make_unique<QDBusConnection>(
-        QDBusConnection::connectToBus(sessionAddress, "test-playing"));
-    userBus = std::make_unique<QDBusConnection>(
-        QDBusConnection::connectToBus(userAddress, "test-user"));
+    const auto userAddress = startBus(userDaemon, runtime.filePath("bus"));
+    VERIFY(!sessionAddress.empty());
+    VERIFY(!userAddress.empty());
     paused.status = "Paused";
     paused.title = "Paused track";
     user.title = "User bus track";
-    QVERIFY(pausedBus->registerService("org.mpris.MediaPlayer2.aaa"));
-    QVERIFY(playingBus->registerService("org.mpris.MediaPlayer2.zzz"));
-    QVERIFY(userBus->registerService("org.mpris.MediaPlayer2.sandbox"));
-    QVERIFY(
-        pausedBus->registerVirtualObject("/org/mpris/MediaPlayer2", &paused));
-    QVERIFY(
-        playingBus->registerVirtualObject("/org/mpris/MediaPlayer2", &playing));
-    QVERIFY(userBus->registerVirtualObject("/org/mpris/MediaPlayer2", &user));
+    pausedBus = connectPlayer(sessionAddress, "org.mpris.MediaPlayer2.aaa", paused);
+    playingBus =
+        connectPlayer(sessionAddress, "org.mpris.MediaPlayer2.zzz", playing);
+    userBus = connectPlayer(userAddress, "org.mpris.MediaPlayer2.sandbox", user);
+    VERIFY(pausedBus);
+    VERIFY(playingBus);
+    VERIFY(userBus);
   }
+
   void discoversBothBusesAndPrioritizesPlaying() {
     const auto result = invoke({"media-status"});
-    QVERIFY(result["available"].toBool());
-    QCOMPARE(result["title"].toString(), QString("Test track"));
-    QCOMPARE(result["players"].toArray().size(), 3);
-    QCOMPARE(result["artist"].toString(), QString("Artist"));
-    QCOMPARE(result["trackId"].toString(), QString("/tracks/test"));
-    QVERIFY(result["lyrics"].toString().contains("Current line"));
-    QCOMPARE(invoke({"media-status"}, 0, true)["players"].toArray().size(), 1);
+    VERIFY(result.value("available", false));
+    COMPARE(result.value("title", std::string()), std::string("Test track"));
+    COMPARE(result.value("players", nlohmann::json::array()).size(),
+            std::size_t{3});
+    COMPARE(result.value("artist", std::string()), std::string("Artist"));
+    COMPARE(result.value("trackId", std::string()), std::string("/tracks/test"));
+    VERIFY(result.value("lyrics", std::string()).find("Current line") !=
+           std::string::npos);
+    COMPARE(invoke({"media-status"}, 0, true)
+                .value("players", nlohmann::json::array())
+                .size(),
+            std::size_t{1});
   }
+
   void selectsAndControlsTheChosenPlayer() {
-    const QString service = "org.mpris.MediaPlayer2.sandbox";
-    QCOMPARE(invoke({"media-status", service, "user"})["title"].toString(),
-             QString("User bus track"));
+    const std::string service = "org.mpris.MediaPlayer2.sandbox";
+    COMPARE(invoke({"media-status", service, "user"}).value("title", std::string()),
+            std::string("User bus track"));
     auto result = invoke({"media-action", "play-pause", service, "user"});
-    QCOMPARE(user.status, QString("Paused"));
-    QVERIFY(!result["playing"].toBool());
+    {
+      std::lock_guard lock(user.mutex);
+      COMPARE(user.status, std::string("Paused"));
+    }
+    VERIFY(!result.value("playing", true));
     invoke({"media-action", "volume", service, "user", "0.4"});
-    QCOMPARE(user.volume, 0.4);
-    invoke(
-        {"media-action", "seek", service, "user", "30000000", "/tracks/test"});
-    QCOMPARE(user.position, qint64(30000000));
-    invoke(
-        {"media-action", "seek", service, "user", "40000000", "/tracks/stale"},
-        2);
-    QCOMPARE(user.position, qint64(30000000));
+    {
+      std::lock_guard lock(user.mutex);
+      COMPARE(user.volume, 0.4);
+    }
+    invoke({"media-action", "seek", service, "user", "30000000", "/tracks/test"});
+    {
+      std::lock_guard lock(user.mutex);
+      COMPARE(user.position, std::int64_t{30000000});
+    }
+    invoke({"media-action", "seek", service, "user", "40000000", "/tracks/stale"},
+           2);
+    {
+      std::lock_guard lock(user.mutex);
+      COMPARE(user.position, std::int64_t{30000000});
+    }
     invoke({"media-action", "volume", service, "user", "nan"}, 2);
-    QCOMPARE(user.volume, 0.4);
+    {
+      std::lock_guard lock(user.mutex);
+      COMPARE(user.volume, 0.4);
+    }
     invoke({"media-action", "raise", service, "user"});
-    QCOMPARE(user.lastMethod, QString("Raise"));
+    std::lock_guard lock(user.mutex);
+    COMPARE(user.lastMethod, std::string("Raise"));
   }
+
   void staleOrBrokenPlayersDoNotBlockOthers() {
-    playing.fail = true;
+    {
+      std::lock_guard lock(playing.mutex);
+      playing.fail = true;
+    }
     auto result = invoke({"media-status"});
-    QCOMPARE(result["players"].toArray().size(), 2);
-    paused.lastMethod.clear();
+    COMPARE(result.value("players", nlohmann::json::array()).size(),
+            std::size_t{2});
+    {
+      std::lock_guard lock(paused.mutex);
+      paused.lastMethod.clear();
+    }
     result = invoke(
-        {"media-action", "next", "org.mpris.MediaPlayer2.closed", "session"},
-        2);
-    QVERIFY(result.contains("error"));
-    QVERIFY(paused.lastMethod.isEmpty());
+        {"media-action", "next", "org.mpris.MediaPlayer2.closed", "session"}, 2);
+    VERIFY(result.contains("error"));
+    {
+      std::lock_guard lock(paused.mutex);
+      VERIFY(paused.lastMethod.empty());
+    }
+    std::lock_guard lock(playing.mutex);
     playing.fail = false;
   }
+
   void cleanupTestCase() {
     pausedBus.reset();
     playingBus.reset();
     userBus.reset();
-    for (const auto *name : {"test-paused", "test-playing", "test-user"})
-      QDBusConnection::disconnectFromBus(name);
-    for (auto *process : {&sessionDaemon, &userDaemon})
-      if (process->state() != QProcess::NotRunning) {
-        process->terminate();
-        if (!process->waitForFinished(2000)) {
-          process->kill();
-          process->waitForFinished();
-        }
-      }
+    sessionDaemon.terminate();
+    userDaemon.terminate();
   }
 };
 } // namespace LunaDash
-QTEST_GUILESS_MAIN(LunaDash::MediaPlayerTests)
-#include "MediaPlayerTests.moc"
+
+int main(int argc, char **argv) {
+  using Fixture = LunaDash::MediaPlayerTests;
+  return LunaDash::Test::run<Fixture>(
+      "MediaPlayerTests",
+      {{"initTestCase", &Fixture::initTestCase},
+       {"discoversBothBusesAndPrioritizesPlaying",
+        &Fixture::discoversBothBusesAndPrioritizesPlaying},
+       {"selectsAndControlsTheChosenPlayer",
+        &Fixture::selectsAndControlsTheChosenPlayer},
+       {"staleOrBrokenPlayersDoNotBlockOthers",
+        &Fixture::staleOrBrokenPlayersDoNotBlockOthers},
+       {"cleanupTestCase", &Fixture::cleanupTestCase}},
+      argc, argv);
+}

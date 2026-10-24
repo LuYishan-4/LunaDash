@@ -1,46 +1,52 @@
 #include "compositor/session/LaunchPolicy.hpp"
 
-#include <QtTest>
+#include "support/TestHarness.hpp"
 
 using namespace LunaDash;
 
-class LaunchPolicyTests : public QObject {
-  Q_OBJECT
-
-private slots:
+class LaunchPolicyTests final {
+public:
   void desktopIdentityRequestsX11Helper() {
     const auto identity = identifyLaunch(
         "com.discordapp.Discord.desktop",
         {"flatpak", "run", "com.discordapp.Discord"});
-    QVERIFY(identity.desktopId == "com.discordapp.Discord");
-    QVERIFY(identity.flatpakId == "com.discordapp.Discord");
-    QVERIFY(resolveLaunchCapabilities(
+    VERIFY(identity.desktopId == "com.discordapp.Discord");
+    VERIFY(identity.flatpakId == "com.discordapp.Discord");
+    VERIFY(resolveLaunchCapabilities(
                 "com.discordapp.Discord.desktop",
                 {"flatpak", "run", "com.discordapp.Discord"})
                 .x11Helper);
   }
 
   void flatpakIdentityWorksWithoutDesktopMetadata() {
-    QVERIFY(resolveLaunchCapabilities(
+    VERIFY(resolveLaunchCapabilities(
                 {}, {"flatpak", "run", "--branch=stable",
                      "com.discordapp.Discord"})
                 .x11Helper);
   }
 
   void arbitraryArgumentsDoNotImpersonateApplications() {
-    QVERIFY(!resolveLaunchCapabilities(
+    VERIFY(!resolveLaunchCapabilities(
                  "org.example.Viewer.desktop",
                  {"viewer", "https://example.test/com.discordapp.Discord"})
                  .x11Helper);
   }
 
   void unknownApplicationStaysWaylandOnly() {
-    QVERIFY(!resolveLaunchCapabilities(
+    VERIFY(!resolveLaunchCapabilities(
                  "org.example.Native.desktop",
                  {"native-app", "--ozone-platform=wayland"})
                  .x11Helper);
   }
 };
 
-QTEST_APPLESS_MAIN(LaunchPolicyTests)
-#include "LaunchPolicyTests.moc"
+int main(int argc, char **argv) {
+  return LunaDash::Test::run<LaunchPolicyTests>(
+      "LaunchPolicyTests",
+      {
+      {"desktopIdentityRequestsX11Helper", &LaunchPolicyTests::desktopIdentityRequestsX11Helper},
+      {"flatpakIdentityWorksWithoutDesktopMetadata", &LaunchPolicyTests::flatpakIdentityWorksWithoutDesktopMetadata},
+      {"arbitraryArgumentsDoNotImpersonateApplications", &LaunchPolicyTests::arbitraryArgumentsDoNotImpersonateApplications},
+      {"unknownApplicationStaysWaylandOnly", &LaunchPolicyTests::unknownApplicationStaysWaylandOnly}},
+      argc, argv);
+}
