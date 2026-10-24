@@ -8,27 +8,61 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QRegularExpression>
 #include <QSaveFile>
-#include <QScopedValueRollback>
 #include <glib.h>
-#include <QTemporaryDir>
 #include <QUrl>
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <dlfcn.h>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <set>
 #include <string_view>
 
 namespace LunaDash {
+namespace {
+class PluginTemporaryDirectory final {
+public:
+  ~PluginTemporaryDirectory() {
+    if (!path_.empty()) {
+      std::error_code error;
+      std::filesystem::remove_all(path_, error);
+    }
+  }
+
+  bool create(const std::filesystem::path &pattern) {
+    if (!path_.empty())
+      return false;
+    auto buffer = pattern.string();
+    buffer.push_back('\0');
+    const auto *created = ::mkdtemp(buffer.data());
+    if (!created)
+      return false;
+    path_ = created;
+    return true;
+  }
+
+  bool isValid() const noexcept { return !path_.empty(); }
+
+  const std::filesystem::path &path() const noexcept { return path_; }
+
+  QString filePath(const QString &name) const {
+    return QString::fromStdString((path_ / name.toStdString()).string());
+  }
+
+private:
+  std::filesystem::path path_;
+};
+} // namespace
+
 struct PluginManager::Native {
   // Load native code from an immutable private path. Some libc/loader
   // implementations keep mappings alive after dlclose(); mutating the
   // installed .so in place would then invalidate executable pages.
   // Keep the staged shared object immutable for the lifetime of the mapping.
-  QTemporaryDir stage;
+  PluginTemporaryDirectory stage;
   void *library = nullptr;
   PluginDescriptor descriptor;
   PluginDescriptor current;
@@ -44,7 +78,7 @@ struct PluginManager::StoreInstall {
   QString id;
   QJsonObject item;
   QJsonArray files;
-  std::unique_ptr<QTemporaryDir> stage;
+  std::unique_ptr<PluginTemporaryDirectory> stage;
   QString buildDirectory;
   QString installPrefix;
   QString cmakeExecutable;
@@ -62,10 +96,15 @@ struct PluginManager::DeferredCallback {
 
 namespace {
 bool safeInstallPath(const QString &value) {
-  static const QRegularExpression pattern(
-      R"(^(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$)");
-  if (value.isEmpty() || value.size() > 180 || value.contains('\\') ||
-      !pattern.match(value).hasMatch())
+  if (value.isEmpty() || value.size() > 180 || value.contains('\\'))
+    return false;
+  const auto path = value.toStdString();
+  if (!std::all_of(path.begin(), path.end(), [](unsigned char character) {
+        return (character >= 'a' && character <= 'z') ||
+               (character >= 'A' && character <= 'Z') ||
+               (character >= '0' && character <= '9') || character == '_' ||
+               character == '-' || character == '.' || character == '/';
+      }))
     return false;
   const auto parts = value.split('/');
   return std::none_of(parts.cbegin(), parts.cend(),
@@ -73,6 +112,43 @@ bool safeInstallPath(const QString &value) {
                         return part.isEmpty() || part == "." || part == "..";
                       });
 }
+
+bool validPluginId(const QString &id) {
+  const auto value = id.toStdString();
+  const auto alphanumeric = [](unsigned char character) {
+    return (character >= 'a' && character <= 'z') ||
+           (character >= 'A' && character <= 'Z') ||
+           (character >= '0' && character <= '9');
+  };
+  return value.size() >= 2 && alphanumeric(value.front()) &&
+         std::all_of(value.begin() + 1, value.end(),
+                     [&](unsigned char character) {
+                       return alphanumeric(character) || character == '.' ||
+                              character == '_' || character == '-';
+                     });
+}
+
+bool validSha256(const QString &value) {
+  const auto hash = value.toStdString();
+  return hash.size() == 64 &&
+         std::all_of(hash.begin(), hash.end(), [](unsigned char character) {
+           return (character >= 'a' && character <= 'f') ||
+                  (character >= 'A' && character <= 'F') ||
+                  (character >= '0' && character <= '9');
+         });
+}
+
+class HookStateGuard final {
+public:
+  explicit HookStateGuard(bool &state) : state_(state), previous_(state) {
+    state_ = true;
+  }
+  ~HookStateGuard() { state_ = previous_; }
+
+private:
+  bool &state_;
+  bool previous_;
+};
 
 QString userPluginRoot() {
   return QString::fromUtf8(g_get_user_data_dir()) + "/lunadash/plugins";
@@ -185,7 +261,6 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
     return false;
   }
 
-  static const QRegularExpression validId("^[A-Za-z0-9][A-Za-z0-9._-]+$");
   QJsonArray normalized;
   std::set<QString> ids;
   for (const auto &value : values.toArray()) {
@@ -224,7 +299,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
       validTargets =
           !target.isEmpty() && target.value("types").toArray().contains(type);
     }
-    if (!validId.match(id).hasMatch() || ids.contains(id) || name.isEmpty() ||
+    if (!validPluginId(id) || ids.contains(id) || name.isEmpty() ||
         version.isEmpty() || !validTargets) {
       if (error)
         *error = "Plugin catalogue contains an invalid identity or target";
@@ -284,7 +359,6 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
       std::set<QString> paths;
       bool metadata = false;
       bool cmakeProject = false;
-      static const QRegularExpression shaPattern("^[0-9a-fA-F]{64}$");
       for (const auto &fileValue : files.toArray()) {
         if (!fileValue.isObject()) {
           if (error)
@@ -297,7 +371,7 @@ bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
         const auto sha = file.value("sha256").toString();
         if (!safeInstallPath(path) || paths.contains(path) ||
             !url.isValid() || url.scheme() != "https" ||
-            !shaPattern.match(sha).hasMatch()) {
+            !validSha256(sha)) {
           if (error)
             *error = "Plugin install entry is invalid";
           return false;
@@ -453,9 +527,10 @@ bool PluginManager::installFromStore(const QString &id, QString *error) {
   job->id = id;
   job->item = item;
   job->files = files;
-  job->stage = std::make_unique<QTemporaryDir>(
-      QDir(root).filePath(".install-" + id + "-XXXXXX"));
-  if (!job->stage->isValid()) {
+  job->stage = std::make_unique<PluginTemporaryDirectory>();
+  if (!job->stage->create(
+          std::filesystem::path(root.toStdString()) /
+          (".install-" + id.toStdString() + "-XXXXXX"))) {
     if (error)
       *error = "Could not create a plugin staging directory";
     return false;
@@ -583,7 +658,7 @@ void PluginManager::runStoreBuildStep(StoreInstall *job) {
   std::vector<std::string> arguments;
   if (job->buildStep == 0) {
     arguments = {
-        "-S", job->stage->path().toStdString(),
+        "-S", job->stage->path().string(),
         "-B", job->buildDirectory.toStdString(),
         "-G", "Ninja",
         "-DCMAKE_BUILD_TYPE=Release",
@@ -730,8 +805,7 @@ void PluginManager::finishStoreInstall(StoreInstall *job,
 
 
 bool PluginManager::removeInstalledPlugin(const QString &id, QString *error) {
-  static const QRegularExpression validId("^[A-Za-z0-9][A-Za-z0-9._-]+$");
-  if (!validId.match(id).hasMatch()) {
+  if (!validPluginId(id)) {
     if (error)
       *error = "Invalid plugin id";
     return false;
@@ -844,6 +918,8 @@ void PluginManager::refresh() {
         auto native = std::make_unique<Native>();
         native->descriptor = native->current = descriptor;
 
+        native->stage.create(std::filesystem::path(g_get_tmp_dir()) /
+                             "lunadash-plugin-XXXXXX");
         const QString stagedLibrary = native->stage.filePath("plugin.so");
         QFile sourceLibrary(descriptor.libraryPath);
         if (!native->stage.isValid()) {
@@ -1084,7 +1160,7 @@ QJsonObject PluginManager::filter(const QString &target,
                                   const QJsonObject &builtin,
                                   const QJsonObject &context,
                                   const Validator &validate) {
-  QScopedValueRollback<bool> guard(inHook_, true);
+  HookStateGuard guard(inHook_);
   QJsonObject current = builtin;
   bool replaced = false;
   for (const auto &mode : {QString("replace"), QString("augment")}) {
