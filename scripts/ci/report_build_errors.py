@@ -50,29 +50,28 @@ def main() -> int:
         print("usage: report_build_errors.py <label> <log>...", file=sys.stderr)
         return 2
     label = sys.argv[1]
-    lines = []
+    # One group of annotations per log keeps a noisy log from hiding others.
+    budget = ANNOTATION_LIMIT
     for name in sys.argv[2:]:
         path = Path(name)
-        if path.is_file():
-            lines.append(f"==> {path.name}")
-            lines.extend(path.read_text(encoding="utf-8", errors="replace").splitlines())
-    if not lines:
-        return 0
-    blocks = collect(lines)
-    if not blocks:
-        tail = "\n".join(lines[-60:])
-        print(f"::error title={label} build log tail::{escape(tail)}")
-        return 0
-    chunk, chunks = "", []
-    for block in blocks:
-        if len(chunk) + len(block) + 2 > ANNOTATION_BYTES:
+        if not path.is_file() or budget <= 0:
+            continue
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        blocks = collect(lines)
+        if not blocks:
+            continue
+        chunks, chunk = [], ""
+        for block in blocks:
+            if len(chunk) + len(block) + 2 > ANNOTATION_BYTES:
+                chunks.append(chunk)
+                chunk = ""
+            chunk += block[:ANNOTATION_BYTES] + "\n\n"
+        if chunk:
             chunks.append(chunk)
-            chunk = ""
-        chunk += block + "\n\n"
-    if chunk:
-        chunks.append(chunk)
-    for number, text in enumerate(chunks[:ANNOTATION_LIMIT], 1):
-        print(f"::error title={label} build errors {number}/{len(chunks)}::{escape(text)}")
+        shown = chunks[:min(3, budget)]
+        budget -= len(shown)
+        for number, text in enumerate(shown, 1):
+            print(f"::error title={label} {path.name} {number}/{len(chunks)}::{escape(text)}")
     return 0
 
 

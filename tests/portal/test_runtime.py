@@ -55,7 +55,7 @@ def find_client(title):
 
 def enter_manual_path(client_id, path):
     control_request("focus", client_id)
-    subprocess.run(["wtype", "-s", path], env=wayland_env,
+    subprocess.run(["wtype", "--", path], env=wayland_env,
                    check=True, timeout=5)
     subprocess.run(["wtype", "-k", "Return"], env=wayland_env,
                    check=True, timeout=5)
