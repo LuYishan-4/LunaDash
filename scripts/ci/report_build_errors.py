@@ -16,9 +16,11 @@ ERROR = re.compile(
     r"Subprocess aborted|Child aborted|Exception)",
     re.IGNORECASE,
 )
-CONTEXT_AFTER = 8
+NOISE = re.compile(r"WARNING \*\*|dbind-WARNING|RealtimeKit|^\s*$")
+CONTEXT_AFTER = 3
 ANNOTATION_LIMIT = 9
-ANNOTATION_BYTES = 60000
+# GitHub truncates annotation messages to 4 KiB.
+ANNOTATION_BYTES = 3900
 
 
 def escape(text: str) -> str:
@@ -29,12 +31,13 @@ def collect(lines: list[str]) -> list[str]:
     blocks, seen, index = [], set(), 0
     while index < len(lines):
         line = lines[index]
-        if ERROR.search(line) and "-Werror" not in line[:20]:
-            block = lines[index:index + 1 + CONTEXT_AFTER]
+        if ERROR.search(line) and "-Werror" not in line[:20] and not NOISE.search(line):
+            block = [item for item in lines[index:index + 1 + CONTEXT_AFTER]
+                     if not NOISE.search(item)]
             key = line.strip()
             if key not in seen:
                 seen.add(key)
-                blocks.append("\n".join(item[:400] for item in block))
+                blocks.append("\n".join(item[:240] for item in block))
             index += 1 + CONTEXT_AFTER
             continue
         index += 1

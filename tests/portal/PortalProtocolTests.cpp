@@ -59,10 +59,19 @@ std::string signature(const std::string &xml, const std::string &interface,
   return result;
 }
 
+// Reply tuples such as (v) and nested variants are unwrapped to their value.
 guint32 unwrapUnsigned(GVariant *value) {
-  Variant current(g_variant_ref(value));
-  while (current && g_variant_is_of_type(current.get(), G_VARIANT_TYPE_VARIANT))
-    current.reset(g_variant_get_variant(current.get()));
+  Variant current(value ? g_variant_ref(value) : nullptr);
+  while (current) {
+    if (g_variant_is_of_type(current.get(), G_VARIANT_TYPE_VARIANT))
+      current.reset(g_variant_get_variant(current.get()));
+    else if (g_variant_is_container(current.get()) &&
+             g_variant_type_is_tuple(g_variant_get_type(current.get())) &&
+             g_variant_n_children(current.get()) == 1)
+      current.reset(g_variant_get_child_value(current.get(), 0));
+    else
+      break;
+  }
   return current && g_variant_is_of_type(current.get(), G_VARIANT_TYPE_UINT32)
              ? g_variant_get_uint32(current.get())
              : 0;
