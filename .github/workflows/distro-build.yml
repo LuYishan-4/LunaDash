@@ -29,7 +29,6 @@ jobs:
         run: |
           docker run --rm \
             -e LUDASH_ALLOW_ROOT_DEPS=1 \
-            -e QT_QPA_PLATFORM=offscreen \
             -e BOOTSTRAP \
             -v "$PWD:/src" -w /src \
             "$DISTRO_IMAGE" sh -lc '

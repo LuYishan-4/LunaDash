@@ -15,7 +15,7 @@ jobs:
       - name: Fetch pinned LunaDash-Shell source
         run: bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
       - uses: ./.github/actions/ubuntu-dependencies
-      - name: Verify Qt lifetime analyzer
+      - name: Verify lifetime analyzer
         run: python3 tests/security/test_analyzer.py clang-tidy
       - name: Analyze production code
         run: |

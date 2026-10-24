@@ -1,5 +1,5 @@
 name: Ubuntu native dependencies
-description: Shared compiler, Qt, Wayland and integration test dependencies
+description: Shared compiler, Wayland and integration test dependencies (Qt Shader Tools only for SDK shell shader plugins)
 runs:
   using: composite
   steps:
@@ -12,10 +12,6 @@ runs:
           cmake g++ git ninja-build pkg-config python3 ccache clang clang-tidy \
           libgl-dev libgl1-mesa-dri libvulkan-dev mesa-vulkan-drivers libwayland-dev wayland-protocols libwlroots-dev libgdk-pixbuf-2.0-dev \
           libpixman-1-dev libdrm-dev libinput-dev libxkbcommon-dev libudev-dev libglib2.0-dev libcurl4-openssl-dev libfontconfig1-dev \
-          qt6-base-dev qt6-declarative-dev qt6-declarative-dev-tools qt6-wayland \
-          qt6-shadertools-dev libqt6opengl6-dev libqt6svg6 \
-          qml6-module-qttest qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-          qml6-module-qtquick-window qml6-module-qtquick-templates \
-          qml6-module-qtquick-shapes qml6-module-qtqml-workerscript \
+          qt6-shadertools-dev \
           xvfb xauth xdotool wtype xclip xwayland wayland-utils wl-clipboard grim shared-mime-info \
           dbus-x11 python3-dbus python3-gi gir1.2-gtk-3.0 gir1.2-gtk-4.0 xdg-desktop-portal xdg-desktop-portal-gtk

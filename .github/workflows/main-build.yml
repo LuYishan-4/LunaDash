@@ -131,7 +131,7 @@ jobs:
         run: python3 scripts/ci/report_build_errors.py Ubuntu build-main.log
       - name: Maintained CTest suite including portal runtime
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure --timeout 120
+        run: ctest --test-dir build-main --output-on-failure --timeout 120
       - name: Plugin SDK build and installation
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python3 tests/plugins/test_sdk.py --sdk build-main/sdk-build
@@ -139,7 +139,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           ldd build-main/lunadash-compositor | grep -E 'libwlroots|libwayland-server'
-          ! ldd build-main/lunadash-compositor | grep -q libQt6WaylandCompositor
+          ! ldd build-main/lunadash-compositor | grep -q libQt6
           python3 tests/renderer/test_startup_failure.py build-main/lunadash-compositor
       - name: Wayland lifecycle
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -151,7 +151,7 @@ jobs:
         run: |
           xvfb-run -a python3 tests/wayland/test_xwayland.py build-main
           python3 tests/wayland/test_xwayland_notifications.py build-main
-      - name: GTK 3, GTK 4 and Qt Wayland clients
+      - name: GTK 3, GTK 4 and Slint Wayland clients
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: dbus-run-session -- python3 tests/wayland/test_toolkits.py build-main
       - name: Relocated software OpenGL renderer
@@ -160,7 +160,7 @@ jobs:
           cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Runtime
           cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Tests
           cd "$RUNNER_TEMP"
-          QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
             "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
       - name: Preserve runtime diagnostics
         if: always()
