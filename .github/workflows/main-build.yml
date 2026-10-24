@@ -121,8 +121,14 @@ jobs:
           cmake -S . -B build-main -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DLUDASH_QML_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DLUDASH_BUILD_RENDERER_TESTS=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON
-          cmake --build build-main --parallel 2
+            -DLUDASH_BUILD_RENDERER_TESTS=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON \
+            2>&1 | tee build-main.log
+          test "${PIPESTATUS[0]}" -eq 0
+          cmake --build build-main --parallel 2 -- -k 0 2>&1 | tee -a build-main.log
+          test "${PIPESTATUS[0]}" -eq 0
+      - name: Report build failures
+        if: ${{ failure() && steps.build.outcome == 'failure' }}
+        run: python3 scripts/ci/report_build_errors.py Ubuntu build-main.log
       - name: Maintained CTest suite including portal runtime
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: QT_QPA_PLATFORM=offscreen ctest --test-dir build-main --output-on-failure --timeout 120

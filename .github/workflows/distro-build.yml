@@ -47,8 +47,10 @@ jobs:
                 bash scripts/fetch-shell.sh /tmp/LunaDash-Shell
                 cmake -S . -B build-distro -G Ninja \\
                   -DCMAKE_BUILD_TYPE=Release \\
-                  -DLUDASH_QML_SOURCE_DIR=/tmp/LunaDash-Shell
-                cmake --build build-distro --parallel 2
+                  -DLUDASH_QML_SOURCE_DIR=/tmp/LunaDash-Shell 2>&1 | tee build-distro.log
+                test \${PIPESTATUS[0]} -eq 0
+                cmake --build build-distro --parallel 2 -- -k 0 2>&1 | tee -a build-distro.log
+                test \${PIPESTATUS[0]} -eq 0
                 bash scripts/test-xdg-lifecycle.sh "\$PWD/build-distro"
                 ctest --test-dir build-distro --output-on-failure
                 if command -v pacman >/dev/null; then
@@ -58,6 +60,9 @@ jobs:
                 fi
               "
             '
+      - name: Report build failures
+        if: failure()
+        run: python3 scripts/ci/report_build_errors.py "${{ matrix.name }}" build-distro.log
       - name: Preserve distribution runtime evidence
         if: always()
         uses: actions/upload-artifact@v4

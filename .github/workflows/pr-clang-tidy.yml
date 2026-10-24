@@ -25,5 +25,10 @@ jobs:
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DBUILD_TESTING=OFF \
-            -DCMAKE_CXX_CLANG_TIDY=clang-tidy
-          cmake --build build-pr --parallel 2
+            -DCMAKE_CXX_CLANG_TIDY=clang-tidy 2>&1 | tee build-pr.log
+          test "${PIPESTATUS[0]}" -eq 0
+          cmake --build build-pr --parallel 2 -- -k 0 2>&1 | tee -a build-pr.log
+          test "${PIPESTATUS[0]}" -eq 0
+      - name: Report analysis failures
+        if: failure()
+        run: python3 scripts/ci/report_build_errors.py clang-tidy build-pr.log
