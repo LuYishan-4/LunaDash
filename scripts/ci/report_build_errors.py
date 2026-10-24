@@ -11,10 +11,12 @@ import sys
 
 ERROR = re.compile(
     r"(?:\berror\b|undefined reference|multiple definition|cannot find -l|"
-    r"^CMake Error|^FAILED: |ld returned)",
+    r"^CMake Error|^FAILED: |ld returned|FAIL!|\*\*\*Failed|\bFailed\b|"
+    r"Assertion|AssertionError|Traceback|Timeout|Segmentation fault|"
+    r"Subprocess aborted|Child aborted|Exception)",
     re.IGNORECASE,
 )
-CONTEXT_AFTER = 4
+CONTEXT_AFTER = 8
 ANNOTATION_LIMIT = 9
 ANNOTATION_BYTES = 60000
 
@@ -40,13 +42,18 @@ def collect(lines: list[str]) -> list[str]:
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print("usage: report_build_errors.py <label> <build.log>", file=sys.stderr)
+    if len(sys.argv) < 3:
+        print("usage: report_build_errors.py <label> <log>...", file=sys.stderr)
         return 2
-    label, path = sys.argv[1], Path(sys.argv[2])
-    if not path.is_file():
+    label = sys.argv[1]
+    lines = []
+    for name in sys.argv[2:]:
+        path = Path(name)
+        if path.is_file():
+            lines.append(f"==> {path.name}")
+            lines.extend(path.read_text(encoding="utf-8", errors="replace").splitlines())
+    if not lines:
         return 0
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     blocks = collect(lines)
     if not blocks:
         tail = "\n".join(lines[-60:])

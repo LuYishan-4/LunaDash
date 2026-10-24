@@ -50,12 +50,12 @@ jobs:
                 test \${PIPESTATUS[0]} -eq 0
                 cmake --build build-distro --parallel 2 -- -k 0 2>&1 | tee -a build-distro.log
                 test \${PIPESTATUS[0]} -eq 0
-                bash scripts/test-xdg-lifecycle.sh "\$PWD/build-distro"
-                ctest --test-dir build-distro --output-on-failure
+                bash scripts/test-xdg-lifecycle.sh "\$PWD/build-distro" 2>&1 | tee -a build-distro.log
+                ctest --test-dir build-distro --output-on-failure 2>&1 | tee -a build-distro.log
                 if command -v pacman >/dev/null; then
                   pacman -S --noconfirm --needed quickshell wtype
                   dbus-uuidgen --ensure
-                  dbus-run-session -- python3 tests/wayland/test_setup.py build-distro
+                  dbus-run-session -- python3 tests/wayland/test_setup.py build-distro 2>&1 | tee -a build-distro.log
                 fi
               "
             '

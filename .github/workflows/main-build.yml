@@ -131,37 +131,64 @@ jobs:
         run: python3 scripts/ci/report_build_errors.py Ubuntu build-main.log
       - name: Maintained CTest suite including portal runtime
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: ctest --test-dir build-main --output-on-failure --timeout 120
+        shell: bash
+        run: |
+          {
+            ctest --test-dir build-main --output-on-failure --timeout 120
+          } 2>&1 | tee runtime-ctest.log
       - name: Plugin SDK build and installation
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 tests/plugins/test_sdk.py --sdk build-main/sdk-build
+        shell: bash
+        run: |
+          {
+            python3 tests/plugins/test_sdk.py --sdk build-main/sdk-build
+          } 2>&1 | tee runtime-sdk.log
       - name: Compositor startup and linkage
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
         run: |
-          ldd build-main/lunadash-compositor | grep -E 'libwlroots|libwayland-server'
-          ! ldd build-main/lunadash-compositor | grep -q libQt6
-          python3 tests/renderer/test_startup_failure.py build-main/lunadash-compositor
+          {
+            ldd build-main/lunadash-compositor | grep -E 'libwlroots|libwayland-server'
+            ! ldd build-main/lunadash-compositor | grep -q libQt6
+            python3 tests/renderer/test_startup_failure.py build-main/lunadash-compositor
+          } 2>&1 | tee runtime-startup.log
       - name: Wayland lifecycle
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
         run: |
-          ./scripts/test-xdg-lifecycle.sh "$PWD/build-main"
-          LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-main" ./scripts/test-wayland.sh
+          {
+            ./scripts/test-xdg-lifecycle.sh "$PWD/build-main"
+            LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-main" ./scripts/test-wayland.sh
+          } 2>&1 | tee runtime-wayland.log
       - name: XWayland lifecycle
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
         run: |
-          xvfb-run -a python3 tests/wayland/test_xwayland.py build-main
-          python3 tests/wayland/test_xwayland_notifications.py build-main
+          {
+            xvfb-run -a python3 tests/wayland/test_xwayland.py build-main
+            python3 tests/wayland/test_xwayland_notifications.py build-main
+          } 2>&1 | tee runtime-xwayland.log
       - name: GTK 3, GTK 4 and Slint Wayland clients
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: dbus-run-session -- python3 tests/wayland/test_toolkits.py build-main
+        shell: bash
+        run: |
+          {
+            dbus-run-session -- python3 tests/wayland/test_toolkits.py build-main
+          } 2>&1 | tee runtime-toolkits.log
       - name: Relocated software OpenGL renderer
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
         run: |
-          cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Runtime
-          cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Tests
-          cd "$RUNNER_TEMP"
-          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
-            "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
+          {
+            cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Runtime
+            cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Tests
+            cd "$RUNNER_TEMP"
+            LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
+              "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
+          } 2>&1 | tee runtime-renderer.log
+      - name: Report runtime failures
+        if: ${{ failure() && steps.build.outcome == 'success' }}
+        run: python3 scripts/ci/report_build_errors.py Ubuntu-runtime runtime-*.log
       - name: Preserve runtime diagnostics
         if: always()
         uses: actions/upload-artifact@v4
