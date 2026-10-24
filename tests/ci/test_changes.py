@@ -69,6 +69,17 @@ class SelectionTests(unittest.TestCase):
     def test_unavailable_baseline_requires_full_coverage(self, fetch):
         self.assertIsNone(changes.changed_paths({"before": "old", "after": "new", "ref": "refs/heads/dev"}, "push"))
 
+    def test_branch_pushes_defer_heavy_analysis(self):
+        selected = changes.limit_push_analysis(
+            changes.select([".github/workflows/dev-ci.yml"]), "push", False)
+        self.assertFalse(selected["analysis"])
+        self.assertTrue(selected["native"] and selected["distro"])
+        for event in ("pull_request", "merge_group", "workflow_dispatch"):
+            self.assertTrue(changes.limit_push_analysis(
+                changes.select([".github/x.yml"]), event, False)["analysis"])
+        self.assertTrue(changes.limit_push_analysis(
+            changes.select([], full=True), "push", True)["analysis"])
+
     def test_new_branch_and_merge_queue_run_everything(self):
         self.assertIsNone(changes.changed_paths({"before": "0" * 40}, "push"))
         self.assertIsNone(changes.changed_paths({}, "merge_group"))

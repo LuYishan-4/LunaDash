@@ -93,11 +93,22 @@ def changed_paths(event, event_name):
     return list(filter(None, diff.stdout.split("\0")))
 
 
+def limit_push_analysis(selected, event_name, requested_full):
+    """Keep branch pushes fast: the full distribution matrix, CodeQL and
+    clang-tidy run for pull requests, merge queues and explicit full runs."""
+    if event_name == "push" and not requested_full:
+        selected = dict(selected, analysis=False)
+    return selected
+
+
 def main():
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-    paths = changed_paths(event, os.environ["GITHUB_EVENT_NAME"])
-    full = os.environ.get("CI_FULL") == "true" or paths is None
-    selected = select(paths or [], full)
+    event_name = os.environ["GITHUB_EVENT_NAME"]
+    paths = changed_paths(event, event_name)
+    requested_full = os.environ.get("CI_FULL") == "true"
+    full = requested_full or paths is None
+    selected = limit_push_analysis(select(paths or [], full), event_name,
+                                   requested_full)
     print(json.dumps({"full": full, "paths": paths, "suites": selected}, indent=2))
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
         for name, enabled in selected.items():
