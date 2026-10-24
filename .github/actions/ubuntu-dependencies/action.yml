@@ -4,6 +4,8 @@ runs:
   using: composite
   steps:
     - shell: bash
+      run: echo "::add-matcher::${GITHUB_WORKSPACE}/.github/problem-matchers/native-build.json"
+    - shell: bash
       run: |
         sudo apt-get update
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \

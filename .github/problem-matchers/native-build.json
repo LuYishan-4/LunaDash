@@ -1,0 +1,42 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "ludash-compiler",
+      "pattern": [
+        {
+          "regexp": "^(?:/src/|.*?/LunaDash/)?([^:\\s][^:]*):(\\d+):(\\d+):\\s+(?:fatal\\s+)?(error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      ]
+    },
+    {
+      "owner": "ludash-linker",
+      "pattern": [
+        {
+          "regexp": "^(.*(?:undefined reference to|multiple definition of|cannot find -l).*)$",
+          "message": 1
+        }
+      ]
+    },
+    {
+      "owner": "ludash-cmake",
+      "pattern": [
+        {
+          "regexp": "^CMake (Error) at ([^:]+):(\\d+) \\((.*)\\):?$",
+          "severity": 1,
+          "file": 2,
+          "line": 3,
+          "message": 4
+        },
+        {
+          "regexp": "^\\s+(.+)$",
+          "message": 1
+        }
+      ]
+    }
+  ]
+}

@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Report compiler diagnostics as annotations
+        run: echo "::add-matcher::${GITHUB_WORKSPACE}/.github/problem-matchers/native-build.json"
       - name: Install distribution dependencies and build
         env:
           DISTRO_IMAGE: ${{ matrix.image }}
