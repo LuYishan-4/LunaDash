@@ -81,7 +81,12 @@ function(lunadash_add_plugin target)
             endif()
             list(APPEND PLUGIN_FILES "${source_dir}/${entry}")
         elseif(kind STREQUAL "opengl")
-            find_package(Qt6 6.4 REQUIRED COMPONENTS ShaderTools)
+            # Quickshell's ShaderEffect loads shaders in the .qsb format.
+            # Only the external shader baker is needed, not a toolkit SDK.
+            find_program(LUNADASH_QSB NAMES qsb qsb6 qsb-qt6
+                HINTS /usr/lib/qt6/bin /usr/lib64/qt6/bin /usr/libexec/qt6
+                      /usr/lib/qt6/libexec /usr/lib64/qt6/libexec
+                REQUIRED)
             foreach(stage IN ITEMS vertex fragment)
                 if(multi_target)
                     string(JSON shader GET "${manifest}" targets ${index} shaders ${stage})
@@ -90,7 +95,7 @@ function(lunadash_add_plugin target)
                 endif()
                 configure_file("${source_dir}/${shader}" "${output}/${shader}" COPYONLY)
                 add_custom_command(OUTPUT "${output}/${shader}.qsb"
-                    COMMAND Qt6::qsb --glsl "100 es,120,150"
+                    COMMAND "${LUNADASH_QSB}" --glsl "100 es,120,150"
                             -o "${output}/${shader}.qsb" "${source_dir}/${shader}"
                     DEPENDS "${source_dir}/${shader}" VERBATIM)
                 list(APPEND shader_outputs "${output}/${shader}.qsb")

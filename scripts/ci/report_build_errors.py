@@ -32,13 +32,14 @@ def collect(lines: list[str]) -> list[str]:
     while index < len(lines):
         line = lines[index]
         if ERROR.search(line) and "-Werror" not in line[:20] and not NOISE.search(line):
-            block = [item for item in lines[index:index + 1 + CONTEXT_AFTER]
+            context = 18 if "Traceback" in line else CONTEXT_AFTER
+            block = [item for item in lines[index:index + 1 + context]
                      if not NOISE.search(item)]
             key = line.strip()
             if key not in seen:
                 seen.add(key)
                 blocks.append("\n".join(item[:240] for item in block))
-            index += 1 + CONTEXT_AFTER
+            index += 1 + context
             continue
         index += 1
     return blocks
