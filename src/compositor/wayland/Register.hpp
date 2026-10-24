@@ -276,6 +276,7 @@ public:
   Rect pointerStartGeometry;
   std::chrono::steady_clock::time_point pointerPublishTime{};
   bool pointerPublishTimeValid = false;
+  bool runtimeReleased = false;
   bool beginWindowPointer(uint32_t button);
   bool beginClientWindowPointer(ClientWindow *client, uint32_t serial,
                                 uint32_t edges, bool validateSerial = true);
@@ -319,6 +320,10 @@ public:
   void terminateEventLoop(int exitCode);
 
   void shutdown();
+  // Tears down clients, the scene and wlroots objects but keeps the Wayland
+  // display and its event loop, so owners of event sources can remove them
+  // before shutdown() destroys the loop.
+  void releaseRuntime();
 
   Size outputSize() const;
 

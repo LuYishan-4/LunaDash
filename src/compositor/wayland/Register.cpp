@@ -450,11 +450,21 @@ int WaylandCompositor::Impl::handleScheduledCallback(void *data) {
 }
 
 void WaylandCompositor::Impl::shutdown() {
+  releaseRuntime();
+  if (!display)
+    return;
+  wl_display_destroy(display);
+  display = nullptr;
+  eventLoop = nullptr;
+}
+
+void WaylandCompositor::Impl::releaseRuntime() {
   cancelScheduledCallbacks();
   cancelScratchpadTimeout();
   clearPendingDisplay();
-  if (!display)
+  if (!display || runtimeReleased)
     return;
+  runtimeReleased = true;
 
   // Underlays retain renderer buffers and listeners on client scene nodes.
   // Release them while both the scene and renderer are still alive.
@@ -611,9 +621,6 @@ void WaylandCompositor::Impl::shutdown() {
     wlr_output_layout_destroy(outputLayout);
     outputLayout = nullptr;
   }
-  wl_display_destroy(display);
-  display = nullptr;
-  eventLoop = nullptr;
 }
 
 bool WaylandCompositor::Impl::inputBridgeReady() const {

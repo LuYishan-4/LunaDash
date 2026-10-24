@@ -1,5 +1,6 @@
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
+#include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include "core/log/Log.hpp"
 #include "core/text/Text.hpp"
@@ -44,12 +45,16 @@ Json WaylandCompositor::Impl::displayModes() const {
                                         mode->refresh)}}));
   }
   if (result.empty() && nested && !fullscreen) {
+    const int refresh = WlrootsCompat::nestedModeRefresh(
+        primaryOutput, kDefaultOutputRefreshMilliHz);
     for (const Size size :
          {Size(1280, 720), Size(1440, 900), Size(1920, 1080)})
       result.push_back(Json::object({
-          {"id", modeId(size.width(), size.height(), 0)},
-          {"label", std::to_string(size.width()) + " \u00d7 " +
-                        std::to_string(size.height())}}));
+          {"id", modeId(size.width(), size.height(), refresh)},
+          {"label", refresh > 0
+                        ? modeLabel(size.width(), size.height(), refresh)
+                        : std::to_string(size.width()) + " \u00d7 " +
+                              std::to_string(size.height())}}));
   }
   return result;
 }
@@ -95,8 +100,10 @@ bool WaylandCompositor::Impl::configureDisplay(const Json &changes,
         const auto size = splitText(id.substr(0, id.find('@')), 'x');
         if (size.size() != 2)
           continue;
-        wlr_output_state_set_custom_mode(&next, parseDimension(size[0]),
-                                         parseDimension(size[1]), 0);
+        wlr_output_state_set_custom_mode(
+            &next, parseDimension(size[0]), parseDimension(size[1]),
+            WlrootsCompat::nestedModeRefresh(primaryOutput,
+                                             kDefaultOutputRefreshMilliHz));
         found = true;
         break;
       }

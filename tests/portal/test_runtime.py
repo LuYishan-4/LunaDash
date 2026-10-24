@@ -14,6 +14,7 @@ import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
+from urllib.parse import unquote, urlsplit
 
 import dbus
 from dbus.mainloop.glib import DBusGMainLoop
@@ -31,6 +32,16 @@ LOGDIR.mkdir(exist_ok=True)
 DBusGMainLoop(set_as_default=True)
 bus = dbus.SessionBus()
 context = GLib.MainContext.default()
+
+
+def uri_paths(uris):
+    """Decode file URIs so equivalent percent-encodings compare equal."""
+    paths = []
+    for uri in uris:
+        parts = urlsplit(str(uri))
+        assert parts.scheme == "file" and parts.netloc in ("", "localhost"), uri
+        paths.append(Path(unquote(parts.path)))
+    return paths
 
 
 def wait_for(predicate, message, timeout=12):
@@ -180,7 +191,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
             enter_manual_path(client_id, target)
             response, results = checked_wait(answers, errors)
             assert int(response) == 0, (mode, response, results)
-            assert list(results["uris"]) == [Path(target).as_uri()], results
+            assert uri_paths(results["uris"]) == [Path(target)], results
         print("Backend OpenFile/SaveFile: actual dialogs returned matching URIs", flush=True)
 
         savefiles_options = dbus.Dictionary({
@@ -199,7 +210,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
         enter_manual_path(client_id, str(base))
         response, results = checked_wait(answers, errors)
         expected = base / "picked file (1).txt"
-        assert int(response) == 0 and list(results["uris"]) == [expected.as_uri()], (
+        assert int(response) == 0 and uri_paths(results["uris"]) == [expected], (
             response, results)
         print("Backend SaveFiles: selected folder and collision-safe URI passed", flush=True)
 
@@ -256,7 +267,7 @@ with tempfile.TemporaryDirectory(prefix="lunadash-portal-runtime-") as temp:
         enter_manual_path(client_id, str(fixture))
         wait_for(lambda: path in replies, "Frontend did not emit Request.Response")
         assert int(replies[path][0]) == 0, replies[path]
-        assert list(replies[path][1]["uris"]) == [fixture.as_uri()], replies[path]
+        assert uri_paths(replies[path][1]["uris"]) == [fixture], replies[path]
         print("Frontend FileChooser: full bus -> backend UI -> Response path passed", flush=True)
 
         settings = dbus.Interface(bus.get_object("org.freedesktop.portal.Desktop", DESKTOP),

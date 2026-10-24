@@ -41,6 +41,9 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
         env.pop(key, None)
 
     control = runtime + "/ludash-x11-test-control"
+    x11_client_command = '"{}" "{}"'.format(
+        sys.executable, Path(__file__).with_name("x11_window_client.py")
+    )
     wayland_env = env | {
         "WAYLAND_DISPLAY": "ludash-x11-test",
         "QT_QPA_PLATFORM": "wayland",
@@ -144,7 +147,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
             # individual ClientWindow rather than a rootful container.
             result = request(
                 "launch-x11",
-                '"' + str(build / "ludash-desktop") + '" --app welcome',
+                x11_client_command,
             )
             assert "error" not in result, result
             state = wait_for(
@@ -344,7 +347,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-x11-test-") as runtime:
                 }
                 result = request(
                     "launch-x11",
-                    '"' + str(build / "ludash-desktop") + '" --app welcome',
+                    x11_client_command,
                 )
                 assert "error" not in result, result
                 state = wait_for(

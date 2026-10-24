@@ -20,6 +20,12 @@ extern "C" {
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wlr/backend.h>
+#if __has_include(<wlr/backend/x11.h>)
+#include <wlr/backend/x11.h>
+#define LUDASH_WLR_HAS_X11_BACKEND 1
+#else
+#define LUDASH_WLR_HAS_X11_BACKEND 0
+#endif
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #if __has_include(<wlr/types/wlr_buffer.h>)

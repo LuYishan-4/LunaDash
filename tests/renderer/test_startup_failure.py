@@ -54,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix="ludash-vulkan-failure-") as runtime:
     }
     result = subprocess.run([binary, "--graphics", "vulkan", "--no-shell"],
         env=env, capture_output=True, text=True, timeout=15)
-    assert result.returncode == 2, (result.returncode, result.stderr)
+    assert result.returncode == 2, (result.returncode, result.stderr[-3000:])
     assert "Vulkan" in result.stderr, result.stderr
     assert "LunaDash renderer: pixman" not in result.stderr, result.stderr
 print("Explicit Vulkan failure is diagnosed without silently selecting pixman.")

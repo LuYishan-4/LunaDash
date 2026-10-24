@@ -419,9 +419,8 @@ void finishOperation(std::unique_ptr<PickerOperation> operation,
   }
   g_clear_error(&error);
   g_free(standardOutput);
+  // The floating results are consumed by the reply tuple.
   returnPortalResponse(operation->invocation, response, results);
-  if (results)
-    g_variant_unref(results);
 }
 
 void processCommunicated(GObject *source, GAsyncResult *result,

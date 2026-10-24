@@ -502,6 +502,15 @@ WaylandCompositor::~WaylandCompositor() {
   }
   delete shortcutSettings_;
   shortcutSettings_ = nullptr;
+  // Everything below owns sources on the compositor event loop. Release the
+  // wlroots runtime first, then remove those sources while the loop is still
+  // alive; destroying the display frees the loop.
+  if (d)
+    d->releaseRuntime();
+  controlServer_.reset();
+  pluginManager_.reset();
+  windowSwitcher_.reset();
+  thumbnailWrite_.reset();
   d.reset();
 }
 
