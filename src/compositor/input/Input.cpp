@@ -185,7 +185,7 @@ void WaylandCompositor::Impl::addKeyboard(wlr_keyboard *keyboard,
   if (!isVirtual) {
     std::string error;
     if (!applyKeyboardPreferences(keyboard, desktopPreferences(), &error))
-      qWarning().noquote() << "LunaDash keyboard:" << error.c_str();
+      logWarning("LunaDash keyboard: %s", error.c_str());
   }
 
   auto *state = new KeyboardState;
@@ -224,7 +224,7 @@ void WaylandCompositor::Impl::applyKeyboardConfig() {
     std::string error;
     if (!applyKeyboardPreferences(state->keyboard, desktopPreferences(),
                                   &error))
-      qWarning().noquote() << "LunaDash keyboard:" << error.c_str();
+      logWarning("LunaDash keyboard: %s", error.c_str());
   }
 }
 

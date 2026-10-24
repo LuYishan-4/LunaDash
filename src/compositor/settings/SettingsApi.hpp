@@ -1,16 +1,17 @@
 #pragma once
-#include <QJsonArray>
-#include <QJsonObject>
+#include "core/json/JsonAccess.hpp"
+
 #include <functional>
+#include <string>
 namespace LunaDash {
 class PluginManager;
 class ShellModules;
 // Native effects and visual plugins expose the same settings contract.
-QJsonArray settingsApiTargets(const QJsonObject &extensions,
-                              const QJsonObject &modules,
-                              const QJsonObject &layout);
-bool updateSettingsApi(PluginManager &plugins, ShellModules &modules,
-                       const QJsonObject &layout, const QJsonObject &request,
-                       const std::function<bool(const QJsonObject &, QString *)> &setLayout,
-                       QString *error);
+Json settingsApiTargets(const Json &extensions, const Json &modules,
+                        const Json &layout);
+bool updateSettingsApi(
+    PluginManager &plugins, ShellModules &modules, const Json &layout,
+    const Json &request,
+    const std::function<bool(const Json &, std::string *)> &setLayout,
+    std::string *error);
 }

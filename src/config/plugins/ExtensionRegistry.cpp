@@ -1,32 +1,30 @@
 #include "config/plugins/ExtensionRegistry.hpp"
-#include <QFile>
-#include <QJsonDocument>
 #include "core/settings/SettingsSchema.hpp"
 
 namespace LunaDash {
-QJsonArray extensionTargets() {
+Json extensionTargets() {
   static const auto targets = [] {
-    QFile file(QStringLiteral(LUDASH_PLUGIN_TARGETS_SOURCE_FILE));
-    if (!file.open(QIODevice::ReadOnly)) {
-      file.setFileName(QStringLiteral(LUDASH_PLUGIN_TARGETS_INSTALL_FILE));
-      if (!file.open(QIODevice::ReadOnly))
-        return QJsonArray{};
+    for (const char *path : {LUDASH_PLUGIN_TARGETS_SOURCE_FILE,
+                             LUDASH_PLUGIN_TARGETS_INSTALL_FILE}) {
+      auto document = readJsonFile(path);
+      if (!document.is_discarded())
+        return jsonAsArray(document);
     }
-    return QJsonDocument::fromJson(file.readAll()).array();
+    return Json::array();
   }();
   return targets;
 }
-QJsonObject extensionTarget(const QString &id) {
+Json extensionTarget(const std::string &id) {
   for (const auto &value : extensionTargets())
-    if (value.toObject().value("id").toString() == id)
-      return value.toObject();
-  return {};
+    if (jsonString(value, "id") == id)
+      return jsonAsObject(value);
+  return Json::object();
 }
-QJsonObject extensionDefaults(const QJsonObject &schema) {
+Json extensionDefaults(const Json &schema) {
   return Settings::defaults(schema);
 }
-bool validateExtensionSettings(const QJsonObject &schema,
-                               const QJsonObject &settings, QString *error) {
+bool validateExtensionSettings(const Json &schema, const Json &settings,
+                               std::string *error) {
   return Settings::validateSchema(schema, error) &&
          Settings::validateValues(schema, settings, error);
 }

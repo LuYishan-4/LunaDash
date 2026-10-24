@@ -1,5 +1,5 @@
 #pragma once
-#include <QString>
+#include <string>
 namespace LunaDash {
-QString safeUtf8(const char *text);
+std::string safeUtf8(const char *text);
 }

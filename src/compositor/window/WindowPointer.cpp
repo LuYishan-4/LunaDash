@@ -3,7 +3,6 @@
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
-#include <QJsonArray>
 #include <algorithm>
 #include <linux/input-event-codes.h>
 
@@ -28,7 +27,7 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
     q->setMaximized(client, false);
     q->arrange();
   }
-  pointerLast = QPointF(cursor->x, cursor->y);
+  pointerLast = PointF(cursor->x, cursor->y);
   pointerStartGeometry = client->geometry;
   pointerPublishTimeValid = false;
   pointerTarget = 0;
@@ -74,7 +73,7 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   pointerClientGrab = true;
   pointerResizeEdges = edges;
   pointerResize = edges != 0;
-  pointerLast = QPointF(cursor->x, cursor->y);
+  pointerLast = PointF(cursor->x, cursor->y);
   pointerStartGeometry = client->geometry;
   pointerPublishTimeValid = false;
   pointerTarget = pointerEdge = 0;
@@ -111,8 +110,8 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     for (const auto &slot : snapshot.columns) {
       bool ownsWindow = slot.window == static_cast<LayoutWindowId>(client->id);
       if (!ownsWindow) {
-        for (const auto &member : slot.metadata.value("members").toArray())
-          if (member.toInteger() == client->id) {
+        for (const auto &member : jsonArray(slot.metadata, "members"))
+          if (jsonAsInteger(member) == client->id) {
             ownsWindow = true;
             break;
           }
@@ -124,8 +123,8 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     }
     return false;
   };
-  const QPointF current(cursor->x, cursor->y);
-  const QPoint delta = (current - pointerLast).toPoint();
+  const PointF current(cursor->x, cursor->y);
+  const Point delta = (current - pointerLast).toPoint();
   pointerLast = current;
   if (client->floating) {
     auto geometry = client->geometry;
@@ -151,7 +150,7 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   const auto updateSwapTarget = [this, &snapshot, &current] {
     pointerTarget = 0;
     pointerEdge = 0;
-    QJsonObject hint;
+    Json hint = Json::object();
     for (int index = snapshot.columns.size() - 1; index >= 0; --index) {
       const auto &slot = snapshot.columns[index];
       if (slot.window == static_cast<LayoutWindowId>(pointerWindow) ||
@@ -201,9 +200,9 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
                                                  : 0),
                    std::min(80, availableHeight), availableHeight);
     // Move first when growing a top/left edge, resize first when shrinking.
-    const QPoint shift(left ? geometry.width() - width : 0,
+    const Point shift(left ? geometry.width() - width : 0,
                        top ? geometry.height() - height : 0);
-    const QJsonObject areaJson{{"x", area.x()},
+    const Json areaJson{{"x", area.x()},
                                {"y", area.y()},
                                {"width", area.width()},
                                {"height", area.height()}};
@@ -234,8 +233,8 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   if (pointerResize) {
     for (const auto &slot : snapshot.columns) {
       bool sameGroup = false;
-      for (const auto &id : slot.metadata.value("members").toArray())
-        if (id.toInteger() == client->id) {
+      for (const auto &id : jsonArray(slot.metadata, "members"))
+        if (jsonAsInteger(id) == client->id) {
           sameGroup = true;
           break;
         }
@@ -267,10 +266,10 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
         {{"window", client->id},
          {"dx", delta.x()},
          {"dy", delta.y()},
-         {"area", QJsonObject{{"x", area.x()},
+         {"area", Json::object({{"x", area.x()},
                               {"y", area.y()},
                               {"width", area.width()},
-                              {"height", area.height()}}}});
+                              {"height", area.height()}})}});
     if (freeform && configureDragged()) {
       if (pointerClientGrab)
         updateSwapTarget();
@@ -307,17 +306,17 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
           });
       if (current != snapshot.columns.cend()) {
         const auto area = q->workArea();
-        const QPoint delta =
+        const Point delta =
             pointerStartGeometry.topLeft() - current->geometry.topLeft();
         performWindowLayoutAction(
             *q->windowLayout_, *q->windowTemplate_, "move-by",
             {{"window", moving},
              {"dx", delta.x()},
              {"dy", delta.y()},
-             {"area", QJsonObject{{"x", area.x()},
+             {"area", Json::object({{"x", area.x()},
                                   {"y", area.y()},
                                   {"width", area.width()},
-                                  {"height", area.height()}}}});
+                                  {"height", area.height()}})}});
       }
     }
     if (edge && !directMove)

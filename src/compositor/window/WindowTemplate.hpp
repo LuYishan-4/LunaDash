@@ -2,8 +2,6 @@
 
 #include "compositor/layout/WindowLayout.hpp"
 
-#include <QJsonObject>
-#include <QString>
 #include <memory>
 #include <vector>
 
@@ -12,29 +10,29 @@ namespace LunaDash {
 using WindowLayoutFactory = std::unique_ptr<WindowLayout> (*)();
 
 struct WindowTemplate {
-  QString key;
+  std::string key;
   WindowLayoutFactory createLayout = nullptr;
   bool clientMoveResize = false;
   bool allowOverlap = false;
   bool activationTogglesMaximize = false;
-  QJsonObject layoutSettingsSchema;
-  QJsonObject layoutSettingsDefaults;
-  QJsonObject layoutActions;
-  QJsonObject animation;
+  Json layoutSettingsSchema = Json::object();
+  Json layoutSettingsDefaults = Json::object();
+  Json layoutActions = Json::object();
+  Json animation = Json::object();
 };
 
 std::vector<WindowTemplate> windowTemplates();
-const WindowTemplate &windowTemplateForKey(const QString &key);
+const WindowTemplate &windowTemplateForKey(const std::string &key);
 std::unique_ptr<WindowLayout>
 createWindowLayout(const WindowTemplate &windowTemplate);
 bool validateWindowLayoutSettings(const WindowTemplate &windowTemplate,
-                                  const QJsonObject &settings,
-                                  QString *error = nullptr);
+                                  const Json &settings,
+                                  std::string *error = nullptr);
 bool windowTemplateSupportsAction(const WindowTemplate &windowTemplate,
-                                  const QString &action);
+                                  const std::string &action);
 bool performWindowLayoutAction(WindowLayout &layout,
                                const WindowTemplate &windowTemplate,
-                               const QString &action,
-                               const QJsonObject &payload = {});
+                               const std::string &action,
+                               const Json &payload = {});
 
 } // namespace LunaDash

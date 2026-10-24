@@ -22,12 +22,12 @@ struct WaylandCompositor::ThumbnailWriteState {
   std::future<bool> result;
   int serial = 0;
   int window = 0;
-  QString path;
+  std::string path;
   std::vector<int> remaining;
 };
 
 void WaylandCompositor::publishWindowLayout() {
-  QJsonArray clients;
+  Json clients = Json::array();
   for (const auto &client : clients_) {
     if (client->utility || !client->mapped)
       continue;
@@ -38,7 +38,7 @@ void WaylandCompositor::publishWindowLayout() {
                            ? windowAnimations_->animation().visualGeometry(
                                  client->sceneTree, fallback)
                            : fallback;
-    clients.append(QJsonObject{{"id", client->id},
+    clients.push_back(Json::object({{"id", client->id},
                                {"frameX", frame.left},
                                {"frameY", frame.top},
                                {"frameWidth", frame.width},
@@ -62,7 +62,7 @@ void WaylandCompositor::publishWindowLayout() {
                                {"x", client->geometry.x()},
                                {"y", client->geometry.y()},
                                {"width", client->geometry.width()},
-                               {"height", client->geometry.height()}});
+                               {"height", client->geometry.height()}}));
   }
   windowSwitcher_->setLayout(clients, workspace_, d->pointerWindow != 0);
 }
@@ -114,15 +114,15 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
   }
   if (d->pointerWindow)
     d->finishWindowPointer(false);
-  QJsonArray choices;
+  Json choices = Json::array();
   std::vector<int> capture;
   const auto area = workArea();
   if (!workspaces) {
     publishWindowLayout();
     choices = WindowSwitcher::windowsForWorkspace(
-        windowSwitcher_->snapshot().value("clients").toArray(), workspace_);
+        jsonArray(windowSwitcher_->snapshot(), "clients"), workspace_);
     for (const auto &choice : choices)
-      capture.push_back(choice.toObject().value("id").toInt());
+      capture.push_back(jsonInt(choice, "id"));
     if (windowSwitcher_->begin(choices, focused_ ? focused_->id : 0,
                                 direction, clientEnvironment_, scope)) {
       const int serial = windowSwitcher_->serial();
@@ -133,21 +133,21 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
     return;
   }
   for (int workspace = 0; workspace < 10; ++workspace) {
-    QJsonArray windows;
-    QRect bounds = area;
+    Json windows = Json::array();
+    Rect bounds = area;
     const auto placements = windowLayout_->presentation(workspace, area);
     for (const auto &client : clients_) {
       if (!client->mapped || client->utility || client->desktop ||
           client->workspace != workspace)
         continue;
-      QRect geometry = client->geometry;
+      Rect geometry = client->geometry;
       for (const auto &placement : placements)
         if (placement.window == static_cast<LayoutWindowId>(client->id) &&
             !placement.minimized)
           geometry = placement.geometry;
       if (!client->minimized && !client->hiddenByMaximize)
         bounds = bounds.united(geometry);
-      windows.append(QJsonObject{{"id", client->id},
+      windows.push_back(Json::object({{"id", client->id},
                                  {"title", client->title},
                                  {"appId", client->appId},
                                  {"icon", client->iconName},
@@ -157,20 +157,20 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
                                  {"height", geometry.height()},
                                  {"minimized", client->minimized},
                                  {"hiddenByMaximize", client->hiddenByMaximize},
-                                 {"focused", focused_ == client.get()}});
+                                 {"focused", focused_ == client.get()}}));
       if (!client->minimized && !client->hiddenByMaximize)
         capture.push_back(client->id);
     }
     for (int i = 0; i < windows.size(); ++i) {
-      auto window = windows[i].toObject();
-      window["x"] = window.value("x").toInt() + area.x() - bounds.x();
-      window["y"] = window.value("y").toInt() + area.y() - bounds.y();
+      auto window = jsonObject(windows, i);
+      window["x"] = jsonInt(window, "x") + area.x() - bounds.x();
+      window["y"] = jsonInt(window, "y") + area.y() - bounds.y();
       windows[i] = window;
     }
-    choices.append(QJsonObject{{"id", workspace + 1},
+    choices.push_back(Json::object({{"id", workspace + 1},
                                   {"windows", windows},
                                   {"width", bounds.width()},
-                                  {"height", bounds.height()}});
+                                  {"height", bounds.height()}}));
   }
   windowSwitcher_->begin(choices, workspace_ + 1, direction,
                          clientEnvironment_, scope);
@@ -226,7 +226,7 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
     });
     return;
   }
-  const QString path = windowSwitcher_->thumbnailPath(id);
+  const std::string path = windowSwitcher_->thumbnailPath(id);
   auto write = std::make_shared<ThumbnailWriteState>();
   write->serial = serial;
   write->window = id;
@@ -243,7 +243,7 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
       if (!pixbuf)
         return false;
       GError *error = nullptr;
-      const bool saved = gdk_pixbuf_save(pixbuf, path.toUtf8().constData(),
+      const bool saved = gdk_pixbuf_save(pixbuf, path.c_str(),
                                          "png", &error, nullptr);
       g_object_unref(pixbuf);
       if (error)
@@ -282,7 +282,7 @@ void WaylandCompositor::pollThumbnailWrite() {
                                    completed->path);
   else if (saved) {
     std::error_code error;
-    std::filesystem::remove(completed->path.toStdString(), error);
+    std::filesystem::remove(completed->path, error);
   }
 
   if (queuedThumbnailSerial_ != 0) {

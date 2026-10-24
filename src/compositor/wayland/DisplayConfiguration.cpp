@@ -1,47 +1,63 @@
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
-#include <QJsonArray>
+#include "core/log/Log.hpp"
+#include "core/text/Text.hpp"
+#include <charconv>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 
 namespace LunaDash {
 namespace {
-QString modeId(int width, int height, int refresh) {
-  return QString("%1x%2@%3").arg(width).arg(height).arg(refresh);
+std::string modeId(int width, int height, int refresh) {
+  return std::to_string(width) + "x" + std::to_string(height) + "@" +
+         std::to_string(refresh);
+}
+
+std::string modeLabel(int width, int height, int refreshMilliHz) {
+  char refresh[32];
+  std::snprintf(refresh, sizeof refresh, "%.2f", refreshMilliHz / 1000.0);
+  return std::to_string(width) + " \u00d7 " + std::to_string(height) +
+         " \u00b7 " + refresh + " Hz";
+}
+
+int parseDimension(const std::string &text) {
+  int value = 0;
+  const auto result =
+      std::from_chars(text.data(), text.data() + text.size(), value);
+  return result.ec == std::errc() && result.ptr == text.data() + text.size()
+             ? value
+             : 0;
 }
 } // namespace
 
-QJsonArray WaylandCompositor::Impl::displayModes() const {
-  QJsonArray result;
+Json WaylandCompositor::Impl::displayModes() const {
+  Json result = Json::array();
   if (!primaryOutput)
     return result;
   wlr_output_mode *mode = nullptr;
   wl_list_for_each(mode, &primaryOutput->modes, link) {
-    result.append(
-        QJsonObject{{"id", modeId(mode->width, mode->height, mode->refresh)},
-                    {"label", QString("%1 × %2 · %3 Hz")
-                                  .arg(mode->width)
-                                  .arg(mode->height)
-                                  .arg(mode->refresh / 1000.0, 0, 'f', 2)}});
+    result.push_back(
+        Json::object({{"id", modeId(mode->width, mode->height, mode->refresh)},
+                    {"label", modeLabel(mode->width, mode->height,
+                                        mode->refresh)}}));
   }
-  if (result.isEmpty() && nested && !fullscreen) {
-    for (const QSize size :
-         {QSize(1280, 720), QSize(1440, 900), QSize(1920, 1080)})
-      result.append(QJsonObject{
+  if (result.empty() && nested && !fullscreen) {
+    for (const Size size :
+         {Size(1280, 720), Size(1440, 900), Size(1920, 1080)})
+      result.push_back(Json::object({
           {"id", modeId(size.width(), size.height(),
                          kDefaultOutputRefreshMilliHz)},
-          {"label", QString("%1 × %2 · %3 Hz")
-                        .arg(size.width())
-                        .arg(size.height())
-                        .arg(kDefaultOutputRefreshMilliHz / 1000.0, 0, 'f', 2)}});
+          {"label", modeLabel(size.width(), size.height(),
+                              kDefaultOutputRefreshMilliHz)}}));
   }
   return result;
 }
 
-bool WaylandCompositor::Impl::configureDisplay(const QJsonObject &changes,
-                                               QString *error) {
-  if (!primaryOutput || pendingDisplay || changes.isEmpty()) {
+bool WaylandCompositor::Impl::configureDisplay(const Json &changes,
+                                               std::string *error) {
+  if (!primaryOutput || pendingDisplay || changes.empty()) {
     *error =
         "Confirm or revert the pending display change before applying another.";
     return false;
@@ -52,8 +68,9 @@ bool WaylandCompositor::Impl::configureDisplay(const QJsonObject &changes,
       return false;
     }
   }
-  const double scale = changes.value("scale").toDouble(primaryOutput->scale);
-  if ((changes.contains("scale") && !changes.value("scale").isDouble()) ||
+  const double scale = jsonDouble(changes, "scale", primaryOutput->scale);
+  if ((jsonContains(changes, "scale") &&
+       !jsonValue(changes, "scale").is_number()) ||
       !std::isfinite(scale) || scale < 1.0 || scale > 3.0) {
     *error = "Display scale must be between 1 and 3.";
     return false;
@@ -61,8 +78,8 @@ bool WaylandCompositor::Impl::configureDisplay(const QJsonObject &changes,
   wlr_output_state next;
   wlr_output_state_init(&next);
   wlr_output_state_set_scale(&next, static_cast<float>(scale));
-  if (changes.contains("mode")) {
-    const QString id = changes.value("mode").toString();
+  if (jsonContains(changes, "mode")) {
+    const std::string id = jsonString(changes, "mode");
     bool found = false;
     wlr_output_mode *mode = nullptr;
     wl_list_for_each(mode, &primaryOutput->modes, link) {
@@ -74,11 +91,13 @@ bool WaylandCompositor::Impl::configureDisplay(const QJsonObject &changes,
     }
     if (!found && nested && !fullscreen) {
       for (const auto &entry : displayModes()) {
-        if (entry.toObject().value("id").toString() != id)
+        if (jsonString(entry, "id") != id)
           continue;
-        const auto size = id.section('@', 0, 0).split('x');
-        wlr_output_state_set_custom_mode(&next, size[0].toInt(),
-                                         size[1].toInt(),
+        const auto size = splitText(id.substr(0, id.find('@')), 'x');
+        if (size.size() != 2)
+          continue;
+        wlr_output_state_set_custom_mode(&next, parseDimension(size[0]),
+                                         parseDimension(size[1]),
                                          kDefaultOutputRefreshMilliHz);
         found = true;
         break;
@@ -152,7 +171,7 @@ void WaylandCompositor::Impl::confirmDisplay() {
            {"refresh", pendingDisplay->refresh},
            {"scale", pendingDisplay->scale}},
           &error))
-    qWarning("Could not save display settings: %s", error.c_str());
+    logWarning("Could not save display settings: %s", error.c_str());
   clearPendingDisplay();
 }
 

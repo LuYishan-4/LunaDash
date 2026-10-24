@@ -7,6 +7,7 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include "core/text/Text.hpp"
 #include <algorithm>
 
 namespace LunaDash {
@@ -14,19 +15,20 @@ using Templates::attachListener;
 using Templates::detachListener;
 using Templates::listenerOwner;
 
-QString safeUtf8(const char *text) {
-  return QString::fromUtf8(text ? text : "");
+std::string safeUtf8(const char *text) {
+  // Keep metadata from clients valid UTF-8 for JSON state and IPC.
+  return text ? sanitizedUtf8(text) : std::string();
 }
 
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
 void WaylandCompositor::Impl::updateForeignToplevel(ToplevelState *state) {
   if (!state || !state->foreignHandle || !state->client)
     return;
-  const QByteArray title = state->client->title.toUtf8();
-  const QByteArray appId = state->client->appId.toUtf8();
+  const std::string title = state->client->title;
+  const std::string appId = state->client->appId;
   const wlr_ext_foreign_toplevel_handle_v1_state foreignState{
-      .title = title.constData(),
-      .app_id = appId.constData(),
+      .title = title.c_str(),
+      .app_id = appId.c_str(),
   };
   wlr_ext_foreign_toplevel_handle_v1_update_state(state->foreignHandle,
                                                    &foreignState);
@@ -36,11 +38,11 @@ void WaylandCompositor::Impl::createForeignToplevel(ToplevelState *state) {
   if (!state || state->foreignHandle || !state->client ||
       !state->client->mapped || !state->impl->foreignToplevelList)
     return;
-  const QByteArray title = state->client->title.toUtf8();
-  const QByteArray appId = state->client->appId.toUtf8();
+  const std::string title = state->client->title;
+  const std::string appId = state->client->appId;
   const wlr_ext_foreign_toplevel_handle_v1_state foreignState{
-      .title = title.constData(),
-      .app_id = appId.constData(),
+      .title = title.c_str(),
+      .app_id = appId.c_str(),
   };
   state->foreignHandle = wlr_ext_foreign_toplevel_handle_v1_create(
       state->impl->foreignToplevelList, &foreignState);
@@ -72,12 +74,12 @@ void WaylandCompositor::Impl::updateLegacyForeignToplevel(
     ToplevelState *state) {
   if (!state || !state->legacyForeignHandle || !state->client)
     return;
-  const QByteArray title = state->client->title.toUtf8();
-  const QByteArray appId = state->client->appId.toUtf8();
+  const std::string title = state->client->title;
+  const std::string appId = state->client->appId;
   wlr_foreign_toplevel_handle_v1_set_title(state->legacyForeignHandle,
-                                            title.constData());
+                                            title.c_str());
   wlr_foreign_toplevel_handle_v1_set_app_id(state->legacyForeignHandle,
-                                             appId.constData());
+                                             appId.c_str());
   wlr_foreign_toplevel_handle_v1_set_activated(
       state->legacyForeignHandle,
       state->client->mapped && !state->client->minimized &&
@@ -126,8 +128,8 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
         {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
         client->workspace, client->maximized,
         desktopPreferences().value("workspaceCount", 10));
-    client->workspace = rule.value("workspace").toInt();
-    client->maximized = rule.value("maximized").toBool();
+    client->workspace = jsonInt(rule, "workspace");
+    client->maximized = jsonBool(rule, "maximized");
   }
   client->initialRuleApplied = true;
   client->lastSize = {};
@@ -151,7 +153,7 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
     // A pre-map maximize/fullscreen request can replace a reserved tile.
     q->arrange();
   }
-  const QSize size = client->fullscreen ? outputSize() : q->workArea().size();
+  const Size size = client->fullscreen ? outputSize() : q->workArea().size();
   const bool constrained = client->fullscreen || client->maximized;
   wlr_xdg_toplevel_set_size(client->toplevel,
                             constrained ? std::max(1, size.width()) : 0,
@@ -187,7 +189,7 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
     uid_t uid = 0;
     gid_t gid = 0;
     wl_client_get_credentials(surface->client->client, &pid, &uid, &gid);
-    client->processId = static_cast<qint64>(pid);
+    client->processId = static_cast<std::int64_t>(pid);
   }
 
   auto *current = client.get();

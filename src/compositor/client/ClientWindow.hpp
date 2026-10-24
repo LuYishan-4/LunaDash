@@ -1,8 +1,9 @@
 #pragma once
 
-#include <QRect>
-#include <QSize>
-#include <QString>
+#include "core/geometry/Geometry.hpp"
+
+#include <cstdint>
+#include <string>
 
 struct wlr_scene_tree;
 struct wlr_surface;
@@ -22,7 +23,7 @@ struct ClientWindow {
   void *nativeState = nullptr;
   int workspace = 0;
   int id = 0;
-  qint64 processId = 0;
+  std::int64_t processId = 0;
   bool floating = false;
   bool x11 = false;
   bool desktop = false;
@@ -38,15 +39,15 @@ struct ClientWindow {
   bool hiddenByMaximize = false;
   bool manualResize = false;
   bool initialRuleApplied = false;
-  QSize preferredFloatingSize;
+  Size preferredFloatingSize;
   bool utility = false;
-  QString appId;
-  QString title;
-  QString iconName;
-  QSize lastSize;
-  QRect geometry;
-  QRect manualGeometry;
-  QRect resizeGuideGeometry;
+  std::string appId;
+  std::string title;
+  std::string iconName;
+  Size lastSize;
+  Rect geometry;
+  Rect manualGeometry;
+  Rect resizeGuideGeometry;
 };
 
 } // namespace LunaDash

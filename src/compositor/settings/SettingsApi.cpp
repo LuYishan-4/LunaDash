@@ -2,149 +2,131 @@
 #include "compositor/plugins/PluginManager.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/PluginCatalog.hpp"
+#include "core/filesystem/FileIo.hpp"
 #include "core/settings/SettingsTarget.hpp"
+#include "core/text/Text.hpp"
 #include "shell/modules/ShellModules.hpp"
 #include "shell/modules/ShellModuleSchema.hpp"
-#include <QJsonDocument>
-#include <fstream>
 
 namespace LunaDash {
-QJsonArray settingsApiTargets(const QJsonObject &extensions,
-                              const QJsonObject &modules,
-                              const QJsonObject &layout) {
-  QJsonArray targets;
-  for (const auto &entry : extensions.value("targets").toArray()) {
-    const auto item = entry.toObject();
+Json settingsApiTargets(const Json &extensions, const Json &modules,
+                        const Json &layout) {
+  Json targets = Json::array();
+  for (const auto &item : jsonArray(extensions, "targets")) {
     // The layout template owns these settings; don't offer a second gap editor.
-    if (item.value("id").toString() == "window-layout") continue;
-    targets.append(Settings::target("builtin:" + item.value("id").toString(),
-        item.value("name").toString(), "builtin", item.value("category").toString(),
-        item.value("settings").toObject(), item.value("builtinSettings").toObject()));
+    if (jsonString(item, "id") == "window-layout") continue;
+    targets.push_back(Settings::target(
+        "builtin:" + jsonString(item, "id"), jsonString(item, "name"),
+        "builtin", jsonString(item, "category"), jsonObject(item, "settings"),
+        jsonObject(item, "builtinSettings")));
   }
-  for (const auto &entry : extensions.value("installed").toArray()) {
-    const auto item = entry.toObject();
-    if (!item.value("error").toString().isEmpty()) continue;
-    targets.append(Settings::target(
-        "plugin:" + item.value("id").toString() + ":" +
-            item.value("target").toString(),
-        item.value("name").toString() + " / " +
-            item.value("target").toString(),
-        item.value("type").toString(), item.value("target").toString(),
-        item.value("settingsSchema").toObject(),
-        item.value("settings").toObject()));
+  for (const auto &item : jsonArray(extensions, "installed")) {
+    if (!jsonString(item, "error").empty()) continue;
+    targets.push_back(Settings::target(
+        "plugin:" + jsonString(item, "id") + ":" + jsonString(item, "target"),
+        jsonString(item, "name") + " / " + jsonString(item, "target"),
+        jsonString(item, "type"), jsonString(item, "target"),
+        jsonObject(item, "settingsSchema"), jsonObject(item, "settings")));
   }
-  const auto values = modules.value("document").toObject().value("modules").toObject();
-  for (const auto &entry : modules.value("descriptors").toArray()) {
-    const auto item = entry.toObject();
-    const auto id = item.value("id").toString();
-    const auto sections = item.value("sections").toObject();
-    const auto module = values.value(id).toObject();
+  const auto values = jsonObject(jsonObject(modules, "document"), "modules");
+  for (const auto &item : jsonArray(modules, "descriptors")) {
+    const auto id = jsonString(item, "id");
+    const auto sections = jsonObject(item, "sections");
+    const auto module = jsonObject(values, id);
     for (auto it = sections.begin(); it != sections.end(); ++it) {
-      const auto sectionValues = it.key() == "module"
-          ? QJsonObject{{"enabled", module.value("enabled")}}
-          : module.value(it.key()).toObject();
-      targets.append(Settings::target("module:" + id + ":" + it.key(),
-          item.value("name").toString() + " / " + it.key(), "module",
-          item.value("type").toString(), it.value().toObject(), sectionValues));
+      const auto sectionValues =
+          it.key() == "module" ? Json{{"enabled", jsonValue(module, "enabled")}}
+                               : jsonObject(module, it.key());
+      targets.push_back(Settings::target(
+          "module:" + id + ":" + it.key(),
+          jsonString(item, "name") + " / " + it.key(), "module",
+          jsonString(item, "type"), jsonAsObject(it.value()), sectionValues));
     }
   }
-  if (!layout.isEmpty()) targets.append(layout);
+  if (layout.is_object() && !layout.empty()) targets.push_back(layout);
   return targets;
 }
 
-bool updateSettingsApi(PluginManager &plugins, ShellModules &modules,
-                       const QJsonObject &layout, const QJsonObject &request,
-                       const std::function<bool(const QJsonObject &, QString *)> &setLayout,
-                       QString *error) {
-  const auto fail = [error](const QString &message) {
+bool updateSettingsApi(
+    PluginManager &plugins, ShellModules &modules, const Json &layout,
+    const Json &request,
+    const std::function<bool(const Json &, std::string *)> &setLayout,
+    std::string *error) {
+  const auto fail = [error](const std::string &message) {
     if (error) *error = message;
     return false;
   };
+  if (!request.is_object()) return fail("Invalid settings API request.");
   for (auto it = request.begin(); it != request.end(); ++it)
-    if (!QStringList{"target", "revision", "changes"}.contains(it.key()))
+    if (it.key() != "target" && it.key() != "revision" && it.key() != "changes")
       return fail("Unknown settings API request field: " + it.key());
-  const auto id = request.value("target").toString();
-  if (id.isEmpty() || id.size() > 512) return fail("Invalid settings target.");
+  const auto id = jsonString(request, "target");
+  if (id.empty() || id.size() > 512) return fail("Invalid settings target.");
   plugins.refresh();
-  const auto nativeModuleState = modules.snapshot();
-  auto moduleState = QJsonDocument::fromJson(
-                         QByteArray::fromStdString(nativeModuleState.dump()))
-                         .object();
+  auto moduleState = modules.snapshot();
   // Read current disk contents, not a potentially debounced watcher snapshot.
-  if (id.startsWith("module:")) {
-    const auto path = nativeModuleState.value("path", std::string{});
-    std::ifstream file(path, std::ios::binary);
-    std::string text(16385, '\0');
-    if (file.is_open()) {
-      file.read(text.data(), static_cast<std::streamsize>(text.size()));
-      text.resize(static_cast<std::size_t>(file.gcount()));
-    }
+  if (id.starts_with("module:")) {
+    const auto path = jsonString(moduleState, "path");
+    const auto text = path.empty() ? std::nullopt : readFile(path, 16384);
     ShellModuleJson document;
     std::string nativeError = "Could not read module configuration.";
-    if (!file.is_open() || file.bad() ||
-        !validateModuleDocument(text, &document, &nativeError)) {
+    if (!text || !validateModuleDocument(*text, &document, &nativeError)) {
       if (error)
-        *error = QString::fromStdString(nativeError);
+        *error = nativeError;
       return fail("Module file changed or is unreadable; reload before editing.");
     }
-    moduleState["document"] = QJsonDocument::fromJson(
-                                   QByteArray::fromStdString(document.dump()))
-                                   .object();
+    moduleState["document"] = document;
   }
   const auto targets = settingsApiTargets(plugins.snapshot(), moduleState, layout);
-  QJsonObject descriptor;
+  Json descriptor = Json::object();
   for (const auto &entry : targets)
-    if (entry.toObject().value("id").toString() == id) descriptor = entry.toObject();
+    if (jsonString(entry, "id") == id) descriptor = entry;
   if (!Settings::checkPatch(descriptor, request, error)) return false;
-  const auto changes = request.value("changes").toObject();
-  if (id == layout.value("id").toString()) return setLayout(changes, error);
-  const auto parts = id.split(':');
+  const auto changes = jsonObject(request, "changes");
+  if (id == jsonString(layout, "id")) return setLayout(changes, error);
+  const auto parts = splitText(id, ':');
   if (parts.size() == 3 && parts[0] == "module") {
-    auto document = moduleState.value("document").toObject();
-    auto entries = document.value("modules").toObject();
-    auto module = entries.value(parts[1]).toObject();
+    auto document = jsonObject(moduleState, "document");
+    auto entries = jsonObject(document, "modules");
+    auto module = jsonObject(entries, parts[1]);
     if (parts[2] == "module") module = Settings::merged(module, changes);
-    else module[parts[2]] = Settings::merged(module.value(parts[2]).toObject(), changes);
+    else module[parts[2]] = Settings::merged(jsonObject(module, parts[2]), changes);
     entries[parts[1]] = module;
     document["modules"] = entries;
     std::string nativeError;
-    const auto bytes = QJsonDocument(document).toJson(QJsonDocument::Compact);
-    if (!modules.apply(bytes.toStdString(), &nativeError)) {
+    if (!modules.apply(jsonCompact(document), &nativeError)) {
       if (error)
-        *error = QString::fromStdString(nativeError);
+        *error = nativeError;
       return false;
     }
     return true;
   }
-  QString configError;
+  std::string configError;
   auto document = readExtensionConfiguration(&configError);
-  if (!configError.isEmpty()) return fail(configError);
-  if (parts.isEmpty()) return fail("Invalid settings target.");
+  if (!configError.empty()) return fail(configError);
+  if (parts.empty()) return fail("Invalid settings target.");
   if (parts.size() == 2 && parts[0] == "builtin") {
-    auto builtins = document.value("builtins").toObject();
-    builtins[parts[1]] = Settings::merged(builtins.value(parts[1]).toObject(), changes);
+    auto builtins = jsonObject(document, "builtins");
+    builtins[parts[1]] = Settings::merged(jsonObject(builtins, parts[1]), changes);
     document["builtins"] = builtins;
   } else if (parts[0] == "plugin" && parts.size() == 3) {
     bool found = false;
     for (const auto &plugin : discoverPlugins()) {
       if (plugin.id != parts[1] || plugin.target != parts[2])
         continue;
-      if (!plugin.error.isEmpty())
+      if (!plugin.error.empty())
         return fail(plugin.error);
-      auto entries = document.value("plugins").toObject();
-      auto package = entries.value(plugin.id).toObject();
-      package["enabled"] = package.value("enabled").toBool(true);
-      auto targetEntries = package.value("targets").toObject();
-      auto targetConfig = targetEntries.value(plugin.target).toObject();
-      targetConfig["enabled"] =
-          targetConfig.value("enabled").toBool(plugin.enabled);
-      targetConfig["mode"] =
-          targetConfig.value("mode").toString(plugin.mode);
-      targetConfig["settings"] =
-          Settings::merged(plugin.settings, changes);
+      auto entries = jsonObject(document, "plugins");
+      auto package = jsonObject(entries, plugin.id);
+      package["enabled"] = jsonBool(package, "enabled", true);
+      auto targetEntries = jsonObject(package, "targets");
+      auto targetConfig = jsonObject(targetEntries, plugin.target);
+      targetConfig["enabled"] = jsonBool(targetConfig, "enabled", plugin.enabled);
+      targetConfig["mode"] = jsonString(targetConfig, "mode", plugin.mode);
+      targetConfig["settings"] = Settings::merged(plugin.settings, changes);
       targetEntries[plugin.target] = targetConfig;
-      package.remove("mode");
-      package.remove("settings");
+      package.erase("mode");
+      package.erase("settings");
       package["targets"] = targetEntries;
       entries[plugin.id] = package;
       document["plugins"] = entries;
@@ -154,7 +136,7 @@ bool updateSettingsApi(PluginManager &plugins, ShellModules &modules,
     if (!found)
       return fail("Plugin target is no longer installed.");
   } else return fail("Unknown settings target.");
-  if (!saveExtensionConfiguration(QJsonDocument(document).toJson(), error)) return false;
+  if (!saveExtensionConfiguration(jsonCompact(document), error)) return false;
   plugins.refresh();
   return true;
 }

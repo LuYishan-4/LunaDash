@@ -1,25 +1,24 @@
 #pragma once
-#include <QJsonObject>
-#include <QRect>
-#include <QPoint>
-#include <QSize>
-#include <QString>
-#include <QtGlobal>
+#include "core/geometry/Geometry.hpp"
+#include "core/json/JsonAccess.hpp"
+
+#include <cstdint>
+#include <string>
 #include <functional>
 #include <vector>
 
 namespace LunaDash {
 
-using LayoutWindowId = quint64;
-using LayoutWorkspaceId = quint64;
+using LayoutWindowId = std::uint64_t;
+using LayoutWorkspaceId = std::uint64_t;
 
 struct WindowPlacement {
   LayoutWindowId window = 0;
   int width = 0;
   bool minimized = false;
   bool focused = false;
-  QRect geometry;
-  QJsonObject metadata;
+  Rect geometry;
+  Json metadata = Json::object();
   bool hiddenByMaximize = false;
   bool newWindow = false;
 };
@@ -37,12 +36,12 @@ class WindowLayout {
 public:
   virtual ~WindowLayout();
   using PlacementFilter = std::function<std::vector<WindowPlacement>(
-      LayoutWorkspaceId, QRect, const std::vector<WindowPlacement> &)>;
+      LayoutWorkspaceId, Rect, const std::vector<WindowPlacement> &)>;
   void setPlacementFilter(PlacementFilter filter);
 
-  virtual void configure(const QJsonObject &settings) = 0;
+  virtual void configure(const Json &settings) = 0;
   virtual bool insert(LayoutWorkspaceId workspace, LayoutWindowId window,
-                      QSize preferredSize = {}) = 0;
+                      Size preferredSize = {}) = 0;
   virtual bool remove(LayoutWindowId window) = 0;
   virtual bool setMinimized(LayoutWindowId window, bool minimized) = 0;
   virtual bool setMaximized(LayoutWindowId window, bool maximized) = 0;
@@ -53,19 +52,19 @@ public:
   // Strategy-specific interaction is dispatched by action ID. The generic
   // layout contract intentionally does not encode tiling concepts such as
   // directional focus, groups, columns or resize directions.
-  virtual bool performAction(const QString &action,
-                             const QJsonObject &payload) = 0;
+  virtual bool performAction(const std::string &action,
+                             const Json &payload) = 0;
 
   virtual std::vector<WindowPlacement> layout(LayoutWorkspaceId workspace,
-                                              QRect area) = 0;
+                                              Rect area) = 0;
   virtual std::vector<WindowPlacement> presentation(
-      LayoutWorkspaceId workspace, QRect area) = 0;
+      LayoutWorkspaceId workspace, Rect area) = 0;
   virtual WorkspaceLayoutSnapshot
   snapshot(LayoutWorkspaceId workspace) const = 0;
 
 protected:
   std::vector<WindowPlacement> filterPlacements(
-      LayoutWorkspaceId workspace, QRect area,
+      LayoutWorkspaceId workspace, Rect area,
       const std::vector<WindowPlacement> &placements) const;
 
 private:

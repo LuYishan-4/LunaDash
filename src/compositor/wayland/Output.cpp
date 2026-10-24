@@ -5,7 +5,8 @@
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
-#include <QJsonArray>
+#include "core/filesystem/FileIo.hpp"
+#include "core/log/Log.hpp"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -32,7 +33,7 @@ using Templates::attachListener;
 using Templates::detachListener;
 using Templates::listenerOwner;
 
-QSize WaylandCompositor::Impl::outputSize() const {
+Size WaylandCompositor::Impl::outputSize() const {
   if (!primaryOutput)
     return {1440, 900};
   int width = 0;
@@ -41,8 +42,8 @@ QSize WaylandCompositor::Impl::outputSize() const {
   return {std::max(1, width), std::max(1, height)};
 }
 
-QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
-  const QSize size = outputSize();
+Json WaylandCompositor::Impl::displaySnapshot() const {
+  const Size size = outputSize();
   const auto now = std::chrono::steady_clock::now();
   const int revertSeconds =
       pendingDisplay && displayRevertDeadline > now
@@ -51,44 +52,44 @@ QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
                     displayRevertDeadline - now)
                     .count())
           : 0;
-  QJsonArray nightLight;
-  quint64 frameCallbacks = 0;
-  quint64 slowFrames = 0;
-  qint64 lastFrameWorkUsec = 0;
-  qint64 maxFrameWorkUsec = 0;
+  Json nightLight = Json::array();
+  std::uint64_t frameCallbacks = 0;
+  std::uint64_t slowFrames = 0;
+  std::int64_t lastFrameWorkUsec = 0;
+  std::int64_t maxFrameWorkUsec = 0;
   for (const auto *output : outputs) {
     frameCallbacks += output->frameCallbacks;
     slowFrames += output->slowFrames;
     lastFrameWorkUsec = std::max(lastFrameWorkUsec, output->lastFrameWorkUsec);
     maxFrameWorkUsec = std::max(maxFrameWorkUsec, output->maxFrameWorkUsec);
-    nightLight.append(QJsonObject{{"output", safeUtf8(output->output->name)},
+    nightLight.push_back(Json::object({{"output", safeUtf8(output->output->name)},
                                   {"temperature", output->nightTemperature},
-                                  {"error", output->nightError}});
+                                  {"error", output->nightError}}));
   }
   return {
-      {"frameCallbacks", static_cast<qint64>(frameCallbacks)},
+      {"frameCallbacks", static_cast<std::int64_t>(frameCallbacks)},
       {"frameWorkMs", static_cast<double>(lastFrameWorkUsec) / 1000.0},
       {"maxFrameWorkMs", static_cast<double>(maxFrameWorkUsec) / 1000.0},
-      {"slowFrames", static_cast<qint64>(slowFrames)},
+      {"slowFrames", static_cast<std::int64_t>(slowFrames)},
       {"eventLoop",
-       QJsonObject{{"dispatchCalls", static_cast<qint64>(dispatchCalls)},
+       Json::object({{"dispatchCalls", static_cast<std::int64_t>(dispatchCalls)},
                    {"lastDispatchMs",
                     static_cast<double>(lastDispatchUsec) / 1000.0},
                    {"maxDispatchMs",
                     static_cast<double>(maxDispatchUsec) / 1000.0},
-                   {"slowDispatches", static_cast<qint64>(slowDispatches)}}},
+                   {"slowDispatches", static_cast<std::int64_t>(slowDispatches)}})},
       {"nightLight", nightLight},
       {"width", size.width()},
       {"pixelWidth", primaryOutput ? primaryOutput->width : 0},
       {"pixelHeight", primaryOutput ? primaryOutput->height : 0},
       {"modes", displayModes()},
-      {"mode", primaryOutput ? QString("%1x%2@%3")
-                                   .arg(primaryOutput->width)
-                                   .arg(primaryOutput->height)
-                                   .arg(wl_list_empty(&primaryOutput->modes)
+      {"mode", primaryOutput
+                   ? std::to_string(primaryOutput->width) + "x" +
+                         std::to_string(primaryOutput->height) + "@" +
+                         std::to_string(wl_list_empty(&primaryOutput->modes)
                                             ? 0
                                             : primaryOutput->refresh)
-                             : QString()},
+                   : std::string()},
       {"pending", pendingDisplay != nullptr},
       {"revertSeconds", revertSeconds},
       {"error", displayError},
@@ -97,7 +98,7 @@ QJsonObject WaylandCompositor::Impl::displaySnapshot() const {
       {"refreshRate", primaryOutput
                           ? static_cast<double>(primaryOutput->refresh) / 1000.0
                           : 0.0},
-      {"output", primaryOutput ? safeUtf8(primaryOutput->name) : QString()},
+      {"output", primaryOutput ? safeUtf8(primaryOutput->name) : std::string()},
       {"nested", nested},
       {"fullscreen", fullscreen}};
 }
@@ -113,7 +114,7 @@ int WaylandCompositor::Impl::mappedLayerCount() const {
 void WaylandCompositor::Impl::updateBackground() {
   if (!background)
     return;
-  const QSize size = outputSize();
+  const Size size = outputSize();
   wlr_scene_rect_set_size(background, size.width(), size.height());
   // Neutral fallback while the shell's startup surface and wallpaper map.
   const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
@@ -163,7 +164,8 @@ void WaylandCompositor::Impl::updateWindowGlass() {
   for (const auto *layer : layers) {
     if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer)
       continue;
-    const QString name = QString::fromUtf8(layer->surface->namespace_);
+    const std::string name =
+        layer->surface->namespace_ ? layer->surface->namespace_ : "";
     const int radius = name == "lunadash-settings" ? 28
         : (name == "lunadash-wallpaper-gallery" ||
            name == "lunadash-control-center") ? 24 : 0;
@@ -179,7 +181,7 @@ void WaylandCompositor::Impl::updateWindowGlass() {
 }
 
 void WaylandCompositor::Impl::arrangeLayers() {
-  const QSize size = outputSize();
+  const Size size = outputSize();
   wlr_box full{0, 0, size.width(), size.height()};
   wlr_box usable = full;
   // Reserve panels before configuring non-exclusive surfaces, regardless of
@@ -199,18 +201,18 @@ void WaylandCompositor::Impl::arrangeLayers() {
       wlr_scene_layer_surface_v1_configure(layer->sceneLayer, &full, &usable);
     }
   }
-  usableArea = QRect(usable.x, usable.y, usable.width, usable.height);
+  usableArea = Rect(usable.x, usable.y, usable.width, usable.height);
 }
 
-bool WaylandCompositor::Impl::resizePrimaryOutput(const QString &preset,
-                                                  QString *error) {
-  static const std::array<std::pair<std::string_view, QSize>, 4> sizes{{
+bool WaylandCompositor::Impl::resizePrimaryOutput(const std::string &preset,
+                                                  std::string *error) {
+  static const std::array<std::pair<std::string_view, Size>, 4> sizes{{
       {"800x600", {800, 600}},
       {"1280x720", {1280, 720}},
       {"1440x900", {1440, 900}},
       {"1920x1080", {1920, 1080}},
   }};
-  const auto presetName = preset.toStdString();
+  const auto presetName = preset;
   const auto size = std::find_if(sizes.begin(), sizes.end(),
                                  [&presetName](const auto &entry) {
                                    return entry.first == presetName;
@@ -267,7 +269,7 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   std::string settingsError;
   const auto settings = loadDisplayConfiguration(output->name, &settingsError);
   if (!settingsError.empty())
-    qWarning("Could not migrate saved display settings: %s",
+    logWarning("Could not migrate saved display settings: %s",
              settingsError.c_str());
   if (!self->nested) {
     wlr_output_mode *candidate = nullptr;
@@ -309,7 +311,7 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   // streams still receive the pointer. Direct-KMS recorders can opt into the
   // old always-composited behavior with LUDASH_SOFTWARE_CURSOR=1.
   state->forceSoftwareCursor =
-      !self->nested && qEnvironmentVariableIntValue("LUDASH_SOFTWARE_CURSOR") == 1;
+      !self->nested && environmentInt("LUDASH_SOFTWARE_CURSOR") == 1;
   if (state->forceSoftwareCursor) {
     wlr_output_lock_software_cursors(output, true);
     state->softwareCursorLocked = true;
@@ -343,8 +345,8 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   ++state->frameCallbacks;
   timespec now{};
   clock_gettime(CLOCK_MONOTONIC, &now);
-  const quint64 nowNs = static_cast<quint64>(now.tv_sec) * 1000000000ULL +
-                        static_cast<quint64>(now.tv_nsec);
+  const std::uint64_t nowNs = static_cast<std::uint64_t>(now.tv_sec) * 1000000000ULL +
+                        static_cast<std::uint64_t>(now.tv_nsec);
 
   // Sample before commit: a screencopy frame is removed when this output
   // commit satisfies it. The tail bridges the small gap before xdpw queues
@@ -378,7 +380,7 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   }
   state->impl->updateWindowGlass();
   if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
-    qWarning("wlroots scene output commit failed.");
+    logWarning("wlroots scene output commit failed.");
     if (state->nightColor) {
       ludash_night_color_destroy(state->nightColor);
       state->nightColor = nullptr;
@@ -417,11 +419,11 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
 
   timespec finished{};
   clock_gettime(CLOCK_MONOTONIC, &finished);
-  const quint64 finishedNs =
-      static_cast<quint64>(finished.tv_sec) * 1000000000ULL +
-      static_cast<quint64>(finished.tv_nsec);
+  const std::uint64_t finishedNs =
+      static_cast<std::uint64_t>(finished.tv_sec) * 1000000000ULL +
+      static_cast<std::uint64_t>(finished.tv_nsec);
   state->lastFrameWorkUsec =
-      static_cast<qint64>((finishedNs - nowNs) / 1000ULL);
+      static_cast<std::int64_t>((finishedNs - nowNs) / 1000ULL);
   state->maxFrameWorkUsec =
       std::max(state->maxFrameWorkUsec, state->lastFrameWorkUsec);
   if (state->lastFrameWorkUsec >= 8000)

@@ -8,7 +8,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_AUTOMOC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(GNUInstallDirs)
@@ -67,7 +66,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/modules/Renderer.cmake)
 
 add_library(ludash-xwayland src/compositor/xwayland/XWaylandSupport.cpp)
 target_include_directories(ludash-xwayland PUBLIC src)
-set_target_properties(ludash-xwayland PROPERTIES AUTOMOC OFF)
 target_compile_definitions(ludash-xwayland PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-xwayland PUBLIC
     PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
@@ -81,12 +79,10 @@ target_compile_definitions(ludash-wallpaper PRIVATE LUDASH_WALLPAPER_SOURCE_DIR=
 add_library(ludash-desktop-preferences
     src/config/desktop/DesktopPreferenceStore.cpp)
 target_include_directories(ludash-desktop-preferences PUBLIC src)
-set_target_properties(ludash-desktop-preferences PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-desktop-preferences
     PUBLIC nlohmann_json::nlohmann_json)
 add_library(ludash-localization src/config/localization/Localization.cpp)
 target_include_directories(ludash-localization PUBLIC src)
-set_target_properties(ludash-localization PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-localization
     PUBLIC ludash-desktop-preferences nlohmann_json::nlohmann_json
     PRIVATE PkgConfig::LUDASH_GIO)
@@ -96,58 +92,57 @@ target_compile_definitions(ludash-localization PRIVATE
 add_library(ludash-appearance-presets
     src/config/appearance/AppearancePresets.cpp)
 target_include_directories(ludash-appearance-presets PUBLIC src)
-set_target_properties(ludash-appearance-presets PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-appearance-presets
     PUBLIC ludash-desktop-preferences nlohmann_json::nlohmann_json)
 add_library(ludash-appearance-palette
     src/config/appearance/AppearancePalette.cpp)
 target_include_directories(ludash-appearance-palette PUBLIC src)
-set_target_properties(ludash-appearance-palette PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-appearance-palette
     PUBLIC nlohmann_json::nlohmann_json)
 add_library(ludash-configuration src/config/desktop/DesktopPreferences.cpp)
 target_include_directories(ludash-configuration PUBLIC src)
-set_target_properties(ludash-configuration PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-configuration PUBLIC PkgConfig::LUDASH_GIO
     ludash-desktop-preferences ludash-appearance-presets
     ludash-appearance-palette)
+add_library(ludash-json src/core/json/JsonAccess.cpp)
+target_include_directories(ludash-json PUBLIC src)
+target_link_libraries(ludash-json PUBLIC nlohmann_json::nlohmann_json)
+add_library(ludash-text src/core/text/Text.cpp src/core/text/Url.cpp)
+target_include_directories(ludash-text PUBLIC src)
+add_library(ludash-file-io src/core/filesystem/FileIo.cpp
+    src/core/filesystem/TemporaryDirectory.cpp)
+target_include_directories(ludash-file-io PUBLIC src)
+add_library(ludash-log src/core/log/Log.cpp)
+target_include_directories(ludash-log PUBLIC src)
 add_library(ludash-process-runner src/core/process/ProcessRunner.cpp)
 target_include_directories(ludash-process-runner PUBLIC src)
-set_target_properties(ludash-process-runner PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-process-runner PUBLIC PkgConfig::WAYLAND_SERVER)
 add_library(ludash-crypto src/core/crypto/Sha256.cpp)
 target_include_directories(ludash-crypto PUBLIC src)
-set_target_properties(ludash-crypto PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-crypto PUBLIC PkgConfig::LUDASH_GIO)
 add_library(ludash-audio-settings src/desktop/audio/AudioSettings.cpp)
 target_include_directories(ludash-audio-settings PUBLIC src)
-set_target_properties(ludash-audio-settings PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-audio-settings PUBLIC
     ludash-process-runner nlohmann_json::nlohmann_json)
 add_library(ludash-power-settings src/desktop/power/PowerSettings.cpp)
 target_include_directories(ludash-power-settings PUBLIC src)
-set_target_properties(ludash-power-settings PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-power-settings PUBLIC
     ludash-process-runner nlohmann_json::nlohmann_json)
 add_library(ludash-system-tools src/desktop/system/SystemTools.cpp)
 target_include_directories(ludash-system-tools PUBLIC src)
-set_target_properties(ludash-system-tools PROPERTIES AUTOMOC OFF)
 add_library(ludash-display-settings
     src/desktop/display/BrightnessSettings.cpp
     src/desktop/display/DdcBrightnessSettings.cpp)
 target_include_directories(ludash-display-settings PUBLIC src)
-set_target_properties(ludash-display-settings PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-display-settings PUBLIC
     ludash-process-runner nlohmann_json::nlohmann_json)
 add_library(ludash-input-settings src/desktop/input/InputSettings.cpp)
 target_include_directories(ludash-input-settings PUBLIC src)
-set_target_properties(ludash-input-settings PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-input-settings PUBLIC PkgConfig::LUDASH_XKBCOMMON)
 add_library(ludash-shell-modules
     src/shell/modules/ShellModuleSchema.cpp
     src/shell/modules/ShellModules.cpp)
 target_include_directories(ludash-shell-modules PUBLIC src)
-set_target_properties(ludash-shell-modules PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-shell-modules
     PUBLIC nlohmann_json::nlohmann_json
     PRIVATE PkgConfig::LUDASH_GIO)
@@ -156,7 +151,6 @@ target_compile_definitions(ludash-shell-modules PRIVATE
     LUDASH_MODULE_REGISTRY_INSTALL="${CMAKE_INSTALL_FULL_DATADIR}/ludash/modules/registry.json")
 add_library(ludash-orbit-settings src/shell/launcher/OrbitSettings.cpp)
 target_include_directories(ludash-orbit-settings PUBLIC src)
-set_target_properties(ludash-orbit-settings PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-orbit-settings
     PUBLIC nlohmann_json::nlohmann_json
     PRIVATE PkgConfig::LUDASH_GIO)
@@ -175,49 +169,41 @@ target_compile_definitions(ludash-theme-sync PRIVATE
     LUDASH_THEME_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/themes")
 add_library(ludash-weather src/desktop/weather/WeatherStatus.cpp)
 target_include_directories(ludash-weather PUBLIC src)
-set_target_properties(ludash-weather PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-weather PUBLIC
     nlohmann_json::nlohmann_json PkgConfig::LUDASH_CURL
     PkgConfig::WAYLAND_SERVER)
 add_library(ludash-network src/desktop/network/NetworkStatus.cpp)
 target_include_directories(ludash-network PUBLIC src)
-set_target_properties(ludash-network PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-network PUBLIC
     ludash-process-runner PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
 add_library(ludash-session-environment src/compositor/session/SessionEnvironment.cpp)
 target_include_directories(ludash-session-environment PUBLIC src)
 target_compile_definitions(ludash-session-environment PRIVATE
     LUDASH_ASSET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/assets")
-set_target_properties(ludash-session-environment PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-session-environment
     PUBLIC nlohmann_json::nlohmann_json)
 add_library(ludash-session-services
     src/compositor/session/SessionServices.cpp)
 target_include_directories(ludash-session-services PUBLIC src)
-set_target_properties(ludash-session-services PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-session-services PUBLIC ludash-process-runner)
 target_compile_definitions(ludash-session-services PRIVATE
     LUDASH_XDPW_CONFIG_PATH="${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/xdg-desktop-portal-wlr/LunaDash")
 add_library(ludash-launch-policy src/compositor/session/LaunchPolicy.cpp)
 target_include_directories(ludash-launch-policy PUBLIC src)
-set_target_properties(ludash-launch-policy PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-launch-policy PRIVATE nlohmann_json::nlohmann_json)
 target_compile_definitions(ludash-launch-policy PRIVATE
     LUDASH_LAUNCH_CAPABILITIES_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/session/launch-capabilities.json"
     LUDASH_LAUNCH_CAPABILITIES_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/session/launch-capabilities.json")
 add_library(ludash-session-actions src/compositor/session/SessionActions.cpp)
 target_include_directories(ludash-session-actions PUBLIC src)
-set_target_properties(ludash-session-actions PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-session-actions PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-shortcut-settings src/desktop/shortcuts/ShortcutSettings.cpp)
 target_include_directories(ludash-shortcut-settings PUBLIC src)
-set_target_properties(ludash-shortcut-settings PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-shortcut-settings
     PUBLIC nlohmann_json::nlohmann_json PkgConfig::LUDASH_XKBCOMMON
     PRIVATE ludash-desktop-preferences)
 add_library(ludash-update-check src/desktop/system/UpdateChecker.hpp src/desktop/system/UpdateChecker.cpp)
 target_include_directories(ludash-update-check PUBLIC src)
-set_target_properties(ludash-update-check PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-update-check PUBLIC
     nlohmann_json::nlohmann_json PkgConfig::LUDASH_CURL
     PkgConfig::WAYLAND_SERVER)
@@ -227,7 +213,6 @@ add_library(ludash-system-metrics src/desktop/system/SystemMetrics.c)
 target_include_directories(ludash-system-metrics PUBLIC src)
 add_library(ludash-system-status src/desktop/system/SystemStatus.cpp)
 target_include_directories(ludash-system-status PUBLIC src)
-set_target_properties(ludash-system-status PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-system-status
     PUBLIC ludash-system-metrics ludash-process-runner nlohmann_json::nlohmann_json
     PkgConfig::WAYLAND_SERVER)
@@ -237,18 +222,18 @@ add_library(ludash-tiling
     src/compositor/layout/FreeformLayout.cpp
     src/compositor/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
-target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core Qt6::Core)
+target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core ludash-json)
 add_library(ludash-window-rules src/compositor/window/WindowRules.cpp src/compositor/window/WindowSwitcher.cpp)
 target_include_directories(ludash-window-rules PUBLIC src)
 target_link_libraries(ludash-window-rules PUBLIC
-    ludash-tiling ludash-process-runner Qt6::Core)
+    ludash-tiling ludash-process-runner ludash-file-io ludash-text)
 add_library(ludash-plugin-catalog
     src/config/plugins/PluginCatalog.cpp
     src/config/plugins/ExtensionRegistry.cpp
     src/config/plugins/ExtensionConfiguration.cpp)
 target_include_directories(ludash-plugin-catalog PUBLIC src)
 target_link_libraries(ludash-plugin-catalog PUBLIC
-    ludash-configuration ludash-crypto Qt6::Core)
+    ludash-configuration ludash-crypto ludash-json ludash-file-io ludash-text)
 target_compile_definitions(ludash-plugin-catalog PRIVATE
     LUDASH_PLUGIN_TARGETS_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/targets.json"
     LUDASH_PLUGIN_TARGETS_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/targets.json")
@@ -260,17 +245,15 @@ add_library(ludash-plugins src/compositor/plugins/PluginManager.hpp
 target_include_directories(ludash-plugins PUBLIC src)
 target_link_libraries(ludash-plugins PUBLIC
     ludash-plugin-catalog ludash-tiling ludash-crypto ludash-process-runner
-    Qt6::Core ${CMAKE_DL_LIBS})
+    ludash-file-io ludash-text ${CMAKE_DL_LIBS})
 target_compile_definitions(ludash-plugins PRIVATE
     LUDASH_PLUGIN_CATALOG_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/catalog.json"
     LUDASH_PLUGIN_CATALOG_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/catalog.json")
 add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp src/desktop/browser/Browser.cpp)
 target_include_directories(ludash-default-applications PUBLIC src)
-set_target_properties(ludash-default-applications PROPERTIES AUTOMOC OFF)
 target_link_libraries(ludash-default-applications PUBLIC nlohmann_json::nlohmann_json)
 add_library(ludash-package-policy src/desktop/package/PackageManager.cpp)
 target_include_directories(ludash-package-policy PUBLIC src)
-set_target_properties(ludash-package-policy PROPERTIES AUTOMOC OFF)
 add_executable(ludash-welcome
     src/desktop/welcome/Main.cpp
     src/desktop/welcome/WelcomeApplication.hpp
@@ -295,7 +278,7 @@ target_link_libraries(ludash-packages PRIVATE
 slint_target_sources(ludash-packages
     src/desktop/package/PackageManager.slint)
 set_target_properties(ludash-packages PROPERTIES
-    AUTOMOC OFF OUTPUT_NAME lunadash-packages)
+    OUTPUT_NAME lunadash-packages)
 add_custom_command(TARGET ludash-packages POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink
         $<TARGET_FILE_NAME:ludash-packages>
@@ -397,14 +380,12 @@ target_link_libraries(ludash-night-color PUBLIC PkgConfig::WLROOTS m)
 add_library(ludash-scene-backdrop
     src/compositor/renderer/blur/SceneBackdrop.h
     src/compositor/renderer/blur/SceneBackdrop.c)
-set_target_properties(ludash-scene-backdrop PROPERTIES AUTOMOC OFF)
 target_include_directories(ludash-scene-backdrop PUBLIC src)
 target_compile_definitions(ludash-scene-backdrop PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-scene-backdrop PUBLIC PkgConfig::WLROOTS m)
 add_library(ludash-corner-geometry
     src/compositor/renderer/clip/CornerGeometry.h
     src/compositor/renderer/clip/CornerGeometry.c)
-set_target_properties(ludash-corner-geometry PROPERTIES AUTOMOC OFF)
 target_include_directories(ludash-corner-geometry PUBLIC src)
 target_link_libraries(ludash-corner-geometry PUBLIC m)
 add_library(ludash-scene-window-effects
@@ -412,7 +393,6 @@ add_library(ludash-scene-window-effects
     src/compositor/renderer/clip/WindowCorners.cpp
     src/compositor/renderer/blur/WindowGlass.hpp
     src/compositor/renderer/blur/WindowGlass.cpp)
-set_target_properties(ludash-scene-window-effects PROPERTIES AUTOMOC OFF)
 target_include_directories(ludash-scene-window-effects PUBLIC src)
 target_include_directories(ludash-scene-window-effects PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_dependencies(ludash-scene-window-effects ludash-wlroots-protocol-headers)
@@ -483,7 +463,10 @@ target_link_libraries(ludash-wayland
         ludash-localization
         ludash-plugins
         ludash-crypto
-        Qt6::Core
+        ludash-json
+        ludash-text
+        ludash-file-io
+        ludash-log
         PkgConfig::WAYLAND_SERVER
         PkgConfig::WLROOTS
         PkgConfig::LUDASH_XKBCOMMON)
@@ -494,7 +477,7 @@ target_include_directories(ludash-desktop PRIVATE src)
 target_link_libraries(ludash-desktop PRIVATE ludash-default-applications)
 add_dependencies(ludash-desktop ludash-welcome ludash-packages)
 set_target_properties(ludash-desktop PROPERTIES
-    AUTOMOC OFF OUTPUT_NAME lunadash-desktop)
+    OUTPUT_NAME lunadash-desktop)
 add_custom_command(TARGET ludash-desktop POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-desktop> ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop)
 add_executable(ludash-compositor src/compositor/Main.cpp src/compositor/session/SessionApplication.cpp)
 target_link_libraries(ludash-compositor PRIVATE ludash-wayland)

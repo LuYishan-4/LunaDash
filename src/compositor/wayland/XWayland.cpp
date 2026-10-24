@@ -15,7 +15,7 @@ using Templates::listenerOwner;
 void WaylandCompositor::Impl::addXWaylandSurface(
     wlr_xwayland_surface *surface) {
 #if !LUDASH_WLR_HAS_XWAYLAND
-  Q_UNUSED(surface)
+  (void)surface;
 #else
   if (!surface)
     return;
@@ -31,10 +31,10 @@ void WaylandCompositor::Impl::addXWaylandSurface(
                      surface->modal;
   client->utility = surface->override_redirect;
   client->preferredFloatingSize =
-      QSize(std::max<int>(1, surface->width), std::max<int>(1, surface->height));
+      Size(std::max<int>(1, surface->width), std::max<int>(1, surface->height));
   if (surface->override_redirect) {
     client->manualGeometry =
-        QRect(surface->x, surface->y,
+        Rect(surface->x, surface->y,
               std::max<int>(1, surface->width),
               std::max<int>(1, surface->height));
   }
@@ -165,8 +165,8 @@ void WaylandCompositor::Impl::handleXWaylandMap(wl_listener *listener,
         {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
         client->workspace, client->maximized,
         desktopPreferences().value("workspaceCount", 10));
-    client->workspace = rule.value("workspace").toInt();
-    client->maximized = rule.value("maximized").toBool();
+    client->workspace = jsonInt(rule, "workspace");
+    client->maximized = jsonBool(rule, "maximized");
   }
   client->initialRuleApplied = true;
   state->impl->q->arrange();
@@ -281,11 +281,11 @@ void WaylandCompositor::Impl::deferClientRemoval(ClientWindow *client) {
         return 0;
       },
       data);
-  if (!source || wl_event_source_timer_update(source, 0) < 0) {
+  if (!source || wl_event_source_timer_update(source, 1) < 0) {
     if (source)
       wl_event_source_remove(source);
     deferredClientRemovals.pop_back();
-    qCritical("Could not schedule deferred XWayland client removal.");
+    logCritical("Could not schedule deferred XWayland client removal.");
   }
 }
 
@@ -317,11 +317,11 @@ void WaylandCompositor::Impl::handleXWaylandConfigure(wl_listener *listener,
   if (!state || !state->client || !event)
     return;
   auto *client = state->client;
-  const QSize size(std::max<int>(1, event->width),
+  const Size size(std::max<int>(1, event->width),
                    std::max<int>(1, event->height));
   client->preferredFloatingSize = size;
   if (!client->mapped || client->floating || client->utility) {
-    const QRect requested(event->x, event->y, size.width(), size.height());
+    const Rect requested(event->x, event->y, size.width(), size.height());
     client->manualGeometry = requested;
     wlr_xwayland_surface_configure(state->surface, event->x, event->y,
                                    event->width, event->height);
@@ -360,7 +360,7 @@ void WaylandCompositor::Impl::handleXWaylandMove(wl_listener *listener,
 
 void WaylandCompositor::Impl::handleXWaylandResize(wl_listener *listener,
                                                     void *data) {
-  Q_UNUSED(data)
+  (void)data;
 #if LUDASH_WLR_HAS_XWAYLAND
   handleXWaylandMove(listener, nullptr);
 #endif
@@ -421,7 +421,7 @@ void WaylandCompositor::Impl::handleXWaylandMetadata(wl_listener *listener,
   if (state->client->utility) {
     state->client->floating = true;
     state->client->manualGeometry =
-        QRect(state->surface->x, state->surface->y,
+        Rect(state->surface->x, state->surface->y,
               std::max<int>(1, state->surface->width),
               std::max<int>(1, state->surface->height));
   }

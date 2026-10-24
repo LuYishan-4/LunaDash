@@ -1,41 +1,40 @@
 #pragma once
-#include <QJsonObject>
-#include <QString>
-#include <QStringList>
+#include "core/json/JsonAccess.hpp"
+
+#include <string>
 #include <vector>
 
 namespace LunaDash {
 struct PluginDescriptor {
-  QString id;
-  QString name;
-  QString description;
-  QString version;
-  QString author;
-  QString icon;
-  QStringList tags;
-  QString type;
-  QString target;
-  QString mode = "augment";
+  std::string id;
+  std::string name;
+  std::string description;
+  std::string version;
+  std::string author;
+  std::string icon;
+  std::vector<std::string> tags;
+  std::string type;
+  std::string target;
+  std::string mode = "augment";
   int schemaVersion = 1;
-  QJsonObject manifest;
-  QJsonObject implementation;
-  QJsonObject settingsSchema;
-  QJsonObject settings;
-  QJsonObject shaders;
-  QString entryPath;
-  QString libraryPath;
-  QString metadataPath;
-  QString error;
+  Json manifest = Json::object();
+  Json implementation = Json::object();
+  Json settingsSchema = Json::object();
+  Json settings = Json::object();
+  Json shaders = Json::object();
+  std::string entryPath;
+  std::string libraryPath;
+  std::string metadataPath;
+  std::string error;
   bool enabled = false;
 };
-PluginDescriptor readPluginMetadata(const QString &metadataPath,
+PluginDescriptor readPluginMetadata(const std::string &metadataPath,
                                     bool applyConfiguration = true);
 std::vector<PluginDescriptor> readPluginMetadataTargets(
-    const QString &metadataPath, bool applyConfiguration = true);
-QString pluginInstanceId(const PluginDescriptor &plugin);
+    const std::string &metadataPath, bool applyConfiguration = true);
+std::string pluginInstanceId(const PluginDescriptor &plugin);
 std::vector<PluginDescriptor> discoverPlugins();
-QJsonObject pluginDescriptorJson(const PluginDescriptor &plugin);
-QString pluginStoreFingerprint(const QJsonObject &storeItem);
-bool pluginMatchesStore(const PluginDescriptor &plugin,
-                        const QJsonObject &storeItem);
+Json pluginDescriptorJson(const PluginDescriptor &plugin);
+std::string pluginStoreFingerprint(const Json &storeItem);
+bool pluginMatchesStore(const PluginDescriptor &plugin, const Json &storeItem);
 } // namespace LunaDash

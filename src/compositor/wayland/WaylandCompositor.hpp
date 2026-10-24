@@ -4,9 +4,9 @@
 #include "compositor/window/animation/WindowAnimation.hpp"
 #include "core/process/ProcessRunner.hpp"
 #include "core/process/ProcessEnvironment.hpp"
-#include <QJsonObject>
-#include <QRect>
+#include <cstdint>
 #include <functional>
+#include <string>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -35,17 +35,17 @@ struct ClientWindow;
 
 class WaylandCompositor final {
 public:
-  WaylandCompositor(const QByteArray &socket, bool fullscreen, bool startShell,
-                    const QString &rendererPreference);
+  WaylandCompositor(const std::string &socket, bool fullscreen, bool startShell,
+                    const std::string &rendererPreference);
   ~WaylandCompositor();
 
   ProcessRunner *spawn(
-      const QStringList &arguments, const QString &program = {},
+      const std::vector<std::string> &arguments, const std::string &program = {},
       bool required = true,
       std::function<void(const ProcessResult &)> completion = {});
-  bool saveScreenshot(const QString &path,
+  bool saveScreenshot(const std::string &path,
                       const std::function<void(bool)> &finished = {});
-  void saveState(const QString &path);
+  void saveState(const std::string &path);
   bool hasProcessFailure() const;
   int runEventLoop(bool profile = false);
   void terminateEventLoop(int exitCode);
@@ -77,7 +77,7 @@ private:
   std::unique_ptr<PluginManager> pluginManager_;
   std::unique_ptr<ControlServer> controlServer_;
 
-  QString controlPath_;
+  std::string controlPath_;
   ProcessEnvironment clientEnvironment_;
   std::vector<std::unique_ptr<ClientWindow>> clients_;
   std::shared_ptr<ThumbnailWriteState> thumbnailWrite_;
@@ -89,16 +89,16 @@ private:
   int nextWindowId_ = 1;
   int workspace_ = 0;
   int settingsSerial_ = 0;
-  QString settingsPage_ = "general";
+  std::string settingsPage_ = "general";
   int pickerSerial_ = 0;
   int launcherSerial_ = 0;
   int shellActionSerial_ = 0;
-  QString shellAction_;
+  std::string shellAction_;
   int scratchpadWindow_ = 0;
-  qint64 scratchpadProcess_ = 0;
+  std::int64_t scratchpadProcess_ = 0;
   bool scratchpadPending_ = false;
-  quint64 scratchpadGeneration_ = 0;
-  QString scratchpadError_;
+  std::uint64_t scratchpadGeneration_ = 0;
+  std::string scratchpadError_;
   bool launcherVisible_ = false;
   const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
@@ -110,10 +110,10 @@ private:
   int shellRestartFailures_ = 0;
   bool shortcutCapture_ = false;
   bool activationEnvironmentPublished_ = false;
-  QString activationEnvironmentError_;
-  QString lastCapture_;
-  QString captureError_;
-  QString screenshotDestination_;
+  std::string activationEnvironmentError_;
+  std::string lastCapture_;
+  std::string captureError_;
+  std::string screenshotDestination_;
   std::function<void(bool)> screenshotCompletion_;
   int modifierResends_ = 0;
   int keypadKeyForwards_ = 0;
@@ -123,18 +123,18 @@ private:
   void
   publishSessionActivationEnvironment(const std::function<void()> &ready = {});
   void captureScreen();
-  bool launchExternalCommand(QStringList command, QString *error,
+  bool launchExternalCommand(std::vector<std::string> command, std::string *error,
                              bool x11Helper = false);
   void resendKeyboardModifiers();
   void setLauncherVisible(bool visible, bool publish = true);
-  QString nextCapturePath() const;
-  void configure(ClientWindow *client, const QRect &rectangle);
+  std::string nextCapturePath() const;
+  void configure(ClientWindow *client, const Rect &rectangle);
   void arrange();
-  QRect workArea() const;
-  QJsonObject currentWindowLayoutSettings() const;
-  bool updateWindowLayoutSettings(const QJsonObject &changes, QString *error);
-  QJsonObject state(bool includeTranslations = true) const;
-  QJsonObject control(const QJsonObject &request);
+  Rect workArea() const;
+  Json currentWindowLayoutSettings() const;
+  bool updateWindowLayoutSettings(const Json &changes, std::string *error);
+  Json state(bool includeTranslations = true) const;
+  Json control(const Json &request);
   void focus(ClientWindow *client);
   void raiseWithDialogs(ClientWindow *client);
   void activateTask(int window);
@@ -151,7 +151,7 @@ private:
   void updateClientMetadata(ClientWindow *client);
   void removeClient(ClientWindow *client);
   void handleShortcut(std::string_view action);
-  bool toggleScratchpad(QString *error);
+  bool toggleScratchpad(std::string *error);
   void adoptScratchpad(ClientWindow *client);
   void applyKeyboardConfiguration();
 };

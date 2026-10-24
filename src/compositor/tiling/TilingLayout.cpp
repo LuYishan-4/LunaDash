@@ -2,7 +2,6 @@
 #include "compositor/tiling/TilingGeometry.h"
 
 #include <algorithm>
-#include <QJsonArray>
 #include <limits>
 #include <unordered_map>
 #include <utility>
@@ -17,15 +16,15 @@ constexpr std::size_t kMaximumActiveMembers = 8;
 struct Member {
   LayoutWindowId window = 0;
   bool minimized = false;
-  QRect geometry;
+  Rect geometry;
   int weight = 1000;
 };
 
 struct Split {
-  quint64 column = 0;
+  std::uint64_t column = 0;
   bool vertical = true;
   int ratio = 500000;
-  QRect geometry;
+  Rect geometry;
   std::unique_ptr<Split> first;
   std::unique_ptr<Split> second;
 };
@@ -33,8 +32,8 @@ struct Split {
 struct Column {
   int width = 0;
   std::vector<Member> members;
-  quint64 id = 0;
-  QRect geometry;
+  std::uint64_t id = 0;
+  Rect geometry;
 };
 
 struct Workspace {
@@ -42,10 +41,10 @@ struct Workspace {
   LayoutWindowId focused = 0;
   LayoutWindowId maximized = 0;
   std::unique_ptr<Split> root;
-  quint64 nextColumn = 1;
-  QRect area{0, 0, 1440, 900};
-  QRect singleGeometry;
-  QSize preferredSize{960, 640};
+  std::uint64_t nextColumn = 1;
+  Rect area{0, 0, 1440, 900};
+  Rect singleGeometry;
+  Size preferredSize{960, 640};
 };
 
 struct Location {
@@ -91,20 +90,20 @@ void selectAvailableFocus(Workspace &workspace) {
     }
   }
 }
-Column *columnById(Workspace &workspace, quint64 id) {
+Column *columnById(Workspace &workspace, std::uint64_t id) {
   for (auto &column : workspace.columns)
     if (column.id == id)
       return &column;
   return nullptr;
 }
 
-QSize minimumSize(Workspace &workspace, const Split *node) {
+Size minimumSize(Workspace &workspace, const Split *node) {
   if (!node)
     return {};
   if (!node->first) {
     const auto *column = columnById(workspace, node->column);
     const int count = column ? static_cast<int>(activeCount(*column)) : 0;
-    return count ? QSize(1, count) : QSize();
+    return count ? Size(1, count) : Size();
   }
   const auto a = minimumSize(workspace, node->first.get());
   const auto b = minimumSize(workspace, node->second.get());
@@ -113,11 +112,11 @@ QSize minimumSize(Workspace &workspace, const Split *node) {
   if (b.isEmpty())
     return a;
   return node->vertical
-             ? QSize(a.width() + b.width(), std::max(a.height(), b.height()))
-             : QSize(std::max(a.width(), b.width()), a.height() + b.height());
+             ? Size(a.width() + b.width(), std::max(a.height(), b.height()))
+             : Size(std::max(a.width(), b.width()), a.height() + b.height());
 }
 
-bool placeSplits(Workspace &workspace, Split *node, QRect area, int gap) {
+bool placeSplits(Workspace &workspace, Split *node, Rect area, int gap) {
   if (!node)
     return true;
   node->geometry = area;
@@ -141,14 +140,14 @@ bool placeSplits(Workspace &workspace, Split *node, QRect area, int gap) {
                               node->vertical ? b.width() : b.height(), halves))
     return false;
   const auto rect = [](LuDashRectangle r) {
-    return QRect(r.x, r.y, r.width, r.height);
+    return Rect(r.x, r.y, r.width, r.height);
   };
   return placeSplits(workspace, node->first.get(), rect(halves[0]), gap) &&
          placeSplits(workspace, node->second.get(), rect(halves[1]), gap);
 }
 
 void largestLeaf(Workspace &workspace, Split *node, Split *&best,
-                 qint64 &size) {
+                 std::int64_t &size) {
   if (!node)
     return;
   if (node->first) {
@@ -159,8 +158,8 @@ void largestLeaf(Workspace &workspace, Split *node, Split *&best,
   const auto *column = columnById(workspace, node->column);
   if (!column || !activeCount(*column))
     return;
-  const qint64 candidate =
-      qint64(node->geometry.width()) * node->geometry.height();
+  const std::int64_t candidate =
+      std::int64_t(node->geometry.width()) * node->geometry.height();
   // Equal-sized slots choose the later leaf in visual traversal order.
   if (candidate >= size) {
     best = node;
@@ -168,7 +167,7 @@ void largestLeaf(Workspace &workspace, Split *node, Split *&best,
   }
 }
 
-Split *focusedLeaf(Split *node, quint64 column, bool nextVertical,
+Split *focusedLeaf(Split *node, std::uint64_t column, bool nextVertical,
                     bool &vertical) {
   if (!node)
     return nullptr;
@@ -201,7 +200,7 @@ bool splitFits(Workspace &workspace, const Split *node, bool vertical, int gap,
 }
 
 void largestFittingLeaf(Workspace &workspace, Split *node, Split *&best,
-                        bool &vertical, qint64 &size, int gap,
+                        bool &vertical, std::int64_t &size, int gap,
                         int minimumWidth, int minimumHeight) {
   if (!node)
     return;
@@ -218,7 +217,7 @@ void largestFittingLeaf(Workspace &workspace, Split *node, Split *&best,
     if (!splitFits(workspace, node, axis, gap, minimumWidth, minimumHeight))
       return;
   }
-  const qint64 candidate = qint64(node->geometry.width()) * node->geometry.height();
+  const std::int64_t candidate = std::int64_t(node->geometry.width()) * node->geometry.height();
   if (candidate >= size) {
     best = node;
     vertical = axis;
@@ -229,7 +228,7 @@ void largestFittingLeaf(Workspace &workspace, Split *node, Split *&best,
 void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
                 bool firstWindowOnRight, int minimumWidth, int minimumHeight) {
   placeSplits(workspace, workspace.root.get(), workspace.area, gap);
-  const quint64 id = workspace.nextColumn++;
+  const std::uint64_t id = workspace.nextColumn++;
   Split *target = nullptr;
   bool vertical = true;
   if (splitFocused) {
@@ -245,7 +244,7 @@ void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
     }
   }
   if (!target) {
-    qint64 size = -1;
+    std::int64_t size = -1;
     largestFittingLeaf(workspace, workspace.root.get(), target, vertical, size,
                        gap, minimumWidth, minimumHeight);
   }
@@ -253,7 +252,7 @@ void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
     // On a crowded or very small output no tile can meet the preferred
     // minimum. Continue the existing bounded layout instead of overlapping
     // windows or silently refusing a new application.
-    qint64 size = -1;
+    std::int64_t size = -1;
     largestLeaf(workspace, workspace.root.get(), target, size);
     if (target)
       vertical = target->geometry.width() >= target->geometry.height();
@@ -285,7 +284,7 @@ void addColumn(Workspace &workspace, Member member, int gap, bool splitFocused,
   workspace.columns.push_back({0, {member}, id, {}});
 }
 
-bool pruneSplit(std::unique_ptr<Split> &node, quint64 id) {
+bool pruneSplit(std::unique_ptr<Split> &node, std::uint64_t id) {
   if (!node)
     return false;
   if (!node->first) {
@@ -310,7 +309,7 @@ void eraseColumn(Workspace &workspace, std::size_t index) {
                           static_cast<std::ptrdiff_t>(index));
 }
 
-bool splitPath(Split *node, quint64 column, std::vector<Split *> &path) {
+bool splitPath(Split *node, std::uint64_t column, std::vector<Split *> &path) {
   if (!node)
     return false;
   path.push_back(node);
@@ -322,7 +321,7 @@ bool splitPath(Split *node, quint64 column, std::vector<Split *> &path) {
   return false;
 }
 
-bool resizeSplit(Workspace &workspace, quint64 column, int delta, bool vertical,
+bool resizeSplit(Workspace &workspace, std::uint64_t column, int delta, bool vertical,
                  int gap) {
   std::vector<Split *> path;
   if (!splitPath(workspace.root.get(), column, path))
@@ -348,7 +347,7 @@ bool resizeSplit(Workspace &workspace, quint64 column, int delta, bool vertical,
     const int desired = std::clamp(
         current + (path[i + 1] == node->first.get() ? delta : -delta), minA,
         available - minB);
-    node->ratio = static_cast<int>((qint64(desired) * 1000000 + available / 2) /
+    node->ratio = static_cast<int>((std::int64_t(desired) * 1000000 + available / 2) /
                                    available);
     return true;
   }
@@ -359,22 +358,22 @@ bool focusDirection(Workspace &workspace, int dx, int dy) {
   const auto current = findWindow(workspace, workspace.focused);
   if (!current.found)
     return false;
-  const QPoint origin = workspace.columns[current.column]
+  const Point origin = workspace.columns[current.column]
                             .members[current.member]
                             .geometry.center();
-  qint64 best = std::numeric_limits<qint64>::max();
+  std::int64_t best = std::numeric_limits<std::int64_t>::max();
   LayoutWindowId selected = 0;
   for (const auto &column : workspace.columns)
     for (const auto &member : column.members) {
       if (member.minimized || member.window == workspace.focused ||
           !member.geometry.isValid())
         continue;
-      const QPoint offset = member.geometry.center() - origin;
+      const Point offset = member.geometry.center() - origin;
       const int forward = offset.x() * dx + offset.y() * dy;
       if (forward <= 0)
         continue;
-      const qint64 cross = qAbs(offset.x() * dy - offset.y() * dx);
-      const qint64 score = qint64(forward) * forward + cross * cross * 4;
+      const std::int64_t cross = std::abs(offset.x() * dy - offset.y() * dx);
+      const std::int64_t score = std::int64_t(forward) * forward + cross * cross * 4;
       if (score < best) {
         best = score;
         selected = member.window;
@@ -423,25 +422,25 @@ TilingLayout::~TilingLayout() = default;
 TilingLayout::TilingLayout(TilingLayout &&) noexcept = default;
 TilingLayout &TilingLayout::operator=(TilingLayout &&) noexcept = default;
 
-void TilingLayout::configure(const QJsonObject &settings) {
+void TilingLayout::configure(const Json &settings) {
   d->defaultWidth =
-      std::clamp(settings.value("defaultWidth").toInt(d->defaultWidth), 240,
+      std::clamp(jsonInt(settings, "defaultWidth", d->defaultWidth), 240,
                  2400);
-  d->gap = std::clamp(settings.value("gap").toInt(d->gap), 0, 64);
+  d->gap = std::clamp(jsonInt(settings, "gap", d->gap), 0, 64);
   d->minimumTileWidth = std::clamp(
-      settings.value("minimumTileWidth").toInt(d->minimumTileWidth), 1, 1200);
+      jsonInt(settings, "minimumTileWidth", d->minimumTileWidth), 1, 1200);
   d->minimumTileHeight = std::clamp(
-      settings.value("minimumTileHeight").toInt(d->minimumTileHeight), 1, 900);
-  const auto splitTarget = settings.value("splitTarget").toString();
+      jsonInt(settings, "minimumTileHeight", d->minimumTileHeight), 1, 900);
+  const auto splitTarget = jsonString(settings, "splitTarget");
   if (splitTarget == "focused" || splitTarget == "largest")
     d->splitFocused = splitTarget == "focused";
-  const auto firstWindowSide = settings.value("firstWindowSide").toString();
+  const auto firstWindowSide = jsonString(settings, "firstWindowSide");
   if (firstWindowSide == "right" || firstWindowSide == "left")
     d->firstWindowOnRight = firstWindowSide == "right";
 }
 
 bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
-                          QSize preferredSize) {
+                          Size preferredSize) {
   if (!window || d->locate(window).second)
     return false;
   auto &workspace = d->workspaces[workspaceId];
@@ -451,7 +450,7 @@ bool TilingLayout::insert(LayoutWorkspaceId workspaceId, LayoutWindowId window,
     workspace.preferredSize =
         !preferredSize.isEmpty()
             ? preferredSize
-            : QSize(d->defaultWidth, std::max(1, d->defaultWidth * 2 / 3));
+            : Size(d->defaultWidth, std::max(1, d->defaultWidth * 2 / 3));
   addColumn(workspace, {window, false, {}}, d->gap, d->splitFocused,
             d->firstWindowOnRight, d->minimumTileWidth, d->minimumTileHeight);
   workspace.focused = window;
@@ -477,7 +476,7 @@ bool TilingLayout::remove(LayoutWindowId window) {
 
 bool TilingLayout::setMinimized(LayoutWindowId window, bool minimized) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace)
     return false;
   const auto location = findWindow(*workspace, window);
@@ -498,7 +497,7 @@ bool TilingLayout::setMinimized(LayoutWindowId window, bool minimized) {
 
 bool TilingLayout::setMaximized(LayoutWindowId window, bool maximized) {
   const auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace)
     return false;
   const auto location = findWindow(*workspace, window);
@@ -547,7 +546,7 @@ bool TilingLayout::moveToWorkspace(LayoutWindowId window,
 
 bool TilingLayout::focus(LayoutWindowId window) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace)
     return false;
   const auto location = findWindow(*workspace, window);
@@ -577,22 +576,22 @@ bool TilingLayout::focusDown(LayoutWorkspaceId workspaceId) {
   return found != d->workspaces.end() && focusDirection(found->second, 0, 1);
 }
 
-bool TilingLayout::performAction(const QString &action,
-                                 const QJsonObject &payload) {
+bool TilingLayout::performAction(const std::string &action,
+                                 const Json &payload) {
   const auto window =
-      static_cast<LayoutWindowId>(payload.value("window").toInteger());
+      static_cast<LayoutWindowId>(jsonInteger(payload, "window"));
   const auto target =
-      static_cast<LayoutWindowId>(payload.value("target").toInteger());
+      static_cast<LayoutWindowId>(jsonInteger(payload, "target"));
   const auto workspace =
-      static_cast<LayoutWorkspaceId>(payload.value("workspace").toInteger());
-  const auto areaObject = payload.value("area").toObject();
-  const QRect area(areaObject.value("x").toInt(), areaObject.value("y").toInt(),
-                   areaObject.value("width").toInt(),
-                   areaObject.value("height").toInt());
+      static_cast<LayoutWorkspaceId>(jsonInteger(payload, "workspace"));
+  const auto areaObject = jsonObject(payload, "area");
+  const Rect area(jsonInt(areaObject, "x"), jsonInt(areaObject, "y"),
+                   jsonInt(areaObject, "width"),
+                   jsonInt(areaObject, "height"));
 
   if (action == "focus-direction") {
-    const int dx = payload.value("dx").toInt();
-    const int dy = payload.value("dy").toInt();
+    const int dx = jsonInt(payload, "dx");
+    const int dy = jsonInt(payload, "dy");
     if (dx < 0)
       return focusLeft(workspace);
     if (dx > 0)
@@ -606,8 +605,8 @@ bool TilingLayout::performAction(const QString &action,
   if (action == "group-direction") {
     if (!focus(window))
       return false;
-    const int dx = payload.value("dx").toInt();
-    const int dy = payload.value("dy").toInt();
+    const int dx = jsonInt(payload, "dx");
+    const int dy = jsonInt(payload, "dy");
     const bool found = dx < 0   ? focusLeft(workspace)
                        : dx > 0 ? focusRight(workspace)
                        : dy < 0 ? focusUp(workspace)
@@ -626,17 +625,17 @@ bool TilingLayout::performAction(const QString &action,
   if (action == "swap")
     return swapWindows(window, target);
   if (action == "insert-beside")
-    return insertBeside(window, target, payload.value("after").toBool());
+    return insertBeside(window, target, jsonBool(payload, "after"));
   if (action == "reorder")
-    return reorder(window, payload.value("direction").toInt());
+    return reorder(window, jsonInt(payload, "direction"));
   if (action == "resize-width")
-    return resize(window, payload.value("width").toInt());
+    return resize(window, jsonInt(payload, "width"));
   if (action == "resize-height")
-    return resizeHeight(window, payload.value("height").toInt());
+    return resizeHeight(window, jsonInt(payload, "height"));
   if (action == "move-by")
     return moveSingle(window,
-                      QPoint(payload.value("dx").toInt(),
-                             payload.value("dy").toInt()),
+                      Point(jsonInt(payload, "dx"),
+                             jsonInt(payload, "dy")),
                       area);
   if (action == "center")
     return center(window, area);
@@ -649,7 +648,7 @@ bool TilingLayout::groupWith(LayoutWindowId window, LayoutWindowId target) {
 
 bool TilingLayout::swapWindows(LayoutWindowId window, LayoutWindowId target) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace || window == target)
     return false;
   const auto a = findWindow(*workspace, window);
@@ -668,7 +667,7 @@ bool TilingLayout::swapWindows(LayoutWindowId window, LayoutWindowId target) {
 bool TilingLayout::insertBeside(LayoutWindowId window, LayoutWindowId target,
                                 bool after) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace || window == target)
     return false;
   auto a = findWindow(*workspace, window);
@@ -691,9 +690,9 @@ bool TilingLayout::insertBeside(LayoutWindowId window, LayoutWindowId target,
   return true;
 }
 
-bool TilingLayout::moveSingle(LayoutWindowId window, QPoint delta, QRect area) {
+bool TilingLayout::moveSingle(LayoutWindowId window, Point delta, Rect area) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace)
     return false;
   int count = 0;
@@ -706,9 +705,9 @@ bool TilingLayout::moveSingle(LayoutWindowId window, QPoint delta, QRect area) {
       workspace->columns[where.column].members[where.member].geometry;
   if (!area.isValid() || !geometry.isValid())
     return false;
-  const QPoint position = geometry.topLeft() + delta;
+  const Point position = geometry.topLeft() + delta;
   workspace->singleGeometry =
-      QRect(QPoint(std::clamp(position.x(), area.left(),
+      Rect(Point(std::clamp(position.x(), area.left(),
                               area.x() + area.width() - geometry.width()),
                    std::clamp(position.y(), area.top(),
                               area.y() + area.height() - geometry.height())),
@@ -718,7 +717,7 @@ bool TilingLayout::moveSingle(LayoutWindowId window, QPoint delta, QRect area) {
 
 bool TilingLayout::resizeHeight(LayoutWindowId window, int height) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace)
     return false;
   const auto location = findWindow(*workspace, window);
@@ -747,11 +746,11 @@ bool TilingLayout::resizeHeight(LayoutWindowId window, int height) {
   const int minimum = std::min(48, total / count);
   height = std::clamp(height, minimum, total - minimum * (count - 1));
   const int remaining = total - height - minimum * (count - 1);
-  qint64 sum = 0;
+  std::int64_t sum = 0;
   for (const auto &member : members)
     if (!member.minimized && member.window != window)
       sum += std::max(1, member.geometry.height() - minimum);
-  qint64 prefix = 0;
+  std::int64_t prefix = 0;
   int used = 0;
   for (auto &member : members) {
     if (member.minimized)
@@ -770,7 +769,7 @@ bool TilingLayout::resizeHeight(LayoutWindowId window, int height) {
 
 bool TilingLayout::expel(LayoutWindowId window) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace)
     return false;
   const auto location = findWindow(*workspace, window);
@@ -789,7 +788,7 @@ bool TilingLayout::expel(LayoutWindowId window) {
 
 bool TilingLayout::reorder(LayoutWindowId window, int direction) {
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace || direction == 0)
     return false;
   workspace->focused = window;
@@ -807,7 +806,7 @@ bool TilingLayout::resize(LayoutWindowId window, int width) {
   if (width <= 0)
     return false;
   auto [workspaceId, workspace] = d->locate(window);
-  Q_UNUSED(workspaceId);
+  (void)workspaceId;
   if (!workspace)
     return false;
   const auto location = findWindow(*workspace, window);
@@ -824,9 +823,9 @@ bool TilingLayout::resize(LayoutWindowId window, int width) {
                      true, d->gap);
 }
 
-bool TilingLayout::center(LayoutWindowId window, QRect area) {
+bool TilingLayout::center(LayoutWindowId window, Rect area) {
   const auto [id, workspace] = d->locate(window);
-  Q_UNUSED(id);
+  (void)id;
   if (!workspace || !workspace->singleGeometry.isValid())
     return false;
   workspace->singleGeometry.moveCenter(area.center());
@@ -834,7 +833,7 @@ bool TilingLayout::center(LayoutWindowId window, QRect area) {
 }
 
 std::vector<WindowPlacement> TilingLayout::layout(LayoutWorkspaceId workspaceId,
-                                                  QRect area) {
+                                                  Rect area) {
   auto found = d->workspaces.find(workspaceId);
   if (found == d->workspaces.end() || !area.isValid())
     return {};
@@ -864,10 +863,10 @@ std::vector<WindowPlacement> TilingLayout::layout(LayoutWorkspaceId workspaceId,
     if (count == 1) {
       auto &geometry = workspace.singleGeometry;
       if (!geometry.isValid()) {
-        QSize size = workspace.preferredSize;
+        Size size = workspace.preferredSize;
         if (size.width() > area.width() || size.height() > area.height())
-          size.scale(area.size(), Qt::KeepAspectRatio);
-        geometry = QRect(QPoint(), size);
+          size = size.scaledToFit(area.size());
+        geometry = Rect(Point(), size);
         geometry.moveCenter(area.center());
       }
       geometry.setSize(geometry.size().boundedTo(area.size()));
@@ -889,7 +888,7 @@ std::vector<WindowPlacement> TilingLayout::layout(LayoutWorkspaceId workspaceId,
       return {};
     for (std::size_t i = 0; i < active.size(); ++i)
       active[i]->geometry =
-          QRect(rows[i].x, rows[i].y, rows[i].width, rows[i].height);
+          Rect(rows[i].x, rows[i].y, rows[i].width, rows[i].height);
   }
   const auto placements = filterPlacements(workspaceId, area, snapshot(workspaceId).columns);
   // Store the effective geometry so focus, drag hit testing and previews agree
@@ -921,9 +920,9 @@ TilingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
   for (std::size_t columnIndex = 0; columnIndex < workspace.columns.size();
        ++columnIndex) {
     const auto &column = workspace.columns[columnIndex];
-    QJsonArray members;
+    Json members = Json::array();
     for (const auto &member : column.members)
-      members.append(static_cast<qint64>(member.window));
+      members.push_back(static_cast<std::int64_t>(member.window));
     int rowIndex = 0;
     for (const auto &member : column.members) {
       const int row = member.minimized ? -1 : rowIndex++;
@@ -944,7 +943,7 @@ TilingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
 }
 
 std::vector<WindowPlacement>
-TilingLayout::presentation(LayoutWorkspaceId workspaceId, QRect area) {
+TilingLayout::presentation(LayoutWorkspaceId workspaceId, Rect area) {
   auto placements = layout(workspaceId, area);
   const auto maximized = snapshot(workspaceId).maximizedWindow;
   if (maximized) {

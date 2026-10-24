@@ -6,10 +6,10 @@
 #include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/color/NightColor.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
+#include "core/filesystem/FileIo.hpp"
+#include "core/log/Log.hpp"
 #include "core/templates/WaylandSlot.hpp"
-#include <QJsonArray>
-#include <QPointF>
-#include <QSize>
+#include "core/text/Text.hpp"
 #include <algorithm>
 #include <chrono>
 #include <functional>
@@ -34,14 +34,14 @@ public:
     bool screencopyTimerScheduled = false;
     bool softwareCursorLocked = false;
     bool forceSoftwareCursor = false;
-    quint64 lastAnimationPublishNs = 0;
-    quint64 frameCallbacks = 0;
-    quint64 slowFrames = 0;
-    qint64 lastFrameWorkUsec = 0;
-    qint64 maxFrameWorkUsec = 0;
+    std::uint64_t lastAnimationPublishNs = 0;
+    std::uint64_t frameCallbacks = 0;
+    std::uint64_t slowFrames = 0;
+    std::int64_t lastFrameWorkUsec = 0;
+    std::int64_t maxFrameWorkUsec = 0;
     ludash_night_color *nightColor = nullptr;
     int nightTemperature = 6500;
-    QString nightError;
+    std::string nightError;
     Slot<OutputState> frame;
     Slot<OutputState> destroy;
     Slot<OutputState> requestState;
@@ -180,10 +180,10 @@ public:
   };
 
   WaylandCompositor *q = nullptr;
-  QByteArray socketName;
+  std::string socketName;
   bool fullscreen = false;
   bool nested = false;
-  QString rendererPreference;
+  std::string rendererPreference;
 
   wl_display *display = nullptr;
   wl_event_loop *eventLoop = nullptr;
@@ -210,15 +210,15 @@ public:
   wl_event_source *displayRevertTimer = nullptr;
   std::chrono::steady_clock::time_point displayRevertDeadline{};
   wl_event_source *scratchpadTimeout = nullptr;
-  quint64 scratchpadTimeoutGeneration = 0;
-  QString displayError;
-  QRect usableArea{0, 0, 1440, 900};
+  std::uint64_t scratchpadTimeoutGeneration = 0;
+  std::string displayError;
+  Rect usableArea{0, 0, 1440, 900};
   bool eyeCareActive = false;
   float steadyWindowOpacity = 0.90f;
-  quint64 dispatchCalls = 0;
-  quint64 slowDispatches = 0;
-  qint64 lastDispatchUsec = 0;
-  qint64 maxDispatchUsec = 0;
+  std::uint64_t dispatchCalls = 0;
+  std::uint64_t slowDispatches = 0;
+  std::int64_t lastDispatchUsec = 0;
+  std::int64_t maxDispatchUsec = 0;
   int exitCode = 0;
   bool eventLoopRunning = true;
 
@@ -272,8 +272,8 @@ public:
   uint32_t pointerResizeEdges = 0;
   uint32_t pointerButton = 0;
   bool orbitPointerConsumed = false;
-  QPointF pointerLast;
-  QRect pointerStartGeometry;
+  PointF pointerLast;
+  Rect pointerStartGeometry;
   std::chrono::steady_clock::time_point pointerPublishTime{};
   bool pointerPublishTimeValid = false;
   bool beginWindowPointer(uint32_t button);
@@ -305,8 +305,8 @@ public:
   Slot<Impl> foreignToplevelCaptureRequest;
 #endif
 
-  explicit Impl(WaylandCompositor *owner, const QByteArray &socket,
-                bool wantsFullscreen, const QString &renderer);
+  explicit Impl(WaylandCompositor *owner, const std::string &socket,
+                bool wantsFullscreen, const std::string &renderer);
 
   ~Impl();
 
@@ -320,11 +320,11 @@ public:
 
   void shutdown();
 
-  QSize outputSize() const;
+  Size outputSize() const;
 
-  QJsonObject displaySnapshot() const;
-  QJsonArray displayModes() const;
-  bool configureDisplay(const QJsonObject &changes, QString *error);
+  Json displaySnapshot() const;
+  Json displayModes() const;
+  bool configureDisplay(const Json &changes, std::string *error);
   void confirmDisplay();
   void revertDisplay();
   void clearPendingDisplay();
@@ -353,7 +353,7 @@ public:
   static void handleXdgPopupReposition(wl_listener *listener, void *data);
   static void handleXdgPopupDestroy(wl_listener *listener, void *data);
 
-  bool resizePrimaryOutput(const QString &preset, QString *error);
+  bool resizePrimaryOutput(const std::string &preset, std::string *error);
 
   ClientWindow *clientForSurface(wlr_surface *surface) const;
 
@@ -462,7 +462,7 @@ public:
   static void handleXWaylandDestroy(wl_listener *listener, void *data);
   static void handleDeferredClientRemoval(void *data);
   void deferClientRemoval(ClientWindow *client);
-  bool scheduleScratchpadTimeout(quint64 generation);
+  bool scheduleScratchpadTimeout(std::uint64_t generation);
   void cancelScratchpadTimeout();
   static int handleScratchpadTimeout(void *data);
   bool scheduleCallback(int delayMilliseconds, std::function<void()> callback);

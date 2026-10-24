@@ -3,115 +3,113 @@
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
-#include <QJsonArray>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <unordered_set>
 #include <vector>
 
 namespace LunaDash {
 namespace {
-bool integer(const QJsonValue &value, int low, int high) {
-  const double n = value.toDouble();
-  return value.isDouble() && std::isfinite(n) && n == std::floor(n) &&
+bool integer(const Json &value, int low, int high) {
+  const double n = jsonAsDouble(value);
+  return value.is_number() && std::isfinite(n) && n == std::floor(n) &&
          n >= low && n <= high;
 }
-QJsonObject rectJson(QRect rect) {
+Json rectJson(Rect rect) {
   return {{"x", rect.x()},
           {"y", rect.y()},
           {"width", rect.width()},
           {"height", rect.height()}};
 }
+Rect rectFromJson(const Json &object) {
+  return {jsonInt(object, "x"), jsonInt(object, "y"), jsonInt(object, "width"),
+          jsonInt(object, "height")};
+}
 } // namespace
-QJsonObject windowAnimationProfile(PluginManager &plugins,
-                                   const QJsonObject &preferences,
-                                   const WindowTemplate &windowTemplate) {
-  auto profile = windowTemplate.animation;
+Json windowAnimationProfile(PluginManager &plugins, const Json &preferences,
+                            const WindowTemplate &windowTemplate) {
+  auto profile = jsonAsObject(windowTemplate.animation);
   const auto configured = configuredBuiltinSettings("window-animation");
   for (auto it = configured.begin(); it != configured.end(); ++it)
     profile[it.key()] = it.value();
-  if (profile.value("duration").toInt() < 0)
-    profile["duration"] = preferences.value("animationDuration");
-  const auto schema =
-      extensionTarget("window-animation").value("settings").toObject();
-  profile =
-      plugins.filter("window-animation", profile, {}, [&](const auto &output) {
+  if (jsonInt(profile, "duration") < 0)
+    profile["duration"] = jsonValue(preferences, "animationDuration");
+  const auto schema = jsonObject(extensionTarget("window-animation"), "settings");
+  profile = plugins.filter(
+      "window-animation", profile, Json::object(), [&](const Json &output) {
         return output.size() == schema.size() &&
-               output.value("duration").toInt(-1) >= 0 &&
+               jsonInt(output, "duration", -1) >= 0 &&
                validateExtensionSettings(schema, output, nullptr);
       });
-  if (!preferences.value("animations").toBool())
+  if (!jsonBool(preferences, "animations"))
     profile["duration"] = 0;
   return profile;
 }
 int shellAnimationDuration(PluginManager &plugins, int fallback) {
   const int configured =
-      configuredBuiltinSettings("shell-animation").value("duration").toInt(-1);
-  return plugins
-      .filter("shell-animation",
-              {{"duration", configured < 0 ? fallback : configured}}, {},
-              [](const auto &output) {
-                return output.size() == 1 &&
-                       integer(output.value("duration"), 0, 600);
-              })
-      .value("duration")
-      .toInt(fallback);
+      jsonInt(configuredBuiltinSettings("shell-animation"), "duration", -1);
+  const auto output = plugins.filter(
+      "shell-animation",
+      Json{{"duration", configured < 0 ? fallback : configured}},
+      Json::object(), [](const Json &result) {
+        return result.size() == 1 && integer(jsonValue(result, "duration"), 0, 600);
+      });
+  return jsonInt(output, "duration", fallback);
 }
-QJsonObject initialWindowRule(PluginManager &plugins,
-                              const QJsonObject &context, int workspace,
-                              bool maximized, int workspaceCount) {
+Json initialWindowRule(PluginManager &plugins, const Json &context,
+                       int workspace, bool maximized, int workspaceCount) {
   return plugins.filter(
-      "window-rules", {{"workspace", workspace}, {"maximized", maximized}},
-      context, [workspaceCount](const auto &output) {
+      "window-rules", Json{{"workspace", workspace}, {"maximized", maximized}},
+      context, [workspaceCount](const Json &output) {
         return output.size() == 2 &&
-               integer(output.value("workspace"), 0, workspaceCount - 1) &&
-               output.value("maximized").isBool();
+               integer(jsonValue(output, "workspace"), 0, workspaceCount - 1) &&
+               jsonValue(output, "maximized").is_boolean();
       });
 }
 std::vector<WindowPlacement>
 pluginWindowPlacements(PluginManager &plugins,
                        const WindowTemplate &windowTemplate,
-                       LayoutWorkspaceId workspace, QRect area,
+                       LayoutWorkspaceId workspace, Rect area,
                        const std::vector<WindowPlacement> &placements) {
-  QJsonArray windows;
-  QJsonArray fresh;
-  std::unordered_set<qint64> expected;
+  Json windows = Json::array();
+  Json fresh = Json::array();
+  std::unordered_set<std::int64_t> expected;
   for (const auto &placement : placements) {
     if (placement.minimized)
       continue;
     auto item = rectJson(placement.geometry);
-    item["id"] = static_cast<qint64>(placement.window);
-    windows.append(item);
+    item["id"] = static_cast<std::int64_t>(placement.window);
+    windows.push_back(item);
     if (placement.newWindow)
-      fresh.append(static_cast<qint64>(placement.window));
-    expected.insert(static_cast<qint64>(placement.window));
+      fresh.push_back(static_cast<std::int64_t>(placement.window));
+    expected.insert(static_cast<std::int64_t>(placement.window));
   }
   const bool stacking = windowTemplate.allowOverlap;
   const auto output = plugins.filter(
-      "window-layout", {{"windows", windows}},
-      {{"workspace", static_cast<qint64>(workspace)},
-       {"area", rectJson(area)},
-       {"newWindows", fresh},
-       {"windowTemplate", windowTemplate.key},
-       {"allowOverlap", stacking}},
-      [&](const auto &result) {
-        if (result.size() != 1 || !result.value("windows").isArray() ||
-            result.value("windows").toArray().size() != windows.size())
+      "window-layout", Json{{"windows", windows}},
+      Json{{"workspace", static_cast<std::int64_t>(workspace)},
+           {"area", rectJson(area)},
+           {"newWindows", fresh},
+           {"windowTemplate", windowTemplate.key},
+           {"allowOverlap", stacking}},
+      [&](const Json &result) {
+        const auto values = jsonValue(result, "windows");
+        if (result.size() != 1 || !values.is_array() ||
+            values.size() != windows.size())
           return false;
-        std::unordered_set<qint64> seen;
-        std::vector<QRect> rectangles;
-        for (const auto &value : result.value("windows").toArray()) {
-          const auto object = value.toObject();
-          if (object.size() != 5 || !integer(object.value("id"), 1, INT_MAX) ||
-              !integer(object.value("x"), -32768, 32768) ||
-              !integer(object.value("y"), -32768, 32768) ||
-              !integer(object.value("width"), 1, 32768) ||
-              !integer(object.value("height"), 1, 32768))
+        std::unordered_set<std::int64_t> seen;
+        std::vector<Rect> rectangles;
+        for (const auto &object : values) {
+          if (!object.is_object() || object.size() != 5 ||
+              !integer(jsonValue(object, "id"), 1, INT_MAX) ||
+              !integer(jsonValue(object, "x"), -32768, 32768) ||
+              !integer(jsonValue(object, "y"), -32768, 32768) ||
+              !integer(jsonValue(object, "width"), 1, 32768) ||
+              !integer(jsonValue(object, "height"), 1, 32768))
             return false;
-          const qint64 id = object.value("id").toInteger();
-          const QRect rect(object.value("x").toInt(), object.value("y").toInt(),
-                           object.value("width").toInt(),
-                           object.value("height").toInt());
+          const std::int64_t id = jsonInteger(object, "id");
+          const Rect rect = rectFromJson(object);
           if (!expected.contains(id) || seen.contains(id) ||
               !area.contains(rect))
             return false;
@@ -124,14 +122,11 @@ pluginWindowPlacements(PluginManager &plugins,
         return seen == expected;
       });
   auto result = placements;
-  for (const auto &value : output.value("windows").toArray()) {
-    const auto object = value.toObject();
+  for (const auto &object : jsonArray(output, "windows")) {
     for (auto &placement : result)
       if (placement.window ==
-          static_cast<LayoutWindowId>(object.value("id").toInteger())) {
-        placement.geometry = QRect(
-            object.value("x").toInt(), object.value("y").toInt(),
-            object.value("width").toInt(), object.value("height").toInt());
+          static_cast<LayoutWindowId>(jsonInteger(object, "id"))) {
+        placement.geometry = rectFromJson(object);
         placement.width = placement.geometry.width();
       }
   }

@@ -1,22 +1,23 @@
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/client/ClientWindow.hpp"
+#include "core/text/Text.hpp"
 
 namespace LunaDash {
 
-QString windowIconName(const QString &appId, const QString &title) {
+std::string windowIconName(const std::string &appId, const std::string &title) {
   if (appId == "lunadash-app") {
-    const auto name = title.toLower();
-    if (name.contains("terminal") || name.contains("console"))
+    const auto name = asciiLower(title);
+    if (containsText(name, "terminal") || containsText(name, "console"))
       return "utilities-terminal";
-    if (name.contains("file"))
+    if (containsText(name, "file"))
       return "system-file-manager";
-    if (name.contains("setting"))
+    if (containsText(name, "setting"))
       return "preferences-system";
     return "lunadash";
   }
   if (appId == "org.freedesktop.Xwayland")
     return "application-x-executable";
-  return appId.isEmpty() ? QStringLiteral("application-x-executable") : appId;
+  return appId.empty() ? std::string("application-x-executable") : appId;
 }
 
 bool windowUsesManagedLayout(const ClientWindow &client) {

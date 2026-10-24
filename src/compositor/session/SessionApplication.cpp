@@ -2,6 +2,8 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "config/BuildConfig.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
+#include "core/log/Log.hpp"
+#include "core/text/Text.hpp"
 
 #include <algorithm>
 #include <csignal>
@@ -157,23 +159,21 @@ int SessionApplication::run(int argc, char **argv) {
     return 0;
   }
 
-  const QString renderer = QString::fromStdString(options.graphics).toLower();
-  if (!ludash_renderer_preference_valid(renderer.toUtf8().constData())) {
-    qCritical("--graphics must be auto, opengl, gles, or vulkan");
+  const std::string renderer = asciiLower(options.graphics);
+  if (!ludash_renderer_preference_valid(renderer.c_str())) {
+    logCritical("--graphics must be auto, opengl, gles, or vulkan");
     return 2;
   }
 
   std::error_code executablePathError;
   const auto executablePath =
       std::filesystem::read_symlink("/proc/self/exe", executablePathError);
-  qInfo().noquote() << "LunaDash version:"
-                    << QString::fromStdString(applicationVersion)
-                    << "executable:"
-                    << QString::fromStdString(executablePath.string());
-  qInfo("LunaDash input: wlroots seat + libinput/xkbcommon (no Qt input path)");
+  logInfo("LunaDash version: %s executable: %s", applicationVersion.c_str(),
+          executablePath.string().c_str());
+  logInfo("LunaDash input: wlroots seat + libinput/xkbcommon");
 
   LunaDash::WaylandCompositor compositor(
-      QString::fromStdString(options.socket).toUtf8(), options.fullscreen,
+      options.socket, options.fullscreen,
       !options.noShell, renderer);
 
   if (options.demo) {
@@ -190,7 +190,7 @@ int SessionApplication::run(int argc, char **argv) {
             std::max(1000, options.exitAfterMilliseconds), [&] {
               if (!options.state.empty())
                 compositor.saveState(
-                    QString::fromStdString(options.state));
+                    (options.state));
               const auto finish = [&compositor](bool ok) {
                 compositor.closeTestSession(
                     [&compositor, ok](bool clean) {
@@ -204,7 +204,7 @@ int SessionApplication::run(int argc, char **argv) {
                 return;
               }
               if (!compositor.saveScreenshot(
-                      QString::fromStdString(options.screenshot), finish))
+                      (options.screenshot), finish))
                 finish(false);
             }))
       return 2;

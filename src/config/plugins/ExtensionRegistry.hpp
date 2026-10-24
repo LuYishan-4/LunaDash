@@ -1,12 +1,12 @@
 #pragma once
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QString>
+#include "core/json/JsonAccess.hpp"
+
+#include <string>
 
 namespace LunaDash {
-QJsonArray extensionTargets();
-QJsonObject extensionTarget(const QString &id);
-bool validateExtensionSettings(const QJsonObject &schema,
-                               const QJsonObject &settings, QString *error);
-QJsonObject extensionDefaults(const QJsonObject &schema);
+Json extensionTargets();
+Json extensionTarget(const std::string &id);
+bool validateExtensionSettings(const Json &schema, const Json &settings,
+                               std::string *error);
+Json extensionDefaults(const Json &schema);
 } // namespace LunaDash

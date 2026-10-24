@@ -2,9 +2,13 @@
 #include "compositor/renderer/selection/RenderSelection.h"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
+#include "core/filesystem/FileIo.hpp"
+#include "core/log/Log.hpp"
 #include <algorithm>
 #include <cerrno>
+#include <glib.h>
 #include <poll.h>
+#include <vector>
 
 namespace LunaDash {
 using Templates::attachListener;
@@ -12,11 +16,11 @@ using Templates::detachListener;
 using Templates::listenerOwner;
 
 WaylandCompositor::Impl::Impl(WaylandCompositor *owner,
-                              const QByteArray &socket, bool wantsFullscreen,
-                              const QString &renderer)
+                              const std::string &socket, bool wantsFullscreen,
+                              const std::string &renderer)
     : q(owner), socketName(socket), fullscreen(wantsFullscreen),
-      nested(!qEnvironmentVariable("WAYLAND_DISPLAY").isEmpty() ||
-             !qEnvironmentVariable("DISPLAY").isEmpty()),
+      nested(!environmentValue("WAYLAND_DISPLAY").empty() ||
+             !environmentValue("DISPLAY").empty()),
       rendererPreference(renderer) {
   display = wl_display_create();
   if (display)
@@ -33,7 +37,7 @@ bool WaylandCompositor::Impl::initialize() {
   backend = WlrootsCompat::createPlatform(display);
   if (!backend)
     return fail("wlroots could not create a backend.");
-  renderer = ludash_renderer_create(backend, rendererPreference.toUtf8().constData());
+  renderer = ludash_renderer_create(backend, rendererPreference.c_str());
   if (!renderer)
     return fail("wlroots could not create a renderer.");
 #if WLR_VERSION_MINOR >= 20
@@ -101,7 +105,7 @@ bool WaylandCompositor::Impl::initialize() {
     explicitSync =
         wlr_linux_drm_syncobj_manager_v1_create(display, 1, rendererDrmFd);
     if (!explicitSync)
-      qWarning("LunaDash: DRM explicit synchronization is unavailable.");
+      logWarning("LunaDash: DRM explicit synchronization is unavailable.");
   }
 #endif
   sceneLayout = wlr_scene_attach_output_layout(scene, outputLayout);
@@ -167,8 +171,8 @@ bool WaylandCompositor::Impl::initialize() {
   seat = wlr_seat_create(display, "seat0");
   cursor = wlr_cursor_create();
   cursorManager = wlr_xcursor_manager_create(
-      nullptr, qEnvironmentVariableIntValue("XCURSOR_SIZE") > 0
-                   ? qEnvironmentVariableIntValue("XCURSOR_SIZE")
+      nullptr, environmentInt("XCURSOR_SIZE") > 0
+                   ? static_cast<uint32_t>(environmentInt("XCURSOR_SIZE"))
                    : 24);
   if (!seat || !cursor || !cursorManager)
     return fail("wlroots could not create the seat/cursor stack.");
@@ -223,7 +227,7 @@ bool WaylandCompositor::Impl::initialize() {
   wlr_seat_set_capabilities(seat, WL_SEAT_CAPABILITY_POINTER |
                                       WL_SEAT_CAPABILITY_KEYBOARD);
 
-  if (wl_display_add_socket(display, socketName.constData()) != 0)
+  if (wl_display_add_socket(display, socketName.c_str()) != 0)
     return fail("Could not create the requested Wayland socket.");
 
   // A few host-side Wayland helpers (notably GPU Screen Recorder's Flatpak
@@ -235,9 +239,9 @@ bool WaylandCompositor::Impl::initialize() {
   // compositor and must not be shadowed or treated as a startup failure.
   if (!nested && socketName != "wayland-0") {
     if (wl_display_add_socket(display, "wayland-0") == 0) {
-      qInfo("LunaDash Wayland compatibility socket: wayland-0");
+      logInfo("LunaDash Wayland compatibility socket: wayland-0");
     } else {
-      qWarning("LunaDash could not expose wayland-0 compatibility socket; "
+      logWarning("LunaDash could not expose wayland-0 compatibility socket; "
                "helpers that hard-code wayland-0 may not work.");
     }
   }
@@ -246,14 +250,14 @@ bool WaylandCompositor::Impl::initialize() {
     return fail("wlroots could not start the backend.");
 
   updateBackground();
-  qInfo().noquote() << "LunaDash wlroots socket:" << socketName
-                    << "seat protocol >="
-                    << WlrootsCompat::expectedSeatProtocolVersion();
+  logInfo("LunaDash wlroots socket: %s seat protocol >= %d",
+          socketName.c_str(),
+          static_cast<int>(WlrootsCompat::expectedSeatProtocolVersion()));
   return true;
 }
 
 bool WaylandCompositor::Impl::fail(const char *message) {
-  qCritical().noquote() << "LunaDash wlroots:" << message;
+  logCritical("LunaDash wlroots: %s", message);
   q->processFailure_ = true;
   terminateEventLoop(2);
   return false;
@@ -265,10 +269,17 @@ int WaylandCompositor::Impl::runEventLoop(bool profile) {
   const int eventLoopFd = wl_event_loop_get_fd(eventLoop);
   if (eventLoopFd < 0)
     return 2;
+  // Desktop services use GIO (file monitors, D-Bus and async I/O). Drive the
+  // default GLib context from the same poll so those sources run on the
+  // compositor thread without a second event loop or toolkit dispatcher.
+  GMainContext *context = g_main_context_default();
+  const bool ownsContext = g_main_context_acquire(context);
+  std::vector<GPollFD> glibDescriptors(16);
+  std::vector<pollfd> descriptors;
   while (eventLoopRunning) {
     const auto started = std::chrono::steady_clock::now();
     if (wl_event_loop_dispatch(eventLoop, 0) < 0) {
-      qCritical("LunaDash wlroots event dispatch failed.");
+      logCritical("LunaDash wlroots event dispatch failed.");
       q->processFailure_ = true;
       exitCode = 2;
       break;
@@ -283,23 +294,53 @@ int WaylandCompositor::Impl::runEventLoop(bool profile) {
     if (lastDispatchUsec >= 8000)
       ++slowDispatches;
     if (profile && lastDispatchUsec > 25000)
-      qWarning() << "LunaDash event-loop dispatch:"
-                 << static_cast<double>(lastDispatchUsec) / 1000.0 << "ms";
+      logWarning("LunaDash event-loop dispatch: %.3f ms",
+                 static_cast<double>(lastDispatchUsec) / 1000.0);
     if (!eventLoopRunning)
       break;
-    pollfd descriptor{eventLoopFd, POLLIN, 0};
+
+    gint maxPriority = 0;
+    gint timeout = -1;
+    gint glibCount = 0;
+    if (ownsContext) {
+      g_main_context_prepare(context, &maxPriority);
+      while ((glibCount = g_main_context_query(
+                  context, maxPriority, &timeout, glibDescriptors.data(),
+                  static_cast<gint>(glibDescriptors.size()))) >
+             static_cast<gint>(glibDescriptors.size()))
+        glibDescriptors.resize(static_cast<std::size_t>(glibCount));
+    }
+    descriptors.clear();
+    descriptors.push_back({eventLoopFd, POLLIN, 0});
+    for (gint index = 0; index < glibCount; ++index)
+      descriptors.push_back({glibDescriptors[static_cast<std::size_t>(index)].fd,
+                             static_cast<short>(
+                                 glibDescriptors[static_cast<std::size_t>(index)]
+                                     .events),
+                             0});
     int result;
     do {
-      result = ::poll(&descriptor, 1, -1);
+      result = ::poll(descriptors.data(), descriptors.size(), timeout);
     } while (result < 0 && errno == EINTR);
     if (result < 0 ||
-        (descriptor.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
-      qCritical("LunaDash could not poll the wlroots event loop.");
+        (descriptors.front().revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+      logCritical("LunaDash could not poll the wlroots event loop.");
       q->processFailure_ = true;
       exitCode = 2;
       break;
     }
+    if (ownsContext) {
+      for (gint index = 0; index < glibCount; ++index)
+        glibDescriptors[static_cast<std::size_t>(index)].revents =
+            static_cast<gushort>(
+                descriptors[static_cast<std::size_t>(index) + 1].revents);
+      if (g_main_context_check(context, maxPriority, glibDescriptors.data(),
+                               glibCount))
+        g_main_context_dispatch(context);
+    }
   }
+  if (ownsContext)
+    g_main_context_release(context);
   return exitCode;
 }
 
@@ -308,20 +349,20 @@ void WaylandCompositor::Impl::terminateEventLoop(int status) {
   eventLoopRunning = false;
 }
 
-bool WaylandCompositor::Impl::scheduleScratchpadTimeout(quint64 generation) {
+bool WaylandCompositor::Impl::scheduleScratchpadTimeout(std::uint64_t generation) {
   cancelScratchpadTimeout();
   if (!eventLoop)
     return false;
   scratchpadTimeout =
       wl_event_loop_add_timer(eventLoop, handleScratchpadTimeout, this);
   if (!scratchpadTimeout) {
-    qCritical("Could not create the scratchpad launch timer.");
+    logCritical("Could not create the scratchpad launch timer.");
     return false;
   }
   scratchpadTimeoutGeneration = generation;
   if (wl_event_source_timer_update(scratchpadTimeout, 15000) < 0) {
     cancelScratchpadTimeout();
-    qCritical("Could not schedule the scratchpad launch timer.");
+    logCritical("Could not schedule the scratchpad launch timer.");
     return false;
   }
   return true;
@@ -363,8 +404,9 @@ bool WaylandCompositor::Impl::scheduleCallback(
   entry->source =
       wl_event_loop_add_timer(eventLoop, handleScheduledCallback, entry);
   if (!entry->source ||
+      // A zero delay disarms a wl_event_loop timer; dispatch "now" as 1 ms.
       wl_event_source_timer_update(entry->source,
-                                  std::max(0, delayMilliseconds)) < 0) {
+                                   std::max(1, delayMilliseconds)) < 0) {
     if (entry->source)
       wl_event_source_remove(entry->source);
     const auto found = std::find_if(
@@ -372,7 +414,7 @@ bool WaylandCompositor::Impl::scheduleCallback(
         [entry](const auto &pending) { return pending.get() == entry; });
     if (found != scheduledCallbacks.end())
       scheduledCallbacks.erase(found);
-    qCritical("Could not schedule a compositor event-loop callback.");
+    logCritical("Could not schedule a compositor event-loop callback.");
     return false;
   }
   return true;

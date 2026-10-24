@@ -1,11 +1,10 @@
 #include "compositor/window/WindowSwitcher.hpp"
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
-#include <QJsonDocument>
-#include <QSaveFile>
-#include <QUrl>
+#include "core/filesystem/FileIo.hpp"
+#include "core/text/Url.hpp"
+
 #include <algorithm>
+#include <filesystem>
+#include <unistd.h>
 
 namespace LunaDash {
 WindowSwitcher::WindowSwitcher(wl_event_loop *eventLoop) {
@@ -20,22 +19,25 @@ WindowSwitcher::~WindowSwitcher() {
     wl_event_source_remove(feedbackTimer_);
   if (captureRunner_)
     captureRunner_->cancel();
-  if (!channelPath_.isEmpty())
-    QFile::remove(channelPath_);
+  if (!channelPath_.empty())
+    ::unlink(channelPath_.c_str());
 }
-void WindowSwitcher::setChannelPath(const QString &path) {
+void WindowSwitcher::setChannelPath(const std::string &path) {
   channelPath_ = path;
   writeSnapshot();
 }
-QJsonArray WindowSwitcher::windowsForWorkspace(const QJsonArray &clients,
+Json WindowSwitcher::windowsForWorkspace(const Json &clients,
                                                int workspace) {
-  QJsonArray windows;
-  for (const auto &value : clients) {
-    const auto client = value.toObject();
-    if (client.value("mapped").toBool() && !client.value("utility").toBool() &&
-        !client.value("desktop").toBool() &&
-        client.value("workspace").toInt(-1) == workspace)
-      windows.append(client);
+  Json windows = Json::array();
+  if (!clients.is_array())
+    return windows;
+  for (const auto &client : clients) {
+    if (!client.is_object())
+      continue;
+    if (jsonBool(client, "mapped") && !jsonBool(client, "utility") &&
+        !jsonBool(client, "desktop") &&
+        jsonInt(client, "workspace", -1) == workspace)
+      windows.push_back(client);
   }
   return windows;
 }
@@ -53,7 +55,7 @@ void WindowSwitcher::dismissPopups() {
   dismissSerial_ = dismissSerial_ >= 999999 ? 1 : dismissSerial_ + 1;
   publish();
 }
-bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
+bool WindowSwitcher::begin(const Json &windows, int focused,
                            int direction,
                            const ProcessEnvironment &environment,
                            Scope scope) {
@@ -63,14 +65,14 @@ bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
     step(direction);
     return true;
   }
-  if (windows.isEmpty())
+  if (!windows.is_array() || windows.empty())
     return false;
   scope_ = scope;
   workspaces_ = windows;
   index_ = 0;
-  for (int i = 0; i < workspaces_.size(); ++i)
-    if (workspaces_[i].toObject().value("id").toInt() == focused)
-      index_ = i;
+  for (std::size_t i = 0; i < workspaces_.size(); ++i)
+    if (jsonInt(workspaces_[i], "id") == focused)
+      index_ = static_cast<int>(i);
   active_ = true;
   ready_ = false;
   background_.clear();
@@ -80,7 +82,7 @@ bool WindowSwitcher::begin(const QJsonArray &windows, int focused,
   return true;
 }
 void WindowSwitcher::step(int direction) {
-  if (!active_ || workspaces_.isEmpty())
+  if (!active_ || workspaces_.empty())
     return;
   const int count = static_cast<int>(workspaces_.size());
   index_ = ((index_ + direction) % count + count) % count;
@@ -89,10 +91,10 @@ void WindowSwitcher::step(int direction) {
 bool WindowSwitcher::select(int window) {
   if (!active_)
     return false;
-  for (int i = 0; i < workspaces_.size(); ++i) {
-    if (workspaces_[i].toObject().value("id").toInt() != window)
+  for (std::size_t i = 0; i < workspaces_.size(); ++i) {
+    if (jsonInt(workspaces_[i], "id") != window)
       continue;
-    index_ = i;
+    index_ = static_cast<int>(i);
     publish();
     return true;
   }
@@ -101,8 +103,8 @@ bool WindowSwitcher::select(int window) {
 int WindowSwitcher::finish(bool accept) {
   if (!active_)
     return 0;
-  const int selected = accept && !workspaces_.isEmpty()
-                           ? workspaces_[index_].toObject().value("id").toInt()
+  const int selected = accept && !workspaces_.empty()
+                           ? jsonInt(workspaces_[static_cast<std::size_t>(index_)], "id")
                            : 0;
   active_ = ready_ = false;
   if (captureRunner_)
@@ -113,67 +115,59 @@ int WindowSwitcher::finish(bool accept) {
 void WindowSwitcher::remove(int window) {
   if (scope_ == Scope::Windows) {
     for (int i = static_cast<int>(workspaces_.size()); i-- > 0;) {
-      if (workspaces_[i].toObject().value("id").toInt() != window)
+      if (jsonInt(workspaces_[static_cast<std::size_t>(i)], "id") != window)
         continue;
-      workspaces_.removeAt(i);
+      workspaces_.erase(static_cast<std::size_t>(i));
       if (i < index_)
         --index_;
     }
-    if (workspaces_.isEmpty())
+    if (workspaces_.empty())
       finish(false);
     else
       index_ = std::min(index_, static_cast<int>(workspaces_.size()) - 1);
     publish();
     return;
   }
-  for (int w = 0; w < workspaces_.size(); ++w) {
-    auto workspace = workspaces_[w].toObject();
-    auto members = workspace.value("windows").toArray();
-    for (int i = static_cast<int>(members.size()); i-- > 0;)
-      if (members[i].toObject().value("id").toInt() == window)
-        members.removeAt(i);
+  for (std::size_t w = 0; w < workspaces_.size(); ++w) {
+    auto workspace = jsonAsObject(workspaces_[w]);
+    auto members = jsonArray(workspace, "windows");
+    for (std::size_t i = members.size(); i-- > 0;)
+      if (jsonInt(members[i], "id") == window)
+        members.erase(i);
     workspace["windows"] = members;
     workspaces_[w] = workspace;
   }
   publish();
 }
 int WindowSwitcher::serial() const { return serial_; }
-QString WindowSwitcher::thumbnailPath(int window) const {
-  return captureDirectory_.filePath(
-      QString("%1-window-%2.png").arg(serial_).arg(window));
+std::string WindowSwitcher::thumbnailPath(int window) const {
+  return captureDirectory_.filePath(std::to_string(serial_) + "-window-" +
+                                    std::to_string(window) + ".png");
 }
-void WindowSwitcher::setThumbnail(int serial, int window, const QString &path) {
+void WindowSwitcher::setThumbnail(int serial, int window, const std::string &path) {
   if (!active_ || serial != serial_) {
-    QFile::remove(path);
+    ::unlink(path.c_str());
     return;
   }
   if (scope_ == Scope::Windows) {
-    for (int i = 0; i < workspaces_.size(); ++i) {
-      auto entry = workspaces_[i].toObject();
-      if (entry.value("id").toInt() == window) {
-        entry["thumbnail"] = QUrl::fromLocalFile(path).toString();
-        workspaces_[i] = entry;
-      }
-    }
+    for (auto &entry : workspaces_)
+      if (entry.is_object() && jsonInt(entry, "id") == window)
+        entry["thumbnail"] = fileUrl(path);
     publish();
     return;
   }
-  for (int w = 0; w < workspaces_.size(); ++w) {
-    auto workspace = workspaces_[w].toObject();
-    auto members = workspace.value("windows").toArray();
-    for (int i = 0; i < members.size(); ++i) {
-      auto member = members[i].toObject();
-      if (member.value("id").toInt() != window)
-        continue;
-      member["thumbnail"] = QUrl::fromLocalFile(path).toString();
-      members[i] = member;
-    }
+  for (auto &workspace : workspaces_) {
+    if (!workspace.is_object())
+      continue;
+    auto members = jsonArray(workspace, "windows");
+    for (auto &member : members)
+      if (member.is_object() && jsonInt(member, "id") == window)
+        member["thumbnail"] = fileUrl(path);
     workspace["windows"] = members;
-    workspaces_[w] = workspace;
   }
   publish();
 }
-void WindowSwitcher::setLayout(const QJsonArray &clients, int workspace,
+void WindowSwitcher::setLayout(const Json &clients, int workspace,
                                bool dragging) {
   clients_ = clients;
   workspace_ = workspace;
@@ -187,18 +181,18 @@ void WindowSwitcher::setLauncherState(int serial, bool open) {
   launcherOpen_ = open;
   publish();
 }
-void WindowSwitcher::setDrag(const QJsonObject &drag) {
+void WindowSwitcher::setDrag(const Json &drag) {
   drag_ = drag;
   publish();
 }
-QJsonObject WindowSwitcher::snapshot() const {
+Json WindowSwitcher::snapshot() const {
   return {{"active", active_},
           {"ready", ready_},
           {"index", index_},
           {"serial", serial_},
           {"scope", scope_ == Scope::Windows ? "windows" : "workspaces"},
-          {"windows", scope_ == Scope::Windows ? workspaces_ : QJsonArray{}},
-          {"workspaces", scope_ == Scope::Workspaces ? workspaces_ : QJsonArray{}},
+          {"windows", scope_ == Scope::Windows ? workspaces_ : Json::array()},
+          {"workspaces", scope_ == Scope::Workspaces ? workspaces_ : Json::array()},
           {"dismissSerial", dismissSerial_},
           {"background", background_},
           {"drag", drag_},
@@ -222,16 +216,14 @@ void WindowSwitcher::publish() {
   }
 }
 void WindowSwitcher::writeSnapshot() {
-  if (channelPath_.isEmpty())
+  if (channelPath_.empty())
     return;
-  const auto data = QJsonDocument(snapshot()).toJson(QJsonDocument::Compact);
+  const auto data = jsonCompact(snapshot());
   if (data == lastPublished_)
     return;
-  QSaveFile file(channelPath_);
-  if (!file.open(QIODevice::WriteOnly))
-    return;
-  file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-  if (file.write(data) == data.size() && file.commit())
+  if (writeFileAtomically(channelPath_, data, nullptr,
+                          std::filesystem::perms::owner_read |
+                              std::filesystem::perms::owner_write))
     lastPublished_ = data;
 }
 void WindowSwitcher::captureBackground(
@@ -242,20 +234,22 @@ void WindowSwitcher::captureBackground(
     return;
   }
   // Keep one private snapshot. Closing a session never waits for a capture.
-  const QString path =
-      captureDirectory_.filePath(QString::number(serial_) + ".png");
-  for (const auto &file :
-       captureDirectory_.isValid()
-           ? QDir(captureDirectory_.path()).entryList({"*.png"}, QDir::Files)
-           : QStringList{})
-    QFile::remove(captureDirectory_.filePath(file));
+  const std::string path =
+      captureDirectory_.filePath(std::to_string(serial_) + ".png");
+  std::error_code error;
+  for (const auto &entry :
+       std::filesystem::directory_iterator(captureDirectory_.path(), error))
+    if (entry.is_regular_file(error) && entry.path().extension() == ".png")
+      std::filesystem::remove(entry.path(), error);
   const bool started = captureRunner_->run(
-      "grim", {"-s", "0.5", path.toStdString()},
+      "grim", {"-s", "0.5", path},
       [this, path](bool success, const std::string &) {
         if (!active_)
           return;
-        if (success && QFileInfo(path).size() > 0)
-          background_ = QUrl::fromLocalFile(path).toString();
+        std::error_code sizeError;
+        if (success && std::filesystem::file_size(path, sizeError) > 0 &&
+            !sizeError)
+          background_ = fileUrl(path);
         ready_ = true;
         publish();
       },

@@ -9,7 +9,7 @@
 
 namespace LunaDash {
 namespace {
-bool belongsToProcess(qint64 candidate, qint64 launched) {
+bool belongsToProcess(std::int64_t candidate, std::int64_t launched) {
   if (launched <= 0)
     return false;
   for (int depth = 0; candidate > 1 && depth < 16; ++depth) {
@@ -24,7 +24,7 @@ bool belongsToProcess(qint64 candidate, qint64 launched) {
       return false;
     std::istringstream fields(stat.substr(end + 2));
     char state = '\0';
-    qint64 parent = 0;
+    std::int64_t parent = 0;
     if (!(fields >> state >> parent))
       return false;
     if (parent == candidate)
@@ -35,7 +35,7 @@ bool belongsToProcess(qint64 candidate, qint64 launched) {
 }
 } // namespace
 
-bool WaylandCompositor::toggleScratchpad(QString *error) {
+bool WaylandCompositor::toggleScratchpad(std::string *error) {
   for (const auto &client : clients_) {
     if (client->id != scratchpadWindow_)
       continue;
@@ -59,17 +59,17 @@ bool WaylandCompositor::toggleScratchpad(QString *error) {
   std::string nativeError;
   auto command = defaultApplicationCommand("terminal", &nativeError);
   if (error)
-    *error = QString::fromStdString(nativeError);
+    *error = (nativeError);
   if (command.empty())
     return false;
   scratchpadPending_ = true;
   const auto generation = ++scratchpadGeneration_;
   scratchpadError_.clear();
-  const auto executable = QString::fromStdString(command.front());
-  QStringList arguments;
+  const auto executable = (command.front());
+  std::vector<std::string> arguments;
   for (auto argument = std::next(command.begin()); argument != command.end();
        ++argument)
-    arguments.push_back(QString::fromStdString(*argument));
+    arguments.push_back((*argument));
   auto *process = spawn(arguments, executable, false,
                         [this, generation](const ProcessResult &result) {
                           if (result.success || !scratchpadPending_ ||
@@ -109,6 +109,6 @@ void WaylandCompositor::adoptScratchpad(ClientWindow *client) {
   scratchpadProcess_ = 0;
   client->floating = true;
   client->workspace = workspace_;
-  client->preferredFloatingSize = QSize(960, 540);
+  client->preferredFloatingSize = Size(960, 540);
 }
 } // namespace LunaDash

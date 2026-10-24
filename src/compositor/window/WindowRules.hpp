@@ -3,13 +3,12 @@
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 
-#include <QString>
 
 namespace LunaDash {
 
 struct ClientWindow;
 
-QString windowIconName(const QString &appId, const QString &title);
+std::string windowIconName(const std::string &appId, const std::string &title);
 bool windowUsesManagedLayout(const ClientWindow &client);
 bool windowAllowsPointerInteraction(const WindowTemplate &windowTemplate,
                                     const ClientWindow &client);

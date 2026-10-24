@@ -29,7 +29,11 @@
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/localization/Localization.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
+#include "core/filesystem/FileIo.hpp"
+#include "core/log/Log.hpp"
 #include "core/settings/SettingsTarget.hpp"
+#include "core/text/Text.hpp"
+#include "core/text/Url.hpp"
 #include "core/templates/WaylandSlot.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/audio/AudioSettings.hpp"
@@ -49,10 +53,6 @@
 #include "shell/launcher/OrbitSettings.hpp"
 #include "shell/modules/ShellModules.hpp"
 
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QUrl>
 #include <glib.h>
 #include <nlohmann/json.hpp>
 
@@ -85,17 +85,17 @@ using Templates::detachListener;
 using Templates::listenerOwner;
 using Templates::WaylandSlot;
 
-std::filesystem::path filePath(const QString &path) {
-  return std::filesystem::path(path.toStdString());
+std::filesystem::path filePath(const std::string &path) {
+  return std::filesystem::path(path);
 }
 
-bool fileExists(const QString &path) {
+bool fileExists(const std::string &path) {
   std::error_code error;
   const bool exists = std::filesystem::exists(filePath(path), error);
   return exists && !error;
 }
 
-bool fileIsExecutable(const QString &path) {
+bool fileIsExecutable(const std::string &path) {
   std::error_code error;
   const auto permissions = std::filesystem::status(filePath(path), error).permissions();
   using Permissions = std::filesystem::perms;
@@ -104,50 +104,42 @@ bool fileIsExecutable(const QString &path) {
                          Permissions::others_exec)) != Permissions::none;
 }
 
-bool createDirectories(const QString &path) {
-  std::error_code error;
-  std::filesystem::create_directories(filePath(path), error);
-  return !error && std::filesystem::is_directory(filePath(path), error) &&
-         !error;
-}
-
-QString executableDirectory() {
+std::string executableDirectory() {
   std::error_code error;
   const auto executable =
       std::filesystem::read_symlink("/proc/self/exe", error);
-  return error ? QString{} : QString::fromStdString(
+  return error ? std::string{} : (
                                   executable.parent_path().string());
 }
 
-QString findExecutable(const QString &name) {
-  const QByteArray encodedName = name.toUtf8();
-  gchar *path = g_find_program_in_path(encodedName.constData());
-  const QString result = path ? QString::fromUtf8(path) : QString{};
+std::string findExecutable(const std::string &name) {
+  gchar *path = g_find_program_in_path(name.c_str());
+  const std::string result = path ? std::string(path) : std::string{};
   g_free(path);
   return result;
 }
 
-QString locateDataFile(const QString &relativePath) {
-  const auto relative = std::filesystem::path(relativePath.toStdString());
-  const auto findIn = [&relative](const char *base) -> QString {
+std::string locateDataFile(const std::string &relativePath) {
+  const auto relative = std::filesystem::path(relativePath);
+  const auto findIn = [&relative](const char *base) -> std::string {
     if (!base)
       return {};
     const auto candidate = std::filesystem::path(base) / relative;
     std::error_code error;
     if (!std::filesystem::is_regular_file(candidate, error) || error)
       return {};
-    return QString::fromStdString(candidate.string());
+    return (candidate.string());
   };
-  if (auto path = findIn(g_get_user_data_dir()); !path.isEmpty())
+  if (auto path = findIn(g_get_user_data_dir()); !path.empty())
     return path;
   for (const char *const *directory = g_get_system_data_dirs(); *directory;
        ++directory)
-    if (auto path = findIn(*directory); !path.isEmpty())
+    if (auto path = findIn(*directory); !path.empty())
       return path;
   return {};
 }
 
-QString localFileUri(const std::filesystem::path &path) {
+std::string localFileUri(const std::filesystem::path &path) {
   GError *error = nullptr;
   gchar *uri = g_filename_to_uri(path.c_str(), nullptr, &error);
   if (!uri) {
@@ -155,26 +147,9 @@ QString localFileUri(const std::filesystem::path &path) {
       g_error_free(error);
     return {};
   }
-  const QString result = QString::fromUtf8(uri);
+  const std::string result(uri);
   g_free(uri);
   return result;
-}
-
-nlohmann::json nativeJsonObject(const QJsonObject &object) {
-  const auto bytes = QJsonDocument(object).toJson(QJsonDocument::Compact);
-  return nlohmann::json::parse(bytes.constData(),
-                               bytes.constData() + bytes.size(), nullptr,
-                               false);
-}
-
-QJsonObject qtJsonObject(const nlohmann::json &object) {
-  const auto bytes = QByteArray::fromStdString(object.dump());
-  return QJsonDocument::fromJson(bytes).object();
-}
-
-QJsonObject synchronizeApplicationThemeAtQtBoundary(
-    const nlohmann::json &preferences, const nlohmann::json &palette) {
-  return qtJsonObject(synchronizeApplicationTheme(preferences, palette));
 }
 
 std::int64_t currentMillisecondsSinceEpoch() {
@@ -198,18 +173,18 @@ std::string currentTimestamp() {
   return result.str();
 }
 
-SceneAnimationRectangle animationRectangle(const QRect &rectangle) {
+SceneAnimationRectangle animationRectangle(const Rect &rectangle) {
   return {rectangle.x(), rectangle.y(), rectangle.width(), rectangle.height()};
 }
 
-SceneAnimationOptions sceneAnimationOptions(const QJsonObject &profile) {
+SceneAnimationOptions sceneAnimationOptions(const Json &profile) {
   SceneAnimationOptions options;
-  options.duration = profile.value("duration").toInt(options.duration);
-  options.enterOffset = profile.value("enterOffset").toInt(options.enterOffset);
+  options.duration = jsonInt(profile, "duration", options.duration);
+  options.enterOffset = jsonInt(profile, "enterOffset", options.enterOffset);
   options.focusOpacity =
-      profile.value("focusOpacity").toDouble(options.focusOpacity);
-  options.exitScale = profile.value("exitScale").toDouble(options.exitScale);
-  const auto curve = profile.value("easing").toString();
+      jsonDouble(profile, "focusOpacity", options.focusOpacity);
+  options.exitScale = jsonDouble(profile, "exitScale", options.exitScale);
+  const auto curve = jsonString(profile, "easing");
   if (curve == "linear")
     options.curve = SceneAnimationCurve::Linear;
   else if (curve == "outQuint")
@@ -219,8 +194,8 @@ SceneAnimationOptions sceneAnimationOptions(const QJsonObject &profile) {
   return options;
 }
 
-bool isUtilityWindow(const QString &appId) {
-  return appId == QLatin1String("io.github.bugaevc.wl-clipboard");
+bool isUtilityWindow(const std::string &appId) {
+  return appId == "io.github.bugaevc.wl-clipboard";
 }
 
 bool clientReady(const ClientWindow *client) {
@@ -258,26 +233,33 @@ void closeClient(ClientWindow *client) {
     wlr_xdg_toplevel_send_close(client->toplevel);
 }
 
-std::optional<int> textWindowId(const QString &text) {
-  bool ok = false;
-  const int id = text.toInt(&ok);
-  if (!ok || id <= 0)
+std::optional<int> parseInteger(std::string_view text) {
+  int value = 0;
+  const auto *begin = text.data();
+  const auto *end = text.data() + text.size();
+  const auto result = std::from_chars(begin, end, value);
+  if (text.empty() || result.ec != std::errc() || result.ptr != end)
+    return std::nullopt;
+  return value;
+}
+
+std::optional<int> textWindowId(const std::string &text) {
+  const auto id = parseInteger(trimmed(text));
+  if (!id || *id <= 0)
     return std::nullopt;
   return id;
 }
 
-bool groupWindowIds(const QString &text, int *window, int *target) {
-  QJsonParseError error;
-  const auto document = QJsonDocument::fromJson(text.toUtf8(), &error);
-  if (error.error != QJsonParseError::NoError || !document.isObject())
+bool groupWindowIds(const std::string &text, int *window, int *target) {
+  const auto object = parseJsonObject(text);
+  if (!object.is_object())
     return false;
-  const auto object = document.object();
-  const auto left = object.value("window");
-  const auto right = object.value("target");
-  if (!left.isDouble() || !right.isDouble())
+  const auto left = jsonValue(object, "window");
+  const auto right = jsonValue(object, "target");
+  if (!left.is_number() || !right.is_number())
     return false;
-  const qint64 a = left.toInteger();
-  const qint64 b = right.toInteger();
+  const std::int64_t a = jsonAsInteger(left);
+  const std::int64_t b = jsonAsInteger(right);
   if (a <= 0 || b <= 0 || a > INT_MAX || b > INT_MAX || a == b)
     return false;
   *window = static_cast<int>(a);
@@ -308,9 +290,9 @@ void applyXWaylandEnvironment(ProcessEnvironment &environment,
 
 } // namespace
 
-WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
+WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
                                      bool startShell,
-                                     const QString &rendererPreference)
+                                     const std::string &rendererPreference)
     : d(std::make_unique<Impl>(this, socket, fullscreen, rendererPreference)) {
   windowTemplate_ = &windowTemplateForKey("tiling");
   windowLayout_ = createWindowLayout(*windowTemplate_);
@@ -319,34 +301,34 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   screenCapture_->setCompletion(
       [this](const std::string &path, const std::string &error) {
         if (!path.empty()) {
-          const QString capturePath = QString::fromStdString(path);
+          const std::string capturePath = (path);
           lastCapture_ = capturePath;
 
-          QString helper = findExecutable("lunadash-clipboard-history");
-          if (helper.isEmpty()) {
-            const QString source = QStringLiteral(LUDASH_SCRIPT_SOURCE_DIR) +
-                                   "/lunadash-clipboard-history";
+          std::string helper = findExecutable("lunadash-clipboard-history");
+          if (helper.empty()) {
+            const std::string source = std::string(LUDASH_SCRIPT_SOURCE_DIR) +
+                                       "/lunadash-clipboard-history";
             if (fileIsExecutable(source))
               helper = source;
           }
 
-          if (helper.isEmpty()) {
-            qWarning("Screenshot saved, but clipboard helper is unavailable.");
+          if (helper.empty()) {
+            logWarning("Screenshot saved, but clipboard helper is unavailable.");
           } else {
             spawn({"publish-file", "image/png", capturePath}, helper, false,
                   [](const ProcessResult &result) {
                     if (!result.success)
-                      qWarning("Screenshot saved, but publishing it to the "
+                      logWarning("Screenshot saved, but publishing it to the "
                                "clipboard failed.");
                   });
           }
         }
-        captureError_ = QString::fromStdString(error);
+        captureError_ = (error);
         if (screenshotCompletion_) {
           auto completion = std::move(screenshotCompletion_);
           screenshotCompletion_ = {};
           const bool saved =
-                      error.empty() && QString::fromStdString(path) ==
+                      error.empty() && (path) ==
                                            screenshotDestination_ &&
                       fileExists(screenshotDestination_);
           screenshotDestination_.clear();
@@ -392,47 +374,40 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
 
   pluginManager_->setChangedCallback([this] {
     if (!d->scheduleCallback(0, [this] { arrange(); }))
-      qWarning("Could not schedule a plugin change relayout.");
+      logWarning("Could not schedule a plugin change relayout.");
   });
   windowAnimations_ = std::make_unique<SceneWindowAnimationTemplate>();
   const auto initialAppearance = desktopPreferences();
   windowAnimations_->configure(sceneAnimationOptions(windowAnimationProfile(
-      *pluginManager_, qtJsonObject(initialAppearance), *windowTemplate_)));
+      *pluginManager_, initialAppearance, *windowTemplate_)));
 
-  controlPath_ = qEnvironmentVariable("LUNADASH_CONTROL");
-  if (controlPath_.isEmpty())
-    controlPath_ = qEnvironmentVariable("LUDASH_CONTROL");
-  if (controlPath_.isEmpty())
+  controlPath_ = environmentValue("LUNADASH_CONTROL");
+  if (controlPath_.empty())
+    controlPath_ = environmentValue("LUDASH_CONTROL");
+  if (controlPath_.empty())
     controlPath_ =
-        QString::fromUtf8(g_get_user_runtime_dir()) + "/" +
-        QString::fromUtf8(socket) + "-control";
+        std::string(g_get_user_runtime_dir()) + "/" + socket + "-control";
   windowSwitcher_->setChannelPath(controlPath_ + "-interaction.json");
   controlServer_ = std::make_unique<ControlServer>(
-      d->eventLoop, controlPath_.toStdString(),
+      d->eventLoop, controlPath_,
       [this](std::string_view request) {
-        const QByteArray bytes(request.data(),
-                               static_cast<qsizetype>(request.size()));
-        QJsonParseError parseError;
-        const auto document = QJsonDocument::fromJson(bytes, &parseError);
-        const auto response =
-            parseError.error == QJsonParseError::NoError && document.isObject()
-                ? control(document.object())
-                : QJsonObject{{"error", "Invalid request"}};
-        return QJsonDocument(response)
-            .toJson(QJsonDocument::Compact)
-            .toStdString();
+        const auto document = parseJsonObject(request);
+        const auto response = document.is_object()
+                                  ? control(document)
+                                  : Json{{"error", "Invalid request"}};
+        return jsonCompact(response);
       });
 
   ensureLegacyDesktopSettingsImported();
   const auto clientEnvironment = createClientEnvironment(
-      socket.toStdString(), controlPath_.toStdString(),
-      executableDirectory().toStdString(),
+      socket, controlPath_,
+      executableDirectory(),
       loadDesktopPreferences());
   clientEnvironment_ = clientEnvironment;
   publishClientEnvironment(clientEnvironment);
 
   xwayland_ = new XWaylandSupport;
-  if (qEnvironmentVariableIntValue("LUDASH_DISABLE_XWAYLAND") != 1) {
+  if (environmentInt("LUDASH_DISABLE_XWAYLAND") != 1) {
     auto environment = clientEnvironment_;
     environment["XCURSOR_SIZE"] =
         std::to_string(desktopPreferences().value("cursorSize", 24));
@@ -442,7 +417,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
                             if (d)
                               d->addXWaylandSurface(surface);
                           }))
-      qWarning(
+      logWarning(
           "XWayland/XWM could not be prepared; X11 clients are unavailable.");
   }
 
@@ -452,14 +427,14 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     if (!startShell || shuttingDown_ || testStopping_)
       return;
 
-    if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
-      const QString agent = findExecutable("lunadash-polkit-agent");
-      if (!agent.isEmpty())
+    if (environmentInt("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
+      const std::string agent = findExecutable("lunadash-polkit-agent");
+      if (!agent.empty())
         spawn({}, agent, false);
 
-      if (qEnvironmentVariableIntValue("LUNADASH_DISABLE_FCITX") != 1) {
-        const QString fcitx = findExecutable("fcitx5");
-        if (!fcitx.isEmpty())
+      if (environmentInt("LUNADASH_DISABLE_FCITX") != 1) {
+        const std::string fcitx = findExecutable("fcitx5");
+        if (!fcitx.empty())
           spawn({"--replace"}, fcitx, false);
       }
     }
@@ -472,7 +447,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
           return;
         for (const auto &app : desktopPreferences().value("startupApps", nlohmann::json::array()))
           if (app.is_string())
-            spawn({"--app", QString::fromStdString(app.get<std::string>())});
+            spawn({"--app", (app.get<std::string>())});
       });
     }
   };
@@ -482,9 +457,9 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
   // and the portal frontend has been refreshed with that environment.
   publishSessionActivationEnvironment(startSessionClients);
 
-  qInfo().noquote() << "LunaDash compositor backend: wlroots"
-                    << "socket:" << socket << "input: libinput/xkbcommon"
-                    << "QtWayland compositor: disabled";
+  logInfo("LunaDash compositor backend: wlroots socket: %s input: "
+          "libinput/xkbcommon",
+          socket.c_str());
 }
 
 WaylandCompositor::~WaylandCompositor() {
@@ -539,8 +514,7 @@ void WaylandCompositor::scheduleShellRestart() {
   const int delayMs = std::min(4000, 250 * (1 << exponent));
   ++shellRestartFailures_;
   shellRestartScheduled_ = true;
-  qWarning().noquote() << "LunaDash shell restart scheduled in" << delayMs
-                       << "ms";
+  logWarning("LunaDash shell restart scheduled in %d ms", delayMs);
 
   d->scheduleCallback(delayMs, [this] {
     shellRestartScheduled_ = false;
@@ -551,52 +525,52 @@ void WaylandCompositor::scheduleShellRestart() {
 }
 
 ProcessRunner *WaylandCompositor::spawn(
-    const QStringList &arguments, const QString &program, bool required,
+    const std::vector<std::string> &arguments, const std::string &program, bool required,
     std::function<void(const ProcessResult &)> completion) {
   auto environment = clientEnvironment_;
   applyXWaylandEnvironment(environment, xwayland_);
 
   const bool sessionShell =
-      program.isEmpty() &&
+      program.empty() &&
       std::find(arguments.cbegin(), arguments.cend(), "--session") !=
           arguments.cend();
   std::vector<std::string> nativeArguments;
-  QString executable = program;
+  std::string executable = program;
   if (sessionShell) {
 
-    const QString sourceConfig =
-        QStringLiteral(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
+    const std::string sourceConfig =
+        std::string(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
     // Use assets next to the installed executable before any build checkout.
     // This also supports a staged/relocated installation in CI.
     const auto configPath =
         (filePath(executableDirectory()) /
          "../share/lunadash/shell/shell.qml")
             .lexically_normal();
-    QString config = QString::fromStdString(configPath.string());
+    std::string config = (configPath.string());
     if (!fileExists(config))
       config = fileExists(sourceConfig)
                    ? sourceConfig
                    : locateDataFile("lunadash/shell/shell.qml");
-    if (config.isEmpty())
+    if (config.empty())
       config = locateDataFile("ludash/shell/shell.qml");
-    if (config.isEmpty()) {
+    if (config.empty()) {
       if (required)
         processFailure_ = true;
-      qWarning("LunaDash shell.qml was not found in any search location.");
+      logWarning("LunaDash shell.qml was not found in any search location.");
       return nullptr;
     }
-    const QString quickshell = findExecutable("quickshell");
-    if (quickshell.isEmpty()) {
+    const std::string quickshell = findExecutable("quickshell");
+    if (quickshell.empty()) {
       if (required)
         processFailure_ = true;
-      qWarning("Quickshell is unavailable.");
+      logWarning("Quickshell is unavailable.");
       return nullptr;
     }
     const auto wallpaperPath = wallpaperImagePath();
     environment["LUNADASH_WALLPAPER"] =
         wallpaperPath.empty()
             ? std::string{}
-            : localFileUri(wallpaperPath).toStdString();
+            : localFileUri(wallpaperPath);
     // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
     // only for the LunaDash shell on NVIDIA hosts and only when the user did
     // not choose a backend explicitly. Unsupported systems still use Qt's
@@ -612,7 +586,7 @@ ProcessRunner *WaylandCompositor::spawn(
     // would prevent even the startup splash from reaching its first frame.
     environment["QT_QPA_PLATFORMTHEME"] = "generic";
     environment.erase("GTK_USE_PORTAL");
-    qInfo().noquote() << "LunaDash shell config:" << config;
+    logInfo("LunaDash shell config: %s", config.c_str());
     ShellRenderingEnvironment shellRenderingEnvironment;
     for (const auto *key :
          {"LUDASH_SHELL_RENDERER", "QT_QUICK_BACKEND", "QSG_RHI_BACKEND"}) {
@@ -622,7 +596,7 @@ ProcessRunner *WaylandCompositor::spawn(
     }
     if (!configureShellRendering(shellRenderingEnvironment,
                                  fileExists("/sys/module/nvidia"))) {
-      qWarning(
+      logWarning(
           "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
       processFailure_ = true;
       return nullptr;
@@ -636,9 +610,9 @@ ProcessRunner *WaylandCompositor::spawn(
         environment[key] = value->second;
     }
     executable = quickshell;
-    nativeArguments = {"--path", config.toStdString(), "--no-color"};
+    nativeArguments = {"--path", config, "--no-color"};
   } else {
-    if (executable.isEmpty()) {
+    if (executable.empty()) {
       if (arguments.size() >= 2 && arguments[0] == "--app" &&
           arguments[1] == "welcome") {
         executable = executableDirectory() + "/lunadash-welcome";
@@ -653,10 +627,10 @@ ProcessRunner *WaylandCompositor::spawn(
     if (!(arguments.size() >= 2 && arguments[0] == "--app" &&
           arguments[1] == "welcome"))
       for (const auto &argument : arguments)
-        nativeArguments.push_back(argument.toStdString());
+        nativeArguments.push_back(argument);
   }
 
-  if (executable.isEmpty()) {
+  if (executable.empty()) {
     if (required)
       processFailure_ = true;
     return nullptr;
@@ -667,19 +641,19 @@ ProcessRunner *WaylandCompositor::spawn(
   processes_.push_back(process);
   const std::weak_ptr<ProcessRunner> weakProcess = process;
   const bool started = process->runDetailed(
-      executable.toStdString(), nativeArguments,
+      executable, nativeArguments,
       [this, raw, weakProcess, required, sessionShell,
        completion = std::move(completion)](const ProcessResult &result) {
         if (!shuttingDown_ && !result.success) {
           if (required)
             processFailure_ = true;
-          qWarning("LunaDash child process exited unsuccessfully.");
+          logWarning("LunaDash child process exited unsuccessfully.");
         }
         if (completion)
           completion(result);
         if (sessionShell && !shuttingDown_ && !testStopping_ &&
             !logoutPending_) {
-          qWarning("LunaDash shell exited; scheduling restart.");
+          logWarning("LunaDash shell exited; scheduling restart.");
           scheduleShellRestart();
         }
         const auto weakOwner = weakProcess;
@@ -709,9 +683,9 @@ ProcessRunner *WaylandCompositor::spawn(
   return raw;
 }
 
-bool WaylandCompositor::launchExternalCommand(QStringList command,
-                                              QString *error, bool x11Helper) {
-  if (command.isEmpty() || command.first().isEmpty()) {
+bool WaylandCompositor::launchExternalCommand(std::vector<std::string> command,
+                                              std::string *error, bool x11Helper) {
+  if (command.empty() || command.front().empty()) {
     *error = "Expected an application command.";
     return false;
   }
@@ -733,44 +707,45 @@ bool WaylandCompositor::launchExternalCommand(QStringList command,
             "This application's helper requires XWayland. Install and enable "
             "it, then restart LunaDash.";
       if (error)
-        *error = QString::fromStdString(xwaylandError);
+        *error = (xwaylandError);
       return false;
     }
   }
 
-  const QString executable = command.takeFirst();
+  const std::string executable = command.front();
+  command.erase(command.begin());
   spawn(command, executable, false);
   return true;
 }
 
 bool WaylandCompositor::saveScreenshot(
-    const QString &path, const std::function<void(bool)> &finished) {
+    const std::string &path, const std::function<void(bool)> &finished) {
   if (!d || !d->primaryOutput || !filePath(path).is_absolute() ||
       fileExists(path) || screenCapture_->busy())
     return false;
 
   captureError_.clear();
-  screenshotDestination_ = finished ? path : QString{};
+  screenshotDestination_ = finished ? path : std::string{};
   screenshotCompletion_ = finished;
 
   wlr_output_schedule_frame(d->primaryOutput);
   std::string error;
-  if (!screenCapture_->captureOutput(clientEnvironment_, path.toStdString(),
+  if (!screenCapture_->captureOutput(clientEnvironment_, path,
                                      &error)) {
     screenshotDestination_.clear();
     screenshotCompletion_ = {};
-    captureError_ = QString::fromStdString(error);
+    captureError_ = (error);
     return false;
   }
   return true;
 }
 
-void WaylandCompositor::saveState(const QString &path) {
+void WaylandCompositor::saveState(const std::string &path) {
   std::ofstream file(filePath(path), std::ios::binary | std::ios::trunc);
   if (!file)
     return;
-  const auto bytes = QJsonDocument(state()).toJson(QJsonDocument::Indented);
-  file.write(bytes.constData(), bytes.size());
+  const auto bytes = jsonIndented(state());
+  file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
 }
 
 bool WaylandCompositor::hasProcessFailure() const { return processFailure_; }
@@ -789,9 +764,9 @@ bool WaylandCompositor::scheduleEventLoopCallback(
   return d && d->scheduleCallback(delayMilliseconds, std::move(callback));
 }
 
-QJsonObject WaylandCompositor::currentWindowLayoutSettings() const {
+Json WaylandCompositor::currentWindowLayoutSettings() const {
   if (!windowTemplate_)
-    return {};
+    return Json::object();
 
   auto values = windowTemplate_->layoutSettingsDefaults;
 
@@ -799,21 +774,21 @@ QJsonObject WaylandCompositor::currentWindowLayoutSettings() const {
   if (windowTemplate_->key == "tiling") {
     const auto preferences = desktopPreferences();
     if (preferences.contains("gap"))
-      values["gap"] = preferences.at("gap").get<int>();
+      values["gap"] = jsonInt(preferences, "gap");
     const int legacyGap =
-        configuredBuiltinSettings("window-layout").value("gap").toInt(-1);
+        jsonInt(configuredBuiltinSettings("window-layout"), "gap", -1);
     if (legacyGap >= 0)
       values["gap"] = legacyGap;
   }
 
   std::string storageError;
   const auto stored = LunaDash::loadWindowLayoutSettings(
-      windowTemplate_->key.toStdString(),
-      nativeJsonObject(windowTemplate_->layoutSettingsSchema), &storageError);
+      windowTemplate_->key,
+      windowTemplate_->layoutSettingsSchema, &storageError);
   if (!storageError.empty())
-    qWarning("Could not load window layout settings: %s",
+    logWarning("Could not load window layout settings: %s",
              storageError.c_str());
-  const auto storedValues = qtJsonObject(stored);
+  const auto storedValues = jsonAsObject(stored);
   for (auto it = storedValues.begin(); it != storedValues.end(); ++it)
     values[it.key()] = it.value();
 
@@ -822,8 +797,8 @@ QJsonObject WaylandCompositor::currentWindowLayoutSettings() const {
   return values;
 }
 
-bool WaylandCompositor::updateWindowLayoutSettings(const QJsonObject &changes,
-                                                   QString *error) {
+bool WaylandCompositor::updateWindowLayoutSettings(const Json &changes,
+                                                   std::string *error) {
   if (!windowTemplate_) {
     if (error)
       *error = "No window layout template is active.";
@@ -840,21 +815,21 @@ bool WaylandCompositor::updateWindowLayoutSettings(const QJsonObject &changes,
 
   std::string storageError;
   if (!LunaDash::saveWindowLayoutSettings(
-          windowTemplate_->key.toStdString(), nativeJsonObject(values),
+          windowTemplate_->key, values,
           &storageError)) {
     if (error)
-      *error = QString::fromStdString(storageError);
+      *error = (storageError);
     return false;
   }
   return true;
 }
 
-QRect WaylandCompositor::workArea() const {
-  QRect area = d ? d->usableArea : QRect(0, 0, 1440, 900);
+Rect WaylandCompositor::workArea() const {
+  Rect area = d ? d->usableArea : Rect(0, 0, 1440, 900);
   const auto settings = currentWindowLayoutSettings();
-  const int gap = settings.contains("gap")
-                      ? settings.value("gap").toInt()
-                      : desktopPreferences().value("gap", 12);
+  const int gap = jsonContains(settings, "gap")
+                      ? jsonInt(settings, "gap")
+                      : jsonInt(desktopPreferences(), "gap", 12);
   area.adjust(gap, gap, -gap, -gap);
   if (area.width() < 1)
     area.setWidth(1);
@@ -894,12 +869,12 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
   }
   adoptScratchpad(client);
   client->iconName = client->utility
-                         ? QString()
+                         ? std::string()
                          : windowIconName(client->appId, client->title);
 }
 
 void WaylandCompositor::configure(ClientWindow *client,
-                                  const QRect &rectangle) {
+                                  const Rect &rectangle) {
   if (!clientReady(client) || !client->sceneTree)
     return;
   if (windowAnimations_)
@@ -912,7 +887,7 @@ void WaylandCompositor::configure(ClientWindow *client,
     wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
                                 rectangle.y());
   client->geometry = rectangle;
-  const QSize size(std::max(1, rectangle.width()),
+  const Size size(std::max(1, rectangle.width()),
                    std::max(1, rectangle.height()));
 
 #if LUDASH_WLR_HAS_XWAYLAND
@@ -990,12 +965,12 @@ void WaylandCompositor::arrange() {
   }
   if (windowAnimations_)
     windowAnimations_->configure(sceneAnimationOptions(windowAnimationProfile(
-        *pluginManager_, qtJsonObject(preferences), *windowTemplate_)));
+        *pluginManager_, preferences, *windowTemplate_)));
   const int count = preferences.value("workspaceCount", 10);
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
-  const QRect area = workArea();
-  const QSize output = d->outputSize();
-  const QRect fullscreenArea(0, 0, std::max(1, output.width()),
+  const Rect area = workArea();
+  const Size output = d->outputSize();
+  const Rect fullscreenArea(0, 0, std::max(1, output.width()),
                              std::max(1, output.height()));
   windowLayout_->configure(currentWindowLayoutSettings());
 
@@ -1032,12 +1007,12 @@ void WaylandCompositor::arrange() {
       }
       if (!client->preferredFloatingSize.isValid() && initialWidth > 0 &&
           initialHeight > 0)
-        client->preferredFloatingSize = QSize(initialWidth, initialHeight);
+        client->preferredFloatingSize = Size(initialWidth, initialHeight);
     }
     if (managed) {
-      const QSize preferred = windowTemplate_ && windowTemplate_->allowOverlap
+      const Size preferred = windowTemplate_ && windowTemplate_->allowOverlap
                                   ? client->preferredFloatingSize
-                                  : QSize();
+                                  : Size();
       windowLayout_->insert(client->workspace, client->id, preferred);
       windowLayout_->moveToWorkspace(client->id, client->workspace);
       windowLayout_->setMinimized(client->id, client->minimized);
@@ -1123,12 +1098,12 @@ void WaylandCompositor::arrange() {
       continue;
     }
     if (client->floating) {
-      const QSize preferred = client->preferredFloatingSize.isValid()
+      const Size preferred = client->preferredFloatingSize.isValid()
                                   ? client->preferredFloatingSize
-                                  : QSize(720, 500);
-      const QSize bounded(std::min(preferred.width(), area.width()),
+                                  : Size(720, 500);
+      const Size bounded(std::min(preferred.width(), area.width()),
                           std::min(preferred.height(), area.height()));
-      const QRect defaultGeometry(
+      const Rect defaultGeometry(
           area.x() + (area.width() - bounded.width()) / 2,
           area.y() + (area.height() - bounded.height()) / 2, bounded.width(),
           bounded.height());
@@ -1462,8 +1437,8 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
     arrange();
   }
 
-  const auto performLayoutAction = [this](const QString &id,
-                                          const QJsonObject &payload) {
+  const auto performLayoutAction = [this](const std::string &id,
+                                          const Json &payload) {
     return windowTemplate_ &&
            performWindowLayoutAction(*windowLayout_, *windowTemplate_, id,
                                      payload);
@@ -1499,10 +1474,10 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
     const auto area = workArea();
     performLayoutAction("center",
                         {{"window", focused_->id},
-                         {"area", QJsonObject{{"x", area.x()},
+                         {"area", Json::object({{"x", area.x()},
                                               {"y", area.y()},
                                               {"width", area.width()},
-                                              {"height", area.height()}}}});
+                                              {"height", area.height()}})}});
   } else if (action == "widenColumn" && focused_)
     performLayoutAction(
         "resize-width",
@@ -1528,9 +1503,9 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
   else if (action == "toggleScratchpad") {
-    QString error;
+    std::string error;
     toggleScratchpad(&error);
-    if (!error.isEmpty())
+    if (!error.empty())
       scratchpadError_ = error;
     return;
   } else if (action == "toggleEyeCare") {
@@ -1541,7 +1516,7 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
     control({{"method", "wallpaper-random"}});
   } else if (action == "launchOrbit" || action == "openControlCenter" ||
              action == "openClipboard" || action == "openPowerMenu") {
-    shellAction_ = QString::fromStdString(std::string(action));
+    shellAction_ = (std::string(action));
     shellActionSerial_ =
         shellActionSerial_ >= 999999 ? 1 : shellActionSerial_ + 1;
   } else if (action == "launchLauncher") {
@@ -1560,16 +1535,16 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
   synchronizeWindowFocus();
 }
 
-QJsonObject WaylandCompositor::state(bool includeTranslations) const {
-  QJsonArray entries;
-  QJsonArray xwaylandUtilities;
+Json WaylandCompositor::state(bool includeTranslations) const {
+  Json entries = Json::array();
+  Json xwaylandUtilities = Json::array();
   for (const auto &client : clients_) {
     if (client->utility) {
       // Keep notifications out of the task list while exposing their lifetime
       // separately for diagnostics, including the interval before destruction.
       if (client->x11)
-        xwaylandUtilities.append(
-            QJsonObject{{"id", client->id}, {"mapped", client->mapped}});
+        xwaylandUtilities.push_back(
+            Json::object({{"id", client->id}, {"mapped", client->mapped}}));
       continue;
     }
     int bufferWidth = 0;
@@ -1591,7 +1566,7 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
                            ? windowAnimations_->animation().visualGeometry(
                                  client->sceneTree, fallback)
                            : fallback;
-    entries.append(QJsonObject{
+    entries.push_back(Json::object({
         {"contentX", contentGeometry.x},
         {"contentY", contentGeometry.y},
         {"contentGeometryWidth",
@@ -1632,19 +1607,19 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
         {"fullscreen", client->fullscreen},
         {"hiddenByMaximize", client->hiddenByMaximize},
         {"manualResize", client->manualResize},
-        {"mapped", client->mapped}});
+        {"mapped", client->mapped}}));
   }
 
   const auto tilingSnapshot = windowLayout_->snapshot(workspace_);
-  QJsonArray tilingColumns;
-  QJsonArray tilingGroups;
+  Json tilingColumns = Json::array();
+  Json tilingGroups = Json::array();
   std::unordered_set<int> emittedGroups;
   int fallbackGroup = 0;
   for (const auto &column : tilingSnapshot.columns) {
-    const int group = column.metadata.value("group").toInt(fallbackGroup++);
-    const int row = column.metadata.value("row").toInt(0);
-    tilingColumns.append(
-        QJsonObject{{"window", static_cast<qint64>(column.window)},
+    const int group = jsonInt(column.metadata, "group", fallbackGroup++);
+    const int row = jsonInt(column.metadata, "row", 0);
+    tilingColumns.push_back(
+        Json::object({{"window", static_cast<std::int64_t>(column.window)},
                     {"width", column.width},
                     {"minimized", column.minimized},
                     {"focused", column.focused},
@@ -1652,17 +1627,17 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
                     {"rowIndex", row},
                     {"x", column.geometry.x()},
                     {"y", column.geometry.y()},
-                    {"height", column.geometry.height()}});
+                    {"height", column.geometry.height()}}));
     if (emittedGroups.contains(group))
       continue;
     emittedGroups.insert(group);
-    auto memberIds = column.metadata.value("members").toArray();
-    if (memberIds.isEmpty())
-      memberIds.append(static_cast<qint64>(column.window));
-    QJsonArray members;
+    auto memberIds = jsonArray(column.metadata, "members");
+    if (memberIds.empty())
+      memberIds.push_back(static_cast<std::int64_t>(column.window));
+    Json members = Json::array();
     bool groupFocused = false;
     for (const auto &idValue : memberIds) {
-      const auto id = static_cast<LayoutWindowId>(idValue.toInteger());
+      const auto id = static_cast<LayoutWindowId>(jsonAsInteger(idValue));
       const auto found = std::find_if(
           clients_.cbegin(), clients_.cend(), [id](const auto &client) {
             return client->id == static_cast<int>(id);
@@ -1672,45 +1647,45 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
       const auto *member = found->get();
       const bool memberFocused = member == focused_ && !member->minimized;
       groupFocused = groupFocused || memberFocused;
-      members.append(QJsonObject{{"window", static_cast<qint64>(id)},
+      members.push_back(Json::object({{"window", static_cast<std::int64_t>(id)},
                                  {"title", member->title},
                                  {"appId", member->appId},
                                  {"icon", member->iconName},
                                  {"focused", memberFocused},
-                                 {"minimized", member->minimized}});
+                                 {"minimized", member->minimized}}));
     }
-    tilingGroups.append(QJsonObject{{"index", group},
+    tilingGroups.push_back(Json::object({{"index", group},
                                     {"focused", groupFocused},
                                     {"width", column.width},
-                                    {"members", members}});
+                                    {"members", members}}));
   }
 
   auto preferences = desktopPreferences();
   const auto palette = appearancePalette(preferences);
   const auto extensions = pluginManager_->snapshot();
   preferences["plugins"] =
-      nativeJsonObject(extensions).value("installed", nlohmann::json::array());
+      jsonArray(extensions, "installed");
   const auto layoutSettings = currentWindowLayoutSettings();
   const auto layoutTarget = Settings::target(
       "layout:" + windowTemplate_->key, "Window layout", "layout", "Windows",
       windowTemplate_->layoutSettingsSchema, layoutSettings);
-  const auto moduleState = qtJsonObject(shellModules_->snapshot());
+  const auto moduleState = shellModules_->snapshot();
   const auto nativeXWayland =
       xwayland_ ? xwayland_->snapshot() : XWaylandSnapshot{};
-  QJsonObject xwaylandState{
+  Json xwaylandState{
       {"available", nativeXWayland.available},
       {"mode", "rootless-lazy-xwm"},
       {"running", nativeXWayland.running},
       {"rootWindowVisible", false},
       {"selectionBridge", nativeXWayland.selectionBridge},
-      {"display", QString::fromStdString(nativeXWayland.display)},
-      {"authority", QString()},
-      {"error", QString::fromStdString(nativeXWayland.error)}};
+      {"display", (nativeXWayland.display)},
+      {"authority", std::string()},
+      {"error", (nativeXWayland.error)}};
   xwaylandState["utilitySurfaces"] = xwaylandUtilities;
   const auto language = selectedLanguage();
   const auto translations =
-      includeTranslations ? qtJsonObject(languageDictionary(language))
-                         : QJsonObject{};
+      includeTranslations ? languageDictionary(language)
+                         : Json::object();
   auto *physicalKeyboard = d ? d->preferredKeyboard() : nullptr;
   const auto lockEnabled = [physicalKeyboard](const char *name) {
     if (!physicalKeyboard || !physicalKeyboard->keymap)
@@ -1719,28 +1694,26 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
     return index != XKB_MOD_INVALID &&
            (physicalKeyboard->modifiers.locked & (xkb_mod_mask_t{1} << index));
   };
-  QJsonObject result{
-      {"version", QString::fromLatin1(BuildConfig::version)},
+  Json result{
+      {"version", std::string(BuildConfig::version)},
       {"settingsApi",
-       QJsonObject{{"version", 1},
+       Json::object({{"version", 1},
                    {"targets", settingsApiTargets(extensions, moduleState,
-                                                  layoutTarget)}}},
+                                                  layoutTarget)}})},
       {"layoutMode", windowTemplate_ && windowTemplate_->allowOverlap
                          ? "stacking"
                          : "tiling"},
       {"windowLayout",
-       QJsonObject{
-           {"template", windowTemplate_ ? windowTemplate_->key : QString()},
+       Json::object({
+           {"template", windowTemplate_ ? windowTemplate_->key : std::string()},
            {"allowOverlap",
             windowTemplate_ ? windowTemplate_->allowOverlap : false},
            {"schema", windowTemplate_ ? windowTemplate_->layoutSettingsSchema
-                                      : QJsonObject{}},
+                                      : Json{}},
            {"values", layoutSettings},
            {"actions",
-            windowTemplate_ ? windowTemplate_->layoutActions : QJsonObject{}}}},
-      {"defaultApps", QJsonDocument::fromJson(QByteArray::fromStdString(
-                                                  defaultApplications().dump()))
-                          .object()},
+            windowTemplate_ ? windowTemplate_->layoutActions : Json{}}})},
+      {"defaultApps", defaultApplications()},
       {"shellModules", moduleState},
       {"extensions", extensions},
       {"shellAnimationDuration",
@@ -1748,63 +1721,55 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
                               preferences.value("animationDuration", 220))},
       {"panelExtent",
        shellModules_->panelExtent(preferences.value("panelHeight", 40))},
-      {"workArea", QJsonObject{{"x", workArea().x()},
+      {"workArea", Json::object({{"x", workArea().x()},
                                {"y", workArea().y()},
                                {"width", workArea().width()},
-                               {"height", workArea().height()}}},
-      {"panelEdge", QString::fromStdString(shellModules_->panelEdge())},
+                               {"height", workArea().height()}})},
+      {"panelEdge", (shellModules_->panelEdge())},
       {"panelAtBottom", shellModules_->panelAtBottom()},
-      {"audio", QJsonDocument::fromJson(QByteArray::fromStdString(
-                                            audioSettings_->snapshot().dump()))
-                    .object()},
-      {"power", QJsonDocument::fromJson(QByteArray::fromStdString(
-                                            powerSettings_->snapshot().dump()))
-                    .object()},
+      {"audio", audioSettings_->snapshot()},
+      {"power", powerSettings_->snapshot()},
       {"sessionActions",
        [this] {
          const auto snapshot = sessionActions_->snapshot();
-         QJsonObject result;
+         Json result = Json::object();
          for (const auto &[action, available] : snapshot.availability)
-           result.insert(QString::fromStdString(action), available);
-         result.insert("error", QString::fromStdString(snapshot.error));
+           result[action] = available;
+         result["error"] = snapshot.error;
          return result;
        }()},
       {"shortcuts",
-       QJsonDocument::fromJson(
-           QByteArray::fromStdString(shortcutSettings_->snapshot().dump()))
-           .object()},
-      {"update", QJsonDocument::fromJson(QByteArray::fromStdString(
-                                             updateChecker_->snapshot().dump()))
-                     .object()},
+       shortcutSettings_->snapshot()},
+      {"update", updateChecker_->snapshot()},
       {"settingsTools",
        [] {
-         QJsonArray result;
+         Json result = Json::array();
          for (const auto &tool : systemSettingsTools())
-           result.append(
-               QJsonObject{{"id", QString::fromStdString(tool.id)},
-                           {"category", QString::fromStdString(tool.category)},
-                           {"name", QString::fromStdString(tool.name)},
-                           {"package", QString::fromStdString(tool.package)},
+           result.push_back(
+               Json::object({{"id", (tool.id)},
+                           {"category", (tool.category)},
+                           {"name", (tool.name)},
+                           {"package", (tool.package)},
                            {"available", tool.available},
                            {"configurable", tool.configurable},
-                           {"host", tool.host}});
+                           {"host", tool.host}}));
          return result;
        }()},
-      {"display", d ? d->displaySnapshot() : QJsonObject{}},
+      {"display", d ? d->displaySnapshot() : Json::object()},
       {"settingsSerial", settingsSerial_},
       {"settingsPage", settingsPage_},
       {"pickerSerial", pickerSerial_},
       {"launcherSerial", launcherSerial_},
       {"launcherOpen", launcherVisible_},
       {"input",
-       QJsonObject{{"layout", QString::fromStdString(keyboardLayoutPreference(
+       Json::object({{"layout", (keyboardLayoutPreference(
                                   preferences.value("keyboardLayout", std::string("us"))))},
                    {"repeatRate", keyboardRepeatRate()},
                    {"repeatDelay", keyboardRepeatDelay()},
                    {"modifierResends", modifierResends_},
                    {"keypadKeyForwards", keypadKeyForwards_},
                    {"lockedModifiers",
-                    static_cast<qint64>(physicalKeyboard
+                    static_cast<std::int64_t>(physicalKeyboard
                                             ? physicalKeyboard->modifiers.locked
                                             : 0)},
                    {"capsLock", lockEnabled("Lock")},
@@ -1814,150 +1779,136 @@ QJsonObject WaylandCompositor::state(bool includeTranslations) const {
                    {"dataDeviceProtocolVersion", 3},
                    {"backend", "wlroots"},
                    {"qtInput", false},
-                   {"inputMethodBridge", d ? d->inputBridgeReady() : false}}},
+                   {"inputMethodBridge", d ? d->inputBridgeReady() : false}})},
       {"blurReady", d && d->windowGlass && d->windowGlass->ready()},
       {"blurFailed", d && d->windowGlass && d->windowGlass->failed()},
       {"blurFrames",
-       static_cast<qint64>(d && d->windowGlass ? d->windowGlass->frames() : 0)},
+       static_cast<std::int64_t>(d && d->windowGlass ? d->windowGlass->frames() : 0)},
       {"blurError", d && d->windowGlass
-                        ? QString::fromStdString(d->windowGlass->error())
-                        : QString()},
+                        ? (d->windowGlass->error())
+                        : std::string()},
       {"activeAnimations",
        windowAnimations_ ? windowAnimations_->activeCount() : 0},
       {"xwayland", xwaylandState},
-      {"screenCapture", QJsonObject{{"protocol", "zwlr_screencopy_manager_v1"},
+      {"screenCapture", Json::object({{"protocol", "zwlr_screencopy_manager_v1"},
                                     {"version", 3},
                                     {"frames", 0},
                                     {"lastCapture", lastCapture_},
                                     {"error", captureError_},
                                     {"busy", screenCapture_->busy()},
-                                    {"phase", QString::fromStdString(
-                                                  screenCapture_->phase())}}},
+                                    {"phase", (
+                                                  screenCapture_->phase())}})},
       {"activationEnvironment",
-       QJsonObject{{"published", activationEnvironmentPublished_},
-                   {"error", activationEnvironmentError_}}},
+       Json::object({{"published", activationEnvironmentPublished_},
+                   {"error", activationEnvironmentError_}})},
       {"brightness",
-       QJsonDocument::fromJson(
-           QByteArray::fromStdString(brightnessSettings_->snapshot().dump()))
-           .object()},
+       brightnessSettings_->snapshot()},
       {"ddcBrightness",
-       QJsonDocument::fromJson(
-           QByteArray::fromStdString(ddcBrightnessSettings_->snapshot().dump()))
-           .object()},
-      {"appearance", qtJsonObject(preferences)},
-      {"palette", qtJsonObject(palette)},
-      {"applicationTheme",
-       synchronizeApplicationThemeAtQtBoundary(preferences, palette)},
+       ddcBrightnessSettings_->snapshot()},
+      {"appearance", preferences},
+      {"palette", palette},
+      {"applicationTheme", synchronizeApplicationTheme(preferences, palette)},
       {"appearancePresets",
-       QJsonDocument::fromJson(
-           QByteArray::fromStdString(appearancePresets().dump()))
-           .array()},
-      {"orbit", qtJsonObject(orbitSettings())},
+       appearancePresets()},
+      {"orbit", orbitSettings()},
       {"wallpapers",
-       QJsonDocument::fromJson(
-           QByteArray::fromStdString(wallpaperSnapshot().dump()))
-           .object()},
+       wallpaperSnapshot()},
       {"shellAction", shellAction_},
       {"shellActionSerial", shellActionSerial_},
-      {"scratchpad", QJsonObject{{"window", scratchpadWindow_},
+      {"scratchpad", Json::object({{"window", scratchpadWindow_},
                                  {"pending", scratchpadPending_},
-                                 {"error", scratchpadError_}}},
+                                 {"error", scratchpadError_}})},
       {"setupComplete", setupComplete()},
       {"network",
-       QJsonDocument::fromJson(
-           QByteArray::fromStdString(networkStatus_->snapshot().dump()))
-           .object()},
-      {"system", QJsonDocument::fromJson(QByteArray::fromStdString(
-                                             systemStatus_->snapshot().dump()))
-                     .object()},
+       networkStatus_->snapshot()},
+      {"system", systemStatus_->snapshot()},
       {"weather",
-       QJsonDocument::fromJson(
-           QByteArray::fromStdString(weatherStatus_->snapshot().dump()))
-           .object()},
+       weatherStatus_->snapshot()},
       {"wallpaperImage",
        wallpaperImagePath().empty()
-           ? QString{}
+           ? std::string{}
            : localFileUri(wallpaperImagePath())},
       {"workspace", workspace_},
       {"processFailure", processFailure_},
       {"clients", entries},
-      {"pointerDrag", QJsonObject{{"window", d ? d->pointerWindow : 0},
+      {"pointerDrag", Json::object({{"window", d ? d->pointerWindow : 0},
                                   {"target", d ? d->pointerTarget : 0},
-                                  {"edge", d ? d->pointerEdge : 0}}},
+                                  {"edge", d ? d->pointerEdge : 0}})},
       {"tiling",
-       QJsonObject{
-           {"focusedWindow", static_cast<qint64>(tilingSnapshot.focusedWindow)},
+       Json::object({
+           {"focusedWindow", static_cast<std::int64_t>(tilingSnapshot.focusedWindow)},
            {"columns", tilingColumns},
-           {"groups", tilingGroups}}},
+           {"groups", tilingGroups}})},
       {"layerSurfaces", d ? d->mappedLayerCount() : 0},
       {"xdgPopupCount",
-       d ? static_cast<qint64>(d->xdgPopups.size()) : qint64{0}},
-      {"language", QString::fromStdString(language)},
+       d ? static_cast<std::int64_t>(d->xdgPopups.size()) : std::int64_t{0}},
+      {"language", (language)},
       {"translations", translations},
       {"wallpaper", loadWallpaperSettings().value("shader", 0)},
       {"shutdown", testStopping_},
       {"graphicsApi", "wlroots"},
       {"renderer",
-       QString::fromLatin1(ludash_renderer_name(d ? d->renderer : nullptr))},
+       std::string(ludash_renderer_name(d ? d->renderer : nullptr))},
       {"vulkanAvailable", ludash_renderer_vulkan_available()},
       {"shaderReady", d && d->renderer},
       {"graphicsFailed", processFailure_},
       {"graphicsMajor", 0},
       {"graphicsMinor", 0}};
   if (!includeTranslations)
-    result.remove("translations");
+    result.erase("translations");
   return result;
 }
 
-QJsonObject WaylandCompositor::control(const QJsonObject &request) {
-  const QString method = request.value("method").toString();
-  const QString value = request.value("value").toString();
+Json WaylandCompositor::control(const Json &request) {
+  const std::string method = jsonString(request, "method");
+  const std::string value = jsonString(request, "value");
   if (method == "status")
-    return state(value.toStdString() != selectedLanguage());
+    return state(value != selectedLanguage());
 
-  bool numberValid = false;
-  const int number = value.toInt(&numberValid);
+  const auto parsedNumber = parseInteger(value);
+  const bool numberValid = parsedNumber.has_value();
+  const int number = parsedNumber.value_or(0);
 
   if (method == "workspace" && numberValid && number >= 0 &&
       number < desktopPreferences().value("workspaceCount", 10)) {
     selectWorkspace(number);
   } else if (method == "language" &&
-             isSupportedLanguage(value.toStdString())) {
+             isSupportedLanguage(value)) {
     std::string error;
-    if (!setSelectedLanguage(value.toStdString(), &error))
-      return {{"error", QString::fromStdString(error)}};
+    if (!setSelectedLanguage(value, &error))
+      return {{"error", (error)}};
   } else if (method == "shortcut-capture" &&
              (value == "true" || value == "false")) {
     shortcutCapture_ = value == "true";
   } else if (method == "shortcuts") {
     const auto changes =
-        nlohmann::json::parse(value.toStdString(), nullptr, false);
+        nlohmann::json::parse(value, nullptr, false);
     std::string error;
     if (changes.is_discarded() || !shortcutSettings_->apply(changes, &error))
       return {{"error", error.empty() ? "Expected shortcut JSON."
-                                      : QString::fromStdString(error)}};
+                                      : (error)}};
   } else if (method == "reset-shortcuts") {
     std::string error;
     if (!shortcutSettings_->reset(&error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
   } else if (method == "capture") {
-    if (!value.startsWith('/'))
+    if (!value.starts_with('/'))
       return {{"error", "Capture requires an absolute path."}};
     if (fileExists(value))
       return {{"error", "Refusing to overwrite " + value}};
     if (!saveScreenshot(value))
-      return {{"error", captureError_.isEmpty()
+      return {{"error", captureError_.empty()
                             ? "Could not start capture for " + value
                             : captureError_}};
     return {{"path", value},
             {"pending", true},
-            {"phase", QString::fromStdString(screenCapture_->phase())}};
+            {"phase", (screenCapture_->phase())}};
   } else if (method == "screenshot") {
     captureScreen();
-    if (!captureError_.isEmpty())
+    if (!captureError_.empty())
       return {{"error", captureError_}};
     return {{"pending", screenCapture_->busy()},
-            {"phase", QString::fromStdString(screenCapture_->phase())}};
+            {"phase", (screenCapture_->phase())}};
   } else if (method == "check-update") {
     updateChecker_->check();
   } else if (method == "send-key") {
@@ -1988,240 +1939,223 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     wlr_seat_keyboard_notify_key(d->seat, now, ctrl - 8,
                                  WL_KEYBOARD_KEY_STATE_RELEASED);
   } else if (method == "open-settings") {
-    static const QStringList pages{
+    static const std::vector<std::string> pages{
         "general",      "appearance", "windows",   "shortcuts",   "display",
         "input",        "sound",      "network",   "bluetooth",   "power",
         "applications", "privacy",    "system",    "devices",     "about",
         "modules",      "plugins",    "dashboard", "input-method"};
-    if (!value.isEmpty() && !pages.contains(value))
+    if (!value.empty() &&
+        std::find(pages.begin(), pages.end(), value) == pages.end())
       return {{"error", "Unknown settings page."}};
-    settingsPage_ = value.isEmpty() ? "general" : value;
+    settingsPage_ = value.empty() ? "general" : value;
     settingsSerial_ = (settingsSerial_ + 1) % 1000000;
   } else if (method == "settings-describe") {
-    return state().value("settingsApi").toObject();
+    return jsonObject(state(), "settingsApi");
   } else if (method == "settings-update") {
     pluginManager_->refresh();
     arrange();
-    if (value.toUtf8().size() > 24576)
+    if (value.size() > 24576)
       return {{"error", "Settings request exceeds 24 KiB."}};
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
-    if (!document.isObject() || !windowTemplate_)
+    const auto document = parseJsonObject(value);
+    if (!document.is_object() || !windowTemplate_)
       return {{"error", "Expected a settings update object."}};
     const auto layout = Settings::target(
         "layout:" + windowTemplate_->key, "Window layout", "layout", "Windows",
         windowTemplate_->layoutSettingsSchema, currentWindowLayoutSettings());
-    QString error;
+    std::string error;
     if (!updateSettingsApi(
-            *pluginManager_, *shellModules_, layout, document.object(),
-            [this](const auto &changes, QString *message) {
+            *pluginManager_, *shellModules_, layout, document,
+            [this](const auto &changes, std::string *message) {
               return updateWindowLayoutSettings(changes, message);
             },
             &error))
       return {{"error", error},
-              {"settingsTarget", document.object().value("target")}};
+              {"settingsTarget", jsonValue(document, "target")}};
     arrange();
     auto result = state();
-    result["settingsTarget"] = document.object().value("target");
+    result["settingsTarget"] = jsonValue(document, "target");
     return result;
   } else if (method == "extension-save") {
-    QString error;
-    if (!saveExtensionConfiguration(value.toUtf8(), &error))
+    std::string error;
+    if (!saveExtensionConfiguration(value, &error))
       return {{"error", error}};
     pluginManager_->refresh();
     arrange();
   } else if (method == "extension-install") {
-    QString error;
+    std::string error;
     if (!pluginManager_->installFromStore(value, &error))
       return {{"error", error}};
     return {{"pending", true}, {"pluginId", value}};
   } else if (method == "extension-remove") {
-    QString error;
+    std::string error;
     if (!pluginManager_->removeInstalledPlugin(value, &error))
       return {{"error", error}};
     return {{"removed", true}, {"pluginId", value}};
   } else if (method == "extension-error") {
-    const auto object = QJsonDocument::fromJson(value.toUtf8()).object();
-    pluginManager_->reportError(object.value("id").toString(),
-                                object.value("error").toString());
+    const auto object = parseJsonObject(value);
+    pluginManager_->reportError(jsonString(object, "id"),
+                                jsonString(object, "error"));
   } else if (method == "module-validate" || method == "module-save" ||
              method == "module-reset") {
     std::string nativeError;
     bool ok = false;
     if (method == "module-validate")
-      ok = shellModules_->validate(value.toStdString(), &nativeError);
+      ok = shellModules_->validate(value, &nativeError);
     else if (method == "module-save")
-      ok = shellModules_->apply(value.toStdString(), &nativeError);
+      ok = shellModules_->apply(value, &nativeError);
     else if (method == "module-reset")
       ok = shellModules_->reset(&nativeError);
     if (!ok)
       return {{"error", nativeError.empty()
-                             ? QStringLiteral("Invalid module command.")
-                             : QString::fromStdString(nativeError)}};
+                             ? std::string("Invalid module command.")
+                             : (nativeError)}};
   } else if (method == "module-error") {
-    const auto object = QJsonDocument::fromJson(value.toUtf8()).object();
-    shellModules_->reportError(object.value("id").toString().toStdString(),
-                               object.value("error").toString().toStdString());
+    const auto object = parseJsonObject(value);
+    shellModules_->reportError(jsonString(object, "id"),
+                               jsonString(object, "error"));
   } else if (method == "default-apps") {
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
-    QString error;
+    const auto changes = parseJsonObject(value);
+    std::string error;
     std::string nativeError;
-    const auto changes =
-        document.isObject()
-            ? nlohmann::json::parse(
-                  document.toJson(QJsonDocument::Compact).toStdString())
-            : nlohmann::json{};
-    if (!document.isObject() ||
+    if (!changes.is_object() ||
         !setDefaultApplications(changes, &nativeError)) {
-      error = QString::fromStdString(nativeError);
-      return {{"error", error.isEmpty() ? "Expected a JSON object." : error}};
+      error = (nativeError);
+      return {{"error", error.empty() ? "Expected a JSON object." : error}};
     }
   } else if (method == "open-url") {
-    QString error;
-    const QUrl url(value);
-    if (!url.isValid() || (url.scheme() != "https" && url.scheme() != "http"))
+    std::string error;
+    const auto scheme = urlScheme(value);
+    const bool hasAuthority =
+        value.size() > scheme.size() + 3 &&
+        value.compare(scheme.size(), 3, "://") == 0;
+    if ((scheme != "https" && scheme != "http") || !hasAuthority ||
+        std::any_of(value.begin(), value.end(), [](unsigned char character) {
+          return character < 0x20 || character == 0x7F;
+        }))
       return {{"error", "Only valid HTTP and HTTPS URLs can be opened."}};
     std::string nativeError;
     auto command = defaultApplicationCommand("browser", &nativeError);
     if (!nativeError.empty())
-      return {{"error", QString::fromStdString(nativeError)}};
+      return {{"error", (nativeError)}};
     if (command.empty())
       return {{"error", "No browser is configured."}};
-    command.push_back(url.toString(QUrl::FullyEncoded).toStdString());
-    QStringList qtCommand;
-    for (const auto &argument : command)
-      qtCommand.push_back(QString::fromStdString(argument));
-    if (!launchExternalCommand(qtCommand, &error))
+    command.push_back(percentEncode(value, ":/?#[]@!$&'()*+,;=%"));
+    if (!launchExternalCommand(command, &error))
       return {{"error", error}};
   } else if (method == "launch-default" &&
              (value == "terminal" || value == "files" || value == "browser")) {
     std::string nativeError;
-    auto command = defaultApplicationCommand(value.toStdString(), &nativeError);
-    QString error = QString::fromStdString(nativeError);
-    if (!error.isEmpty())
+    auto command = defaultApplicationCommand(value, &nativeError);
+    std::string error = (nativeError);
+    if (!error.empty())
       return {{"error", error}};
     if (command.empty())
       return {{"error", "No application is configured for this role."}};
-    QStringList qtCommand;
-    for (const auto &argument : command)
-      qtCommand.push_back(QString::fromStdString(argument));
-    if (!launchExternalCommand(qtCommand, &error))
+    if (!launchExternalCommand(command, &error))
       return {{"error", error}};
   } else if (method == "system-tool") {
-    auto command = systemSettingsCommand(value.toStdString());
+    auto command = systemSettingsCommand(value);
     if (command.empty())
       return {{"error", "This settings tool is unavailable."}};
-    const QString program = QString::fromStdString(command.front());
-    QStringList arguments;
+    const std::string program = (command.front());
+    std::vector<std::string> arguments;
     for (std::size_t index = 1; index < command.size(); ++index)
-      arguments.push_back(QString::fromStdString(command[index]));
+      arguments.push_back((command[index]));
     spawn(arguments, program, false);
   } else if (method == "audio") {
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    const auto request = parseJsonObject(value);
     std::string nativeError;
-    const auto request =
-        document.isObject()
-            ? nlohmann::json::parse(
-                  document.toJson(QJsonDocument::Compact).toStdString())
-            : nlohmann::json{};
-    if (!document.isObject() || !audioSettings_->apply(request, &nativeError)) {
-      const QString error = QString::fromStdString(nativeError);
-      return {{"error", error.isEmpty() ? "Invalid audio setting." : error}};
+    if (!request.is_object() || !audioSettings_->apply(request, &nativeError)) {
+      const std::string error = (nativeError);
+      return {{"error", error.empty() ? "Invalid audio setting." : error}};
     }
   } else if (method == "network") {
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
+    const auto request = parseJsonObject(value);
     std::string nativeError;
-    const auto request =
-        document.isObject()
-            ? nlohmann::json::parse(
-                  document.toJson(QJsonDocument::Compact).toStdString())
-            : nlohmann::json{};
-    if (!document.isObject() ||
+    if (!request.is_object() ||
         !networkStatus_->execute(request, &nativeError)) {
-      const QString error = QString::fromStdString(nativeError);
-      return {{"error", error.isEmpty() ? "Invalid network request." : error}};
+      const std::string error = (nativeError);
+      return {{"error", error.empty() ? "Invalid network request." : error}};
     }
   } else if (method == "power-profile") {
     std::string nativeError;
-    if (!powerSettings_->apply(value.toStdString(), &nativeError))
-      return {{"error", QString::fromStdString(nativeError)}};
+    if (!powerSettings_->apply(value, &nativeError))
+      return {{"error", (nativeError)}};
   } else if (method == "session-action") {
     std::string error;
-    const auto action = value.toStdString();
+    const auto action = value;
     if (!isValidSessionAction(action) ||
         !sessionActions_->execute(action, &error))
       return {{"error", error.empty() ? "Invalid session action."
-                                      : QString::fromStdString(error)}};
+                                      : (error)}};
   } else if (method == "brightness") {
-    bool ok = false;
-    const int percent = value.toInt(&ok);
+    const auto percent = parseInteger(trimmed(value));
     std::string nativeError;
-    if (!ok || !brightnessSettings_->setPercent(percent, &nativeError)) {
-      const QString error = QString::fromStdString(nativeError);
+    if (!percent || !brightnessSettings_->setPercent(*percent, &nativeError)) {
+      const std::string error = (nativeError);
       return {{"error",
-               error.isEmpty() ? "Brightness must be an integer." : error}};
+               error.empty() ? "Brightness must be an integer." : error}};
     }
   } else if (method == "ddc-brightness") {
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
-    const auto request = document.object();
-    const auto percent = request.value("percent");
+    const auto request = parseJsonObject(value);
+    const auto percent = jsonValue(request, "percent");
     std::string nativeError;
-    if (!document.isObject() || !percent.isDouble() ||
-        percent.toDouble() != percent.toInt(-1) ||
+    if (!request.is_object() || !percent.is_number() ||
+        jsonAsDouble(percent) != jsonAsInt(percent, -1) ||
         !ddcBrightnessSettings_->setPercent(
-            request.value("id").toString().toStdString(), percent.toInt(-1),
+            jsonString(request, "id"), jsonAsInt(percent, -1),
             &nativeError)) {
-      const QString error = QString::fromStdString(nativeError);
+      const std::string error = (nativeError);
       return {{"error",
-               error.isEmpty() ? "Invalid DDC/CI brightness request." : error}};
+               error.empty() ? "Invalid DDC/CI brightness request." : error}};
     }
   } else if (method == "ddc-refresh") {
     ddcBrightnessSettings_->refresh();
   } else if (method == "display-configure") {
-    const auto changes = QJsonDocument::fromJson(value.toUtf8());
-    QString error;
-    if (!changes.isObject() || !d->configureDisplay(changes.object(), &error))
+    const auto changes = parseJsonObject(value);
+    std::string error;
+    if (!changes.is_object() || !d->configureDisplay(changes, &error))
       return {{"error",
-               error.isEmpty() ? "Invalid display configuration." : error}};
+               error.empty() ? "Invalid display configuration." : error}};
   } else if (method == "display-confirm") {
     d->confirmDisplay();
   } else if (method == "display-revert") {
     d->revertDisplay();
   } else if (method == "desktop-size") {
-    QString error;
+    std::string error;
     if (!d || !d->resizePrimaryOutput(value, &error))
       return {{"error", error}};
   } else if (method == "reset-preferences") {
     ensureLegacyDesktopSettingsImported();
     std::string nativeError;
     if (!resetDesktopPreferences(&nativeError))
-      return {{"error", QString::fromStdString(nativeError)}};
+      return {{"error", (nativeError)}};
     weatherStatus_->refresh();
     if (d)
       d->updateNightLight();
     applyKeyboardConfiguration();
     arrange();
   } else if (method == "window-layout-action") {
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
-    if (!document.isObject() || !windowTemplate_)
+    const auto object = parseJsonObject(value);
+    if (!object.is_object() || !windowTemplate_)
       return {{"error", "Expected a window layout action object."}};
-    const auto object = document.object();
-    const auto actionId = object.value("action").toString();
-    if (!object.value("payload").isObject() || object.size() != 2)
+    const auto actionId = jsonString(object, "action");
+    if (!jsonValue(object, "payload").is_object() || object.size() != 2)
       return {{"error", "Expected only action and payload fields."}};
-    auto payload = object.value("payload").toObject();
+    auto payload = jsonObject(object, "payload");
     const auto action =
-        windowTemplate_->layoutActions.value(actionId).toObject();
-    if (action.value("requiresArea").toBool()) {
-      if (payload.contains("area"))
+        jsonObject(windowTemplate_->layoutActions, actionId);
+    if (jsonBool(action, "requiresArea")) {
+      if (jsonContains(payload, "area"))
         return {{"error",
                  "Work area is supplied by the compositor, not the caller."}};
       const auto area = workArea();
-      payload["area"] = QJsonObject{{"x", area.x()},
+      payload["area"] = Json::object({{"x", area.x()},
                                     {"y", area.y()},
                                     {"width", area.width()},
-                                    {"height", area.height()}};
+                                    {"height", area.height()}});
     }
-    if (actionId.isEmpty() ||
+    if (actionId.empty() ||
         !performWindowLayoutAction(*windowLayout_, *windowTemplate_, actionId,
                                    payload))
       return {{"error", "Window layout action is unsupported or invalid."}};
@@ -2229,12 +2163,11 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     synchronizeWindowFocus();
     return state();
   } else if (method == "window-layout-settings") {
-    QJsonParseError parseError;
-    const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
-    QString error;
-    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+    const auto document = parseJsonObject(value);
+    std::string error;
+    if (!document.is_object())
       return {{"error", "Expected a JSON object of window layout settings."}};
-    if (!updateWindowLayoutSettings(document.object(), &error))
+    if (!updateWindowLayoutSettings(document, &error))
       return {{"error", error}};
     arrange();
     return state();
@@ -2245,33 +2178,33 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   } else if (method == "orbit-save" || method == "orbit-reset") {
     std::string nativeError;
     const bool saved = method == "orbit-save"
-                           ? saveOrbitSettings(value.toStdString(), &nativeError)
+                           ? saveOrbitSettings(value, &nativeError)
                            : resetOrbitSettings(&nativeError);
     if (!saved)
-      return {{"error", QString::fromStdString(nativeError)}};
+      return {{"error", (nativeError)}};
   } else if (method == "appearance-preset-save" ||
              method == "appearance-preset-apply" ||
              method == "appearance-preset-delete") {
     ensureLegacyDesktopSettingsImported();
     std::string nativeError;
-    const auto name = value.toStdString();
+    const auto name = value;
     const bool ok = method == "appearance-preset-save"
                         ? saveAppearancePreset(name, &nativeError)
                     : method == "appearance-preset-apply"
                         ? applyAppearancePreset(name, &nativeError)
                         : deleteAppearancePreset(name, &nativeError);
     if (!ok)
-      return {{"error", QString::fromStdString(nativeError)}};
+      return {{"error", (nativeError)}};
     if (method == "appearance-preset-apply") {
       const auto updatedPreferences = desktopPreferences();
-      synchronizeApplicationThemeAtQtBoundary(
-          updatedPreferences, appearancePalette(updatedPreferences));
+      synchronizeApplicationTheme(updatedPreferences,
+                                  appearancePalette(updatedPreferences));
     }
     if (d)
       d->updateNightLight();
     arrange();
   } else if (method == "scratchpad") {
-    QString error;
+    std::string error;
     if (!toggleScratchpad(&error))
       return {{"error", error}};
   } else if (method == "eye-care") {
@@ -2282,31 +2215,29 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
                              ? !desktopPreferences().value("eyeCare", false)
                              : value == "true";
     if (!updateDesktopPreferences({{"eyeCare", enabled}}, &error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
     if (d)
       d->updateNightLight();
     arrange();
   } else if (method == "wallpaper-random") {
     std::string error;
     if (!selectRandomWallpaper(&error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
     const auto path = wallpaperImagePath();
     refreshWallpaperPalette(d->eventLoop, path, wallpaperIsVideo(path));
   } else if (method == "appearance") {
-    QJsonParseError parseError;
-    const auto document = QJsonDocument::fromJson(value.toUtf8(), &parseError);
+    const auto changes = parseJsonObject(value);
     std::string error;
-    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+    if (!changes.is_object())
       return {{"error", "Expected a JSON object of desktop preferences."}};
-    const auto changes = nativeJsonObject(document.object());
     if (!updateDesktopPreferences(changes, &error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
     // Publish color-scheme immediately so portal-aware Chromium/Electron/Qt
     // clients and gsettings-aware GTK applications follow the desktop switch
     // without waiting for the next shell status poll.
     const auto updatedPreferences = desktopPreferences();
-    synchronizeApplicationThemeAtQtBoundary(
-        updatedPreferences, appearancePalette(updatedPreferences));
+    synchronizeApplicationTheme(updatedPreferences,
+                                appearancePalette(updatedPreferences));
     applyKeyboardConfiguration();
     for (const auto &key : {"weatherEnabled", "weatherLatitude",
                             "weatherLongitude", "weatherLocation"})
@@ -2314,7 +2245,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
         weatherStatus_->refresh();
         break;
       }
-    if (changes.value("wallpaperColors", false)) {
+    if (jsonBool(changes, "wallpaperColors")) {
       const auto path = wallpaperImagePath();
       refreshWallpaperPalette(d->eventLoop, path, wallpaperIsVideo(path));
     }
@@ -2325,14 +2256,13 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     arrange();
   } else if (method == "launch-x11") {
     std::vector<std::string> command;
-    const auto utf8 = value.toUtf8();
     gchar **parsed = nullptr;
     gint count = 0;
     GError *parseError = nullptr;
-    if (!g_shell_parse_argv(utf8.constData(), &count, &parsed, &parseError)) {
-      const QString message = parseError
-                                  ? QString::fromUtf8(parseError->message)
-                                  : QStringLiteral("Invalid command line.");
+    if (!g_shell_parse_argv(value.c_str(), &count, &parsed, &parseError)) {
+      const std::string message = parseError
+                                      ? std::string(parseError->message)
+                                      : std::string("Invalid command line.");
       if (parseError)
         g_error_free(parseError);
       return {{"error", message}};
@@ -2344,75 +2274,69 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     std::string error;
     if (!xwayland_ || !xwayland_->launch(command, &error))
       return {{"error", error.empty() ? "XWayland is unavailable."
-                                      : QString::fromStdString(error)}};
+                                      : (error)}};
     for (const auto &client : clients_)
       updateClientMetadata(client.get());
     arrange();
   } else if (method == "launch-application") {
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
-    if (!document.isObject())
+    const auto object = parseJsonObject(value);
+    if (!object.is_object())
       return {{"error", "Expected an application launch object."}};
-    const auto object = document.object();
-    if (object.size() != 2 || !object.value("desktopId").isString() ||
-        !object.value("command").isArray())
+    if (object.size() != 2 || !jsonValue(object, "desktopId").is_string() ||
+        !jsonValue(object, "command").is_array())
       return {{"error", "Application launch requires desktopId and command."}};
-    const auto desktopId = object.value("desktopId").toString();
+    const auto desktopId = jsonString(object, "desktopId");
     if (desktopId.size() > 256)
       return {{"error", "Desktop application ID is too long."}};
-    QStringList command;
-    const auto values = object.value("command").toArray();
-    if (values.isEmpty() || values.size() > 64)
+    std::vector<std::string> command;
+    const auto values = jsonArray(object, "command");
+    if (values.empty() || values.size() > 64)
       return {{"error", "Expected a bounded non-empty command array."}};
     for (const auto &entry : values) {
-      if (!entry.isString() || entry.toString().isEmpty() ||
-          entry.toString().size() > 1024)
+      if (!entry.is_string() || jsonAsString(entry).empty() ||
+          jsonAsString(entry).size() > 1024)
         return {{"error", "Command arguments must be short strings."}};
-      command << entry.toString();
+      command.push_back(jsonAsString(entry));
     }
-    std::vector<std::string> policyCommand;
-    policyCommand.reserve(static_cast<std::size_t>(command.size()));
-    for (const auto &argument : command)
-      policyCommand.push_back(argument.toStdString());
-    const auto capabilities =
-        resolveLaunchCapabilities(desktopId.toStdString(), policyCommand);
-    QString error;
+    const auto capabilities = resolveLaunchCapabilities(desktopId, command);
+    std::string error;
     if (!launchExternalCommand(command, &error, capabilities.x11Helper))
       return {{"error", error}};
   } else if (method == "launch-command" || method == "launch-with-x11") {
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
-    if (!document.isArray() || document.array().isEmpty())
+    const auto document = parseJson(value);
+    if (!document.is_array() || document.empty())
       return {{"error", "Expected a non-empty command array."}};
-    QStringList command;
-    for (const auto &entry : document.array()) {
-      if (!entry.isString() || entry.toString().size() > 1024)
+    std::vector<std::string> command;
+    for (const auto &entry : document) {
+      if (!entry.is_string() || jsonAsString(entry).size() > 1024)
         return {{"error", "Command arguments must be short strings."}};
-      command << entry.toString();
+      command.push_back(jsonAsString(entry));
     }
-    QString error;
+    std::string error;
     if (!launchExternalCommand(command, &error, method == "launch-with-x11"))
       return {{"error", error}};
   } else if (method == "finish-setup") {
     std::string error;
     if (!setSetupComplete(true, &error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
   } else if (method == "setup") {
     std::string error;
     if (!setSetupComplete(false, &error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
   } else if (method == "configure-network") {
     auto program = findExecutable("nm-connection-editor");
-    QStringList arguments;
-    if (program.isEmpty() &&
-        !findExecutable("nmtui").isEmpty()) {
+    std::vector<std::string> arguments;
+    if (program.empty() &&
+        !findExecutable("nmtui").empty()) {
       for (const auto &terminal : {"kitty", "konsole", "alacritty", "foot"}) {
         program = findExecutable(terminal);
-        if (!program.isEmpty()) {
+        if (!program.empty()) {
           arguments = {"-e", "nmtui"};
           break;
         }
       }
     }
-    if (program.isEmpty())
+    if (program.empty())
       return {{"error", "No network configuration utility is installed."}};
     spawn(arguments, program, false);
   } else if (method == "choose-wallpaper") {
@@ -2421,23 +2345,22 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     // and never rescan a large Pictures/Wallpapers tree on a timer.
     std::string refreshError;
     if (!refreshWallpaperLibrary(&refreshError))
-      return {{"error", QString::fromStdString(refreshError)}};
+      return {{"error", (refreshError)}};
     pickerSerial_ = (pickerSerial_ + 1) % 1000000;
   } else if (method == "wallpaper-image") {
     std::string error;
-    const QUrl url(value);
-    const auto path = url.isLocalFile()
-                          ? std::filesystem::path(url.toLocalFile().toStdString())
-                          : std::filesystem::path(value.toStdString());
+    const auto localPath = localPathFromFileUrl(value);
+    const auto path = !localPath.empty() ? std::filesystem::path(localPath)
+                                         : std::filesystem::path(value);
     if (!setWallpaperImage(path, &error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
     const auto selected = wallpaperImagePath();
     refreshWallpaperPalette(d->eventLoop, selected,
                             wallpaperIsVideo(selected));
   } else if (method == "wallpaper-default") {
     std::string error;
     if (!resetWallpaperImage(&error))
-      return {{"error", QString::fromStdString(error)}};
+      return {{"error", (error)}};
     const auto selected = wallpaperImagePath();
     refreshWallpaperPalette(d->eventLoop, selected,
                             wallpaperIsVideo(selected));
@@ -2447,7 +2370,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
     std::string nativeError;
     if (!saveWallpaperSettings({{"shader", number}, {"mode", "shader"}},
                                &nativeError))
-      return {{"error", QString::fromStdString(nativeError)}};
+      return {{"error", (nativeError)}};
     if (d)
       d->updateBackground();
   } else if (method == "group-window") {
@@ -2472,7 +2395,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
   } else if (method == "quit") {
     if (value != "confirm")
       return {{"error", "Logout requires explicit confirmation."}};
-    qInfo("LunaDash logout requested through the control channel.");
+    logInfo("LunaDash logout requested through the control channel.");
     d->scheduleCallback(0, [this] { requestShutdown(); });
   } else if (method == "switch-window") {
     const auto id = textWindowId(value);
@@ -2525,7 +2448,7 @@ QJsonObject WaylandCompositor::control(const QJsonObject &request) {
 
 void WaylandCompositor::publishSessionActivationEnvironment(
     const std::function<void()> &ready) {
-  if (qEnvironmentVariableIntValue("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1) {
+  if (environmentInt("LUNADASH_PUBLISH_ACTIVATION_ENV") != 1) {
     if (ready)
       ready();
     return;
@@ -2541,7 +2464,7 @@ void WaylandCompositor::publishSessionActivationEnvironment(
       environment,
       [this, ready](bool ok, const std::string &error) {
         activationEnvironmentPublished_ = ok;
-        activationEnvironmentError_ = QString::fromStdString(error);
+        activationEnvironmentError_ = (error);
         if (!ok) {
           if (ready)
             ready();
@@ -2552,15 +2475,15 @@ void WaylandCompositor::publishSessionActivationEnvironment(
       });
 }
 
-QString WaylandCompositor::nextCapturePath() const {
+std::string WaylandCompositor::nextCapturePath() const {
   const char *pictures = g_get_user_special_dir(G_USER_DIRECTORY_PICTURES);
   auto directory =
-      pictures ? QString::fromUtf8(pictures)
-               : QString::fromUtf8(g_get_home_dir()) + "/Pictures";
+      pictures ? std::string(pictures)
+               : std::string(g_get_home_dir()) + "/Pictures";
   directory += "/Screenshots";
   if (!createDirectories(directory))
     return {};
-  return directory + "/LunaDash-" + QString::fromStdString(currentTimestamp()) +
+  return directory + "/LunaDash-" + (currentTimestamp()) +
          ".png";
 }
 
@@ -2568,15 +2491,15 @@ void WaylandCompositor::captureScreen() {
   if (screenCapture_->busy())
     return;
   captureError_.clear();
-  const QString path = nextCapturePath();
-  if (path.isEmpty()) {
+  const std::string path = nextCapturePath();
+  if (path.empty()) {
     captureError_ = "Could not create the screenshot directory.";
     return;
   }
   std::string error;
-  if (!screenCapture_->selectRegion(clientEnvironment_, path.toStdString(),
+  if (!screenCapture_->selectRegion(clientEnvironment_, path,
                                     &error))
-    captureError_ = QString::fromStdString(error);
+    captureError_ = (error);
 }
 
 void WaylandCompositor::closeTestSession(
