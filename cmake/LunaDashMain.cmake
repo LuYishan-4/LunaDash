@@ -107,8 +107,10 @@ target_link_libraries(ludash-configuration PUBLIC PkgConfig::LUDASH_GIO
 add_library(ludash-json src/core/json/JsonAccess.cpp)
 target_include_directories(ludash-json PUBLIC src)
 target_link_libraries(ludash-json PUBLIC nlohmann_json::nlohmann_json)
-add_library(ludash-text src/core/text/Text.cpp src/core/text/Url.cpp)
+add_library(ludash-text src/core/text/Text.cpp src/core/text/Url.cpp
+    src/core/text/Pattern.cpp)
 target_include_directories(ludash-text PUBLIC src)
+target_link_libraries(ludash-text PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-file-io src/core/filesystem/FileIo.cpp
     src/core/filesystem/TemporaryDirectory.cpp)
 target_include_directories(ludash-file-io PUBLIC src)
@@ -222,7 +224,7 @@ add_library(ludash-tiling
     src/compositor/layout/FreeformLayout.cpp
     src/compositor/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
-target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core ludash-json)
+target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core ludash-json ludash-text)
 add_library(ludash-window-rules src/compositor/window/WindowRules.cpp src/compositor/window/WindowSwitcher.cpp)
 target_include_directories(ludash-window-rules PUBLIC src)
 target_link_libraries(ludash-window-rules PUBLIC

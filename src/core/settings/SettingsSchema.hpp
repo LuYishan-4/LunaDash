@@ -1,11 +1,11 @@
 #pragma once
 
 #include "core/json/JsonAccess.hpp"
+#include "core/text/Pattern.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <regex>
 #include <string>
 #include <string_view>
 
@@ -17,24 +17,12 @@ inline bool arrayContains(const Json &array, const Json &value) {
          std::find(array.begin(), array.end(), value) != array.end();
 }
 
-inline bool patternMatches(const std::string &pattern, const std::string &text,
-                           bool *valid = nullptr) {
-  try {
-    const std::regex expression(pattern, std::regex::ECMAScript);
-    if (valid)
-      *valid = true;
-    return std::regex_search(text, expression);
-  } catch (const std::regex_error &) {
-    if (valid)
-      *valid = false;
-    return false;
-  }
+inline bool patternMatches(const std::string &pattern, const std::string &text) {
+  return LunaDash::patternMatches(pattern, text);
 }
 
 inline bool validPattern(const std::string &pattern) {
-  bool valid = false;
-  patternMatches(pattern, {}, &valid);
-  return valid;
+  return patternIsValid(pattern);
 }
 
 inline bool validKey(std::string_view key) {
