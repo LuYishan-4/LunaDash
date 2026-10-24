@@ -20,6 +20,7 @@ patterns = (
                r"Object|Timer|Process|CoreApplication|Settings|Variant\w*|"
                r"StringList|List|Map|Vector|Hash|Set|TemporaryDir|SaveFile|"
                r"DBus\w*|Test)\b"),
+    re.compile(r"\bq(?:u?int(?:8|16|32|64)|real|sizetype|ulonglong|longlong)\b"),
     re.compile(r"\bq(?:Debug|Warning|Info|Critical|Fatal|putenv|getenv|"
                r"EnvironmentVariable\w*|Abs|Max|Min|Bound|Round)\s*\("),
 )

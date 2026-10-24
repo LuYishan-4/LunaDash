@@ -2,6 +2,7 @@
 #include "support/TestHarness.hpp"
 #include <string>
 #include <vector>
+#include <cstdint>
 #include <cstring>
 #include <drm_fourcc.h>
 #include <memory>
@@ -186,13 +187,13 @@ public:
     VERIFY2(glass_->ready(),
              (glass_->error()).c_str());
     VERIFY(!glass_->failed());
-    COMPARE(glass_->frames(), quint64{1});
+    COMPARE(glass_->frames(), std::uint64_t{1});
     const int allocations = allocator_->calls;
     for (int frame = 0; frame < 5; ++frame) {
       glass_->update(surfaces, false);
       VERIFY(glass_->ready());
     }
-    COMPARE(glass_->frames(), quint64{1});
+    COMPARE(glass_->frames(), std::uint64_t{1});
     COMPARE(allocator_->calls, allocations);
     VERIFY(!glass_->configure(true, 8, 0.8f));
     glass_->update(surfaces, false);
@@ -200,10 +201,10 @@ public:
     wlr_scene_rect_set_color(background_, blue);
     std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    COMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), std::uint64_t{2});
     VERIFY(allocator_->calls > allocations);
     glass_->update(surfaces, false);
-    COMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), std::uint64_t{2});
   }
 
   void geometryChangesRecaptureAndMoveTheUnderlay() {
@@ -211,16 +212,16 @@ public:
     VERIFY(window.tree && window.content);
     glass_->update({{window.tree, {64, 64}, true}}, false);
     VERIFY(glass_->ready());
-    COMPARE(glass_->frames(), quint64{1});
+    COMPARE(glass_->frames(), std::uint64_t{1});
     wlr_scene_node_set_position(&window.tree->node, 24, 16);
     glass_->update({{window.tree, {64, 64}, true}}, false);
-    COMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), std::uint64_t{2});
     auto *backdrop = underlay(window.tree);
     VERIFY(backdrop);
     COMPARE(backdrop->node.x, 24);
     COMPARE(backdrop->node.y, 16);
     glass_->update({{window.tree, {96, 80}, true}}, false);
-    COMPARE(glass_->frames(), quint64{3});
+    COMPARE(glass_->frames(), std::uint64_t{3});
     VERIFY(childCount(backdrop) > 1);
     std::vector<int> coveredWidth(80, 0);
     int bottom = 0;
@@ -249,7 +250,7 @@ public:
     COMPARE(coveredWidth.front(), coveredWidth.back());
     COMPARE(coveredWidth[40], 96);
     glass_->update({{window.tree, {96, 80}, true}}, false);
-    COMPARE(glass_->frames(), quint64{3});
+    COMPARE(glass_->frames(), std::uint64_t{3});
   }
 
   void offAreaActivityDoesNotInvalidateBackdrops() {
@@ -262,7 +263,7 @@ public:
     const std::vector<WindowGlass::Surface> surfaces{
         {window.tree, {64, 64}, true}};
     glass_->update(surfaces, false);
-    COMPARE(glass_->frames(), quint64{1});
+    COMPARE(glass_->frames(), std::uint64_t{1});
     const int allocations = allocator_->calls;
     const int live = allocator_->liveBuffers;
     for (int frame = 0; frame < 600; ++frame) {
@@ -270,7 +271,7 @@ public:
       wlr_scene_node_set_position(&activity->node, 300 + frame % 20, 200);
       glass_->update(surfaces, false);
     }
-    COMPARE(glass_->frames(), quint64{1});
+    COMPARE(glass_->frames(), std::uint64_t{1});
     COMPARE(allocator_->calls, allocations);
     COMPARE(allocator_->liveBuffers, live);
     // The filter samples beyond the window edge. Moving activity into that
@@ -278,16 +279,16 @@ public:
     wlr_scene_node_set_position(&activity->node, 66, 10);
     std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    COMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), std::uint64_t{2});
     wlr_scene_node_set_position(&activity->node, 300, 200);
     std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    COMPARE(glass_->frames(), quint64{3});
+    COMPARE(glass_->frames(), std::uint64_t{3});
     // Removing an unrelated subtree must not invalidate the cache either.
     wlr_scene_node_destroy(&activity->node);
     std::this_thread::sleep_for(std::chrono::milliseconds(110));
     glass_->update(surfaces, false);
-    COMPARE(glass_->frames(), quint64{3});
+    COMPARE(glass_->frames(), std::uint64_t{3});
   }
 
   void animationRetainsAlphaAndDisablingRestoresSteadyState() {
@@ -409,9 +410,9 @@ public:
     auto *firstBackdrop = underlay(first.tree);
     auto *secondBackdrop = underlay(second.tree);
     VERIFY(firstBackdrop && secondBackdrop && firstBackdrop != secondBackdrop);
-    COMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), std::uint64_t{2});
     glass_->update(surfaces, false);
-    COMPARE(glass_->frames(), quint64{2});
+    COMPARE(glass_->frames(), std::uint64_t{2});
     wlr_scene_node_raise_to_top(&first.tree->node);
     glass_->update(surfaces, false);
     COMPARE(underlay(first.tree), firstBackdrop);
