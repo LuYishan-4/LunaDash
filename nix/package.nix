@@ -28,7 +28,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "lunadash";
-  version = "1.0.1a";
+  version = "1.0.2a";
   src = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.unions [

@@ -1,6 +1,6 @@
 # Local source release: run scripts/make-source.sh first, then makepkg -Cfs.
 pkgname=ludash
-pkgver=1.0.1a
+pkgver=1.0.2a
 pkgrel=1
 pkgdesc='C++ Wayland tiling desktop with OpenGL and optional Vulkan rendering'
 arch=('x86_64' 'aarch64')
@@ -22,6 +22,24 @@ build() {
   cmake -S "ludash-${pkgver}" -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
     -DLUDASH_QML_SOURCE_DIR="$srcdir/LunaDash-Shell"
+
+  # Slint's tikv-jemallocator 0.7.0 is incompatible with Rust 1.99+:
+  # ld.lld: error: undefined symbol: _rjem_malloc (and 130+ more).
+  # Drop the jemalloc feature from slint-compiler before building.
+  local slint_src
+  slint_src=$(find build/_deps -maxdepth 1 -type d -name 'slint-src' -print -quit 2>/dev/null || true)
+  if [ -n "$slint_src" ]; then
+    # 1) Remove jemalloc from Cargo.toml default features
+    if [ -f "$slint_src/tools/compiler/Cargo.toml" ]; then
+      sed -i 's/^default = \["renderer-software", "image-default-formats", "jemalloc", "bundle-translations", "cpp", "rust", "python"\]/default = ["renderer-software", "image-default-formats", "bundle-translations", "cpp", "rust", "python"]/' "$slint_src/tools/compiler/Cargo.toml"
+    fi
+    # 2) Patch CMakeLists.txt to NOT append jemalloc to CORROSION_FEATURES
+    local slint_cpp_cmake="$slint_src/api/cpp/CMakeLists.txt"
+    if [ -f "$slint_cpp_cmake" ]; then
+      sed -i '/# Enable jemalloc, except when cross-compiling/,/endif()/ s/list(APPEND slint_compiler_features "jemalloc")/# list(APPEND slint_compiler_features "jemalloc")  # DISABLED: incompatible with Rust 1.99+/' "$slint_cpp_cmake"
+    fi
+  fi
+
   cmake --build build
 }
 

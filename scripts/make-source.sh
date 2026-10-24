@@ -57,14 +57,19 @@ else
   exit 1
 fi
 printf '%s\n' "$revision" > "$metadata/.lunadash-revision"
-tar -czf "$metadata/ludash-1.0.1a.tar.gz" \
+ludash_version=$(sed -n 's/^    set(LUDASH_RELEASE_VERSION "\([^"]*\)")$/\1/p' "$project_dir/cmake/LunaDashMain.cmake" | head -n1)
+if [ -z "$ludash_version" ]; then
+    echo 'Unable to read LUDASH_RELEASE_VERSION from cmake/LunaDashMain.cmake.' >&2
+    exit 1
+fi
+tar -czf "$metadata/ludash-${ludash_version}.tar.gz" \
   --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' \
-  --transform='s,^,ludash-1.0.1a/,' -C "$project_dir" "$@" \
+  --transform="s,^,ludash-${ludash_version}/," -C "$project_dir" "$@" \
   -C "$metadata" .lunadash-revision
 tar -czf "$metadata/ludash-shell.tar.gz" \
   --transform='s,^\./,LunaDash-Shell/,' \
   -C "$metadata/LunaDash-Shell-package" .
-mv -f -- "$metadata/ludash-1.0.1a.tar.gz" \
-  "$project_dir/packaging/arch/ludash-1.0.1a.tar.gz"
+mv -f -- "$metadata/ludash-${ludash_version}.tar.gz" \
+  "$project_dir/packaging/arch/ludash-${ludash_version}.tar.gz"
 mv -f -- "$metadata/ludash-shell.tar.gz" \
   "$project_dir/packaging/arch/ludash-shell.tar.gz"

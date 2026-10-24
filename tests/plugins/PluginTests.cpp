@@ -97,7 +97,7 @@ public:
     VERIFY(package.isValid());
     PluginDescriptor plugin;
     plugin.id = "org.example.spectrum";
-    plugin.version = "1.0.1a";
+    plugin.version = "1.0.2a";
     plugin.metadataPath = package.filePath("metadata.json");
     Json file{{"path", "Main.qml"},
               {"sha256", "first"},

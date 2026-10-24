@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """Run the actual source packager without dependencies, builds or privileges."""
+
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-PREFIX = "ludash-1.0.1a/"
+PREFIX = "ludash-1.0.2a/"
 
 
 class SourceArchiveTests(unittest.TestCase):
@@ -25,7 +26,9 @@ class SourceArchiveTests(unittest.TestCase):
         # accidentally recreate a removed directory such as examples/.
         paths = subprocess.run(
             ["git", "-C", str(ROOT), "ls-files", "-z"],
-            check=True, capture_output=True, timeout=10,
+            check=True,
+            capture_output=True,
+            timeout=10,
         ).stdout.split(b"\0")
         for path in filter(None, paths):
             relative = Path(os.fsdecode(path))
@@ -41,11 +44,19 @@ class SourceArchiveTests(unittest.TestCase):
         self.assertFalse((self.project / "site").exists())
         self.git("init", "-q")
         self.git("add", "-A")
-        self.git("-c", "user.name=Packaging Test",
-                 "-c", "user.email=packaging-test@example.invalid",
-                 "-c", "commit.gpgsign=false", "commit", "-qm", "Test input")
+        self.git(
+            "-c",
+            "user.name=Packaging Test",
+            "-c",
+            "user.email=packaging-test@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-qm",
+            "Test input",
+        )
         self.revision = self.git("rev-parse", "HEAD").stdout.strip()
-        self.archive = self.project / "packaging/arch/ludash-1.0.1a.tar.gz"
+        self.archive = self.project / "packaging/arch/ludash-1.0.2a.tar.gz"
         self.shell_archive = self.project / "packaging/arch/ludash-shell.tar.gz"
 
     def git(self, *args):
@@ -56,16 +67,33 @@ class SourceArchiveTests(unittest.TestCase):
         # for fixture commands; never change the developer's Git configuration
         # or suppress genuine cleanup errors.
         return subprocess.run(
-            ["git", "-C", str(self.project), "-c", "core.hooksPath=/dev/null",
-             "-c", "maintenance.auto=false", "-c", "gc.auto=0", *args],
-            check=True, capture_output=True, text=True, timeout=30,
+            [
+                "git",
+                "-C",
+                str(self.project),
+                "-c",
+                "core.hooksPath=/dev/null",
+                "-c",
+                "maintenance.auto=false",
+                "-c",
+                "gc.auto=0",
+                *args,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
 
     def package(self, env=None):
         # Run outside the checkout and with spaces in its path.
         return subprocess.run(
             ["sh", str(self.project / "scripts/make-source.sh")],
-            cwd=self.work, env=env, capture_output=True, text=True, timeout=30,
+            cwd=self.work,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
 
     def assert_packaged(self):
@@ -88,53 +116,84 @@ class SourceArchiveTests(unittest.TestCase):
         with tarfile.open(self.archive, "r:gz") as archive:
             names = archive.getnames()
             for name in (
-                "CMakeLists.txt", "install.sh", "cmake/plugins/LunaDashPlugin.cmake",
-                "cmake/plugins/SettingsSchema.py", "src/core/plugins/PluginApi.h",
-                "data/plugins/targets.json", "data/plugins/catalog.json",
-                "data/modules/registry.json", "templates/plugins/effect-c/Effect.c",
+                "CMakeLists.txt",
+                "install.sh",
+                "cmake/plugins/LunaDashPlugin.cmake",
+                "cmake/plugins/SettingsSchema.py",
+                "src/core/plugins/PluginApi.h",
+                "data/plugins/targets.json",
+                "data/plugins/catalog.json",
+                "data/modules/registry.json",
+                "templates/plugins/effect-c/Effect.c",
                 "templates/plugins/effect-cpp/Effect.cpp",
                 "templates/plugins/quickshell/Main.qml",
                 "templates/plugins/opengl/Effect.frag",
                 "protocols/wlr-layer-shell-unstable-v1.xml",
-                "tests/settings/contract.json", "scripts/install-session.sh",
-                "scripts/fetch-shell.sh", "packaging/shell-revision",
+                "tests/settings/contract.json",
+                "scripts/install-session.sh",
+                "scripts/fetch-shell.sh",
+                "packaging/shell-revision",
                 "src/compositor/Main.cpp",
-                "docs/en/SETTINGS_API.md", "docs/zh/SETTINGS_API.md",
-                "packaging/arch/PKGBUILD", "flake.nix", "flake.lock",
-                "nix/package.nix", "nix/module.nix", "nix/checks.nix", ".lunadash-revision",
+                "docs/en/SETTINGS_API.md",
+                "docs/zh/SETTINGS_API.md",
+                "packaging/arch/PKGBUILD",
+                "flake.nix",
+                "flake.lock",
+                "nix/package.nix",
+                "nix/module.nix",
+                "nix/checks.nix",
+                ".lunadash-revision",
             ):
                 self.assertIn(PREFIX + name, names)
             self.assertTrue(all(name.startswith(PREFIX) for name in names))
-            self.assertFalse(any("__pycache__" in name or name.endswith(".pyc")
-                                 for name in names))
+            self.assertFalse(
+                any("__pycache__" in name or name.endswith(".pyc") for name in names)
+            )
             self.assertFalse(any(name.endswith("/.git") for name in names))
             self.assertFalse(any(name.startswith(PREFIX + "site/") for name in names))
             self.assertFalse(any(name.startswith(PREFIX + "qml/") for name in names))
             self.assertNotIn(PREFIX + ".git", names)
-            self.assertFalse(any(
-                name.startswith(PREFIX + "data/plugins/fade/") or
-                name.startswith(PREFIX + "data/plugins/stacking-windows/") or
-                name.startswith(PREFIX + "qml/plugins/digital-clock/")
-                for name in names
-            ))
+            self.assertFalse(
+                any(
+                    name.startswith(PREFIX + "data/plugins/fade/")
+                    or name.startswith(PREFIX + "data/plugins/stacking-windows/")
+                    or name.startswith(PREFIX + "qml/plugins/digital-clock/")
+                    for name in names
+                )
+            )
             self.assertEqual(
-                archive.extractfile(PREFIX + ".lunadash-revision").read().decode().strip(),
+                archive.extractfile(PREFIX + ".lunadash-revision")
+                .read()
+                .decode()
+                .strip(),
                 self.revision,
             )
-            self.assertTrue(archive.getmember(PREFIX + "scripts/install-session.sh").mode & 0o111)
+            self.assertTrue(
+                archive.getmember(PREFIX + "scripts/install-session.sh").mode & 0o111
+            )
         with tarfile.open(self.shell_archive, "r:gz") as archive:
             names = archive.getnames()
             self.assertIn("LunaDash-Shell/shell.qml", names)
             self.assertIn("LunaDash-Shell/settings/pages/about.qml", names)
             self.assertIn("LunaDash-Shell/settings/components/SchemaOptions.qml", names)
-            self.assertFalse(any(name.startswith("LunaDash-Shell/tests/") for name in names))
-            self.assertFalse(any(name == "LunaDash-Shell/.git" or
-                                 name.startswith("LunaDash-Shell/.git/") for name in names))
+            self.assertFalse(
+                any(name.startswith("LunaDash-Shell/tests/") for name in names)
+            )
+            self.assertFalse(
+                any(
+                    name == "LunaDash-Shell/.git"
+                    or name.startswith("LunaDash-Shell/.git/")
+                    for name in names
+                )
+            )
         # Generating an archive must not make the next package appear dirty.
         self.assert_packaged()
         with tarfile.open(self.archive, "r:gz") as archive:
             self.assertEqual(
-                archive.extractfile(PREFIX + ".lunadash-revision").read().decode().strip(),
+                archive.extractfile(PREFIX + ".lunadash-revision")
+                .read()
+                .decode()
+                .strip(),
                 self.revision,
             )
 
@@ -143,24 +202,37 @@ class SourceArchiveTests(unittest.TestCase):
         # even for this small throwaway repository. Command-scoped options in
         # git() must override inherited settings before Git starts any worker.
         trace = self.work / "git-trace.jsonl"
-        with patch.dict(os.environ, {
-            "GIT_CONFIG_COUNT": "2",
-            "GIT_CONFIG_KEY_0": "maintenance.auto",
-            "GIT_CONFIG_VALUE_0": "true",
-            "GIT_CONFIG_KEY_1": "gc.auto",
-            "GIT_CONFIG_VALUE_1": "1",
-            "GIT_TRACE2_EVENT": str(trace),
-        }):
-            self.git("-c", "user.name=Packaging Test",
-                     "-c", "user.email=packaging-test@example.invalid",
-                     "-c", "commit.gpgsign=false", "commit", "--allow-empty",
-                     "-qm", "Maintenance isolation regression")
+        with patch.dict(
+            os.environ,
+            {
+                "GIT_CONFIG_COUNT": "2",
+                "GIT_CONFIG_KEY_0": "maintenance.auto",
+                "GIT_CONFIG_VALUE_0": "true",
+                "GIT_CONFIG_KEY_1": "gc.auto",
+                "GIT_CONFIG_VALUE_1": "1",
+                "GIT_TRACE2_EVENT": str(trace),
+            },
+        ):
+            self.git(
+                "-c",
+                "user.name=Packaging Test",
+                "-c",
+                "user.email=packaging-test@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "--allow-empty",
+                "-qm",
+                "Maintenance isolation regression",
+            )
         events = [json.loads(line) for line in trace.read_text().splitlines()]
         self.assertTrue(any(event.get("event") == "exit" for event in events))
-        workers = [event.get("argv", []) for event in events
-                   if event.get("event") == "child_start" and
-                   any(arg in ("maintenance", "gc")
-                       for arg in event.get("argv", []))]
+        workers = [
+            event.get("argv", [])
+            for event in events
+            if event.get("event") == "child_start"
+            and any(arg in ("maintenance", "gc") for arg in event.get("argv", []))
+        ]
         self.assertEqual(workers, [], "Fixture Git started maintenance workers")
 
     def test_sha_pinned_download_packages_without_git_checkout(self):
@@ -169,14 +241,22 @@ class SourceArchiveTests(unittest.TestCase):
         self.assert_packaged()
         with tarfile.open(self.archive, "r:gz") as archive:
             self.assertEqual(
-                archive.extractfile(PREFIX + ".lunadash-revision").read().decode().strip(),
+                archive.extractfile(PREFIX + ".lunadash-revision")
+                .read()
+                .decode()
+                .strip(),
                 self.revision,
             )
             self.assertTrue(archive.getmember(PREFIX + "install.sh").mode & 0o111)
 
     def test_invalid_archive_revision_is_rejected(self):
         shutil.rmtree(self.project / ".git")
-        for revision in ("dev", "../main", "$(touch injected)", "a" * 40 + "\n" + "b" * 40):
+        for revision in (
+            "dev",
+            "../main",
+            "$(touch injected)",
+            "a" * 40 + "\n" + "b" * 40,
+        ):
             (self.project / ".lunadash-revision").write_text(revision)
             result = self.package()
             self.assertNotEqual(result.returncode, 0, revision)
@@ -185,13 +265,20 @@ class SourceArchiveTests(unittest.TestCase):
 
     def test_local_edits_are_included_and_mark_revision_dirty(self):
         readme = self.project / "README.md"
-        readme.write_text(readme.read_text(encoding="utf-8") + "\nLocal packaging edit.\n",
-                          encoding="utf-8")
+        readme.write_text(
+            readme.read_text(encoding="utf-8") + "\nLocal packaging edit.\n",
+            encoding="utf-8",
+        )
         self.assert_packaged()
         with tarfile.open(self.archive, "r:gz") as archive:
-            self.assertEqual(archive.extractfile(PREFIX + "README.md").read(), readme.read_bytes())
             self.assertEqual(
-                archive.extractfile(PREFIX + ".lunadash-revision").read().decode().strip(),
+                archive.extractfile(PREFIX + "README.md").read(), readme.read_bytes()
+            )
+            self.assertEqual(
+                archive.extractfile(PREFIX + ".lunadash-revision")
+                .read()
+                .decode()
+                .strip(),
                 self.revision + "-dirty",
             )
 
@@ -199,7 +286,9 @@ class SourceArchiveTests(unittest.TestCase):
         self.assert_packaged()
         previous = self.archive.read_bytes()
         previous_shell = self.shell_archive.read_bytes()
-        env = dict(os.environ, LUDASH_QML_SOURCE_DIR=str(self.project / "missing-shell"))
+        env = dict(
+            os.environ, LUDASH_QML_SOURCE_DIR=str(self.project / "missing-shell")
+        )
         result = self.package(env)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("LunaDash-Shell source is unavailable", result.stderr)

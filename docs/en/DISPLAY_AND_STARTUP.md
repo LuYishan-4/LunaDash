@@ -56,4 +56,4 @@ Use `lunadash-compositor --profile` to report event-loop stalls. The maintained 
 
 ## Portal window appearance
 
-The 1.0.1a FileChooser no longer relies on host window decorations for its visible frame. A frameless LunaDash dialog owns the header, border and location control and embeds the non-native Qt file view inside it. This avoids the light/white host title bar seen when a Qt dialog inherits an unrelated desktop theme.
+The 1.0.2a FileChooser no longer relies on host window decorations for its visible frame. A frameless LunaDash dialog owns the header, border and location control and embeds the non-native Qt file view inside it. This avoids the light/white host title bar seen when a Qt dialog inherits an unrelated desktop theme.

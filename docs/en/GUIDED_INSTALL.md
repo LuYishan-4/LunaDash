@@ -5,7 +5,7 @@
 Use an installed **Arch Linux x86_64** system with Internet access, Bash, curl,
 and a normal login account that can use sudo. This is a desktop installer, not a
 disk partitioner or an installer for an empty disk. Review downloaded code before
-executing it. LunaDash 1.0.1a is still a development desktop.
+executing it. LunaDash 1.0.2a is still a development desktop.
 
 ```bash
 curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/LuYishan-4/LunaDash/dev/install.sh | bash

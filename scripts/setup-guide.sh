@@ -46,7 +46,7 @@ setup_choose() {
     setup_requested=true
     cat <<'EOF'
 
-LunaDash 1.0.1a first-install guide
+LunaDash 1.0.2a first-install guide
 1. Install the LunaDash Wayland compositor, Quickshell UI and core dependencies.
 2. Choose optional everyday apps and tools from configured Arch repositories.
 3. Choose editable desktop and terminal templates. Personal settings stay intact.

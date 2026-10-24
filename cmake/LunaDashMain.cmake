@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
-project(LunaDash VERSION 1.0.1 LANGUAGES C CXX)
+project(LunaDash VERSION 1.0.2 LANGUAGES C CXX)
 if(NOT DEFINED LUDASH_RELEASE_VERSION)
-    set(LUDASH_RELEASE_VERSION "1.0.1a")
+    set(LUDASH_RELEASE_VERSION "1.0.2a")
 endif()
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -57,6 +57,12 @@ endif()
 if(NOT LUNADASH_GIT_COMMIT)
     set(LUNADASH_GIT_COMMIT "unknown")
 endif()
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core/plugins/macros/Version.hpp.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core/plugins/macros/Version.hpp"
+    @ONLY
+)
 
 add_compile_definitions(
     LUDASH_VERSION="${LUDASH_RELEASE_VERSION}"

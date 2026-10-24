@@ -204,7 +204,7 @@ WeatherStatus::HttpResult WeatherStatus::fetch(std::string url,
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 15000L);
-  curl_easy_setopt(curl, CURLOPT_USERAGENT, "LunaDash/1.0.1a");
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, "LunaDash/1.0.2a");
   curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, receiveResponse);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);

@@ -1,13 +1,27 @@
 #!/usr/bin/env python3
 """Seed portable first-install settings without replacing personal files."""
+
 import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
+import re
 import sys
+from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parents[1] / "data/setup"
+
+def get_ludash_version():
+    """Read LUDASH_RELEASE_VERSION from cmake/LunaDashMain.cmake."""
+    cmake_file = Path(__file__).resolve().parents[1] / "cmake" / "LunaDashMain.cmake"
+    try:
+        content = cmake_file.read_text()
+        match = re.search(r'set\(LUDASH_RELEASE_VERSION\s+"([^"]+)"\)', content)
+        if match:
+            return match.group(1)
+    except Exception:
+        pass
+    return "unknown"
 AUTHOR_GROUPS = {
     "kitty": ("kitty/kitty.conf", "kitty/lunadash.conf", "kitty/__custom__.conf"),
     "fish": ("fish/config.fish", "fish/__custom__.fish"),
@@ -20,7 +34,9 @@ def plain_path(path):
     """Reject symlink parents, including dangling links, before writing."""
     for parent in reversed((path, *path.parents)):
         if parent.is_symlink():
-            raise ValueError(f"Setup path is a symbolic link; preserve it and merge templates manually: {parent}")
+            raise ValueError(
+                f"Setup path is a symbolic link; preserve it and merge templates manually: {parent}"
+            )
         if parent != path and parent.exists() and not parent.is_dir():
             raise ValueError(f"Setup parent is not a directory: {parent}")
 
@@ -55,15 +71,21 @@ def seed(config, state, desktop=False, author=False, complete=False, apps="none"
     examples = config / "LuDash/setup-examples"
     if desktop:
         content = (ASSETS / "desktop-profile.json").read_bytes()
-        planned.extend(((examples / "shell-modules.json", content),
-                        (config / "LuDash/shell-modules.json", content)))
+        planned.extend(
+            (
+                (examples / "shell-modules.json", content),
+                (config / "LuDash/shell-modules.json", content),
+            )
+        )
     if author:
         for group, names in AUTHOR_GROUPS.items():
             # Avoid partially mixing a starter template into an existing app setup.
             destinations = [config / name for name in names]
             occupied = any(path.exists() or path.is_symlink() for path in destinations)
             if occupied:
-                print(f"Preserved existing {group} settings; starter files are in {examples}")
+                print(
+                    f"Preserved existing {group} settings; starter files are in {examples}"
+                )
             for name, destination in zip(names, destinations):
                 content = (ASSETS / "author" / name).read_bytes()
                 planned.append((examples / name, content))
@@ -80,13 +102,25 @@ def seed(config, state, desktop=False, author=False, complete=False, apps="none"
     for path, content in planned:
         create_missing(path, content, created)
     if complete:
-        content = json.dumps({"version": "1.0.1a", "apps": apps,
-                              "desktopProfile": desktop, "authorConfig": author,
-                              "createdFiles": created}, indent=2).encode() + b"\n"
+        content = (
+            json.dumps(
+                {
+                    "version": get_ludash_version(),
+                    "apps": apps,
+                    "desktopProfile": desktop,
+                    "authorConfig": author,
+                    "createdFiles": created,
+                },
+                indent=2,
+            ).encode()
+            + b"\n"
+        )
         create_missing(marker, content, [])
     if desktop or author:
         print(f"Editable starter examples: {examples}")
-        print("Existing settings were retained. Back them up before manually merging an example.")
+        print(
+            "Existing settings were retained. Back them up before manually merging an example."
+        )
 
 
 def main():
@@ -100,7 +134,14 @@ def main():
         parser.error("Run setup as your normal user.")
     config = xdg_path("XDG_CONFIG_HOME", str(Path.home() / ".config"))
     state = xdg_path("XDG_STATE_HOME", str(Path.home() / ".local/state"))
-    seed(config, state, args.desktop_profile, args.author_config, args.complete, args.apps)
+    seed(
+        config,
+        state,
+        args.desktop_profile,
+        args.author_config,
+        args.complete,
+        args.apps,
+    )
 
 
 if __name__ == "__main__":

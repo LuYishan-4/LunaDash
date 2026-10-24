@@ -1,5 +1,5 @@
 {
-  description = "LunaDash 1.0.1a Wayland desktop";
+  description = "LunaDash 1.0.2a Wayland desktop";
 
   inputs.nixpkgs.url = "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.zst";
 
