@@ -24,7 +24,6 @@ if(CMAKE_CXX_CLANG_TIDY AND NOT CMAKE_C_CLANG_TIDY)
     set(CMAKE_C_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
 endif()
 find_path(LUDASH_GL_INCLUDE_DIR GL/glcorearb.h REQUIRED)
-find_package(Qt6 6.4 REQUIRED COMPONENTS Network)
 find_package(nlohmann_json 3.11 CONFIG QUIET)
 if(NOT nlohmann_json_FOUND)
     include(FetchContent)
@@ -260,7 +259,8 @@ add_library(ludash-plugins src/compositor/plugins/PluginManager.hpp
     src/compositor/plugins/ExtensionHooks.cpp)
 target_include_directories(ludash-plugins PUBLIC src)
 target_link_libraries(ludash-plugins PUBLIC
-    ludash-plugin-catalog ludash-tiling ludash-crypto Qt6::Core Qt6::Network)
+    ludash-plugin-catalog ludash-tiling ludash-crypto ludash-process-runner
+    Qt6::Core)
 target_compile_definitions(ludash-plugins PRIVATE
     LUDASH_PLUGIN_CATALOG_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/plugins/catalog.json"
     LUDASH_PLUGIN_CATALOG_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/catalog.json")
@@ -484,7 +484,6 @@ target_link_libraries(ludash-wayland
         ludash-plugins
         ludash-crypto
         Qt6::Core
-        Qt6::Network
         PkgConfig::WAYLAND_SERVER
         PkgConfig::WLROOTS
         PkgConfig::LUDASH_XKBCOMMON)

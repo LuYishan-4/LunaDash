@@ -330,7 +330,7 @@ WaylandCompositor::WaylandCompositor(const QByteArray &socket, bool fullscreen,
     return desktopPreferences().value("updateChannel", std::string("stable"));
   });
   networkStatus_ = new NetworkStatus(d->eventLoop);
-  pluginManager_ = new PluginManager(this);
+  pluginManager_ = std::make_unique<PluginManager>(d->eventLoop);
   pluginManager_->loadEnabled();
   windowLayout_->setPlacementFilter(
       [this](auto workspace, auto area, const auto &placements) {

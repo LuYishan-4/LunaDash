@@ -71,7 +71,7 @@ private:
   WeatherStatus *weatherStatus_ = nullptr;
   NetworkStatus *networkStatus_ = nullptr;
   XWaylandSupport *xwayland_ = nullptr;
-  PluginManager *pluginManager_ = nullptr;
+  std::unique_ptr<PluginManager> pluginManager_;
   std::unique_ptr<ControlServer> controlServer_;
 
   QString controlPath_;

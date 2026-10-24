@@ -9,10 +9,6 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLibrary>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QProcess>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QScopedValueRollback>
@@ -21,6 +17,7 @@
 #include <QUrl>
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <map>
 #include <set>
 #include <string_view>
@@ -47,11 +44,16 @@ struct PluginManager::StoreInstall {
   QString buildDirectory;
   QString installPrefix;
   QString cmakeExecutable;
-  QProcess *process = nullptr;
-  QByteArray processTail;
+  std::unique_ptr<ProcessRunner> process;
   int index = 0;
   int buildStep = 0; // 0 configure, 1 build, 2 install
   QString phase = "downloading";
+};
+
+struct PluginManager::DeferredCallback {
+  PluginManager *manager = nullptr;
+  wl_event_source *source = nullptr;
+  std::function<void()> callback;
 };
 
 namespace {
@@ -91,7 +93,7 @@ bool directoryClaimsPluginId(const QString &directory, const QString &id) {
   return false;
 }
 } // namespace
-PluginManager::PluginManager(QObject *parent) : QObject(parent) {
+PluginManager::PluginManager(wl_event_loop *eventLoop) : eventLoop_(eventLoop) {
   QFile bundled(QStringLiteral(LUDASH_PLUGIN_CATALOG_SOURCE_FILE));
   bool catalogOpened = bundled.open(QIODevice::ReadOnly);
   if (!catalogOpened) {
@@ -105,10 +107,13 @@ PluginManager::PluginManager(QObject *parent) : QObject(parent) {
     if (!applyStoreCatalog(bundled.readAll(), &error))
       storeError_ = error;
   }
-  storeNetwork_ = new QNetworkAccessManager(this);
   refreshStore();
 }
-PluginManager::~PluginManager() = default;
+PluginManager::~PluginManager() {
+  for (const auto &callback : deferredCallbacks_)
+    if (callback->source)
+      wl_event_source_remove(callback->source);
+}
 
 void PluginManager::setChangedCallback(std::function<void()> callback) {
   changedCallback_ = std::move(callback);
@@ -118,6 +123,42 @@ void PluginManager::notifyChanged() {
   snapshotDirty_ = true;
   if (changedCallback_)
     changedCallback_();
+}
+
+bool PluginManager::defer(std::function<void()> callback) {
+  if (!eventLoop_ || !callback)
+    return false;
+  auto deferred = std::make_unique<DeferredCallback>();
+  deferred->manager = this;
+  deferred->callback = std::move(callback);
+  auto *raw = deferred.get();
+  deferredCallbacks_.push_back(std::move(deferred));
+  raw->source = wl_event_loop_add_idle(
+      eventLoop_,
+      [](void *data) {
+        auto *pending = static_cast<DeferredCallback *>(data);
+        pending->manager->dispatchDeferred(pending);
+      },
+      raw);
+  if (raw->source)
+    return true;
+  deferredCallbacks_.pop_back();
+  return false;
+}
+
+void PluginManager::dispatchDeferred(DeferredCallback *callback) {
+  if (!callback)
+    return;
+  if (callback->source)
+    wl_event_source_remove(callback->source);
+  auto found = std::find_if(
+      deferredCallbacks_.begin(), deferredCallbacks_.end(),
+      [callback](const auto &entry) { return entry.get() == callback; });
+  if (found == deferredCallbacks_.end())
+    return;
+  auto invoke = std::move(callback->callback);
+  deferredCallbacks_.erase(found);
+  invoke();
 }
 
 bool PluginManager::applyStoreCatalog(const QByteArray &bytes, QString *error) {
@@ -288,26 +329,47 @@ void PluginManager::refreshStore() {
     return;
   }
 
+  if (!eventLoop_) {
+    storeError_ = "Plugin catalogue refresh requires the Wayland event loop";
+    notifyChanged();
+    return;
+  }
+  catalogRunner_ = std::make_unique<ProcessRunner>(eventLoop_);
   storeLoading_ = true;
   storeError_.clear();
   snapshotDirty_ = true;
-  QNetworkRequest request(url);
-  request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                       QNetworkRequest::NoLessSafeRedirectPolicy);
-  auto *reply = storeNetwork_->get(request);
-  connect(reply, &QNetworkReply::finished, this, [this, reply] {
+  const std::vector<std::string> arguments{
+      "--fail", "--location", "--proto", "=https", "--proto-redir", "=https",
+      "--max-redirs", "5", "--max-filesize", "262144", "--silent",
+      "--show-error", "--", url.toString().toStdString()};
+  const bool started = catalogRunner_->runDetailed(
+      "curl", arguments,
+      [this](const ProcessResult &result) {
+        if (!defer([this, result] {
+              storeLoading_ = false;
+              QString error;
+              if (!result.success) {
+                storeError_ =
+                    "Remote catalogue unavailable; showing bundled catalogue";
+              } else if (!applyStoreCatalog(
+                             QByteArray::fromStdString(result.output), &error)) {
+                storeError_ = error;
+              } else {
+                storeError_.clear();
+              }
+              notifyChanged();
+            })) {
+          storeLoading_ = false;
+          storeError_ = "Could not schedule plugin catalogue processing";
+          notifyChanged();
+        }
+      },
+      30000);
+  if (!started) {
     storeLoading_ = false;
-    QString error;
-    if (reply->error() != QNetworkReply::NoError) {
-      storeError_ = "Remote catalogue unavailable; showing bundled catalogue";
-    } else if (!applyStoreCatalog(reply->readAll(), &error)) {
-      storeError_ = error;
-    } else {
-      storeError_.clear();
-    }
-    reply->deleteLater();
+    storeError_ = "Could not start plugin catalogue download";
     notifyChanged();
-  });
+  }
 }
 
 
@@ -417,48 +479,58 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
   const auto relativePath = entry.value("path").toString();
   const auto expectedSha = entry.value("sha256").toString().toLower();
   const QUrl url(entry.value("url").toString());
-  QNetworkRequest request(url);
-  request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                       QNetworkRequest::NoLessSafeRedirectPolicy);
-  auto *reply = storeNetwork_->get(request);
-  connect(reply, &QNetworkReply::finished, this,
-          [this, job, reply, relativePath, expectedSha] {
-            const auto failure = reply->error();
-            const auto data = reply->readAll();
-            reply->deleteLater();
-            if (failure != QNetworkReply::NoError) {
-              finishStoreInstall(job, "Plugin download failed");
-              return;
-            }
-            if (data.size() > 4 * 1024 * 1024) {
-              finishStoreInstall(job, "Plugin file exceeds the 4 MiB limit");
-              return;
-            }
-            const auto actual = QString::fromStdString(sha256Hex(
-                std::string_view(data.constData(),
-                                 static_cast<std::size_t>(data.size()))));
-            if (actual != expectedSha) {
-              finishStoreInstall(job, "Plugin file hash verification failed");
-              return;
-            }
-
-            const auto path = job->stage->filePath(relativePath);
-            if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
-              finishStoreInstall(job, "Could not create the plugin staging path");
-              return;
-            }
-            QSaveFile file(path);
-            file.setDirectWriteFallback(false);
-            if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size() ||
-                !file.commit()) {
-              finishStoreInstall(job, "Could not write a downloaded plugin file");
-              return;
-            }
-            QFile::setPermissions(path,
-                                  QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-            ++job->index;
-            continueStoreInstall(job);
-          });
+  const auto path = job->stage->filePath(relativePath);
+  if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
+    finishStoreInstall(job, "Could not create the plugin staging path");
+    return;
+  }
+  job->process = std::make_unique<ProcessRunner>(eventLoop_, false);
+  const std::vector<std::string> arguments{
+      "--fail", "--location", "--proto", "=https", "--proto-redir", "=https",
+      "--max-redirs", "5", "--max-filesize", "4194304", "--silent",
+      "--show-error", "--output", path.toStdString(), "--",
+      url.toString().toStdString()};
+  const bool started = job->process->runDetailed(
+      "curl", arguments,
+      [this, job, relativePath, expectedSha, path](const ProcessResult &result) {
+        if (!defer([this, job, relativePath, expectedSha, path, result] {
+              if (!result.success) {
+                finishStoreInstall(job, "Plugin download failed");
+                return;
+              }
+              std::ifstream input(path.toStdString(), std::ios::binary);
+              if (!input || QFileInfo(path).size() > 4 * 1024 * 1024) {
+                finishStoreInstall(job, "Could not read downloaded plugin file");
+                return;
+              }
+              std::string data((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+              if (input.bad() || data.size() > 4 * 1024 * 1024) {
+                finishStoreInstall(job, "Plugin file exceeds the 4 MiB limit");
+                return;
+              }
+              const auto actual =
+                  QString::fromStdString(sha256Hex(std::string_view(data)));
+              if (actual != expectedSha) {
+                finishStoreInstall(job,
+                                   "Plugin file hash verification failed");
+                return;
+              }
+              if (!QFile::setPermissions(
+                      path, QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {
+                finishStoreInstall(job, "Could not secure the staged plugin file");
+                return;
+              }
+              ++job->index;
+              continueStoreInstall(job);
+            })) {
+          finishStoreInstall(job,
+                             "Could not schedule plugin download processing");
+        }
+      },
+      60000);
+  if (!started)
+    finishStoreInstall(job, "Could not start plugin download");
 }
 
 
@@ -497,68 +569,49 @@ void PluginManager::runStoreBuildStep(StoreInstall *job) {
   if (!job)
     return;
 
-  QStringList arguments;
+  std::vector<std::string> arguments;
   if (job->buildStep == 0) {
     arguments = {
-        "-S", job->stage->path(),
-        "-B", job->buildDirectory,
+        "-S", job->stage->path().toStdString(),
+        "-B", job->buildDirectory.toStdString(),
         "-G", "Ninja",
         "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_INSTALL_PREFIX=" + job->installPrefix,
+        "-DCMAKE_INSTALL_PREFIX=" + job->installPrefix.toStdString(),
     };
     job->phase = "configuring";
   } else if (job->buildStep == 1) {
-    arguments = {"--build", job->buildDirectory, "--parallel", "2"};
+    arguments = {"--build", job->buildDirectory.toStdString(), "--parallel",
+                 "2"};
     job->phase = "building";
   } else {
-    arguments = {"--install", job->buildDirectory};
+    arguments = {"--install", job->buildDirectory.toStdString()};
     job->phase = "installing";
   }
 
-  job->processTail.clear();
-  auto *process = new QProcess(this);
-  job->process = process;
-  process->setWorkingDirectory(job->stage->path());
-  process->setProcessChannelMode(QProcess::MergedChannels);
-  connect(process, &QProcess::readyRead, this, [job, process] {
-    job->processTail.append(process->readAll());
-    if (job->processTail.size() > 8192)
-      job->processTail = job->processTail.right(8192);
-  });
-  connect(process, &QProcess::finished, this,
-          [this, job, process](int code, QProcess::ExitStatus status) {
-            job->processTail.append(process->readAll());
-            if (job->processTail.size() > 8192)
-              job->processTail = job->processTail.right(8192);
-            job->process = nullptr;
-            process->deleteLater();
-            if (status != QProcess::NormalExit || code != 0) {
-              auto detail = QString::fromLocal8Bit(job->processTail).trimmed();
-              detail = detail.right(2048);
-              finishStoreInstall(
-                  job, QString("Plugin SDK %1 failed.%2")
-                           .arg(job->phase,
-                                detail.isEmpty() ? QString()
-                                                 : " " + detail));
-              return;
-            }
-            if (job->buildStep < 2) {
-              ++job->buildStep;
-              runStoreBuildStep(job);
-              return;
-            }
-            installBuiltStorePackage(job);
-          });
-  connect(process, &QProcess::errorOccurred, this,
-          [this, job, process](QProcess::ProcessError error) {
-            if (error != QProcess::FailedToStart)
-              return;
-            job->process = nullptr;
-            process->deleteLater();
-            finishStoreInstall(job, "Could not start the plugin SDK build tool");
-          });
+  job->process = std::make_unique<ProcessRunner>(eventLoop_, false);
   notifyChanged();
-  process->start(job->cmakeExecutable, arguments);
+  const bool started = job->process->runDetailed(
+      job->cmakeExecutable.toStdString(), arguments,
+      [this, job](const ProcessResult &result) {
+        if (!defer([this, job, result] {
+              if (!result.success) {
+                finishStoreInstall(
+                    job, "Plugin SDK " + job->phase + " step failed");
+                return;
+              }
+              if (job->buildStep < 2) {
+                ++job->buildStep;
+                runStoreBuildStep(job);
+                return;
+              }
+              installBuiltStorePackage(job);
+            })) {
+          finishStoreInstall(job, "Could not schedule plugin SDK build result");
+        }
+      },
+      0);
+  if (!started)
+    finishStoreInstall(job, "Could not start the plugin SDK build tool");
 }
 
 void PluginManager::installBuiltStorePackage(StoreInstall *job) {
