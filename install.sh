@@ -298,6 +298,10 @@ download_source() {
         for package in "${packages[@]}"; do [[ -f $package ]] || exit 1; done
         as_root pacman -U --needed "${packages[@]}"
     )
+    if [[ -e /usr/local/bin/lunadash-compositor ]]; then
+        say 'Warning: an older LunaDash under /usr/local (manual CMake install) takes precedence over this package at login. Remove its files from /usr/local.' \
+            '警告：/usr/local 底下有舊版 LunaDash（手動 CMake 安裝），登入時會蓋過這個套件。請移除 /usr/local 底下的 LunaDash 檔案。' >&2
+    fi
     if systemctl --user show-environment >/dev/null 2>&1; then
         run systemctl --user daemon-reload
     else

@@ -345,6 +345,18 @@ fi
 
 report_progress 96 finalize "Finalizing the LunaDash installation."
 
+# A former `cmake --install` to /usr/local shadows the packaged session: login managers list
+# its session entry, and D-Bus and systemd prefer its portal backend.
+if [[ $package_manager == pacman && -e /usr/local/bin/lunadash-compositor ]]; then
+    cat >&2 <<'EOF'
+Warning: an older LunaDash is installed under /usr/local (a manual CMake install). Its login
+entry and portal backend take precedence over the package just installed. Remove it, for
+example with `sudo xargs rm -rf < build/install_manifest.txt` from that build, or delete the
+LunaDash files under /usr/local (bin, lib/libludash-*, libexec, share/lunadash, share/ludash,
+share/wayland-sessions, share/dbus-1/services, share/xdg-desktop-portal, lib/systemd/user).
+EOF
+fi
+
 install_sddm() {
     case "$package_manager" in
         pacman) run "${elevate[@]}" pacman -S --needed sddm ;;
