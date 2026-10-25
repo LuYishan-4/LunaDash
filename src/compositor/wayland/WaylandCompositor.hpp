@@ -88,6 +88,8 @@ private:
 
   int nextWindowId_ = 1;
   int workspace_ = 0;
+  // Direction of a pending workspace change (1 next, -1 previous) for the next arrange().
+  int workspaceSlide_ = 0;
   int settingsSerial_ = 0;
   std::string settingsPage_ = "general";
   int pickerSerial_ = 0;

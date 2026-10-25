@@ -5,6 +5,7 @@
 #include "compositor/renderer/blur/WindowGlass.hpp"
 #include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/color/NightColor.h"
+#include "compositor/window/animation/SceneAnimation.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/filesystem/FileIo.hpp"
 #include "core/log/Log.hpp"
@@ -350,6 +351,8 @@ public:
 
   void arrangeLayers();
   void restoreLayerFocus();
+  static SceneAnimationRectangle layerRectangle(const LayerState *state);
+  bool animatesLayer(const LayerState *state) const;
   void addXdgPopup(wlr_xdg_popup *popup);
   void addXWaylandSurface(wlr_xwayland_surface *surface);
   void configureXdgPopup(XdgPopupState *state);

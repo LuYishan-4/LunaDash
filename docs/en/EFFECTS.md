@@ -1,6 +1,6 @@
 # Window motion and renderer effects
 
-The active wlroots compositor uses `src/compositor/window/animation/SceneAnimation` for window transitions. The default 220 ms transition fades and gently lifts mapped windows; closing/unmapping windows retain a scene snapshot so the animation can finish after the surface disappears. Moving windows updates their scene position. Closing does not bypass an application's save/cancel dialog. Disable animations or set duration to zero for reduced motion.
+The active wlroots compositor uses `src/compositor/window/animation/SceneAnimation` for window transitions. The default 220 ms transition fades and gently lifts mapped windows; closing/unmapping windows retain a scene snapshot so the animation can finish after the surface disappears. Moving windows updates their scene position. Switching workspaces slides the old workspace's windows out and the new one's in (toward the direction of the change), minimizing drops a window toward the dock while it fades, and layer-shell surfaces (panels, docks, popups, notifications) slide in from the edge they are anchored to; centred and full-screen ones only fade. The wallpaper, the screenshot region selector and anything during a capture do not animate, so a screenshot never contains a fading surface. `lunadashctl debug animations` shows the effective duration and running transitions. Closing does not bypass an application's save/cancel dialog. Disable animations or set duration to zero for reduced motion.
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"

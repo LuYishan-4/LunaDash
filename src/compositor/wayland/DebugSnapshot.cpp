@@ -5,6 +5,7 @@
 #include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "config/BuildConfig.hpp"
 
 #include <filesystem>
@@ -141,6 +142,12 @@ Json WaylandCompositor::debugSnapshot() const {
            {"size", d->cursorManager ? d->cursorManager->size : 0},
        }},
       {"layers", layers},
+      {"animations",
+       {
+           // 0 when animations are off (preferences or reduced motion).
+           {"durationMs", windowAnimations_ ? windowAnimations_->animation().duration() : 0},
+           {"active", windowAnimations_ ? windowAnimations_->activeCount() : 0},
+       }},
       {"windows",
        {
            {"count", clients_.size()},

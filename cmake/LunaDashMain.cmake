@@ -360,8 +360,26 @@ add_custom_command(
     DEPENDS ${LUDASH_XDG_SHELL_PROTOCOL_XML}
     VERBATIM)
 
+# wlroots 0.17-0.19 include the generated cursor-shape declarations from wlr_cursor_shape_v1.h.
+set(LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER
+    ${CMAKE_CURRENT_BINARY_DIR}/cursor-shape-v1-protocol.h)
+set(LUDASH_CURSOR_SHAPE_PROTOCOL_XML
+    ${WAYLAND_PROTOCOLS_DATADIR}/staging/cursor-shape/cursor-shape-v1.xml)
+if(NOT EXISTS "${LUDASH_CURSOR_SHAPE_PROTOCOL_XML}")
+    message(FATAL_ERROR
+        "wayland-protocols cursor-shape XML not found (wayland-protocols 1.32 or newer is required): ${LUDASH_CURSOR_SHAPE_PROTOCOL_XML}")
+endif()
+add_custom_command(
+    OUTPUT ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER}
+    COMMAND ${WAYLAND_SCANNER} server-header
+            ${LUDASH_CURSOR_SHAPE_PROTOCOL_XML}
+            ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER}
+    DEPENDS ${LUDASH_CURSOR_SHAPE_PROTOCOL_XML}
+    VERBATIM)
+
 add_custom_target(ludash-wlroots-protocol-headers
-    DEPENDS ${LUDASH_WLR_LAYER_PROTOCOL_HEADER} ${LUDASH_XDG_SHELL_PROTOCOL_HEADER})
+    DEPENDS ${LUDASH_WLR_LAYER_PROTOCOL_HEADER} ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
+            ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER})
 target_include_directories(ludash-xwayland PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_dependencies(ludash-xwayland ludash-wlroots-protocol-headers)
 
@@ -437,6 +455,7 @@ add_library(ludash-wayland
     src/compositor/ipc/ControlServer.cpp
     ${LUDASH_WLR_LAYER_PROTOCOL_HEADER}
     ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
+    ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER}
     ${LUDASH_EXT_CAPTURE_PROTOCOL_HEADER})
 target_include_directories(ludash-wayland
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src

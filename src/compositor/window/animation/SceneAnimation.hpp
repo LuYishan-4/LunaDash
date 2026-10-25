@@ -43,7 +43,15 @@ public:
 
   void configure(const SceneAnimationOptions &options);
   void open(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry);
+  // Fades in while moving from geometry offset by (dx, dy) to geometry.
+  void open(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry, int dx,
+            int dy);
   void close(wlr_scene_tree *source, wlr_scene_tree *parent);
+  // Fades a snapshot out while it slides by (dx, dy) instead of shrinking.
+  void close(wlr_scene_tree *source, wlr_scene_tree *parent, int dx, int dy);
+  // Moves the destination of a running animation (a layer surface that was laid out again).
+  void retarget(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry);
+  int duration() const { return duration_; }
   void relayout(wlr_scene_tree *tree, const SceneAnimationRectangle &previous,
                 const SceneAnimationRectangle &geometry,
                 wlr_scene_tree *overlay, bool animate = true);

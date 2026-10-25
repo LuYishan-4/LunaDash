@@ -58,7 +58,7 @@ theme, layer surfaces, helper processes, event-loop timing and the protocols in 
 
 ```sh
 lunadashctl debug              # summary
-lunadashctl debug cursor       # one section: outputs, input, cursor, layers, windows,
+lunadashctl debug cursor       # one section: outputs, input, cursor, layers, animations, windows,
                                # capture, processes, eventLoop, protocols
 lunadashctl debug json         # the full snapshot as JSON
 lunadashctl debug watch 2      # refresh the summary every 2 seconds

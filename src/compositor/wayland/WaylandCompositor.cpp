@@ -58,6 +58,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <utility>
 #include <charconv>
 #include <chrono>
 #include <climits>
@@ -1034,6 +1035,10 @@ void WaylandCompositor::arrange() {
     return;
   // Windows and layers move or change here: the surface under the cursor may differ.
   d->schedulePointerRebase();
+  // A workspace change slides the old workspace's windows out and the new one's in.
+  const int slide = std::exchange(workspaceSlide_, 0);
+  const int slideDistance =
+      slide * std::min(360, std::max(120, d->outputSize().width() / 5));
   const auto preferences = desktopPreferences();
   d->eyeCareActive = preferences.value("eyeCare", false);
   d->steadyWindowOpacity =
@@ -1181,8 +1186,17 @@ void WaylandCompositor::arrange() {
       if (client->sceneTree->node.parent != targetLayer)
         wlr_scene_node_reparent(&client->sceneTree->node, targetLayer);
       const bool wasVisible = client->sceneTree->node.enabled;
-      if (!visible && wasVisible && client->mapped && windowAnimations_)
-        windowAnimations_->close(client->sceneTree, d->animationLayer);
+      if (!visible && wasVisible && client->mapped && windowAnimations_) {
+        if (slide && client->workspace != workspace_)
+          windowAnimations_->close(client->sceneTree, d->animationLayer,
+                                   -slideDistance, 0);
+        else if (client->minimized)
+          // Minimizing drops the window toward the dock.
+          windowAnimations_->close(client->sceneTree, d->animationLayer, 0,
+                                   std::max(48, client->geometry.height() / 6));
+        else
+          windowAnimations_->close(client->sceneTree, d->animationLayer);
+      }
       if (visible && !wasVisible && client->geometry.isValid())
         revealed.push_back(client.get());
       if (!visible && windowAnimations_)
@@ -1250,9 +1264,15 @@ void WaylandCompositor::arrange() {
   }
 
   if (windowAnimations_)
-    for (auto *client : revealed)
-      windowAnimations_->open(client->sceneTree,
-                              animationRectangle(client->geometry));
+    for (auto *client : revealed) {
+      if (slide)
+        windowAnimations_->open(client->sceneTree,
+                                animationRectangle(client->geometry),
+                                slideDistance, 0);
+      else
+        windowAnimations_->open(client->sceneTree,
+                                animationRectangle(client->geometry));
+    }
 
   if (focused_ && focused_->sceneTree && focused_->mapped &&
       !focused_->minimized && focused_->workspace == workspace_)
@@ -2531,6 +2551,8 @@ Json WaylandCompositor::control(const Json &request) {
         arrange();
         synchronizeWindowFocus();
       } else {
+        if (client->workspace != workspace_)
+          workspaceSlide_ = client->workspace > workspace_ ? 1 : -1;
         workspace_ = client->workspace;
         client->minimized = false;
         windowLayout_->setMinimized(client->id, false);

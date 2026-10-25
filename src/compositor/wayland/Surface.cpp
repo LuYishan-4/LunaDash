@@ -1,4 +1,5 @@
 #include "compositor/window/animation/WindowAnimation.hpp"
+#include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/wayland/Register.hpp"
@@ -14,6 +15,43 @@ namespace LunaDash {
 using Templates::attachListener;
 using Templates::detachListener;
 using Templates::listenerOwner;
+
+namespace {
+// Layer surfaces slide in from the edge they are anchored to (panels, docks, popups);
+// centred and full-screen surfaces only fade.
+std::pair<int, int> layerSlide(const wlr_layer_surface_v1 *surface) {
+  constexpr int distance = 18;
+  const auto anchor = surface->current.anchor;
+  const bool top = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
+  const bool bottom = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+  const bool left = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
+  const bool right = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+  if (top != bottom)
+    return {0, top ? -distance : distance};
+  if (left != right)
+    return {left ? -distance : distance, 0};
+  return {0, 0};
+}
+} // namespace
+
+SceneAnimationRectangle
+WaylandCompositor::Impl::layerRectangle(const LayerState *state) {
+  const auto *tree = state->sceneLayer->tree;
+  return {tree->node.x, tree->node.y,
+          static_cast<int>(state->surface->current.actual_width),
+          static_cast<int>(state->surface->current.actual_height)};
+}
+
+bool WaylandCompositor::Impl::animatesLayer(const LayerState *state) const {
+  // The wallpaper does not animate. Neither does anything while a screenshot is taken: the
+  // region selector (slurp, namespace "selection") must vanish before grim captures, and a
+  // fading copy of a closed surface would end up in the image.
+  return q->windowAnimations_ && state && state->surface && state->sceneLayer &&
+         state->surface->current.layer != ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND &&
+         !(state->surface->namespace_ &&
+           std::string_view(state->surface->namespace_) == "selection") &&
+         !(q->screenCapture_ && q->screenCapture_->busy());
+}
 
 std::string safeUtf8(const char *text) {
   // Keep metadata from clients valid UTF-8 for JSON state and IPC.
@@ -625,6 +663,11 @@ void WaylandCompositor::Impl::handleLayerMap(wl_listener *listener, void *) {
   state->mapped = true;
   state->impl->arrangeLayers();
   state->impl->q->arrange();
+  if (state->impl->animatesLayer(state)) {
+    const auto [dx, dy] = layerSlide(state->surface);
+    state->impl->q->windowAnimations_->open(state->sceneLayer->tree,
+                                            layerRectangle(state), dx, dy);
+  }
   if (state->surface && state->surface->current.keyboard_interactive !=
                             ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE)
     state->impl->focusSurface(state->surface->surface);
@@ -634,6 +677,17 @@ void WaylandCompositor::Impl::handleLayerUnmap(wl_listener *listener, void *) {
   auto *state = listenerOwner<LayerState>(listener);
   if (!state)
     return;
+  if (state->impl->animatesLayer(state)) {
+    // wlroots disables the layer's tree before this listener runs; the snapshot needs its
+    // buffers, which stay attached until the surface commit completes.
+    auto *tree = state->sceneLayer->tree;
+    const bool enabled = tree->node.enabled;
+    wlr_scene_node_set_enabled(&tree->node, true);
+    const auto [dx, dy] = layerSlide(state->surface);
+    state->impl->q->windowAnimations_->close(tree, tree->node.parent, dx, dy);
+    wlr_scene_node_set_enabled(&tree->node, enabled);
+    state->impl->q->windowAnimations_->cancel(tree);
+  }
   state->mapped = false;
   state->configured = false;
   state->impl->arrangeLayers();

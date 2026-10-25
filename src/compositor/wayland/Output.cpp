@@ -199,6 +199,10 @@ void WaylandCompositor::Impl::arrangeLayers() {
       if (!layer->surface->output && primaryOutput)
         layer->surface->output = primaryOutput;
       wlr_scene_layer_surface_v1_configure(layer->sceneLayer, &full, &usable);
+      // A layer that is still sliding in keeps sliding toward its new place.
+      if (layer->mapped && q->windowAnimations_)
+        q->windowAnimations_->animation().retarget(layer->sceneLayer->tree,
+                                                   layerRectangle(layer));
     }
   }
   usableArea = Rect(usable.x, usable.y, usable.width, usable.height);

@@ -59,7 +59,7 @@ layer surface 或 popup 持有）、游標圖示與主題、layer surface、輔�
 
 ```sh
 lunadashctl debug              # 摘要
-lunadashctl debug cursor       # 單一區段：outputs、input、cursor、layers、windows、
+lunadashctl debug cursor       # 單一區段：outputs、input、cursor、layers、animations、windows、
                                # capture、processes、eventLoop、protocols
 lunadashctl debug json         # 完整 JSON
 lunadashctl debug watch 2      # 每 2 秒更新摘要

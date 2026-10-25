@@ -27,8 +27,8 @@ constexpr const char *kUsage =
     "Usage: lunadashctl debug [COMMAND]\n"
     "  (none)          readable summary: outputs, input focus, cursor, layers, helpers\n"
     "  json            the complete diagnostics as JSON\n"
-    "  TOPIC           one section as JSON: input cursor outputs layers windows capture\n"
-    "                  processes eventLoop protocols\n"
+    "  TOPIC           one section as JSON: input cursor outputs layers animations windows\n"
+    "                  capture processes eventLoop protocols\n"
     "  watch [SECONDS] print cursor, focus and frame changes every second (Ctrl+C stops)\n"
     "  log [LINES]     the end of the newest session log (default 80 lines)\n"
     "  bundle [DIR]    write diagnostics, status, log and environment for a bug report\n";
@@ -100,6 +100,10 @@ void printSummary(const Json &debug) {
               << text(layer["keyboard"]) << "\n";
   std::cout << "\nWindows  " << debug["windows"].value("mapped", 0) << " mapped of "
             << debug["windows"].value("count", 0) << "\n";
+  const auto &animations = debug["animations"];
+  const int duration = animations.value("durationMs", 0);
+  std::cout << "Animation " << (duration > 0 ? std::to_string(duration) + " ms" : "off")
+            << ", " << animations.value("active", 0) << " running\n";
   const auto &capture = debug["capture"];
   std::cout << "Capture  " << text(capture["phase"]);
   if (!capture.value("last", std::string()).empty())

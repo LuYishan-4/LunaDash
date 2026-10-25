@@ -176,6 +176,9 @@ struct SceneAnimation::SnapshotState {
   SceneAnimationRectangle current;
   int parentOriginX = 0;
   int parentOriginY = 0;
+  bool slide = false;
+  int slideX = 0;
+  int slideY = 0;
   std::vector<SnapshotBuffer> buffers;
   ~SnapshotState() {
     for (const auto &part : buffers)
@@ -276,6 +279,12 @@ void SceneAnimation::finishLive(wlr_scene_tree *tree, LiveState *state,
 
 void SceneAnimation::open(wlr_scene_tree *tree,
                           const SceneAnimationRectangle &geometry) {
+  open(tree, geometry, 0, enterOffset_);
+}
+
+void SceneAnimation::open(wlr_scene_tree *tree,
+                          const SceneAnimationRectangle &geometry, int dx,
+                          int dy) {
   if (!tree)
     return;
   cancel(tree);
@@ -283,7 +292,7 @@ void SceneAnimation::open(wlr_scene_tree *tree,
     return;
   auto *state = new LiveState;
   state->tree = tree;
-  state->from = geometry.translated(0, enterOffset_);
+  state->from = geometry.translated(dx, dy);
   state->target = geometry;
   state->initialOpacity = 0.0;
   startLive(state);
@@ -432,15 +441,41 @@ void SceneAnimation::destroySnapshot(SnapshotState *state) {
 }
 
 void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent) {
+  close(source, parent, 0, 0);
+}
+
+void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent,
+                           int dx, int dy) {
   if (!source || duration_ <= 0)
     return;
   const auto found = live_.find(source);
   auto *live = found == live_.end() ? nullptr : found->second;
   if (live && live->preview)
     source = live->preview->tree;
-  createSnapshot(source, parent,
-                 live ? visualGeometry(live->tree, live->current)
-                      : SceneAnimationRectangle{});
+  auto *snapshot =
+      createSnapshot(source, parent,
+                     live ? visualGeometry(live->tree, live->current)
+                          : SceneAnimationRectangle{});
+  if (snapshot && (dx || dy)) {
+    snapshot->slide = true;
+    snapshot->slideX = dx;
+    snapshot->slideY = dy;
+  }
+}
+
+void SceneAnimation::retarget(wlr_scene_tree *tree,
+                              const SceneAnimationRectangle &geometry) {
+  const auto found = live_.find(tree);
+  if (found == live_.end() || found->second->preview)
+    return;
+  auto *state = found->second;
+  if (state->target == geometry)
+    return;
+  state->from = geometry.translated(state->from.left - state->target.left,
+                                    state->from.top - state->target.top);
+  state->target = geometry;
+  applyLive(state,
+            ease(curve_, elapsedProgress(state->started, state->duration)));
 }
 
 void SceneAnimation::advance() {
@@ -469,8 +504,17 @@ void SceneAnimation::advance() {
       destroySnapshot(state);
       continue;
     }
-    const double eased = progress * progress * progress;
     const auto &from = state->original;
+    if (state->slide) {
+      const double moved = ease(curve_, progress);
+      applySnapshot(state,
+                    from.translated(
+                        static_cast<int>(std::lround(state->slideX * moved)),
+                        static_cast<int>(std::lround(state->slideY * moved))),
+                    1.0 - moved);
+      continue;
+    }
+    const double eased = progress * progress * progress;
     const int width =
         std::max(1, static_cast<int>(std::lround(from.width * exitScale_)));
     const int height =

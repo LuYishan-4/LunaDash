@@ -2,7 +2,7 @@
 
 [English](../en/EFFECTS.md) · [繁中索引](README.md)
 
-活動中的 wlroots compositor 使用 `src/compositor/window/animation/SceneAnimation`。預設 220 ms：map 時淡入並輕微上移；close/unmap 時保留 scene snapshot，讓 surface 已消失後動畫仍能正常結束。Move 會更新 scene position。
+活動中的 wlroots compositor 使用 `src/compositor/window/animation/SceneAnimation`。預設 220 ms：map 時淡入並輕微上移；close/unmap 時保留 scene snapshot，讓 surface 已消失後動畫仍能正常結束。Move 會更新 scene position。切換工作區時，舊工作區的視窗依切換方向滑出、新工作區的視窗滑入；最小化時視窗會一邊淡出一邊往 Dock 方向下沉；layer-shell 介面（面板、Dock、彈出視窗、通知）會從錨定的邊緣滑入，置中或全螢幕的介面只淡入淡出。桌布、截圖的區域選取畫面，以及截圖進行中的任何介面都不做動畫，確保截圖裡不會出現淡出中的殘影。`lunadashctl debug animations` 可查看實際動畫時間與進行中的動畫數量。
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"

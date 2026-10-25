@@ -77,6 +77,8 @@ void WaylandCompositor::selectWorkspace(int workspace) {
   if (workspace != workspace_ && windowSwitcher_->active() &&
       windowSwitcher_->scope() == WindowSwitcher::Scope::Windows)
     windowSwitcher_->finish(false);
+  if (workspace != workspace_)
+    workspaceSlide_ = workspace > workspace_ ? 1 : -1;
   workspace_ = workspace;
   arrange();
   synchronizeWindowFocus();
