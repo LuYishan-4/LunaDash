@@ -164,7 +164,7 @@ void WaylandCompositor::Impl::handleXWaylandMap(wl_listener *listener,
         *state->impl->q->pluginManager_,
         {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
         client->workspace, client->maximized,
-        desktopPreferences().value("workspaceCount", 10));
+        state->impl->q->workspaceCount());
     client->workspace = jsonInt(rule, "workspace");
     client->maximized = jsonBool(rule, "maximized");
   }

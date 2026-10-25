@@ -18,7 +18,7 @@ Plugin 與 Shell module 都在同一個 Settings surface 中；Plugins 頁負責
 | --- | --- | --- |
 | General | 語言、Shell font、12/24 小時、welcome、偏好重設 | 外部 app theme 不跟著改 |
 | Appearance | 桌布、accent、gap、panel 高度、dashboard、blur、opacity、動畫 | 桌布 picker 在 Shell 內 |
-| Windows and workspaces | 1–10 workspace、bounded tiles、最多 8-member group | 一般視窗預設 tiled |
+| Windows and workspaces | 動態工作區、bounded tiles、最多 8-member group | 一般視窗預設 tiled |
 | Keyboard shortcuts | launch/focus/group/resize/workspace/capture 等 | 重複或非法 binding 會拒絕 |
 | Plugins | native / Quickshell / OpenGL extension | SDK 2、hot reload、原生預設關閉 |
 | Shell modules | JSON layout、尺寸、位置、顏色 | custom QML 是可信任程式碼 |
@@ -38,7 +38,7 @@ System command 來自固定 allowlist，不經 shell evaluation。Logout 結束 
 ## 額外偏好
 
 ```text
-workspaceCount    10       (1–10)
+workspaceCount    10       (1–10，已不使用：工作區跟著視窗增減)
 keyboardLayout    us       (us/gb/de/fr/es/jp/tw)
 keyRepeatRate     25       (0–60)
 keyRepeatDelay    600 ms   (200–1500)
@@ -71,7 +71,7 @@ Taskbar 以 workspace capsule 分組已 map 視窗，和 tiling column 是兩套
 
 新視窗切割最大 tile；Alt+drag 可換 slot／插入 group；Shift+Alt+drag 調 shared boundary；`Super+Shift+H/L` 合併到鄰近 column，`Super+Shift+E` 分離。
 
-`Alt+Tab` 開固定 2×5 workspace overview（1–10）。Tab/Shift+Tab、方向鍵、scroll 都能移動；放開 Alt 或 click 切換，Esc 取消。`Super+0` 對應 workspace 10。Thumbnail 先縮到最多 320×200，再 readback/encode，不是 live video。
+`Alt+Tab` 列出工作列上所有視窗（目前工作區優先），`Super+Tab` 開工作區切換器。Tab/Shift+Tab、方向鍵都能移動；放開 Alt／Super 或點選切換，Esc 取消。`Super+0` 對應第十個工作區。
 
 ## Update 與授權
 

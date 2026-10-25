@@ -177,6 +177,7 @@ struct SceneAnimation::SnapshotState {
   int parentOriginX = 0;
   int parentOriginY = 0;
   bool slide = false;
+  bool fade = true;
   int slideX = 0;
   int slideY = 0;
   std::vector<SnapshotBuffer> buffers;
@@ -284,7 +285,7 @@ void SceneAnimation::open(wlr_scene_tree *tree,
 
 void SceneAnimation::open(wlr_scene_tree *tree,
                           const SceneAnimationRectangle &geometry, int dx,
-                          int dy) {
+                          int dy, bool fade) {
   if (!tree)
     return;
   cancel(tree);
@@ -294,7 +295,7 @@ void SceneAnimation::open(wlr_scene_tree *tree,
   state->tree = tree;
   state->from = geometry.translated(dx, dy);
   state->target = geometry;
-  state->initialOpacity = 0.0;
+  state->initialOpacity = fade ? 0.0 : 1.0;
   startLive(state);
 }
 
@@ -445,7 +446,7 @@ void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent) {
 }
 
 void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent,
-                           int dx, int dy) {
+                           int dx, int dy, bool fade) {
   if (!source || duration_ <= 0)
     return;
   const auto found = live_.find(source);
@@ -458,6 +459,7 @@ void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent,
                           : SceneAnimationRectangle{});
   if (snapshot && (dx || dy)) {
     snapshot->slide = true;
+    snapshot->fade = fade;
     snapshot->slideX = dx;
     snapshot->slideY = dy;
   }
@@ -511,7 +513,7 @@ void SceneAnimation::advance() {
                     from.translated(
                         static_cast<int>(std::lround(state->slideX * moved)),
                         static_cast<int>(std::lround(state->slideY * moved))),
-                    1.0 - moved);
+                    state->fade ? 1.0 - moved : 1.0);
       continue;
     }
     const double eased = progress * progress * progress;

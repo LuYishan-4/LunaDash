@@ -66,14 +66,44 @@ void WaylandCompositor::publishWindowLayout() {
   }
   windowSwitcher_->setLayout(clients, workspace_, d->pointerWindow != 0);
 }
-void WaylandCompositor::selectWorkspace(int workspace) {
-  if (workspace < 0 || workspace >= 10)
-    return;
-  if (workspace >= desktopPreferences().value("workspaceCount", 10)) {
-    std::string error;
-    if (!updateDesktopPreferences({{"workspaceCount", workspace + 1}}, &error))
-      return;
+int WaylandCompositor::workspaceCount() const {
+  // A bound for the numbers, not a limit anyone reaches.
+  constexpr int kMaximumWorkspaces = 100;
+  int last = -1;
+  for (const auto &client : clients_)
+    if (!client->utility && !client->desktop &&
+        (client->mapped || client->layoutPending))
+      last = std::max(last, client->workspace);
+  return std::clamp(std::max(last + 2, workspace_ + 1), 1, kMaximumWorkspaces);
+}
+void WaylandCompositor::compactWorkspaces() {
+  std::vector<bool> occupied;
+  for (const auto &client : clients_) {
+    if (client->utility || client->desktop ||
+        !(client->mapped || client->layoutPending))
+      continue;
+    if (client->workspace >= static_cast<int>(occupied.size()))
+      occupied.resize(static_cast<std::size_t>(client->workspace) + 1, false);
+    occupied[static_cast<std::size_t>(client->workspace)] = true;
   }
+  int span = static_cast<int>(occupied.size());
+  for (int workspace = span - 1; workspace-- > 0;) {
+    if (occupied[static_cast<std::size_t>(workspace)] || workspace == workspace_)
+      continue;
+    --span;
+    for (const auto &client : clients_)
+      if (client->workspace > workspace)
+        --client->workspace;
+    if (workspace_ > workspace)
+      --workspace_;
+  }
+  // An empty current workspace far past the others moves next to them.
+  workspace_ = std::min(workspace_, span);
+}
+void WaylandCompositor::selectWorkspace(int workspace) {
+  if (workspace < 0)
+    return;
+  workspace = std::min(workspace, workspaceCount() - 1);
   if (workspace != workspace_ && windowSwitcher_->active() &&
       windowSwitcher_->scope() == WindowSwitcher::Scope::Windows)
     windowSwitcher_->finish(false);
@@ -121,10 +151,17 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
   const auto area = workArea();
   if (!workspaces) {
     publishWindowLayout();
-    choices = WindowSwitcher::windowsForWorkspace(
-        jsonArray(windowSwitcher_->snapshot(), "clients"), workspace_);
+    // Every window in the taskbar: the current workspace first, then the
+    // others in order. Choosing one switches to its workspace.
+    const auto clients = jsonArray(windowSwitcher_->snapshot(), "clients");
+    choices = WindowSwitcher::windowsForWorkspace(clients, workspace_);
     for (const auto &choice : choices)
       capture.push_back(jsonInt(choice, "id"));
+    for (int workspace = 0; workspace < workspaceCount(); ++workspace)
+      if (workspace != workspace_)
+        for (const auto &choice :
+             WindowSwitcher::windowsForWorkspace(clients, workspace))
+          choices.push_back(choice);
     if (windowSwitcher_->begin(choices, focused_ ? focused_->id : 0,
                                 direction, clientEnvironment_, scope)) {
       const int serial = windowSwitcher_->serial();
@@ -134,7 +171,7 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
     }
     return;
   }
-  for (int workspace = 0; workspace < 10; ++workspace) {
+  for (int workspace = 0; workspace < workspaceCount(); ++workspace) {
     Json windows = Json::array();
     Rect bounds = area;
     const auto placements = windowLayout_->presentation(workspace, area);
@@ -316,8 +353,10 @@ void WaylandCompositor::finishWindowSwitch(bool accept) {
   // Alt+Tab focuses, never toggles maximization like a taskbar activation.
   for (const auto &client : clients_) {
     if (client->id != target || !client->mapped || client->utility ||
-        client->desktop || client->workspace != workspace_)
+        client->desktop)
       continue;
+    if (client->workspace != workspace_)
+      selectWorkspace(client->workspace);
     client->minimized = false;
 #if LUDASH_WLR_HAS_XWAYLAND
     if (client->x11 && client->xwayland)

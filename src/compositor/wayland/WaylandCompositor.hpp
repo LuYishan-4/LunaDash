@@ -12,6 +12,8 @@
 #include <string_view>
 #include <vector>
 
+struct wlr_layer_surface_v1;
+
 namespace LunaDash {
 
 class WindowSwitcher;
@@ -32,6 +34,7 @@ class SessionActions;
 class SessionServices;
 class ShortcutSettings;
 class UpdateChecker;
+class VideoWallpaperPlayer;
 struct ClientWindow;
 
 class WaylandCompositor final {
@@ -60,6 +63,7 @@ private:
   std::unique_ptr<Impl> d;
 
   std::unique_ptr<WindowSwitcher> windowSwitcher_;
+  std::unique_ptr<VideoWallpaperPlayer> videoWallpaper_;
   ScreenCapture *screenCapture_ = nullptr;
   BrightnessSettings *brightnessSettings_ = nullptr;
   DdcBrightnessSettings *ddcBrightnessSettings_ = nullptr;
@@ -147,6 +151,13 @@ private:
   void activateTask(int window);
   void beginWindowSwitch(int direction, bool workspaces = false);
   void selectWorkspace(int workspace);
+  // Workspaces follow the windows: the occupied ones plus one empty workspace
+  // after them (and the current one while it is still shown).
+  int workspaceCount() const;
+  // Removes empty workspaces between occupied ones, except the current one.
+  void compactWorkspaces();
+  // The video wallpaper player's surfaces stay below the shell's wallpaper.
+  bool videoWallpaperSurface(const wlr_layer_surface_v1 *surface) const;
   void publishWindowLayout();
   void captureWorkspaceThumbnail(int serial, std::vector<int> windows);
   void pollThumbnailWrite();

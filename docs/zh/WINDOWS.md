@@ -15,7 +15,7 @@ Taskbar 依 workspace 將已 map 的視窗包成 capsule，和 tiling column 無
 | Alt + 左拖到 top/bottom edge | 插入 group 前/後，最多 8 member |
 | Shift + Alt + 左拖 | 調 shared split boundary / row height |
 | 點一下 Meta（不搭配其他鍵） | 立即開啟應用程式搜尋；Meta+其他鍵仍照原快捷鍵執行 |
-| Alt+Tab | 2×5 workspace overview |
+| Alt+Tab | 列出工作列上所有視窗（目前工作區優先） |
 | 滑鼠移到 cell 上 | 立即移動 selection，不需要先點一下 |
 | 放開 Alt / 點 cell | 確認並切換 workspace |
 | Esc | 取消 overview |
@@ -23,11 +23,11 @@ Taskbar 依 workspace 將已 map 的視窗包成 capsule，和 tiling column 無
 
 普通 window 預設 tiled；Super+Shift+T 切換浮動／平鋪。浮動視窗支援 Alt+拖曳移動、Alt+Shift+拖曳縮放；parent dialog 仍可疊在 parent 上。Minimized window 仍占 group capacity。Maximize 只改 presentation：其他 tile 暫時隱藏，浮動視窗保持可見，但原 split ratio、row height、順序保留；restore 完整回復。
 
-## 2×5 Overview
+## 切換器
 
 Overview 狀態最多每 16 ms coalesce。Backdrop 用一個非同步 grim snapshot，最多等 350 ms，失敗改用 wallpaper。每個 window texture 先縮到最多 320×200 再 readback/worker encode。
 
-十個 cell 固定存在，包括空 workspace。Tab/Shift+Tab、左右、scroll 每次一格；上下跨 5 格。選到超過目前 workspace count 的 cell 會在需要時擴張。`Super+0` 對應 workspace 10。Thumbnail 是 opening-time snapshot，不是 live video。
+Slint shell 在畫面中央畫出切換框：視窗格顯示應用程式圖示、標題與工作區；工作區格顯示其中視窗的圖示。點選即切換，點框外取消。工作區數量會變動：有視窗的工作區加上其後一個空工作區。`Super+1…9` 選擇對應工作區、`Super+0` 為第十個；超過最後一個工作區時會選到空工作區，加 Shift 則把目前視窗移過去。
 
 ## Layout strategy
 

@@ -50,6 +50,7 @@
 #include "desktop/theme/ThemeSync.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
+#include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
 #include "desktop/weather/WeatherStatus.hpp"
 #include "shell/launcher/OrbitSettings.hpp"
 #include "shell/modules/ShellModules.hpp"
@@ -350,6 +351,7 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
   windowTemplate_ = &windowTemplateForKey("tiling");
   windowLayout_ = createWindowLayout(*windowTemplate_);
   windowSwitcher_ = std::make_unique<WindowSwitcher>(d->eventLoop);
+  videoWallpaper_ = std::make_unique<VideoWallpaperPlayer>(d->eventLoop);
   screenCapture_ = new ScreenCapture(d->eventLoop);
   screenCapture_->setCompletion(
       [this](const std::string &path, const std::string &error) {
@@ -553,6 +555,7 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
 WaylandCompositor::~WaylandCompositor() {
   shuttingDown_ = true;
   cancelWallpaperPalette();
+  videoWallpaper_->stop();
   delete shellModules_;
   shellModules_ = nullptr;
   sessionServices_.reset();
@@ -1055,10 +1058,10 @@ void WaylandCompositor::arrange() {
     return;
   // Windows and layers move or change here: the surface under the cursor may differ.
   d->schedulePointerRebase();
-  // A workspace change slides the old workspace's windows out and the new one's in.
+  compactWorkspaces();
+  // A workspace change slides the whole old workspace out and the new one in.
   const int slide = std::exchange(workspaceSlide_, 0);
-  const int slideDistance =
-      slide * std::min(360, std::max(120, d->outputSize().width() / 5));
+  const int slideDistance = slide * (std::max(1, d->outputSize().width()) + 48);
   const auto preferences = desktopPreferences();
   d->eyeCareActive = preferences.value("eyeCare", false);
   d->steadyWindowOpacity =
@@ -1090,7 +1093,7 @@ void WaylandCompositor::arrange() {
   if (windowAnimations_)
     windowAnimations_->configure(sceneAnimationOptions(windowAnimationProfile(
         *pluginManager_, preferences, *windowTemplate_)));
-  const int count = preferences.value("workspaceCount", 10);
+  const int count = workspaceCount();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const Rect area = workArea();
   const Size output = d->outputSize();
@@ -1209,7 +1212,7 @@ void WaylandCompositor::arrange() {
       if (!visible && wasVisible && client->mapped && windowAnimations_) {
         if (slide && client->workspace != workspace_)
           windowAnimations_->close(client->sceneTree, d->animationLayer,
-                                   -slideDistance, 0);
+                                   -slideDistance, 0, false);
         else if (client->minimized)
           // Minimizing drops the window toward the dock.
           windowAnimations_->close(client->sceneTree, d->animationLayer, 0,
@@ -1288,7 +1291,7 @@ void WaylandCompositor::arrange() {
       if (slide)
         windowAnimations_->open(client->sceneTree,
                                 animationRectangle(client->geometry),
-                                slideDistance, 0);
+                                slideDistance, 0, false);
       else
         windowAnimations_->open(client->sceneTree,
                                 animationRectangle(client->geometry));
@@ -1548,18 +1551,16 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
   };
   if (action.starts_with("workspace")) {
     const int target = workspaceNumber("workspace");
-    if (target > 0 &&
-        target <= desktopPreferences().value("workspaceCount", 10)) {
-      selectWorkspace(target - 1);
-    }
+    // Beyond the last workspace: the empty one after it.
+    if (target > 0)
+      selectWorkspace(std::min(target, workspaceCount()) - 1);
     return;
   }
 
   if (action.starts_with("moveToWorkspace")) {
     const int target = workspaceNumber("moveToWorkspace");
-    if (target > 0 && focused_ &&
-        target <= desktopPreferences().value("workspaceCount", 10)) {
-      focused_->workspace = target - 1;
+    if (target > 0 && focused_) {
+      focused_->workspace = std::min(target, workspaceCount()) - 1;
       windowLayout_->moveToWorkspace(focused_->id, focused_->workspace);
       arrange();
       synchronizeWindowFocus();
@@ -1683,6 +1684,23 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
 }
 
 Json WaylandCompositor::state(bool includeTranslations) const {
+  // Every status poll keeps the video wallpaper player in step with the
+  // wallpaper, whichever tool changed it.
+  const auto wallpaperPath = wallpaperImagePath();
+  videoWallpaper_->sync(wallpaperPath, clientEnvironment_);
+  std::string wallpaperPosterUri;
+  if (wallpaperIsVideo(wallpaperPath)) {
+    std::error_code posterError;
+    const auto poster = wallpaperPoster(wallpaperPath);
+    if (std::filesystem::is_regular_file(poster, posterError))
+      wallpaperPosterUri = localFileUri(poster);
+  }
+  // A player that is still being stopped no longer counts.
+  bool wallpaperLive = false;
+  if (wallpaperIsVideo(wallpaperPath))
+    for (const auto *layer : d->layers)
+      wallpaperLive = wallpaperLive ||
+                      (layer->mapped && videoWallpaperSurface(layer->surface));
   Json entries = Json::array();
   Json xwaylandUtilities = Json::array();
   for (const auto &client : clients_) {
@@ -1977,6 +1995,10 @@ Json WaylandCompositor::state(bool includeTranslations) const {
            ? std::string{}
            : localFileUri(wallpaperImagePath())},
       {"workspace", workspace_},
+      {"workspaceCount", workspaceCount()},
+      {"wallpaperPoster", wallpaperPosterUri},
+      {"wallpaperLive", wallpaperLive},
+      {"wallpaperVideoError", videoWallpaper_->error()},
       {"processFailure", processFailure_},
       {"clients", entries},
       {"pointerDrag", Json::object({{"window", d ? d->pointerWindow : 0},
@@ -2020,7 +2042,7 @@ Json WaylandCompositor::control(const Json &request) {
   const int number = parsedNumber.value_or(0);
 
   if (method == "workspace" && numberValid && number >= 0 &&
-      number < desktopPreferences().value("workspaceCount", 10)) {
+      number < workspaceCount()) {
     selectWorkspace(number);
   } else if (method == "language" &&
              isSupportedLanguage(value)) {
@@ -2554,6 +2576,10 @@ Json WaylandCompositor::control(const Json &request) {
     const auto id = textWindowId(value);
     if (!id || !windowSwitcher_->select(*id))
       return {{"error", "Unknown selection"}};
+  } else if (method == "switch-begin" &&
+             (value == "windows" || value == "workspaces")) {
+    // Opened from the shell: start on the current entry.
+    beginWindowSwitch(0, value == "workspaces");
   } else if (method == "switch-step") {
     windowSwitcher_->step(value == "previous" ? -1 : 1);
   } else if (method == "switch-accept" || method == "switch-cancel") {

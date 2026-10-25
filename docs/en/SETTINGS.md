@@ -16,7 +16,7 @@ The image picker focuses and selects its path field when opened, and Tab stays w
 | --- | --- | --- |
 | General | Extensible language drop-down, shell font, 12/24-hour clock, welcome screen, confirmed preference reset | Font choice affects the shell; external application themes remain independent |
 | Appearance | Wallpaper image/palettes, in-shell PNG/JPEG/WebP picker, custom `#RRGGBB` accent, gaps, panel height, dashboard visibility, smooth blur, opacity and animation duration | Accent colors can be entered directly; the visible swatches are only quick presets. The picker is drawn inside the settings surface with a bounded preview; blur applies to application frames, with no KDE blur protocol |
-| Windows and workspaces | 1–10 workspaces, bounded split tiles, eight-member vertical groups and window gaps | New windows open tiled and non-maximized; `Meta+F` maximizes one window or restores all workspace tiles |
+| Windows and workspaces | Dynamic workspaces, bounded split tiles, eight-member vertical groups and window gaps | New windows open tiled and non-maximized; `Meta+F` maximizes one window or restores all workspace tiles |
 | Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all ten workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Plugins | Native, Quickshell and OpenGL extensions; per-feature built-in settings, plugin options and JSON | Hot reload, disabled native defaults and built-in recovery; [plugin SDK](PLUGINS.md) |
 | Shell modules | JSON layout, dimensions, positions, colors and built-in recovery | [Module schema and contract](MODULES.md); custom QML modules are not loaded |
@@ -42,7 +42,7 @@ Additional keys in the existing `[desktop]` group:
 
 | Key | Default | Accepted values |
 | --- | --- | --- |
-| `workspaceCount` | 10 | Integer 1–10 |
+| `workspaceCount` | 10 | Integer 1–10; ignored: workspaces follow the windows |
 | `keyboardLayout` | us | us, gb, de, fr, es, jp, tw |
 | `keyRepeatRate` | 25 | Integer 0–60; zero disables repeat |
 | `keyRepeatDelay` | 600 | Integer 200–1500 ms |
@@ -86,7 +86,7 @@ The top panel groups mapped application windows into one capsule per workspace, 
 
 Columns tile vertically with at most eight total members, including minimized windows. All tiles stay within one screen. A new window splits the largest tile along its longer edge, keeping a stable arrangement. Ordinary windows cannot float or overlap; transient dialogs remain above their parent. Alt + left-drag swaps slots at a target's center, or inserts beside its top/bottom edge. Slot swapping preserves slot sizes. With one active window, Alt dragging translates it without resizing or leaving the work area. Shift + Alt + left-drag adjusts shared split boundaries and grouped row heights while redistributing remaining height without reordering. `Meta+Shift+H/L` merges into a neighboring column; `Meta+Shift+E` separates a member into its own column.
 
-Alt+Tab previews windows in the current workspace. Super+Tab opens the workspace overview. Tab/Shift+Tab, arrow keys and scrolling move the selection; releasing Alt or Super confirms the matching switcher, and Esc cancels. Selecting an unused workspace expands a smaller configured workspace count as needed. `Meta+0` and `Meta+Shift+0` address workspace 10. The taskbar uses workspace capsules instead of numeric labels and switches there with an animation before focusing and enlarging a selected task.
+Alt+Tab shows every window in the taskbar, the current workspace first. Super+Tab opens the workspace overview. Tab/Shift+Tab, arrow keys and scrolling move the selection; releasing Alt or Super confirms the matching switcher, and Esc cancels. Selecting an unused workspace expands a smaller configured workspace count as needed. `Meta+0` and `Meta+Shift+0` address workspace 10. The taskbar uses workspace capsules instead of numeric labels and switches there with an animation before focusing and enlarging a selected task.
 
 Thumbnails are rendered to bounded 320×200 buffers before readback, then encoded outside the input thread. They refresh when the overview opens; unavailable content uses an application icon. Theme-colored rounded outlines indicate tiled-window focus. These outlines do not mask client content into rounded corners.
 

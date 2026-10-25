@@ -28,7 +28,7 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 ## LunaDash
 
 - **Everyday essentials, together.** A panel, launcher, card-based dashboard, resizable settings center, notifications and LunaDash-styled file/portal pickers are part of the desktop.
-- **A workspace that moves with you.** Tiles contained within one screen, groups of up to eight windows, Alt dragging, a ten-workspace thumbnail overview and a taskbar spanning all workspaces.
+- **A workspace that moves with you.** Tiles contained within one screen, groups of up to eight windows, Alt dragging, workspaces that grow and shrink with your windows, sliding workspace switches, an Alt+Tab box listing every window and a taskbar spanning all workspaces.
 - **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings.
 - **Go further when you want.** Customize the Slint shell and use the local control interface for your own workflow.
 

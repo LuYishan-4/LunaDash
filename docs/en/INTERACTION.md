@@ -2,10 +2,18 @@
 
 ## Keyboard and focus
 
-`Super+Tab` / `Super+Shift+Tab` opens the ten-workspace grid. Release Super to
-select the highlighted workspace. `Alt+Tab` / `Alt+Shift+Tab` opens a separate
-window strip containing only mapped application windows in the current workspace,
-including minimized windows. Release Alt to focus and restore the selected window.
+Workspaces follow the windows: there is always exactly one empty workspace after
+the last occupied one, a window on that empty workspace adds the next one, and an
+empty workspace between occupied ones disappears once you leave it. Switching
+slides the whole workspace sideways (Reduced motion turns the slide off).
+
+`Super+Tab` / `Super+Shift+Tab` opens the workspace switcher. Release Super to
+select the highlighted workspace. `Alt+Tab` / `Alt+Shift+Tab` opens the window
+switcher: every mapped application window in the taskbar, the current workspace
+first, including minimized windows. Release Alt to focus and restore the selected
+window, switching to its workspace. The shell draws both as a box in the middle of
+the screen; clicking an entry switches to it, and the window button beside the
+panel's workspace dots opens the same box (right-click: workspaces).
 Neither shortcut invokes the taskbar's maximize toggle. An already maximized
 workspace continues to use the existing focus/maximization policy.
 

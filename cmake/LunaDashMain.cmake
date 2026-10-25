@@ -76,7 +76,8 @@ target_compile_definitions(ludash-xwayland PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-xwayland PUBLIC
     PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
 add_library(ludash-wallpaper src/desktop/wallpaper/WallpaperSettings.cpp
-    src/desktop/wallpaper/WallpaperPalette.cpp)
+    src/desktop/wallpaper/WallpaperPalette.cpp
+    src/desktop/wallpaper/VideoWallpaperPlayer.cpp)
 target_include_directories(ludash-wallpaper PUBLIC src)
 target_link_libraries(ludash-wallpaper PUBLIC
     ludash-configuration ludash-process-runner

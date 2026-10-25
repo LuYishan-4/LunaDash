@@ -72,7 +72,7 @@ Mellow 模板改編自 NyxMellow，GPL-3.0 授權及來源標示位於 `data/the
 
 ## 相依套件與驗證界線
 
-Arch 套件新增動態桌布需要的 `qt6-multimedia` 與 `ffmpeg`，其餘沿用 Quickshell、Qt Wayland、wlroots、Fcitx、PulseAudio／PipeWire 等相依。只有選取影片時才載入 Qt Multimedia，所以 native 編譯不需要 Multimedia 開發標頭。其他發行版需安裝 Qt 6 Multimedia 的 **QML 模組**、可用的多媒體 backend／codec 及 FFmpeg，例如 Debian／Ubuntu 常見的 `qml6-module-qtmultimedia`、Fedora 的 `qt6-qtmultimedia`。靜態桌布不需影片 codec；天氣沿用既有 Qt Network 相依。可攜 CMake 及相容程式分支不代表已驗證所有發行版或 GPU。
+影片桌布（MP4、WebM、MKV、MOV、M4V）由選用相依 `mpvpaper`（Arch 上在 AUR）播放：LunaDash 在 background layer 啟動它，並讓它保持在 Slint shell 桌布下方，播放時 shell 桌布改為透明。`ffmpeg` 產生預覽畫面、桌布庫縮圖與 1080p proxy；沒有 mpvpaper 時顯示預覽畫面。靜態桌布（PNG、JPEG、WebP、BMP、GIF）兩者都不需要；天氣沿用既有 Qt Network 相依。可攜 CMake 及相容程式分支不代表已驗證所有發行版或 GPU。
 
 這仍是開發中的整合，並未達成 NyxNiri 全功能一致。Niri 專屬的分頁 column、跨輸出導覽與 glow 預設；Noctalia 的 greeter／安全鎖屏協定；上游整套應用程式預設及部署回復系統，以及下載式桌布包，尚未移植。可選的作者應用程式設定匯入由 LunaDash 安裝程式處理，與 compositor 分開。本專案仍使用既有的平鋪／堆疊模板、更新器、工作階段控制與外部程式角色。Native 插件預設停用，也沒有沙箱隔離。
 

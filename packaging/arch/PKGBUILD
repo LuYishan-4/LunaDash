@@ -13,6 +13,7 @@ optdepends=('kitty: Optional default terminal'
             'qt6-shadertools: Build OpenGL shader plugins with the LunaDash SDK'
             'noto-fonts-cjk: CJK interface fonts'
             'mesa: Mesa OpenGL drivers')
+optdepends+=('mpvpaper: Video wallpapers (AUR)')
 optdepends+=('vulkan-icd-loader: Vulkan loader for Vulkan rendering'
              'vulkan-driver: GPU-specific Vulkan driver')
 # The shell is Slint on SlintLu (built below). Quickshell is only needed for a

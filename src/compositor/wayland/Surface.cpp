@@ -8,6 +8,7 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
 #include "core/text/Text.hpp"
 #include <algorithm>
 
@@ -164,8 +165,7 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
     const auto rule = initialWindowRule(
         *q->pluginManager_,
         {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
-        client->workspace, client->maximized,
-        desktopPreferences().value("workspaceCount", 10));
+        client->workspace, client->maximized, q->workspaceCount());
     client->workspace = jsonInt(rule, "workspace");
     client->maximized = jsonBool(rule, "maximized");
   }
@@ -610,6 +610,17 @@ void WaylandCompositor::Impl::handleForeignToplevelCaptureRequest(
 }
 #endif
 
+bool WaylandCompositor::videoWallpaperSurface(
+    const wlr_layer_surface_v1 *surface) const {
+  const pid_t player = videoWallpaper_ ? videoWallpaper_->processId() : -1;
+  if (player <= 0 || !surface || !surface->resource)
+    return false;
+  pid_t pid = 0;
+  wl_client_get_credentials(wl_resource_get_client(surface->resource), &pid,
+                            nullptr, nullptr);
+  return pid == player;
+}
+
 void WaylandCompositor::Impl::handleNewLayerSurface(wl_listener *listener,
                                                     void *data) {
   auto *self = listenerOwner<Impl>(listener);
@@ -720,6 +731,17 @@ void WaylandCompositor::Impl::handleLayerCommit(wl_listener *listener, void *) {
       break;
     }
     wlr_scene_node_reparent(&state->sceneLayer->tree->node, parent);
+    // Reparenting raises the surface. The video wallpaper plays beneath the
+    // shell's (then transparent) wallpaper and its desktop clock.
+    if (state->impl->q->videoWallpaperSurface(state->surface)) {
+      // Just above the compositor's neutral fallback colour.
+      if (state->impl->background &&
+          state->impl->background->node.parent == parent)
+        wlr_scene_node_place_above(&state->sceneLayer->tree->node,
+                                   &state->impl->background->node);
+      else
+        wlr_scene_node_lower_to_bottom(&state->sceneLayer->tree->node);
+    }
     state->impl->arrangeLayers();
     state->impl->q->arrange();
     state->configured = true;
