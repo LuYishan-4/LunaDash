@@ -2,7 +2,7 @@
 
 NixOS uses the [flake and system module](NIXOS.md). See [CI policy](CI.md) for branch coverage and verification limits.
 
-LunaDash is a development Wayland desktop built with C++20, C11, wlroots and Qt 6. Quickshell/QML owns the desktop shell. LunaDash-owned Welcome, portal selectors and Package Manager windows use Slint/Winit; Qt Widgets remains only in the optional toolkit compatibility client. Qt still supports compositor and service code during the ongoing migration, and Qt Wayland is used by clients, not as the compositor server. Arch Linux is the primary development platform. Passing nested or software-rendered tests does not establish complete hardware or login-session support.
+LunaDash is a development Wayland desktop built with C++20, C11, wlroots and Qt 6. The desktop shell is the separate Slint LunaDash-Shell, run by SlintLu as a Wayland client ([shell](SHELL.md)). LunaDash-owned Welcome, portal selectors and Package Manager windows use Slint/Winit; Qt Widgets remains only in the optional toolkit compatibility client. Qt still supports compositor and service code during the ongoing migration, and Qt Wayland is used by clients, not as the compositor server. Arch Linux is the primary development platform. Passing nested or software-rendered tests does not establish complete hardware or login-session support.
 
 ## Source domains
 

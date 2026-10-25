@@ -1,6 +1,10 @@
 #include "core/process/ProcessRunner.hpp"
 
 #include <chrono>
+#include <cstdio>
+#include <fstream>
+#include <iterator>
+#include <unistd.h>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -64,6 +68,53 @@ int main() {
         output.find("HOME=") != std::string::npos) {
       std::cerr << "Explicit process environment was not honored.\n";
       result = 1;
+    }
+
+    // Parsed output comes from the C locale; programs whose output is not collected keep
+    // the caller's locale (the session shell and applications need their translations).
+    completed = false;
+    success = false;
+    output.clear();
+    const LunaDash::ProcessEnvironment localized{
+        {"PATH", path ? path : "/usr/bin:/bin"}, {"LANG", "zh_TW.UTF-8"},
+        {"LC_ALL", "zh_TW.UTF-8"}};
+    if (!runner.run(
+            "/usr/bin/env", {},
+            [&](bool ok, const std::string &text) {
+              success = ok;
+              output = text;
+              completed = true;
+            },
+            2500, localized) ||
+        !waitFor(eventLoop, completed) || !success ||
+        output.find("LC_ALL=C\n") == std::string::npos ||
+        output.find("LC_ALL=zh_TW") != std::string::npos) {
+      std::cerr << "Collected output was not produced in the C locale.\n";
+      result = 1;
+    }
+    {
+      const std::string envFile = "/tmp/lunadash-process-runner-locale-" +
+                                  std::to_string(::getpid());
+      LunaDash::ProcessRunner launcher(eventLoop, false);
+      completed = false;
+      if (!launcher.run(
+              "/bin/sh", {"-c", "env > \"$0\"", envFile},
+              [&](bool, const std::string &) { completed = true; }, 2500,
+              localized) ||
+          !waitFor(eventLoop, completed)) {
+        std::cerr << "A process without collected output did not run.\n";
+        result = 1;
+      } else {
+        std::ifstream file(envFile);
+        const std::string written((std::istreambuf_iterator<char>(file)),
+                                  std::istreambuf_iterator<char>());
+        if (written.find("LC_ALL=zh_TW.UTF-8") == std::string::npos ||
+            written.find("LC_ALL=C\n") != std::string::npos) {
+          std::cerr << "A launched program lost the caller's locale.\n";
+          result = 1;
+        }
+      }
+      std::remove(envFile.c_str());
     }
 
     completed = false;

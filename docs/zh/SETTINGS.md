@@ -2,6 +2,8 @@
 
 [English](../en/SETTINGS.md) · [繁中索引](README.md)
 
+> **舊版殼層。** 此設定介面屬於先前的 Quickshell 殼層。Slint 殼層有自己較精簡的設定（外觀、桌布、面板與 Dock、通知、電源與鎖定、語言、關於），此處列出的頁面尚未移植。詳見[桌面殼層](SHELL.md)。
+
 可以從桌布右鍵、面板入口、launcher 的 Settings，或 `lunadash-desktop --app settings` 開啟同一個 Quickshell/QML 設定介面。搜尋會索引翻譯後的分類、設定名稱、描述與關鍵字；選取結果會直接開對應 page。設定頁支援捲動，換頁會重設 scroll 位置。
 
 Plugin 與 Shell module 都在同一個 Settings surface 中；Plugins 頁負責 enable/disable、replace/augment mode、分類 options 與 advanced JSON。Plugins 與 Shell modules 兩個 recovery 頁面本身不能被 plugin replacement 拿掉。

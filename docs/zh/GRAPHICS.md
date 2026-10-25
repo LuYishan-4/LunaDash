@@ -12,7 +12,7 @@ Backend、renderer、allocator 或必要 global 建立失敗時，startup 會回
 
 ## Toolkit-neutral render-element library
 
-LunaDash 在 `src/compositor/renderer/` 保留不依賴 UI toolkit 的 OpenGL render-element library。`OpenGL` 要求呼叫端提供 current EGL OpenGL 3.3+ 或 OpenGL ES 3.0+ context；它不建立或擁有 context。活動中的 compositor scene 仍由 wlroots 負責，桌布由獨立 Quickshell process 顯示。
+LunaDash 在 `src/compositor/renderer/` 保留不依賴 UI toolkit 的 OpenGL render-element library。`OpenGL` 要求呼叫端提供 current EGL OpenGL 3.3+ 或 OpenGL ES 3.0+ context；它不建立或擁有 context。活動中的 compositor scene 仍由 wlroots 負責，桌布由獨立的 Slint 殼層 process 顯示。
 
 所有 project-owned raw GL 都在 `renderer/opengl/`。`Renderer` 負責 orchestration；`Shader`、`Program`、`Texture`、`Framebuffer` 用 RAII 管資源。這套 library 目前不是活動 wlroots compositor 的 scene renderer。
 
@@ -50,7 +50,7 @@ python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
 
 Software OpenGL 與 pixman 都不能證明特定 NVIDIA/AMD/Intel/ARM 實體 GPU、dmabuf 或 DRM/KMS 一定正常。Host Wayland 可用 `LUDASH_TEST_HOST_WAYLAND=1` 額外測試。
 
-Quickshell 有自己的 rendering policy，見 [Shell rendering](SHELL_RENDERING.md)。
+Shell（SlintLu）有自己的 rendering policy，見 [Shell rendering](SHELL_RENDERING.md)。
 
 ## Vulkan 選擇
 
@@ -58,7 +58,7 @@ Quickshell 有自己的 rendering policy，見 [Shell rendering](SHELL_RENDERING
 
 C11 選擇程式位於 `renderer/selection/RenderSelection.c`，僅連結 wlroots，不使用 Qt 物件。`LUDASH_ENABLE_VULKAN=OFF` 可關閉 Vulkan 整合；預設於 CMake 設定時偵測 wlroots API。Arch 需安裝 `vulkan-headers`、`vulkan-icd-loader` 與適合 GPU 的 Vulkan 驅動程式。其他 Linux 的相依套件由 `scripts/install-dependencies.sh` 處理，Nix 提供 loader 與標頭。Vulkan 需要可存取的 DRM render node 及 wlroots 所需的外部記憶體功能；只有 loader 或 Lavapipe 並不代表符合要求。
 
-兩種 compositor renderer 共用 wlroots scene、allocator、dmabuf feedback 與依能力啟用的 explicit synchronization。GTK／Qt 客戶端使用的繪圖 API 不受 compositor 選擇限制。獨立 EGL OpenGL render-element library 仍限定 OpenGL。`LUDASH_SHELL_RENDERER=vulkan` 僅選擇 Quickshell 的 Qt Quick Vulkan 路徑。建置 render-element target 需要 EGL 開發套件。
+兩種 compositor renderer 共用 wlroots scene、allocator、dmabuf feedback 與依能力啟用的 explicit synchronization。GTK／Qt 客戶端使用的繪圖 API 不受 compositor 選擇限制。獨立 EGL OpenGL render-element library 仍限定 OpenGL。`LUDASH_SHELL_RENDERER=vulkan` 僅選擇殼層（SlintLu）的 Vulkan 路徑。建置 render-element target 需要 EGL 開發套件。
 
 GPU 主機可執行：
 

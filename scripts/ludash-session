@@ -4,11 +4,13 @@ check_only=0
 if [ "${1:-}" = --check ]; then check_only=1; shift; fi
 session_bin=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
 if [ "$(id -u)" = 0 ]; then echo 'LunaDash must run as a normal login user, not root.' >&2; exit 1; fi
-# Only these are required to bring up the desktop. A terminal (kitty) and a
-# shell are optional defaults: missing them must not block login.
-for program in quickshell; do
-    command -v "$program" >/dev/null || { echo "Missing session dependency: $program" >&2; exit 1; }
-done
+# Only the shell runtime is required to bring up the desktop: SlintLu, installed with LunaDash
+# (libexec/lunadash/slintlu) or on PATH. A terminal (kitty) and a shell are optional
+# defaults: missing them must not block login.
+if [ ! -x "$session_bin/../libexec/lunadash/slintlu" ] && ! command -v slintlu >/dev/null; then
+    echo 'Missing session dependency: slintlu (the LunaDash shell runtime)' >&2
+    exit 1
+fi
 # A TTY/manual login may omit the address even though PAM already started
 # the systemd user bus. Reuse that bus instead of isolating portal clients.
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -S "$XDG_RUNTIME_DIR/bus" ]; then

@@ -3,7 +3,7 @@ set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 build_dir=${LUNADASH_TEST_BUILD_DIR:-"$project_dir/build-once"}
-shell_source_dir=${LUDASH_QML_SOURCE_DIR:-}
+shell_source_dir=${LUDASH_SHELL_SOURCE_DIR:-${LUDASH_QML_SOURCE_DIR:-}}
 
 if [ "${XDG_SESSION_TYPE:-}" != wayland ] || [ -z "${WAYLAND_DISPLAY:-}" ]; then
   echo 'Run this one-shot window test from an existing Wayland session.' >&2
@@ -25,18 +25,18 @@ if [ -z "$shell_source_dir" ]; then
     bash "$project_dir/scripts/fetch-shell.sh" "$shell_source_dir"
   fi
 fi
-if [ ! -f "$shell_source_dir/shell.qml" ]; then
-  printf 'LUDASH_QML_SOURCE_DIR does not contain shell.qml: %s\n' "$shell_source_dir" >&2
+if [ ! -f "$shell_source_dir/shell.slint" ] && [ ! -f "$shell_source_dir/shell.qml" ]; then
+  printf 'LUDASH_SHELL_SOURCE_DIR does not contain shell.slint: %s\n' "$shell_source_dir" >&2
   exit 1
 fi
 shell_source_dir=$(CDPATH= cd -- "$shell_source_dir" && pwd)
 
 cmake -S "$project_dir" -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=Debug \
-  -DLUDASH_QML_SOURCE_DIR="$shell_source_dir"
+  -DLUDASH_SHELL_SOURCE_DIR="$shell_source_dir"
 cmake --build "$build_dir" --parallel "${LUNADASH_TEST_JOBS:-2}"
 
-if command -v qmllint >/dev/null 2>&1; then
-  find "$shell_source_dir" -type f -name '*.qml' -exec qmllint -I "$shell_source_dir" '{}' +
+if command -v slintlu >/dev/null 2>&1 && [ -f "$shell_source_dir/shell.slint" ]; then
+  slintlu check "$shell_source_dir"
 fi
 
 LUDASH_BUILD_DIR="$build_dir" \

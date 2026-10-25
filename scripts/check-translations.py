@@ -112,7 +112,12 @@ def discover_locales(directory):
 
 def source_messages(root, shell_root):
     found = {}
-    for folder, source_root in (('src', root / 'src'), ('LunaDash-Shell', shell_root)):
+    sources = [('src', root / 'src')]
+    # A Slint LunaDash-Shell ships its own i18n/*.po (checked in its repository); only a
+    # legacy QML shell takes its texts from these language packs.
+    if shell_root is not None:
+        sources.append(('LunaDash-Shell', shell_root))
+    for folder, source_root in sources:
         for path in sorted(source_root.rglob('*')):
             if path.suffix not in ('.qml', '.cpp'):
                 continue
@@ -133,8 +138,11 @@ def source_messages(root, shell_root):
 def main():
     root = Path(__file__).resolve().parents[1]
     directory = root / 'data/translations'
-    shell_root = Path(os.environ.get('LUDASH_QML_SOURCE_DIR', root / 'qml')).resolve()
-    if not (shell_root / 'shell.qml').is_file():
+    shell_root = Path(os.environ.get('LUDASH_SHELL_SOURCE_DIR')
+                      or os.environ.get('LUDASH_QML_SOURCE_DIR', root / 'shell')).resolve()
+    if (shell_root / 'shell.slint').is_file():
+        shell_root = None
+    elif not (shell_root / 'shell.qml').is_file():
         print(f'LunaDash-Shell source is unavailable: {shell_root}', file=sys.stderr)
         return True
     sources = source_messages(root, shell_root)

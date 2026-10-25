@@ -50,11 +50,35 @@ bool invalidChoiceDoesNotMutateEnvironment() {
          check(environment == original,
                "invalid renderer selection modified the environment");
 }
+
+bool slintLuSelection() {
+  ShellRenderingEnvironment environment;
+  environment["LUDASH_SHELL_RENDERER"] = "vulkan";
+  if (!check(configureSlintLuRendering(environment) &&
+                 environment.at("SLINTLU_RENDERER") == "vulkan",
+             "the SlintLu shell did not receive an explicit renderer"))
+    return false;
+  environment.clear();
+  environment["SLINTLU_RENDERER"] = "software";
+  if (!check(configureSlintLuRendering(environment) &&
+                 environment.at("SLINTLU_RENDERER") == "software",
+             "automatic selection overwrote the caller's SlintLu renderer"))
+    return false;
+  environment.clear();
+  if (!check(configureSlintLuRendering(environment) &&
+                 !environment.contains("SLINTLU_RENDERER"),
+             "automatic selection must leave the choice to SlintLu"))
+    return false;
+  environment["LUDASH_SHELL_RENDERER"] = "typo";
+  const auto original = environment;
+  return check(!configureSlintLuRendering(environment) && environment == original,
+               "an invalid SlintLu renderer selection was accepted");
+}
 } // namespace
 
 int run() {
   if (!explicitVulkan() || !automaticSelection() || !preserveToolkitChoice() ||
-      !invalidChoiceDoesNotMutateEnvironment())
+      !invalidChoiceDoesNotMutateEnvironment() || !slintLuSelection())
     return 1;
   return 0;
 }

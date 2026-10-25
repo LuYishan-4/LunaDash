@@ -35,7 +35,7 @@ LunaDash 仍是開發預覽版。安裝器會註冊真正的 Wayland login sessi
 ./scripts/install-dependencies.sh
 ```
 
-腳本不會新增 PPA/COPR/OBS 等第三方 repository。Quickshell 需 0.3+；若發行版沒有套件，請依上游安裝。已準備好相依時可用：
+腳本不會新增 PPA/COPR/OBS 等第三方 repository。Slint 與殼層執行環境 SlintLu 都從原始碼建置，需要 Rust/Cargo 1.92+。已準備好相依時可用：
 
 ```sh
 ./scripts/install-session.sh --skip-deps
@@ -56,7 +56,7 @@ LunaDash 仍是開發預覽版。安裝器會註冊真正的 Wayland login sessi
 
 可選群組包含 `basics`（XDG、壓縮、傳輸工具及金鑰圈）、`desktop`（Chromium、Ark 與 Dolphin 的 KIO extras）、`media`（MPV、看圖與縮圖）、`office`（LibreOffice 與繁中語言包）、`development`（Fish、Starship、Fastfetch、搜尋及終端機工具）和 `input`（Fcitx5 中文輸入法、CJK 與 JetBrains Mono 字型）。`--apps none` 不加裝選用群組。除非使用 `--skip-deps`，主體相依套件仍會安裝。選用軟體群組目前以 Arch 已設定的 pacman 來源為目標；其他發行版保留原本主體安裝流程，也能使用配置範本，額外程式則由使用者安裝對應套件。安裝器不會安裝 AUR helper 或新增套件來源。
 
-配置組織與可攜外觀參考作者提供的 2026-09-24 設定快照及 [NyxNiri](https://github.com/ech678/NyxNiri)。LunaDash 沿用自己的 compositor、Quickshell UI 與設定 schema；不匯入參考包的 Niri／Noctalia 工作階段、個人身分、系統設定、硬體規則或瀏覽器狀態。Kitty 範本採用參考字型、留白、透明度及複製貼上快捷鍵；Fish、Starship 和 Fastfetch 提供可編輯初始設定，不變更帳號預設 shell。安裝時不會執行作者設定包內的還原程式。
+配置組織與可攜外觀參考作者提供的 2026-09-24 設定快照及 [NyxNiri](https://github.com/ech678/NyxNiri)。LunaDash 沿用自己的 compositor、Slint 殼層與設定 schema；不匯入參考包的 Niri／Noctalia 工作階段、個人身分、系統設定、硬體規則或瀏覽器狀態。Kitty 範本採用參考字型、留白、透明度及複製貼上快捷鍵；Fish、Starship 和 Fastfetch 提供可編輯初始設定，不變更帳號預設 shell。安裝時不會執行作者設定包內的還原程式。
 
 `--desktop-profile` 只在檔案不存在時建立 `${XDG_CONFIG_HOME:-$HOME/.config}/LuDash/shell-modules.json`。預設浮動頂部面板包含精簡工作區、目前應用程式、CPU／記憶體、置中啟動器與右側控制項。底部 Dock 預設關閉，可在 Settings 重新開啟。面板可透過 Settings 或既有 module JSON 調整，未指定欄位沿用內建範本；現有桌面配置與已儲存偏好仍優先。
 
@@ -90,7 +90,7 @@ lunadash-session --check
 
 ## 工作階段啟動
 
-`/usr/share/wayland-sessions/lunadash.desktop` 會執行 `/usr/bin/lunadash-session`。它建立 private D-Bus session，再啟動 wlroots DRM/KMS compositor。Wayland socket 建好後，才準備 Quickshell、可選 Fcitx5 與應用程式環境，並把需要的變數發布到該 session 的 D-Bus／systemd user environment。
+`/usr/share/wayland-sessions/lunadash.desktop` 會執行 `/usr/bin/lunadash-session`。它建立 private D-Bus session，再啟動 wlroots DRM/KMS compositor。Wayland socket 建好後，才準備 Slint 殼層（SlintLu）、可選 Fcitx5 與應用程式環境，並把需要的變數發布到該 session 的 D-Bus／systemd user environment。
 
 巢狀 compositor 不會覆寫 host desktop 的 activation environment。Session log 位於：
 

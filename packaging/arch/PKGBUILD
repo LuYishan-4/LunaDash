@@ -5,7 +5,7 @@ pkgrel=1
 pkgdesc='C++ Wayland tiling desktop with OpenGL and optional Vulkan rendering'
 arch=('x86_64' 'aarch64')
 license=('GPL-3.0-only')
-depends=('qt6-base' 'qt6-declarative' 'qt6-wayland' 'qt6-multimedia' 'ffmpeg' 'quickshell' 'qt6-translations' 'wayland' 'wlroots0.20' 'libglvnd' 'fontconfig' 'freetype2' 'dbus' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'libpulse' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'gdk-pixbuf2' 'curl' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard' 'networkmanager' 'network-manager-applet' 'wireplumber' 'pavucontrol' 'bluez' 'bluez-utils' 'blueman' 'system-config-printer' 'gnome-disk-utility' 'partitionmanager' 'firewalld' 'seahorse' 'pciutils' 'usbutils' 'udisks2' 'power-profiles-daemon' 'gnome-control-center')
+depends=('ffmpeg' 'wayland' 'pam' 'wlroots0.20' 'libglvnd' 'fontconfig' 'freetype2' 'dbus' 'xorg-xwayland' 'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'libpulse' 'polkit' 'polkit-kde-agent' 'git' 'python' 'cmake' 'ninja' 'glib2' 'gdk-pixbuf2' 'curl' 'shared-mime-info' 'fcitx5' 'fcitx5-qt' 'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard' 'networkmanager' 'network-manager-applet' 'wireplumber' 'pavucontrol' 'bluez' 'bluez-utils' 'blueman' 'system-config-printer' 'gnome-disk-utility' 'partitionmanager' 'firewalld' 'seahorse' 'pciutils' 'usbutils' 'udisks2' 'power-profiles-daemon' 'gnome-control-center')
 makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel' 'wayland-protocols' 'vulkan-headers' 'nlohmann-json' 'rust')
 optdepends=('kitty: Optional default terminal'
             'dolphin: Optional default file manager'
@@ -15,13 +15,19 @@ optdepends=('kitty: Optional default terminal'
             'mesa: Mesa OpenGL drivers')
 optdepends+=('vulkan-icd-loader: Vulkan loader for Vulkan rendering'
              'vulkan-driver: GPU-specific Vulkan driver')
-source=("ludash-${pkgver}.tar.gz" "ludash-shell.tar.gz")
-sha256sums=('SKIP' 'SKIP') # Locally generated sources, not downloaded releases.
+# The shell is Slint on SlintLu (built below). Quickshell is only needed for a
+# legacy QML LunaDash-Shell checkout.
+optdepends+=('quickshell: Run a legacy QML LunaDash-Shell'
+             'qt6-wayland: Run a legacy QML LunaDash-Shell'
+             'qt6-multimedia: Video wallpapers in a legacy QML LunaDash-Shell')
+source=("ludash-${pkgver}.tar.gz" "ludash-shell.tar.gz" "ludash-slintlu.tar.gz")
+sha256sums=('SKIP' 'SKIP' 'SKIP') # Locally generated sources, not downloaded releases.
 
 build() {
   cmake -S "ludash-${pkgver}" -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
-    -DLUDASH_QML_SOURCE_DIR="$srcdir/LunaDash-Shell"
+    -DLUDASH_SHELL_SOURCE_DIR="$srcdir/LunaDash-Shell" \
+    -DLUDASH_SLINTLU_SOURCE_DIR="$srcdir/SlintLu"
 
   # Slint's tikv-jemallocator 0.7.0 is incompatible with Rust 1.99+:
   # ld.lld: error: undefined symbol: _rjem_malloc (and 130+ more).

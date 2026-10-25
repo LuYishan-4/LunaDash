@@ -1,5 +1,7 @@
 # Desktop plugins
 
+> **Shell plugins.** The visual `quickshell` and `opengl` plugin types (including desktop widgets) need the former Quickshell shell; the Slint shell does not load them yet. Native compositor plugins are unaffected. See [desktop shell](SHELL.md).
+
 LunaDash Plugin SDK 2 provides feature hooks, visual slots and shared metadata for local plugins. The built-in tiling desktop stays the default. Plugins can replace a feature or run alongside it. All native effects ship disabled.
 
 ## Types and targets

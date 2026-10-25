@@ -158,6 +158,7 @@ if "--install" in args:
     assert sys.stdin.read() == ""
 ''')
         self.tool("ninja", "pass\n")
+        self.tool("cargo", "pass\n")
         result = self.run_installer("--non-interactive")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(any(row[:2] == ["cmake", "--install"] for row in self.events()))

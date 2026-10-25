@@ -8,12 +8,14 @@ violations = []
 translation_link = re.compile(r'\[[^\]\n]+\]\((docs/readme/README\.[a-z]{2}(?:-[A-Za-z]{2,4})?\.md)\)')
 for directory in ('src', 'include'):
     for path in (root / directory).rglob('*'):
-        if path.suffix in {'.cpp', '.c', '.h', '.hpp', '.qml'} and re.search(r'[\u3400-\u9fff]', path.read_text()):
+        if path.suffix in {'.cpp', '.c', '.h', '.hpp', '.qml', '.slint'} and re.search(r'[\u3400-\u9fff]', path.read_text()):
             violations.append(str(path.relative_to(root)))
-qml_root = pathlib.Path(os.environ.get('LUDASH_QML_SOURCE_DIR', root / 'qml'))
-for path in qml_root.rglob('*.qml'):
-    if re.search(r'[\u3400-\u9fff]', path.read_text()):
-        violations.append(str(path))
+shell_root = pathlib.Path(os.environ.get('LUDASH_SHELL_SOURCE_DIR')
+                          or os.environ.get('LUDASH_QML_SOURCE_DIR', root / 'shell'))
+for pattern in ('*.qml', '*.slint'):
+    for path in shell_root.rglob(pattern):
+        if re.search(r'[\u3400-\u9fff]', path.read_text()):
+            violations.append(str(path))
 for path in [root / 'README.md', root / 'AGENTS.md', *(root / 'docs').glob('*.md'),
              *(root / 'docs/en').glob('*.md'), root / '.github/pull_request_template.md']:
     # Compatibility root docs and docs/en stay English. Translations live under docs/zh.

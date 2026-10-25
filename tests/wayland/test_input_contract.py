@@ -1,10 +1,11 @@
-"""Lock keyboard/launcher ownership rules that keep QML and apps typable."""
+"""Lock keyboard/launcher ownership rules that keep the shell and apps typable."""
 
 from pathlib import Path
 import os
 
 root = Path(__file__).resolve().parents[2]
-shell_root = Path(os.environ.get("LUDASH_QML_SOURCE_DIR", root / "qml"))
+shell_root = Path(os.environ.get("LUDASH_SHELL_SOURCE_DIR")
+                  or os.environ.get("LUDASH_QML_SOURCE_DIR", root / "shell"))
 input_cpp = (root / "src/compositor/input/Input.cpp").read_text(encoding="utf-8")
 compositor = (root / "src/compositor/wayland/WaylandCompositor.cpp").read_text(
     encoding="utf-8"
@@ -15,11 +16,11 @@ register = (root / "src/compositor/wayland/Register.cpp").read_text(
 surface = (root / "src/compositor/wayland/Surface.cpp").read_text(
     encoding="utf-8"
 )
-launcher = (shell_root / "launcher/Launcher.qml").read_text(encoding="utf-8")
-shell = (shell_root / "shell.qml").read_text(encoding="utf-8")
+launcher = (shell_root / "launcher/launcher.slint").read_text(encoding="utf-8")
+overlay = (shell_root / "components/overlay.slint").read_text(encoding="utf-8")
 
 # An input-method keyboard grab is valid only while an enabled text-input-v3
-# client actually owns focus. Otherwise QML layer-shell TextFields need the
+# client actually owns focus. Otherwise layer-shell text fields need the
 # original wl_keyboard events through the seat. The bridge predicate is shared
 # with virtual-keyboard routing, so verify the ownership inputs where the
 # predicate is defined instead of requiring them to be duplicated below.
@@ -41,12 +42,14 @@ assert "inputMethodBridgeActive" in guard
 assert "!inputMethodVirtual" in guard
 assert "keyboard_grab" in guard
 
-# Either activation source owns the search field while the launcher is open.
-assert "WlrLayershell.keyboardFocus: opened" in launcher
-assert "WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None" in launcher
-assert 'launcherOpenSource === "keyboard"' not in launcher
-assert "Component.onCompleted: if (opened)" in launcher
-assert "launcher.focusSearch(false)" in launcher
+# The launcher is an overlay that grabs the keyboard while shown, focuses its search
+# field when it opens, and tells the compositor whether it is open so bare Meta toggles it.
+assert "inherits Overlay" in launcher
+assert "keyboard-mode: KeyboardMode.exclusive;" in overlay
+assert "shown: UI.overlay == root.name" in overlay
+assert "search.focus();" in launcher
+assert 'Compositor.command("launcher-visible"' in launcher
+assert 'request == "launcher"' in (shell_root / "panel/top-panel.slint").read_text(encoding="utf-8")
 
 # Bare Meta is a compositor toggle, not an always-open command.
 assert 'setLauncherVisible(!launcherVisible_)' in compositor
@@ -75,12 +78,13 @@ assert "target->mapped" in activation
 assert "self->q->focus(target)" in activation
 
 # Shell interaction state carries both serial and desired visibility so a
-# second Meta tap closes the launcher immediately.
-assert "applyLauncherSignal(serial, visible)" in shell
-assert "launcherOpen = Boolean(visible)" in shell
-assert 'command("launcher-visible", launcherOpen ? "true" : "false")' in shell
+# second Meta tap closes the launcher immediately: SlintLu turns launcherOpen into
+# the request argument and the shell closes on "false".
+panel = (shell_root / "panel/top-panel.slint").read_text(encoding="utf-8")
+assert 'Compositor.request-argument == "false"' in panel
+assert "UI.close-all();" in panel
 
-print("Input ownership contract passed: QML typing, app typing and Meta launcher toggle.")
+print("Input ownership contract passed: shell typing, app typing and Meta launcher toggle.")
 
 
 # The input method's own virtual keyboard is a return path and must never

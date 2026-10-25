@@ -207,6 +207,7 @@ void applyState(slint::ComponentHandle<WelcomeWindow> &window,
       tr("Development preview. Some session and protocol features are still being improved."));
   set(&WelcomeWindow::set_documentation_label, tr("Documentation"));
   set(&WelcomeWindow::set_start_label, tr("Start desktop"));
+  set(&WelcomeWindow::set_close_label, tr("Close"));
   set(&WelcomeWindow::set_error_message,
       text(state, "error").empty()
           ? text(state, "welcomeError")
@@ -263,6 +264,11 @@ int WelcomeApplication::run(int argc, char **argv) {
     state = request("open-url", "https://luyishan-4.github.io/LunaDash/");
     if (state.contains("error"))
       applyState(window, state);
+  });
+  // The window is frameless; its header has the close button.
+  window->on_close_requested([&] {
+    window->hide();
+    slint::quit_event_loop();
   });
   window->on_finish_requested([&] {
     state = request("finish-setup");

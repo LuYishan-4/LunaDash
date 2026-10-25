@@ -1,6 +1,6 @@
 # C core and C++ integration
 
-LunaDash uses C11 for bounded low-level operations and C++20 for object ownership and Linux/wlroots integration. The shell is Quickshell/QML.
+LunaDash uses C11 for bounded low-level operations and C++20 for object ownership and Linux/wlroots integration. The shell is the separate Slint LunaDash-Shell on SlintLu.
 
 | C implementation | Responsibility | C++ owner |
 | --- | --- | --- |

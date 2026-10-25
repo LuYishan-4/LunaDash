@@ -2,8 +2,8 @@
 
 #include "core/Defines.hpp"
 
-#ifndef LUDASH_QML_SOURCE_DIR
-#define LUDASH_QML_SOURCE_DIR ""
+#ifndef LUDASH_SHELL_SOURCE_DIR
+#define LUDASH_SHELL_SOURCE_DIR ""
 #endif
 
 #ifndef LUDASH_SCRIPT_SOURCE_DIR

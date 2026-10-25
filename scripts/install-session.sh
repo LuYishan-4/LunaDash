@@ -268,10 +268,12 @@ else
     for tool in cmake ninja; do
         command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required. Run bash scripts/install-dependencies.sh first." >&2; exit 1; }
     done
-    if [[ -n ${LUDASH_QML_SOURCE_DIR:-} ]]; then
-        shell_source_dir=$(cd -- "$LUDASH_QML_SOURCE_DIR" && pwd)
-        [[ -f $shell_source_dir/shell.qml ]] || {
-            printf 'LUDASH_QML_SOURCE_DIR does not contain shell.qml: %s\n' "$shell_source_dir" >&2
+    command -v cargo >/dev/null 2>&1 || { echo 'cargo is required to build Slint and SlintLu. Run bash scripts/install-dependencies.sh first.' >&2; exit 1; }
+    shell_override=${LUDASH_SHELL_SOURCE_DIR:-${LUDASH_QML_SOURCE_DIR:-}}
+    if [[ -n $shell_override ]]; then
+        shell_source_dir=$(cd -- "$shell_override" && pwd)
+        [[ -f $shell_source_dir/shell.slint || -f $shell_source_dir/shell.qml ]] || {
+            printf 'LUDASH_SHELL_SOURCE_DIR does not contain shell.slint: %s\n' "$shell_source_dir" >&2
             exit 1
         }
     elif $dry_run; then
@@ -282,10 +284,21 @@ else
         shell_source_dir="$shell_work/source"
         run bash "$project_dir/scripts/fetch-shell.sh" "$shell_source_dir"
     fi
+    if [[ -n ${LUDASH_SLINTLU_SOURCE_DIR:-} ]]; then
+        slintlu_source_dir=$(cd -- "$LUDASH_SLINTLU_SOURCE_DIR" && pwd)
+    elif $dry_run; then
+        slintlu_source_dir="${TMPDIR:-/tmp}/lunadash-slintlu-pinned"
+        printf '+ Fetch the pinned SlintLu revision into %s\n' "$slintlu_source_dir"
+    else
+        slintlu_work=$(mktemp -d "${TMPDIR:-/tmp}/lunadash-slintlu-install.XXXXXXXX")
+        slintlu_source_dir="$slintlu_work/source"
+        run bash "$project_dir/scripts/fetch-slintlu.sh" "$slintlu_source_dir"
+    fi
     report_progress 44 configure "Configuring the LunaDash release build."
     run cmake -S "$project_dir" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
-        -DLUDASH_QML_SOURCE_DIR="$shell_source_dir"
+        -DLUDASH_SHELL_SOURCE_DIR="$shell_source_dir" \
+        -DLUDASH_SLINTLU_SOURCE_DIR="$slintlu_source_dir"
     report_progress 58 build "Building LunaDash."
     run cmake --build "$build_dir" --parallel
     install_system "Installing LunaDash system files." cmake --install "$build_dir"
@@ -334,14 +347,6 @@ setup_write_profile
 if $dry_run; then
     echo "Dry run complete for installation path: $package_manager"
     exit 0
-fi
-
-if ! command -v quickshell >/dev/null 2>&1; then
-    cat <<'EOF'
-LunaDash was installed, but Quickshell is not in PATH.
-Install Quickshell 0.3 or newer before starting a LunaDash desktop session:
-  https://quickshell.org/docs/v0.3.0/guide/install-setup/
-EOF
 fi
 
 cat <<EOF

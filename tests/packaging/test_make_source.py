@@ -58,6 +58,7 @@ class SourceArchiveTests(unittest.TestCase):
         self.revision = self.git("rev-parse", "HEAD").stdout.strip()
         self.archive = self.project / "packaging/arch/ludash-1.0.2a.tar.gz"
         self.shell_archive = self.project / "packaging/arch/ludash-shell.tar.gz"
+        self.slintlu_archive = self.project / "packaging/arch/ludash-slintlu.tar.gz"
 
     def git(self, *args):
         # Git may detach automatic maintenance after add/commit and return
@@ -101,6 +102,7 @@ class SourceArchiveTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(self.archive.is_file())
         self.assertTrue(self.shell_archive.is_file())
+        self.assertTrue(self.slintlu_archive.is_file())
         self.assert_no_staging_files()
 
     def assert_no_staging_files(self):
@@ -132,7 +134,10 @@ class SourceArchiveTests(unittest.TestCase):
                 "tests/settings/contract.json",
                 "scripts/install-session.sh",
                 "scripts/fetch-shell.sh",
+                "scripts/fetch-slintlu.sh",
                 "packaging/shell-revision",
+                "packaging/slintlu-revision",
+                "cmake/LunaDashSlintLu.cmake",
                 "src/compositor/Main.cpp",
                 "docs/en/SETTINGS_API.md",
                 "docs/zh/SETTINGS_API.md",
@@ -173,9 +178,13 @@ class SourceArchiveTests(unittest.TestCase):
             )
         with tarfile.open(self.shell_archive, "r:gz") as archive:
             names = archive.getnames()
-            self.assertIn("LunaDash-Shell/shell.qml", names)
-            self.assertIn("LunaDash-Shell/settings/pages/about.qml", names)
-            self.assertIn("LunaDash-Shell/settings/components/SchemaOptions.qml", names)
+            self.assertIn("LunaDash-Shell/shell.slint", names)
+            self.assertIn("LunaDash-Shell/settings/settings.slint", names)
+            self.assertIn("LunaDash-Shell/i18n/zh_TW.po", names)
+            self.assertIn("LunaDash-Shell/theme.json", names)
+            self.assertFalse(
+                any(name.startswith("LunaDash-Shell/scripts/") for name in names)
+            )
             self.assertFalse(
                 any(name.startswith("LunaDash-Shell/tests/") for name in names)
             )
@@ -183,6 +192,18 @@ class SourceArchiveTests(unittest.TestCase):
                 any(
                     name == "LunaDash-Shell/.git"
                     or name.startswith("LunaDash-Shell/.git/")
+                    for name in names
+                )
+            )
+        with tarfile.open(self.slintlu_archive, "r:gz") as archive:
+            names = archive.getnames()
+            self.assertIn("SlintLu/Cargo.toml", names)
+            self.assertIn("SlintLu/Cargo.lock", names)
+            self.assertIn("SlintLu/src/ui/slintlu.slint", names)
+            self.assertFalse(
+                any(
+                    name in ("SlintLu/.git", "SlintLu/target")
+                    or name.startswith(("SlintLu/.git/", "SlintLu/target/"))
                     for name in names
                 )
             )
@@ -286,8 +307,9 @@ class SourceArchiveTests(unittest.TestCase):
         self.assert_packaged()
         previous = self.archive.read_bytes()
         previous_shell = self.shell_archive.read_bytes()
+        missing = str(self.project / "missing-shell")
         env = dict(
-            os.environ, LUDASH_QML_SOURCE_DIR=str(self.project / "missing-shell")
+            os.environ, LUDASH_SHELL_SOURCE_DIR=missing, LUDASH_QML_SOURCE_DIR=missing
         )
         result = self.package(env)
         self.assertNotEqual(result.returncode, 0)

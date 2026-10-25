@@ -25,7 +25,7 @@ python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
 
 These session checks use wlroots' headless pixman path, including renderer fallback and invalid CLI diagnostics. Software OpenGL and pixman results are separate evidence; neither proves NVIDIA/AMD/Intel/ARM hardware, dmabuf interoperability or physical-seat startup. A real host-Wayland test is available through `LUDASH_TEST_HOST_WAYLAND=1`, and requires an existing desktop socket.
 
-Quickshell has its own rendering policy and process. See [shell rendering](SHELL_RENDERING.md) and [architecture](ARCHITECTURE.md).
+The shell (SlintLu) has its own rendering policy and process. See [shell rendering](SHELL_RENDERING.md) and [architecture](ARCHITECTURE.md).
 
 ## Vulkan selection
 

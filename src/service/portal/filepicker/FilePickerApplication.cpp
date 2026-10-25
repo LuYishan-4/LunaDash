@@ -564,7 +564,7 @@ private:
       place.icon = slintText(std::string(icon));
       places.push_back(std::move(place));
     };
-    appendPlace(home_, "Home", "⌂");
+    appendPlace(home_, "Home", "home");
     for (const auto &[environment, label] :
          std::array<std::pair<const char *, std::string_view>, 5>{
              {{"XDG_DESKTOP_DIR", "Desktop"},
@@ -572,19 +572,25 @@ private:
               {"XDG_DOCUMENTS_DIR", "Documents"},
               {"XDG_PICTURES_DIR", "Pictures"},
               {"XDG_MUSIC_DIR", "Music"}}}) {
+      // Icon names from data/icons (see src/desktop/theme/Icon.slint).
+      const std::string_view icon = label == "Desktop"     ? "monitor"
+                                    : label == "Downloads" ? "download"
+                                    : label == "Documents" ? "document"
+                                    : label == "Pictures"  ? "image"
+                                                           : "music";
       if (const char *path = std::getenv(environment); path && *path)
-        appendPlace(fs::path(path), label, "▰");
+        appendPlace(fs::path(path), label, icon);
       else
-        appendPlace(home_ / std::string(label), label, "▰");
+        appendPlace(home_ / std::string(label), label, icon);
     }
-    appendPlace(home_ / "Videos", "Videos", "▰");
-    appendPlace("/", "File system", "▣");
+    appendPlace(home_ / "Videos", "Videos", "video");
+    appendPlace("/", "File system", "disk");
     const auto mediaRoot = fs::path("/media");
     std::error_code error;
     for (fs::directory_iterator entry(mediaRoot, error), end;
          !error && entry != end && places.size() < 18; entry.increment(error))
       appendPlace(entry->path(), fileNameToUtf8(entry->path().filename().string()),
-                  "▣");
+                  "usb");
     error.clear();
     for (const auto &root : {fs::path("/mnt"),
                              fs::path("/run/media") / fileNameToUtf8(
@@ -592,7 +598,7 @@ private:
       for (fs::directory_iterator entry(root, error), end;
            !error && entry != end && places.size() < 18; entry.increment(error))
         appendPlace(entry->path(),
-                    fileNameToUtf8(entry->path().filename().string()), "▣");
+                    fileNameToUtf8(entry->path().filename().string()), "usb");
       error.clear();
     }
     window_->set_places(
@@ -701,6 +707,7 @@ private:
     setError("");
     window_->set_preview_name(slintText(fileNameToUtf8(folder_.filename().string())));
     window_->set_preview_detail(slintText(tr("Folder")));
+    window_->set_preview_icon(slintText("folder"));
     window_->set_preview_image(slint::Image{});
     refreshEntries();
   }
@@ -808,7 +815,7 @@ private:
         continue;
       entries_.push_back({item->path(), displayName,
                           fileDetails(*item, directory),
-                          directory ? "▰" : "▱", directory});
+                          directory ? "folder" : "file", directory});
     }
     std::sort(entries_.begin(), entries_.end(), [](const Entry &left,
                                                    const Entry &right) {
@@ -855,6 +862,7 @@ private:
     window_->set_preview_name(
         slintText(fileNameToUtf8(path.filename().empty() ? path.string()
                                                          : path.filename().string())));
+    window_->set_preview_icon(slintText(directory ? "folder" : "file"));
     if (directory) {
       window_->set_preview_detail(slintText(tr("Folder")));
       window_->set_preview_image(slint::Image{});

@@ -33,7 +33,8 @@ class SettingsSchemaTests(unittest.TestCase):
         for target in json.loads((ROOT / 'data/plugins/targets.json').read_text()):
             validate_schema(target['settings'])
         directories = (ROOT / 'data/plugins', ROOT / 'templates/plugins')
-        shell_root = Path(os.environ.get('LUDASH_QML_SOURCE_DIR', ROOT / 'qml'))
+        shell_root = Path(os.environ.get('LUDASH_SHELL_SOURCE_DIR')
+                          or os.environ.get('LUDASH_QML_SOURCE_DIR', ROOT / 'shell'))
         for directory in (*directories, shell_root / 'plugins'):
             for path in directory.rglob('metadata.json'):
                 manifest = json.loads(path.read_text())

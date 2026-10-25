@@ -156,7 +156,7 @@ The helper uses `emerge --noreplace` with Qt 6 slots and the required Wayland/in
 
 ### Other Linux distributions
 
-Install the dependencies listed in the [build and testing guide](TESTING_AND_FILES.md#build-and-static-checks), plus Quickshell 0.3+, then either run:
+Install the dependencies listed in the [build and testing guide](TESTING_AND_FILES.md#build-and-static-checks), plus Rust/Cargo 1.92+ for Slint and SlintLu, then either run:
 
 ```sh
 ./scripts/install-session.sh --skip-deps
@@ -187,7 +187,7 @@ If you intentionally want console-only boot again on systemd, use `sudo systemct
 
 ## NVIDIA shell compatibility
 
-LunaDash can select software rendering for Quickshell when the NVIDIA driver is loaded while retaining compositor GL/GLES effects. See [Shell rendering](SHELL_RENDERING.md) for overrides, resource testing and limitations.
+`LUDASH_SHELL_RENDERER` selects the shell's renderer independently of the compositor's GL/GLES effects. See [Shell rendering](SHELL_RENDERING.md) for overrides, resource testing and limitations.
 
 Legacy `ludash-compositor`, `ludash-desktop`, `ludashctl`, `ludash-session`, and `ludash.desktop` names remain compatibility aliases. New integrations should use the LunaDash names. Installed shell QML lives under `/usr/share/lunadash/shell/`.
 

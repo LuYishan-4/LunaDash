@@ -469,6 +469,24 @@ void returnFailed(GDBusMethodInvocation *invocation, const char *message) {
   g_dbus_method_invocation_return_dbus_error(invocation, kFailedError, message);
 }
 
+// Whether the public portal frontend runs. A backend call without it (a direct D-Bus call,
+// as in tests) must not let the picker start it: Slint asks
+// org.freedesktop.portal.Settings for the appearance, and D-Bus activation of the frontend
+// would route requests back into this backend.
+bool publicPortalRunning(GDBusConnection *connection) {
+  GVariant *reply = g_dbus_connection_call_sync(
+      connection, "org.freedesktop.DBus", "/org/freedesktop/DBus",
+      "org.freedesktop.DBus", "NameHasOwner",
+      g_variant_new("(s)", "org.freedesktop.portal.Desktop"), G_VARIANT_TYPE("(b)"),
+      G_DBUS_CALL_FLAGS_NONE, 1000, nullptr, nullptr);
+  if (!reply)
+    return true; // Keep the picker's D-Bus (accessibility) when unsure.
+  gboolean owned = FALSE;
+  g_variant_get(reply, "(b)", &owned);
+  g_variant_unref(reply);
+  return owned;
+}
+
 void startPicker(GDBusConnection *connection, GDBusNodeInfo *introspection,
                  GDBusMethodInvocation *invocation, const gchar *requestPath,
                  const gchar *method, const std::string &mode,
@@ -486,12 +504,15 @@ void startPicker(GDBusConnection *connection, GDBusNodeInfo *introspection,
   const auto executable = pickerExecutable();
   GError *error = nullptr;
   const gchar *arguments[] = {executable.c_str(), nullptr};
-  operation->process = g_subprocess_newv(
-      arguments,
+  GSubprocessLauncher *launcher = g_subprocess_launcher_new(
       static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDIN_PIPE |
                                     G_SUBPROCESS_FLAGS_STDOUT_PIPE |
-                                    G_SUBPROCESS_FLAGS_STDERR_SILENCE),
-      &error);
+                                    G_SUBPROCESS_FLAGS_STDERR_SILENCE));
+  if (!publicPortalRunning(connection))
+    g_subprocess_launcher_setenv(launcher, "DBUS_SESSION_BUS_ADDRESS", "disabled:",
+                                 TRUE);
+  operation->process = g_subprocess_launcher_spawnv(launcher, arguments, &error);
+  g_object_unref(launcher);
   if (!operation->process) {
     const std::string message = error ? error->message : "Could not start the file picker.";
     returnFailed(invocation, message.c_str());

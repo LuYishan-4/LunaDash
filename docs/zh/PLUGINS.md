@@ -2,6 +2,8 @@
 
 [English](../en/PLUGINS.md) · [Target 參考](PLUGIN_TARGETS.md) · [繁中索引](README.md)
 
+> **殼層外掛。** 視覺類型的 `quickshell` 與 `opengl` 外掛（包括桌面小工具）需要先前的 Quickshell 殼層，Slint 殼層目前尚未載入。合成器原生外掛不受影響。詳見[桌面殼層](SHELL.md)。
+
 LunaDash Plugin SDK 2 提供 feature hook、visual slot 與共用 metadata。內建 tiling desktop 是預設；plugin 可 replace feature 或 augment 既有功能。所有 native effect 預設關閉。
 
 ## 類型

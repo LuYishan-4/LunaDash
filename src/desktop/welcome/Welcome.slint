@@ -1,4 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
+import { CloseButton } from "../theme/WindowControls.slint";
 
 component SetupButton inherits Rectangle {
     in property <string> label;
@@ -108,6 +109,8 @@ component ShortcutRow inherits HorizontalLayout {
 }
 
 export component WelcomeWindow inherits Window {
+    no-frame: true;
+    resize-border-width: 8px;
     title: root.window-title;
     preferred-width: 800px;
     preferred-height: 660px;
@@ -115,6 +118,7 @@ export component WelcomeWindow inherits Window {
     min-height: 480px;
     background: root.background-color;
 
+    in-out property <string> close-label: "Close";
     in-out property <string> window-title: "LunaDash · Welcome";
     in-out property <string> welcome-title: "Welcome to LunaDash";
     in-out property <string> introduction: "Make yourself at home. Choose a comfortable appearance and learn your way around.";
@@ -152,6 +156,7 @@ export component WelcomeWindow inherits Window {
     in-out property <color> accent-color: #9ccbfb;
     in-out property <color> accent-ink-color: #171922;
 
+    callback close-requested();
     callback language-selected(string);
     callback reduced-motion-toggled();
     callback settings-requested(string);
@@ -169,32 +174,49 @@ export component WelcomeWindow inherits Window {
             border-width: 1px;
             border-radius: 18px;
 
-            VerticalLayout {
-                padding-left: 22px;
-                padding-right: 22px;
-                padding-top: 14px;
-                padding-bottom: 14px;
-                spacing: 4px;
+            HorizontalLayout {
+                padding-right: 14px;
+                WindowMoveArea {
+                    horizontal-stretch: 1;
+                    VerticalLayout {
+                        padding-left: 22px;
+                        padding-right: 22px;
+                        padding-top: 14px;
+                        padding-bottom: 14px;
+                        spacing: 4px;
 
-                Text {
-                    text: "LUNADASH  1.0.2a";
-                    color: root.accent-color;
-                    font-size: 12px;
-                    font-weight: 700;
+                        Text {
+                            text: "LUNADASH  1.0.2a";
+                            color: root.accent-color;
+                            font-size: 12px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: root.welcome-title;
+                            color: root.text-color;
+                            font-size: 25px;
+                            font-weight: 700;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: root.introduction;
+                            color: root.muted-color;
+                            font-size: 13px;
+                            wrap: word-wrap;
+                            overflow: elide;
+                        }
+                    }
                 }
-                Text {
-                    text: root.welcome-title;
-                    color: root.text-color;
-                    font-size: 25px;
-                    font-weight: 700;
-                    overflow: elide;
-                }
-                Text {
-                    text: root.introduction;
-                    color: root.muted-color;
-                    font-size: 13px;
-                    wrap: word-wrap;
-                    overflow: elide;
+                VerticalLayout {
+                    alignment: start;
+                    padding-top: 14px;
+                    CloseButton {
+                        label: root.close-label;
+                        foreground: root.text-color;
+                        surface: root.elevated-color;
+                        stroke: root.border-color;
+                        clicked => { root.close-requested(); }
+                    }
                 }
             }
         }

@@ -33,6 +33,8 @@ Overview 狀態最多每 16 ms coalesce。Backdrop 用一個非同步 grim snaps
 
 Drag/drop 完成後先解除 interactive override，再由 shared scene transition 動畫到最後矩形；relayout snapshot 會直接填滿插值中的 rectangle，新的 client content 更早 cross-fade 進來，避免舊版最後一小段才突然換畫面與移動中的黑邊。Interactive resize 仍保持即時。
 
+Tiled 視窗收到 tile 尺寸時會一併收到 xdg-shell 的 tiled 狀態，工具組因此會遵守該尺寸，而不是套用自己的偏好尺寸。
+
 預設 tiling。啟用 Plugin SDK 2 的 stacking `window-layout` replacement 後，可切成獨立重疊 rectangles；停用時即時回 tiling。見 [視窗配置模板](WINDOW_LAYOUT_TEMPLATES.md) 與 [stacking example](../../examples/plugins/stacking-windows/README.md)。
 
 ## 驗證

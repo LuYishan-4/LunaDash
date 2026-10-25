@@ -1,4 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
+import { Icon } from "../../../desktop/theme/Icon.slint";
 
 export struct FilePickerItem {
     name: string,
@@ -31,7 +32,7 @@ export struct FilePickerChoice {
 
 component PickerButton inherits Rectangle {
     in property <string> label;
-    in property <string> glyph: "";
+    in property <string> icon: "";
     in property <bool> primary: false;
     in property <bool> compact: false;
     in property <color> foreground: #f1f1f5;
@@ -42,26 +43,30 @@ component PickerButton inherits Rectangle {
     callback clicked();
 
     height: 40px;
-    min-width: root.compact ? 40px : 92px;
-    background: root.primary ? root.accent : root.surface;
+    // A compact button is a square icon; the label stays the accessible name.
+    width: root.compact ? 40px : max(92px, content.preferred-width + 28px);
+    background: touch.has-hover && !root.primary ? root.surface.brighter(0.15)
+        : root.primary ? root.accent : root.surface;
     border-color: root.primary ? root.accent : root.stroke;
     border-width: 1px;
     border-radius: 11px;
     accessible-role: button;
     accessible-label: root.label;
 
-    HorizontalLayout {
+    content := HorizontalLayout {
         alignment: center;
         spacing: 7px;
-        Text {
-            text: root.glyph;
-            color: root.primary ? root.accent-ink : root.foreground;
-            font-size: 16px;
-            vertical-alignment: center;
+        if root.icon != "": VerticalLayout {
+            alignment: center;
+            Icon {
+                name: root.icon;
+                width: 16px;
+                height: 16px;
+                color: root.primary ? root.accent-ink : root.foreground;
+            }
         }
-        Text {
+        if !root.compact: Text {
             text: root.label;
-            visible: !root.compact;
             color: root.primary ? root.accent-ink : root.foreground;
             font-size: 12px;
             font-weight: 600;
@@ -69,13 +74,13 @@ component PickerButton inherits Rectangle {
             overflow: elide;
         }
     }
-    TouchArea { clicked => { root.clicked(); } }
+    touch := TouchArea { clicked => { root.clicked(); } }
 }
 
 component FileRow inherits Rectangle {
     in property <string> name;
     in property <string> detail;
-    in property <string> glyph;
+    in property <string> icon;
     in property <bool> is-directory;
     in property <bool> selected;
     in property <color> surface: #20232e;
@@ -99,14 +104,18 @@ component FileRow inherits Rectangle {
         padding-left: 12px;
         padding-right: 12px;
         spacing: 10px;
-        Text {
-            text: root.glyph;
-            color: root.is-directory ? root.accent : root.muted;
-            font-size: 20px;
-            vertical-alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Icon {
+                name: root.icon;
+                width: 22px;
+                height: 22px;
+                color: root.is-directory ? root.accent : root.muted;
+            }
         }
         VerticalLayout {
             alignment: center;
+            horizontal-stretch: 1;
             spacing: 2px;
             Text {
                 text: root.name;
@@ -132,7 +141,7 @@ component FileRow inherits Rectangle {
 component FileTile inherits Rectangle {
     in property <string> name;
     in property <string> detail;
-    in property <string> glyph;
+    in property <string> icon;
     in property <bool> is-directory;
     in property <bool> selected;
     in property <color> surface: #20232e;
@@ -155,7 +164,14 @@ component FileTile inherits Rectangle {
     VerticalLayout {
         padding: 9px;
         spacing: 4px;
-        Text { text: root.glyph; color: root.is-directory ? root.accent : root.muted; font-size: 26px; horizontal-alignment: center; vertical-alignment: center; vertical-stretch: 1; }
+        HorizontalLayout {
+            alignment: center;
+            vertical-stretch: 1;
+            VerticalLayout {
+                alignment: center;
+                Icon { name: root.icon; width: 32px; height: 32px; color: root.is-directory ? root.accent : root.muted; }
+            }
+        }
         Text { text: root.name; color: root.foreground; font-size: 11px; font-weight: 600; horizontal-alignment: center; overflow: elide; }
         Text { text: root.detail; color: root.muted; font-size: 9px; horizontal-alignment: center; overflow: elide; }
     }
@@ -167,21 +183,25 @@ component FileTile inherits Rectangle {
 
 component PlaceRow inherits Rectangle {
     in property <string> label;
-    in property <string> glyph;
+    in property <string> icon;
     in property <color> foreground: #f1f1f5;
     in property <color> accent: #9ccbfb;
     callback clicked();
     accessible-role: button;
     accessible-label: root.label;
     height: 36px;
-    background: transparent;
+    border-radius: 9px;
+    background: place-touch.has-hover ? root.accent.transparentize(0.88) : transparent;
     HorizontalLayout {
         padding-left: 10px;
         spacing: 9px;
-        Text { text: root.glyph; color: root.accent; font-size: 15px; vertical-alignment: center; }
-        Text { text: root.label; color: root.foreground; font-size: 11px; vertical-alignment: center; overflow: elide; }
+        VerticalLayout {
+            alignment: center;
+            Icon { name: root.icon; width: 16px; height: 16px; color: root.accent; }
+        }
+        Text { text: root.label; color: root.foreground; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
     }
-    TouchArea { clicked => { root.clicked(); } }
+    place-touch := TouchArea { clicked => { root.clicked(); } }
 }
 
 export component FilePickerWindow inherits Window {
@@ -220,6 +240,8 @@ export component FilePickerWindow inherits Window {
     in property <string> preview-name: "";
     in property <string> preview-detail: "";
     in property <image> preview-image;
+    // Shown when there is no preview image: "folder" or "file".
+    in property <string> preview-icon: "file";
     in property <string> replace-heading: "Replace file?";
     in property <string> replace-description: "A file with this name already exists. Replace it?";
     in property <string> replace-label: "Replace";
@@ -308,7 +330,7 @@ export component FilePickerWindow inherits Window {
                     height: 38px;
                     border-radius: 12px;
                     background: root.elevated-color;
-                    Text { text: "▰"; color: root.accent-color; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; }
+                    Icon { name: "folder"; width: 20px; height: 20px; color: root.accent-color; }
                 }
                 WindowMoveArea {
                     horizontal-stretch: 1;
@@ -322,7 +344,7 @@ export component FilePickerWindow inherits Window {
                 }
                 PickerButton {
                     label: root.maximize-label;
-                    glyph: "□";
+                    icon: "maximize";
                     compact: true;
                     foreground: root.text-color;
                     surface: root.elevated-color;
@@ -331,7 +353,7 @@ export component FilePickerWindow inherits Window {
                 }
                 PickerButton {
                     label: root.cancel-label;
-                    glyph: "×";
+                    icon: "close";
                     compact: true;
                     foreground: root.text-color;
                     surface: root.elevated-color;
@@ -343,9 +365,9 @@ export component FilePickerWindow inherits Window {
             HorizontalLayout {
                 height: 42px;
                 spacing: 7px;
-                PickerButton { label: root.back-label; glyph: "‹"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-back(); } }
-                PickerButton { label: root.forward-label; glyph: "›"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-forward(); } }
-                PickerButton { label: root.up-label; glyph: "↑"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-up(); } }
+                PickerButton { label: root.back-label; icon: "arrow-left"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-back(); } }
+                PickerButton { label: root.forward-label; icon: "arrow-right"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-forward(); } }
+                PickerButton { label: root.up-label; icon: "arrow-up"; compact: true; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.navigate-up(); } }
                 Rectangle {
                     height: 40px;
                     horizontal-stretch: 1;
@@ -355,6 +377,7 @@ export component FilePickerWindow inherits Window {
                     border-radius: 10px;
                     location-input := TextInput {
                         x: 12px;
+                        vertical-alignment: center;
                         width: parent.width - 24px;
                         height: 100%;
                         text <=> root.location;
@@ -400,7 +423,7 @@ export component FilePickerWindow inherits Window {
                         vertical-alignment: center;
                     }
                 }
-                PickerButton { label: root.go-label; glyph: "↵"; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.location-accepted(root.location); } }
+                PickerButton { label: root.go-label; icon: "enter"; foreground: root.text-color; surface: root.elevated-color; stroke: root.border-color; clicked => { root.location-accepted(root.location); } }
                 Rectangle {
                     width: 220px;
                     height: 40px;
@@ -410,6 +433,7 @@ export component FilePickerWindow inherits Window {
                     border-radius: 10px;
                     search-input := TextInput {
                         x: 12px;
+                        vertical-alignment: center;
                         width: parent.width - 24px;
                         height: 100%;
                         text <=> root.search-text;
@@ -478,7 +502,7 @@ export component FilePickerWindow inherits Window {
                             for place[index] in root.places: PlaceRow {
                                 width: 100%;
                                 label: place.label;
-                                glyph: place.icon;
+                                icon: place.icon;
                                 foreground: root.text-color;
                                 accent: root.accent-color;
                                 clicked => { root.select-place(place.path); }
@@ -492,10 +516,11 @@ export component FilePickerWindow inherits Window {
                     spacing: 8px;
                     HorizontalLayout {
                         height: 34px;
+                        spacing: 6px;
                         Text { text: root.status-label; color: root.muted-color; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
                         PickerButton {
                             label: root.show-hidden-label;
-                            glyph: root.show-hidden ? "☑" : "□";
+                            icon: root.show-hidden ? "eye" : "eye-off";
                             foreground: root.text-color;
                             surface: root.elevated-color;
                             stroke: root.border-color;
@@ -503,7 +528,7 @@ export component FilePickerWindow inherits Window {
                         }
                         PickerButton {
                             label: root.grid-view ? root.list-label : root.grid-label;
-                            glyph: root.grid-view ? "☷" : "▦";
+                            icon: root.grid-view ? "list" : "grid";
                             foreground: root.text-color;
                             surface: root.elevated-color;
                             stroke: root.border-color;
@@ -520,7 +545,7 @@ export component FilePickerWindow inherits Window {
                                 width: 100%;
                                 name: item.name;
                                 detail: item.detail;
-                                glyph: item.icon;
+                                icon: item.icon;
                                 is-directory: item.is-directory;
                                 selected: item.selected;
                                 surface: root.surface-color;
@@ -543,7 +568,7 @@ export component FilePickerWindow inherits Window {
                                     width: min(190px, (root.width - 496px) / 3);
                                     name: item.name;
                                     detail: item.detail;
-                                    glyph: item.icon;
+                                    icon: item.icon;
                                     is-directory: item.is-directory;
                                     selected: item.selected;
                                     surface: root.surface-color;
@@ -581,12 +606,13 @@ export component FilePickerWindow inherits Window {
                                 source: root.preview-image;
                                 image-fit: contain;
                             }
-                            if root.preview-image.width == 0 || root.preview-image.height == 0: Text {
-                                text: "▰";
+                            if root.preview-image.width == 0 || root.preview-image.height == 0: Icon {
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                width: 40px;
+                                height: 40px;
+                                name: root.preview-icon;
                                 color: root.muted-color;
-                                font-size: 36px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
                             }
                         }
                         Text { text: root.preview-name; color: root.text-color; font-size: 12px; font-weight: 600; wrap: word-wrap; max-height: 42px; overflow: elide; }
@@ -618,7 +644,7 @@ export component FilePickerWindow inherits Window {
                     Text { text: choice.label; color: root.text-color; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
                     PickerButton {
                         label: choice.selected-label;
-                        glyph: "⌄";
+                        icon: "chevron-down";
                         foreground: root.text-color;
                         surface: root.elevated-color;
                         stroke: root.border-color;
@@ -640,6 +666,7 @@ export component FilePickerWindow inherits Window {
                     border-radius: 10px;
                     manual-input := TextInput {
                         x: 12px;
+                        vertical-alignment: center;
                         width: parent.width - 24px;
                         height: 100%;
                         text <=> root.manual-path;
@@ -688,7 +715,7 @@ export component FilePickerWindow inherits Window {
                 }
                 if root.filters.length > 0: PickerButton {
                     label: root.filters[root.filter-index].label;
-                    glyph: "⌄";
+                    icon: "chevron-down";
                     foreground: root.text-color;
                     surface: root.elevated-color;
                     stroke: root.border-color;

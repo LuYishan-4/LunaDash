@@ -8,7 +8,7 @@ Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後�
 
 ## 建置與靜態檢查
 
-需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Rust/Cargo 1.92+（建置固定版本 Slint 1.18.1）、Qt 6.4+（仍有其他 native targets 使用 Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、pixman、libdrm、GL headers、GLib 與 Fontconfig 開發檔案。Welcome 使用 Slint Winit Wayland backend 與 FemtoVG，明確停用 Slint Qt 和 X11 backends。`lunadashctl` 使用 POSIX Unix socket 與 nlohmann/json；CMake 會使用已安裝的 nlohmann_json 3.11+，或抓取固定版本 v3.11.3。獨立 Shell 另外需要 Quickshell 0.3+。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
+需要 CMake 3.21+、Ninja、Python 3、C11/C++20、Rust/Cargo 1.92+（建置固定版本 Slint 1.18.1）、Qt 6.4+（仍有其他 native targets 使用 Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus）、wlroots 0.17–0.20、Wayland scanner/protocols、xkbcommon、pixman、libdrm、GL headers、GLib 與 Fontconfig 開發檔案。Welcome 使用 Slint Winit Wayland backend 與 FemtoVG，明確停用 Slint Qt 和 X11 backends。`lunadashctl` 使用 POSIX Unix socket 與 nlohmann/json；CMake 會使用已安裝的 nlohmann_json 3.11+，或抓取固定版本 v3.11.3。殼層執行環境 SlintLu 同樣從原始碼建置（Rust），並連結 Wayland、xkbcommon、Fontconfig、FreeType 與 PAM。XWayland、grim/slurp、brightnessctl、ddcutil 分別提供相容層、區域截圖與亮度控制。
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -17,8 +17,8 @@ python3 tests/renderer/test_render_architecture.py
 python3 tests/renderer/test_shader_extensions.py
 python3 tests/wayland/test_no_qtwayland.py
 python3 tests/security/test_source_language.py
-python3 scripts/ci/check_qml_actions.py
-python3 scripts/ci/check_qml_style.py
+python3 scripts/ci/check_shell_actions.py
+python3 scripts/gen-ui-icons.py --check
 
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DLUDASH_BUILD_RENDERER_TESTS=ON

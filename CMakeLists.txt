@@ -6,11 +6,19 @@ if(POLICY CMP0135)
     set(LUDASH_FETCHCONTENT_TIMESTAMP DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 endif()
 
-set(LUDASH_QML_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE PATH
+# The session shell is the external LunaDash-Shell repository: Slint files run by SlintLu
+# (shell.slint). A legacy Quickshell checkout (shell.qml) is still accepted.
+# LUDASH_QML_SOURCE_DIR is the former name of this setting and still works.
+set(LUDASH_SHELL_DEFAULT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shell")
+if(DEFINED LUDASH_QML_SOURCE_DIR AND NOT DEFINED LUDASH_SHELL_SOURCE_DIR)
+    set(LUDASH_SHELL_DEFAULT_DIR "${LUDASH_QML_SOURCE_DIR}")
+endif()
+set(LUDASH_SHELL_SOURCE_DIR "${LUDASH_SHELL_DEFAULT_DIR}" CACHE PATH
     "External LunaDash-Shell checkout used for development and installation")
-if(NOT EXISTS "${LUDASH_QML_SOURCE_DIR}/shell.qml")
+if(NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.slint" AND
+   NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.qml")
     message(FATAL_ERROR
-        "LunaDash-Shell source is required. Run scripts/fetch-shell.sh <directory> and configure with -DLUDASH_QML_SOURCE_DIR=<directory>.")
+        "LunaDash-Shell source is required. Run scripts/fetch-shell.sh <directory> and configure with -DLUDASH_SHELL_SOURCE_DIR=<directory>.")
 endif()
 
 # LunaDash-owned Wayland UI clients use Slint. Compile it from its pinned
@@ -54,6 +62,7 @@ endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashMain.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashShellTool.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashSlintLu.cmake)
 
 # xkbregistry is shipped separately by some distributions. Keep dynamic
 # keyboard-layout discovery when it is available, but do not make the entire

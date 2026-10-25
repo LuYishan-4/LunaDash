@@ -34,7 +34,7 @@ Push 從同分支、同工作流程最近一次成功的提交比較，避免取
 
 移除未使用的 `scripts/security/check_pr_scope.py`（舊版禁止修改文件規則）、`scripts/security/run_local_audit.sh`（重複 audit／build wrapper）及 `scripts/test-xdpw-sources.sh`（無引用的獨立 probe）。仍在使用的 installer、session、SDK、diagnostics 與文件記載的手動工具保留。
 
-成功結果只證明該 commit 實際執行的檢查。實體 GPU／輸入、真實登入、Quickshell 外觀及應用程式相容性仍需發行前測試。詳見[測試指南](TESTING_AND_FILES.md)與[安全檢查](SECURITY_CHECKS.md)。`dev` 會驗證網站原始碼；公開 Pages 網站由 `main` 部署。
+成功結果只證明該 commit 實際執行的檢查。實體 GPU／輸入、真實登入、殼層外觀及應用程式相容性仍需發行前測試。詳見[測試指南](TESTING_AND_FILES.md)與[安全檢查](SECURITY_CHECKS.md)。`dev` 會驗證網站原始碼；公開 Pages 網站由 `main` 部署。
 
 翻譯 gate 涵蓋所有隨附語言。啟用共用檢查時，一併補齊既有桌面字串缺漏並移除重複的語言包鍵。
 
@@ -42,4 +42,4 @@ Runtime 測試會等待 document portal 卸載 FUSE，再清除暫存目錄。�
 
 允許對 dev 提交 workflow 修改並接受正常審查，仍保護自動產生的發行資訊。Ubuntu CI 加入 GTK 3／4 與 Qt 生命週期測試並保留截圖。Fork 的 CodeQL 仍分析及檢查 SARIF，但不使用唯讀 token 上傳 security events。Fedora 使用穩定的 44，而非 45 beta，參見 [Fedora 發行頁](https://fedoraproject.org/)。
 
-Arch 發行版工作使用同一次建置的執行檔測試首次登入 Quickshell：擷取 Welcome、透過 Wayland 虛擬鍵盤啟用「開始桌面」，再重新啟動驗證設定持久性。Native toolkit 測試會同時啟動 Slint Welcome、套件管理器、ScreenCast client 與 GTK 3/4、Qt client；並驗證 LunaDash 自有 Slint 程序沒有載入 Qt，保存 toolkit session 及獨立套件管理器截圖。發行版 artifact 保留首次登入軟體工作階段截圖與紀錄。
+Native 測試會建置固定版本的 SlintLu 並執行 `tests/wayland/test_session_shell.py`：由合成器啟動 Slint 殼層，並檢查設定、啟動器與語言的往返流程。Arch 發行版工作使用同一次建置的執行檔，搭配 Slint 殼層測試首次登入：擷取 Welcome、透過 Wayland 虛擬鍵盤啟用「開始桌面」，再重新啟動驗證設定持久性。Native toolkit 測試會同時啟動 Slint Welcome、套件管理器、ScreenCast client 與 GTK 3/4、Qt client；並驗證 LunaDash 自有 Slint 程序沒有載入 Qt，保存 toolkit session 及獨立套件管理器截圖。發行版 artifact 保留首次登入軟體工作階段截圖與紀錄。

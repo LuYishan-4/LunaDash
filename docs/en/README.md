@@ -29,6 +29,7 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 - [Window motion and effects](EFFECTS.md)
 - [Screen capture](SCREEN_CAPTURE.md)
 - [Media panel](MEDIA.md)
+- [Desktop shell (Slint on SlintLu)](SHELL.md)
 - [Shell rendering](SHELL_RENDERING.md)
 
 ## Extending LunaDash

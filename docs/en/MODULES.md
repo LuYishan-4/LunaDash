@@ -1,5 +1,7 @@
 # Shell modules
 
+> **Legacy shell.** Shell modules belong to the former Quickshell shell; the Slint shell does not read them yet. See [desktop shell](SHELL.md).
+
 LunaDash's Quickshell shell has nine built-in blocks: `panel`, `wallpaper`, `launcher`, `overview`, `settings`, `setup`, `session`, `feedback`, and `compatibility`. Settings > Shell modules exposes visual controls for every supported JSON field, plus an Advanced JSON editor for copying, review, recovery, and manual edits. Settings, setup, and feedback cannot be disabled.
 
 ## JSON styles

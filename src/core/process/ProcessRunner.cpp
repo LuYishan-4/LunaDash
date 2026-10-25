@@ -134,21 +134,26 @@ bool ProcessRunner::runWithEnvironment(
     argv.push_back(argument.data());
   argv.push_back(nullptr);
 
+  // Output that is parsed comes from the C locale, so it is stable English. Programs whose
+  // output is not collected (the session shell, desktop applications) keep the user's
+  // locale, or they would lose their translations.
+  const bool parsedOutput = collectOutput_;
   std::vector<std::string> environmentStorage;
   if (environmentOverride) {
     for (const auto &[name, value] : *environmentOverride) {
-      if (name == "LC_ALL")
+      if (parsedOutput && name == "LC_ALL")
         continue;
       environmentStorage.push_back(name + "=" + value);
     }
   } else {
     for (char **entry = environ; entry && *entry; ++entry) {
-      if (std::string_view(*entry).starts_with("LC_ALL="))
+      if (parsedOutput && std::string_view(*entry).starts_with("LC_ALL="))
         continue;
       environmentStorage.emplace_back(*entry);
     }
   }
-  environmentStorage.emplace_back("LC_ALL=C");
+  if (parsedOutput)
+    environmentStorage.emplace_back("LC_ALL=C");
   std::vector<char *> environment;
   environment.reserve(environmentStorage.size() + 1);
   for (auto &entry : environmentStorage)

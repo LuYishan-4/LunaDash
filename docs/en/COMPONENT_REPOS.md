@@ -5,7 +5,8 @@ LunaDash keeps the native desktop and Wayland compositor in this repository. The
 | Component | Repository | How LunaDash uses it |
 | --- | --- | --- |
 | Native desktop and compositor | [LunaDash](https://github.com/LuYishan-4/LunaDash) | C++20, C11 rendering core, Wayland integration and packaging |
-| Quickshell UI | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | QML source is installed separately; the selected commit is recorded in `packaging/shell-revision` |
+| Desktop shell (Slint) | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | Slint source is installed with LunaDash; the selected commit is recorded in `packaging/shell-revision` |
+| Shell runtime | [SlintLu](https://github.com/LunaDash-DE/SlintLu) | Built from `packaging/slintlu-revision` and installed as `libexec/lunadash/slintlu` |
 | Astro website | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | Website CI runs in that repository; LunaDash workflows clone it into a temporary runner directory |
 
 The Shell commit selected by LunaDash changes only when `packaging/shell-revision` changes on the root `dev` branch. A new Shell commit does not update an existing LunaDash checkout or installation automatically. The website has its own history and is not pinned in LunaDash; each website check or Pages deployment fetches the current `main` branch of LunaDash-docs.
@@ -24,7 +25,8 @@ The normal install command fetches the pinned Shell source and installs it with 
 
 ```sh
 bash scripts/fetch-shell.sh ../LunaDash-Shell
-cmake -S . -B build -G Ninja -DLUDASH_QML_SOURCE_DIR="$PWD/../LunaDash-Shell"
+cmake -S . -B build -G Ninja -DLUDASH_SHELL_SOURCE_DIR="$PWD/../LunaDash-Shell" \
+  -DLUDASH_SLINTLU_SOURCE_DIR="$PWD/../SlintLu"
 cmake --build build --parallel 2
 ```
 
@@ -36,7 +38,7 @@ cd LunaDash-Shell
 ./install.sh
 ```
 
-The standalone script installs Shell UI files to the user's data directory. `sudo ./install.sh --prefix /usr` installs them system-wide. This does not install Quickshell or LunaDash's native services.
+The standalone script installs Shell UI files to the user's data directory. `sudo ./install.sh --prefix /usr` installs them system-wide. It does not install LunaDash's native services; with `--install-slintlu` it builds SlintLu when it is missing. See [shell](SHELL.md).
 
 ## Change a component
 

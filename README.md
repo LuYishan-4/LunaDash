@@ -30,9 +30,9 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 - **Everyday essentials, together.** A panel, launcher, card-based dashboard, resizable settings center, notifications and LunaDash-styled file/portal pickers are part of the desktop.
 - **A workspace that moves with you.** Tiles contained within one screen, groups of up to eight windows, Alt dragging, a ten-workspace thumbnail overview and a taskbar spanning all workspaces.
 - **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings.
-- **Go further when you want.** Arrange shell modules, customize Quickshell/QML and use the local control interface for your own workflow.
+- **Go further when you want.** Customize the Slint shell and use the local control interface for your own workflow.
 
-Built with **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML**. The current development version is **1.0.1a**. LunaDash is an active development preview, with Arch Linux as its primary platform.
+Built with **C++20 · C11 · wlroots · OpenGL · Slint** (the shell runs on [SlintLu](https://github.com/LunaDash-DE/SlintLu)). The current development version is **1.0.1a**. LunaDash is an active development preview, with Arch Linux as its primary platform.
 
 <a id="gallery"></a>
 
@@ -77,9 +77,9 @@ cd LunaDash
 
 The installer handles distribution dependencies, fetches and installs the pinned LunaDash-Shell, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to choose your language and personalize the desktop.
 
-Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell requires **Quickshell 0.3+**; if your distribution does not package it, the installer reports the missing dependency. See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
+Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell runs on SlintLu, which the installer builds from the revision pinned in `packaging/slintlu-revision` (Rust 1.92+ is required, as for Slint). See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
 
-The compositor and desktop services remain in this repository. The Quickshell UI and Astro website live in the independent [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) and [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) repositories; neither source tree is included here. The normal installer fetches the Shell commit recorded in `packaging/shell-revision`; website workflows clone LunaDash-docs into a temporary runner directory. See the [repository workflow](docs/COMPONENT_REPOS.md) to work on either component.
+The compositor and desktop services remain in this repository. The Slint shell, its SlintLu runtime and the Astro website live in the independent [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell), [SlintLu](https://github.com/LunaDash-DE/SlintLu) and [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) repositories; none of those source trees is included here. The normal installer fetches the commits recorded in `packaging/shell-revision` and `packaging/slintlu-revision` ([shell](docs/en/SHELL.md)); website workflows clone LunaDash-docs into a temporary runner directory. See the [repository workflow](docs/COMPONENT_REPOS.md) to work on either component.
 
 ## A few shortcuts
 

@@ -1,4 +1,5 @@
 import { LineEdit, TextEdit } from "std-widgets.slint";
+import { CloseButton } from "../theme/WindowControls.slint";
 
 component PackageAction inherits Rectangle {
     in property <string> label;
@@ -37,6 +38,8 @@ component PackageAction inherits Rectangle {
 }
 
 export component PackageManagerWindow inherits Window {
+    no-frame: true;
+    resize-border-width: 8px;
     title: root.window-title;
     preferred-width: 820px;
     preferred-height: 580px;
@@ -44,6 +47,7 @@ export component PackageManagerWindow inherits Window {
     min-height: 360px;
     background: root.background-color;
 
+    in-out property <string> close-label: "Close";
     in-out property <string> window-title: "LunaDash · Package manager";
     in-out property <string> heading: "Package manager";
     in-out property <string> description: "pacman: queries run without administrator privileges. Confirm installation and removal in a terminal.";
@@ -74,6 +78,7 @@ export component PackageManagerWindow inherits Window {
     in-out property <color> accent-color: #9ccbfb;
     in-out property <color> accent-ink-color: #171922;
 
+    callback close-requested();
     callback installed-requested();
     callback search-requested();
     callback install-requested();
@@ -93,26 +98,43 @@ export component PackageManagerWindow inherits Window {
             border-width: 1px;
             border-radius: 16px;
 
-            VerticalLayout {
-                padding-left: 20px;
-                padding-right: 20px;
-                padding-top: 12px;
-                padding-bottom: 12px;
-                spacing: 4px;
+            HorizontalLayout {
+                padding-right: 14px;
+                WindowMoveArea {
+                    horizontal-stretch: 1;
+                    VerticalLayout {
+                        padding-left: 20px;
+                        padding-right: 20px;
+                        padding-top: 12px;
+                        padding-bottom: 12px;
+                        spacing: 4px;
 
-                Text {
-                    text: root.heading;
-                    color: root.text-color;
-                    font-size: 21px;
-                    font-weight: 700;
-                    overflow: elide;
+                        Text {
+                            text: root.heading;
+                            color: root.text-color;
+                            font-size: 21px;
+                            font-weight: 700;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: root.description;
+                            color: root.muted-color;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                            overflow: elide;
+                        }
+                    }
                 }
-                Text {
-                    text: root.description;
-                    color: root.muted-color;
-                    font-size: 12px;
-                    wrap: word-wrap;
-                    overflow: elide;
+                VerticalLayout {
+                    alignment: start;
+                    padding-top: 14px;
+                    CloseButton {
+                        label: root.close-label;
+                        foreground: root.text-color;
+                        surface: root.elevated-color;
+                        stroke: root.border-color;
+                        clicked => { root.close-requested(); }
+                    }
                 }
             }
         }

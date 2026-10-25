@@ -37,7 +37,9 @@ in {
     mkdir -p "$HOME" "$XDG_RUNTIME_DIR" "$XDG_CONFIG_HOME"
     chmod 700 "$XDG_RUNTIME_DIR"
     test -r ${package}/share/wayland-sessions/lunadash.desktop
-    test -r ${package}/share/lunadash/shell/shell.qml
+    test -r ${package}/share/lunadash/shell/shell.slint
+    test -x ${package}/libexec/lunadash/slintlu
+    ${package}/libexec/lunadash/slintlu check ${package}/share/lunadash/shell
     test -r ${package}/share/xdg-desktop-portal/portals/lunadash.portal
     grep -F '${package}/libexec/xdg-desktop-portal-lunadash' \
       ${package}/share/dbus-1/services/org.freedesktop.impl.portal.desktop.lunadash.service

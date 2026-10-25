@@ -5,12 +5,9 @@ import subprocess
 import sys
 
 root = Path(__file__).resolve().parents[2]
-shell_root = Path(os.environ.get("LUDASH_QML_SOURCE_DIR", root / "qml"))
 updater = (root / "scripts/lunadash-update").read_text(encoding="utf-8")
 installer = (root / "scripts/install-session.sh").read_text(encoding="utf-8")
-about = (shell_root / "settings/pages/about.qml").read_text(encoding="utf-8")
 defaults = (root / "src/desktop/app/DefaultApplications.cpp").read_text(encoding="utf-8")
-shell = (shell_root / "shell.qml").read_text(encoding="utf-8")
 
 assert "status_pid=$$" in updater, "progress JSON must contain the updater PID"
 assert "git clone" in updater
@@ -21,14 +18,10 @@ assert 'cmake --install "$build"' not in updater
 assert "report_progress" in installer
 assert "LUDASH_PREFER_PKEXEC" in installer
 assert "pkexec" in installer
-update_state = (shell_root / "settings/components/UpdateState.qml").read_text(encoding="utf-8")
-assert "cleanup" in update_state and "install-script" in update_state
-assert "Qt.openUrlExternally" not in about
 assert '"browser"' in defaults
 browser = (root / "src/desktop/browser/Browser.cpp").read_text(encoding="utf-8")
 assert "google-chrome-stable" in browser
 assert "Browser::defaultCommand" in defaults
-assert "function openUrl(url)" in shell
 subprocess.run([sys.executable, str(root / "tests/update/test_installer.py")], check=True)
 subprocess.run([sys.executable, str(root / "tests/update/test_setup_profile.py")], check=True)
 print("update/default-browser contract passed")

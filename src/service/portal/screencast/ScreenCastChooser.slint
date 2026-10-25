@@ -1,4 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
+import { CloseButton } from "../../../desktop/theme/WindowControls.slint";
 
 export struct ShareSource {
     label: string,
@@ -100,6 +101,8 @@ component ShareSourceCard inherits Rectangle {
 }
 
 export component ScreenCastChooserWindow inherits Window {
+    no-frame: true;
+    resize-border-width: 8px;
     title: root.window-title;
     preferred-width: 860px;
     preferred-height: 650px;
@@ -176,22 +179,38 @@ export component ScreenCastChooserWindow inherits Window {
             padding-bottom: 20px;
             spacing: 12px;
 
-            VerticalLayout {
-                spacing: 5px;
-                Text {
-                    text: root.heading;
-                    color: root.text-color;
-                    font-size: 21px;
-                    font-weight: 700;
-                    overflow: elide;
+            HorizontalLayout {
+                spacing: 12px;
+                WindowMoveArea {
+                    horizontal-stretch: 1;
+                    VerticalLayout {
+                        spacing: 5px;
+                        Text {
+                            text: root.heading;
+                            color: root.text-color;
+                            font-size: 21px;
+                            font-weight: 700;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: root.description;
+                            color: root.muted-color;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                            max-height: 48px;
+                            overflow: elide;
+                        }
+                    }
                 }
-                Text {
-                    text: root.description;
-                    color: root.muted-color;
-                    font-size: 12px;
-                    wrap: word-wrap;
-                    max-height: 48px;
-                    overflow: elide;
+                VerticalLayout {
+                    alignment: start;
+                    CloseButton {
+                        label: root.cancel-label;
+                        foreground: root.text-color;
+                        surface: root.elevated-color;
+                        stroke: root.border-color;
+                        clicked => { root.cancel(); }
+                    }
                 }
             }
 

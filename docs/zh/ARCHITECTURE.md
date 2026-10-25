@@ -4,7 +4,7 @@ NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證�
 
 [English](../en/ARCHITECTURE.md) · [繁中索引](README.md)
 
-LunaDash 是以 C++20、C11、wlroots、Qt 6 與 Quickshell/QML 組成的 Wayland 桌面。**wlroots 是實際合成器後端**；Quickshell/QML 負責桌面 Shell。LunaDash 自有的 Welcome、portal 選擇器與套件管理器視窗使用 Slint/Winit；Qt Widgets 僅保留在選用的工具包相容性用戶端。Qt 仍支援 compositor 與服務程式碼，移除工作仍在進行；Qt Wayland 是 client 端依賴，不是 compositor server。Arch Linux 是主要開發平台。巢狀或軟體繪圖測試成功，不等於所有實體 GPU／登入工作階段都已驗證。
+LunaDash 是以 C++20、C11 與 wlroots 組成的 Wayland 桌面。**wlroots 是實際合成器後端**；桌面 Shell 是獨立的 Slint LunaDash-Shell，由 SlintLu 以 Wayland client 執行（見[桌面殼層](SHELL.md)）。LunaDash 自有的 Welcome、portal 選擇器與套件管理器視窗使用 Slint/Winit；Qt Widgets 僅保留在選用的工具包相容性用戶端。Qt 仍支援 compositor 與服務程式碼，移除工作仍在進行；Qt Wayland 是 client 端依賴，不是 compositor server。Arch Linux 是主要開發平台。巢狀或軟體繪圖測試成功，不等於所有實體 GPU／登入工作階段都已驗證。
 
 ## 原始碼分區
 
@@ -118,7 +118,7 @@ wlroots compositor 透過 Wayland protocol 接收不同 toolkit 的 client。若
 
 ## 目前渲染與 shell 邊界
 
-Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；場景動畫由 `window/animation/SceneAnimation` 負責。獨立 Welcome 工具是位於 `desktop/welcome` 的 Slint／Winit Wayland client，使用與 Shell 相同的 control socket IPC。首次登入 Quickshell 導覽仍留在獨立 Shell repo。Compositor 透過一般 Wayland client 接收兩者，不嵌入任一 toolkit。不使用 QtWayland compositor／server API。原生 process runner 使用 `posix_spawn` 與 Wayland event loop 處理有輸出上限的非同步執行、逾時及子程序回收。音訊、電源、亮度、網路及 NVIDIA 狀態服務已直接使用它。Application theme sync 使用原生檔案操作，並透過 GDBus 要求 Fcitx 重新載入。Shell module 與 Orbit launcher 設定改用 nlohmann/json、GIO，所屬 targets 不連結 Qt；compositor 只在 IPC 邊界轉換 JSON。其他 LunaDash targets 仍連結 Qt Core／Gui／Widgets／Quick／Network／DBus；專案仍在遷移中。
+Renderer 選擇使用 `renderer/selection/RenderSelection.c` 的 C11 程式；場景動畫由 `window/animation/SceneAnimation` 負責。獨立 Welcome 工具是位於 `desktop/welcome` 的 Slint／Winit Wayland client，使用與 Shell 相同的 control socket IPC。首次登入導覽由 Slint 設定精靈負責。Compositor 透過一般 Wayland client 接收兩者，不嵌入任一 toolkit。不使用 QtWayland compositor／server API。原生 process runner 使用 `posix_spawn` 與 Wayland event loop 處理有輸出上限的非同步執行、逾時及子程序回收。音訊、電源、亮度、網路及 NVIDIA 狀態服務已直接使用它。Application theme sync 使用原生檔案操作，並透過 GDBus 要求 Fcitx 重新載入。Shell module 與 Orbit launcher 設定改用 nlohmann/json、GIO，所屬 targets 不連結 Qt；compositor 只在 IPC 邊界轉換 JSON。其他 LunaDash targets 仍連結 Qt Core／Gui／Widgets／Quick／Network／DBus；專案仍在遷移中。
 
 Shell 輪詢可使用 `status <已知語言>`，語言相符時省略翻譯字典。一般 `status` 仍回傳完整狀態。QML 補回快取字典，並抑制不可見的 frame／event-loop 計數更新，同時保留螢幕模式、幾何、錯誤與確認狀態。開啟控制中心或關於頁時恢復即時資訊。
 

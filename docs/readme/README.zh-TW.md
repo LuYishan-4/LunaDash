@@ -33,9 +33,9 @@
 - **日常功能一次備齊。** 面板、啟動器、儀表板、通知、設定與檔案工具都包含在桌面中。
 - **配合你的工作方式。** 限制在單一畫面內的平鋪布局，每組最多 8 個視窗；支援 Alt 拖曳、十格工作區縮圖總覽，工作列可切換所有工作區的視窗。
 - **把預設變成自己的風格。** 在設定中調整桌布、色彩、間距、快捷鍵和預設應用程式。
-- **需要時再深入。** 排列 shell 模組、修改 Quickshell/QML，或透過本機控制介面安排工作流程。
+- **需要時再深入。** 自訂 Slint 殼層，或透過本機控制介面安排工作流程。
 
-使用 **C++20 · C11 · wlroots · OpenGL · Qt 6 · Quickshell/QML** 開發。目前是持續開發中的預覽版本，以 Arch Linux 為主要開發平台。
+使用 **C++20 · C11 · wlroots · OpenGL · Slint** 開發（殼層執行於 SlintLu）。目前是持續開發中的預覽版本，以 Arch Linux 為主要開發平台。
 
 <a id="gallery"></a>
 
@@ -68,7 +68,7 @@ cd LunaDash
 
 安裝程式會處理發行版依賴、編譯 LunaDash 並安裝登入工作階段。完成後登出，在登入管理員中選擇 **LunaDash**。首次啟動會顯示 1.0.1a Welcome 卡片、系統資訊與快捷操作。語言及桌面外觀可在設定中調整。
 
-可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面 shell 需要 **Quickshell 0.3+**；若發行版未提供，安裝程式會指出缺少的依賴。選項與復原方式請見[安裝指南](../zh/LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../zh/TESTING_AND_FILES.md)。
+可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面殼層執行於 SlintLu，安裝程式會依 `packaging/slintlu-revision` 從原始碼建置（與 Slint 相同，需要 Rust 1.92+）。選項與復原方式請見[安裝指南](../zh/LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../zh/TESTING_AND_FILES.md)。
 
 ## 常用快捷鍵
 

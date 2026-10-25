@@ -1,0 +1,33 @@
+// Window controls for LunaDash's frameless Slint windows. The windows draw their own header
+// (a WindowMoveArea for dragging) instead of the toolkit's title bar, whose font cannot show
+// every interface language.
+
+import { Icon } from "Icon.slint";
+
+export component CloseButton inherits Rectangle {
+    in property <string> label: "Close";
+    in property <color> foreground: #f1f1f5;
+    in property <color> surface: #292d39;
+    in property <color> stroke: #4c5060;
+    callback clicked();
+
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    border-width: 1px;
+    border-color: root.stroke;
+    background: touch.has-hover ? root.surface.brighter(0.2) : root.surface;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+
+    Icon {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        name: "close";
+        width: 16px;
+        height: 16px;
+        color: root.foreground;
+    }
+    touch := TouchArea { clicked => { root.clicked(); } }
+}

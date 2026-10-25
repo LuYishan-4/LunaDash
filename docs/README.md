@@ -7,7 +7,7 @@ Technical documentation is organized by language.
 
 Shared screenshots and branding remain in `docs/image/` and `docs/brand/`. README translations remain in `docs/readme/`.
 
-The language directories are the canonical locations for new documentation links. The website source lives only in LunaDash-docs; the QML shell source lives only in LunaDash-Shell. LunaDash records the selected Shell commit in `packaging/shell-revision` and does not contain either component's source. The older Markdown paths directly under `docs/` remain small compatibility forwarding pages so existing external links continue to work. The canonical document text lives only in the language directories.
+The language directories are the canonical locations for new documentation links. The website source lives only in LunaDash-docs; the Slint shell source lives only in LunaDash-Shell and its runtime in SlintLu. LunaDash records the selected commits in `packaging/shell-revision` and `packaging/slintlu-revision` and does not contain their source. The older Markdown paths directly under `docs/` remain small compatibility forwarding pages so existing external links continue to work. The canonical document text lives only in the language directories.
 
 ## Current development documentation
 

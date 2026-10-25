@@ -2,7 +2,7 @@
 
 [English](../en/C_CORE.md) · [繁中索引](README.md)
 
-LunaDash 以 C11 處理範圍明確的低階工作，以 C++20 管物件生命週期與系統／wlroots 整合；桌面 Shell 使用 Quickshell/QML。
+LunaDash 以 C11 處理範圍明確的低階工作，以 C++20 管物件生命週期與系統／wlroots 整合；桌面 Shell 是在 SlintLu 上執行的獨立 Slint LunaDash-Shell。
 
 | C implementation | 職責 | C++ owner |
 | --- | --- | --- |

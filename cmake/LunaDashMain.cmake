@@ -322,6 +322,10 @@ slint_target_sources(ludash-filepicker
     src/service/portal/filepicker/FilePicker.slint)
 set_target_properties(ludash-filepicker PROPERTIES OUTPUT_NAME lunadash-filepicker)
 install(TARGETS ludash-filepicker RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR})
+# LunaDash's Slint windows compile their icons (data/icons) into the executable, so an
+# installation never refers back to the source tree.
+set_target_properties(ludash-welcome ludash-packages ludash-screencast-chooser
+    ludash-filepicker PROPERTIES SLINT_EMBED_RESOURCES embed-files)
 # wlroots public layer-shell headers include the scanner-generated
 # protocol declaration. Some distributions do not install that generated
 # header with libwlroots-dev, so generate declarations locally without
@@ -435,7 +439,7 @@ target_include_directories(ludash-wayland
 target_compile_definitions(ludash-wayland
     PRIVATE
         WLR_USE_UNSTABLE=1
-        LUDASH_QML_SOURCE_DIR="${LUDASH_QML_SOURCE_DIR}"
+        LUDASH_SHELL_SOURCE_DIR="${LUDASH_SHELL_SOURCE_DIR}"
         LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
 target_link_libraries(ludash-wayland
     PUBLIC
@@ -505,13 +509,17 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop ${CMAKE_CURRENT_BINA
 install(PROGRAMS scripts/lunadash-session scripts/ludash-session scripts/lunadash-clipboard-history DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash.desktop ${CMAKE_CURRENT_BINARY_DIR}/ludash.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash-app.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(DIRECTORY "${LUDASH_QML_SOURCE_DIR}/"
+# Slint shell files (and, for a legacy Quickshell checkout, QML files).
+install(DIRECTORY "${LUDASH_SHELL_SOURCE_DIR}/"
     DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/shell
     FILES_MATCHING
-        REGEX ".*\\.(qml|js|svg|png|jpg|jpeg|webp|gif)$"
+        REGEX ".*\\.(slint|po|qml|js|svg|png|jpg|jpeg|webp|gif)$"
+        PATTERN "theme.json"
+        PATTERN "LICENSE"
         PATTERN "qmldir"
         PATTERN ".git" EXCLUDE
         PATTERN ".github" EXCLUDE
+        PATTERN "scripts" EXCLUDE
         PATTERN "tests" EXCLUDE)
 install(DIRECTORY data/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/data/assets)
 install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps)

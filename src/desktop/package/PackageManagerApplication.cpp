@@ -338,6 +338,7 @@ int PackageManagerApplication::run(int argc, char **argv) {
       text("The terminal will run:"));
   set(&PackageManagerWindow::set_confirm_label, text("Open terminal"));
   set(&PackageManagerWindow::set_cancel_label, text("Cancel"));
+  set(&PackageManagerWindow::set_close_label, text("Close"));
 
   Json preferences = loadDesktopPreferences();
   const auto legacyMode = keyFileString(legacySettings, "desktop", "themeMode");
@@ -558,6 +559,12 @@ int PackageManagerApplication::run(int argc, char **argv) {
       window->set_status(slint::SharedString(text("Package transaction opened in the configured terminal.")));
     pendingTransaction.clear();
     window->set_confirmation_visible(false);
+  });
+
+  // The window is frameless; its header has the close button.
+  window->on_close_requested([&] {
+    window->hide();
+    slint::quit_event_loop();
   });
 
   g_key_file_unref(legacySettings);

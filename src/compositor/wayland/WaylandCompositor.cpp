@@ -139,6 +139,57 @@ std::string locateDataFile(const std::string &relativePath) {
   return {};
 }
 
+struct SessionShell {
+  std::string directory;
+  // shell.slint, run by SlintLu; otherwise a legacy Quickshell shell.qml.
+  bool slint = false;
+};
+
+// The session shell next to the executable first (also a staged/relocated installation in
+// CI), then the build's LunaDash-Shell checkout and the XDG data directories.
+SessionShell locateSessionShell() {
+  std::vector<std::filesystem::path> candidates{
+      (filePath(executableDirectory()) / "../share/lunadash/shell").lexically_normal()};
+  if (*LUDASH_SHELL_SOURCE_DIR)
+    candidates.emplace_back(LUDASH_SHELL_SOURCE_DIR);
+  for (const char *directory : {"lunadash/shell", "ludash/shell"})
+    for (const char *file : {"shell.slint", "shell.qml"}) {
+      const auto found = locateDataFile(std::string(directory) + "/" + file);
+      if (!found.empty())
+        candidates.push_back(filePath(found).parent_path());
+    }
+  for (const auto &directory : candidates) {
+    if (fileExists((directory / "shell.slint").string()))
+      return {directory.string(), true};
+    if (fileExists((directory / "shell.qml").string()))
+      return {directory.string(), false};
+  }
+  return {};
+}
+
+// The SlintLu revision installed with LunaDash (libexec/lunadash/slintlu, or the build
+// tree's copy) first: it is the one the pinned shell was tested with. Then PATH and the
+// places `cargo install` uses.
+std::string findSlintLu() {
+  const auto directory = filePath(executableDirectory());
+  for (const auto &candidate :
+       {(directory / "../libexec/lunadash/slintlu").lexically_normal(),
+        directory / "slintlu/release/slintlu"})
+    if (fileIsExecutable(candidate.string()))
+      return candidate.string();
+  if (auto path = findExecutable("slintlu"); !path.empty())
+    return path;
+  std::vector<std::filesystem::path> candidates;
+  if (const char *home = g_get_home_dir()) {
+    candidates.push_back(filePath(home) / ".cargo/bin/slintlu");
+    candidates.push_back(filePath(home) / ".local/bin/slintlu");
+  }
+  for (const auto &candidate : candidates)
+    if (fileIsExecutable(candidate.string()))
+      return candidate.string();
+  return {};
+}
+
 std::string localFileUri(const std::filesystem::path &path) {
   GError *error = nullptr;
   gchar *uri = g_filename_to_uri(path.c_str(), nullptr, &error);
@@ -546,80 +597,92 @@ ProcessRunner *WaylandCompositor::spawn(
   std::vector<std::string> nativeArguments;
   std::string executable = program;
   if (sessionShell) {
-
-    const std::string sourceConfig =
-        std::string(LUDASH_QML_SOURCE_DIR) + "/shell.qml";
-    // Use assets next to the installed executable before any build checkout.
-    // This also supports a staged/relocated installation in CI.
-    const auto configPath =
-        (filePath(executableDirectory()) /
-         "../share/lunadash/shell/shell.qml")
-            .lexically_normal();
-    std::string config = (configPath.string());
-    if (!fileExists(config))
-      config = fileExists(sourceConfig)
-                   ? sourceConfig
-                   : locateDataFile("lunadash/shell/shell.qml");
-    if (config.empty())
-      config = locateDataFile("ludash/shell/shell.qml");
-    if (config.empty()) {
+    const auto shell = locateSessionShell();
+    if (shell.directory.empty()) {
       if (required)
         processFailure_ = true;
-      logWarning("LunaDash shell.qml was not found in any search location.");
+      logWarning("The LunaDash shell (shell.slint) was not found in any search location.");
       return nullptr;
     }
-    const std::string quickshell = findExecutable("quickshell");
-    if (quickshell.empty()) {
-      if (required)
-        processFailure_ = true;
-      logWarning("Quickshell is unavailable.");
-      return nullptr;
-    }
+    logInfo("LunaDash shell: %s", shell.directory.c_str());
     const auto wallpaperPath = wallpaperImagePath();
     environment["LUNADASH_WALLPAPER"] =
         wallpaperPath.empty()
             ? std::string{}
             : localFileUri(wallpaperPath);
-    // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
-    // only for the LunaDash shell on NVIDIA hosts and only when the user did
-    // not choose a backend explicitly. Unsupported systems still use Qt's
-    // normal software fallback.
-    const auto decoderPreference =
-        environment.find("QT_FFMPEG_DECODING_HW_DEVICE_TYPES");
-    if ((decoderPreference == environment.end() ||
-         decoderPreference->second.empty()) &&
-        (fileExists("/sys/module/nvidia") ||
-         fileExists("/proc/driver/nvidia/version")))
-      environment["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "cuda";
-    // The shell draws its own theme. A blocking portal Settings query here
-    // would prevent even the startup splash from reaching its first frame.
-    environment["QT_QPA_PLATFORMTHEME"] = "generic";
-    environment.erase("GTK_USE_PORTAL");
-    logInfo("LunaDash shell config: %s", config.c_str());
-    ShellRenderingEnvironment shellRenderingEnvironment;
-    for (const auto *key :
-         {"LUDASH_SHELL_RENDERER", "QT_QUICK_BACKEND", "QSG_RHI_BACKEND"}) {
-      const auto value = environment.find(key);
-      if (value != environment.end())
-        shellRenderingEnvironment.emplace(key, value->second);
+    if (shell.slint) {
+      const std::string slintlu = findSlintLu();
+      if (slintlu.empty()) {
+        if (required)
+          processFailure_ = true;
+        logWarning("SlintLu is unavailable; install it to run the LunaDash shell.");
+        return nullptr;
+      }
+      ShellRenderingEnvironment shellRenderingEnvironment;
+      for (const auto *key : {"LUDASH_SHELL_RENDERER", "SLINTLU_RENDERER"}) {
+        const auto value = environment.find(key);
+        if (value != environment.end())
+          shellRenderingEnvironment.emplace(key, value->second);
+      }
+      if (!configureSlintLuRendering(shellRenderingEnvironment)) {
+        logWarning(
+            "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
+        processFailure_ = true;
+        return nullptr;
+      }
+      for (const auto &[key, value] : shellRenderingEnvironment)
+        environment[key] = value;
+      executable = slintlu;
+      nativeArguments = {"--config", shell.directory};
+    } else {
+      const std::string config = shell.directory + "/shell.qml";
+      const std::string quickshell = findExecutable("quickshell");
+      if (quickshell.empty()) {
+        if (required)
+          processFailure_ = true;
+        logWarning("Quickshell is unavailable.");
+        return nullptr;
+      }
+      // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
+      // only for the LunaDash shell on NVIDIA hosts and only when the user did
+      // not choose a backend explicitly. Unsupported systems still use Qt's
+      // normal software fallback.
+      const auto decoderPreference =
+          environment.find("QT_FFMPEG_DECODING_HW_DEVICE_TYPES");
+      if ((decoderPreference == environment.end() ||
+           decoderPreference->second.empty()) &&
+          (fileExists("/sys/module/nvidia") ||
+           fileExists("/proc/driver/nvidia/version")))
+        environment["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "cuda";
+      // The shell draws its own theme. A blocking portal Settings query here
+      // would prevent even the startup splash from reaching its first frame.
+      environment["QT_QPA_PLATFORMTHEME"] = "generic";
+      environment.erase("GTK_USE_PORTAL");
+      ShellRenderingEnvironment shellRenderingEnvironment;
+      for (const auto *key :
+           {"LUDASH_SHELL_RENDERER", "QT_QUICK_BACKEND", "QSG_RHI_BACKEND"}) {
+        const auto value = environment.find(key);
+        if (value != environment.end())
+          shellRenderingEnvironment.emplace(key, value->second);
+      }
+      if (!configureShellRendering(shellRenderingEnvironment,
+                                   fileExists("/sys/module/nvidia"))) {
+        logWarning(
+            "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
+        processFailure_ = true;
+        return nullptr;
+      }
+      for (const auto *key :
+           {"LUDASH_SHELL_RENDERER", "QT_QUICK_BACKEND", "QSG_RHI_BACKEND"}) {
+        const auto value = shellRenderingEnvironment.find(key);
+        if (value == shellRenderingEnvironment.end())
+          environment.erase(key);
+        else
+          environment[key] = value->second;
+      }
+      executable = quickshell;
+      nativeArguments = {"--path", config, "--no-color"};
     }
-    if (!configureShellRendering(shellRenderingEnvironment,
-                                 fileExists("/sys/module/nvidia"))) {
-      logWarning(
-          "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
-      processFailure_ = true;
-      return nullptr;
-    }
-    for (const auto *key :
-         {"LUDASH_SHELL_RENDERER", "QT_QUICK_BACKEND", "QSG_RHI_BACKEND"}) {
-      const auto value = shellRenderingEnvironment.find(key);
-      if (value == shellRenderingEnvironment.end())
-        environment.erase(key);
-      else
-        environment[key] = value->second;
-    }
-    executable = quickshell;
-    nativeArguments = {"--path", config, "--no-color"};
   } else {
     if (executable.empty()) {
       if (arguments.size() >= 2 && arguments[0] == "--app" &&
@@ -939,6 +1002,15 @@ void WaylandCompositor::configure(ClientWindow *client,
   }
   wlr_xdg_toplevel_set_maximized(client->toplevel, client->maximized);
   wlr_xdg_toplevel_set_fullscreen(client->toplevel, client->fullscreen);
+  // Tell tiled clients that the size is not a suggestion. Without the tiled state a
+  // toolkit may replace it with its own preferred size (winit does, so Slint windows
+  // drew at their preferred size inside a larger tile).
+  const std::uint32_t tiled =
+      client->floating || client->maximized || client->fullscreen
+          ? 0
+          : WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT;
+  if (client->toplevel->scheduled.tiled != tiled)
+    wlr_xdg_toplevel_set_tiled(client->toplevel, tiled);
 }
 
 void WaylandCompositor::arrange() {

@@ -95,9 +95,6 @@ case "$manager" in
             wlroots_package=wlroots
         fi
         run "${elevate[@]}" "${pacman_install[@]}" "$wlroots_package"
-        if ! command -v quickshell >/dev/null 2>&1 && pacman -Si quickshell >/dev/null 2>&1; then
-            run "${elevate[@]}" "${pacman_install[@]}" quickshell
-        fi
         ;;
     apt)
         run "${elevate[@]}" apt-get update
@@ -222,16 +219,13 @@ else
     printf 'Fcitx 5 ready: %s\n' "$(command -v fcitx5)"
 fi
 
-if ! command -v quickshell >/dev/null 2>&1; then
+if ! command -v cargo >/dev/null 2>&1; then
     cat <<'EOF'
 
-Build dependencies are ready, but Quickshell was not found.
-Install Quickshell 0.3 or newer using your distribution package if available, or
-follow the upstream installation guide:
-  https://quickshell.org/docs/v0.3.0/guide/install-setup/
-
-LunaDash can still be compiled now; the shell requires Quickshell at runtime.
+Build dependencies are ready, but cargo (Rust) was not found. LunaDash builds Slint and
+SlintLu, the runtime of its shell, from source; install Rust 1.92 or newer
+(https://rustup.rs) before building.
 EOF
 else
-    printf 'Dependencies ready (%s); Quickshell: %s\n' "$manager" "$(command -v quickshell)"
+    printf 'Dependencies ready (%s); Rust: %s\n' "$manager" "$(cargo --version)"
 fi

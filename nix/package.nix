@@ -2,27 +2,33 @@
 , rustc, cargo, rustPlatform, corrosion
 , nlohmann_json
 , qt6, wayland, wayland-protocols, wayland-scanner, wlroots_0_20
-, libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, quickshell
+, libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, pam
 , coreutils, bash, gnused, curl, gdk-pixbuf, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages, fontconfig, freetype
-, xdg-desktop-portal-wlr, revision ? "unknown", shellSource, slintSource
+, xdg-desktop-portal-wlr, revision ? "unknown", shellSource, slintSource, slintluSource
 }:
 let
   slintCargoDeps = rustPlatform.importCargoLock {
     lockFile = "${slintSource}/Cargo.lock";
   };
-  # Quickshell must inherit the QML modules imported by LunaDash, including
-  # QtMultimedia, rather than relying on a user's profile or global Qt paths.
-  shell = runCommand "lunadash-quickshell" {
-    nativeBuildInputs = [ makeWrapper ];
-  } ''
-    mkdir -p "$out/bin"
-    makeWrapper ${lib.getExe quickshell} "$out/bin/quickshell" \
-      --prefix NIXPKGS_QT6_QML_IMPORT_PATH : "${lib.makeSearchPath qt6.qtbase.qtQmlPrefix [ qt6.qtmultimedia qt6.qt5compat ]}" \
-      --prefix QT_PLUGIN_PATH : "${lib.makeSearchPath qt6.qtbase.qtPluginPrefix [ qt6.qtmultimedia ]}"
-  '';
+  # SlintLu, the shell runtime, at the revision in packaging/slintlu-revision. EGL and Vulkan
+  # are loaded at runtime, so their loaders go on the library path.
+  slintlu = rustPlatform.buildRustPackage {
+    pname = "slintlu";
+    version = "unstable";
+    src = slintluSource;
+    cargoLock.lockFile = "${slintluSource}/Cargo.lock";
+    nativeBuildInputs = [ pkg-config makeWrapper ];
+    buildInputs = [ wayland libxkbcommon fontconfig freetype pam ];
+    # SlintLu's own CI runs its tests; the session only needs the binary.
+    doCheck = false;
+    postFixup = ''
+      wrapProgram $out/bin/slintlu \
+        --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ libGL vulkan-loader wayland libxkbcommon ]}
+    '';
+  };
   runtimePath = lib.makeBinPath [
-    shell coreutils bash gnused dbus systemd xwayland xdg-utils wl-clipboard
+    coreutils bash gnused dbus systemd xwayland xdg-utils wl-clipboard
     grim slurp brightnessctl ddcutil wireplumber pulseaudio
   ] + ":${xdg-desktop-portal-wlr}/libexec:${kdePackages.polkit-kde-agent-1}/libexec";
 in
@@ -50,13 +56,17 @@ stdenv.mkDerivation {
     "-DBUILD_TESTING=OFF"
     "-DCMAKE_INSTALL_SYSCONFDIR=etc"
     "-DCMAKE_INSTALL_LIBEXECDIR=libexec"
-    "-DLUDASH_QML_SOURCE_DIR=${shellSource}"
+    "-DLUDASH_SHELL_SOURCE_DIR=${shellSource}"
     "-DFETCHCONTENT_SOURCE_DIR_SLINT=${slintSource}"
     "-DFETCHCONTENT_FULLY_DISCONNECTED=ON"
   ];
   postPatch = ''
     printf '%s\n' '${revision}' > .lunadash-revision
     cp ${slintSource}/Cargo.lock Cargo.lock
+  '';
+  postInstall = ''
+    install -d "$out/libexec/lunadash"
+    ln -s ${slintlu}/bin/slintlu "$out/libexec/lunadash/slintlu"
   '';
   preFixup = ''
     qtWrapperArgs+=(--prefix PATH : "$out/bin:${runtimePath}")
@@ -68,6 +78,7 @@ stdenv.mkDerivation {
   '';
 
   passthru.providedSessions = [ "lunadash" "ludash" ];
+  passthru.slintlu = slintlu;
   meta = {
     description = "Development preview of the LunaDash Wayland desktop";
     homepage = "https://github.com/LuYishan-4/LunaDash";

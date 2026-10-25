@@ -6,7 +6,7 @@ Clone the `dev` branch with `git clone --branch dev ...`. The normal install com
 
 ## Build and static checks
 
-The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Rust/Cargo 1.92+ for pinned Slint 1.18.1, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus for the remaining native targets, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, pixman, libdrm, GL headers, GLib and Fontconfig development files. The standalone Welcome target builds Slint's Winit Wayland backend with FemtoVG and explicitly disables Slint's Qt and X11 backends. `lunadashctl` uses POSIX Unix sockets and nlohmann/json; CMake uses an installed nlohmann_json 3.11+ package or fetches pinned v3.11.3. `scripts/install-dependencies.sh` provides distribution-specific package selection. The independent shell additionally needs Quickshell 0.3+. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
+The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Rust/Cargo 1.92+ for pinned Slint 1.18.1, Qt 6.4+ Core/Gui/Widgets/Quick/OpenGL/Concurrent/Network/DBus for the remaining native targets, wlroots 0.17–0.20, Wayland protocols/scanner, xkbcommon, pixman, libdrm, GL headers, GLib and Fontconfig development files. The standalone Welcome target builds Slint's Winit Wayland backend with FemtoVG and explicitly disables Slint's Qt and X11 backends. `lunadashctl` uses POSIX Unix sockets and nlohmann/json; CMake uses an installed nlohmann_json 3.11+ package or fetches pinned v3.11.3. `scripts/install-dependencies.sh` provides distribution-specific package selection. The shell runtime, SlintLu, is built from source as well (also Rust); it links Wayland, xkbcommon, Fontconfig, FreeType and PAM. The default terminal is Kitty. XWayland provides optional X11 compatibility. Interactive capture uses grim and slurp; backlight controls use brightnessctl and external-monitor controls use ddcutil.
 
 ```sh
 python3 scripts/check-source-layout.py
@@ -15,8 +15,8 @@ python3 tests/renderer/test_render_architecture.py
 python3 tests/renderer/test_shader_extensions.py
 python3 tests/wayland/test_no_qtwayland.py
 python3 tests/security/test_source_language.py
-python3 scripts/ci/check_qml_actions.py
-python3 scripts/ci/check_qml_style.py
+python3 scripts/ci/check_shell_actions.py
+python3 scripts/gen-ui-icons.py --check
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DLUDASH_BUILD_RENDERER_TESTS=ON
 cmake --build build --parallel 2

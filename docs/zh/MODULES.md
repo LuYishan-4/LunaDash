@@ -2,6 +2,8 @@
 
 [English](../en/MODULES.md) · [繁中索引](README.md)
 
+> **舊版殼層。** 殼層模組屬於先前的 Quickshell 殼層，Slint 殼層目前尚未讀取。詳見[桌面殼層](SHELL.md)。
+
 LunaDash Quickshell 有 9 個 built-in block：
 
 ```text

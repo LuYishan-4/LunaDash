@@ -21,7 +21,7 @@ jobs:
         run: |
           cmake -S . -B build-pr -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DLUDASH_QML_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
+            -DLUDASH_SHELL_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
             -DBUILD_TESTING=OFF \

@@ -41,10 +41,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Fetch pinned LunaDash-Shell source
+      - name: Fetch pinned LunaDash-Shell and SlintLu sources
         run: |
           bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
-          echo "LUDASH_QML_SOURCE_DIR=$RUNNER_TEMP/LunaDash-Shell" >> "$GITHUB_ENV"
+          bash scripts/fetch-slintlu.sh "$RUNNER_TEMP/SlintLu"
+          echo "LUDASH_SHELL_SOURCE_DIR=$RUNNER_TEMP/LunaDash-Shell" >> "$GITHUB_ENV"
+          echo "LUDASH_SLINTLU_SOURCE_DIR=$RUNNER_TEMP/SlintLu" >> "$GITHUB_ENV"
       - name: Install shell audit tools
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Repository and CI policy
@@ -78,11 +80,11 @@ jobs:
               *'/sh') sh -n "$file"; shellcheck --severity=error "$file" ;;
             esac
           done < <(git ls-files -z scripts)
-      - name: QML design, actions and translations
+      - name: Shell actions and translations
         if: ${{ !cancelled() }}
         run: |
-          python3 scripts/ci/check_qml_actions.py
-          python3 scripts/ci/check_qml_style.py
+          python3 scripts/ci/check_shell_actions.py
+          python3 scripts/gen-ui-icons.py --check
           python3 scripts/check-translations.py
           python3 scripts/test-translation-checker.py
       - name: Packaging and installer contracts
@@ -102,8 +104,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Fetch pinned LunaDash-Shell source
-        run: bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
+      - name: Fetch pinned LunaDash-Shell and SlintLu sources
+        run: |
+          bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
+          bash scripts/fetch-slintlu.sh "$RUNNER_TEMP/SlintLu"
       - name: Install the Rust toolchain required by Slint
         uses: dtolnay/rust-toolchain@stable
       - uses: ./.github/actions/ubuntu-dependencies
@@ -125,12 +129,18 @@ jobs:
           key: ubuntu-slint-v1-${{ hashFiles('CMakeLists.txt') }}-${{ github.sha }}
           restore-keys: |
             ubuntu-slint-v1-${{ hashFiles('CMakeLists.txt') }}-
+      # SlintLu (the shell runtime) only changes with packaging/slintlu-revision.
+      - uses: actions/cache@v4
+        with:
+          path: build-main/slintlu
+          key: ubuntu-slintlu-v1-${{ hashFiles('packaging/slintlu-revision') }}
       - name: Configure and build once
         id: build
         run: |
           ccache --max-size=500M
           cmake -S . -B build-main -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DLUDASH_QML_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
+            -DLUDASH_SHELL_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
+            -DLUDASH_SLINTLU_SOURCE_DIR="$RUNNER_TEMP/SlintLu" \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DLUDASH_BUILD_RENDERER_TESTS=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON \
             2>&1 | tee build-main.log
@@ -186,6 +196,14 @@ jobs:
           {
             dbus-run-session -- python3 tests/wayland/test_toolkits.py build-main
           } 2>&1 | tee runtime-toolkits.log
+      - name: Slint shell in a LunaDash session
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: bash
+        run: |
+          {
+            "$PWD/build-main/slintlu/release/slintlu" check "$RUNNER_TEMP/LunaDash-Shell"
+            dbus-run-session -- python3 tests/wayland/test_session_shell.py build-main
+          } 2>&1 | tee runtime-shell.log
       - name: Relocated software OpenGL renderer
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: bash
@@ -223,8 +241,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Fetch pinned LunaDash-Shell source
-        run: bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
       - name: Install Qt Quick test tools
         run: |
           sudo apt-get update
@@ -232,17 +248,11 @@ jobs:
             qml6-module-qtquick-controls qml6-module-qtquick-layouts \
             qml6-module-qtquick-window qml6-module-qtquick-templates \
             qml6-module-qtquick-shapes qml6-module-qtqml-workerscript
-      - name: Parse every shell QML file
-        run: |
-          while IFS= read -r -d '' file; do
-            /usr/lib/qt6/bin/qmlformat "$file" >/dev/null
-          done < <(find "$RUNNER_TEMP/LunaDash-Shell" -type f -name '*.qml' -print0)
-      - name: Run all QML tests
-        if: ${{ !cancelled() }}
+      # The shell is Slint (checked by the native suite and its own repository); this
+      # suite covers LunaDash's QML plugin templates.
+      - name: Run LunaDash QML tests
         run: |
           /usr/lib/qt6/bin/qmlformat tests/qml/tst_interaction_templates.qml >/dev/null
-          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 \
-            /usr/lib/qt6/bin/qmltestrunner -input "$RUNNER_TEMP/LunaDash-Shell/tests/qml"
           QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 \
             /usr/lib/qt6/bin/qmltestrunner -input tests/qml
 
@@ -265,8 +275,8 @@ jobs:
       - name: Evaluate both package architectures and module, build and run x86_64 checks
         id: nix-check
         run: |
-          nix eval --raw .#packages.aarch64-linux.default.drvPath
-          nix flake check --print-build-logs --no-update-lock-file
+          scripts/ci/annotate.sh "nix eval (aarch64)" nix eval --raw .#packages.aarch64-linux.default.drvPath
+          scripts/ci/annotate.sh "nix flake check" nix flake check --print-build-logs --no-update-lock-file
       - name: Preserve installed runtime state
         if: ${{ !cancelled() && steps.nix-check.outcome == 'success' }}
         run: |
