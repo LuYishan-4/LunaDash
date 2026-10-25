@@ -8,12 +8,12 @@
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       shellSource = builtins.fetchGit {
-        url = "https://github.com/LunaDash-DE/LunaDash-Shell.git";
+        url = "https://github.com/LunaDashWM/LunaDash-Shell.git";
         rev = builtins.substring 0 40 (builtins.readFile ./packaging/shell-revision);
       };
       # SlintLu runs the shell; the package installs this revision as libexec/lunadash/slintlu.
       slintluSource = builtins.fetchGit {
-        url = "https://github.com/LunaDash-DE/SlintLu.git";
+        url = "https://github.com/LunaDashWM/SlintLu.git";
         rev = builtins.substring 0 40 (builtins.readFile ./packaging/slintlu-revision);
       };
       slintSource = builtins.fetchGit {

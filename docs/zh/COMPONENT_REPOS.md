@@ -5,9 +5,9 @@ LunaDash 根 repository 保留 native desktop 與 Wayland compositor。QML shell
 | 元件 | Repository | LunaDash 的使用方式 |
 | --- | --- | --- |
 | Native desktop 與 compositor | [LunaDash](https://github.com/LuYishan-4/LunaDash) | C++20、C11 rendering core、Wayland 整合與 packaging |
-| 桌面殼層（Slint） | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | Slint 原始碼隨 LunaDash 安裝；使用的 commit 記錄於 `packaging/shell-revision` |
-| 殼層執行環境 | [SlintLu](https://github.com/LunaDash-DE/SlintLu) | 依 `packaging/slintlu-revision` 建置，安裝為 `libexec/lunadash/slintlu` |
-| Astro 網站 | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | 在該 repository 執行 website CI；LunaDash workflow 只在 runner 暫存目錄 clone |
+| 桌面殼層（Slint） | [LunaDash-Shell](https://github.com/LunaDashWM/LunaDash-Shell) | Slint 原始碼隨 LunaDash 安裝；使用的 commit 記錄於 `packaging/shell-revision` |
+| 殼層執行環境 | [SlintLu](https://github.com/LunaDashWM/SlintLu) | 依 `packaging/slintlu-revision` 建置，安裝為 `libexec/lunadash/slintlu` |
+| Astro 網站 | [LunaDash-docs](https://github.com/LunaDashWM/LunaDash-docs) | 在該 repository 執行 website CI；LunaDash workflow 只在 runner 暫存目錄 clone |
 
 只有根 `dev` branch 的 `packaging/shell-revision` 改變時，LunaDash 才會採用新的 Shell commit。Shell repository 有新 commit 不會自動更新既有 LunaDash checkout 或安裝版本。網站有自己的歷史，不由 LunaDash 固定 revision；網站檢查和 Pages 部署會抓取 LunaDash-docs 的 `main` branch。
 
@@ -33,7 +33,7 @@ cmake --build build --parallel 2
 LunaDash-Shell 也能不依賴整合 repository 單獨安裝：
 
 ```sh
-git clone https://github.com/LunaDash-DE/LunaDash-Shell.git
+git clone https://github.com/LunaDashWM/LunaDash-Shell.git
 cd LunaDash-Shell
 ./install.sh
 ```

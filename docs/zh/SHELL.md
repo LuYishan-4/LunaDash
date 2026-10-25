@@ -3,8 +3,8 @@
 [English](../en/SHELL.md) · [繁中索引](README.md)
 
 面板、Dock、啟動器、儀表板、通知、鎖定畫面與殼層設定來自獨立的
-[LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) 儲存庫。殼層以 Slint 撰寫，
-由 [SlintLu](https://github.com/LunaDash-DE/SlintLu) 執行：SlintLu 會把 Slint 檔案變成
+[LunaDash-Shell](https://github.com/LunaDashWM/LunaDash-Shell) 儲存庫。殼層以 Slint 撰寫，
+由 [SlintLu](https://github.com/LunaDashWM/SlintLu) 執行：SlintLu 會把 Slint 檔案變成
 Wayland layer-shell 視窗，並提供桌面服務（音訊、網路、MPRIS、通知、系統匣、polkit、PAM、
 閒置、剪貼簿）。合成器只透過 Wayland 與控制 socket 與殼層溝通，LunaDash 本身不連結任何殼層工具組。
 

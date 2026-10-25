@@ -1,6 +1,6 @@
 # 網站與 GitHub Pages
 
-Astro 網站原始碼只放在 [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs)，不會被 checkout 到 LunaDash 根 repository。LunaDash-docs 自己執行 website CI；根 Pages workflow 發布時，才會在 GitHub Actions runner clone 該 repo 的 `main` branch。
+Astro 網站原始碼只放在 [LunaDash-docs](https://github.com/LunaDashWM/LunaDash-docs)，不會被 checkout 到 LunaDash 根 repository。LunaDash-docs 自己執行 website CI；根 Pages workflow 發布時，才會在 GitHub Actions runner clone 該 repo 的 `main` branch。
 
 Home page 介紹 desktop、客製化、截圖、安裝與貢獻方式。開場動畫支援 reduced motion。網站不載入 analytics 或外部 font service；作者 avatar 由作者的主機提供。只有使用者按下 Copy 時才會操作 clipboard。
 
@@ -17,7 +17,7 @@ README 的 distribution badge 使用 Shields.io `flat-square` 風格和白色 lo
 Clone LunaDash-docs，並在該 repository 執行：
 
 ```sh
-git clone https://github.com/LunaDash-DE/LunaDash-docs.git
+git clone https://github.com/LunaDashWM/LunaDash-docs.git
 cd LunaDash-docs
 npm ci --include=dev --ignore-scripts
 npm run check

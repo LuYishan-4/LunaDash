@@ -5,9 +5,9 @@ LunaDash keeps the native desktop and Wayland compositor in this repository. The
 | Component | Repository | How LunaDash uses it |
 | --- | --- | --- |
 | Native desktop and compositor | [LunaDash](https://github.com/LuYishan-4/LunaDash) | C++20, C11 rendering core, Wayland integration and packaging |
-| Desktop shell (Slint) | [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) | Slint source is installed with LunaDash; the selected commit is recorded in `packaging/shell-revision` |
-| Shell runtime | [SlintLu](https://github.com/LunaDash-DE/SlintLu) | Built from `packaging/slintlu-revision` and installed as `libexec/lunadash/slintlu` |
-| Astro website | [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs) | Website CI runs in that repository; LunaDash workflows clone it into a temporary runner directory |
+| Desktop shell (Slint) | [LunaDash-Shell](https://github.com/LunaDashWM/LunaDash-Shell) | Slint source is installed with LunaDash; the selected commit is recorded in `packaging/shell-revision` |
+| Shell runtime | [SlintLu](https://github.com/LunaDashWM/SlintLu) | Built from `packaging/slintlu-revision` and installed as `libexec/lunadash/slintlu` |
+| Astro website | [LunaDash-docs](https://github.com/LunaDashWM/LunaDash-docs) | Website CI runs in that repository; LunaDash workflows clone it into a temporary runner directory |
 
 The Shell commit selected by LunaDash changes only when `packaging/shell-revision` changes on the root `dev` branch. A new Shell commit does not update an existing LunaDash checkout or installation automatically. The website has its own history and is not pinned in LunaDash; each website check or Pages deployment fetches the current `main` branch of LunaDash-docs.
 
@@ -33,7 +33,7 @@ cmake --build build --parallel 2
 LunaDash-Shell can also be installed on its own, without the integration repository:
 
 ```sh
-git clone https://github.com/LunaDash-DE/LunaDash-Shell.git
+git clone https://github.com/LunaDashWM/LunaDash-Shell.git
 cd LunaDash-Shell
 ./install.sh
 ```

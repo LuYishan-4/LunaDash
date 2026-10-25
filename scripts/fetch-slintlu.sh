@@ -5,7 +5,7 @@ set -euo pipefail
 project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 destination=${1:?Usage: fetch-slintlu.sh DESTINATION [REVISION]}
 revision=${2:-$(cat "$project_dir/packaging/slintlu-revision")}
-repository=https://github.com/LunaDash-DE/SlintLu.git
+repository=https://github.com/LunaDashWM/SlintLu.git
 
 [[ $revision =~ ^[0-9a-f]{40}$ ]] || {
     printf 'Invalid SlintLu revision: %s\n' "$revision" >&2

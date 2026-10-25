@@ -1,8 +1,8 @@
 # Desktop shell
 
 The panel, dock, launcher, dashboard, notifications, lock screen and shell settings come from
-the independent [LunaDash-Shell](https://github.com/LunaDash-DE/LunaDash-Shell) repository. It
-is written in Slint and runs on [SlintLu](https://github.com/LunaDash-DE/SlintLu), which turns
+the independent [LunaDash-Shell](https://github.com/LunaDashWM/LunaDash-Shell) repository. It
+is written in Slint and runs on [SlintLu](https://github.com/LunaDashWM/SlintLu), which turns
 Slint files into Wayland layer-shell windows and provides the desktop services (audio, network,
 MPRIS, notifications, tray, polkit, PAM, idle, clipboard). The compositor talks to it only
 through Wayland and its control socket; nothing in LunaDash links a shell toolkit.

@@ -13,7 +13,7 @@ jobs:
               with:
                   persist-credentials: false
             - name: Fetch website source
-              run: git clone --quiet --depth 1 https://github.com/LunaDash-DE/LunaDash-docs.git "$RUNNER_TEMP/LunaDash-docs"
+              run: git clone --quiet --depth 1 https://github.com/LunaDashWM/LunaDash-docs.git "$RUNNER_TEMP/LunaDash-docs"
             - name: Set up Node.js
               uses: actions/setup-node@v7
               with:

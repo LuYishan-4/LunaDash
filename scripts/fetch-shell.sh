@@ -4,7 +4,7 @@ set -euo pipefail
 project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 destination=${1:?Usage: fetch-shell.sh DESTINATION [REVISION]}
 revision=${2:-$(cat "$project_dir/packaging/shell-revision")}
-repository=https://github.com/LunaDash-DE/LunaDash-Shell.git
+repository=https://github.com/LunaDashWM/LunaDash-Shell.git
 
 [[ $revision =~ ^[0-9a-f]{40}$ ]] || {
     printf 'Invalid LunaDash-Shell revision: %s\n' "$revision" >&2

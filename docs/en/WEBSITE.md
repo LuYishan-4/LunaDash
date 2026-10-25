@@ -1,6 +1,6 @@
 # Website and GitHub Pages
 
-The English Astro site source lives only in [LunaDash-docs](https://github.com/LunaDash-DE/LunaDash-docs). LunaDash does not check it out under the root repository. LunaDash-docs owns its website CI; the root Pages workflow clones its current `main` branch in the GitHub Actions runner when publishing.
+The English Astro site source lives only in [LunaDash-docs](https://github.com/LunaDashWM/LunaDash-docs). LunaDash does not check it out under the root repository. LunaDash-docs owns its website CI; the root Pages workflow clones its current `main` branch in the GitHub Actions runner when publishing.
 
 The home page presents the desktop, customization options, screenshots, installation and contribution guidance. The short opening animation respects reduced motion. There are no analytics or font services. The contributor avatar loads from the maintainer's host. Clipboard access occurs only when Copy is clicked.
 
@@ -17,7 +17,7 @@ Distribution badges belong in README, using Shields.io's `flat-square` style and
 Clone LunaDash-docs and run its checks from that repository:
 
 ```sh
-git clone https://github.com/LunaDash-DE/LunaDash-docs.git
+git clone https://github.com/LunaDashWM/LunaDash-docs.git
 cd LunaDash-docs
 npm ci --include=dev --ignore-scripts
 npm run check
