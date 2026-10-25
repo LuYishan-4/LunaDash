@@ -2,6 +2,22 @@
 
 Use the maintained [testing and source map](TESTING_AND_FILES.md) for build, static, runtime and staged-install commands. [Graphics](GRAPHICS.md) distinguishes the Qt OpenGL render-element tests from the active wlroots pixman session checks.
 
+## Run the CI suites locally
+
+```sh
+./scripts/run-tests.sh              # contracts, CTest and the headless runtime sessions
+./scripts/run-tests.sh contracts    # no build: repository, source and packaging checks
+./scripts/run-tests.sh all          # also the installer suites
+```
+
+The runner builds into `build-tests/` (never `build/`), fetches the pinned LunaDash-Shell and
+SlintLu there unless `LUDASH_SHELL_SOURCE_DIR` and `LUDASH_SLINTLU_SOURCE_DIR` name checkouts,
+keeps every check's output in `build-tests/test-logs/` and ends with a pass/fail summary.
+Runtime sessions are headless, run on a private D-Bus without `WAYLAND_DISPLAY`, `DISPLAY` or
+`XDG_SESSION_ID`, so they cannot show notifications, take over portals or register a polkit
+agent on the desktop you start them from. `--no-build` reuses an existing build and
+`--build-dir DIR` picks another one.
+
 For an existing Wayland desktop, `./scripts/test-once.sh` builds and starts a nested session. Its output is `build-once/wayland.log` and `build-once/wayland-state.json`; this helper does not currently capture a screenshot. Inspect a real session for Chrome/Zed, physical input, wallpaper/animation and portal behavior before release promotion.
 
 

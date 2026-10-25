@@ -4,6 +4,20 @@
 
 維護中的完整 build、static、runtime、staged-install 指令都集中在 [TESTING_AND_FILES.md](TESTING_AND_FILES.md)。Graphics 測試要區分兩條不同路徑：[GRAPHICS.md](GRAPHICS.md) 說明 Qt software OpenGL render-element test 與活動 wlroots headless pixman session test 的差異。
 
+## 在本機執行 CI 測試
+
+```sh
+./scripts/run-tests.sh              # contracts、CTest 與 headless runtime 工作階段
+./scripts/run-tests.sh contracts    # 不需建置：repository、原始碼與封裝檢查
+./scripts/run-tests.sh all          # 另外加上 installer 測試
+```
+
+測試會建置到 `build-tests/`（不會動到 `build/`）；若未以 `LUDASH_SHELL_SOURCE_DIR` 與
+`LUDASH_SLINTLU_SOURCE_DIR` 指定原始碼，會把固定版本的 LunaDash-Shell 與 SlintLu 下載到該目錄。每項檢查的輸出都保存在
+`build-tests/test-logs/`，最後列出通過／失敗摘要。Runtime 工作階段都是 headless，在私有 D-Bus 上執行，且不帶
+`WAYLAND_DISPLAY`、`DISPLAY` 與 `XDG_SESSION_ID`，因此不會在你目前的桌面顯示通知、接管 portal 或註冊 polkit agent。
+`--no-build` 沿用現有建置，`--build-dir DIR` 可指定其他建置目錄。
+
 如果已在 Wayland desktop 中：
 
 ```sh

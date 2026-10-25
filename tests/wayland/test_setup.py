@@ -35,6 +35,8 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
         "MESA_GLSL_VERSION_OVERRIDE",
         "LUDASH_SKIP_SETUP",
         "LUDASH_LANGUAGE",
+        # Without it the shell never registers as the login session's polkit agent.
+        "XDG_SESSION_ID",
     ):
         env.pop(name, None)
     control = runtime + "/ludash-setup-control"

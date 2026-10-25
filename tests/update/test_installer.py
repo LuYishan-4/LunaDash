@@ -32,7 +32,8 @@ class InstallerTests(unittest.TestCase):
                         LUDASH_INSTALL_PROGRESS_FILE=str(self.root / "progress"),
                         HOME=str(self.root / "home"), XDG_CONFIG_HOME=str(self.root / "config"),
                         XDG_STATE_HOME=str(self.root / "state"))
-        for name in ("LUDASH_PREFER_PKEXEC", "LUDASH_UPDATE_MODE", "LUDASH_BUILD_DIR"):
+        for name in ("LUDASH_PREFER_PKEXEC", "LUDASH_UPDATE_MODE", "LUDASH_BUILD_DIR",
+                     "LUDASH_SHELL_SOURCE_DIR", "LUDASH_QML_SOURCE_DIR", "LUDASH_SLINTLU_SOURCE_DIR"):
             self.env.pop(name, None)
         agent = self.project / "scripts/lunadash-polkit-agent"
         agent.write_text("#!/bin/bash\nif [[ ${1:-} == --print ]]; then echo available; exit 0; fi\nexec fake-agent\n")
@@ -180,7 +181,14 @@ if "--install" in args:
 ''')
         self.tool("ninja", "pass\n")
         self.tool("cargo", "pass\n")
-        result = self.run_installer("--non-interactive")
+        # Pinned checkouts that the installer would otherwise download.
+        shell = self.root / "shell"
+        slintlu = self.root / "slintlu"
+        shell.mkdir()
+        slintlu.mkdir()
+        (shell / "shell.slint").touch()
+        result = self.run_installer("--non-interactive", extra_env={
+            "LUDASH_SHELL_SOURCE_DIR": str(shell), "LUDASH_SLINTLU_SOURCE_DIR": str(slintlu)})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(any(row[:2] == ["cmake", "--install"] for row in self.events()))
 

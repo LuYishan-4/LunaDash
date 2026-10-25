@@ -57,7 +57,9 @@ with tempfile.TemporaryDirectory(prefix="lunadash-shell-") as runtime:
         "RUST_LOG": "info",
     }
     for name in ("WAYLAND_DISPLAY", "DISPLAY", "NIRI_SOCKET", "SWAYSOCK", "I3SOCK",
-                 "HYPRLAND_INSTANCE_SIGNATURE", "LUNADASH_CONTROL"):
+                 "HYPRLAND_INSTANCE_SIGNATURE", "LUNADASH_CONTROL",
+                 # Without it the shell never registers as the login session's polkit agent.
+                 "XDG_SESSION_ID"):
         env.pop(name, None)
     control = f"{runtime}/{socket_name}-control"
     client_env = env | {"WAYLAND_DISPLAY": socket_name}

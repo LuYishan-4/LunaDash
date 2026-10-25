@@ -50,7 +50,8 @@ def run_session(runtime, config, check):
         "LUDASH_SKIP_SETUP": "1",
         "LANG": "C.UTF-8",
     }
-    for name in ("WAYLAND_DISPLAY", "DISPLAY", "LUNADASH_SHELL"):
+    # Without XDG_SESSION_ID the shell never registers as the login session's polkit agent.
+    for name in ("WAYLAND_DISPLAY", "DISPLAY", "LUNADASH_SHELL", "XDG_SESSION_ID"):
         env.pop(name, None)
     control = Path(runtime) / "session-config-control"
 
