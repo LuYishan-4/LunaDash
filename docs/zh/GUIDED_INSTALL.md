@@ -43,7 +43,10 @@ bash install.sh --dry-run
 3. 將 LunaDash 分支解析成確切提交 SHA，透過 HTTPS 下載該版本，檢查封存檔
    路徑及大小，並以一般使用者建置套件，僅安裝套件時提權。沒有 `.git` 也能
    打包；`.lunadash-revision` 記錄下載版本。`--ref SHA` 可固定桌面原始碼版本，
-   但這不代表對最初下載的安裝腳本另做獨立簽章驗證。
+   但這不代表對最初下載的安裝腳本另做獨立簽章驗證。建置前會詢問 LunaDash 工作
+   階段要啟動哪個桌面殼層：LunaDash 殼層、自訂指令（例如 `waybar`）或不啟動；
+   也可以用 `--shell` 與 `--shell-command` 事先指定。選擇會寫入
+   `~/.config/LunaDash/session.json`（見[桌面殼層](SHELL.md#選擇殼層)），之後可直接修改。
 4. 獨立選擇系統語言，安裝必要字型與輸入法。改動 `locale.gen` 前建立備份；
    不根據國家猜測鍵盤配置或時區。尚無 LunaDash 介面翻譯的語言以英文顯示，
    不影響您選擇的系統語系。

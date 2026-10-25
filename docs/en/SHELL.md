@@ -25,12 +25,48 @@ The compositor looks for the shell next to its executable (`../share/lunadash/sh
 the build's shell checkout and the XDG data directories. When the directory has `shell.slint`
 it starts `slintlu --config <directory>`, preferring the installed
 `libexec/lunadash/slintlu`, then `slintlu` on `PATH`, `~/.cargo/bin` and `~/.local/bin`.
-`lunadash-session` refuses to start a session when no SlintLu is available.
+When session.json selects the LunaDash shell, `lunadash-session` refuses to start a session without SlintLu (`lunadash-compositor --session-shell` prints the selection).
 
 `LUDASH_SHELL_RENDERER` (`auto`, `opengl`, `vulkan`, `software`) becomes `SLINTLU_RENDERER`;
 `auto` leaves the choice, and the fallback, to SlintLu. See [shell rendering](SHELL_RENDERING.md).
 
 A legacy checkout with `shell.qml` is still started with Quickshell, unchanged.
+
+## Choosing a shell
+
+Like Hyprland's `exec-once`, a session can run the LunaDash shell, another shell or none.
+`~/.config/LunaDash/session.json` decides; without it the first
+`$XDG_CONFIG_DIRS/LunaDash/session.json` (normally `/etc/xdg`) applies, and without either the
+LunaDash shell starts.
+
+```json
+{
+  "shell": "custom",
+  "shellCommand": ["waybar"],
+  "launcherCommand": ["fuzzel"],
+  "autostart": [["mako"], ["swaybg", "-i", "/home/me/Pictures/wall.png"]]
+}
+```
+
+- `shell`: `lunadash` (default), `custom` (runs `shellCommand`) or `none`.
+- `launcherCommand`: what Super and the launcher shortcut start when the LunaDash shell is not
+  running. Other shell shortcuts (control center, clipboard, power menu) do nothing then.
+- `autostart`: up to 32 commands started once with the session, whatever the shell.
+- Commands are argument arrays and run without a command shell; use `["sh", "-c", "..."]` for
+  pipes or variables.
+- The Welcome app and setup guide only open with the LunaDash shell.
+- `LUNADASH_SHELL=none` or `LUNADASH_SHELL=lunadash` overrides the file for one session.
+
+A file with an unknown key, a wrong type or a custom shell without `shellCommand` is ignored
+as a whole: the session falls back to the LunaDash shell and logs why. `lunadashctl status`
+shows the active configuration and any error under `session`.
+
+The installers write this file: `install.sh --shell custom --shell-command waybar`, or
+`scripts/install-session.sh --shell none`, and both ask during a guided installation. They
+replace only `shell` (and `shellCommand`) and keep your other keys. With `custom` or `none`,
+`install-session.sh` builds LunaDash with `-DLUDASH_INSTALL_SHELL=OFF`: no shell files and no
+SlintLu are built or installed, and `/etc/xdg/LunaDash/session.json` defaults to `none`. The
+Arch package always contains the LunaDash shell.
 
 ## What the shell receives from LunaDash
 

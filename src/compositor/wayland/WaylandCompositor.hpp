@@ -2,6 +2,7 @@
 
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/window/animation/WindowAnimation.hpp"
+#include "config/session/SessionConfig.hpp"
 #include "core/process/ProcessRunner.hpp"
 #include "core/process/ProcessEnvironment.hpp"
 #include <cstdint>
@@ -102,6 +103,8 @@ private:
   std::uint64_t scratchpadGeneration_ = 0;
   std::string scratchpadError_;
   bool launcherVisible_ = false;
+  // The shell, launcher and autostart commands from session.json.
+  SessionConfig session_;
   const WindowTemplate *windowTemplate_ = nullptr;
   std::unique_ptr<WindowLayout> windowLayout_;
   bool shuttingDown_ = false;

@@ -16,6 +16,9 @@ setup_apps=''
 setup_author=false
 setup_desktop=false
 setup_requested=false
+# Desktop shell for LunaDash sessions (session.json): lunadash, custom or none.
+shell_choice=''
+shell_command=''
 # Keep first-install choices separate from the established update/build path.
 source "$project_dir/scripts/setup-guide.sh"
 
@@ -30,7 +33,8 @@ report_progress() {
 usage() {
     cat <<'EOF'
 Usage: ./scripts/install-session.sh [--guided|--skip-guide] [--apps GROUPS]
-       [--author-config] [--desktop-profile] [--enable-sddm] [--autologin USER]
+       [--author-config] [--desktop-profile] [--shell lunadash|custom|none]
+       [--shell-command CMD] [--enable-sddm] [--autologin USER]
        [--skip-deps] [--non-interactive] [--dry-run]
 
 Supported installation paths:
@@ -54,6 +58,14 @@ Options:
                   inspired by the author's settings. Existing files are preserved.
   --desktop-profile
                   Seed the LunaDash top-panel profile only if no profile exists.
+  --shell MODE    Desktop shell for LunaDash sessions, like Hyprland's exec-once:
+                  lunadash (the LunaDash shell, default), custom (your own bar or
+                  shell, see --shell-command) or none. Written to
+                  ~/.config/LunaDash/session.json; other keys there are kept.
+                  With custom or none the CMake path skips the LunaDash shell and
+                  SlintLu; the Arch package always contains them.
+  --shell-command CMD
+                  The custom shell's command line, for example 'waybar'.
   --enable-sddm   Install/enable SDDM on systemd systems; never restart a desktop.
   --autologin USER
                   Opt into passwordless SDDM login for this user on boot.
@@ -90,6 +102,16 @@ while (($#)); do
             ;;
         --author-config) setup_author=true; setup_requested=true ;;
         --desktop-profile) setup_desktop=true; setup_requested=true ;;
+        --shell)
+            (($# >= 2)) && [[ $2 == lunadash || $2 == custom || $2 == none ]] || { usage >&2; exit 2; }
+            shell_choice=$2
+            shift
+            ;;
+        --shell-command)
+            (($# >= 2)) && [[ -n $2 ]] || { usage >&2; exit 2; }
+            shell_command=$2
+            shift
+            ;;
         --non-interactive) non_interactive=true ;;
         --dry-run) dry_run=true ;;
         --help|-h) usage; exit 0 ;;
@@ -104,6 +126,15 @@ if $non_interactive && { ! $skip_deps || $enable_sddm || [[ -n $autologin ]]; };
 fi
 if $non_interactive && { [[ $guide_mode == always ]] || $setup_requested; }; then
     echo 'First-install choices are unavailable during non-interactive updates.' >&2
+    exit 2
+fi
+
+if [[ -n $shell_command && $shell_choice != custom ]]; then
+    echo '--shell-command needs --shell custom.' >&2
+    exit 2
+fi
+if [[ $shell_choice == custom && -z $shell_command ]]; then
+    echo '--shell custom needs --shell-command.' >&2
     exit 2
 fi
 
@@ -270,7 +301,12 @@ else
     done
     command -v cargo >/dev/null 2>&1 || { echo 'cargo is required to build Slint and SlintLu. Run bash scripts/install-dependencies.sh first.' >&2; exit 1; }
     shell_override=${LUDASH_SHELL_SOURCE_DIR:-${LUDASH_QML_SOURCE_DIR:-}}
-    if [[ -n $shell_override ]]; then
+    install_shell=ON
+    [[ ${shell_choice:-lunadash} == lunadash ]] || install_shell=OFF
+    if [[ $install_shell == OFF ]]; then
+        # A custom shell or none: neither the LunaDash shell nor SlintLu is built.
+        shell_source_dir=''
+    elif [[ -n $shell_override ]]; then
         shell_source_dir=$(cd -- "$shell_override" && pwd)
         [[ -f $shell_source_dir/shell.slint || -f $shell_source_dir/shell.qml ]] || {
             printf 'LUDASH_SHELL_SOURCE_DIR does not contain shell.slint: %s\n' "$shell_source_dir" >&2
@@ -284,7 +320,9 @@ else
         shell_source_dir="$shell_work/source"
         run bash "$project_dir/scripts/fetch-shell.sh" "$shell_source_dir"
     fi
-    if [[ -n ${LUDASH_SLINTLU_SOURCE_DIR:-} ]]; then
+    if [[ $install_shell == OFF ]]; then
+        slintlu_source_dir=''
+    elif [[ -n ${LUDASH_SLINTLU_SOURCE_DIR:-} ]]; then
         slintlu_source_dir=$(cd -- "$LUDASH_SLINTLU_SOURCE_DIR" && pwd)
     elif $dry_run; then
         slintlu_source_dir="${TMPDIR:-/tmp}/lunadash-slintlu-pinned"
@@ -297,6 +335,7 @@ else
     report_progress 44 configure "Configuring the LunaDash release build."
     run cmake -S "$project_dir" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+        -DLUDASH_INSTALL_SHELL="$install_shell" \
         -DLUDASH_SHELL_SOURCE_DIR="$shell_source_dir" \
         -DLUDASH_SLINTLU_SOURCE_DIR="$slintlu_source_dir"
     report_progress 58 build "Building LunaDash."
@@ -343,6 +382,11 @@ if [[ -n $autologin ]]; then
 fi
 
 setup_write_profile
+if [[ -n $shell_choice ]]; then
+    shell_args=(python3 "$project_dir/scripts/setup-profile.py" --shell "$shell_choice")
+    [[ -z $shell_command ]] || shell_args+=(--shell-command "$shell_command")
+    run "${shell_args[@]}"
+fi
 
 if $dry_run; then
     echo "Dry run complete for installation path: $package_manager"

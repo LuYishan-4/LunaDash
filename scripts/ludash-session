@@ -4,10 +4,15 @@ check_only=0
 if [ "${1:-}" = --check ]; then check_only=1; shift; fi
 session_bin=$(CDPATH= cd -- "$(dirname -- "$(readlink -f -- "$0")")" && pwd)
 if [ "$(id -u)" = 0 ]; then echo 'LunaDash must run as a normal login user, not root.' >&2; exit 1; fi
-# Only the shell runtime is required to bring up the desktop: SlintLu, installed with LunaDash
-# (libexec/lunadash/slintlu) or on PATH. A terminal (kitty) and a shell are optional
-# defaults: missing them must not block login.
-if [ ! -x "$session_bin/../libexec/lunadash/slintlu" ] && ! command -v slintlu >/dev/null; then
+compositor="$session_bin/lunadash-compositor"
+if [ ! -x "$compositor" ]; then compositor="$session_bin/ludash-compositor"; fi
+if [ ! -x "$compositor" ]; then echo 'Install LunaDash before using lunadash-session.' >&2; exit 1; fi
+# Only the shell runtime is required to bring up the LunaDash desktop: SlintLu, installed with
+# LunaDash (libexec/lunadash/slintlu) or on PATH. A custom shell or none (session.json) needs
+# neither. A terminal (kitty) is an optional default: missing it must not block login.
+session_shell=$("$compositor" --session-shell 2>/dev/null || echo lunadash)
+if [ "$session_shell" = lunadash ] && [ ! -x "$session_bin/../libexec/lunadash/slintlu" ] &&
+    ! command -v slintlu >/dev/null; then
     echo 'Missing session dependency: slintlu (the LunaDash shell runtime)' >&2
     exit 1
 fi
@@ -25,9 +30,6 @@ fi
 for program in kitty; do
     command -v "$program" >/dev/null || echo "Note: optional default terminal '$program' is not installed." >&2
 done
-compositor="$session_bin/lunadash-compositor"
-if [ ! -x "$compositor" ]; then compositor="$session_bin/ludash-compositor"; fi
-if [ ! -x "$compositor" ]; then echo 'Install LunaDash before using lunadash-session.' >&2; exit 1; fi
 if [ -z "${XDG_RUNTIME_DIR:-}" ] || [ ! -d "$XDG_RUNTIME_DIR" ] || [ ! -O "$XDG_RUNTIME_DIR" ]; then
     echo 'A user-owned XDG_RUNTIME_DIR from a PAM/logind login is required.' >&2; exit 1
 fi

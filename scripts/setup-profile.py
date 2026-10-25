@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -64,6 +65,37 @@ def create_missing(path, content, created):
         output.write(content)
     created.append({"path": str(path), "sha256": hashlib.sha256(content).hexdigest()})
     print(f"Created: {path}")
+
+
+SHELLS = ("lunadash", "custom", "none")
+
+
+def write_session(config, shell, command=""):
+    """Record the desktop shell choice in LunaDash/session.json.
+
+    This is an explicit choice, so it replaces "shell" (and "shellCommand" for a custom shell)
+    while every other key the user wrote, such as "autostart", is kept.
+    """
+    if shell not in SHELLS:
+        raise ValueError(f"The shell must be one of: {', '.join(SHELLS)}")
+    arguments = shlex.split(command) if command else []
+    if shell == "custom" and not arguments:
+        raise ValueError("A custom shell needs a command, for example --shell-command waybar")
+    path = config / "LunaDash/session.json"
+    plain_path(path)
+    document = {}
+    if path.exists():
+        document = json.loads(path.read_text())
+        if not isinstance(document, dict):
+            raise ValueError(f"{path} does not contain a JSON object; fix or remove it first")
+    document["shell"] = shell
+    if arguments:
+        document["shellCommand"] = arguments
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(document, indent=2) + "\n")
+    os.replace(temporary, path)
+    print(f"Desktop shell: {shell}{' (' + ' '.join(arguments) + ')' if arguments else ''} in {path}")
 
 
 def seed(config, state, desktop=False, author=False, complete=False, apps="none"):
@@ -129,11 +161,19 @@ def main():
     parser.add_argument("--author-config", action="store_true")
     parser.add_argument("--complete", action="store_true")
     parser.add_argument("--apps", default="none")
+    parser.add_argument("--shell", choices=SHELLS,
+                        help="desktop shell for LunaDash sessions (written to session.json)")
+    parser.add_argument("--shell-command", default="",
+                        help="the custom shell's command line, for example 'waybar -c ~/bar'")
     args = parser.parse_args()
+    if args.shell_command and args.shell != "custom":
+        parser.error("--shell-command needs --shell custom")
     if os.geteuid() == 0:
         parser.error("Run setup as your normal user.")
     config = xdg_path("XDG_CONFIG_HOME", str(Path.home() / ".config"))
     state = xdg_path("XDG_STATE_HOME", str(Path.home() / ".local/state"))
+    if args.shell:
+        write_session(config, args.shell, args.shell_command)
     seed(
         config,
         state,

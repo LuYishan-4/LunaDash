@@ -77,14 +77,38 @@ EOF
     else
         echo 'Optional app bundles currently target Arch. Core installation and editable profiles work on the other supported installer paths.'
     fi
+    if [[ -z $shell_choice ]]; then
+        cat <<'EOF'
+
+Desktop shell: what draws the panel, dock, launcher and notifications.
+  1) LunaDash shell (recommended)
+  2) Your own command, for example waybar or a Quickshell config
+  3) None: only the compositor and the autostart list in session.json
+EOF
+        local answer
+        while [[ -z $shell_choice ]]; do
+            printf 'Choose 1, 2 or 3 [1] '
+            IFS= read -r answer || { echo 'Setup cancelled before installation.' >&2; exit 1; }
+            case "${answer:-1}" in
+                1) shell_choice=lunadash ;;
+                2) shell_choice=custom ;;
+                3) shell_choice=none ;;
+                *) echo 'Enter 1, 2 or 3.' ;;
+            esac
+        done
+        while [[ $shell_choice == custom && -z $shell_command ]]; do
+            printf 'Shell command: '
+            IFS= read -r shell_command || { echo 'Setup cancelled before installation.' >&2; exit 1; }
+        done
+    fi
     if ! $setup_desktop && setup_ask 'Create the editable LunaDash panel profile when missing?' yes; then
         setup_desktop=true
     fi
     if ! $setup_author && setup_ask 'Add portable author-inspired terminal templates when missing?' yes; then
         setup_author=true
     fi
-    printf '\nInstallation: LunaDash core\nOptional groups: %s\nDesktop profile: %s\nTerminal templates: %s\n' \
-        "${setup_apps:-none}" "$setup_desktop" "$setup_author"
+    printf '\nInstallation: LunaDash core\nDesktop shell: %s\nOptional groups: %s\nDesktop profile: %s\nTerminal templates: %s\n' \
+        "${shell_choice}${shell_command:+ ($shell_command)}" "${setup_apps:-none}" "$setup_desktop" "$setup_author"
     setup_ask 'Continue with these choices?' yes || { echo 'Setup cancelled before installation.'; exit 0; }
 }
 

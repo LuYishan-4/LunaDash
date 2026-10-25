@@ -15,7 +15,13 @@ if(DEFINED LUDASH_QML_SOURCE_DIR AND NOT DEFINED LUDASH_SHELL_SOURCE_DIR)
 endif()
 set(LUDASH_SHELL_SOURCE_DIR "${LUDASH_SHELL_DEFAULT_DIR}" CACHE PATH
     "External LunaDash-Shell checkout used for development and installation")
-if(NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.slint" AND
+# OFF builds the compositor for a custom shell or none (session.json): no shell files and no
+# SlintLu are built or installed.
+option(LUDASH_INSTALL_SHELL "Build and install the LunaDash shell and SlintLu" ON)
+if(NOT LUDASH_INSTALL_SHELL)
+    set(LUDASH_SHELL_SOURCE_DIR "" CACHE PATH "" FORCE)
+    set(LUDASH_SLINTLU_SOURCE_DIR "" CACHE PATH "" FORCE)
+elseif(NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.slint" AND
    NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.qml")
     message(FATAL_ERROR
         "LunaDash-Shell source is required. Run scripts/fetch-shell.sh <directory> and configure with -DLUDASH_SHELL_SOURCE_DIR=<directory>.")

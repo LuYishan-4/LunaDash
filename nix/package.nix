@@ -22,6 +22,9 @@ let
     cargoDeps = slintCargoDeps;
     buildInputs = [ wayland libxkbcommon fontconfig freetype libGL ];
     cmakeFlags = [
+      # SlintConfig.cmake joins its install prefix and CMAKE_INSTALL_BINDIR to find
+      # slint-compiler; the absolute directory the Nix hook passes would repeat the prefix.
+      "-DCMAKE_INSTALL_BINDIR=bin"
       "-DSLINT_FEATURE_BACKEND_QT=OFF"
       "-DSLINT_FEATURE_BACKEND_WINIT=OFF"
       "-DSLINT_FEATURE_BACKEND_WINIT_WAYLAND=ON"

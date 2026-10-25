@@ -88,7 +88,7 @@ class InstallerTests(unittest.TestCase):
             process.wait(timeout=3)
             os.close(master)
 
-    def answers(self, language='2', selection=None, locale='0'):
+    def answers(self, language='2', selection=None, locale='0', shell=('1',)):
         answers = [language, 'y']
         if not shutil.which('yay', path=self.env['PATH']):
             answers.append('y')
@@ -96,6 +96,7 @@ class InstallerTests(unittest.TestCase):
             answers.append('n')
         else:
             answers += ['y', selection, 'done', 'y']
+        answers += list(shell)
         answers.append(locale)
         if locale != '0':
             answers.append('y')
@@ -141,6 +142,13 @@ class InstallerTests(unittest.TestCase):
         self.assertIn('Invalid selection; no choices changed.', output)
         self.assertFalse((self.home / 'should-not-exist').exists())
 
+    def test_custom_shell_choice_is_recorded(self):
+        code, output = self.pipeline(self.answers(shell=('4', '2', 'waybar -c bar')), '--dry-run')
+        self.assertEqual(code, 0, output)
+        self.assertIn('Enter 1, 2 or 3.', output)
+        self.assertIn('Write desktop shell "custom"', output)
+        self.assertFalse((self.home / 'config').exists())
+
     def test_declining_base_stops_before_optional_apps(self):
         code, output = self.pipeline(['2', 'n'], '--dry-run')
         self.assertEqual(code, 0, output)
@@ -157,7 +165,9 @@ class InstallerTests(unittest.TestCase):
     def test_help_and_invalid_arguments_need_no_terminal(self):
         for arguments, expected in [(['--help'], 0), (['--unknown'], 2),
                                      (['--ref', 'dev;touch nope'], 2),
-                                     (['--language', 'invalid'], 2)]:
+                                     (['--language', 'invalid'], 2),
+                                     (['--shell', 'plasma'], 2),
+                                     (['--shell', 'none', '--shell-command', 'waybar'], 2)]:
             result = subprocess.run(['bash', str(SCRIPT), *arguments], env=self.env,
                                     stdin=subprocess.DEVNULL, capture_output=True,
                                     timeout=5, start_new_session=True)

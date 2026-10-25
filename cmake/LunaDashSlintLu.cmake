@@ -8,6 +8,7 @@ if(LUDASH_SLINTLU_SOURCE_DIR)
     if(NOT EXISTS "${LUDASH_SLINTLU_SOURCE_DIR}/Cargo.toml")
         message(FATAL_ERROR "LUDASH_SLINTLU_SOURCE_DIR does not contain Cargo.toml: ${LUDASH_SLINTLU_SOURCE_DIR}")
     endif()
+    find_program(LUDASH_CARGO cargo REQUIRED)
     set(LUDASH_SLINTLU_TARGET_DIR "${CMAKE_CURRENT_BINARY_DIR}/slintlu")
     set(LUDASH_SLINTLU_BINARY "${LUDASH_SLINTLU_TARGET_DIR}/release/slintlu")
     # Cargo tracks its own inputs; always ask it, it returns quickly when nothing changed.

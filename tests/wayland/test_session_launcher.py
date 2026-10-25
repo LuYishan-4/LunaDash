@@ -50,7 +50,8 @@ os.execvp(sys.argv[2], sys.argv[2:])
     )
     executable(
         "ludash-compositor",
-        f'#!{sys.executable}\nimport json, os, sys\nfrom pathlib import Path\nPath(os.environ["TEST_RECORD"]).write_text(json.dumps({{"args": sys.argv[1:], "env": dict(os.environ)}}))\n',
+        # The session script first asks which shell session.json selects; that is not a launch.
+        f'#!{sys.executable}\nimport json, os, sys\nfrom pathlib import Path\nif sys.argv[1:] == ["--session-shell"]:\n    print(os.environ.get("TEST_SESSION_SHELL", "lunadash"))\n    raise SystemExit\nPath(os.environ["TEST_RECORD"]).write_text(json.dumps({{"args": sys.argv[1:], "env": dict(os.environ)}}))\n',
     )
     record = folder / "launch.json"
     dbus_record = folder / "dbus.json"

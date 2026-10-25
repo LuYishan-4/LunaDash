@@ -116,6 +116,10 @@ if(BUILD_TESTING)
     add_test(NAME lunadash-session-environment
         COMMAND lunadash-session-environment-test)
 
+    add_executable(lunadash-session-config-test tests/session/SessionConfigTests.cpp)
+    target_link_libraries(lunadash-session-config-test PRIVATE ludash-session-config)
+    add_test(NAME lunadash-session-config COMMAND lunadash-session-config-test)
+
     add_executable(lunadash-session-services-test
         tests/session/SessionServicesTests.cpp)
     target_link_libraries(lunadash-session-services-test

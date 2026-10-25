@@ -10,6 +10,9 @@ log_file=
 dry_run=false
 requested_language=
 source_ref=dev
+# Desktop shell for LunaDash sessions (session.json): lunadash, custom or none.
+shell_choice=
+shell_command=
 readonly repository=LuYishan-4/LunaDash
 readonly -a base_packages=(base base-devel glibc git curl wget ca-certificates
     openssh unzip zip tar xz gzip bzip2 zstd rsync nano less man-db man-pages
@@ -76,6 +79,7 @@ help() {
     cat <<'HELP'
 LunaDash installer (Arch Linux x86_64)
 Usage: install.sh [--dry-run] [--language en|zh_TW] [--ref BRANCH_OR_SHA]
+                  [--shell lunadash|custom|none] [--shell-command CMD]
 
 curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/LuYishan-4/LunaDash/dev/install.sh | bash
 
@@ -85,6 +89,9 @@ build AUR packages. Review this script before running code fetched from a URL.
 --dry-run prints the plan without downloads, package installs or config writes.
 It still uses a terminal for the language, application and locale choices.
 Script language does not set LANG, system locale, keyboard layout or timezone.
+--shell picks what LunaDash sessions start besides the compositor: the LunaDash
+shell, your own command (--shell-command, for example waybar) or none. It is
+written to ~/.config/LunaDash/session.json; without it the installer asks.
 The existing scripts/install-session.sh remains the developer/testing entry.
 HELP
 }
@@ -225,6 +232,38 @@ choose_apps() {
     yes_no 'Install this selection? Existing packages will not be removed.' '安裝以上選項？不會移除未選取或已安裝的軟體。' || return 0
     if ((${#official[@]})); then as_root pacman -S --needed "${official[@]}"; fi
     if ((${#aur[@]})); then run yay -S --needed "${aur[@]}"; fi
+}
+choose_shell() {
+    stage=shell
+    if [[ -z $shell_choice ]]; then
+        say 'Desktop shell: what draws the panel, dock, launcher and notifications.' \
+            '桌面殼層：負責面板、Dock、啟動器與通知的程式。'
+        say '  1) LunaDash shell (recommended)  2) your own command, e.g. waybar  3) none' \
+            '  1) LunaDash 殼層（建議）  2) 自訂指令，例如 waybar  3) 不安裝殼層'
+        while [[ -z $shell_choice ]]; do
+            ask 'Choose 1, 2 or 3.' '請輸入 1、2 或 3。'
+            case "${answer:-1}" in
+                1) shell_choice=lunadash ;;
+                2) shell_choice=custom ;;
+                3) shell_choice=none ;;
+                *) say 'Enter 1, 2 or 3.' '請輸入 1、2 或 3。' ;;
+            esac
+        done
+    fi
+    while [[ $shell_choice == custom && -z $shell_command ]]; do
+        ask 'Shell command (for example: waybar):' '殼層指令（例如：waybar）：'
+        shell_command=$answer
+    done
+}
+write_shell_choice() {
+    stage=shell-config
+    if $dry_run; then
+        printf '+ Write desktop shell "%s" to ~/.config/LunaDash/session.json\n' "$shell_choice"
+        return
+    fi
+    local -a command=(python3 "$source_dir/scripts/setup-profile.py" --shell "$shell_choice")
+    [[ -z $shell_command ]] || command+=(--shell-command "$shell_command")
+    run "${command[@]}"
 }
 download_source() {
     stage=desktop-source
@@ -403,6 +442,13 @@ main() {
                 (($# >= 2)) || { help >&2; return 2; }
                 requested_language=$2; shift
                 [[ $requested_language == en || $requested_language == zh_TW ]] || return 2 ;;
+            --shell)
+                (($# >= 2)) || { help >&2; return 2; }
+                shell_choice=$2; shift
+                [[ $shell_choice == lunadash || $shell_choice == custom || $shell_choice == none ]] || return 2 ;;
+            --shell-command)
+                (($# >= 2)) && [[ -n $2 ]] || { help >&2; return 2; }
+                shell_command=$2; shift ;;
             --ref)
                 (($# >= 2)) || return 2
                 source_ref=$2; shift
@@ -411,6 +457,10 @@ main() {
         esac
         shift
     done
+    if [[ -n $shell_command && $shell_choice != custom ]]; then
+        printf -- '--shell-command needs --shell custom.\n' >&2
+        return 2
+    fi
     # Open this before any prompt. No fallback to stdin: it may be the curl pipe.
     if ! { exec 3</dev/tty; } 2>/dev/null; then
         printf 'A terminal is required / 需要互動終端。Download the script and run it in a terminal.\n' >&2
@@ -424,7 +474,9 @@ main() {
     preflight
     bootstrap
     choose_apps
+    choose_shell
     download_source
+    write_shell_choice
     choose_locale
     configure_login
 }

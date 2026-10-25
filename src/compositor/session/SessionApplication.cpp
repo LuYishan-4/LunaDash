@@ -1,6 +1,7 @@
 #include "compositor/session/SessionApplication.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "config/BuildConfig.hpp"
+#include "config/session/SessionConfig.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
 #include "core/log/Log.hpp"
 #include "core/text/Text.hpp"
@@ -31,6 +32,7 @@ struct SessionOptions {
   bool demo = false;
   bool help = false;
   bool version = false;
+  bool sessionShell = false;
 };
 
 // Parses the command line. On failure, returns no options and stores a
@@ -59,6 +61,8 @@ std::optional<SessionOptions> parseOptions(int argc, char **argv,
       options.help = true;
     } else if (argument == "--version") {
       options.version = true;
+    } else if (argument == "--session-shell") {
+      options.sessionShell = true;
     } else if (argument == "--nested") {
       options.nested = true;
     } else if (argument == "--profile") {
@@ -116,6 +120,7 @@ void printHelp() {
       << "Usage: lunadash-compositor [options]\n"
       << "  --help                 Show this help\n"
       << "  --version              Show version\n"
+      << "  --session-shell        Print the shell session.json selects (lunadash, custom, none)\n"
       << "  --graphics <api>       Renderer: auto, opengl, gles, or vulkan\n"
       << "  --socket <name>        Wayland socket name\n"
       << "  --nested               Run with the nested wlroots backend\n"
@@ -167,6 +172,13 @@ int SessionApplication::run(int argc, char **argv) {
   }
   if (options.version) {
     std::cout << applicationVersion << '\n';
+    return 0;
+  }
+  if (options.sessionShell) {
+    const auto session = loadSessionConfig();
+    if (!session.error.empty())
+      std::cerr << session.source.string() << ": " << session.error << '\n';
+    std::cout << sessionShellName(session.shell) << '\n';
     return 0;
   }
 

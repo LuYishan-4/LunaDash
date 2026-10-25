@@ -503,14 +503,34 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
       }
     }
 
-    spawn({"--session"}, {}, false);
+    session_ = loadSessionConfig();
+    if (!session_.error.empty())
+      logWarning("Ignoring %s: %s", session_.source.c_str(), session_.error.c_str());
+    std::string error;
+    switch (session_.shell) {
+    case SessionConfig::Shell::LunaDash:
+      spawn({"--session"}, {}, false);
+      break;
+    case SessionConfig::Shell::Custom:
+      logInfo("LunaDash shell: custom (%s)", session_.shellCommand.front().c_str());
+      if (!launchExternalCommand(session_.shellCommand, &error))
+        logWarning("The custom shell could not start: %s", error.c_str());
+      break;
+    case SessionConfig::Shell::None:
+      logInfo("LunaDash shell: none");
+      break;
+    }
+    for (const auto &command : session_.autostart)
+      if (!launchExternalCommand(command, &error))
+        logWarning("Autostart %s failed: %s", command.front().c_str(), error.c_str());
 
     // A first session opens the Welcome app, which finishes setup; later sessions start the
     // user's startup apps. Either waits briefly so the shell's layers map first.
     d->scheduleCallback(1200, [this] {
       if (testStopping_ || shuttingDown_)
         return;
-      if (!setupComplete()) {
+      // Setup belongs to the LunaDash desktop; other shells bring their own first run.
+      if (!setupComplete() && session_.shell == SessionConfig::Shell::LunaDash) {
         spawn({"--app", "welcome"});
         return;
       }
@@ -1639,6 +1659,14 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
     shellActionSerial_ =
         shellActionSerial_ >= 999999 ? 1 : shellActionSerial_ + 1;
   } else if (action == "launchLauncher") {
+    // Without the LunaDash shell the launcher is whatever session.json names.
+    if (session_.shell != SessionConfig::Shell::LunaDash) {
+      std::string error;
+      if (!session_.launcherCommand.empty() &&
+          !launchExternalCommand(session_.launcherCommand, &error))
+        logWarning("The launcher could not start: %s", error.c_str());
+      return;
+    }
     setLauncherVisible(!launcherVisible_);
     // The interaction channel is owner-only and publishes within one frame,
     // avoiding the shell status poll latency for an input shortcut.
@@ -1906,6 +1934,7 @@ Json WaylandCompositor::state(bool includeTranslations) const {
       {"blurError", d && d->windowGlass
                         ? (d->windowGlass->error())
                         : std::string()},
+      {"session", session_.describe()},
       {"activeAnimations",
        windowAnimations_ ? windowAnimations_->activeCount() : 0},
       {"xwayland", xwaylandState},

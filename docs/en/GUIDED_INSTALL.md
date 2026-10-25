@@ -54,7 +54,11 @@ the requested characters.
    the user. Only package installation is privileged. The source archive works
    without `.git`; `.lunadash-revision` records the fetched commit. `--ref SHA`
    can pin the desktop source. This is provenance, not an independent signature
-   verification of the initially downloaded installer.
+   verification of the initially downloaded installer. Before the build it asks
+   which desktop shell LunaDash sessions start: the LunaDash shell, your own
+   command (for example `waybar`) or none; `--shell` and `--shell-command` answer
+   this ahead of time. The choice goes to `~/.config/LunaDash/session.json`
+   ([desktop shell](SHELL.md#choosing-a-shell)) and can be changed there later.
 4. Choose a system locale independently, add its fonts/input method support,
    and back up `locale.gen` before changing it. Keyboard layout and timezone are
    not guessed from country. A missing LunaDash UI translation falls back to

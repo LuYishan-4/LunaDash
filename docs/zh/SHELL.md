@@ -24,12 +24,44 @@ SlintLu commit。`scripts/fetch-shell.sh` 與 `scripts/fetch-slintlu.sh` 會下�
 合成器會先在執行檔旁（`../share/lunadash/shell`）尋找殼層，再找建置時的殼層 checkout 與 XDG
 資料目錄。目錄中有 `shell.slint` 時，會執行 `slintlu --config <目錄>`，並優先使用安裝的
 `libexec/lunadash/slintlu`，其次是 `PATH`、`~/.cargo/bin` 與 `~/.local/bin` 中的 `slintlu`。
-找不到 SlintLu 時，`lunadash-session` 會拒絕啟動工作階段。
+session.json 選擇 LunaDash 殼層而找不到 SlintLu 時，`lunadash-session` 會拒絕啟動工作階段（`lunadash-compositor --session-shell` 會印出目前的選擇）。
 
 `LUDASH_SHELL_RENDERER`（`auto`、`opengl`、`vulkan`、`software`）會轉為 `SLINTLU_RENDERER`；
 `auto` 則交由 SlintLu 自行選擇並自動備援。詳見[殼層渲染](SHELL_RENDERING.md)。
 
 含有 `shell.qml` 的舊版 checkout 仍會照舊以 Quickshell 啟動。
+
+## 選擇殼層
+
+和 Hyprland 的 `exec-once` 類似，工作階段可以執行 LunaDash 殼層、其他殼層，或不執行殼層。
+由 `~/.config/LunaDash/session.json` 決定；沒有這個檔案時使用第一個
+`$XDG_CONFIG_DIRS/LunaDash/session.json`（通常是 `/etc/xdg`）；兩者都沒有時啟動 LunaDash 殼層。
+
+```json
+{
+  "shell": "custom",
+  "shellCommand": ["waybar"],
+  "launcherCommand": ["fuzzel"],
+  "autostart": [["mako"], ["swaybg", "-i", "/home/me/Pictures/wall.png"]]
+}
+```
+
+- `shell`：`lunadash`（預設）、`custom`（執行 `shellCommand`）或 `none`。
+- `launcherCommand`：沒有執行 LunaDash 殼層時，Super 鍵與啟動器快捷鍵要啟動的程式。其他殼層快捷鍵
+  （控制中心、剪貼簿、電源選單）此時不會有動作。
+- `autostart`：最多 32 個指令，不論使用哪個殼層，都會在工作階段開始時各啟動一次。
+- 指令是參數陣列，不經過 command shell 執行；需要管線或變數時請用 `["sh", "-c", "..."]`。
+- Welcome 程式與設定精靈只在使用 LunaDash 殼層時開啟。
+- `LUNADASH_SHELL=none` 或 `LUNADASH_SHELL=lunadash` 可在單次工作階段覆寫設定檔。
+
+檔案中有未知 key、型別錯誤，或 custom 殼層沒有 `shellCommand` 時，整個檔案都會被忽略：工作階段改用
+LunaDash 殼層並在 log 中說明原因。`lunadashctl status` 的 `session` 欄位會顯示目前的設定與錯誤。
+
+安裝程式會寫入這個檔案：`install.sh --shell custom --shell-command waybar` 或
+`scripts/install-session.sh --shell none`，引導安裝時兩者也都會詢問。安裝程式只會替換 `shell`
+（以及 `shellCommand`），其他 key 會保留。選擇 `custom` 或 `none` 時，`install-session.sh` 會以
+`-DLUDASH_INSTALL_SHELL=OFF` 建置：不建置也不安裝殼層檔案與 SlintLu，且
+`/etc/xdg/LunaDash/session.json` 預設為 `none`。Arch 套件一律包含 LunaDash 殼層。
 
 ## 殼層從 LunaDash 取得的內容
 

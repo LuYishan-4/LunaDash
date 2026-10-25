@@ -202,6 +202,7 @@ jobs:
           {
             "$PWD/build-main/slintlu/release/slintlu" check "$RUNNER_TEMP/LunaDash-Shell"
             dbus-run-session -- python3 tests/wayland/test_session_shell.py build-main
+            dbus-run-session -- python3 tests/wayland/test_session_config.py build-main
           } 2>&1 | tee runtime-shell.log
       - name: Relocated software OpenGL renderer
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

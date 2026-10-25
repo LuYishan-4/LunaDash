@@ -87,6 +87,30 @@ class SetupProfileTests(unittest.TestCase):
         self.assertNotIn("noctalia.conf", sources)
         self.assertNotIn("nyxniri", sources.lower())
 
+    def test_shell_choice_updates_session_json_and_keeps_other_keys(self):
+        session = self.config / "LunaDash/session.json"
+        profile.write_session(self.config, "custom", "waybar -c '/path with spaces/bar'")
+        self.assertEqual(json.loads(session.read_text()),
+                         {"shell": "custom", "shellCommand": ["waybar", "-c", "/path with spaces/bar"]})
+        document = json.loads(session.read_text())
+        document["autostart"] = [["mako"]]
+        session.write_text(json.dumps(document))
+        profile.write_session(self.config, "none")
+        document = json.loads(session.read_text())
+        self.assertEqual(document["shell"], "none")
+        self.assertEqual(document["autostart"], [["mako"]])
+
+    def test_invalid_shell_choices_write_nothing(self):
+        for shell, command in (("custom", ""), ("plasma", "")):
+            with self.assertRaises(ValueError):
+                profile.write_session(self.config, shell, command)
+        self.assertFalse((self.config / "LunaDash/session.json").exists())
+        (self.config / "LunaDash").mkdir(parents=True)
+        (self.config / "LunaDash/session.json").write_text("[]")
+        with self.assertRaisesRegex(ValueError, "JSON object"):
+            profile.write_session(self.config, "none")
+        self.assertEqual((self.config / "LunaDash/session.json").read_text(), "[]")
+
 
 if __name__ == "__main__":
     unittest.main()

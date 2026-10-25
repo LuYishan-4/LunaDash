@@ -151,6 +151,27 @@ assert "QT_QPA_PLATFORMTHEME" not in os.environ
         self.assertFalse(any(row[0] in ("pkexec", "sudo", "pacman") for row in self.events()))
         self.assertFalse((self.project / "packaging/arch/ludash.pkg.tar.zst").exists())
 
+    def test_custom_shell_skips_the_lunadash_shell_and_records_the_choice(self):
+        (self.bin / "pacman").unlink()
+        for name in ("cmake", "ninja", "cargo", "python3"):
+            self.tool(name, "pass\n")
+        result = self.run_installer("--non-interactive", "--shell", "custom",
+                                    "--shell-command", "waybar -c 'my bar'")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        configure = next(row for row in self.events() if row[0] == "cmake" and "-S" in row)
+        self.assertIn("-DLUDASH_INSTALL_SHELL=OFF", configure)
+        self.assertIn("-DLUDASH_SHELL_SOURCE_DIR=", configure)
+        self.assertIn("-DLUDASH_SLINTLU_SOURCE_DIR=", configure)
+        profile = next(row for row in self.events() if row[0] == "python3")
+        self.assertEqual(profile[-4:], ["--shell", "custom", "--shell-command", "waybar -c 'my bar'"])
+
+    def test_shell_options_are_validated(self):
+        for options in (("--shell", "plasma"), ("--shell", "custom"),
+                        ("--shell", "none", "--shell-command", "waybar")):
+            result = self.run_installer("--non-interactive", *options)
+            self.assertEqual(result.returncode, 2, options)
+        self.assertEqual(self.events(), [])
+
     def test_cmake_install_uses_the_same_authorization_flow(self):
         (self.bin / "pacman").unlink()
         self.tool("cmake", '''
@@ -198,7 +219,8 @@ if "--install" in args:
             with subprocess.Popen([str(self.bin / "bash"), str(self.project / "scripts/install-session.sh"),
                                    "--skip-deps", "--guided"], env=self.env, stdin=slave,
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
-                os.write(master, b"n\n" * 9)
+                # Six app groups, the desktop shell (1: LunaDash), then decline the rest.
+                os.write(master, b"n\n" * 6 + b"1\n" + b"n\n" * 3)
                 stdout, stderr = process.communicate(timeout=10)
             self.assertEqual(process.returncode, 0, stdout + stderr)
             self.assertIn("Setup cancelled before installation", stdout)
