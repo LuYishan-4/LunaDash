@@ -23,7 +23,7 @@ jobs:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   ref: main
                   persist-credentials: false
@@ -35,7 +35,7 @@ jobs:
                   LUDASH_SITE_SOURCE_DIR: ${{ runner.temp }}/LunaDash-docs
               run: python3 scripts/site/sync-releases.py
             - name: Set up Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v7
               with:
                   node-version: "22"
             - name: Install website dependencies
@@ -47,11 +47,11 @@ jobs:
             - name: Test the built website
               run: python3 "$RUNNER_TEMP/LunaDash-docs/scripts/test-site.py" "$RUNNER_TEMP/LunaDash-docs/dist"
             - name: Configure Pages
-              uses: actions/configure-pages@v5
+              uses: actions/configure-pages@v6
             - name: Upload the Pages artifact
-              uses: actions/upload-pages-artifact@v3
+              uses: actions/upload-pages-artifact@v5
               with:
                   path: ${{ runner.temp }}/LunaDash-docs/dist
             - name: Deploy to GitHub Pages
               id: deployment
-              uses: actions/deploy-pages@v4
+              uses: actions/deploy-pages@v5

@@ -44,7 +44,13 @@ SlintLu recognises LunaDash through its control socket and polls its status:
   for the desktop (`language`).
 - The launcher reports whether it is open (`launcher-visible`), so Meta toggles it correctly.
 - Default applications open through `launch-default` (terminal, files, browser).
-- On LunaDash the shell does not show its own first-run card; the Slint setup guide does that.
+- On LunaDash the shell does not show its own first-run card. Until setup is finished, the
+  compositor opens the Welcome app at session start (and again after `lunadashctl setup`);
+  its "Start desktop" button or Enter finishes setup.
+- Shell surfaces set their pointer through `wp_cursor_shape_v1` and render at fractional scales
+  through `wp_fractional_scale_v1`. The compositor shows the default arrow whenever a surface
+  without a cursor of its own is under the pointer, also right after a surface such as the
+  `slurp` selector closes.
 
 `scripts/ci/check_shell_actions.py` fails when the shell calls a compositor method that has no
 handler. `tests/wayland/test_session_shell.py` starts the compositor with the pinned shell and

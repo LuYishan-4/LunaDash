@@ -48,6 +48,8 @@ public:
                    const ProcessEnvironment &environment);
   bool busy() const noexcept;
   pid_t processId() const noexcept;
+  // The program of the current or last run, for diagnostics.
+  const std::string &program() const noexcept;
   void cancel() noexcept;
 
 private:
@@ -63,6 +65,7 @@ private:
                           const ProcessEnvironment *environment);
 
   wl_event_loop *eventLoop_ = nullptr;
+  std::string program_;
   const bool collectOutput_ = true;
   const bool forwardOutput_ = false;
   wl_event_source *outputSource_ = nullptr;

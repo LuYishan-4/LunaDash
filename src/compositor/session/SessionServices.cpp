@@ -77,6 +77,9 @@ std::string findExecutable(std::string_view name) {
 }
 
 std::string findXdpw() {
+  // LUDASH_XDPW names the executable; set but empty, no private instance is started (tests).
+  if (const char *configured = std::getenv("LUDASH_XDPW"))
+    return configured;
   auto executable = findExecutable("xdg-desktop-portal-wlr");
   if (!executable.empty())
     return executable;

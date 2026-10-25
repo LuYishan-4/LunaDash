@@ -36,12 +36,16 @@ if [ "$check_only" = 1 ]; then
     exit 0
 fi
 case "${LUDASH_GRAPHICS:-gles}" in auto|opengl|gles) ;; *) echo 'LUDASH_GRAPHICS must be auto, opengl or gles.' >&2; exit 2 ;; esac
+# The log is private, but the session itself keeps the login umask: applications and
+# screenshots must not all become owner-only files.
+session_umask=$(umask)
 umask 077
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/lunadash
 mkdir -p -- "$state_dir"
 session_log=$(mktemp "$state_dir/session-XXXXXXXX")
 mv -- "$session_log" "$session_log.log"
 session_log="$session_log.log"
+umask "$session_umask"
 echo "LunaDash session log: $session_log"
 exec >>"$session_log" 2>&1
 # A user-level generic portals.conf from another desktop takes precedence

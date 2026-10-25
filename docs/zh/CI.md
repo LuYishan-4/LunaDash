@@ -6,7 +6,7 @@
 
 | 分支／事件 | 檢查範圍 |
 | --- | --- |
-| `dev` push 或 PR | 每次執行 repository／source contracts；依完整 Git diff 選擇 Ubuntu runtime、QML、website、Nix 與 Arch |
+| `dev` push 或 PR | 每次執行 repository／source contracts；依完整 Git diff 選擇 Ubuntu runtime、website、Nix 與 Arch |
 | `main` push 或 PR | 所有共用測試、五個發行版建置、clang-tidy／Qt lifetime、CodeQL |
 | Merge queue | 全部測試類別及五個發行版建置 |
 | 每週排程 | 在預設分支 `main` 執行完整檢查 |
@@ -16,11 +16,10 @@ CI／policy 修改、未知原始碼目錄、新分支或無法取得基準 comm
 
 ## 共用測試集
 
-- **Repository／source contracts：** 原始碼布局、英文 source、shell syntax／ShellCheck、QML action／design、翻譯、installer／source archive 與 hygiene。獨立步驟在其他步驟失敗後仍會回報。
+- **Repository／source contracts：** 原始碼布局、英文 source、shell syntax／ShellCheck、殼層 action（固定版本 Slint 殼層呼叫的每個合成器方法都有處理）、翻譯、installer／source archive 與 hygiene。獨立步驟在其他步驟失敗後仍會回報。
 - **Ubuntu build／runtime：** 一次有快取的 CMake 建置，供 CTest（包含真實 portal frontend）、plugin SDK 安裝、啟動／linkage、Wayland／XWayland 與安裝後的 software OpenGL 使用。各 runtime 步驟共用建置結果並獨立回報。
-- **QML：** 解析所有 shell QML，執行整個 Qt Quick 測試目錄。
 - **Website：** Astro 型別檢查、正式建置、素材與連結檢查。
-- **NixOS：** 鎖定套件、模組求值與安裝後的 headless runtime；x86_64 實際建置，aarch64 僅求值。見 [NixOS](NIXOS.md)。
+- **NixOS：** 鎖定套件、模組求值與安裝後的 headless runtime；x86_64 實際建置，aarch64 僅求值。Slint 與 SlintLu 是獨立 derivation，Nix store 會在執行之間快取，只重建有變更的 derivation；沒有快取時可能超過一小時。見 [NixOS](NIXOS.md)。
 - **發行版：** 開發變更執行 Arch；完整流程加入 Debian 13、Fedora 44、openSUSE Tumbleweed 與 Alpine Edge。
 - **安全分析：** Qt lifetime fixtures、clang-tidy production build、CodeQL 與 SARIF gate。在完整流程或 CI／security 設定修改時執行，平常開發原始碼 push 不再重複兩次 analyzer 建置。
 

@@ -1,4 +1,5 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/session/DesktopNotification.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
@@ -375,6 +376,17 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
           }
         }
         captureError_ = (error);
+        // Tell the user how it went: the selection ends without any other feedback.
+        // Test captures (saveScreenshot) report through their completion instead.
+        if (!screenshotCompletion_) {
+          if (!path.empty())
+            sendDesktopNotification("Screenshot saved", path, "image-x-generic");
+          else if (!error.empty())
+            sendDesktopNotification("Screenshot failed", error, "dialog-error");
+        }
+        // The selector's surface (and its cursor) are gone: show a cursor again.
+        if (d)
+          d->schedulePointerRebase();
         if (screenshotCompletion_) {
           auto completion = std::move(screenshotCompletion_);
           screenshotCompletion_ = {};
@@ -492,15 +504,19 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
 
     spawn({"--session"}, {}, false);
 
-    if (setupComplete()) {
-      d->scheduleCallback(1200, [this] {
-        if (testStopping_ || shuttingDown_)
-          return;
-        for (const auto &app : desktopPreferences().value("startupApps", nlohmann::json::array()))
-          if (app.is_string())
-            spawn({"--app", (app.get<std::string>())});
-      });
-    }
+    // A first session opens the Welcome app, which finishes setup; later sessions start the
+    // user's startup apps. Either waits briefly so the shell's layers map first.
+    d->scheduleCallback(1200, [this] {
+      if (testStopping_ || shuttingDown_)
+        return;
+      if (!setupComplete()) {
+        spawn({"--app", "welcome"});
+        return;
+      }
+      for (const auto &app : desktopPreferences().value("startupApps", nlohmann::json::array()))
+        if (app.is_string())
+          spawn({"--app", (app.get<std::string>())});
+    });
   };
 
   // Portal backends are D-Bus activated. Do not start the shell/IME/apps until
@@ -1016,6 +1032,8 @@ void WaylandCompositor::configure(ClientWindow *client,
 void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
+  // Windows and layers move or change here: the surface under the cursor may differ.
+  d->schedulePointerRebase();
   const auto preferences = desktopPreferences();
   d->eyeCareActive = preferences.value("eyeCare", false);
   d->steadyWindowOpacity =
@@ -1945,6 +1963,8 @@ Json WaylandCompositor::control(const Json &request) {
   const std::string value = jsonString(request, "value");
   if (method == "status")
     return state(value != selectedLanguage());
+  if (method == "debug")
+    return debugSnapshot();
 
   const auto parsedNumber = parseInteger(trimmed(value));
   const bool numberValid = parsedNumber.has_value();
@@ -2404,6 +2424,7 @@ Json WaylandCompositor::control(const Json &request) {
     std::string error;
     if (!setSetupComplete(false, &error))
       return {{"error", (error)}};
+    spawn({"--app", "welcome"});
   } else if (method == "configure-network") {
     auto program = findExecutable("nm-connection-editor");
     std::vector<std::string> arguments;

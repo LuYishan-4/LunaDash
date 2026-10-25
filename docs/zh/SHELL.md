@@ -42,7 +42,10 @@ SlintLu 透過控制 socket 辨識 LunaDash 並輪詢其狀態：
 - 介面語言跟隨 LunaDash 的桌面語言，殼層的語言頁面也會變更整個桌面的語言（`language`）。
 - 啟動器會回報是否開啟（`launcher-visible`），讓 Meta 鍵能正確切換。
 - 預設應用程式透過 `launch-default` 開啟（終端機、檔案、瀏覽器）。
-- 在 LunaDash 上殼層不顯示自己的初次使用卡片，改由 Slint 設定精靈負責。
+- 在 LunaDash 上殼層不顯示自己的初次使用卡片。設定完成前，合成器會在工作階段開始時開啟 Welcome
+  程式（`lunadashctl setup` 後也會再開一次）；按「Start desktop」或 Enter 即完成設定。
+- 殼層介面透過 `wp_cursor_shape_v1` 設定滑鼠游標，並透過 `wp_fractional_scale_v1` 以分數縮放繪製。
+  只要指標下方的介面沒有自己的游標（包括 `slurp` 選取畫面這類介面剛關閉時），合成器都會顯示預設箭頭。
 
 殼層呼叫了合成器沒有處理的方法時，`scripts/ci/check_shell_actions.py` 會失敗。
 `tests/wayland/test_session_shell.py` 會以固定版本的殼層與 SlintLu 啟動合成器，並檢查上述往返

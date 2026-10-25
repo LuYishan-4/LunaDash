@@ -37,9 +37,7 @@
 
 透過 `shell.command("switch-window", id)` 選取，再呼叫 switch-accept
 或 switch-cancel。主機負責放開修飾鍵、生命週期與 Overlay；插件根物件
-使用 Item，不另建 PanelWindow。可安裝的 SDK 2 範例位於
-`templates/plugins/window-switcher`，安裝 SDK 時也會提供。插件失敗時
-保留內建介面。
+使用 Item，不另建 PanelWindow。插件失敗時保留內建介面。
 
 ## 插件啟用／停用的全螢幕轉場
 
@@ -51,8 +49,7 @@
 `plugin-transition` target 收到 context.progress（0–1）、change
 （id、name、enabled、targets、previousTargets）、duration 與桌面色彩。
 主機持有時間控制，動畫插件本身被停用也不會卡住桌面。內建時間可調為
-100–1600 毫秒，預設 420。`templates/plugins/plugin-transition` 提供
-全螢幕幕簾範例。轉場反映已接受的狀態變更，不會延後原生插件卸載，也
+100–1600 毫秒，預設 420。轉場反映已接受的狀態變更，不會延後原生插件卸載，也
 不是讓原生程式碼安全的隔離機制。
 
 ## 移除過時的自訂 QML

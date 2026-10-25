@@ -4,7 +4,7 @@
 
 | Branch/event | Suites |
 | --- | --- |
-| `dev` push or PR | Repository/source contracts always; affected Ubuntu runtime, QML, website, Nix and Arch suites selected from the complete Git diff |
+| `dev` push or PR | Repository/source contracts always; affected Ubuntu runtime, website, Nix and Arch suites selected from the complete Git diff |
 | `main` push or PR | All shared suites, all five distribution builds, clang-tidy/Qt lifetime and CodeQL |
 | Merge queue | All suites and all five distribution builds |
 | Weekly schedule | Full checks on the default branch, `main` |
@@ -14,11 +14,10 @@ CI/policy changes and unknown source domains enable every suite and the full dis
 
 ## Shared suites
 
-- **Repository and source contracts:** source layout, English source, shell syntax/ShellCheck, QML actions/design, translations, installer/source archive contracts and repository hygiene. Independent steps continue after another contract step fails.
+- **Repository and source contracts:** source layout, English source, shell syntax/ShellCheck, shell actions (every compositor method the pinned Slint shell calls has a handler), translations, installer/source archive contracts and repository hygiene. Independent steps continue after another contract step fails.
 - **Ubuntu build and runtime:** one cached CMake build, CTest including real portal frontend tests, plugin SDK installation, compositor startup/linkage, Wayland/XWayland lifecycle and installed software OpenGL tests. Runtime suites reuse the build and independently report failures.
-- **QML:** parse every shell file and run the entire Qt Quick test directory.
 - **Website:** Astro type checking, production build, asset/link checks.
-- **NixOS:** pinned package, module evaluation and installed headless runtime. x86_64 builds; aarch64 package evaluation only. See [NixOS](NIXOS.md).
+- **NixOS:** pinned package, module evaluation and installed headless runtime. x86_64 builds; aarch64 package evaluation only. Slint and SlintLu are separate derivations and the Nix store is cached between runs, so only changed derivations rebuild; a cold store can take over an hour. See [NixOS](NIXOS.md).
 - **Distributions:** Arch for development changes; Arch, Debian 13, Fedora 44, openSUSE Tumbleweed and Alpine Edge for full runs.
 - **Security analysis:** Qt lifetime fixtures and clang-tidy production build, plus CodeQL and a SARIF security gate. Full runs and CI/security configuration changes enable these; ordinary development source pushes do not repeat two extra analyzer builds.
 

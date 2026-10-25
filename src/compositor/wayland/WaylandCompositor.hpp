@@ -135,6 +135,8 @@ private:
   bool updateWindowLayoutSettings(const Json &changes, std::string *error);
   Json state(bool includeTranslations = true) const;
   Json control(const Json &request);
+  // Diagnostics beyond state(): input focus, cursor, layers, helpers, frame timing.
+  Json debugSnapshot() const;
   void focus(ClientWindow *client);
   void raiseWithDialogs(ClientWindow *client);
   void activateTask(int window);

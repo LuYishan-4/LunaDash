@@ -90,21 +90,17 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                 )
                 if run == 0:
                     assert not state["setupComplete"], state
-                    # The startup logo splash is also a layer surface, so "at least
-                    # three" can be satisfied by the splash itself. Wait out its
-                    # three-second fallback timer so the next wait really sees the
-                    # setup wizard before any click is sent.
-                    time.sleep(3.5)
-                    welcome_state = wait_for(lambda data: data["layerSurfaces"] >= 3)
-                    desktop_layers = welcome_state["layerSurfaces"] - 1
+                    # An unfinished setup opens the Welcome app as a normal window.
+                    wait_for(lambda data: any(client["mapped"] for client in data["clients"]))
+                    time.sleep(0.5)
                     client_env = env | {"WAYLAND_DISPLAY": "ludash-setup"}
                     subprocess.run(["grim", str(evidence / "welcome.png")], env=client_env, check=True, timeout=10)
-                    # Exercise the focused footer through the Wayland virtual keyboard.
+                    # Enter is the Welcome window's primary action; send it through the
+                    # Wayland virtual keyboard of this private headless session.
                     subprocess.run(["wtype", "-s", "250", "-k", "Return"], env=client_env, check=True, timeout=5)
                     wait_for(
-                        lambda data: (
-                            data["setupComplete"] and data["layerSurfaces"] == desktop_layers
-                        )
+                        lambda data: data["setupComplete"]
+                        and not any(client["mapped"] for client in data["clients"])
                     )
                     assert "error" not in request(
                         "appearance",
@@ -133,9 +129,9 @@ with tempfile.TemporaryDirectory(prefix="ludash-setup-") as runtime:
                         state["appearance"]["gap"] == 20
                         and state["appearance"]["panelHeight"] == 36
                     ), state
+                    # The startup app ("welcome") opens instead of the setup flow.
                     state = wait_for(
-                        lambda data: data["layerSurfaces"] == desktop_layers
-                        and any(client["mapped"] for client in data["clients"])
+                        lambda data: any(client["mapped"] for client in data["clients"])
                     )
                     assert (
                         state["appearance"]["startupApps"] == ["welcome"]

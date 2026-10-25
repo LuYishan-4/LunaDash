@@ -163,6 +163,22 @@ export component WelcomeWindow inherits Window {
     callback documentation-requested();
     callback finish-requested();
 
+    forward-focus: keys;
+    // Enter starts the desktop (the footer's primary action); Escape closes the window.
+    keys := FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Return) {
+                root.finish-requested();
+                return accept;
+            }
+            if (event.text == Key.Escape) {
+                root.close-requested();
+                return accept;
+            }
+            reject
+        }
+    }
+
     VerticalLayout {
         padding: 24px;
         spacing: 14px;

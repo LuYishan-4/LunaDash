@@ -1,6 +1,6 @@
 # Plugin target reference
 
-`data/plugins/targets.json` is the machine-readable registry. Run `lunadash-create-plugin --list` to inspect targets and supported types, then generate a starter with `--type`, `--target`, `--id` and `--output`. Templates are installed under `share/lunadash/plugin-sdk/templates`; all use the LunaDash CMake SDK. This is a development API, not a promise of a stable compositor ABI across future SDK major versions.
+`data/plugins/targets.json` is the machine-readable registry. Run `lunadash-create-plugin --list` to inspect targets and supported types, then generate a native effect project with `--target`, `--id` and `--output` (`--language c` for `window-animation`). The generator writes the files itself and the project uses the LunaDash CMake SDK. This is a development API, not a promise of a stable compositor ABI across future SDK major versions.
 
 ## Visual targets (`quickshell` / `opengl`)
 
@@ -50,7 +50,7 @@ Window layout normally forbids overlap. A native replacement can declare `"windo
 
 Visual stacking order follows focus-to-front. In stacking mode, taskbar activation restores/focuses a window without automatically zooming it; other windows remain present behind a maximized window. Alt+left-drag moves each window, Shift+Alt+left-drag resizes it independently, and validated xdg-shell titlebar move/edge-resize requests use the same interaction path. Native client popups/dialogs retain host handling. Windows without client decorations can use these shortcuts; this SDK does not add a server-side titlebar protocol.
 
-The [stacking-windows example](../../examples/plugins/stacking-windows/README.md) demonstrates this policy and a configurable initial cascade. It is installed disabled alongside the native fade example when example plugins are enabled. The four generic templates cover C, C++, Quickshell and OpenGL.
+The [stacking-windows example](../../examples/plugins/stacking-windows/README.md) demonstrates this policy and a configurable initial cascade. It is installed disabled alongside the native fade example when example plugins are enabled.
 
 ## Adding a host feature
 

@@ -202,6 +202,10 @@ target_link_libraries(ludash-launch-policy PRIVATE nlohmann_json::nlohmann_json)
 target_compile_definitions(ludash-launch-policy PRIVATE
     LUDASH_LAUNCH_CAPABILITIES_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/session/launch-capabilities.json"
     LUDASH_LAUNCH_CAPABILITIES_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/session/launch-capabilities.json")
+add_library(ludash-desktop-notification src/compositor/session/DesktopNotification.cpp)
+target_include_directories(ludash-desktop-notification PUBLIC src)
+target_link_libraries(ludash-desktop-notification
+    PRIVATE ludash-localization PkgConfig::LUDASH_GIO)
 add_library(ludash-session-actions src/compositor/session/SessionActions.cpp)
 target_include_directories(ludash-session-actions PUBLIC src)
 target_link_libraries(ludash-session-actions PRIVATE PkgConfig::LUDASH_GIO)
@@ -416,6 +420,7 @@ add_library(ludash-wayland
     src/compositor/wayland/NightLight.cpp
     src/compositor/window/Scratchpad.cpp
     src/compositor/wayland/WaylandCompositor.cpp
+    src/compositor/wayland/DebugSnapshot.cpp
     src/compositor/wayland/Register.cpp
     src/compositor/wayland/Output.cpp
     src/compositor/wayland/DisplayConfiguration.cpp
@@ -449,6 +454,7 @@ target_link_libraries(ludash-wayland
         ludash-shell-renderer
         ludash-launch-policy
         ludash-session-actions
+        ludash-desktop-notification
         ludash-shortcut-settings
         ludash-update-check
         ludash-default-applications
@@ -495,7 +501,8 @@ add_executable(ludash-compositor src/compositor/Main.cpp src/compositor/session/
 target_link_libraries(ludash-compositor PRIVATE ludash-wayland)
 set_target_properties(ludash-compositor PROPERTIES OUTPUT_NAME lunadash-compositor)
 add_custom_command(TARGET ludash-compositor POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-compositor> ${CMAKE_CURRENT_BINARY_DIR}/ludash-compositor)
-add_executable(ludashctl src/ctl/Main.cpp src/ctl/command/ControlClient.cpp)
+add_executable(ludashctl src/ctl/Main.cpp src/ctl/command/ControlClient.cpp
+    src/ctl/command/DebugCommand.cpp)
 target_include_directories(ludashctl PRIVATE src)
 target_link_libraries(ludashctl PRIVATE nlohmann_json::nlohmann_json)
 set_target_properties(ludashctl PROPERTIES OUTPUT_NAME lunadashctl)

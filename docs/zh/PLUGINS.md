@@ -16,19 +16,21 @@ LunaDash Plugin SDK 2 提供 feature hook、visual slot 與共用 metadata。內
 
 Registry 是 `data/plugins/targets.json`。
 
-原生 C++ 範本使用 nlohmann_json 3.11+，不需要 Qt Core；OpenGL shader package 仍使用 Qt Quick 的 `qsb` 格式。
+原生 C++ 專案使用 nlohmann_json 3.11+，不需要 Qt Core；OpenGL shader package 仍使用 Qt Quick 的 `qsb` 格式。
 
 ## 建立與安裝
 
 ```sh
 lunadash-create-plugin --list
-lunadash-create-plugin --type quickshell --target panel \
-  --id org.example.panel --output my-panel
-cmake -S my-panel -B my-panel/build -G Ninja \
+lunadash-create-plugin --target window-animation \
+  --id org.example.motion --output my-motion
+cmake -S my-motion -B my-motion/build -G Ninja \
   -DCMAKE_INSTALL_PREFIX="$HOME/.local"
-cmake --build my-panel/build
-cmake --install my-panel/build
+cmake --build my-motion/build
+cmake --install my-motion/build
 ```
+
+`lunadash-create-plugin` 直接在程式內產生 native `effect` 專案（沒有 template 目錄）：`CMakeLists.txt`、含範例設定的 `metadata.json` 和 `Effect.cpp`；`window-animation` 可用 `--language c` 產生 `Effect.c`。`--list` 列出 native plugin 能擴充的 compositor 功能。視覺（`opengl`）與 shell plugin 依下方章節手動撰寫。在原始碼目錄中請用 `scripts/create-plugin.py`。
 
 每個 project 使用：
 
@@ -66,7 +68,7 @@ QML/JS/assets 用 `FILES` 明確列出。不要只手動 copy source folder；SD
 }
 ```
 
-`replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `windowTemplate: stacking` 的 window-layout plugin 必須是 replacement。現在執行 `lunadash-create-plugin --type effect --target window-layout ...` 會從通用 native effect template 建立；實際的 stacking / cascade 實作改成 `data/plugins/stacking-windows` 下的正式 SDK 2 plugin package，compositor core 只保留 stacking-mode 互動所需的通用 freeform geometry state。
+`replace` 同 target 只能一個 replacement；`augment` 在 built-in 後依 plugin ID 疊加。Replacement 失敗會保留 built-in。要求 `windowTemplate: stacking` 的 window-layout plugin 必須是 replacement。現在執行 `lunadash-create-plugin --type effect --target window-layout ...` 會產生 native effect 專案；實際的 stacking / cascade 實作改成 `data/plugins/stacking-windows` 下的正式 SDK 2 plugin package，compositor core 只保留 stacking-mode 互動所需的通用 freeform geometry state。
 
 Plugin 的 settings 不需要另外寫設定 QML。Host 會透過共用 Settings API 自動產生與 LunaDash 原生介面一致的控制項；Plugin SDK 只允許四種：**是/否 toggle**、**下拉 select**、**數值輸入 number**、**數值拉條 slider**。自由文字與 array 類控制保留給 host/module 內部設定，第三方 plugin metadata 會被 SDK 與 runtime 雙重拒絕。
 

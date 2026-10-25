@@ -22,4 +22,3 @@ install(FILES src/core/plugins/PluginApi.h DESTINATION "${CMAKE_INSTALL_INCLUDED
 install(FILES src/core/plugins/PluginApi.c DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")
 install(PROGRAMS scripts/create-plugin.py DESTINATION "${CMAKE_INSTALL_BINDIR}" RENAME lunadash-create-plugin)
 install(FILES data/plugins/targets.json docs/PLUGIN_TARGETS.md docs/PLUGINS.md DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")
-install(DIRECTORY templates/plugins/ DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk/templates")

@@ -145,6 +145,8 @@ int main() {
         "exit 0\n");
     ::setenv("PATH", bin.c_str(), 1);
     ::setenv("LUDASH_SESSION_TEST_LOG", logPath.c_str(), 1);
+    // Never start the host's xdg-desktop-portal-wlr, which would replace a running portal.
+    ::setenv("LUDASH_XDPW", "", 1);
 
     wl_event_loop *eventLoop = wl_event_loop_create();
     if (!eventLoop)

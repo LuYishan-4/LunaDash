@@ -6,7 +6,7 @@ The screenshot is saved as a private PNG in Pictures/Screenshots. Cancelling lea
 
 The selector receives an empty standard input so it opens immediately instead of waiting for rectangle candidates. Pressing the shortcut again while selecting keeps the current selection and keyboard focus; Escape still cancels without an error notification.
 
-`lunadashctl screenshot` starts the same interactive selection and immediately returns `pending`/`phase`, rather than blocking until a path is available. Poll `lunadashctl status` for `screenCapture.phase` (`selecting`, `capturing`, `saved`, `cancelled`, `failed`), `busy`, `lastCapture` and `error`. The shell reports saved files and failures through notifications. Missing helpers produce an error rather than silently capturing the entire display.
+`lunadashctl screenshot` starts the same interactive selection and immediately returns `pending`/`phase`, rather than blocking until a path is available. Poll `lunadashctl status` for `screenCapture.phase` (`selecting`, `capturing`, `saved`, `cancelled`, `failed`), `busy`, `lastCapture` and `error`. The compositor sends a desktop notification (`org.freedesktop.Notifications`) with the saved path, or with the error when a capture fails; cancelling sends none. The selector has no time limit. Missing helpers produce an error rather than silently capturing the entire display.
 
 For automation, `lunadashctl capture /absolute/path.png` remains an explicit full-output capture and refuses to overwrite an existing file. `lunadash-compositor --screenshot PATH` also retains full-output capture for test runs. These commands do not open a region selector.
 

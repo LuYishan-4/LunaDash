@@ -5,6 +5,7 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
+#include <chrono>
 #include <algorithm>
 #include <linux/input-event-codes.h>
 #include <unordered_set>
@@ -119,12 +120,53 @@ void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
   double sy = 0;
   wlr_surface *surface = surfaceAt(cursor->x, cursor->y, &sx, &sy);
   if (surface) {
+    // A client sets its cursor after the enter event. Until it does, show the default
+    // cursor, never the previous client's cursor surface, which may already be gone
+    // (a region selector exiting left no cursor at all).
+    if (surface != seat->pointer_state.focused_surface)
+      setCursorImage("default");
     wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
     wlr_seat_pointer_notify_motion(seat, time, sx, sy);
   } else {
     wlr_seat_pointer_notify_clear_focus(seat);
-    wlr_cursor_set_xcursor(cursor, cursorManager, "default");
+    setCursorImage("default");
   }
+}
+
+void WaylandCompositor::Impl::setCursorImage(const char *name) {
+  if (!cursor || !cursorManager)
+    return;
+  wlr_cursor_set_xcursor(cursor, cursorManager, name);
+  cursorImage = name;
+}
+
+void WaylandCompositor::Impl::setClientCursor(wlr_surface *surface,
+                                              int32_t hotspotX, int32_t hotspotY) {
+  if (!cursor)
+    return;
+  wlr_cursor_set_surface(cursor, surface, hotspotX, hotspotY);
+  // A client may hide the cursor on purpose (a null surface, e.g. a video player).
+  cursorImage = surface ? "client" : "hidden by client";
+}
+
+void WaylandCompositor::Impl::rebasePointer() {
+  // Interactive moves and resizes own the pointer until they finish.
+  if (!seat || !cursor || pointerWindow)
+    return;
+  const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now().time_since_epoch());
+  processPointerMotion(static_cast<uint32_t>(now.count()));
+}
+
+void WaylandCompositor::Impl::schedulePointerRebase() {
+  if (pointerRebaseScheduled)
+    return;
+  pointerRebaseScheduled = true;
+  if (!scheduleCallback(0, [this] {
+        pointerRebaseScheduled = false;
+        rebasePointer();
+      }))
+    pointerRebaseScheduled = false;
 }
 
 void WaylandCompositor::Impl::restorePreferredKeyboard() {
@@ -759,9 +801,33 @@ void WaylandCompositor::Impl::handleRequestCursor(wl_listener *listener,
   auto *event = static_cast<wlr_seat_pointer_request_set_cursor_event *>(data);
   if (!self || !event)
     return;
+  // During an interactive move or resize the compositor's cursor wins.
+  if (self->pointerWindow)
+    return;
   if (self->seat->pointer_state.focused_client == event->seat_client)
-    wlr_cursor_set_surface(self->cursor, event->surface, event->hotspot_x,
-                           event->hotspot_y);
+    self->setClientCursor(event->surface, event->hotspot_x, event->hotspot_y);
+}
+
+void WaylandCompositor::Impl::handleRequestCursorShape(wl_listener *listener,
+                                                       void *data) {
+  auto *self = listenerOwner<Impl>(listener);
+  auto *event =
+      static_cast<wlr_cursor_shape_manager_v1_request_set_shape_event *>(data);
+  if (!self || !event || self->pointerWindow ||
+      event->device_type != WLR_CURSOR_SHAPE_MANAGER_V1_DEVICE_TYPE_POINTER)
+    return;
+  if (self->seat->pointer_state.focused_client == event->seat_client)
+    self->setCursorImage(wlr_cursor_shape_v1_name(event->shape));
+}
+
+void WaylandCompositor::Impl::handlePointerFocusChange(wl_listener *listener,
+                                                       void *data) {
+  auto *self = listenerOwner<Impl>(listener);
+  auto *event = static_cast<wlr_seat_pointer_focus_change_event *>(data);
+  // Losing focus without pointer motion (the focused surface was destroyed): find what
+  // is under the cursor now, so it gets a cursor without the user moving the mouse.
+  if (self && event && !event->new_surface)
+    self->schedulePointerRebase();
 }
 
 void WaylandCompositor::Impl::handleRequestSelection(wl_listener *listener,

@@ -50,6 +50,24 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 Malformed JSON, unknown keys, wrong types and invalid ranges are rejected before any preference is changed. `finish-setup` completes the guide; `configure-network` opens the available editor. `choose-wallpaper` opens the in-shell picker inside the settings surface; a confirmed PNG/JPEG/WebP path returns through `lunadashctl wallpaper-image`, while cancellation makes no change. The picker uses list/grid directory navigation, a bounded preview and a 64 MiB per-file limit. Shell state updates within about 700 ms. Native application colors are currently fixed; accent customization applies to the single `TopPanel`, its inline grouped-application cells and compositor frame borders.
 
+## Diagnostics
+
+`lunadashctl debug` prints what `status` does not: outputs with frame timing, input devices,
+keyboard and pointer focus (which window, layer surface or popup owns it), the cursor image and
+theme, layer surfaces, helper processes, event-loop timing and the protocols in use.
+
+```sh
+lunadashctl debug              # summary
+lunadashctl debug cursor       # one section: outputs, input, cursor, layers, windows,
+                               # capture, processes, eventLoop, protocols
+lunadashctl debug json         # the full snapshot as JSON
+lunadashctl debug watch 2      # refresh the summary every 2 seconds
+lunadashctl debug log 200      # the last 200 lines of the newest session log
+lunadashctl debug bundle /tmp  # debug.json, status.json, session.log and a filtered environment
+```
+
+`environment.txt` holds only display and session variables (`WAYLAND_DISPLAY`, `XDG_*`, `LANG`, renderer and cursor settings). The session log can contain window titles and paths, so read the bundle before sharing it.
+
 For deeper customization, edit the feature QML under `LunaDash-Shell/` and restart. This is trusted local code, not a sandboxed theme package. Native effect plugins are separately opt-in; see [Plugins](PLUGINS.md).
 
 Reference: [NetworkManager D-Bus API](https://networkmanager.dev/docs/api/latest/gdbus-org.freedesktop.NetworkManager.html).

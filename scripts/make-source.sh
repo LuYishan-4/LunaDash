@@ -2,10 +2,10 @@
 set -eu
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
-# Native plugin examples live under data/plugins; SDK templates live under
-# templates/plugins. Keep required inputs strict instead of skipping omissions.
+# Native plugin examples live under data/plugins; lunadash-create-plugin writes new
+# plugin projects itself. Keep required inputs strict instead of skipping omissions.
 set -- CMakeLists.txt .clang-format cmake LICENSE README.md install.sh src data \
-  protocols scripts tests docs templates packaging/arch/PKGBUILD \
+  protocols scripts tests docs packaging/arch/PKGBUILD \
   packaging/shell-revision packaging/slintlu-revision flake.nix flake.lock nix
 for entry do
   if [ ! -e "$project_dir/$entry" ]; then

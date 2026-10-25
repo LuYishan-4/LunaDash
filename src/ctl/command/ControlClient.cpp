@@ -1,5 +1,7 @@
 #include "ctl/command/ControlClient.hpp"
 
+#include "ctl/command/DebugCommand.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -11,6 +13,7 @@
 #include <filesystem>
 #include <fcntl.h>
 #include <iostream>
+#include <optional>
 #include <poll.h>
 #include <string>
 #include <string_view>
@@ -149,11 +152,39 @@ int connectControlSocket(const std::string &path,
 }
 } // namespace
 
+std::string ControlClient::socketPath() {
+  for (const char *name : {"LUNADASH_CONTROL", "LUDASH_CONTROL"})
+    if (const char *control = std::getenv(name); control && *control)
+      return control;
+  return defaultControlPath();
+}
+
+std::optional<std::string> ControlClient::request(const std::string &method,
+                                                  const std::string &value,
+                                                  int timeoutMilliseconds) {
+  const auto path = socketPath();
+  if (path.empty())
+    return std::nullopt;
+  const auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::milliseconds(timeoutMilliseconds);
+  const int socket = connectControlSocket(path, deadline);
+  if (socket < 0)
+    return std::nullopt;
+  const auto message = Json{{"method", method}, {"value", value}}.dump() + "\n";
+  std::string result;
+  const bool ok = writeAll(socket, message, deadline) &&
+                  readResponse(socket, result, deadline);
+  ::close(socket);
+  if (!ok)
+    return std::nullopt;
+  return result;
+}
+
 int ControlClient::run(int argc, char **argv) {
   if (argc < 2) {
     std::cerr
         << "Usage: lunadashctl "
-           "status|workspace|focus|group-window|expel-window|minimize|close|"
+           "status|debug|workspace|focus|group-window|expel-window|minimize|close|"
            "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
            "capture|screenshot|brightness|ddc-brightness|ddc-refresh|display-configure|display-confirm|"
            "display-revert|"
@@ -165,12 +196,15 @@ int ControlClient::run(int argc, char **argv) {
            "module-save|module-reset|"
            "extension-save|extension-error|settings-describe|settings-update|"
            "window-layout-settings|window-layout-action|quit [value]\n"
+           "  debug [help|json|TOPIC|watch|log|bundle]  diagnostics, see `lunadashctl debug help`\n"
            "  group-window value: {\"window\":ID,\"target\":ID}\n"
            "  launch-with-x11 -- program [argument ...]\n";
     return 2;
   }
 
   const std::string method(argv[1]);
+  if (method == "debug")
+    return DebugCommand(*this).run(argc - 2, argv + 2);
   std::string value = argc > 2 ? argv[2] : "";
   if (method == "launch-with-x11" && value == "--") {
     if (argc < 4 || argv[3][0] == '\0') {
@@ -183,45 +217,18 @@ int ControlClient::run(int argc, char **argv) {
     value = command.dump();
   }
 
-  std::string path;
-  if (const char *control = std::getenv("LUNADASH_CONTROL");
-      control && *control)
-    path = control;
-  if (path.empty()) {
-    if (const char *control = std::getenv("LUDASH_CONTROL");
-        control && *control)
-      path = control;
-  }
-  if (path.empty())
-    path = defaultControlPath();
-  if (path.empty()) {
+  if (socketPath().empty()) {
     std::cerr
         << "LUNADASH_CONTROL is not set and no single LunaDash control socket "
            "was found in the runtime directory.\n";
     return 2;
   }
-
-  const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::milliseconds(1500);
-  const int socket = connectControlSocket(path, deadline);
-  if (socket < 0)
+  const auto result = request(method, value);
+  if (!result)
     return 1;
-
-  const auto request = Json{{"method", method}, {"value", value}}.dump() + "\n";
-  if (!writeAll(socket, request, deadline)) {
-    ::close(socket);
-    return 1;
-  }
-
-  std::string result;
-  const bool received = readResponse(socket, result, deadline);
-  ::close(socket);
-  if (!received)
-    return 1;
-
-  const auto newline = result.find('\n');
-  const auto response = Json::parse(result.substr(0, newline), nullptr, false);
-  std::cout.write(result.data(), static_cast<std::streamsize>(result.size()));
+  const auto newline = result->find('\n');
+  const auto response = Json::parse(result->substr(0, newline), nullptr, false);
+  std::cout.write(result->data(), static_cast<std::streamsize>(result->size()));
   return response.is_discarded() || !response.is_object() ||
                  response.contains("error")
              ? 1

@@ -233,6 +233,8 @@ public:
   wlr_seat *seat = nullptr;
   wlr_cursor *cursor = nullptr;
   wlr_xcursor_manager *cursorManager = nullptr;
+  wlr_cursor_shape_manager_v1 *cursorShapeManager = nullptr;
+  wlr_fractional_scale_manager_v1 *fractionalScale = nullptr;
   wlr_screencopy_manager_v1 *screencopy = nullptr;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   wlr_ext_foreign_toplevel_list_v1 *foreignToplevelList = nullptr;
@@ -292,6 +294,8 @@ public:
   Slot<Impl> requestXdgActivation;
 #endif
   Slot<Impl> requestCursor;
+  Slot<Impl> requestCursorShape;
+  Slot<Impl> pointerFocusChange;
   Slot<Impl> requestSelection;
   Slot<Impl> keyboardFocusChange;
   Slot<Impl> cursorMotion;
@@ -365,6 +369,19 @@ public:
   wlr_surface *surfaceAt(double lx, double ly, double *sx, double *sy) const;
 
   void processPointerMotion(uint32_t time);
+  // Re-reads which surface is under the cursor without pointer motion: after surfaces
+  // appear, disappear or move, and after the focused one is destroyed.
+  void rebasePointer();
+  // Every cursor change goes through these, so `cursorImage` always says what is shown
+  // (an xcursor name, or "client" for a client's cursor surface); lunadashctl debug
+  // reports it.
+  void setCursorImage(const char *name);
+  void setClientCursor(wlr_surface *surface, int32_t hotspotX, int32_t hotspotY);
+  std::string cursorImage = "default";
+  std::chrono::steady_clock::time_point startedAt = std::chrono::steady_clock::now();
+  // Rebases once, on the next event loop iteration.
+  void schedulePointerRebase();
+  bool pointerRebaseScheduled = false;
 
   wlr_keyboard *preferredKeyboard() const;
 
@@ -419,6 +436,10 @@ public:
   static void handleCursorFrame(wl_listener *listener, void *);
 
   static void handleRequestCursor(wl_listener *listener, void *data);
+
+  static void handleRequestCursorShape(wl_listener *listener, void *data);
+
+  static void handlePointerFocusChange(wl_listener *listener, void *data);
 
   static void handleRequestSelection(wl_listener *listener, void *data);
 

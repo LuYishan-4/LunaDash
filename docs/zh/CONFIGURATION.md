@@ -52,4 +52,21 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 未知 key、錯誤型別、超出範圍或壞掉的 JSON 會在修改任何偏好前被拒絕。桌布選擇器位於 Shell 內，支援 PNG/JPEG/WebP、目錄瀏覽與 bounded preview；單檔超過 64 MiB 不可選，compositor 還會再次驗證可讀性與像素上限。
 
+## 除錯
+
+`lunadashctl debug` 會顯示 `status` 沒有的資訊：各輸出的畫格時間、輸入裝置、鍵盤與指標焦點（由哪個視窗、
+layer surface 或 popup 持有）、游標圖示與主題、layer surface、輔助程序、event loop 時間與使用中的協定。
+
+```sh
+lunadashctl debug              # 摘要
+lunadashctl debug cursor       # 單一區段：outputs、input、cursor、layers、windows、
+                               # capture、processes、eventLoop、protocols
+lunadashctl debug json         # 完整 JSON
+lunadashctl debug watch 2      # 每 2 秒更新摘要
+lunadashctl debug log 200      # 最新 session log 的最後 200 行
+lunadashctl debug bundle /tmp  # debug.json、status.json、session.log 與過濾後的環境變數
+```
+
+`environment.txt` 只包含顯示與工作階段相關變數（`WAYLAND_DISPLAY`、`XDG_*`、`LANG`、renderer 與游標設定）。Session log 可能含有視窗標題與路徑，分享前請先檢查。
+
 更深入的介面自訂可修改 `LunaDash-Shell/`，但那是可信任的本機程式碼，不是 sandbox theme。Plugin 另見 [Plugin SDK 2](PLUGINS.md)，完整設定中心見 [Settings](SETTINGS.md)。

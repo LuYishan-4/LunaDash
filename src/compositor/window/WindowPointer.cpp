@@ -34,8 +34,7 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
   pointerEdge = 0;
   client->manualResize = true;
   wlr_seat_pointer_notify_clear_focus(seat);
-  wlr_cursor_set_xcursor(cursor, cursorManager,
-                         pointerResize ? "se-resize" : "grabbing");
+  setCursorImage(pointerResize ? "se-resize" : "grabbing");
   return true;
 }
 
@@ -80,8 +79,7 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   client->manualResize = true;
   if (client->toplevel)
     wlr_xdg_toplevel_set_resizing(client->toplevel, pointerResize);
-  wlr_cursor_set_xcursor(cursor, cursorManager,
-                         pointerResize ? "se-resize" : "grabbing");
+  setCursorImage(pointerResize ? "se-resize" : "grabbing");
   return true;
 }
 
@@ -337,6 +335,6 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
   pointerWindow = 0;
   q->arrange();
   q->publishWindowLayout();
-  wlr_cursor_set_xcursor(cursor, cursorManager, "default");
+  setCursorImage("default");
 }
 } // namespace LunaDash

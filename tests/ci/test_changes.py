@@ -18,12 +18,13 @@ class SelectionTests(unittest.TestCase):
 
     def test_website_has_independent_suite(self):
         self.assertEqual([name for name, on in changes.select(["scripts/site/sync-releases.py"]).items() if on], ["website"])
-        self.assertEqual([name for name, on in changes.select(["packaging/shell-revision"]).items() if on], ["native", "qml", "nix", "distro"])
+        for pin in ("packaging/shell-revision", "packaging/slintlu-revision"):
+            self.assertEqual([name for name, on in changes.select([pin]).items() if on], ["native", "nix", "distro"])
 
     def test_native_changes_cover_all_native_domains(self):
         for path in ["src/compositor/input/Input.cpp", "src/service/portal/Portal.cpp", "data/translations/en_US.json", "cmake/LunaDashMain.cmake"]:
             selected = changes.select([path])
-            self.assertTrue(all(selected[name] for name in ("native", "qml", "nix", "distro")))
+            self.assertTrue(all(selected[name] for name in ("native", "nix", "distro")))
             self.assertFalse(selected["analysis"])
 
     def test_nix_change_does_not_rebuild_other_distributions(self):

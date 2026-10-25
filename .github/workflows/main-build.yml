@@ -17,13 +17,12 @@ jobs:
     timeout-minutes: 5
     outputs:
       native: ${{ steps.select.outputs.native }}
-      qml: ${{ steps.select.outputs.qml }}
       website: ${{ steps.select.outputs.website }}
       nix: ${{ steps.select.outputs.nix }}
       distro: ${{ steps.select.outputs.distro }}
       analysis: ${{ steps.select.outputs.analysis }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -38,7 +37,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Fetch pinned LunaDash-Shell and SlintLu sources
@@ -101,7 +100,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Fetch pinned LunaDash-Shell and SlintLu sources
@@ -111,7 +110,7 @@ jobs:
       - name: Install the Rust toolchain required by Slint
         uses: dtolnay/rust-toolchain@stable
       - uses: ./.github/actions/ubuntu-dependencies
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.cache/ccache
           key: ubuntu-native-v1-${{ github.ref_name }}-${{ github.sha }}
@@ -120,7 +119,7 @@ jobs:
             ubuntu-native-v1-
       # Slint is compiled from pinned Rust sources. Reuse its Cargo output
       # across runs; C/C++ objects are covered by ccache above.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -130,7 +129,7 @@ jobs:
           restore-keys: |
             ubuntu-slint-v1-${{ hashFiles('CMakeLists.txt') }}-
       # SlintLu (the shell runtime) only changes with packaging/slintlu-revision.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: build-main/slintlu
           key: ubuntu-slintlu-v1-${{ hashFiles('packaging/slintlu-revision') }}
@@ -220,7 +219,7 @@ jobs:
         run: python3 scripts/ci/report_build_errors.py Ubuntu-runtime runtime-*.log
       - name: Preserve runtime diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ubuntu-runtime-diagnostics
           path: |
@@ -230,31 +229,6 @@ jobs:
             build-main/ci-evidence/
           if-no-files-found: ignore
           retention-days: 7
-
-  qml:
-    name: QML suite
-    needs: changes
-    if: needs.changes.outputs.qml == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Install Qt Quick test tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qt6-declarative-dev-tools libqt6svg6 qml6-module-qttest \
-            qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-            qml6-module-qtquick-window qml6-module-qtquick-templates \
-            qml6-module-qtquick-shapes qml6-module-qtqml-workerscript
-      # The shell is Slint (checked by the native suite and its own repository); this
-      # suite covers LunaDash's QML plugin templates.
-      - name: Run LunaDash QML tests
-        run: |
-          /usr/lib/qt6/bin/qmlformat tests/qml/tst_interaction_templates.qml >/dev/null
-          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QML_XHR_ALLOW_FILE_READ=1 \
-            /usr/lib/qt6/bin/qmltestrunner -input tests/qml
 
   website:
     needs: changes
@@ -266,12 +240,20 @@ jobs:
     needs: changes
     if: needs.changes.outputs.nix == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # A cold store builds Slint, SlintLu and LunaDash from source; cached runs rebuild only
+    # the derivations whose inputs changed.
+    timeout-minutes: 100
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: cachix/install-nix-action@v31
+      - name: Restore and save the Nix store
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock', 'nix/**', 'packaging/slintlu-revision', 'packaging/shell-revision') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          gc-max-store-size-linux: 6G
       - name: Evaluate both package architectures and module, build and run x86_64 checks
         id: nix-check
         run: |
@@ -282,7 +264,7 @@ jobs:
         run: |
           nix build .#checks.x86_64-linux.runtime --out-link result-runtime --no-update-lock-file
           cp result-runtime/state.json nix-runtime-state.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nix-runtime-diagnostics
@@ -313,7 +295,7 @@ jobs:
 
   gate:
     name: CI result
-    needs: [changes, quality, native, qml, website, nix, distributions, clang, codeql]
+    needs: [changes, quality, native, website, nix, distributions, clang, codeql]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -331,7 +313,7 @@ jobs:
           if failures:
               raise SystemExit(f'CI failed: {failures}')
           selected = results['changes']['outputs']
-          for output, job in [('native', 'native'), ('qml', 'qml'), ('website', 'website'),
+          for output, job in [('native', 'native'), ('website', 'website'),
                               ('nix', 'nix'), ('distro', 'distributions'),
                               ('analysis', 'clang'), ('analysis', 'codeql')]:
               if selected.get(output) == 'true' and results[job]['result'] != 'success':

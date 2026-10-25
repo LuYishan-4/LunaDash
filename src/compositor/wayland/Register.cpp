@@ -68,6 +68,10 @@ bool WaylandCompositor::Impl::initialize() {
     return fail("wlroots could not create the data-control manager.");
 #endif
   wlr_viewporter_create(display);
+  // The scene sends each surface its fractional scale; clients render sharply at 125 %.
+  fractionalScale = wlr_fractional_scale_manager_v1_create(display, 1);
+  if (!fractionalScale)
+    return fail("wlroots could not create the fractional-scale global.");
 #if WLR_VERSION_MINOR >= 20
   if (!wlr_single_pixel_buffer_manager_v1_create(display))
     return fail("wlroots could not create the single-pixel buffer global.");
@@ -200,6 +204,15 @@ bool WaylandCompositor::Impl::initialize() {
 #endif
   attachListener(&seat->events.request_set_cursor, requestCursor, this,
                  handleRequestCursor);
+  attachListener(&seat->pointer_state.events.focus_change, pointerFocusChange,
+                 this, handlePointerFocusChange);
+  // Lets clients name a cursor ("text", "pointer" …) instead of attaching a surface;
+  // SlintLu shells rely on it.
+  cursorShapeManager = wlr_cursor_shape_manager_v1_create(display, 1);
+  if (!cursorShapeManager)
+    return fail("wlroots could not create the cursor-shape global.");
+  attachListener(&cursorShapeManager->events.request_set_shape,
+                 requestCursorShape, this, handleRequestCursorShape);
   attachListener(&seat->events.request_set_selection, requestSelection, this,
                  handleRequestSelection);
   attachListener(&seat->keyboard_state.events.focus_change, keyboardFocusChange,
@@ -483,6 +496,8 @@ void WaylandCompositor::Impl::releaseRuntime() {
   detachListener(requestCursor);
   detachListener(requestSelection);
   detachListener(keyboardFocusChange);
+  detachListener(pointerFocusChange);
+  detachListener(requestCursorShape);
   detachListener(cursorMotion);
   detachListener(cursorMotionAbsolute);
   detachListener(cursorButton);

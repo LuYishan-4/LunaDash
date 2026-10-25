@@ -8,7 +8,7 @@ Machine-readable registry：`data/plugins/targets.json`。
 lunadash-create-plugin --list
 ```
 
-模板安裝於 `share/lunadash/plugin-sdk/templates`。這是開發 API，不保證跨 SDK major 的 native binary ABI。
+用 `--target`、`--id`、`--output` 產生 native effect 專案（`window-animation` 可加 `--language c`），產生器直接寫出檔案，專案使用 LunaDash CMake SDK。這是開發 API，不保證跨 SDK major 的 native binary ABI。
 
 ## Visual targets
 

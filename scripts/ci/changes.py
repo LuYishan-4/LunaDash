@@ -8,7 +8,7 @@ import re
 import urllib.parse
 import urllib.request
 
-SUITES = ("native", "qml", "website", "nix", "distro", "analysis")
+SUITES = ("native", "website", "nix", "distro", "analysis")
 
 
 def select(paths, full=False):
@@ -24,10 +24,8 @@ def select(paths, full=False):
             continue
         elif path in ("flake.nix", "flake.lock") or path.startswith("nix/"):
             selected["nix"] = True
-        elif path.startswith("tests/qml/") or path == "packaging/shell-revision":
-            selected.update(qml=True, native=True, nix=True, distro=True)
-        elif path.startswith(("src/", "cmake/", "data/", "protocols/", "templates/", "tests/", "scripts/", "packaging/")) or path in ("CMakeLists.txt", "install.sh"):
-            selected.update(native=True, qml=True, nix=True, distro=True)
+        elif path.startswith(("src/", "cmake/", "data/", "protocols/", "tests/", "scripts/", "packaging/")) or path in ("CMakeLists.txt", "install.sh"):
+            selected.update(native=True, nix=True, distro=True)
         else:
             # A newly introduced domain must never silently lose coverage.
             return dict.fromkeys(SUITES, True)

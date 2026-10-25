@@ -8,6 +8,8 @@
 
 Selector 的 stdin 會關閉，因此能立即顯示而不是等 rectangle candidates。選擇中再按一次 shortcut 不會重啟 selector；Escape 仍只取消，不顯示假錯誤。
 
+截圖完成後，合成器會送出桌面通知（`org.freedesktop.Notifications`）並附上檔案路徑；失敗時通知內容是錯誤原因；取消則不通知。選取畫面沒有時間限制。
+
 ## IPC
 
 ```sh

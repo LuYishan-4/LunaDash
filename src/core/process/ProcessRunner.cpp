@@ -109,6 +109,7 @@ bool ProcessRunner::runWithEnvironment(
       if (name.empty() || name.find('=') != std::string::npos ||
           containsNullByte(name) || containsNullByte(value))
         return false;
+  program_ = program;
 
   int pipeFds[2] = {-1, -1};
   if (!forwardOutput_) {
@@ -228,6 +229,8 @@ bool ProcessRunner::runWithEnvironment(
 bool ProcessRunner::busy() const noexcept { return busy_; }
 
 pid_t ProcessRunner::processId() const noexcept { return childPid_; }
+
+const std::string &ProcessRunner::program() const noexcept { return program_; }
 
 void ProcessRunner::cancel() noexcept {
   if (!busy_)

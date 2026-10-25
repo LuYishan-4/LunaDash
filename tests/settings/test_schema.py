@@ -32,7 +32,7 @@ class SettingsSchemaTests(unittest.TestCase):
     def test_all_shipped_schemas(self):
         for target in json.loads((ROOT / 'data/plugins/targets.json').read_text()):
             validate_schema(target['settings'])
-        directories = (ROOT / 'data/plugins', ROOT / 'templates/plugins')
+        directories = (ROOT / 'data/plugins',)
         shell_root = Path(os.environ.get('LUDASH_SHELL_SOURCE_DIR')
                           or os.environ.get('LUDASH_QML_SOURCE_DIR', ROOT / 'shell'))
         for directory in (*directories, shell_root / 'plugins'):
@@ -65,13 +65,16 @@ class SettingsSchemaTests(unittest.TestCase):
 
     def test_plugin_controls_are_covered_without_bundled_plugins(self):
         controls = set()
-        for path in (ROOT / 'templates/plugins').rglob('metadata.json'):
-            manifest = json.loads(path.read_text())
-            if manifest.get('schemaVersion') != 2:
-                continue
-            for rule in manifest.get('settings', {}).values():
+        create = importlib.util.spec_from_file_location(
+            'create_plugin', ROOT / 'scripts/create-plugin.py')
+        generator = importlib.util.module_from_spec(create)
+        create.loader.exec_module(generator)
+        for target in ('window-animation', 'window-rules', 'window-layout'):
+            manifest = json.loads(generator.scaffold(target, 'org.example.test')['metadata.json'])
+            validate_schema(manifest['settings'])
+            for rule in manifest['settings'].values():
                 controls.add(control(rule))
-        # Template coverage plus the shared contract must exercise every stable
+        # Generated projects plus the shared contract must exercise every stable
         # plugin control even though runtime example plugins are not bundled.
         for case in json.loads((Path(__file__).with_name('contract.json')).read_text()):
             if case.get('valid', True) and case.get('control') in {

@@ -43,9 +43,8 @@ array is `interaction.windows` or `interaction.workspaces`, with a zero-based
 
 Use `shell.command("switch-window", id)` to highlight, `switch-accept` to confirm,
 and `switch-cancel` to cancel. The host owns key releases, selection lifetime and
-the overlay. A replacement root is an Item, not another PanelWindow. A complete
-schema-v2 example is in `templates/plugins/window-switcher`; it is installed with
-the plugin SDK templates. Invalid/unavailable replacements retain built-in content.
+the overlay. A replacement root is an Item, not another PanelWindow.
+Invalid/unavailable replacements retain built-in content.
 
 ## Full-screen plugin activation transition
 
@@ -59,8 +58,7 @@ block typing. Reduced motion/disabled animations cancel the queue immediately.
 The `plugin-transition` target receives `context.progress` (0–1), `change`
 (`id`, `name`, `enabled`, `targets`, `previousTargets`), `duration` and desktop
 colors/font. The host owns timing even when its animation plugin is toggled.
-Built-in duration is configurable from 100–1600 ms (default 420). The example in
-`templates/plugins/plugin-transition` supplies a full-screen curtain. The
+Built-in duration is configurable from 100–1600 ms (default 420). The
 transition visual follows accepted state changes; it is not a transaction barrier
 that delays native plugin unload or makes native code safe.
 

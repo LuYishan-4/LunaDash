@@ -11,6 +11,28 @@ let
   slintCargoDeps = rustPlatform.importCargoLock {
     lockFile = "${slintSource}/Cargo.lock";
   };
+  # Slint's C++ API with the features CMakeLists.txt requires. As its own derivation it is
+  # built once per Slint revision and then comes from the Nix store (and the CI cache).
+  slintCpp = stdenv.mkDerivation {
+    pname = "slint-cpp";
+    version = "1.18.1";
+    src = slintSource;
+    cmakeDir = "../api/cpp";
+    nativeBuildInputs = [ cmake ninja pkg-config rustc cargo rustPlatform.cargoSetupHook corrosion ];
+    cargoDeps = slintCargoDeps;
+    buildInputs = [ wayland libxkbcommon fontconfig freetype libGL ];
+    cmakeFlags = [
+      "-DSLINT_FEATURE_BACKEND_QT=OFF"
+      "-DSLINT_FEATURE_BACKEND_WINIT=OFF"
+      "-DSLINT_FEATURE_BACKEND_WINIT_WAYLAND=ON"
+      "-DSLINT_FEATURE_BACKEND_WINIT_X11=OFF"
+      "-DSLINT_FEATURE_RENDERER_FEMTOVG=ON"
+      "-DSLINT_FEATURE_RENDERER_SOFTWARE=OFF"
+      "-DSLINT_FEATURE_INTERPRETER=OFF"
+      "-DSLINT_FEATURE_SYSTEM_TRAY=OFF"
+      "-DSLINT_FEATURE_TESTING=OFF"
+    ];
+  };
   # SlintLu, the shell runtime, at the revision in packaging/slintlu-revision. EGL and Vulkan
   # are loaded at runtime, so their loaders go on the library path.
   slintlu = rustPlatform.buildRustPackage {
@@ -39,15 +61,14 @@ stdenv.mkDerivation {
     root = ../.;
     fileset = lib.fileset.unions [
       ../CMakeLists.txt ../cmake ../src ../data
-      ../protocols ../scripts ../templates ../tests ../LICENSE
+      ../protocols ../scripts ../tests ../LICENSE
       ../docs/PLUGIN_TARGETS.md ../docs/PLUGINS.md
     ];
   };
 
-  nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper rustc cargo
-    rustPlatform.cargoSetupHook corrosion wayland-scanner qt6.wrapQtAppsHook ];
-  cargoDeps = slintCargoDeps;
-  buildInputs = [
+  nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper wayland-scanner
+    qt6.wrapQtAppsHook ];
+  buildInputs = [ slintCpp
     qt6.qtbase qt6.qtdeclarative qt6.qtwayland qt6.qtsvg qt6.qtmultimedia fontconfig freetype
     vulkan-headers vulkan-loader wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
     pixman libdrm libxcb systemd nlohmann_json libglvnd gdk-pixbuf curl
@@ -57,12 +78,10 @@ stdenv.mkDerivation {
     "-DCMAKE_INSTALL_SYSCONFDIR=etc"
     "-DCMAKE_INSTALL_LIBEXECDIR=libexec"
     "-DLUDASH_SHELL_SOURCE_DIR=${shellSource}"
-    "-DFETCHCONTENT_SOURCE_DIR_SLINT=${slintSource}"
-    "-DFETCHCONTENT_FULLY_DISCONNECTED=ON"
+    "-DLUDASH_SYSTEM_SLINT=ON"
   ];
   postPatch = ''
     printf '%s\n' '${revision}' > .lunadash-revision
-    cp ${slintSource}/Cargo.lock Cargo.lock
   '';
   postInstall = ''
     install -d "$out/libexec/lunadash"
@@ -77,8 +96,10 @@ stdenv.mkDerivation {
     wrapProgram "$out/bin/lunadash-clipboard-history" --prefix PATH : "${lib.makeBinPath [ python3 wl-clipboard coreutils ]}"
   '';
 
-  passthru.providedSessions = [ "lunadash" "ludash" ];
-  passthru.slintlu = slintlu;
+  passthru = {
+    providedSessions = [ "lunadash" "ludash" ];
+    inherit slintlu slintCpp;
+  };
   meta = {
     description = "Development preview of the LunaDash Wayland desktop";
     homepage = "https://github.com/LuYishan-4/LunaDash";

@@ -338,7 +338,7 @@ void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
   self->updateBackground();
   self->arrangeLayers();
   self->q->arrange();
-  wlr_cursor_set_xcursor(self->cursor, self->cursorManager, "default");
+  self->setCursorImage("default");
 }
 
 void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {

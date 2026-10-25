@@ -20,15 +20,15 @@ The SDK is installed with LunaDash. Python 3 and CMake are required. Native C++ 
 
 ```sh
 lunadash-create-plugin --list
-lunadash-create-plugin --type quickshell --target panel \
-  --id org.example.panel --output my-panel
-cmake -S my-panel -B my-panel/build -G Ninja \
+lunadash-create-plugin --target window-animation \
+  --id org.example.motion --output my-motion
+cmake -S my-motion -B my-motion/build -G Ninja \
   -DCMAKE_INSTALL_PREFIX="$HOME/.local"
-cmake --build my-panel/build
-cmake --install my-panel/build
+cmake --build my-motion/build
+cmake --install my-motion/build
 ```
 
-From a checkout, use `scripts/create-plugin.py`. To build against an uninstalled LunaDash build, pass `-DLunaDashPlugin_DIR=/absolute/path/to/build/sdk-build`. To test a relocated installation, set `CMAKE_PREFIX_PATH` to its installation prefix.
+`lunadash-create-plugin` writes a native `effect` project itself (there is no template directory): `CMakeLists.txt`, `metadata.json` with example settings, and `Effect.cpp`, or `Effect.c` with `--language c` for `window-animation`. `--list` shows the compositor features a native plugin can extend. Visual (`opengl`) and shell plugins are written by hand from the sections below. From a checkout, use `scripts/create-plugin.py`. To build against an uninstalled LunaDash build, pass `-DLunaDashPlugin_DIR=/absolute/path/to/build/sdk-build`. To test a relocated installation, set `CMAKE_PREFIX_PATH` to its installation prefix.
 
 Every plugin project calls:
 
@@ -67,7 +67,7 @@ Additional QML/JS/assets can be listed explicitly with `FILES`; the SDK installs
 }
 ```
 
-`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `windowTemplate: stacking` must be replacements: two layout owners cannot simultaneously place the same windows. `lunadash-create-plugin --type effect --target window-layout ...` now starts from the generic native effect template. The shipped stacking/cascade implementation is a real SDK 2 package under `data/plugins/stacking-windows`, while the compositor core retains only generic freeform geometry state for stacking-mode interaction.
+`mode` is `replace` (Plugin only) or `augment` (Built-in and plugin). Users choose the effective mode in Settings → Plugins → Desktop extensions. Only one replacement is allowed per target; additions run after it, ordered by plugin ID. A failed replacement leaves the original feature available. Layouts that request `windowTemplate: stacking` must be replacements: two layout owners cannot simultaneously place the same windows. `lunadash-create-plugin --type effect --target window-layout ...` generates a native effect project. The shipped stacking/cascade implementation is a real SDK 2 package under `data/plugins/stacking-windows`, while the compositor core retains only generic freeform geometry state for stacking-mode interaction.
 
 Plugin settings are rendered automatically through the shared Settings API. SDK 2 plugins may expose only four stable controls: **Yes/No** (`toggle`), **drop-down** (`select`), **numeric input** (`number`) and **numeric slider** (`slider`). Free-form text and array controls remain host/module-only and are rejected for plugins. Unknown settings and invalid values are rejected both by the SDK and again by the runtime before loading or saving. The SDK generates `metadata.json` and `.lunadash-sdk.json`; the runtime checks the receipt against the manifest. Native libraries also embed that manifest and export the SDK ABI. These checks detect missing/stale builds; they are **not signatures or a sandbox**.
 
@@ -89,7 +89,7 @@ Use `type: opengl`, a supported visual `target`, and:
 "shaders": {"vertex": "Effect.vert", "fragment": "Effect.frag"}
 ```
 
-The SDK compiles both files with `qsb`; the installed package retains the GLSL and includes `.qsb` files. The shared uniform block contains `qt_Matrix`, `qt_Opacity`, `strength`, `resolution`, and `parameters` (a vec4 mapped from numeric settings `parameter0`–`parameter3`). Binding 1 is the `source` sampler. Keep the uniform block layout identical in both stages and output premultiplied colors. The `templates/plugins/opengl` example is a complete reference.
+The SDK compiles both files with `qsb`; the installed package retains the GLSL and includes `.qsb` files. The shared uniform block contains `qt_Matrix`, `qt_Opacity`, `strength`, `resolution`, and `parameters` (a vec4 mapped from numeric settings `parameter0`–`parameter3`). Binding 1 is the `source` sampler. Keep the uniform block layout identical in both stages and output premultiplied colors.
 
 Replacement shaders suppress the built-in draw only after successful shader creation, while keeping its texture as input. Additions composite on top in ID order; each gets the built-in texture, not the previous shader's framebuffer. Software rendering does not run shaders and retains the built-in visual. The shader slot is in the Quickshell scene: it can affect wallpaper, shell surfaces and the switcher background, **not arbitrary application buffers or the wlroots output framebuffer**. Raw compositor OpenGL passes remain under `src/compositor/renderer/opengl/` and are a separate renderer integration boundary.
 
