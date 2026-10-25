@@ -177,10 +177,25 @@ bool ProcessRunner::runWithEnvironment(
       pipeFds[1] != STDERR_FILENO)
     spawnError = ::posix_spawn_file_actions_addclose(&actions, pipeFds[1]);
 
+  // A display manager such as greetd starts the session on a VT, which makes
+  // that VT the controlling terminal of everything the session launches. An
+  // interactive shell started by an application (Electron apps read the
+  // login shell's environment this way) would then be stopped by SIGTTIN
+  // forever. Children start in their own session without a terminal.
+  posix_spawnattr_t attributes;
+  const bool attributesInitialized =
+      spawnError == 0 && ::posix_spawnattr_init(&attributes) == 0;
+  if (spawnError == 0 && !attributesInitialized)
+    spawnError = ENOMEM;
+  if (spawnError == 0)
+    spawnError = ::posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETSID);
+
   pid_t child = -1;
   if (spawnError == 0)
-    spawnError = ::posix_spawnp(&child, program.c_str(), &actions, nullptr,
+    spawnError = ::posix_spawnp(&child, program.c_str(), &actions, &attributes,
                                 argv.data(), environment.data());
+  if (attributesInitialized)
+    ::posix_spawnattr_destroy(&attributes);
   if (actionsInitialized)
     ::posix_spawn_file_actions_destroy(&actions);
   closeDescriptor(pipeFds[1]);

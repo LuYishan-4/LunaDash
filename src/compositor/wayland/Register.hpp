@@ -260,6 +260,10 @@ public:
   std::vector<LayerState *> layers;
   std::vector<XdgPopupState *> xdgPopups;
   std::vector<KeyboardState *> keyboards;
+  // The physical keyboard that produced the latest key or modifier change.
+  // Power buttons, mice and webcams also register as keyboards, so the first
+  // device is rarely the one being typed on.
+  wlr_keyboard *activePhysicalKeyboard = nullptr;
   std::vector<TextInputState *> textInputs;
   std::vector<PopupState *> inputPopups;
   std::vector<std::unique_ptr<DeferredClientRemoval>> deferredClientRemovals;

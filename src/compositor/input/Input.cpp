@@ -370,6 +370,8 @@ void WaylandCompositor::Impl::handleKeyboardKey(wl_listener *listener,
     return;
   auto *self = state->impl;
   auto *keyboard = state->keyboard;
+  if (!state->virtualKeyboard)
+    self->activePhysicalKeyboard = keyboard;
   const bool inputMethodBridgeActive =
       self->activeTextInput && self->activeTextInput->text &&
       self->activeTextInput->text->focused_surface && self->inputMethod &&
@@ -564,6 +566,8 @@ void WaylandCompositor::Impl::handleKeyboardModifiers(wl_listener *listener,
   if (!state || !state->keyboard)
     return;
   auto *self = state->impl;
+  if (!state->virtualKeyboard)
+    self->activePhysicalKeyboard = state->keyboard;
 
   const bool inputMethodBridgeActive =
       self->activeTextInput && self->activeTextInput->text &&
@@ -641,6 +645,8 @@ void WaylandCompositor::Impl::handleKeyboardDestroy(wl_listener *listener,
   auto *self = state->impl;
   if (!state->virtualKeyboard)
     self->q->finishWindowSwitch(false);
+  if (self->activePhysicalKeyboard == state->keyboard)
+    self->activePhysicalKeyboard = nullptr;
 
   // A hotkey/remapping application may own the physical evdev stream for its
   // whole lifetime. When its generic virtual keyboard disappears, carry its
@@ -1049,6 +1055,8 @@ wlr_surface *WaylandCompositor::Impl::surfaceAt(double lx, double ly,
 }
 
 wlr_keyboard *WaylandCompositor::Impl::preferredKeyboard() const {
+  if (activePhysicalKeyboard)
+    return activePhysicalKeyboard;
   for (auto *state : keyboards)
     if (state && state->keyboard && !state->virtualKeyboard)
       return state->keyboard;

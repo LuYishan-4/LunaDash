@@ -70,6 +70,36 @@ int main() {
       result = 1;
     }
 
+    // Children lead their own session, so a VT inherited from the display
+    // manager is never their controlling terminal.
+    completed = false;
+    success = false;
+    output.clear();
+    if (!runner.run("sh", {"-c", "ps -o sid= -p $$; echo $$"},
+                    [&](bool ok, const std::string &text) {
+                      success = ok;
+                      output = text;
+                      completed = true;
+                    }) ||
+        !waitFor(eventLoop, completed) || !success) {
+      std::cerr << "The session probe did not run.\n";
+      result = 1;
+    } else {
+      std::vector<long> numbers;
+      for (size_t start = 0; start < output.size();) {
+        const auto end = output.find('\n', start);
+        const auto line = output.substr(start, end - start);
+        if (line.find_first_of("0123456789") != std::string::npos)
+          numbers.push_back(std::stol(line));
+        start = end == std::string::npos ? output.size() : end + 1;
+      }
+      if (numbers.size() != 2 || numbers[0] != numbers[1]) {
+        std::cerr << "A child process did not start its own session: " << output
+                  << "\n";
+        result = 1;
+      }
+    }
+
     // Parsed output comes from the C locale; programs whose output is not collected keep
     // the caller's locale (the session shell and applications need their translations).
     completed = false;
