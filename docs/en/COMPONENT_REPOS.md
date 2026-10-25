@@ -52,6 +52,6 @@ git -C ../LunaDash-Shell rev-parse HEAD
 
 Write the reviewed 40-character Shell commit to `packaging/shell-revision` in LunaDash. The Nix flake reads the same file. Commit that change on LunaDash `dev`; CI fetches the selected Shell commit and runs the native and QML suites.
 
-Website changes belong in LunaDash-docs. Run its `npm ci`, `npm run check`, `npm run build`, and `python3 scripts/test-site.py dist` commands there, then commit and push to its `main` branch. The root Pages workflow fetches that branch when it deploys. It does not require a corresponding website pointer commit in LunaDash.
+Website changes belong in LunaDash-docs. Build it there with `npm ci` and `npm run build`, then commit and push to its `main` branch: LunaDash-docs deploys itself, and the root Pages workflow fetches that branch for its own deployment.
 
 Keep compositor APIs, translations, native assets, CMake integration and technical documentation in LunaDash. The compositor uses shared LunaDash APIs, so it is not an independent CMake project.

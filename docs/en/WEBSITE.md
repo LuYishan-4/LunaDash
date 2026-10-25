@@ -12,29 +12,28 @@ Update each image's caption and alternative text when replacing it. Show real de
 
 Distribution badges belong in README, using Shields.io's `flat-square` style and white logos. Keep their versions and coverage labels aligned with the dependency installer and configured CI. The website keeps its installation section short and links to the installation guide for distribution details. CI labels do not establish physical hardware compatibility.
 
-## Preview and validation
+## Preview and build
 
-Clone LunaDash-docs and run its checks from that repository:
+Clone LunaDash-docs and build it from that repository:
 
 ```sh
 git clone https://github.com/LunaDashWM/LunaDash-docs.git
 cd LunaDash-docs
 npm ci --include=dev --ignore-scripts
-npm run check
+python3 scripts/sync-slintlu.py ../SlintLu   # optional: refresh the SlintLu pages
 npm run build
-python3 scripts/test-site.py dist
 npm run preview -- --host 127.0.0.1
 ```
 
-Open `http://localhost:4321/LunaDash/` while the preview server is running. Check desktop and mobile layouts, all four images, the image dialog, keyboard focus, copy feedback and documentation links. Generated output under `dist/` is ignored. LunaDash keeps the shared brand banner at `docs/brand/banner.svg`; the website keeps its matching copy at `public/assets/banner.svg`. The website CI checks the built copy against its source asset.
+Open `http://localhost:4321/LunaDash-docs/` while the preview server is running. `SITE_URL` and `BASE_PATH` choose the published address (default `https://lunadashwm.github.io` and `/LunaDash-docs`). Generated output under `dist/` is ignored.
 
 ## Contributions and publishing
 
-Website commits belong in LunaDash-docs and run through its own CI. Keep generated release Markdown (`.md` or `.mdx`) under `src/pages/releases/` and the generated `src/data/releases.json` index out of repository commits. Release impact belongs in the LunaDash PR body; deployments generate these files from GitHub Releases.
+Website commits belong in LunaDash-docs. Keep generated release Markdown (`.md` or `.mdx`) under `src/pages/releases/` and the generated `src/data/releases.json` index out of repository commits; deployments generate them from GitHub Releases. The `/slintlu/` pages are generated from the SlintLu repository by `scripts/sync-slintlu.py`; edit them there.
 
-- `main-site.yml` in LunaDash fetches LunaDash-docs `main`, checks types, builds the site and validates links/assets.
-- `site-pages.yml` in LunaDash fetches the same source, synchronizes published Release Markdown, repeats validation and deploys `dist/` to GitHub Pages. It runs after pushes to LunaDash `main`, on a daily schedule, for GitHub Releases and when manually dispatched.
+- LunaDash-docs builds pull requests in its own CI, and its `pages.yml` builds every push to `main` (and runs daily) with the current SlintLu documentation and LunaDash release notes, then deploys to `https://lunadashwm.github.io/LunaDash-docs/`.
+- `site-pages.yml` in LunaDash builds the same source the same way for `https://luyishan-4.github.io/LunaDash/`, after pushes to LunaDash `main`, daily, for GitHub Releases and when dispatched.
 
-A successful website build on LunaDash `dev` does not publish the website. After the intended revision reaches LunaDash-docs `main`, inspect its CI and the next Pages run. Pages refreshes on the next LunaDash `main` push or daily run; maintainers can also dispatch the root workflow manually. The configured address is `https://luyishan-4.github.io/LunaDash/`; Pages must use GitHub Actions as its publishing source. Update both `site` and `base` in LunaDash-docs `astro.config.mjs` if the repository URL changes. Roll back with a revert and redeployment rather than rewriting shared history.
+Both repositories need GitHub Actions as their Pages publishing source. Roll back with a revert and redeployment rather than rewriting shared history.
 
 Repository technical guides live under LunaDash `docs/en/` and `docs/zh/`; those paths differ from the website's public `/docs/` routes. Release notes live under the public `/releases/` route. Keep technical detail in the source guides so the home page can stay focused on the desktop and how to install it.

@@ -52,6 +52,6 @@ git -C ../LunaDash-Shell rev-parse HEAD
 
 把確認過的 40 字元 Shell commit 寫入 LunaDash 的 `packaging/shell-revision`。Nix flake 會讀取同一個檔案。在 LunaDash `dev` commit 這項變更後，CI 會抓取選定的 Shell commit 並執行 native 與 QML suites。
 
-網站修改放在 LunaDash-docs。在該 repository 執行 `npm ci`、`npm run check`、`npm run build` 和 `python3 scripts/test-site.py dist`，再 commit 並 push 到 `main`。根 Pages workflow 部署時會抓取該 branch，不必在 LunaDash 更新網站指標。
+網站修改放在 LunaDash-docs。在該 repository 以 `npm ci` 與 `npm run build` 建置，再 commit 並 push 到 `main`：LunaDash-docs 會自行部署，根 Pages workflow 也會抓取該 branch 做自己的部署，不必在 LunaDash 更新網站指標。
 
 Compositor API、翻譯、native 素材、CMake 整合與技術文件仍放在 LunaDash。Compositor 使用 LunaDash 共用 API，因此不是獨立的 CMake 專案。

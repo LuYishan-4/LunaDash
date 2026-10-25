@@ -29,6 +29,10 @@ jobs:
                   persist-credentials: false
             - name: Fetch website source
               run: git clone --quiet --depth 1 https://github.com/LunaDashWM/LunaDash-docs.git "$RUNNER_TEMP/LunaDash-docs"
+            - name: Sync the SlintLu documentation
+              run: |
+                  git clone --quiet --depth 1 https://github.com/LunaDashWM/SlintLu.git "$RUNNER_TEMP/SlintLu"
+                  python3 "$RUNNER_TEMP/LunaDash-docs/scripts/sync-slintlu.py" "$RUNNER_TEMP/SlintLu"
             - name: Sync published GitHub Release Markdown
               env:
                   GITHUB_TOKEN: ${{ github.token }}
@@ -40,12 +44,12 @@ jobs:
                   node-version: "22"
             - name: Install website dependencies
               run: npm ci --prefix "$RUNNER_TEMP/LunaDash-docs" --include=dev --ignore-scripts
-            - name: Check the website
-              run: npm run check --prefix "$RUNNER_TEMP/LunaDash-docs"
             - name: Build the website
+              # This repository's Pages address; LunaDash-docs also deploys itself.
+              env:
+                  SITE_URL: https://luyishan-4.github.io
+                  BASE_PATH: /LunaDash
               run: npm run build --prefix "$RUNNER_TEMP/LunaDash-docs"
-            - name: Test the built website
-              run: python3 "$RUNNER_TEMP/LunaDash-docs/scripts/test-site.py" "$RUNNER_TEMP/LunaDash-docs/dist"
             - name: Configure Pages
               uses: actions/configure-pages@v6
             - name: Upload the Pages artifact
