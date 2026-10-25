@@ -14,6 +14,7 @@
 | Meta+=／Meta+- | 加寬／縮窄欄 |
 | Meta+F | 最大化／還原 |
 | Meta+Shift+F | 進入／離開全螢幕 |
+| Meta+Shift+Space | 平鋪在「填滿」（分割畫面）與「正常」（類似 niri 的欄位）之間切換 |
 | Meta+Shift+T | 切換浮動／平鋪 |
 | Meta+C 或 Meta+Q | 關閉目前視窗 |
 | Meta+M | 最小化目前視窗 |
@@ -22,7 +23,7 @@
 | Meta+D | 開啟應用程式搜尋 |
 | Meta+A | 開啟 Orbit 啟動器 |
 | Meta+Shift+S | 螢幕截圖 |
-| Meta+W | 開啟桌布庫 |
+| Meta+W | 開啟桌布庫（搜尋、分頁、分類、靜態／動態、最愛） |
 | Meta+Ctrl+W | 隨機桌布 |
 | Meta+N | 切換護眼模式 |
 | Meta+`（反引號） | 顯示／隱藏暫存終端機 |

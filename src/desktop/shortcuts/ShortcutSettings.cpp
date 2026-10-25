@@ -25,7 +25,8 @@ nlohmann::json defaults() {
       {"chooseWallpaper", "Meta+W"},   {"randomWallpaper", "Meta+Ctrl+W"},
       {"toggleEyeCare", "Meta+N"},     {"toggleScratchpad", "Meta+grave"},
       {"openControlCenter", "Meta+I"}, {"openClipboard", "Meta+V"},
-      {"openPowerMenu", "Meta+X"},     {"toggleFullscreen", "Meta+Shift+F"}};
+      {"openPowerMenu", "Meta+X"},     {"toggleFullscreen", "Meta+Shift+F"},
+      {"toggleTilingMode", "Meta+Shift+Space"}};
   for (int workspace = 1; workspace <= 10; ++workspace) {
     const auto number = std::to_string(workspace % 10);
     result["workspace" + std::to_string(workspace)] = "Meta+" + number;

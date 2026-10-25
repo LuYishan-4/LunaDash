@@ -1,5 +1,6 @@
 #include "compositor/window/WindowTemplate.hpp"
 #include "compositor/layout/FreeformLayout.hpp"
+#include "compositor/layout/ScrollingLayout.hpp"
 #include "compositor/tiling/TilingLayout.hpp"
 
 #include "core/settings/SettingsSchema.hpp"
@@ -11,6 +12,9 @@ std::unique_ptr<WindowLayout> createTilingLayout() {
 }
 std::unique_ptr<WindowLayout> createFreeformLayout() {
   return std::make_unique<FreeformLayout>();
+}
+std::unique_ptr<WindowLayout> createScrollingLayout() {
+  return std::make_unique<ScrollingLayout>();
 }
 
 Json defaults(const Json &schema) {
@@ -131,15 +135,44 @@ const WindowTemplate &stackingTemplate() {
       defaults(schema), actions, defaultWindowAnimation()};
   return value;
 }
+// niri-like columns: the "normal" counterpart of tiling's fill-the-screen tree.
+const WindowTemplate &scrollingTemplate() {
+  static const Json schema{
+      {"gap", Json::object({{"type", "integer"},
+                           {"default", 12},
+                           {"minimum", 0},
+                           {"maximum", 64},
+                           {"label", "Window gaps"}})},
+      {"columnWidth", Json::object({{"type", "integer"},
+                                   {"default", 50},
+                                   {"minimum", 20},
+                                   {"maximum", 100},
+                                   {"label", "New column width (% of the screen)"}})},
+      {"centerFocusedColumn", Json::object({{"type", "string"},
+                                           {"default", "never"},
+                                           {"enum", Json{"never", "always"}},
+                                           {"label", "Center the focused column"},
+                                           {"description", "Never scrolls only as far as needed to show the focused column."},
+                                           {"control", "select"}})}};
+  auto actions = tilingActions();
+  actions.erase("move-by");
+  static const auto scrollingActions = actions;
+  static const WindowTemplate value{
+      "scrolling", &createScrollingLayout, false, false, false, schema,
+      defaults(schema), scrollingActions, defaultWindowAnimation()};
+  return value;
+}
 } // namespace
 
 std::vector<WindowTemplate> windowTemplates() {
-  return {tilingTemplate(), stackingTemplate()};
+  return {tilingTemplate(), stackingTemplate(), scrollingTemplate()};
 }
 
 const WindowTemplate &windowTemplateForKey(const std::string &key) {
   if (key == "stacking")
     return stackingTemplate();
+  if (key == "scrolling")
+    return scrollingTemplate();
   return tilingTemplate();
 }
 

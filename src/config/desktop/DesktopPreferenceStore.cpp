@@ -441,6 +441,11 @@ bool validDesktopPreference(std::string_view key, const Json &value) {
   }
   if (key == "accent" || key == "secondaryAccent")
     return validColor(value);
+  // "fill": the split tree fills the screen; "scroll": niri-like columns.
+  if (key == "tilingMode")
+    return value.is_string() &&
+           (value.get<std::string>() == "fill" ||
+            value.get<std::string>() == "scroll");
   if (key == "overview" || key == "showHostDetails" || key == "blur" ||
       key == "animations" || key == "clock24Hour" || key == "proxyEnabled")
     return value.is_boolean();
@@ -564,6 +569,7 @@ Json defaultDesktopPreferenceValues() {
       {"dockAutoHide", true},
       {"colorPins", {"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
       {"gap", 12},
+      {"tilingMode", "fill"},
       {"panelHeight", 40},
       {"blur", true},
       {"blurRadius", 18},

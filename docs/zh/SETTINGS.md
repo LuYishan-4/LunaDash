@@ -39,6 +39,7 @@ System command 來自固定 allowlist，不經 shell evaluation。Logout 結束 
 
 ```text
 workspaceCount    10       (1–10，已不使用：工作區跟著視窗增減)
+tilingMode        fill     (fill：分割樹填滿畫面；scroll：類似 niri 的欄位保留寬度；Meta+Shift+Space 切換)
 keyboardLayout    us       (us/gb/de/fr/es/jp/tw)
 keyRepeatRate     25       (0–60)
 keyRepeatDelay    600 ms   (200–1500)

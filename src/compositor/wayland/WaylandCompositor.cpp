@@ -876,6 +876,16 @@ bool WaylandCompositor::scheduleEventLoopCallback(
   return d && d->scheduleCallback(delayMilliseconds, std::move(callback));
 }
 
+std::string WaylandCompositor::selectedWindowTemplateKey() const {
+  // A window-layout plugin wins; otherwise tiling either fills the screen
+  // with its split tree or keeps windows in scrollable columns.
+  const auto key = pluginManager_->windowTemplateKey();
+  if (key == "tiling" &&
+      desktopPreferences().value("tilingMode", std::string("fill")) == "scroll")
+    return "scrolling";
+  return key;
+}
+
 Json WaylandCompositor::currentWindowLayoutSettings() const {
   if (!windowTemplate_)
     return Json::object();
@@ -883,7 +893,8 @@ Json WaylandCompositor::currentWindowLayoutSettings() const {
   auto values = windowTemplate_->layoutSettingsDefaults;
 
   // Preserve legacy gap preferences until the user edits the new template API.
-  if (windowTemplate_->key == "tiling") {
+  // Both tiling modes share the desktop's gap setting.
+  if (windowTemplate_->key == "tiling" || windowTemplate_->key == "scrolling") {
     const auto preferences = desktopPreferences();
     if (preferences.contains("gap"))
       values["gap"] = jsonInt(preferences, "gap");
@@ -1075,7 +1086,7 @@ void WaylandCompositor::arrange() {
       for (const auto *output : d->outputs)
         wlr_output_schedule_frame(output->output);
   }
-  const auto templateKey = pluginManager_->windowTemplateKey();
+  const auto templateKey = selectedWindowTemplateKey();
   const auto &selectedTemplate = windowTemplateForKey(templateKey);
   const bool templateChanged =
       !windowTemplate_ || windowTemplate_->key != selectedTemplate.key;
@@ -1269,7 +1280,7 @@ void WaylandCompositor::arrange() {
   for (const int workspace : layoutWorkspaces)
     for (auto &placement : windowLayout_->presentation(workspace, area))
       placements.push_back(std::move(placement));
-  if (windowTemplate_->key != pluginManager_->windowTemplateKey()) {
+  if (windowTemplate_->key != selectedWindowTemplateKey()) {
     arrange();
     return;
   }
@@ -1642,7 +1653,10 @@ void WaylandCompositor::handleShortcut(std::string_view action) {
     control({{"method", "launch-default"}, {"value", "terminal"}});
   else if (action == "launchFiles")
     control({{"method", "launch-default"}, {"value", "files"}});
-  else if (action == "toggleScratchpad") {
+  else if (action == "toggleTilingMode") {
+    control({{"method", "tiling-mode"}, {"value", "toggle"}});
+    return;
+  } else if (action == "toggleScratchpad") {
     std::string error;
     toggleScratchpad(&error);
     if (!error.empty())
@@ -1868,6 +1882,9 @@ Json WaylandCompositor::state(bool includeTranslations) const {
       {"layoutMode", windowTemplate_ && windowTemplate_->allowOverlap
                          ? "stacking"
                          : "tiling"},
+      {"tilingMode", windowTemplate_ && windowTemplate_->key == "scrolling"
+                         ? "scroll"
+                         : "fill"},
       {"windowLayout",
        Json::object({
            {"template", windowTemplate_ ? windowTemplate_->key : std::string()},
@@ -2393,6 +2410,32 @@ Json WaylandCompositor::control(const Json &request) {
     if (d)
       d->updateNightLight();
     arrange();
+  } else if (method == "tiling-mode") {
+    if (value != "toggle" && value != "fill" && value != "scroll")
+      return {{"error", "Tiling mode expects toggle, fill or scroll."}};
+    const auto current =
+        desktopPreferences().value("tilingMode", std::string("fill"));
+    const std::string next =
+        value == "toggle" ? (current == "scroll" ? "fill" : "scroll") : value;
+    std::string error;
+    if (!updateDesktopPreferences({{"tilingMode", next}}, &error))
+      return {{"error", (error)}};
+    arrange();
+    synchronizeWindowFocus();
+  } else if (method == "wallpaper-refresh") {
+    // Rescans the library without asking the shell to open its picker.
+    std::string error;
+    if (!refreshWallpaperLibrary(&error))
+      return {{"error", (error)}};
+  } else if (method == "wallpaper-favorite") {
+    // "add:/path" or "remove:/path"; plain text, so shells need no JSON escaping.
+    const bool add = value.starts_with("add:");
+    const auto path = add                         ? value.substr(4)
+                      : value.starts_with("remove:") ? value.substr(7)
+                                                     : std::string{};
+    std::string error;
+    if (path.empty() || !setWallpaperFavorite(path, add, &error))
+      return {{"error", error.empty() ? "Expected add:<path> or remove:<path>." : error}};
   } else if (method == "wallpaper-random") {
     std::string error;
     if (!selectRandomWallpaper(&error))

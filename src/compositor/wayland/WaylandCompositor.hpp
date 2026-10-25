@@ -141,6 +141,9 @@ private:
   void arrange();
   Rect workArea() const;
   Json currentWindowLayoutSettings() const;
+  // The window template in use: a layout plugin's, or tiling in its fill or
+  // scrolling mode.
+  std::string selectedWindowTemplateKey() const;
   bool updateWindowLayoutSettings(const Json &changes, std::string *error);
   Json state(bool includeTranslations = true) const;
   Json control(const Json &request);

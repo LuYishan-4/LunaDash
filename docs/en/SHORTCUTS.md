@@ -14,6 +14,7 @@ These are the shipped desktop defaults. **Meta / Super** is usually the Windows 
 | Meta+= / Meta+- | Widen / narrow the column |
 | Meta+F | Maximize / restore |
 | Meta+Shift+F | Enter / leave fullscreen |
+| Meta+Shift+Space | Switch tiling between Fill (split screen) and Normal (niri-like columns) |
 | Meta+Shift+T | Toggle floating / tiled |
 | Meta+C or Meta+Q | Close the focused window |
 | Meta+M | Minimize the focused window |
@@ -22,7 +23,7 @@ These are the shipped desktop defaults. **Meta / Super** is usually the Windows 
 | Meta+D | Open application search |
 | Meta+A | Open Orbit launcher |
 | Meta+Shift+S | Take a screenshot |
-| Meta+W | Open the wallpaper library |
+| Meta+W | Open the wallpaper library (search, collections, categories, static/live, favourites) |
 | Meta+Ctrl+W | Choose a random wallpaper |
 | Meta+N | Toggle eye care |
 | Meta+` (grave accent) | Toggle terminal scratchpad |

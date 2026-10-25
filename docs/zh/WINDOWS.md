@@ -37,6 +37,10 @@ Tiled 視窗收到 tile 尺寸時會一併收到 xdg-shell 的 tiled 狀態，�
 
 預設 tiling。啟用 Plugin SDK 2 的 stacking `window-layout` replacement 後，可切成獨立重疊 rectangles；停用時即時回 tiling。見 [視窗配置模板](WINDOW_LAYOUT_TEMPLATES.md) 與 [stacking example](../../examples/plugins/stacking-windows/README.md)。
 
+## 填滿與正常平鋪
+
+平鋪有兩種模式，用 Meta+Shift+Space 或「設定 → 視窗」切換。**填滿**就是上面的分割樹：視窗彼此分割整個畫面。**正常**類似 niri：每個視窗保留自己的欄寬（預設半個畫面，`scrolling` 版面模板的 `columnWidth`），新視窗開在焦點欄位右邊，畫面左右捲動讓焦點欄位留在畫面內；欄位總寬小於畫面時置中。Meta+H/L 在欄位間移動焦點並捲動，Meta+Shift+H/L 把視窗併入相鄰欄位（上下疊放），Meta+Shift+E 讓它獨立成一欄，Meta+Ctrl+H/L 調整欄位順序，Meta+= / Meta+- 調整欄寬，Meta+Shift+C 置中。切換模式時視窗與工作區都會保留。
+
 ## 驗證
 
 CTest 的 window-layout 測試覆蓋最多 64 window 的 bounded geometry、split insertion、output resize、8-member capacity、minimize/restore、swap、group insertion、resize distribution、workspace transfer、maximize/restore 與 shortcut migration。

@@ -239,6 +239,7 @@ add_library(ludash-tiling
     src/compositor/layout/WindowLayout.cpp
     src/compositor/window/WindowTemplate.cpp
     src/compositor/layout/FreeformLayout.cpp
+    src/compositor/layout/ScrollingLayout.cpp
     src/compositor/tiling/TilingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
 target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core ludash-json ludash-text)

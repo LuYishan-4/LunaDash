@@ -43,6 +43,7 @@ Additional keys in the existing `[desktop]` group:
 | Key | Default | Accepted values |
 | --- | --- | --- |
 | `workspaceCount` | 10 | Integer 1–10; ignored: workspaces follow the windows |
+| `tilingMode` | fill | fill (the split tree fills the screen) or scroll (niri-like columns keep their width); Meta+Shift+Space switches |
 | `keyboardLayout` | us | us, gb, de, fr, es, jp, tw |
 | `keyRepeatRate` | 25 | Integer 0–60; zero disables repeat |
 | `keyRepeatDelay` | 600 | Integer 200–1500 ms |

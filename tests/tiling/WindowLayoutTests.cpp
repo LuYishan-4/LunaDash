@@ -10,6 +10,7 @@
 #include "core/filesystem/FileIo.hpp"
 #include "core/filesystem/TemporaryDirectory.hpp"
 #include <chrono>
+#include <cmath>
 #include <climits>
 #include <cstdlib>
 #include <filesystem>
@@ -124,8 +125,11 @@ public:
   }
   void layoutTemplateContract() {
     const auto templates = windowTemplates();
-    COMPARE(templates.size(), 2);
+    COMPARE(templates.size(), 3);
     COMPARE(templates[0].key, std::string("tiling"));
+    COMPARE(templates[2].key, std::string("scrolling"));
+    VERIFY(!templates[2].allowOverlap && !templates[2].activationTogglesMaximize);
+    VERIFY(templates[2].layoutSettingsSchema.contains("columnWidth"));
     VERIFY(!templates[0].clientMoveResize);
     VERIFY(templates[0].activationTogglesMaximize);
     COMPARE(templates[1].key, std::string("stacking"));
@@ -609,6 +613,57 @@ public:
     COMPARE(after.value(2), before.value(1));
   }
 
+  void scrollingColumnsKeepTheirWidth() {
+    const auto &scrolling = windowTemplateForKey("scrolling");
+    COMPARE(scrolling.key, std::string("scrolling"));
+    auto layout = createWindowLayout(scrolling);
+    VERIFY(layout);
+    layout->configure({{"gap", 10}, {"columnWidth", 50}, {"centerFocusedColumn", "never"}});
+    // One column is centred at its own width instead of filling the screen.
+    VERIFY(layout->insert(0, 1));
+    auto placed = geometries(layout->presentation(0, area));
+    COMPARE(placed.value(1).width(), (area.width() - 20) / 2);
+    COMPARE(placed.value(1).center().x(), area.center().x());
+    COMPARE(placed.value(1).height(), area.height() - 20);
+    // Three half-width columns overflow: the focused (newest) one stays visible.
+    VERIFY(layout->insert(0, 2));
+    VERIFY(layout->insert(0, 3));
+    placed = geometries(layout->presentation(0, area));
+    COMPARE(placed.value(1).width(), placed.value(3).width());
+    VERIFY(placed.value(3).right() <= area.right());
+    VERIFY(placed.value(1).left() < area.left());
+    // Focusing left scrolls back; widths never change.
+    VERIFY(performWindowLayoutAction(*layout, scrolling, "focus-direction",
+                                     {{"workspace", 0}, {"dx", -1}, {"dy", 0}}));
+    VERIFY(performWindowLayoutAction(*layout, scrolling, "focus-direction",
+                                     {{"workspace", 0}, {"dx", -1}, {"dy", 0}}));
+    placed = geometries(layout->presentation(0, area));
+    VERIFY(placed.value(1).left() >= area.left());
+    COMPARE(layout->snapshot(0).focusedWindow, LayoutWindowId(1));
+    // Consuming into a column stacks windows; expelling restores a column.
+    VERIFY(performWindowLayoutAction(*layout, scrolling, "group-direction",
+                                     {{"window", 2}, {"workspace", 0}, {"dx", -1}, {"dy", 0}}));
+    placed = geometries(layout->presentation(0, area));
+    COMPARE(placed.value(1).x(), placed.value(2).x());
+    VERIFY(placed.value(2).top() > placed.value(1).bottom());
+    VERIFY(performWindowLayoutAction(*layout, scrolling, "expel", {{"window", 2}}));
+    placed = geometries(layout->presentation(0, area));
+    VERIFY(placed.value(2).x() > placed.value(1).x());
+    // Resizing changes only that column; maximize overlays the work area.
+    VERIFY(performWindowLayoutAction(*layout, scrolling, "resize-width",
+                                     {{"window", 3}, {"width", 900}}));
+    placed = geometries(layout->presentation(0, area));
+    COMPARE(placed.value(3).width(),
+            static_cast<int>(std::lround(900.0 / area.width() * (area.width() - 20))));
+    VERIFY(layout->setMaximized(3, true));
+    placed = geometries(layout->presentation(0, area));
+    COMPARE(placed.value(3), area);
+    VERIFY(layout->remove(1));
+    VERIFY(layout->remove(2));
+    VERIFY(layout->remove(3));
+    VERIFY(layout->presentation(0, area).empty());
+  }
+
   void geometryBounds() {
     LuDashRectangle halves[2];
     for (const int vertical : {0, 1}) {
@@ -832,6 +887,7 @@ int main(int argc, char **argv) {
       {"resizingAndSingleMovement", &LunaDash::WindowLayoutTests::resizingAndSingleMovement},
       {"workspaceMaximizePreservesTiling", &LunaDash::WindowLayoutTests::workspaceMaximizePreservesTiling},
       {"freeformSwapExchangesWindowSlots", &LunaDash::WindowLayoutTests::freeformSwapExchangesWindowSlots},
+      {"scrollingColumnsKeepTheirWidth", &LunaDash::WindowLayoutTests::scrollingColumnsKeepTheirWidth},
       {"geometryBounds", &LunaDash::WindowLayoutTests::geometryBounds},
       {"windowSelectionScopeAndLifetime", &LunaDash::WindowLayoutTests::windowSelectionScopeAndLifetime},
       {"selectionLifecycle", &LunaDash::WindowLayoutTests::selectionLifecycle},
