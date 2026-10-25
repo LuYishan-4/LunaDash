@@ -10,7 +10,7 @@
 
 一般 PR 不得修改 `.github/workflows/`。不要 commit `LunaDash-docs/src/pages/releases/` 下自動產生的 Markdown／MDX 或產生的 `LunaDash-docs/src/data/releases.json`。維護者在 `dev` 完成的 workflow 修改可透過同 repository 的升版 PR 帶到 main。Release impact 寫在 PR body。
 
-[Dev CI](CI.md) 依完整 diff 選擇共用測試類別；[Main CI](CI.md)、排程及完整流程涵蓋全部測試與發行版，包含 NixOS、clang-tidy 及 CodeQL。小功能併入維護中的測試集，不各自新增 workflow。Branch protection 應要求 aggregate `CI result`，並查看升版 commit 的實際結果。略過的 suite 不代表已通過。
+[Dev CI](CI.md) 依完整 diff 選擇建置；[Main CI](CI.md)、排程及完整流程建置全部項目，包含 NixOS 與所有發行版。CI 不執行測試：升版前請在升版 commit 上執行 `scripts/run-tests.sh all`。Branch protection 應要求 aggregate `CI result`，並查看升版 commit 的實際結果。略過的 suite 不代表已通過。
 
 NixOS 發行內容包含根目錄 flake、lock 及 `nix/` 定義。系統世代更新方式及自動 runtime 驗證限制見 [NixOS](NIXOS.md)。
 

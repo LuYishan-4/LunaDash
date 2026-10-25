@@ -1,4 +1,4 @@
-name: Shared CI suites
+name: Shared CI builds
 on:
   workflow_call:
     inputs:
@@ -7,6 +7,7 @@ on:
         default: false
 permissions:
   contents: read
+# CI only builds. Tests run locally with scripts/run-tests.sh (docs/en/TESTING.md).
 jobs:
   changes:
     name: Select suites
@@ -32,69 +33,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/changes.py
 
-  quality:
-    name: Repository and source contracts
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Fetch pinned LunaDash-Shell and SlintLu sources
-        run: |
-          bash scripts/fetch-shell.sh "$RUNNER_TEMP/LunaDash-Shell"
-          bash scripts/fetch-slintlu.sh "$RUNNER_TEMP/SlintLu"
-          echo "LUDASH_SHELL_SOURCE_DIR=$RUNNER_TEMP/LunaDash-Shell" >> "$GITHUB_ENV"
-          echo "LUDASH_SLINTLU_SOURCE_DIR=$RUNNER_TEMP/SlintLu" >> "$GITHUB_ENV"
-      - name: Install shell audit tools
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
-      - name: Repository and CI policy
-        run: |
-          python3 tests/ci/test_changes.py
-          python3 tests/ci/test_pr_policy.py
-          python3 scripts/security/check_repository_hygiene.py workflows
-          python3 scripts/security/check_repository_hygiene.py secrets
-          python3 scripts/security/check_repository_hygiene.py paths
-          python3 tests/security/test_sarif_gate.py
-      - name: Architecture and source language
-        if: ${{ !cancelled() }}
-        run: |
-          python3 scripts/check-source-layout.py
-          python3 tests/architecture/test_source_layout.py
-          python3 tests/architecture/test_window_template_contract.py
-          python3 tests/security/test_source_language.py
-          python3 tests/renderer/test_render_architecture.py
-          python3 tests/renderer/test_shader_extensions.py
-          python3 tests/renderer/test_shader_diagnostics.py
-          python3 tests/wayland/test_no_qtwayland.py
-          python3 tests/wayland/test_graphics_protocol_contract.py
-          python3 tests/wayland/test_input_contract.py
-      - name: Shell syntax and ShellCheck
-        if: ${{ !cancelled() }}
-        run: |
-          bash -n install.sh
-          while IFS= read -r -d '' file; do
-            case "$(head -n 1 "$file")" in
-              *bash*) bash -n "$file"; shellcheck --severity=error "$file" ;;
-              *'/sh') sh -n "$file"; shellcheck --severity=error "$file" ;;
-            esac
-          done < <(git ls-files -z scripts)
-      - name: Shell actions and translations
-        if: ${{ !cancelled() }}
-        run: |
-          python3 scripts/ci/check_shell_actions.py
-          python3 scripts/gen-ui-icons.py --check
-          python3 scripts/check-translations.py
-          python3 scripts/test-translation-checker.py
-      - name: Packaging and installer contracts
-        if: ${{ !cancelled() }}
-        run: |
-          python3 tests/packaging/test_make_source.py
-          python3 tests/packaging/test_nix_update.py
-          python3 tests/update/test_update_contract.py
-
   native:
-    name: Ubuntu build and runtime
+    name: Ubuntu build
     needs: changes
     if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-24.04
@@ -133,7 +73,7 @@ jobs:
         with:
           path: build-main/slintlu
           key: ubuntu-slintlu-v1-${{ hashFiles('packaging/slintlu-revision') }}
-      - name: Configure and build once
+      - name: Configure and build
         id: build
         run: |
           ccache --max-size=500M
@@ -141,7 +81,7 @@ jobs:
             -DLUDASH_SHELL_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
             -DLUDASH_SLINTLU_SOURCE_DIR="$RUNNER_TEMP/SlintLu" \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DLUDASH_BUILD_RENDERER_TESTS=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON \
+            -DBUILD_TESTING=OFF \
             2>&1 | tee build-main.log
           test "${PIPESTATUS[0]}" -eq 0
           cmake --build build-main --parallel 2 -- -k 0 2>&1 | tee -a build-main.log
@@ -149,87 +89,6 @@ jobs:
       - name: Report build failures
         if: ${{ failure() && steps.build.outcome == 'failure' }}
         run: python3 scripts/ci/report_build_errors.py Ubuntu build-main.log
-      - name: Maintained CTest suite including portal runtime
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            ctest --test-dir build-main --output-on-failure --timeout 120
-          } 2>&1 | tee runtime-ctest.log
-      - name: Plugin SDK build and installation
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            python3 tests/plugins/test_sdk.py --sdk build-main/sdk-build
-          } 2>&1 | tee runtime-sdk.log
-      - name: Compositor startup and linkage
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            ldd build-main/lunadash-compositor | grep -E 'libwlroots|libwayland-server'
-            ! ldd build-main/lunadash-compositor | grep -q libQt6
-            python3 tests/renderer/test_startup_failure.py build-main/lunadash-compositor
-          } 2>&1 | tee runtime-startup.log
-      - name: Wayland lifecycle
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            ./scripts/test-xdg-lifecycle.sh "$PWD/build-main"
-            LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build-main" ./scripts/test-wayland.sh
-          } 2>&1 | tee runtime-wayland.log
-      - name: XWayland lifecycle
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            xvfb-run -a python3 tests/wayland/test_xwayland.py build-main
-            python3 tests/wayland/test_xwayland_notifications.py build-main
-          } 2>&1 | tee runtime-xwayland.log
-      - name: GTK 3, GTK 4 and Slint Wayland clients
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            dbus-run-session -- python3 tests/wayland/test_toolkits.py build-main
-          } 2>&1 | tee runtime-toolkits.log
-      - name: Slint shell in a LunaDash session
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            "$PWD/build-main/slintlu/release/slintlu" check "$RUNNER_TEMP/LunaDash-Shell"
-            dbus-run-session -- python3 tests/wayland/test_session_shell.py build-main
-            dbus-run-session -- python3 tests/wayland/test_session_config.py build-main
-          } 2>&1 | tee runtime-shell.log
-      - name: Relocated software OpenGL renderer
-        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        shell: bash
-        run: |
-          {
-            cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Runtime
-            cmake --install build-main --prefix "$RUNNER_TEMP/renderer-install" --component Tests
-            cd "$RUNNER_TEMP"
-            LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
-              "$RUNNER_TEMP/renderer-install/libexec/lunadash/tests/lunadash-renderer-test" --opengl
-          } 2>&1 | tee runtime-renderer.log
-      - name: Report runtime failures
-        if: ${{ failure() && steps.build.outcome == 'success' }}
-        run: python3 scripts/ci/report_build_errors.py Ubuntu-runtime runtime-*.log
-      - name: Preserve runtime diagnostics
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ubuntu-runtime-diagnostics
-          path: |
-            build-main/*.log
-            build-main/*state.json
-            build-main/Testing/Temporary/
-            build-main/ci-evidence/
-          if-no-files-found: ignore
-          retention-days: 7
 
   website:
     needs: changes
@@ -237,7 +96,7 @@ jobs:
     uses: ./.github/workflows/main-site.yml
 
   nix:
-    name: NixOS package and module
+    name: NixOS package build
     needs: changes
     if: needs.changes.outputs.nix == 'true'
     runs-on: ubuntu-24.04
@@ -255,23 +114,8 @@ jobs:
           primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock', 'nix/**', 'packaging/slintlu-revision', 'packaging/shell-revision') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-
           gc-max-store-size-linux: 6G
-      - name: Evaluate both package architectures and module, build and run x86_64 checks
-        id: nix-check
-        run: |
-          scripts/ci/annotate.sh "nix eval (aarch64)" nix eval --raw .#packages.aarch64-linux.default.drvPath
-          scripts/ci/annotate.sh "nix flake check" nix flake check --print-build-logs --no-update-lock-file
-      - name: Preserve installed runtime state
-        if: ${{ !cancelled() && steps.nix-check.outcome == 'success' }}
-        run: |
-          nix build .#checks.x86_64-linux.runtime --out-link result-runtime --no-update-lock-file
-          cp result-runtime/state.json nix-runtime-state.json
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: nix-runtime-diagnostics
-          path: nix-runtime-state.json
-          if-no-files-found: ignore
-          retention-days: 7
+      - name: Build the package
+        run: scripts/ci/annotate.sh "nix build" nix build .#default --print-build-logs --no-update-lock-file
 
   distributions:
     needs: changes
@@ -280,23 +124,9 @@ jobs:
     with:
       full: ${{ inputs.full || needs.changes.outputs.analysis == 'true' }}
 
-  clang:
-    needs: changes
-    if: needs.changes.outputs.analysis == 'true'
-    uses: ./.github/workflows/pr-clang-tidy.yml
-
-  codeql:
-    needs: changes
-    if: needs.changes.outputs.analysis == 'true'
-    permissions:
-      contents: read
-      actions: read
-      security-events: write
-    uses: ./.github/workflows/pr-codeql.yml
-
   gate:
     name: CI result
-    needs: [changes, quality, native, website, nix, distributions, clang, codeql]
+    needs: [changes, native, website, nix, distributions]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -315,8 +145,7 @@ jobs:
               raise SystemExit(f'CI failed: {failures}')
           selected = results['changes']['outputs']
           for output, job in [('native', 'native'), ('website', 'website'),
-                              ('nix', 'nix'), ('distro', 'distributions'),
-                              ('analysis', 'clang'), ('analysis', 'codeql')]:
+                              ('nix', 'nix'), ('distro', 'distributions')]:
               if selected.get(output) == 'true' and results[job]['result'] != 'success':
                   raise SystemExit(f'Selected suite did not pass: {job}')
           PY

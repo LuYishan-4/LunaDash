@@ -65,7 +65,7 @@ This builds packages without installing them. The archive must include `data/plu
 
 ## CI coverage
 
-[Dev CI and Main CI](CI.md) share maintained suites. Development runs select broad suites from the complete diff and build Arch when relevant; main and full runs check all five configured distributions plus clang-tidy and CodeQL. Ubuntu builds once for CTest, portal frontend, plugin SDK, Wayland/XWayland and software OpenGL. QML, website and NixOS report separately.
+[Dev CI and Main CI](CI.md) only build: Ubuntu, the website, the Nix package and Arch (all five distributions on main and full runs). Every test in this document runs locally; `scripts/run-tests.sh` runs the maintained suites.
 
 [NixOS](NIXOS.md) has a locked flake, package and system module. CI builds x86_64, evaluates aarch64 and checks installed headless runtime; physical login and GPU behavior still require a real session. Inspect completed results for the exact commit. Void/Gentoo retain installer paths without the same CI coverage.
 

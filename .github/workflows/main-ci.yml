@@ -12,7 +12,6 @@ on:
 permissions:
   contents: read
   actions: read
-  security-events: write
 concurrency:
   group: main-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

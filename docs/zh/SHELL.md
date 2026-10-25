@@ -81,7 +81,7 @@ SlintLu 透過控制 socket 辨識 LunaDash 並輪詢其狀態：
 
 殼層呼叫了合成器沒有處理的方法時，`scripts/ci/check_shell_actions.py` 會失敗。
 `tests/wayland/test_session_shell.py` 會以固定版本的殼層與 SlintLu 啟動合成器，並檢查上述往返
-流程（CI 會執行這兩項）。
+流程（`scripts/run-tests.sh` 會執行這兩項）。
 
 ## Slint 殼層尚未提供的功能
 

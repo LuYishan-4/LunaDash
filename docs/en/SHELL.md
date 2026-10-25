@@ -90,7 +90,7 @@ SlintLu recognises LunaDash through its control socket and polls its status:
 
 `scripts/ci/check_shell_actions.py` fails when the shell calls a compositor method that has no
 handler. `tests/wayland/test_session_shell.py` starts the compositor with the pinned shell and
-SlintLu and checks the round trips above (CI runs both).
+SlintLu and checks the round trips above (`scripts/run-tests.sh` runs both).
 
 ## Not yet available in the Slint shell
 

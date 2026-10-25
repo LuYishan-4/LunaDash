@@ -5,7 +5,7 @@ permissions:
     contents: read
 jobs:
     build:
-        name: Website check, build and tests
+        name: Website build
         runs-on: ubuntu-24.04
         timeout-minutes: 20
         steps:
@@ -20,9 +20,5 @@ jobs:
                   node-version: "22"
             - name: Install website dependencies
               run: npm ci --prefix "$RUNNER_TEMP/LunaDash-docs" --include=dev --ignore-scripts
-            - name: Check the website
-              run: npm run check --prefix "$RUNNER_TEMP/LunaDash-docs"
             - name: Build the website
               run: npm run build --prefix "$RUNNER_TEMP/LunaDash-docs"
-            - name: Test the built website
-              run: python3 "$RUNNER_TEMP/LunaDash-docs/scripts/test-site.py" "$RUNNER_TEMP/LunaDash-docs/dist"

@@ -70,7 +70,7 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 
 ## CI
 
-[Dev CI 與 Main CI](CI.md) 共用維護中的測試集。開發流程依完整 diff 選擇測試類別，相關變更建置 Arch；main 與完整流程涵蓋五個發行版、clang-tidy 與 CodeQL。Ubuntu 只建置一次，供 CTest、portal frontend、plugin SDK、Wayland／XWayland 與 software OpenGL 使用；QML、網站及 NixOS 分別回報。
+[Dev CI 與 Main CI](CI.md) 只負責建置：Ubuntu、網站、Nix 套件與 Arch（main 與完整流程建置五個發行版）。本文件中的測試都在本機執行；`scripts/run-tests.sh` 會執行維護中的測試集。
 
 [NixOS](NIXOS.md) 提供鎖定的 flake、套件與系統模組。CI 建置 x86_64、求值 aarch64 並檢查安裝後的 headless runtime；真實登入及 GPU 行為仍需實機驗證。請查看指定 commit 的完成結果。Void／Gentoo 保留 installer path，但沒有相同 CI 覆蓋。
 
