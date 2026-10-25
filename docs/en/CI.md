@@ -30,7 +30,7 @@ website. `scripts/ci/changes.py` makes the selection (`tests/ci/test_changes.py`
   Tumbleweed and Alpine Edge for full runs. Each installs its dependencies with
   `scripts/install-dependencies.sh` and builds the release configuration.
 
-`pr-clang-tidy.yml` and `pr-codeql.yml` remain available but are not called by the shared CI.
+No workflow runs tests, linters or analyzers; `pr-gate.yml` only checks the pull-request policy.
 
 Superseded runs on the same PR/branch are cancelled and jobs have time limits. Build failures
 become annotations (`scripts/ci/report_build_errors.py`). `CI result` rejects failed or

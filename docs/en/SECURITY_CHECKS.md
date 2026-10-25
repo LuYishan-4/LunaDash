@@ -1,6 +1,6 @@
 # Security and crash checks
 
-[Dev CI and Main CI](CI.md) only build. The source/repository contracts run locally with `scripts/run-tests.sh contracts`; `pr-clang-tidy.yml` and `pr-codeql.yml` remain in the repository but are not called by the shared CI. Pull-request code runs on GitHub-hosted runners without `pull_request_target`, and checkout does not retain credentials. CodeQL receives `security-events: write`; caller workflows allow that permission to pass to the reusable job. Only Pages deployment receives `pages: write` and `id-token: write`, and never runs PR code.
+[Dev CI and Main CI](CI.md) only build. The source/repository contracts run locally with `scripts/run-tests.sh contracts`. No workflow runs tests or analyzers. Pull-request code runs on GitHub-hosted runners without `pull_request_target`, and checkout does not retain credentials. Only Pages deployment receives `pages: write` and `id-token: write`, and never runs PR code.
 
 | Check | Coverage | Failure condition |
 | --- | --- | --- |

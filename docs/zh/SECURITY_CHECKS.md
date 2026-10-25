@@ -2,7 +2,7 @@
 
 [English](../en/SECURITY_CHECKS.md) · [繁中索引](README.md)
 
-[Dev CI 與 Main CI](CI.md) 只負責建置。Source／repository contracts 請在本機以 `scripts/run-tests.sh contracts` 執行；`pr-clang-tidy.yml` 與 `pr-codeql.yml` 仍保留，但共用 CI 不會呼叫。PR code 使用 GitHub-hosted runner，不使用 `pull_request_target`，checkout 不保留憑證。CodeQL 的 `security-events: write` 由入口 workflow 傳遞；只有 Pages 部署使用 Pages／id-token 寫入權限。
+[Dev CI 與 Main CI](CI.md) 只負責建置。Source／repository contracts 請在本機以 `scripts/run-tests.sh contracts` 執行。沒有任何 workflow 執行測試或分析工具。PR code 使用 GitHub-hosted runner，不使用 `pull_request_target`，checkout 不保留憑證。只有 Pages 部署使用 Pages／id-token 寫入權限。
 
 | 檢查 | 主要覆蓋 | 失敗條件 |
 | --- | --- | --- |

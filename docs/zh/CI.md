@@ -29,7 +29,7 @@ CI／policy 修改、未知原始碼目錄、新分支或無法取得基準 comm
 - **發行版：** 開發變更建置 Arch；完整流程加入 Debian 13、Fedora 44、openSUSE Tumbleweed 與 Alpine Edge。
   各自以 `scripts/install-dependencies.sh` 安裝相依套件並建置 release 設定。
 
-`pr-clang-tidy.yml` 與 `pr-codeql.yml` 仍保留，但共用 CI 不會呼叫。
+沒有任何 workflow 執行測試、linter 或分析工具；`pr-gate.yml` 只檢查 PR 規範。
 
 同一 PR／分支的新執行會取消舊執行，每個 job 都有時限。建置錯誤會轉成 annotation
 （`scripts/ci/report_build_errors.py`）。`CI result` 拒絕失敗、取消或應執行卻被跳過的建置；只有刻意未選取的
