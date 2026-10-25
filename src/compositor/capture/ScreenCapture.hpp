@@ -37,7 +37,8 @@ private:
 
   bool prepareDestination(const std::string &path, std::string *error);
   bool createTemporary(std::string *error);
-  void finish(const std::string &path, const std::string &error);
+  // By value: callers pass destination_, which finish() clears before the completion runs.
+  void finish(std::string path, std::string error);
   void processFinished(const ProcessResult &result);
   bool saveTemporary(std::string *error);
   void removeTemporary();

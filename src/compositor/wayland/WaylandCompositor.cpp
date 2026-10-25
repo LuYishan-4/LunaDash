@@ -2093,7 +2093,9 @@ Json WaylandCompositor::control(const Json &request) {
         "general",      "appearance", "windows",   "shortcuts",   "display",
         "input",        "sound",      "network",   "bluetooth",   "power",
         "applications", "privacy",    "system",    "devices",     "about",
-        "modules",      "plugins",    "dashboard", "input-method"};
+        "modules",      "plugins",    "dashboard", "input-method",
+        // Pages of the Slint LunaDash-Shell.
+        "wallpaper",    "panel",      "notifications", "language"};
     if (!value.empty() &&
         std::find(pages.begin(), pages.end(), value) == pages.end())
       return {{"error", "Unknown settings page."}};

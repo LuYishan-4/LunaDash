@@ -116,6 +116,11 @@ if(BUILD_TESTING)
     add_test(NAME lunadash-session-environment
         COMMAND lunadash-session-environment-test)
 
+    add_executable(lunadash-screen-capture-test tests/capture/ScreenCaptureTests.cpp)
+    target_link_libraries(lunadash-screen-capture-test PRIVATE ludash-screen-capture)
+    add_test(NAME lunadash-screen-capture COMMAND lunadash-screen-capture-test)
+    set_tests_properties(lunadash-screen-capture PROPERTIES TIMEOUT 15)
+
     add_executable(lunadash-session-config-test tests/session/SessionConfigTests.cpp)
     target_link_libraries(lunadash-session-config-test PRIVATE ludash-session-config)
     add_test(NAME lunadash-session-config COMMAND lunadash-session-config-test)

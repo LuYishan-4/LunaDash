@@ -203,7 +203,7 @@ bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
   return true;
 }
 
-void ScreenCapture::finish(const std::string &path, const std::string &error) {
+void ScreenCapture::finish(std::string path, std::string error) {
   phase_ = !error.empty() ? "failed" : path.empty() ? "cancelled" : "saved";
   if (path.empty())
     removeTemporary();

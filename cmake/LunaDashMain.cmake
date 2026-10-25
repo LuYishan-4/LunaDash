@@ -202,6 +202,9 @@ target_link_libraries(ludash-launch-policy PRIVATE nlohmann_json::nlohmann_json)
 target_compile_definitions(ludash-launch-policy PRIVATE
     LUDASH_LAUNCH_CAPABILITIES_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/session/launch-capabilities.json"
     LUDASH_LAUNCH_CAPABILITIES_SOURCE_FILE="${CMAKE_CURRENT_SOURCE_DIR}/data/session/launch-capabilities.json")
+add_library(ludash-screen-capture src/compositor/capture/ScreenCapture.cpp)
+target_include_directories(ludash-screen-capture PUBLIC src)
+target_link_libraries(ludash-screen-capture PUBLIC ludash-process-runner)
 add_library(ludash-session-config src/config/session/SessionConfig.cpp)
 target_include_directories(ludash-session-config PUBLIC src)
 target_link_libraries(ludash-session-config PUBLIC nlohmann_json::nlohmann_json)
@@ -445,8 +448,6 @@ add_library(ludash-wayland
     src/compositor/wayland/Register.cpp
     src/compositor/wayland/Output.cpp
     src/compositor/wayland/DisplayConfiguration.cpp
-    src/compositor/capture/ScreenCapture.hpp
-    src/compositor/capture/ScreenCapture.cpp
     src/compositor/wayland/Surface.cpp
     src/compositor/wayland/XWayland.cpp
     src/compositor/wayland/XdgPopup.cpp
@@ -470,6 +471,7 @@ target_compile_definitions(ludash-wayland
         LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
 target_link_libraries(ludash-wayland
     PUBLIC
+        ludash-screen-capture
         ludash-session-config
         ludash-session-environment
         ludash-session-services
