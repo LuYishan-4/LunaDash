@@ -8,6 +8,7 @@
 #include "core/filesystem/FileIo.hpp"
 #include "core/log/Log.hpp"
 #include <algorithm>
+#include <unordered_set>
 #include <array>
 #include <chrono>
 #include <ctime>
@@ -166,10 +167,19 @@ void WaylandCompositor::Impl::updateWindowGlass() {
       continue;
     const std::string name =
         layer->surface->namespace_ ? layer->surface->namespace_ : "";
-    const int radius = name == "lunadash-settings" ? 28
-        : (name == "lunadash-wallpaper-gallery" ||
-           name == "lunadash-control-center") ? 24 : 0;
-    if (!radius)
+    // LunaDash-Shell overlays cover the screen; its popups are exactly their rounded surface
+    // (Style.radius 24). The panel, dock, wallpaper, toasts and OSD are not frosted.
+    static const std::unordered_set<std::string> overlays{
+        "lunadash-settings", "lunadash-dashboard", "lunadash-launcher", "lunadash-gallery",
+        "lunadash-power",    "lunadash-polkit",    "lunadash-welcome"};
+    static const std::unordered_set<std::string> popups{
+        "lunadash-audio", "lunadash-calendar", "lunadash-clipboard", "lunadash-network",
+        "lunadash-tray-menu",
+        // The former Quickshell shell.
+        "lunadash-wallpaper-gallery", "lunadash-control-center"};
+    // Full-screen overlays need square corners: a rounded blur leaves the screen corners sharp.
+    const int radius = overlays.contains(name) ? 0 : popups.contains(name) ? 24 : -1;
+    if (radius < 0)
       continue;
     const auto &state = layer->surface->surface->current;
     surfaces.push_back({layer->sceneLayer->tree, {state.width, state.height},
