@@ -7,7 +7,7 @@ if(POLICY CMP0135)
 endif()
 
 # The session shell is the external LunaDash-Shell repository: Slint files run by SlintLu
-# (shell.slint). A legacy Quickshell checkout (shell.qml) is still accepted.
+# (shell.slint).
 # LUDASH_QML_SOURCE_DIR is the former name of this setting and still works.
 set(LUDASH_SHELL_DEFAULT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shell")
 if(DEFINED LUDASH_QML_SOURCE_DIR AND NOT DEFINED LUDASH_SHELL_SOURCE_DIR)
@@ -21,8 +21,7 @@ option(LUDASH_INSTALL_SHELL "Build and install the LunaDash shell and SlintLu" O
 if(NOT LUDASH_INSTALL_SHELL)
     set(LUDASH_SHELL_SOURCE_DIR "" CACHE PATH "" FORCE)
     set(LUDASH_SLINTLU_SOURCE_DIR "" CACHE PATH "" FORCE)
-elseif(NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.slint" AND
-   NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.qml")
+elseif(NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.slint")
     message(FATAL_ERROR
         "LunaDash-Shell source is required. Run scripts/fetch-shell.sh <directory> and configure with -DLUDASH_SHELL_SOURCE_DIR=<directory>.")
 endif()
@@ -76,7 +75,6 @@ if("BACKEND_QT" IN_LIST LUDASH_SLINT_FEATURES OR
 endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashMain.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashShellTool.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashSlintLu.cmake)
 
 # xkbregistry is shipped separately by some distributions. Keep dynamic
@@ -115,7 +113,7 @@ endforeach()
 foreach(LUDASH_RUNTIME_TARGET IN ITEMS
         ludash-desktop ludash-welcome ludash-packages ludash-compositor
         ludashctl ludash-screencast-chooser ludash-filepicker
-        ludash-shell-tool lunadash-portal)
+        lunadash-portal)
     if(TARGET ${LUDASH_RUNTIME_TARGET})
         set_property(TARGET ${LUDASH_RUNTIME_TARGET} PROPERTY INSTALL_RPATH
             "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")

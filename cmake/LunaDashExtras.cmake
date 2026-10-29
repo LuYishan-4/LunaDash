@@ -10,10 +10,6 @@ configure_file(
     COPYONLY)
 install(PROGRAMS scripts/lunadash-update scripts/lunadash-polkit-agent DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# lunadash-shell-tool is defined once in LunaDashShellTool.cmake. Keeping a
-# second executable target here caused Ninja to see two rules producing the
-# same lunadash-shell-tool output.
-
 add_executable(lunadash-portal src/service/portal/Main.cpp
     src/service/portal/Portal.cpp
     src/service/portal/SettingsPortal.cpp

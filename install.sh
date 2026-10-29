@@ -390,7 +390,7 @@ PY
                 say 'The system locale is kept; LunaDash currently falls back to English for this UI language.' \
                     '系統語系依您的選擇設定；LunaDash 尚無此介面翻譯，介面暫時使用英文。' ;;
         esac
-        run lunadash-shell-tool language "$shell_locale"
+        run lunadash-compositor --set-language "$shell_locale"
     fi
     run fc-cache -f
 }

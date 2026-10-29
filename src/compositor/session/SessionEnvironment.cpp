@@ -32,17 +32,6 @@ std::string trim(std::string value) {
   return std::string(first, last);
 }
 
-fs::path configDirectory() {
-  if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg) {
-    const fs::path path(xdg);
-    if (path.is_absolute())
-      return path;
-  }
-  if (const char *home = std::getenv("HOME"); home && *home)
-    return fs::path(home) / ".config";
-  return {};
-}
-
 std::vector<fs::path> dataDirectories() {
   std::vector<fs::path> directories;
   if (const char *xdg = std::getenv("XDG_DATA_HOME"); xdg && *xdg) {
@@ -82,59 +71,6 @@ fs::path locateData(const fs::path &relative) {
     if (fs::is_directory(candidate, error) && !error)
       return candidate;
     error.clear();
-  }
-  return {};
-}
-
-std::string iniValue(const fs::path &file, std::string_view wantedSection,
-                     std::string_view wantedKey) {
-  std::ifstream input(file);
-  std::string section;
-  std::string line;
-  while (std::getline(input, line)) {
-    const auto cleaned = trim(line);
-    if (cleaned.empty() || cleaned.front() == '#' || cleaned.front() == ';')
-      continue;
-    if (cleaned.front() == '[' && cleaned.back() == ']') {
-      section = trim(cleaned.substr(1, cleaned.size() - 2));
-      continue;
-    }
-    if (section != wantedSection)
-      continue;
-    const auto separator = cleaned.find('=');
-    if (separator == std::string::npos ||
-        trim(cleaned.substr(0, separator)) != wantedKey)
-      continue;
-    return trim(cleaned.substr(separator + 1));
-  }
-  return {};
-}
-
-std::string detectedIconTheme() {
-  if (const char *existing = std::getenv("QS_ICON_THEME");
-      existing && *existing)
-    return {};
-
-  const auto config = configDirectory();
-  std::vector<std::string> candidates;
-  const auto kde = iniValue(config / "kdeglobals", "Icons", "Theme");
-  const auto gtk = iniValue(config / "gtk-3.0/settings.ini", "Settings",
-                            "gtk-icon-theme-name");
-  if (!kde.empty())
-    candidates.push_back(kde);
-  if (!gtk.empty())
-    candidates.push_back(gtk);
-  for (const auto *fallback : {"breeze", "Adwaita", "Papirus", "hicolor"})
-    candidates.emplace_back(fallback);
-
-  const auto roots = dataDirectories();
-  for (const auto &name : candidates) {
-    for (const auto &root : roots) {
-      std::error_code error;
-      if (fs::is_regular_file(root / "icons" / name / "index.theme", error) &&
-          !error)
-        return name;
-    }
   }
   return {};
 }
@@ -223,16 +159,6 @@ ClientEnvironment createClientEnvironment(const std::string &socketName,
   environment["LUNADASH_CONTROL"] = controlPath;
   environment["LUDASH_BIN_DIR"] = binaryDirectory;
   environment["LUDASH_CONTROL"] = controlPath;
-  const auto iconTheme = detectedIconTheme();
-  if (!iconTheme.empty())
-    environment["QS_ICON_THEME"] = iconTheme;
-
-  // Client toolkits select their renderer. Quickshell logging stays scoped to
-  // the client environment rather than compositor-wide rendering policy.
-  auto &loggingRules = environment["QT_LOGGING_RULES"];
-  if (!loggingRules.empty())
-    loggingRules += ';';
-  loggingRules += "quickshell.desktopentry.warning=false";
   return environment;
 }
 

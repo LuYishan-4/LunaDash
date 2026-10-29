@@ -103,5 +103,5 @@ target_link_libraries(ludash-animation
     PRIVATE PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
 
 add_library(ludash-shell-renderer
-    src/shell/runtime/ShellRenderer.cpp)
+    src/compositor/session/ShellRendering.cpp)
 target_include_directories(ludash-shell-renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

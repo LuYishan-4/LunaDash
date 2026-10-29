@@ -63,7 +63,7 @@ def validate(manifest, root, targets):
     for implementation in impls:
         require(isinstance(implementation, dict), "Each target must be an object")
         kind = implementation.get("type")
-        require(kind in ("effect", "quickshell", "opengl"), "Unknown plugin type")
+        require(kind == "effect", "Plugins must be native effects (type: effect)")
         target_id = implementation.get("target", implementation.get("id"))
         require(isinstance(target_id, str) and target_id and target_id not in seen,
                 "Target ids must be unique non-empty strings")
@@ -88,15 +88,7 @@ def validate(manifest, root, targets):
         allowed_controls = {"toggle", "select", "number", "slider"}
         require(all(control(rule) in allowed_controls for rule in schema.values()),
                 "Plugin settings support only toggle, select, number and slider controls")
-        if kind == "opengl":
-            shaders = implementation.get("shaders", {})
-            require(isinstance(shaders, dict), "shaders must be an object")
-            local(shaders.get("vertex"), ".vert")
-            local(shaders.get("fragment"), ".frag")
-        elif kind == "quickshell":
-            local(implementation.get("entry"), ".qml")
-        else:
-            effect_entries.add(local(implementation.get("entry"), ".so", existing=False))
+        effect_entries.add(local(implementation.get("entry"), ".so", existing=False))
 
     require(len(effect_entries) <= 1,
             "All native targets in one package must share one effect entry library")

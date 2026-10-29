@@ -19,7 +19,6 @@ The image picker focuses and selects its path field when opened, and Tab stays w
 | Windows and workspaces | Dynamic workspaces, bounded split tiles, eight-member vertical groups and window gaps | New windows open tiled and non-maximized; `Meta+F` maximizes one window or restores all workspace tiles |
 | Keyboard shortcuts | Click a binding and press the desired Meta or Alt key combination for launch, focus, grouping, resizing, window actions, all ten workspace switch/move actions, and screen capture | Invalid and duplicate combinations are rejected; press Backspace while recording to disable an action |
 | Plugins | Native, Quickshell and OpenGL extensions; per-feature built-in settings, plugin options and JSON | Hot reload, disabled native defaults and built-in recovery; [plugin SDK](PLUGINS.md) |
-| Shell modules | JSON layout, dimensions, positions, colors and built-in recovery | [Module schema and contract](MODULES.md); custom QML modules are not loaded |
 | Display | Backlight and per-monitor DDC/CI brightness, primary-output resolution/refresh rate and 100–300% scale | Mode changes require confirmation within 15 seconds; nested physical modes belong to the host. Multi-monitor arrangement, rotation, HDR and night light remain unavailable |
 | Keyboard and pointer | Seven keyboard layouts, repeat rate/delay, cursor size for the next session, input test field | Input-method editor and host mouse/touchpad settings; standalone libinput device configuration remains unavailable |
 | Sound | Default output and microphone volume/mute through WirePlumber | Pavucontrol/pwvucontrol handles routing and devices; missing services disable direct controls |
@@ -117,7 +116,7 @@ The desktop does not automatically reload its QML files during package replaceme
 
 Changing the selected wallpaper animates the large preview. Applying it uses the same transition on the desktop: the old image remains visible until the new image loads, then a circle grows from the bottom-right corner to cover it. Rapid selections finish at the latest choice, and failed loads keep the previous image. The GPU path uses a masked image; the software-rendering fallback clips the same circle in a canvas. Turning animations off applies a ready image immediately.
 
-See [Media](MEDIA.md) for the player controls and lyrics area, and [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md) for the reserved stacking extension point.
+See [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md) for the reserved stacking extension point.
 
 
 ## 1.0.1a visual layout rules

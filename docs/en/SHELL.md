@@ -30,7 +30,8 @@ When session.json selects the LunaDash shell, `lunadash-session` refuses to star
 `LUDASH_SHELL_RENDERER` (`auto`, `opengl`, `vulkan`, `software`) becomes `SLINTLU_RENDERER`;
 `auto` leaves the choice, and the fallback, to SlintLu. See [shell rendering](SHELL_RENDERING.md).
 
-A legacy checkout with `shell.qml` is still started with Quickshell, unchanged.
+Only `shell.slint` shells are started; the former Quickshell/QML shell and its helpers
+(`lunadash-shell-tool`, shell modules, Orbit settings) were removed.
 
 ## Choosing a shell
 
@@ -94,14 +95,12 @@ SlintLu and checks the round trips above (`scripts/run-tests.sh` runs both).
 
 ## Not yet available in the Slint shell
 
-The former Quickshell shell had features that are not ported yet:
+The former Quickshell shell had features the Slint shell does not offer yet:
 
-- shell modules (`data/modules`, [modules](MODULES.md)) and Quickshell plugins, including
-  desktop widgets ([plugins](PLUGINS.md));
-- the settings pages driven by the compositor (displays, shortcuts, input, default
-  applications, plugins, updates). The shell's own settings cover appearance, wallpaper, panel
-  and dock, notifications, power and lock, language and about;
+- desktop widgets and other visual plugins ([plugins](PLUGINS.md));
+- settings pages for displays, shortcuts, input, default applications, plugins and updates.
+  The shell's own settings cover appearance, wallpaper, panel, dock, windows, display (night
+  light), notifications, power and lock, language and about;
 - the session lock and idle lock need `ext-session-lock-v1` and `ext-idle-notify-v1`, which the
   compositor does not offer yet; SlintLu then disables the lock screen.
 
-Those documents still describe the Quickshell implementation.

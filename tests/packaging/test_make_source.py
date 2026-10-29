@@ -125,7 +125,6 @@ class SourceArchiveTests(unittest.TestCase):
                 "src/core/plugins/PluginApi.h",
                 "data/plugins/targets.json",
                 "data/plugins/catalog.json",
-                "data/modules/registry.json",
                 "scripts/create-plugin.py",
                 "protocols/wlr-layer-shell-unstable-v1.xml",
                 "tests/settings/contract.json",
@@ -153,13 +152,11 @@ class SourceArchiveTests(unittest.TestCase):
             )
             self.assertFalse(any(name.endswith("/.git") for name in names))
             self.assertFalse(any(name.startswith(PREFIX + "site/") for name in names))
-            self.assertFalse(any(name.startswith(PREFIX + "qml/") for name in names))
             self.assertNotIn(PREFIX + ".git", names)
             self.assertFalse(
                 any(
                     name.startswith(PREFIX + "data/plugins/fade/")
                     or name.startswith(PREFIX + "data/plugins/stacking-windows/")
-                    or name.startswith(PREFIX + "qml/plugins/digital-clock/")
                     for name in names
                 )
             )

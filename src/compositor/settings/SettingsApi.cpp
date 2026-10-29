@@ -5,12 +5,9 @@
 #include "core/filesystem/FileIo.hpp"
 #include "core/settings/SettingsTarget.hpp"
 #include "core/text/Text.hpp"
-#include "shell/modules/ShellModules.hpp"
-#include "shell/modules/ShellModuleSchema.hpp"
 
 namespace LunaDash {
-Json settingsApiTargets(const Json &extensions, const Json &modules,
-                        const Json &layout) {
+Json settingsApiTargets(const Json &extensions, const Json &layout) {
   Json targets = Json::array();
   for (const auto &item : jsonArray(extensions, "targets")) {
     // The layout template owns these settings; don't offer a second gap editor.
@@ -28,27 +25,12 @@ Json settingsApiTargets(const Json &extensions, const Json &modules,
         jsonString(item, "type"), jsonString(item, "target"),
         jsonObject(item, "settingsSchema"), jsonObject(item, "settings")));
   }
-  const auto values = jsonObject(jsonObject(modules, "document"), "modules");
-  for (const auto &item : jsonArray(modules, "descriptors")) {
-    const auto id = jsonString(item, "id");
-    const auto sections = jsonObject(item, "sections");
-    const auto module = jsonObject(values, id);
-    for (auto it = sections.begin(); it != sections.end(); ++it) {
-      const auto sectionValues =
-          it.key() == "module" ? Json{{"enabled", jsonValue(module, "enabled")}}
-                               : jsonObject(module, it.key());
-      targets.push_back(Settings::target(
-          "module:" + id + ":" + it.key(),
-          jsonString(item, "name") + " / " + it.key(), "module",
-          jsonString(item, "type"), jsonAsObject(it.value()), sectionValues));
-    }
-  }
   if (layout.is_object() && !layout.empty()) targets.push_back(layout);
   return targets;
 }
 
 bool updateSettingsApi(
-    PluginManager &plugins, ShellModules &modules, const Json &layout,
+    PluginManager &plugins, const Json &layout,
     const Json &request,
     const std::function<bool(const Json &, std::string *)> &setLayout,
     std::string *error) {
@@ -63,21 +45,7 @@ bool updateSettingsApi(
   const auto id = jsonString(request, "target");
   if (id.empty() || id.size() > 512) return fail("Invalid settings target.");
   plugins.refresh();
-  auto moduleState = modules.snapshot();
-  // Read current disk contents, not a potentially debounced watcher snapshot.
-  if (id.starts_with("module:")) {
-    const auto path = jsonString(moduleState, "path");
-    const auto text = path.empty() ? std::nullopt : readFile(path, 16384);
-    ShellModuleJson document;
-    std::string nativeError = "Could not read module configuration.";
-    if (!text || !validateModuleDocument(*text, &document, &nativeError)) {
-      if (error)
-        *error = nativeError;
-      return fail("Module file changed or is unreadable; reload before editing.");
-    }
-    moduleState["document"] = document;
-  }
-  const auto targets = settingsApiTargets(plugins.snapshot(), moduleState, layout);
+  const auto targets = settingsApiTargets(plugins.snapshot(), layout);
   Json descriptor = Json::object();
   for (const auto &entry : targets)
     if (jsonString(entry, "id") == id) descriptor = entry;
@@ -85,22 +53,6 @@ bool updateSettingsApi(
   const auto changes = jsonObject(request, "changes");
   if (id == jsonString(layout, "id")) return setLayout(changes, error);
   const auto parts = splitText(id, ':');
-  if (parts.size() == 3 && parts[0] == "module") {
-    auto document = jsonObject(moduleState, "document");
-    auto entries = jsonObject(document, "modules");
-    auto module = jsonObject(entries, parts[1]);
-    if (parts[2] == "module") module = Settings::merged(module, changes);
-    else module[parts[2]] = Settings::merged(jsonObject(module, parts[2]), changes);
-    entries[parts[1]] = module;
-    document["modules"] = entries;
-    std::string nativeError;
-    if (!modules.apply(jsonCompact(document), &nativeError)) {
-      if (error)
-        *error = nativeError;
-      return false;
-    }
-    return true;
-  }
   std::string configError;
   auto document = readExtensionConfiguration(&configError);
   if (!configError.empty()) return fail(configError);

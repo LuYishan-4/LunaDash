@@ -84,7 +84,6 @@ This builds packages without installing them. The archive must include `data/plu
 | `src/core` | Shared lifecycle concepts, listener template and compile definitions |
 | `src/desktop` | Applications, external default-app policy, audio, network, power and system services |
 | `src/service/portal` | D-Bus startup and native file chooser implementation |
-| `src/shell` | Generic QML module schema/runtime and media helper |
 | `src/ctl` | Bounded local control client |
 | `nix`, `flake.nix`, `flake.lock` | Nix package, NixOS module and pinned dependency input |
 | LunaDash-Shell | Shell feature UI and shared controls, installed as a separate source repository |

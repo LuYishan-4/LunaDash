@@ -72,7 +72,7 @@ The render-element library has one `Renderer`, one compile-time `ActiveGraphics`
 
 All project-owned raw OpenGL implementation lives in `renderer/opengl`, including blur, wallpaper and decoration passes. `GLDispatch.c` is the C11 function-loading core. `Shader`, `Program`, `Texture` and `Framebuffer` own their GL resources. Failed shader compilation, later-stage creation failure and linking failure release previously allocated objects. The calling process supplies the current EGL context; render resources must be destroyed on its render thread while that context is current.
 
-Built-in shaders are listed explicitly in `cmake/modules/Renderer.cmake` and embedded into a generated C++ resource header. They load from the same IDs after installation or relocation. `data/` contains application assets, module templates, translations and plugin/portal metadata, not internal GLSL. SDK 2 plugin-provided shaders are a separate, explicitly trusted resource class, baked by the plugin CMake SDK for Quickshell visual slots.
+Built-in shaders are listed explicitly in `cmake/modules/Renderer.cmake` and embedded into a generated C++ resource header. They load from the same IDs after installation or relocation. `data/` contains application assets, translations and plugin/portal metadata, not internal GLSL.
 
 ## Extending a feature
 
@@ -88,11 +88,11 @@ The renderer regression tests load embedded assets from an unrelated directory, 
 
 The wlroots compositor accepts toolkit clients through Wayland protocols. It registers `xdg-activation-v1` when the installed wlroots headers provide it and checks the source seat client's input serial before honoring activation for a mapped application window. Clients still need a fallback on older wlroots builds. Wayland CI exercises protocol globals, xdg-toplevel commit/map/unmap/destroy, client startup, on-demand XWayland and clean shutdown; the activation serial policy also has a source contract check. Chrome, Zed, Fcitx candidate placement, physical input, multiple physical outputs and display-manager login still need application/hardware testing. The current file chooser portal is not a complete screen-sharing/PipeWire portal. There is no complete screen-locking or polkit-agent implementation. See [testing](TESTING_AND_FILES.md), [graphics](GRAPHICS.md), [input methods](INPUT_METHODS.md) and [release process](RELEASE_PROCESS.md).
 
-Media discovery and control are owned by `src/shell/media/`, with QML presentation under `LunaDash-Shell/overview/`. See [Media](MEDIA.md) and [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
+Media players are read by SlintLu's MPRIS support inside the shell. See [Window layout templates](WINDOW_LAYOUT_TEMPLATES.md).
 
 ## NyxNiri-inspired desktop, Orbit and live wallpapers
 
-The reference layout is implemented through the existing `panel`, `overview`, `launcher` and `dock` modules. `LunaDash-Shell/panel/` owns panel presentation; `LunaDash-Shell/overview/` owns the control center; `LunaDash-Shell/settings/pages/appearance.qml` writes the same panel configuration as the generic module editor. `data/modules/registry.json` declares validated fields and defaults, `src/shell/modules/` owns normalization, persistence and file watching, and `src/config/desktop/` continues to own desktop preferences such as dock visibility. The bottom dock is disabled by default; explicit saved preferences are retained.
+The shell's panel, dashboard, launcher and dock live in the LunaDash-Shell repository; `src/config/desktop/` owns desktop preferences such as dock visibility.
 
 Panel workspace filtering is a presentation option and does not change compositor workspace allocation. Centered launcher placement, window titles and CPU/memory readings consume existing shell state. Author-inspired configuration stays editable through LunaDash's current JSON/settings interfaces; no Niri configuration parser, replacement compositor or second desktop shell is introduced. The first-install wizard extends the existing installation scripts and selectively imports application profiles, keeping compositor configuration under LunaDash ownership.
 

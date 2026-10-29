@@ -94,7 +94,7 @@ cd LunaDash
 | --- | --- |
 | [安裝與執行](../zh/LOGIN_SESSION.md) | [外觀與組態](../zh/CONFIGURATION.md) |
 | [建置與測試](../zh/TESTING_AND_FILES.md) | [設定與快捷鍵](../zh/SETTINGS.md) |
-| [顯示器、DDC/CI 與啟動](../zh/DISPLAY_AND_STARTUP.md) | [Shell 模組](../zh/MODULES.md) |
+| [顯示器、DDC/CI 與啟動](../zh/DISPLAY_AND_STARTUP.md) |  |
 | [範圍截圖](../zh/SCREEN_CAPTURE.md) | [預設應用程式與檔案](../zh/DEFAULT_APPS_AND_FILES.md) |
 | [原始碼架構](../zh/ARCHITECTURE.md) | [外掛介面](../zh/PLUGINS.md) |
 
@@ -114,7 +114,7 @@ PR 請以 **`dev`** 為目標分支。主旨要清楚描述改動，說明使用
 
 ### 打造自己的桌面功能
 
-[Plugin SDK 2](../zh/PLUGINS.md) 提供 C／C++ hook、Quickshell 元件及 OpenGL 著色器模板，可依類別設定並即時替換或並用。從[功能介面參考](../zh/PLUGIN_TARGETS.md)或預設停用的[堆疊視窗範例](../../examples/plugins/stacking-windows/README.md)開始。
+[Plugin SDK 2](../zh/PLUGINS.md) 為合成器提供 C／C++ hook，可依類別設定並即時替換或並用。從[功能介面參考](../zh/PLUGIN_TARGETS.md)或預設停用的[堆疊視窗範例](../../examples/plugins/stacking-windows/README.md)開始。
 
 ## NixOS 與 CI
 

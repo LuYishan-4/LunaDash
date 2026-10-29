@@ -55,11 +55,8 @@ void prepareEnvironment(const std::filesystem::path &root) {
   const auto config = root / "config";
   const auto data = root / "data";
   std::filesystem::create_directories(home);
-  std::filesystem::create_directories(data / "icons/TestTheme");
   std::filesystem::create_directories(data / "lunadash/data/assets");
   std::filesystem::create_directories(data / "ludash/wallpapers");
-  writeFile(config / "kdeglobals", "[Icons]\nTheme=TestTheme\n");
-  writeFile(data / "icons/TestTheme/index.theme", "[Icon Theme]\nName=Test\n");
 
   ::setenv("HOME", home.c_str(), 1);
   ::setenv("XDG_CONFIG_HOME", config.c_str(), 1);
@@ -72,7 +69,6 @@ void prepareEnvironment(const std::filesystem::path &root) {
   ::setenv("QT_LOGGING_RULES", "app.debug=true", 1);
   ::setenv("http_proxy", "inherited proxy", 1);
   ::setenv("HTTPS_PROXY", "inherited secure proxy", 1);
-  ::unsetenv("QS_ICON_THEME");
 }
 
 void environmentKeepsToolkitCompatibilityAndUsesNativePreferences(
@@ -118,11 +114,8 @@ void environmentKeepsToolkitCompatibilityAndUsesNativePreferences(
               environment.at("LUNADASH_WALLPAPER_DIR") ==
                   (tree.path() / "data/ludash/wallpapers").string(),
           "XDG data paths were not discovered.");
-  require(environment.at("QS_ICON_THEME") == "TestTheme",
-          "Configured icon theme was not detected.");
-  require(environment.at("QT_LOGGING_RULES") ==
-              "app.debug=true;quickshell.desktopentry.warning=false",
-          "Quickshell logging rule did not preserve existing client rules.");
+  require(environment.at("QT_LOGGING_RULES") == "app.debug=true",
+          "Inherited client logging rules were not preserved.");
   require(environment.at("LUNADASH_CONTROL") ==
                   "/run/user/1000/lunadash-control" &&
               environment.at("LUDASH_BIN_DIR") == "/opt/lunadash/bin",

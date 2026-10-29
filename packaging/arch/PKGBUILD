@@ -10,17 +10,11 @@ makedepends=('cmake' 'ninja' 'pkgconf' 'glib2-devel' 'wayland-protocols' 'vulkan
 optdepends=('kitty: Optional default terminal'
             'dolphin: Optional default file manager'
             'fish: Optional interactive shell'
-            'qt6-shadertools: Build OpenGL shader plugins with the LunaDash SDK'
             'noto-fonts-cjk: CJK interface fonts'
             'mesa: Mesa OpenGL drivers')
 optdepends+=('mpvpaper: Video wallpapers (AUR)')
 optdepends+=('vulkan-icd-loader: Vulkan loader for Vulkan rendering'
              'vulkan-driver: GPU-specific Vulkan driver')
-# The shell is Slint on SlintLu (built below). Quickshell is only needed for a
-# legacy QML LunaDash-Shell checkout.
-optdepends+=('quickshell: Run a legacy QML LunaDash-Shell'
-             'qt6-wayland: Run a legacy QML LunaDash-Shell'
-             'qt6-multimedia: Video wallpapers in a legacy QML LunaDash-Shell')
 source=("ludash-${pkgver}.tar.gz" "ludash-shell.tar.gz" "ludash-slintlu.tar.gz")
 sha256sums=('SKIP' 'SKIP' 'SKIP') # Locally generated sources, not downloaded releases.
 

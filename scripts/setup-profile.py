@@ -98,17 +98,9 @@ def write_session(config, shell, command=""):
     print(f"Desktop shell: {shell}{' (' + ' '.join(arguments) + ')' if arguments else ''} in {path}")
 
 
-def seed(config, state, desktop=False, author=False, complete=False, apps="none"):
+def seed(config, state, author=False, complete=False, apps="none"):
     planned = []
     examples = config / "LuDash/setup-examples"
-    if desktop:
-        content = (ASSETS / "desktop-profile.json").read_bytes()
-        planned.extend(
-            (
-                (examples / "shell-modules.json", content),
-                (config / "LuDash/shell-modules.json", content),
-            )
-        )
     if author:
         for group, names in AUTHOR_GROUPS.items():
             # Avoid partially mixing a starter template into an existing app setup.
@@ -139,7 +131,6 @@ def seed(config, state, desktop=False, author=False, complete=False, apps="none"
                 {
                     "version": get_ludash_version(),
                     "apps": apps,
-                    "desktopProfile": desktop,
                     "authorConfig": author,
                     "createdFiles": created,
                 },
@@ -148,7 +139,7 @@ def seed(config, state, desktop=False, author=False, complete=False, apps="none"
             + b"\n"
         )
         create_missing(marker, content, [])
-    if desktop or author:
+    if author:
         print(f"Editable starter examples: {examples}")
         print(
             "Existing settings were retained. Back them up before manually merging an example."
@@ -157,7 +148,6 @@ def seed(config, state, desktop=False, author=False, complete=False, apps="none"
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--desktop-profile", action="store_true")
     parser.add_argument("--author-config", action="store_true")
     parser.add_argument("--complete", action="store_true")
     parser.add_argument("--apps", default="none")
@@ -177,7 +167,6 @@ def main():
     seed(
         config,
         state,
-        args.desktop_profile,
         args.author_config,
         args.complete,
         args.apps,

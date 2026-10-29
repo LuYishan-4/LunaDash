@@ -148,25 +148,6 @@ target_link_libraries(ludash-display-settings PUBLIC
 add_library(ludash-input-settings src/desktop/input/InputSettings.cpp)
 target_include_directories(ludash-input-settings PUBLIC src)
 target_link_libraries(ludash-input-settings PUBLIC PkgConfig::LUDASH_XKBCOMMON)
-add_library(ludash-shell-modules
-    src/shell/modules/ShellModuleSchema.cpp
-    src/shell/modules/ShellModules.cpp)
-target_include_directories(ludash-shell-modules PUBLIC src)
-target_link_libraries(ludash-shell-modules
-    PUBLIC nlohmann_json::nlohmann_json
-    PRIVATE PkgConfig::LUDASH_GIO)
-target_compile_definitions(ludash-shell-modules PRIVATE
-    LUDASH_MODULE_REGISTRY_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/data/modules/registry.json"
-    LUDASH_MODULE_REGISTRY_INSTALL="${CMAKE_INSTALL_FULL_DATADIR}/ludash/modules/registry.json")
-add_library(ludash-orbit-settings src/shell/launcher/OrbitSettings.cpp)
-target_include_directories(ludash-orbit-settings PUBLIC src)
-target_link_libraries(ludash-orbit-settings
-    PUBLIC nlohmann_json::nlohmann_json
-    PRIVATE PkgConfig::LUDASH_GIO)
-target_compile_definitions(ludash-orbit-settings PRIVATE
-    LUDASH_ORBIT_DEFAULTS_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/data/launcher/orbit.json"
-    LUDASH_ORBIT_DEFAULTS_INSTALL="${CMAKE_INSTALL_FULL_DATADIR}/ludash/launcher/orbit.json")
-install(FILES data/launcher/orbit.json DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/launcher)
 add_library(ludash-theme-sync src/desktop/theme/ThemeSync.cpp
     src/desktop/theme/FcitxTheme.cpp)
 target_include_directories(ludash-theme-sync PUBLIC src)
@@ -485,8 +466,6 @@ target_link_libraries(ludash-wayland
         ludash-shortcut-settings
         ludash-update-check
         ludash-default-applications
-        ludash-shell-modules
-        ludash-orbit-settings
         ludash-audio-settings
         ludash-power-settings
         ludash-system-tools
@@ -543,15 +522,14 @@ install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop ${CMAKE_CURRENT_BINA
 install(PROGRAMS scripts/lunadash-session scripts/ludash-session scripts/lunadash-clipboard-history DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash.desktop ${CMAKE_CURRENT_BINARY_DIR}/ludash.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash-app.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-# Slint shell files (and, for a legacy Quickshell checkout, QML files).
+# Slint shell files.
 if(LUDASH_INSTALL_SHELL)
     install(DIRECTORY "${LUDASH_SHELL_SOURCE_DIR}/"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/shell
         FILES_MATCHING
-            REGEX ".*\\.(slint|po|qml|js|svg|png|jpg|jpeg|webp|gif)$"
+            REGEX ".*\\.(slint|po|svg|png|jpg|jpeg|webp|gif)$"
             PATTERN "theme.json"
             PATTERN "LICENSE"
-            PATTERN "qmldir"
             PATTERN ".git" EXCLUDE
             PATTERN ".github" EXCLUDE
             PATTERN "scripts" EXCLUDE
@@ -568,7 +546,6 @@ install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icon
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)
 install(FILES data/session/launch-capabilities.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/session)
-install(DIRECTORY data/modules/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/modules)
 install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)
 
 install(DIRECTORY data/themes/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/themes)

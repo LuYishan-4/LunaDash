@@ -18,7 +18,7 @@ LUDASH_SHELL_RENDERER=software LUDASH_TEST_HOST_WAYLAND=1 \
 
 Software rendering 可能提高 CPU 使用量。
 
-`shell/runtime/ShellRenderer` 現在於啟動 shell 時套用。NVIDIA 自動選擇軟體模式是相容性預設，可由使用者明確選擇 OpenGL 或 Vulkan 覆寫；不代表每一版本的驅動都有相同問題。
+`compositor/session/ShellRendering` 現在於啟動 shell 時套用。NVIDIA 自動選擇軟體模式是相容性預設，可由使用者明確選擇 OpenGL 或 Vulkan 覆寫；不代表每一版本的驅動都有相同問題。
 
 像：
 
@@ -41,4 +41,4 @@ Renderer tests 驗 relocation、software OpenGL、failure cleanup，但不能證
 
 1.0.1a 的 Dashboard、Settings、桌布 picker 與 portal wrapper 使用同一套 strong/glass/hairline/radius 規則。Dashboard telemetry 使用 bounded layout，不應靠絕對文字座標堆疊；Settings 可切換最大化而不改 page contract；desktop widget plugin 直接繪製在 wallpaper Background surface。
 
-啟動 Shell 時會套用 `shell/runtime/ShellRenderer`。`LUDASH_SHELL_RENDERER` 支援 `auto`、`opengl`、`vulkan`、`software`。Slint 殼層會把它轉為 `SLINTLU_RENDERER`；`auto` 會保留明確設定的 `SLINTLU_RENDERER`，否則交由 SlintLu 選擇。舊版 Quickshell 殼層維持原本的政策：保留明確的 Qt 渲染選擇，否則在偵測到 NVIDIA 時使用軟體模式，其餘使用 OpenGL。此政策僅修改 shell 子程序的環境，GTK／Qt 應用程式自行選擇繪圖 API。
+啟動 Shell 時會套用 `compositor/session/ShellRendering`。`LUDASH_SHELL_RENDERER` 支援 `auto`、`opengl`、`vulkan`、`software`。Slint 殼層會把它轉為 `SLINTLU_RENDERER`；`auto` 會保留明確設定的 `SLINTLU_RENDERER`，否則交由 SlintLu 選擇。舊版 Quickshell 殼層維持原本的政策：保留明確的 Qt 渲染選擇，否則在偵測到 NVIDIA 時使用軟體模式，其餘使用 OpenGL。此政策僅修改 shell 子程序的環境，GTK／Qt 應用程式自行選擇繪圖 API。

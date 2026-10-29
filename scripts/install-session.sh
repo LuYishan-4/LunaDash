@@ -14,7 +14,6 @@ progress_file=${LUDASH_INSTALL_PROGRESS_FILE:-}
 guide_mode=auto
 setup_apps=''
 setup_author=false
-setup_desktop=false
 setup_requested=false
 # Desktop shell for LunaDash sessions (session.json): lunadash, custom or none.
 shell_choice=''
@@ -33,7 +32,7 @@ report_progress() {
 usage() {
     cat <<'EOF'
 Usage: ./scripts/install-session.sh [--guided|--skip-guide] [--apps GROUPS]
-       [--author-config] [--desktop-profile] [--shell lunadash|custom|none]
+       [--author-config] [--shell lunadash|custom|none]
        [--shell-command CMD] [--enable-sddm] [--autologin USER]
        [--skip-deps] [--non-interactive] [--dry-run]
 
@@ -56,8 +55,6 @@ Options:
   --author-config
                   Seed editable, portable Kitty/Fish/Starship/Fastfetch templates
                   inspired by the author's settings. Existing files are preserved.
-  --desktop-profile
-                  Seed the LunaDash top-panel profile only if no profile exists.
   --shell MODE    Desktop shell for LunaDash sessions, like Hyprland's exec-once:
                   lunadash (the LunaDash shell, default), custom (your own bar or
                   shell, see --shell-command) or none. Written to
@@ -101,7 +98,6 @@ while (($#)); do
             shift
             ;;
         --author-config) setup_author=true; setup_requested=true ;;
-        --desktop-profile) setup_desktop=true; setup_requested=true ;;
         --shell)
             (($# >= 2)) && [[ $2 == lunadash || $2 == custom || $2 == none ]] || { usage >&2; exit 2; }
             shell_choice=$2
@@ -308,7 +304,7 @@ else
         shell_source_dir=''
     elif [[ -n $shell_override ]]; then
         shell_source_dir=$(cd -- "$shell_override" && pwd)
-        [[ -f $shell_source_dir/shell.slint || -f $shell_source_dir/shell.qml ]] || {
+        [[ -f $shell_source_dir/shell.slint ]] || {
             printf 'LUDASH_SHELL_SOURCE_DIR does not contain shell.slint: %s\n' "$shell_source_dir" >&2
             exit 1
         }

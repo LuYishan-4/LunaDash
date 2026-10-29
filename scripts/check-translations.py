@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Validate every shipped LunaDash JSON language pack.
 
-Static source strings are extracted from C++ and QML. Every locale advertised in
+Static source strings are extracted from LunaDash's C++ sources (the Slint shell ships
+its own gettext catalogues). Every locale advertised in
 the UI is treated as a complete shipped language and must cover every extracted
 UI string. JSON integrity, cross-catalog uniqueness and placeholders are checked
 for every locale. Adding another <locale>.json automatically enrolls it in CI;
@@ -10,7 +11,6 @@ add it to COMPLETE_LOCALES when it becomes a selectable shipped language.
 import ast
 from collections import Counter
 import json
-import os
 from pathlib import Path
 import re
 import sys
@@ -110,42 +110,22 @@ def discover_locales(directory):
                   if LOCALE_FILE.match(path.name) and path.stem != 'en_US')
 
 
-def source_messages(root, shell_root):
+def source_messages(root):
     found = {}
-    sources = [('src', root / 'src')]
-    # A Slint LunaDash-Shell ships its own i18n/*.po (checked in its repository); only a
-    # legacy QML shell takes its texts from these language packs.
-    if shell_root is not None:
-        sources.append(('LunaDash-Shell', shell_root))
-    for folder, source_root in sources:
-        for path in sorted(source_root.rglob('*')):
-            if path.suffix not in ('.qml', '.cpp'):
-                continue
-            relative_path = path.relative_to(source_root)
-            if 'tests' in relative_path.parts:
-                continue
-            model_fields = {
-                'SettingsCatalog.qml': ('name', 'pageName', 'keywords'),
-                'SettingsPanel.qml': ('name',),
-                'shortcuts.qml': ('name',),
-                'Launcher.qml': ('name', 'genericName'),
-            }.get(path.name, ())
-            for text in literals(path.read_text(encoding='utf-8'), model_fields):
-                found.setdefault(text, []).append(f"{folder}/{relative_path}")
+    source_root = root / 'src'
+    for path in sorted(source_root.rglob('*.cpp')):
+        relative_path = path.relative_to(source_root)
+        if 'tests' in relative_path.parts:
+            continue
+        for text in literals(path.read_text(encoding='utf-8'), ()):
+            found.setdefault(text, []).append(f"src/{relative_path}")
     return found
 
 
 def main():
     root = Path(__file__).resolve().parents[1]
     directory = root / 'data/translations'
-    shell_root = Path(os.environ.get('LUDASH_SHELL_SOURCE_DIR')
-                      or os.environ.get('LUDASH_QML_SOURCE_DIR', root / 'shell')).resolve()
-    if (shell_root / 'shell.slint').is_file():
-        shell_root = None
-    elif not (shell_root / 'shell.qml').is_file():
-        print(f'LunaDash-Shell source is unavailable: {shell_root}', file=sys.stderr)
-        return True
-    sources = source_messages(root, shell_root)
+    sources = source_messages(root)
     locales = discover_locales(directory)
     fatal = False
 

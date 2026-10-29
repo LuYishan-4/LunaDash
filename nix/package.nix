@@ -1,7 +1,7 @@
 { lib, stdenv, runCommand, cmake, ninja, pkg-config, python3, makeWrapper
 , rustc, cargo, rustPlatform, corrosion
 , nlohmann_json
-, qt6, wayland, wayland-protocols, wayland-scanner, wlroots_0_20
+, wayland, wayland-protocols, wayland-scanner, wlroots_0_20
 , libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, pam
 , coreutils, bash, gnused, curl, gdk-pixbuf, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages, fontconfig, freetype
@@ -72,10 +72,9 @@ stdenv.mkDerivation {
     ];
   };
 
-  nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper wayland-scanner
-    qt6.wrapQtAppsHook ];
+  nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper wayland-scanner ];
   buildInputs = [ slintCpp
-    qt6.qtbase qt6.qtdeclarative qt6.qtwayland qt6.qtsvg qt6.qtmultimedia fontconfig freetype
+    fontconfig freetype
     vulkan-headers vulkan-loader wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
     pixman libdrm libxcb systemd nlohmann_json libglvnd gdk-pixbuf curl
   ];
@@ -94,7 +93,14 @@ stdenv.mkDerivation {
     ln -s ${slintlu}/bin/slintlu "$out/libexec/lunadash/slintlu"
   '';
   preFixup = ''
-    qtWrapperArgs+=(--prefix PATH : "$out/bin:${runtimePath}")
+    # The compositor and desktop tools start helpers and applications by name.
+    # List them first: wrapping adds files to the same directories.
+    mapfile -d "" programs < <(find "$out/bin" "$out/libexec" -type f -executable -print0)
+    for program in "''${programs[@]}"; do
+      if isELF "$program"; then
+        wrapProgram "$program" --prefix PATH : "$out/bin:${runtimePath}"
+      fi
+    done
     # Session scripts also need their dependencies before the compositor starts.
     wrapProgram "$out/bin/lunadash-update" --set LUNADASH_PACKAGE_MANAGER nix --prefix PATH : "${lib.makeBinPath [ bash coreutils gnused ]}"
     wrapProgram "$out/bin/ludash-session" --prefix PATH : "$out/bin:${runtimePath}"

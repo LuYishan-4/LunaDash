@@ -29,7 +29,7 @@ session.json 選擇 LunaDash 殼層而找不到 SlintLu 時，`lunadash-session`
 `LUDASH_SHELL_RENDERER`（`auto`、`opengl`、`vulkan`、`software`）會轉為 `SLINTLU_RENDERER`；
 `auto` 則交由 SlintLu 自行選擇並自動備援。詳見[殼層渲染](SHELL_RENDERING.md)。
 
-含有 `shell.qml` 的舊版 checkout 仍會照舊以 Quickshell 啟動。
+只會啟動 `shell.slint` 殼層；舊的 Quickshell／QML 殼層及其輔助程式（`lunadash-shell-tool`、殼層模組、Orbit 設定）已移除。
 
 ## 選擇殼層
 
@@ -85,13 +85,11 @@ SlintLu 透過控制 socket 辨識 LunaDash 並輪詢其狀態：
 
 ## Slint 殼層尚未提供的功能
 
-舊的 Quickshell 殼層有些功能尚未移植：
+舊的 Quickshell 殼層有些功能 Slint 殼層尚未提供：
 
-- 殼層模組（`data/modules`，見[模組](MODULES.md)）與 Quickshell 外掛，包括桌面小工具
-  （見[外掛](PLUGINS.md)）；
-- 由合成器驅動的設定頁面（顯示器、快捷鍵、輸入、預設應用程式、外掛、更新）。殼層自己的設定涵蓋
-  外觀、桌布、面板與 Dock、通知、電源與鎖定、語言與關於；
+- 桌面小工具等視覺外掛（見[外掛](PLUGINS.md)）；
+- 顯示器、快捷鍵、輸入、預設應用程式、外掛、更新等設定頁。殼層自己的設定涵蓋外觀、桌布、
+  面板、Dock、視窗、顯示（夜燈）、通知、電源與鎖定、語言與關於；
 - 工作階段鎖定與閒置鎖定需要 `ext-session-lock-v1` 與 `ext-idle-notify-v1`，合成器目前尚未提供，
   因此 SlintLu 會停用鎖定畫面。
 
-上述文件仍描述 Quickshell 的實作。

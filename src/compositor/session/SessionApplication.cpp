@@ -1,6 +1,7 @@
 #include "compositor/session/SessionApplication.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "config/BuildConfig.hpp"
+#include "config/localization/Localization.hpp"
 #include "config/session/SessionConfig.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
 #include "core/log/Log.hpp"
@@ -23,6 +24,8 @@ struct SessionOptions {
   std::string socket = "lunadash-0";
   std::string screenshot;
   std::string state;
+  // --set-language: store the desktop language and exit (the installer uses it).
+  std::string setLanguage;
   int exitAfterMilliseconds = 0;
   bool exitAfterSet = false;
   bool nested = false;
@@ -78,6 +81,11 @@ std::optional<SessionOptions> parseOptions(int argc, char **argv,
       if (!text)
         return std::nullopt;
       options.graphics = text;
+    } else if (argument.starts_with("--set-language")) {
+      const auto *text = value("--set-language");
+      if (!text)
+        return std::nullopt;
+      options.setLanguage = text;
     } else if (argument.starts_with("--socket")) {
       const auto *text = value("--socket");
       if (!text)
@@ -121,6 +129,7 @@ void printHelp() {
       << "  --help                 Show this help\n"
       << "  --version              Show version\n"
       << "  --session-shell        Print the shell session.json selects (lunadash, custom, none)\n"
+      << "  --set-language LOCALE  Store the desktop language (e.g. zh_TW) and exit\n"
       << "  --graphics <api>       Renderer: auto, opengl, gles, or vulkan\n"
       << "  --socket <name>        Wayland socket name\n"
       << "  --nested               Run with the nested wlroots backend\n"
@@ -174,6 +183,15 @@ int SessionApplication::run(int argc, char **argv) {
     std::cout << applicationVersion << '\n';
     return 0;
   }
+  if (!options.setLanguage.empty()) {
+    std::string error;
+    if (!setSelectedLanguage(options.setLanguage, &error)) {
+      std::cerr << error << '\n';
+      return 1;
+    }
+    return 0;
+  }
+
   if (options.sessionShell) {
     const auto session = loadSessionConfig();
     if (!session.error.empty())
