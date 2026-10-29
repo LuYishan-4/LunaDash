@@ -18,20 +18,7 @@
 `WAYLAND_DISPLAY`、`DISPLAY` 與 `XDG_SESSION_ID`，因此不會在你目前的桌面顯示通知、接管 portal 或註冊 polkit agent。
 `--no-build` 沿用現有建置，`--build-dir DIR` 可指定其他建置目錄。
 
-如果已在 Wayland desktop 中：
-
-```sh
-./scripts/test-once.sh
-```
-
-它會 build 並啟動 nested session，輸出：
-
-```text
-build-once/wayland.log
-build-once/wayland-state.json
-```
-
-這個 helper **目前不會自動截圖**。Release 前仍要用真實 session 檢查 Chrome/Zed、physical input、wallpaper/animation、portal、XWayland、Fcitx 與登入/登出行為。
+Release 前仍要用真實 session 檢查 Chrome/Zed、physical input、wallpaper/animation、portal、XWayland、Fcitx 與登入/登出行為。
 
 
 `Arch Quickshell desktop layout` workflow 在 headless Wayland compositor 上啟動實際 shell，上傳 1920×1080 與 1280×720 桌面／控制中心 PNG、協定日誌與 JSON 狀態，檢查視窗界線、QML 執行錯誤及預設停用的底部 Dock。這些是軟體工作階段產物，不能取代實體 GPU／登入截圖。本次修改依要求禁止本地建置與測試，驗證只在 CI 執行。

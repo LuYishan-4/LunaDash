@@ -151,7 +151,7 @@ lunadashctl launch-with-x11 -- application --argument
 
 About 頁的背景更新會自動接受 package transaction，但**不繞過系統授權**。到安裝階段會顯示 Waiting for authorization，並讓出 keyboard focus 給系統 polkit dialog。沒有 graphical polkit agent 時會明確失敗，不會在背景卡著隱藏的 terminal prompt。
 
-LunaDash session 會嘗試啟動發行版提供的 polkit agent。Arch package 包含 `polkit-kde-agent`；其他發行版需安裝 KDE/LXQt/GNOME 等 agent。更新完成後請登出再登入或 reboot，因為 package replacement 不會讓現有 QML process 自動完整 reload。
+使用 LunaDash shell 時，shell 本身就是 session 的 polkit agent，會顯示自己的密碼對話框；改用其他 shell（`session.json`）或不用 shell 時，LunaDash 才啟動發行版提供的 polkit agent。Arch package 包含 `polkit-kde-agent`；其他發行版需安裝 KDE/LXQt/GNOME 等 agent。更新完成後請登出再登入或 reboot，因為 package replacement 不會讓現有 QML process 自動完整 reload。
 
 ## 救援
 

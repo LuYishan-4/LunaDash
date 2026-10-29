@@ -493,10 +493,19 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
     if (!startShell || shuttingDown_ || testStopping_)
       return;
 
+    session_ = loadSessionConfig();
+    if (!session_.error.empty())
+      logWarning("Ignoring %s: %s", session_.source.c_str(), session_.error.c_str());
+
     if (environmentInt("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1) {
-      const std::string agent = findExecutable("lunadash-polkit-agent");
-      if (!agent.empty())
-        spawn({}, agent, false);
+      // The LunaDash shell is the polkit agent itself (its own authentication
+      // dialog); another agent started first would take the session's agent
+      // slot. Other shells, or none, get the distribution's agent.
+      if (session_.shell != SessionConfig::Shell::LunaDash) {
+        const std::string agent = findExecutable("lunadash-polkit-agent");
+        if (!agent.empty())
+          spawn({}, agent, false);
+      }
 
       if (environmentInt("LUNADASH_DISABLE_FCITX") != 1) {
         const std::string fcitx = findExecutable("fcitx5");
@@ -504,10 +513,6 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
           spawn({"--replace"}, fcitx, false);
       }
     }
-
-    session_ = loadSessionConfig();
-    if (!session_.error.empty())
-      logWarning("Ignoring %s: %s", session_.source.c_str(), session_.error.c_str());
     std::string error;
     switch (session_.shell) {
     case SessionConfig::Shell::LunaDash:

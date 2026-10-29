@@ -10,10 +10,6 @@
 | Credential and personal path scan | API keys, tokens, private keys and user-specific filesystem paths in source/configuration | Any high-confidence match |
 | Source language and shell style | English source policy, shell syntax and shellcheck errors | Any violation |
 | C/C++ static analysis | Null/dangling pointers, suspicious memory operations, use-after-move, security APIs | Compiler/analyzer execution failure; clang-tidy diagnostics remain warnings |
-| CodeQL security and quality | C/C++ dataflow, security and quality queries | SARIF error or security-severity finding; quality warnings remain annotations; missing reports also fail |
-| Graphics diagnostics | Qt shader selection and graphics pipeline creation logs | Missing GLSL variant or failed pipeline, including sessions that exit with zero |
-
-CodeQL builds a real CMake database including Qt/moc. A completed analysis is not the same as no findings: `scripts/security/check_sarif.py` blocks security-tagged findings and explicit SARIF errors without printing source snippets. Non-security quality warnings remain visible in CodeQL annotations but do not by themselves fail the pull request. Public repositories or appropriately licensed private repositories are required for GitHub code scanning. Setup/licensing failures remain visible failures. The CodeQL job also grants `actions: read`, which its workflow-run lookup needs in private repositories (see the [official workflow template](https://github.com/actions/starter-workflows/blob/main/code-scanning/codeql.yml)). Exported SARIF files are checked even when the analysis upload step fails; the failed upload still fails the job.
 
 The Ubuntu runtime suite tests the separately built renderer with software Mesa and a staged test installation; wlroots session tests select headless pixman. Dynamic checks cover only executed paths; static analysis is not a proof that the application is secure.
 

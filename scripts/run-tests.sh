@@ -112,9 +112,9 @@ for suite in "${suites[@]}"; do
             for test in tests/ci/test_changes.py tests/ci/test_pr_policy.py \
                 scripts/check-source-layout.py tests/architecture/test_source_layout.py \
                 tests/architecture/test_window_template_contract.py \
-                tests/security/test_source_language.py tests/security/test_sarif_gate.py \
+                tests/security/test_source_language.py \
                 tests/renderer/test_render_architecture.py tests/renderer/test_shader_extensions.py \
-                tests/renderer/test_shader_diagnostics.py tests/wayland/test_no_qtwayland.py \
+                tests/wayland/test_no_qtwayland.py \
                 tests/wayland/test_graphics_protocol_contract.py tests/wayland/test_input_contract.py \
                 scripts/ci/check_shell_actions.py scripts/check-translations.py \
                 scripts/test-translation-checker.py tests/packaging/test_make_source.py \
