@@ -2,7 +2,7 @@
 , rustc, cargo, rustPlatform, corrosion
 , nlohmann_json
 , wayland, wayland-protocols, wayland-scanner, wlroots_0_20
-, libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, systemd, dbus, pam
+, libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, libxcb-wm, systemd, dbus, pam
 , coreutils, bash, gnused, curl, gdk-pixbuf, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages, fontconfig, freetype
 , xdg-desktop-portal-wlr, revision ? "unknown", shellSource, slintSource, slintluSource
@@ -76,7 +76,8 @@ stdenv.mkDerivation {
   buildInputs = [ slintCpp
     fontconfig freetype
     vulkan-headers vulkan-loader wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
-    pixman libdrm libxcb systemd nlohmann_json libglvnd gdk-pixbuf curl
+    # wlroots' xwayland.h includes xcb_ewmh.h (Qt used to bring it in).
+    pixman libdrm libxcb libxcb-wm systemd nlohmann_json libglvnd gdk-pixbuf curl
   ];
   cmakeFlags = [
     "-DBUILD_TESTING=OFF"
