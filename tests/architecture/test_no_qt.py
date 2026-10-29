@@ -1,6 +1,6 @@
 """LunaDash's compositor, desktop services and native tests must not use Qt.
 
-The independent LunaDash-Shell repository (Quickshell/QML) is a separate
+The independent LunaDash-Shell repository (Slint, run by SlintLu) is a separate
 Wayland client and is not part of this check. Environment variables that the
 compositor forwards to third-party Qt applications are configuration strings,
 not Qt linkage, and remain allowed.
@@ -41,12 +41,7 @@ for base in source_roots:
                         f"{path.relative_to(root)}:{number}: {stripped}")
                     break
 
-# The plugin SDK may bake shaders for OpenGL plugins that the independent
-# Quickshell shell loads; that optional tool runs only for those third-party
-# plugin builds and is never part of the LunaDash build itself.
 cmake_files = [root / "CMakeLists.txt", *sorted((root / "cmake").rglob("*.cmake"))]
-cmake_files = [path for path in cmake_files
-               if path.relative_to(root).parts[:2] != ("cmake", "plugins")]
 for path in cmake_files:
     text = path.read_text(encoding="utf-8")
     for number, line in enumerate(text.splitlines(), 1):

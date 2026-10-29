@@ -33,7 +33,7 @@ class InstallerTests(unittest.TestCase):
             'LANG': 'en_US.UTF-8', 'NO_COLOR': '1', 'TERM': 'dumb',
         }
         # These commands must never run in --dry-run, including reboot/TTY side effects.
-        for command in ('sudo', 'su', 'curl', 'git', 'makepkg', 'fc-cache', 'lunadash-shell-tool'):
+        for command in ('sudo', 'su', 'curl', 'git', 'makepkg', 'fc-cache', 'lunadash-compositor'):
             self.stub(command, '#!/bin/sh\nprintf "MUTATING_COMMAND_EXECUTED\\n" >&2\nexit 97\n')
 
     def stub(self, name, content):

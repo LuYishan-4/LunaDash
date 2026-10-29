@@ -93,7 +93,7 @@ cd LunaDash
 | --- | --- |
 | [インストールと実行](../LOGIN_SESSION.md) | [外観と構成](../CONFIGURATION.md) |
 | [ビルドとテスト](../TESTING_AND_FILES.md) | [設定とショートカット](../SETTINGS.md) |
-| [ディスプレイ・DDC/CI・起動](../DISPLAY_AND_STARTUP.md) | [シェルモジュール](../MODULES.md) |
+| [ディスプレイ・DDC/CI・起動](../DISPLAY_AND_STARTUP.md) |  |
 | [範囲指定スクリーンショット](../SCREEN_CAPTURE.md) | [既定のアプリとファイル](../DEFAULT_APPS_AND_FILES.md) |
 | [ソース構成](../ARCHITECTURE.md) | [プラグインインターフェース](../PLUGINS.md) |
 
@@ -113,4 +113,4 @@ PR の対象ブランチは **`dev`** です。変更内容が伝わるタイト
 
 ### 自分のデスクトップ機能を作る
 
-[Plugin SDK 2](../PLUGINS.md) は C/C++ フック、Quickshell コンポーネント、OpenGL シェーダーのテンプレートを提供します。カテゴリごとに設定し、再起動せずに標準機能を置き換えたり併用したりできます。[対象機能の仕様](../PLUGIN_TARGETS.md)や、初期状態では無効の[重ね合わせウィンドウのサンプル](../../examples/plugins/stacking-windows/README.md)から始められます。
+[Plugin SDK 2](../PLUGINS.md) はコンポジター向けの C/C++ フックを提供します。カテゴリごとに設定し、再起動せずに標準機能を置き換えたり併用したりできます。[対象機能の仕様](../PLUGIN_TARGETS.md)や、初期状態では無効の[重ね合わせウィンドウのサンプル](../../examples/plugins/stacking-windows/README.md)から始められます。

@@ -7,9 +7,6 @@
 #include "core/filesystem/FileIo.hpp"
 #include "core/filesystem/TemporaryDirectory.hpp"
 #include "core/settings/SettingsTarget.hpp"
-#include "shell/launcher/OrbitSettings.hpp"
-#include "shell/modules/ShellModuleSchema.hpp"
-#include "shell/modules/ShellModules.hpp"
 #include "support/TestHarness.hpp"
 
 #include <glib.h>
@@ -39,15 +36,6 @@ class SettingsTests final {
     return {{"target", jsonValue(target, "id")},
             {"revision", jsonValue(target, "revision")},
             {"changes", changes}};
-  }
-  static Json descriptor(PluginManager &plugins, ShellModules &modules,
-                         const std::string &id) {
-    for (const auto &entry : settingsApiTargets(plugins.snapshot(),
-                                                modules.snapshot(),
-                                                Json::object()))
-      if (jsonString(entry, "id") == id)
-        return entry;
-    return Json::object();
   }
   std::string rootPath() const { return root.path().string(); }
 
@@ -119,79 +107,6 @@ public:
     VERIFY(!Settings::checkPatch(target, stale, &error));
   }
 
-  void modulesKeepHostInvariants() {
-    ShellModuleJson normalized;
-    std::string error;
-    const auto defaults = defaultModuleDocument();
-    VERIFY(validateModuleDocument(defaults.dump(), &normalized, &error));
-    VERIFY(normalized == defaults);
-    VERIFY(shellModuleIds().size() == 11);
-    const auto ids = shellModuleIds();
-    VERIFY(std::find(ids.begin(), ids.end(), "orbit") != ids.end());
-    VERIFY(std::find(ids.begin(), ids.end(), "dock") != ids.end());
-    VERIFY(!validateModuleDocument(
-        R"({"schemaVersion":1,"modules":{"settings":{"enabled":false}}})",
-        &normalized, &error));
-    VERIFY(!validateModuleDocument(
-        R"({"schemaVersion":1,"modules":{"panel":{"config":{"workspaceInactiveWidth":48,"workspaceActiveWidth":18}}}})",
-        &normalized, &error));
-    // Legacy code fields are ignored without losing safe style/config values.
-    VERIFY(validateModuleDocument(
-        R"({"schemaVersion":1,"modules":{"panel":{"style":{"height":48},"custom":{"enabled":true,"entry":"../Main.qml"}}}})",
-        &normalized, &error));
-    const auto panel = normalized.at("modules").at("panel");
-    VERIFY(!panel.contains("custom"));
-    COMPARE(panel.at("style").at("height").get<int>(), 48);
-    VERIFY(!shellModuleDescriptor("panel").at("sections").contains("custom"));
-    VERIFY(!validateModuleDocument(std::string(16385, ' '), &normalized, &error));
-  }
-
-  void moduleMonitorReloadsExternalChanges() {
-    ShellModules modules;
-    int changes = 0;
-    modules.setChangedCallback([&changes] { ++changes; });
-    auto document = defaultModuleDocument();
-    document["modules"]["panel"]["config"]["shellOpacity"] = 41;
-    const auto path = modules.snapshot().at("path").get<std::string>();
-    {
-      std::ofstream file(path, std::ios::binary | std::ios::trunc);
-      VERIFY(file.good());
-      file << document.dump();
-      VERIFY(file.good());
-    }
-    // GIO file monitors dispatch through the default GLib main context.
-    VERIFY(LunaDash::Test::waitUntil(
-        [&] { return changes > 0; }, 2000,
-        [] { g_main_context_iteration(nullptr, FALSE); }));
-    COMPARE(modules.snapshot()
-                .at("document")
-                .at("modules")
-                .at("panel")
-                .at("config")
-                .at("shellOpacity")
-                .get<int>(),
-            41);
-  }
-
-  void orbitRejectsInvalidDocumentsWithoutLosingConfiguration() {
-    std::string error;
-    VERIFY(resetOrbitSettings(&error));
-    const auto original = orbitSettings().at("document");
-    VERIFY(!original.empty());
-    auto invalid = original;
-    invalid["defaultEngine"] = "missing";
-    VERIFY(!saveOrbitSettings(invalid.dump(), &error));
-    invalid = original;
-    invalid["items"] = nlohmann::json::array(
-        {{{"id", "bad"}, {"name", "Bad"}, {"command", "sh -c echo test"}}});
-    VERIFY(!saveOrbitSettings(invalid.dump(), &error));
-    invalid["items"] = nlohmann::json::array(
-        {{{"id", "bad"}, {"name", "Bad"}, {"url", "file:///etc/passwd"}}});
-    VERIFY(!saveOrbitSettings(invalid.dump(), &error));
-    VERIFY(!saveOrbitSettings(std::string(32769, ' '), &error));
-    VERIFY(orbitSettings().at("document") == original);
-  }
-
   void appearancePresetsValidateBeforeApplying() {
     std::string error;
     std::string presetError;
@@ -225,35 +140,6 @@ public:
            hslLightness(dark.at("background").get<std::string>()));
   }
 
-  void moduleApiPersistsAndRejectsStaleEdits() {
-    PluginManager plugins;
-    ShellModules modules;
-    const auto noLayout = [](const Json &, std::string *) { return false; };
-    auto target = descriptor(plugins, modules, "module:panel:config");
-    VERIFY(!target.empty());
-    std::string error;
-    const auto edit = request(target, {{"shellOpacity", 35}});
-    VERIFY2(updateSettingsApi(plugins, modules, Json::object(), edit, noLayout,
-                              &error),
-            error);
-    COMPARE(jsonInt(jsonObject(descriptor(plugins, modules,
-                                          "module:panel:config"),
-                               "values"),
-                    "shellOpacity"),
-            35);
-    VERIFY(!updateSettingsApi(plugins, modules, Json::object(), edit, noLayout,
-                              &error));
-    target = descriptor(plugins, modules, "module:panel:config");
-    const auto before = modules.snapshot().at("document");
-    VERIFY(!updateSettingsApi(plugins, modules, Json::object(),
-                              request(target, {{"shellOpacity", 99}}), noLayout,
-                              &error));
-    COMPARE(modules.snapshot().at("document").dump(), before.dump());
-    target = descriptor(plugins, modules, "module:settings:module");
-    VERIFY(!updateSettingsApi(plugins, modules, Json::object(),
-                              request(target, {{"enabled", false}}), noLayout,
-                              &error));
-  }
 };
 } // namespace LunaDash
 
@@ -266,16 +152,9 @@ int main(int argc, char **argv) {
        {"actionsRejectMalformedPayloads",
         &Fixture::actionsRejectMalformedPayloads},
        {"patchRevisionsAndReadOnly", &Fixture::patchRevisionsAndReadOnly},
-       {"modulesKeepHostInvariants", &Fixture::modulesKeepHostInvariants},
-       {"moduleMonitorReloadsExternalChanges",
-        &Fixture::moduleMonitorReloadsExternalChanges},
-       {"orbitRejectsInvalidDocumentsWithoutLosingConfiguration",
-        &Fixture::orbitRejectsInvalidDocumentsWithoutLosingConfiguration},
        {"appearancePresetsValidateBeforeApplying",
         &Fixture::appearancePresetsValidateBeforeApplying},
        {"paletteFollowsDesktopColorScheme",
-        &Fixture::paletteFollowsDesktopColorScheme},
-       {"moduleApiPersistsAndRejectsStaleEdits",
-        &Fixture::moduleApiPersistsAndRejectsStaleEdits}},
+        &Fixture::paletteFollowsDesktopColorScheme}},
       argc, argv);
 }

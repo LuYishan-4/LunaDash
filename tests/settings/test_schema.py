@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""SDK/runtime fixtures and the shipped module/plugin settings contracts."""
+"""SDK/runtime fixtures and the shipped plugin settings contracts."""
 import importlib.util
 import json
-import os
 from pathlib import Path
 import re
 import sys
@@ -32,36 +31,10 @@ class SettingsSchemaTests(unittest.TestCase):
     def test_all_shipped_schemas(self):
         for target in json.loads((ROOT / 'data/plugins/targets.json').read_text()):
             validate_schema(target['settings'])
-        directories = (ROOT / 'data/plugins',)
-        shell_root = Path(os.environ.get('LUDASH_SHELL_SOURCE_DIR')
-                          or os.environ.get('LUDASH_QML_SOURCE_DIR', ROOT / 'shell'))
-        for directory in (*directories, shell_root / 'plugins'):
-            for path in directory.rglob('metadata.json'):
-                manifest = json.loads(path.read_text())
-                if manifest.get('schemaVersion') == 2:
-                    validate_schema(manifest['settings'])
-
-    def test_module_registry(self):
-        registry = json.loads((ROOT / 'data/modules/registry.json').read_text())
-        self.assertEqual(registry['schemaVersion'], 1)
-        ids = set()
-        for module in registry['modules']:
-            for section, schema in registry['common'].items():
-                module['sections'][section] = dict(schema, **module['sections'][section])
-            self.assertNotIn(module['id'], ids)
-            ids.add(module['id'])
-            self.assertTrue(module['type'])
-            self.assertEqual(set(module['sections']), {'module','style','config'})
-            for schema in module['sections'].values():
-                validate_schema(schema)
-            if module['recovery']:
-                rule = module['sections']['module']['enabled']
-                self.assertTrue(rule['readOnly'])
-                self.assertFalse(valid_value(rule, False))
-            self.assertNotIn('custom', module['sections'])
-            self.assertNotIn('template', module)
-        self.assertEqual(len(ids), 11)
-        self.assertTrue({'orbit', 'dock'}.issubset(ids))
+        for path in (ROOT / 'data/plugins').rglob('metadata.json'):
+            manifest = json.loads(path.read_text())
+            if manifest.get('schemaVersion') == 2:
+                validate_schema(manifest['settings'])
 
     def test_plugin_controls_are_covered_without_bundled_plugins(self):
         controls = set()

@@ -28,13 +28,11 @@ NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證�
 - [XWayland 相容層](XWAYLAND.md)
 - [視窗動畫與效果](EFFECTS.md)
 - [螢幕截圖](SCREEN_CAPTURE.md)
-- [媒體面板](MEDIA.md)
 - [桌面殼層（Slint 與 SlintLu）](SHELL.md)
 - [Shell 繪製](SHELL_RENDERING.md)
 
 ## 擴充 LunaDash
 
-- [Shell 模組](MODULES.md)
 - [Plugin SDK 2](PLUGINS.md)
 - [Plugin target 參考](PLUGIN_TARGETS.md)
 - [C 核心與 C++ 整合](C_CORE.md)

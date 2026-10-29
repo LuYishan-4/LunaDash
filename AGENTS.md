@@ -1,7 +1,7 @@
 # LuDash project rules
 
 - Implement a C++20 / OpenGL / Wayland desktop with a C11 low-level rendering core. Use wlroots for compositor, input, and Wayland protocol ownership; do not add an X11 window manager.
-- Keep the LunaDash compositor and built-in desktop services toolkit-neutral and free of Qt linkage. The session shell is the independent LunaDash-Shell repository: Slint files run by SlintLu as a separate Wayland client. Pin both in `packaging/shell-revision` and `packaging/slintlu-revision`; a legacy Quickshell checkout (`shell.qml`) is still launched with Quickshell.
+- Keep the LunaDash compositor and built-in desktop services toolkit-neutral and free of Qt linkage. The session shell is the independent LunaDash-Shell repository: Slint files run by SlintLu as a separate Wayland client. Pin both in `packaging/shell-revision` and `packaging/slintlu-revision` Only `shell.slint` shells are started; the former Quickshell/QML shell is no longer supported.
 - Use wlroots and standard Wayland protocols for compositor compatibility; do not add toolkit-specific compositor integrations. Use Slint for LunaDash-owned built-in UI outside the independent shell repository.
 - Put all project C++ types and functions in namespace `LunaDash` (except `main`).
 - Keep interfaces and implementations together in their owning lowercase source domain. Use PascalCase `.hpp` / `.cpp` filenames and source-root project includes.
@@ -25,8 +25,7 @@
 - LunaDash-owned Slint dashboard content must use layouts, bounded card sizes, clipping and text elision. The Slint shell follows the same bounds and overflow requirements.
 - Settings must remain usable at its default size and when maximized. Search belongs in the header; page implementations must not invent separate window chrome.
 - Portal FileChooser UI must keep the LunaDash-owned frameless wrapper, dark header and manual local-path field. Never evaluate a selected path through a shell.
-- Desktop-widget plugins render inside the wallpaper Background layer. Do not create Top/Overlay windows for desktop widgets.
-- `desktop-widgets` is multi-selection so clocks, visualizers and other wallpaper widgets can coexist.
+- Plugins are native compositor effects (`type: effect`). The visual Quickshell/OpenGL plugin types and their targets were removed with the QML shell.
 - The removed Command Console must not return to built-ins, startup settings, tests, docs or launcher entries. Use the configured terminal role.
 - “Motion” is not a standalone settings feature. Use “Visual effects” for appearance controls and “Reduced motion” only for accessibility.
 - Native plugin metadata is validation, not isolation; never describe native plugins as sandboxed.

@@ -50,7 +50,7 @@
         in {
           default = pkgs.mkShell {
             inputsFrom = [ self.packages.${system}.lunadash ];
-            packages = [ pkgs.git pkgs.python3 pkgs.qt6.qtshadertools ];
+            packages = [ pkgs.git pkgs.python3 ];
           };
         });
     };

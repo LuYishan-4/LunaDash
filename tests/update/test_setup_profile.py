@@ -20,30 +20,18 @@ class SetupProfileTests(unittest.TestCase):
         self.state = self.root / "state"
 
     def seed(self):
-        profile.seed(self.config, self.state, desktop=True, author=True, complete=True, apps="input")
+        profile.seed(self.config, self.state, author=True, complete=True, apps="input")
 
-    def test_new_profile_uses_existing_module_schema_without_custom_code(self):
+    def test_setup_is_recorded(self):
         self.seed()
-        document = json.loads((self.config / "LuDash/shell-modules.json").read_text())
-        self.assertEqual(document["schemaVersion"], 1)
-        self.assertEqual(set(document["modules"]), {"panel"})
-        panel = document["modules"]["panel"]["config"]
-        registry = json.loads((ROOT / "data/modules/registry.json").read_text())
-        descriptor = next(module for module in registry["modules"] if module["id"] == "panel")
-        for name, value in panel.items():
-            self.assertIn(name, descriptor["sections"]["config"])
-            self.assertIs(value, True)
         self.assertTrue((self.state / "lunadash/setup/complete.json").is_file())
 
     def test_existing_app_group_and_profile_are_preserved(self):
         (self.config / "kitty").mkdir(parents=True)
         (self.config / "kitty/kitty.conf").write_text("font_size 18\n")
-        (self.config / "LuDash").mkdir()
-        (self.config / "LuDash/shell-modules.json").write_text("personal profile\n")
         self.seed()
         self.assertEqual((self.config / "kitty/kitty.conf").read_text(), "font_size 18\n")
         self.assertFalse((self.config / "kitty/lunadash.conf").exists())
-        self.assertEqual((self.config / "LuDash/shell-modules.json").read_text(), "personal profile\n")
         self.assertTrue((self.config / "LuDash/setup-examples/kitty/kitty.conf").is_file())
 
     def test_repeated_setup_preserves_user_overrides_and_original_journal(self):

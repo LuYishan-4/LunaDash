@@ -193,7 +193,7 @@ if "--install" in args:
         self.assertTrue(any(row[:2] == ["cmake", "--install"] for row in self.events()))
 
     def test_update_cannot_apply_first_install_choices(self):
-        for options in (("--guided",), ("--author-config",), ("--desktop-profile",),
+        for options in (("--guided",), ("--author-config",),
                         ("--apps", "basics")):
             result = self.run_installer("--non-interactive", *options)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
@@ -212,7 +212,7 @@ if "--install" in args:
         self.assertEqual(self.events(), [])
 
     def test_first_install_dry_run_does_not_write_profiles(self):
-        result = self.run_installer("--dry-run", "--apps", "basics,input", "--desktop-profile",
+        result = self.run_installer("--dry-run", "--apps", "basics,input",
                                     "--author-config", graphical=False)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("fcitx5-chewing", result.stdout)

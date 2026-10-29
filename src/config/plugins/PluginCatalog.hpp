@@ -21,8 +21,6 @@ struct PluginDescriptor {
   Json implementation = Json::object();
   Json settingsSchema = Json::object();
   Json settings = Json::object();
-  Json shaders = Json::object();
-  std::string entryPath;
   std::string libraryPath;
   std::string metadataPath;
   std::string error;

@@ -5,7 +5,7 @@
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/BuildConfig.hpp"
-#include "shell/runtime/ShellRenderer.hpp"
+#include "compositor/session/ShellRendering.hpp"
 
 #include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/client/ClientWindow.hpp"
@@ -52,8 +52,6 @@
 #include "desktop/wallpaper/WallpaperSettings.hpp"
 #include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
 #include "desktop/weather/WeatherStatus.hpp"
-#include "shell/launcher/OrbitSettings.hpp"
-#include "shell/modules/ShellModules.hpp"
 
 #include <glib.h>
 #include <nlohmann/json.hpp>
@@ -142,31 +140,22 @@ std::string locateDataFile(const std::string &relativePath) {
   return {};
 }
 
-struct SessionShell {
-  std::string directory;
-  // shell.slint, run by SlintLu; otherwise a legacy Quickshell shell.qml.
-  bool slint = false;
-};
-
-// The session shell next to the executable first (also a staged/relocated installation in
-// CI), then the build's LunaDash-Shell checkout and the XDG data directories.
-SessionShell locateSessionShell() {
+// The directory holding the session shell's shell.slint: next to the executable first (also
+// a staged/relocated installation in CI), then the build's LunaDash-Shell checkout and the
+// XDG data directories.
+std::string locateSessionShell() {
   std::vector<std::filesystem::path> candidates{
       (filePath(executableDirectory()) / "../share/lunadash/shell").lexically_normal()};
   if (*LUDASH_SHELL_SOURCE_DIR)
     candidates.emplace_back(LUDASH_SHELL_SOURCE_DIR);
-  for (const char *directory : {"lunadash/shell", "ludash/shell"})
-    for (const char *file : {"shell.slint", "shell.qml"}) {
-      const auto found = locateDataFile(std::string(directory) + "/" + file);
-      if (!found.empty())
-        candidates.push_back(filePath(found).parent_path());
-    }
-  for (const auto &directory : candidates) {
-    if (fileExists((directory / "shell.slint").string()))
-      return {directory.string(), true};
-    if (fileExists((directory / "shell.qml").string()))
-      return {directory.string(), false};
+  for (const char *directory : {"lunadash/shell", "ludash/shell"}) {
+    const auto found = locateDataFile(std::string(directory) + "/shell.slint");
+    if (!found.empty())
+      candidates.push_back(filePath(found).parent_path());
   }
+  for (const auto &directory : candidates)
+    if (fileExists((directory / "shell.slint").string()))
+      return directory.string();
   return {};
 }
 
@@ -403,7 +392,6 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
       });
   brightnessSettings_ = new BrightnessSettings(d->eventLoop);
   ddcBrightnessSettings_ = new DdcBrightnessSettings(d->eventLoop);
-  shellModules_ = new ShellModules();
   systemStatus_ = new SystemStatus(d->eventLoop);
   weatherStatus_ = new WeatherStatus(d->eventLoop, [] {
     const auto preferences = desktopPreferences();
@@ -487,8 +475,6 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
           "XWayland/XWM could not be prepared; X11 clients are unavailable.");
   }
 
-  shellModules_->setChangedCallback([this] { arrange(); });
-
   const auto startSessionClients = [this, startShell] {
     if (!startShell || shuttingDown_ || testStopping_)
       return;
@@ -561,8 +547,6 @@ WaylandCompositor::~WaylandCompositor() {
   shuttingDown_ = true;
   cancelWallpaperPalette();
   videoWallpaper_->stop();
-  delete shellModules_;
-  shellModules_ = nullptr;
   sessionServices_.reset();
   delete screenCapture_;
   screenCapture_ = nullptr;
@@ -643,91 +627,41 @@ ProcessRunner *WaylandCompositor::spawn(
   std::string executable = program;
   if (sessionShell) {
     const auto shell = locateSessionShell();
-    if (shell.directory.empty()) {
+    if (shell.empty()) {
       if (required)
         processFailure_ = true;
       logWarning("The LunaDash shell (shell.slint) was not found in any search location.");
       return nullptr;
     }
-    logInfo("LunaDash shell: %s", shell.directory.c_str());
+    logInfo("LunaDash shell: %s", shell.c_str());
     const auto wallpaperPath = wallpaperImagePath();
     environment["LUNADASH_WALLPAPER"] =
         wallpaperPath.empty()
             ? std::string{}
             : localFileUri(wallpaperPath);
-    if (shell.slint) {
-      const std::string slintlu = findSlintLu();
-      if (slintlu.empty()) {
-        if (required)
-          processFailure_ = true;
-        logWarning("SlintLu is unavailable; install it to run the LunaDash shell.");
-        return nullptr;
-      }
-      ShellRenderingEnvironment shellRenderingEnvironment;
-      for (const auto *key : {"LUDASH_SHELL_RENDERER", "SLINTLU_RENDERER"}) {
-        const auto value = environment.find(key);
-        if (value != environment.end())
-          shellRenderingEnvironment.emplace(key, value->second);
-      }
-      if (!configureSlintLuRendering(shellRenderingEnvironment)) {
-        logWarning(
-            "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
+    const std::string slintlu = findSlintLu();
+    if (slintlu.empty()) {
+      if (required)
         processFailure_ = true;
-        return nullptr;
-      }
-      for (const auto &[key, value] : shellRenderingEnvironment)
-        environment[key] = value;
-      executable = slintlu;
-      nativeArguments = {"--config", shell.directory};
-    } else {
-      const std::string config = shell.directory + "/shell.qml";
-      const std::string quickshell = findExecutable("quickshell");
-      if (quickshell.empty()) {
-        if (required)
-          processFailure_ = true;
-        logWarning("Quickshell is unavailable.");
-        return nullptr;
-      }
-      // Qt Multimedia's FFmpeg backend can use NVDEC through CUDA. Prefer it
-      // only for the LunaDash shell on NVIDIA hosts and only when the user did
-      // not choose a backend explicitly. Unsupported systems still use Qt's
-      // normal software fallback.
-      const auto decoderPreference =
-          environment.find("QT_FFMPEG_DECODING_HW_DEVICE_TYPES");
-      if ((decoderPreference == environment.end() ||
-           decoderPreference->second.empty()) &&
-          (fileExists("/sys/module/nvidia") ||
-           fileExists("/proc/driver/nvidia/version")))
-        environment["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "cuda";
-      // The shell draws its own theme. A blocking portal Settings query here
-      // would prevent even the startup splash from reaching its first frame.
-      environment["QT_QPA_PLATFORMTHEME"] = "generic";
-      environment.erase("GTK_USE_PORTAL");
-      ShellRenderingEnvironment shellRenderingEnvironment;
-      for (const auto *key :
-           {"LUDASH_SHELL_RENDERER", "QT_QUICK_BACKEND", "QSG_RHI_BACKEND"}) {
-        const auto value = environment.find(key);
-        if (value != environment.end())
-          shellRenderingEnvironment.emplace(key, value->second);
-      }
-      if (!configureShellRendering(shellRenderingEnvironment,
-                                   fileExists("/sys/module/nvidia"))) {
-        logWarning(
-            "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
-        processFailure_ = true;
-        return nullptr;
-      }
-      for (const auto *key :
-           {"LUDASH_SHELL_RENDERER", "QT_QUICK_BACKEND", "QSG_RHI_BACKEND"}) {
-        const auto value = shellRenderingEnvironment.find(key);
-        if (value == shellRenderingEnvironment.end())
-          environment.erase(key);
-        else
-          environment[key] = value->second;
-      }
-      executable = quickshell;
-      nativeArguments = {"--path", config, "--no-color"};
+      logWarning("SlintLu is unavailable; install it to run the LunaDash shell.");
+      return nullptr;
     }
+    ShellRenderingEnvironment shellRenderingEnvironment;
+    for (const auto *key : {"LUDASH_SHELL_RENDERER", "SLINTLU_RENDERER"}) {
+      const auto value = environment.find(key);
+      if (value != environment.end())
+        shellRenderingEnvironment.emplace(key, value->second);
+    }
+    if (!configureSlintLuRendering(shellRenderingEnvironment)) {
+      logWarning(
+          "LUDASH_SHELL_RENDERER must be auto, opengl, vulkan, or software.");
+      processFailure_ = true;
+      return nullptr;
+    }
+    for (const auto &[key, value] : shellRenderingEnvironment)
+      environment[key] = value;
+    executable = slintlu;
+    nativeArguments = {"--config", shell};
   } else {
     if (executable.empty()) {
       if (arguments.size() >= 2 && arguments[0] == "--app" &&
@@ -1853,7 +1787,6 @@ Json WaylandCompositor::state(bool includeTranslations) const {
   const auto layoutTarget = Settings::target(
       "layout:" + windowTemplate_->key, "Window layout", "layout", "Windows",
       windowTemplate_->layoutSettingsSchema, layoutSettings);
-  const auto moduleState = shellModules_->snapshot();
   const auto nativeXWayland =
       xwayland_ ? xwayland_->snapshot() : XWaylandSnapshot{};
   Json xwaylandState{
@@ -1882,8 +1815,7 @@ Json WaylandCompositor::state(bool includeTranslations) const {
       {"version", std::string(BuildConfig::version)},
       {"settingsApi",
        Json::object({{"version", 1},
-                   {"targets", settingsApiTargets(extensions, moduleState,
-                                                  layoutTarget)}})},
+                   {"targets", settingsApiTargets(extensions, layoutTarget)}})},
       {"layoutMode", windowTemplate_ && windowTemplate_->allowOverlap
                          ? "stacking"
                          : "tiling"},
@@ -1901,19 +1833,14 @@ Json WaylandCompositor::state(bool includeTranslations) const {
            {"actions",
             windowTemplate_ ? windowTemplate_->layoutActions : Json::object()}})},
       {"defaultApps", defaultApplications()},
-      {"shellModules", moduleState},
       {"extensions", extensions},
       {"shellAnimationDuration",
        shellAnimationDuration(*pluginManager_,
                               preferences.value("animationDuration", 220))},
-      {"panelExtent",
-       shellModules_->panelExtent(preferences.value("panelHeight", 40))},
       {"workArea", Json::object({{"x", workArea().x()},
                                {"y", workArea().y()},
                                {"width", workArea().width()},
                                {"height", workArea().height()}})},
-      {"panelEdge", (shellModules_->panelEdge())},
-      {"panelAtBottom", shellModules_->panelAtBottom()},
       {"audio", audioSettings_->snapshot()},
       {"power", powerSettings_->snapshot()},
       {"sessionActions",
@@ -1998,7 +1925,6 @@ Json WaylandCompositor::state(bool includeTranslations) const {
       {"applicationTheme", synchronizeApplicationTheme(preferences, palette)},
       {"appearancePresets",
        appearancePresets()},
-      {"orbit", orbitSettings()},
       {"wallpapers",
        wallpaperSnapshot()},
       {"shellAction", shellAction_},
@@ -2160,7 +2086,7 @@ Json WaylandCompositor::control(const Json &request) {
         windowTemplate_->layoutSettingsSchema, currentWindowLayoutSettings());
     std::string error;
     if (!updateSettingsApi(
-            *pluginManager_, *shellModules_, layout, document,
+            *pluginManager_, layout, document,
             [this](const auto &changes, std::string *message) {
               return updateWindowLayoutSettings(changes, message);
             },
@@ -2191,24 +2117,6 @@ Json WaylandCompositor::control(const Json &request) {
     const auto object = parseJsonObject(value);
     pluginManager_->reportError(jsonString(object, "id"),
                                 jsonString(object, "error"));
-  } else if (method == "module-validate" || method == "module-save" ||
-             method == "module-reset") {
-    std::string nativeError;
-    bool ok = false;
-    if (method == "module-validate")
-      ok = shellModules_->validate(value, &nativeError);
-    else if (method == "module-save")
-      ok = shellModules_->apply(value, &nativeError);
-    else if (method == "module-reset")
-      ok = shellModules_->reset(&nativeError);
-    if (!ok)
-      return {{"error", nativeError.empty()
-                             ? std::string("Invalid module command.")
-                             : (nativeError)}};
-  } else if (method == "module-error") {
-    const auto object = parseJsonObject(value);
-    shellModules_->reportError(jsonString(object, "id"),
-                               jsonString(object, "error"));
   } else if (method == "default-apps") {
     const auto changes = parseJsonObject(value);
     std::string error;
@@ -2371,13 +2279,6 @@ Json WaylandCompositor::control(const Json &request) {
     if (value != "true" && value != "false")
       return {{"error", "launcher-visible expects true or false."}};
     setLauncherVisible(value == "true", false);
-  } else if (method == "orbit-save" || method == "orbit-reset") {
-    std::string nativeError;
-    const bool saved = method == "orbit-save"
-                           ? saveOrbitSettings(value, &nativeError)
-                           : resetOrbitSettings(&nativeError);
-    if (!saved)
-      return {{"error", (nativeError)}};
   } else if (method == "appearance-preset-save" ||
              method == "appearance-preset-apply" ||
              method == "appearance-preset-delete") {

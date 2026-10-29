@@ -84,7 +84,7 @@ About 將目前 check 與上次 install 記錄分開。背景更新的 package c
 
 新圖片 ready 前保留舊圖；完成後從右下角以圓形 reveal 覆蓋。GPU path 使用 masked image，software path 使用 Canvas clip。快速選擇以最後一張為準，失敗則保留舊圖；停用 animations 時立即套用。
 
-相關：[視窗](WINDOWS.md)、[Display](DISPLAY_AND_STARTUP.md)、[Plugin SDK 2](PLUGINS.md)、[Shell modules](MODULES.md)、[Media](MEDIA.md)。
+相關：[視窗](WINDOWS.md)、[Display](DISPLAY_AND_STARTUP.md)、[Plugin SDK 2](PLUGINS.md)。
 
 
 ## 1.0.1a 介面規則

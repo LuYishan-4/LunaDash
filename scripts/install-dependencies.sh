@@ -17,13 +17,13 @@ Supported package managers:
   emerge        Gentoo Linux
 
 If none of these package managers exists, the script enters generic validation
-mode and accepts an already-provisioned CMake/Ninja/Qt6/Wayland toolchain.
+mode and accepts an already-provisioned CMake/Ninja/Rust/Wayland toolchain.
 
 The script installs only packages from enabled distribution repositories. It does
-not add third-party repositories. Quickshell is checked separately because its
-packaging differs between distributions. Fcitx 5 and its Qt integration are
-installed automatically on supported distributions. The optional configuration
-tool is installed where available.
+not add third-party repositories. LunaDash itself does not use Qt; the Qt Wayland
+plugin is installed so Qt applications such as Dolphin run natively. Fcitx 5 and
+its Qt integration are installed automatically on supported distributions. The
+optional configuration tool is installed where available.
 EOF
 }
 while (($#)); do
@@ -83,7 +83,7 @@ case "$manager" in
         run "${elevate[@]}" "${pacman_install[@]}" \
             base-devel cmake ninja git python pkgconf rust gdk-pixbuf2 fontconfig \
             libglvnd mesa vulkan-headers vulkan-icd-loader wayland wayland-protocols libinput libxkbcommon curl \
-            systemd glib2 qt6-base qt6-declarative qt6-wayland qt6-translations qt6-multimedia ffmpeg \
+            systemd glib2 qt6-wayland ffmpeg \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard wtype brightnessctl ddcutil polkit-kde-agent \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             fcitx5 fcitx5-qt fcitx5-configtool networkmanager network-manager-applet \
@@ -113,8 +113,8 @@ case "$manager" in
             build-essential cmake ninja-build git python3 pkg-config rustc cargo \
             libgl-dev libegl-dev libvulkan-dev libwayland-dev wayland-protocols libinput-dev libgdk-pixbuf-2.0-dev \
             libxkbcommon-dev libudev-dev libglib2.0-dev libcurl4-openssl-dev libfontconfig1-dev \
-            "$wlroots_package" qt6-base-dev qt6-declarative-dev qt6-wayland \
-            libqt6opengl6-dev shared-mime-info dolphin kitty fish grim slurp wl-clipboard wtype brightnessctl ddcutil \
+            "$wlroots_package" qt6-wayland \
+            shared-mime-info dolphin kitty fish grim slurp wl-clipboard wtype brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             pulseaudio-utils fcitx5 fcitx5-frontend-qt6 fcitx5-config-qt
         ;;
@@ -123,7 +123,7 @@ case "$manager" in
             gcc gcc-c++ cmake ninja-build git python3 pkgconf-pkg-config rust cargo gdk-pixbuf2-devel \
             mesa-libGL-devel mesa-libEGL-devel vulkan-headers vulkan-loader-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel libcurl-devel fontconfig-devel \
-            wlroots-devel qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtwayland \
+            wlroots-devel qt6-qtwayland \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             pulseaudio-utils dbus-daemon fcitx5 fcitx5-qt fcitx5-qt6 fcitx5-configtool
@@ -143,7 +143,7 @@ case "$manager" in
             gcc gcc-c++ cmake ninja git python3 pkg-config rust cargo \
             Mesa-libGL-devel Mesa-libEGL-devel vulkan-devel wayland-devel wayland-protocols-devel libinput-devel \
             libxkbcommon-devel systemd-devel glib2-devel libcurl-devel fontconfig-devel \
-            wlroots-devel qt6-base-devel qt6-declarative-devel qt6-wayland gdk-pixbuf-devel \
+            wlroots-devel qt6-wayland gdk-pixbuf-devel \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             pulseaudio-utils fcitx5 fcitx5-qt6 fcitx5-configtool
@@ -152,7 +152,7 @@ case "$manager" in
         run "${elevate[@]}" apk add \
             build-base cmake ninja git python3 pkgconf rust cargo mesa-dev vulkan-headers vulkan-loader-dev \
             wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev curl-dev fontconfig-dev \
-            glib-dev wlroots-dev qt6-qtbase-dev qt6-qtdeclarative-dev qt6-qtwayland gdk-pixbuf-dev \
+            glib-dev wlroots-dev qt6-qtwayland gdk-pixbuf-dev \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             pulseaudio-utils fcitx5 fcitx5-qt
@@ -163,7 +163,7 @@ case "$manager" in
         run "${elevate[@]}" xbps-install -Sy \
             base-devel cmake ninja git python3 pkg-config rust cargo MesaLib-devel \
             wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
-            eudev-libudev-devel glib-devel curl-devel fontconfig-devel wlroots-devel qt6-base-devel qt6-declarative-devel \
+            eudev-libudev-devel glib-devel curl-devel fontconfig-devel wlroots-devel \
             qt6-wayland gdk-pixbuf-devel shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             pulseaudio-utils fcitx5 fcitx5-qt fcitx5-configtool
@@ -173,7 +173,7 @@ case "$manager" in
             dev-build/cmake app-alternatives/ninja virtual/pkgconfig dev-vcs/git dev-lang/python dev-lang/rust dev-lang/cargo \
             media-libs/mesa dev-libs/wayland dev-libs/wayland-protocols \
             dev-libs/libinput x11-libs/libxkbcommon virtual/udev dev-libs/glib net-misc/curl media-libs/fontconfig \
-            gui-libs/wlroots dev-qt/qtbase:6 dev-qt/qtdeclarative:6 dev-qt/qtwayland:6 x11-libs/gdk-pixbuf \
+            gui-libs/wlroots dev-qt/qtwayland:6 x11-libs/gdk-pixbuf \
             sys-apps/xdg-desktop-portal sys-apps/xdg-desktop-portal-gtk gui-libs/xdg-desktop-portal-wlr media-video/pipewire gui-apps/grim gui-apps/slurp gui-apps/wl-clipboard app-misc/brightnessctl app-misc/ddcutil x11-misc/shared-mime-info app-shells/fish x11-terms/kitty kde-apps/dolphin \
             app-i18n/fcitx app-i18n/fcitx-qt app-i18n/fcitx-configtool
         ;;
@@ -190,7 +190,7 @@ case "$manager" in
             printf 'Generic Linux mode: missing required build dependencies: %s\n' "${missing[*]}" >&2
             cat >&2 <<'EOF'
 Install a C++20 compiler, CMake >= 3.21, Ninja, Python 3, pkg-config, Rust/Cargo >= 1.92, wlroots >= 0.17,
-Qt 6.4+ Base/Declarative packages, the Qt Wayland client plugin, GdkPixbuf, Fontconfig, EGL and GL
+GdkPixbuf, Fontconfig, EGL and GL
 development headers, Wayland development headers, libinput, libxkbcommon, udev
 development headers, GLib, libcurl,
 shared-mime-info, Dolphin, Kitty and Fish; then rerun the installer.

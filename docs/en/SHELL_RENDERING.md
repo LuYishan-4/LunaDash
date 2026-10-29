@@ -9,7 +9,7 @@ LUDASH_SHELL_RENDERER=software LUDASH_TEST_HOST_WAYLAND=1 \
   LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
 ```
 
-Software rendering can increase CPU usage. `shell/runtime/ShellRenderer` is applied when starting the shell. `LUDASH_SHELL_RENDERER` accepts `auto`, `opengl`, `vulkan` and `software`. For the Slint shell it becomes `SLINTLU_RENDERER`; `auto` keeps an explicit `SLINTLU_RENDERER` and otherwise lets SlintLu choose. A legacy Quickshell shell keeps the former policy: explicit Qt renderer choices win, otherwise software on detected NVIDIA hosts and OpenGL elsewhere. This policy changes only the shell child environment; GTK and Qt application renderers remain their own choice.
+Software rendering can increase CPU usage. `compositor/session/ShellRendering` is applied when starting the shell. `LUDASH_SHELL_RENDERER` accepts `auto`, `opengl`, `vulkan` and `software`. For the Slint shell it becomes `SLINTLU_RENDERER`; `auto` keeps an explicit `SLINTLU_RENDERER` and otherwise lets SlintLu choose. A legacy Quickshell shell keeps the former policy: explicit Qt renderer choices win, otherwise software on detected NVIDIA hosts and OpenGL elsewhere. This policy changes only the shell child environment; GTK and Qt application renderers remain their own choice.
 
 Earlier NVIDIA/Qt observations motivated that compatibility helper and descriptor-soak tests. Those historical measurements are not evidence for the current wlroots renderer or every driver. Diagnose the current process and preserve its logs before making hardware claims. `QProcess: Cannot create pipe (Too many open files)` indicates resource exhaustion, not necessarily a missing executable.
 

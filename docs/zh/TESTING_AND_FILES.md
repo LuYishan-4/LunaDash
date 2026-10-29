@@ -93,7 +93,6 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 | `src/core` | contracts/listeners/plugin C API |
 | `src/desktop` | apps/default-apps/audio/network/power/system |
 | `src/service/portal` | FileChooser portal |
-| `src/shell` | modules/media |
 | `src/ctl` | control client |
 | `nix`、`flake.nix`、`flake.lock` | Nix 套件、NixOS 模組與鎖定的相依來源 |
 | LunaDash-Shell | Shell UI，透過 `packaging/shell-revision` 固定版本並獨立安裝 |

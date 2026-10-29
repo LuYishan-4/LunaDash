@@ -10,38 +10,9 @@ lunadash-create-plugin --list
 
 用 `--target`、`--id`、`--output` 產生 native effect 專案（`window-animation` 可加 `--language c`），產生器直接寫出檔案，專案使用 LunaDash CMake SDK。這是開發 API，不保證跨 SDK major 的 native binary ABI。
 
-## Visual targets
-
-共同 context 有 `target`、`source`、`builtinSettings`、`mode`、`reportError(message)`。
-
-| Target | 功能 |
-| --- | --- |
-| `panel` | taskbar/workspace/tray |
-| `taskbar-windows` | window list；`groups` |
-| `wallpaper` | wallpaper/context menu |
-| `wallpaper-transition` | imageSource/previous/incoming/progress |
-| `launcher` | launcher |
-| `overview` | dashboard |
-| `media` | media controller/player selection |
-| `calendar` | calendar popup |
-| `desktop-menu` | desktop menu |
-| `audio/network/devices` | popups |
-| `session` | session controls |
-| `image-picker` | image chooser |
-| `settings` | settings content；recovery pages 保留 built-in |
-| `setup` | welcome |
-| `compatibility` | compatibility launcher |
-| `feedback/notifications/screenshot` | feedback |
-| `workspace-transition/startup` | animations |
-| `window-decoration` | border overlay |
-| `window-switcher` | Alt+Tab overview |
-| `tiling-hint` | drop hint |
-| `blur` | switcher backdrop |
-| `settings.*` | individual settings pages |
-
-`desktop-widgets` 只接受 Quickshell，能自行建立 PanelWindows。其他 feature 應使用 host slot 以保留 input/lifecycle/fallback。
-
 ## Native hook targets
+
+所有 target 都是合成器原生 hook。視覺類的 Quickshell／OpenGL slot 屬於舊 QML 殼層，已隨之移除。
 
 | Target | Response | 約束 |
 | --- | --- | --- |
@@ -57,14 +28,9 @@ Stacking 時 Alt+left-drag 移動，Shift+Alt+left-drag resize；focus-to-front�
 ## 新增 target
 
 1. 更新 `targets.json`。
-2. 在真實 feature boundary 放 `ExtensionSlot` 或呼叫 native filter。
+2. 在真實 feature boundary 呼叫 native filter。
 3. 定義並驗證 context/response。
 4. Replacement ready 前一定保留 built-in。
 5. 補文件與 regression test。
 
 Registry entry 本身不會自動實作 host hook；沒有實際 mount/call 的 target 不應發布。
-
-
-## 1.0.1a desktop-widget 規則
-
-`desktop-widgets` 使用 `selection: multiple`。Host 會把每個已啟用 QML item 嵌入 wallpaper 的 Background surface，可同時存在多個 widget，而且一般 application window 一定在其上方。

@@ -1,7 +1,6 @@
 # 共用設定 API 與自動設定介面
 
-Compositor 現在透過同一個 API 描述原生 effect、Quickshell/OpenGL 插件、
-內建功能、視窗配置與 Shell 模組的設定。Effect 不必自行寫設定頁；只要在
+Compositor 現在透過同一個 API 描述原生 effect 插件、內建功能與視窗配置的設定。Effect 不必自行寫設定頁；只要在
 SDK manifest 的 `settings` 宣告選項，就會自動出現在共用設定介面。
 即使插件尚未啟用也可以調整選項，儲存選項不會偷偷啟用插件或信任程式碼。
 
@@ -11,9 +10,7 @@ SDK manifest 的 `settings` 宣告選項，就會自動出現在共用設定介�
 同一份資料也放在 `status.settingsApi`，沿用現有 Shell 狀態通道。
 每個 target 包含 `id`、`name`、`type`、`category`、`schema`、`values`、`revision`。
 
-Target 命名：`plugin:<插件 ID>`、`builtin:<功能 ID>`、
-`layout:<目前模板>`、`module:<模組 ID>:<設定區段>`。
-模組區段為 `module`、`style`、`config`、`custom`。
+Target 命名：`plugin:<插件 ID>`、`builtin:<功能 ID>`、`layout:<目前模板>`。
 視窗配置使用模板提供的選項，不再顯示另一個會互相衝突的舊 gap 編輯器。
 
 ```sh
@@ -32,12 +29,12 @@ lunadashctl settings-update '{"target":"plugin:org.ludash.fade","revision":"<目
 
 ## 四種標準控制項
 
-| `control` | 資料 | 現有 QML 元件 |
+| `control` | 資料 | 顯示 |
 | --- | --- | --- |
-| `toggle` | boolean | `SoftSwitch`，是／否 |
-| `select` | `enum` 中的值 | `StyledComboBox`；翻譯文字不改動儲存值 |
-| `number` | integer / number | `SoftField` 與減少／增加按鈕 |
-| `slider` | 有範圍的 integer / number | `SettingsSlider` / `SoftSlider` |
+| `toggle` | boolean | 開關，是／否 |
+| `select` | `enum` 中的值 | 下拉選單；翻譯文字不改動儲存值 |
+| `number` | integer / number | 數值欄位與減少／增加按鈕 |
+| `slider` | 有範圍的 integer / number | 拉條 |
 
 可宣告 `label`、`description`、`order`、`minimum`、`maximum`、`step`、
 `enum`、`readOnly`。省略 `control` 時，列舉自動用下拉、布林用開關、
@@ -64,18 +61,6 @@ hook 的實際用途，不只是顯示用 metadata。
 SDK ABI 2 與 manifest schemaVersion 2 不變；manifest 改動仍需重建插件。
 `core/settings/SettingsSchema.hpp` 與安裝版 SDK `SettingsSchema.py` 共用
 `tests/settings/contract.json` 測試資料，防止建置與執行時驗證規則不一致。
-
-## 模組化設定
-
-Shell 模組設定頁可以按實作類型、分類、搜尋文字，以及是否有可調選項篩選。
-`effect`、`quickshell`、`opengl`、`module`、`layout`、`builtin` 共用表單，
-沿用現有 Theme、字體、按鈕與 QML 控制項。
-
-`data/modules/registry.json` 集中管理模組 ID、共用區段 schema、各模組覆寫、
-預設值、範圍、標籤與模板是否可用。後端先合併共用區段再提供描述；QML 不再
-維護另一份模組名稱、數值限制或大量手寫設定欄位。舊模組 JSON 格式仍可讀取。
-Settings、setup、feedback 的恢復入口不能停用；面板的跨欄位限制、自訂 QML
-正規路徑、檔案大小、符號連結檢查與程式碼信任仍由主機端控制。
 
 ## 視窗操作邊界
 

@@ -28,13 +28,11 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 - [XWayland compatibility](XWAYLAND.md)
 - [Window motion and effects](EFFECTS.md)
 - [Screen capture](SCREEN_CAPTURE.md)
-- [Media panel](MEDIA.md)
 - [Desktop shell (Slint on SlintLu)](SHELL.md)
 - [Shell rendering](SHELL_RENDERING.md)
 
 ## Extending LunaDash
 
-- [Shell modules](MODULES.md)
 - [Plugin SDK 2](PLUGINS.md)
 - [Plugin target reference](PLUGIN_TARGETS.md)
 - [C core and C++ integration](C_CORE.md)

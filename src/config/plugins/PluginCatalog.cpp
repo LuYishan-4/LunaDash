@@ -270,12 +270,10 @@ readPluginMetadataTargets(const std::string &path, bool applyConfiguration) {
     PluginDescriptor result = base;
     result.implementation = implementation;
     result.type = asciiLower(jsonString(implementation, "type"));
-    if (result.type == "qml")
-      result.type = "quickshell";
     result.target = jsonString(
         implementation, "target",
         jsonString(implementation, "id",
-                   jsonString(metadata, "target", "desktop-widgets")));
+                   jsonString(metadata, "target")));
     result.mode = jsonString(implementation, "mode", "augment");
 
     if (result.target.empty() || targetIds.contains(result.target)) {
@@ -315,14 +313,9 @@ readPluginMetadataTargets(const std::string &path, bool applyConfiguration) {
       return {result};
     }
 
-    if (result.type == "quickshell") {
-      result.entryPath =
-          canonicalChild(directory, jsonString(implementation, "entry"));
-      if (result.entryPath.empty() || !result.entryPath.ends_with(".qml")) {
-        result.error = "QML plugin entry must be a QML file inside its directory";
-        return {result};
-      }
-    } else if (result.type == "effect") {
+    // Plugins are native effects; the Quickshell and OpenGL plugins of the
+    // former QML shell are no longer loaded.
+    if (result.type == "effect") {
       result.libraryPath =
           canonicalChild(directory, jsonString(implementation, "entry"));
       if (result.libraryPath.empty()) {
@@ -333,23 +326,8 @@ readPluginMetadataTargets(const std::string &path, bool applyConfiguration) {
         result.error = "Legacy native effect: rebuild with LunaDash Plugin SDK 2";
         return {result};
       }
-    } else if (result.type == "opengl" && schemaVersion == 2) {
-      const auto shaders = jsonObject(implementation, "shaders");
-      for (const auto &stage : {std::string("vertex"), std::string("fragment")}) {
-        const auto source = jsonString(shaders, stage);
-        const auto sourcePath = canonicalChild(directory, source);
-        const auto baked = canonicalChild(directory, source + ".qsb");
-        const auto extension = stage == "vertex" ? ".vert" : ".frag";
-        if (sourcePath.empty() || baked.empty() ||
-            !source.ends_with(extension)) {
-          result.error =
-              "OpenGL plugins require local .vert/.frag sources and SDK-built .qsb files";
-          return {result};
-        }
-        result.shaders[stage] = fileUrl(baked);
-      }
     } else {
-      result.error = "Plugin type must be quickshell, effect or opengl";
+      result.error = "Plugin type must be effect";
       return {result};
     }
 
@@ -420,10 +398,6 @@ Json pluginDescriptorJson(const PluginDescriptor &plugin) {
       {"error", plugin.error},
       {"settingsSchema", plugin.settingsSchema},
       {"settings", plugin.settings},
-      {"shaders", plugin.shaders},
-      {"entry", plugin.entryPath.empty()
-                    ? std::string()
-                    : fileUrl(plugin.entryPath)},
       {"restartRequired", false}};
 }
 

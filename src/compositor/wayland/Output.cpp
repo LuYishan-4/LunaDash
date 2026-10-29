@@ -158,10 +158,10 @@ void WaylandCompositor::Impl::updateWindowGlass() {
                        client->mapped && !client->fullscreen &&
                            !client->desktop && !client->utility,
                        windowCorners ? windowCorners->radius(client->sceneTree) : 0});
-  // The settings and control-center clients are layer-shell surfaces, not
-  // xdg toplevels. Give them the same producer-owned, input-transparent blur
+  // The shell's overlays and popups are layer-shell surfaces, not xdg
+  // toplevels. Give them the same producer-owned, input-transparent blur
   // underlays; never sample the panel's own text or change its buffer alpha.
-  // Unsupported imports/renderers continue to use the opaque QML fallback.
+  // Without blur support they keep their own (more opaque) glass.
   for (const auto *layer : layers) {
     if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer)
       continue;
@@ -171,12 +171,11 @@ void WaylandCompositor::Impl::updateWindowGlass() {
     // (Style.radius 24). The panel, dock, wallpaper, toasts and OSD are not frosted.
     static const std::unordered_set<std::string> overlays{
         "lunadash-settings", "lunadash-dashboard", "lunadash-launcher", "lunadash-gallery",
-        "lunadash-power",    "lunadash-polkit",    "lunadash-welcome"};
+        "lunadash-wallpaper-library", "lunadash-switcher", "lunadash-power",
+        "lunadash-polkit", "lunadash-welcome"};
     static const std::unordered_set<std::string> popups{
         "lunadash-audio", "lunadash-calendar", "lunadash-clipboard", "lunadash-network",
-        "lunadash-tray-menu",
-        // The former Quickshell shell.
-        "lunadash-wallpaper-gallery", "lunadash-control-center"};
+        "lunadash-tray-menu"};
     // Full-screen overlays need square corners: a rounded blur leaves the screen corners sharp.
     const int radius = overlays.contains(name) ? 0 : popups.contains(name) ? 24 : -1;
     if (radius < 0)

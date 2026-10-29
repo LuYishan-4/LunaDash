@@ -30,7 +30,7 @@ else
   fi
   shell_source=$(CDPATH= cd -- "$shell_source" && pwd)
 fi
-if { [ ! -f "$shell_source/shell.slint" ] && [ ! -f "$shell_source/shell.qml" ]; } ||
+if [ ! -f "$shell_source/shell.slint" ] ||
    [ ! -x "$shell_source/install.sh" ]; then
   printf 'LunaDash-Shell source is unavailable or incomplete: %s\n' "$shell_source" >&2
   exit 1

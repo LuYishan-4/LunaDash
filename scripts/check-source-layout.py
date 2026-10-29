@@ -4,7 +4,7 @@ from pathlib import Path
 import argparse
 import re
 
-DOMAINS = {"compositor", "config", "core", "ctl", "desktop", "service", "shell"}
+DOMAINS = {"compositor", "config", "core", "ctl", "desktop", "service"}
 CPP_NAME = re.compile(r"[A-Z][A-Za-z0-9]*\Z")
 DIRECTORY = re.compile(r"[a-z][a-z0-9]*\Z")
 LEGACY = re.compile(r"\b(?:[A-Za-z]\w*Backend|Backend)\w*\b")
@@ -20,7 +20,6 @@ MAINS = {
     "desktop/package/Main.cpp",
     "desktop/welcome/Main.cpp",
     "ctl/Main.cpp",
-    "shell/Main.cpp",
     "service/portal/Main.cpp",
     "service/portal/screencast/Main.cpp",
     "service/portal/filepicker/Main.cpp",

@@ -93,7 +93,7 @@ cd LunaDash
 | --- | --- |
 | [安装与运行](../LOGIN_SESSION.md) | [外观与配置](../CONFIGURATION.md) |
 | [构建与测试](../TESTING_AND_FILES.md) | [设置与快捷键](../SETTINGS.md) |
-| [显示器、DDC/CI 与启动](../DISPLAY_AND_STARTUP.md) | [Shell 模块](../MODULES.md) |
+| [显示器、DDC/CI 与启动](../DISPLAY_AND_STARTUP.md) |  |
 | [区域截图](../SCREEN_CAPTURE.md) | [默认应用程序与文件](../DEFAULT_APPS_AND_FILES.md) |
 | [源码架构](../ARCHITECTURE.md) | [插件接口](../PLUGINS.md) |
 
@@ -113,4 +113,4 @@ PR 请以 **`dev`** 为目标分支。标题应清楚描述改动，说明用户
 
 ### 打造自己的桌面功能
 
-[Plugin SDK 2](../PLUGINS.md) 提供 C／C++ hook、Quickshell 组件及 OpenGL 着色器模板，可按类别设置并实时替换或并用。从[功能接口参考](../PLUGIN_TARGETS.md)或默认禁用的[堆叠窗口示例](../../examples/plugins/stacking-windows/README.md)开始。
+[Plugin SDK 2](../PLUGINS.md) 为合成器提供 C／C++ hook，可按类别设置并实时替换或并用。从[功能接口参考](../PLUGIN_TARGETS.md)或默认禁用的[堆叠窗口示例](../../examples/plugins/stacking-windows/README.md)开始。

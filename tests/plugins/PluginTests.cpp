@@ -28,8 +28,11 @@ bool removeTree(const std::filesystem::path &path) {
   return !error && !std::filesystem::exists(path);
 }
 
-bool createQmlPlugin(const std::filesystem::path &base, const std::string &id,
-                     const std::string &target) {
+// A native effect package. The library is a placeholder: enabling it records a
+// load error, which the tests below do not depend on.
+bool createEffectPlugin(const std::filesystem::path &base, const std::string &id,
+                        const std::string &target,
+                        const std::string &version = "1.0.0") {
   const auto directory = base / id;
   if (!createDirectories(directory))
     return false;
@@ -37,19 +40,17 @@ bool createQmlPlugin(const std::filesystem::path &base, const std::string &id,
                       {"sdk", Json{{"name", "LunaDash"}, {"apiVersion", 2}}},
                       {"id", id},
                       {"name", id},
-                      {"version", "1.0.0"},
+                      {"version", version},
                       {"author", "Plugin tests"},
-                      {"type", "quickshell"},
+                      {"type", "effect"},
                       {"target", target},
                       {"mode", "augment"},
-                      {"entry", "Main.qml"},
+                      {"entry", "effect.so"},
                       {"enabledByDefault", true},
                       {"settings", Json::object()}};
   const auto metadata = jsonCompact(manifest);
   if (!writeText(directory / "metadata.json", metadata) ||
-      !writeText(directory / "Main.qml",
-                 "import QtQuick\nItem { required property var shell; "
-                 "required property var settings; required property var context }\n"))
+      !writeText(directory / "effect.so", "placeholder\n"))
     return false;
   return writeText(directory / ".lunadash-sdk.json",
                    jsonCompact(Json{{"apiVersion", 2},
@@ -99,7 +100,7 @@ public:
     plugin.id = "org.example.spectrum";
     plugin.version = "1.0.2a";
     plugin.metadataPath = package.filePath("metadata.json");
-    Json file{{"path", "Main.qml"},
+    Json file{{"path", "Effect.cpp"},
               {"sha256", "first"},
               {"url", "https://example.test/a"}};
     Json item{{"id", plugin.id},
@@ -153,7 +154,7 @@ public:
   }
 
   void registryAndValidation() {
-    VERIFY(extensionTargets().size() > 35);
+    COMPARE(extensionTargets().size(), std::size_t{4});
     std::set<std::string> ids;
     for (const auto &target : extensionTargets()) {
       const auto id = jsonString(target, "id");
@@ -179,22 +180,16 @@ public:
     PluginManager manager;
     const auto snapshot = manager.snapshot();
     const auto remote = jsonArray(snapshot, "remote");
-    COMPARE(remote.size(), std::size_t{2});
-
-    const auto clock = findById(remote, "org.lunadash.digitalclock");
-    VERIFY(clock.is_object());
-    COMPARE(jsonArray(clock, "targets").size(), std::size_t{1});
-    VERIFY(jsonBool(clock, "installable"));
-    VERIFY(jsonArray(jsonObject(clock, "install"), "files").size() >= 2);
+    COMPARE(remote.size(), std::size_t{1});
 
     const auto kde = findById(remote, "org.lunadash.kde-behavior");
     VERIFY(kde.is_object());
-    COMPARE(jsonArray(kde, "targets").size(), std::size_t{3});
+    COMPARE(jsonArray(kde, "targets").size(), std::size_t{2});
     VERIFY(jsonBool(kde, "installable"));
     COMPARE(jsonString(jsonObject(kde, "install"), "mode"), std::string("cmake"));
-    VERIFY(jsonArray(jsonObject(kde, "install"), "files").size() >= 4);
+    VERIFY(jsonArray(jsonObject(kde, "install"), "files").size() >= 3);
 
-    const auto source = jsonString(clock, "sourceUrl");
+    const auto source = jsonString(kde, "sourceUrl");
     VERIFY2(source.starts_with("https://github.com/LuYishan-4/LunaDash-Plugins/"),
             source);
     VERIFY(jsonBool(snapshot, "storeSupported"));
@@ -209,7 +204,7 @@ public:
         R"({"schemaVersion":1,"id":"org.example.legacy","name":"Legacy","version":"1","type":"quickshell","target":"desktop-widgets","entry":"Main.qml","enabledByDefault":false})"));
     VERIFY(writeText(legacyDir / "Main.qml", "import QtQuick\nItem {}\n"));
 
-    VERIFY(createQmlPlugin(root, "org.example.removable", "desktop-widgets"));
+    VERIFY(createEffectPlugin(root, "org.example.removable", "window-rules"));
 
     PluginManager manager;
     manager.refresh();
@@ -227,51 +222,63 @@ public:
     VERIFY(removeTree(legacyDir));
   }
 
-  void outdatedStoreVersionRemainsOperable() {
-    const auto directory = root / "org.lunadash.digitalclock";
+  void visualPluginTypesAreRejected() {
+    const auto directory = root / "org.example.widget";
     VERIFY(createDirectories(directory));
     const std::string metadata =
-        R"({"schemaVersion":2,"sdk":{"name":"LunaDash","apiVersion":2},"id":"org.lunadash.digitalclock","name":"Digital Clock","version":"1.9.0","author":"test","type":"quickshell","target":"desktop-widgets","mode":"augment","entry":"Main.qml","enabledByDefault":false,"settings":{}})";
+        R"({"schemaVersion":2,"sdk":{"name":"LunaDash","apiVersion":2},"id":"org.example.widget","name":"Widget","version":"1.0.0","author":"test","type":"quickshell","target":"window-rules","mode":"augment","entry":"Main.qml","enabledByDefault":false,"settings":{}})";
     VERIFY(writeText(directory / "metadata.json", metadata));
-    VERIFY(writeText(directory / "Main.qml",
-                     "import QtQuick\nItem { required property var shell; "
-                     "required property var settings; required property var "
-                     "context }\n"));
+    VERIFY(writeText(directory / "Main.qml", "import QtQuick\nItem {}\n"));
     VERIFY(writeText(directory / ".lunadash-sdk.json",
                      jsonCompact(Json{{"apiVersion", 2},
                                       {"metadataSha256", sha256Hex(metadata)}})));
 
     PluginManager manager;
     manager.refresh();
-    const auto snapshot = manager.snapshot();
-    const auto oldClock =
-        findById(jsonArray(snapshot, "installed"), "org.lunadash.digitalclock");
-    VERIFY(oldClock.is_object());
-    VERIFY(jsonBool(oldClock, "outdated"));
-    COMPARE(jsonString(oldClock, "storeVersion"), std::string("2.0.1"));
-    VERIFY(jsonBool(oldClock, "removable"));
+    const auto widget =
+        findById(jsonArray(manager.snapshot(), "installed"), "org.example.widget");
+    VERIFY(widget.is_object());
+    VERIFY(!jsonString(widget, "error").empty());
+    VERIFY(!jsonBool(widget, "available"));
+    VERIFY(removeTree(directory));
+  }
 
-    const auto storeClock =
-        findById(jsonArray(snapshot, "remote"), "org.lunadash.digitalclock");
-    VERIFY(storeClock.is_object());
-    VERIFY(jsonBool(storeClock, "updateAvailable"));
+  void outdatedStoreVersionRemainsOperable() {
+    const auto directory = root / "org.lunadash.kde-behavior";
+    VERIFY(createEffectPlugin(root, "org.lunadash.kde-behavior", "window-rules",
+                              "0.9.0"));
+
+    PluginManager manager;
+    manager.refresh();
+    const auto snapshot = manager.snapshot();
+    const auto old = findById(jsonArray(snapshot, "installed"),
+                              "org.lunadash.kde-behavior");
+    VERIFY(old.is_object());
+    VERIFY(jsonBool(old, "outdated"));
+    COMPARE(jsonString(old, "storeVersion"), std::string("1.0.0"));
+    VERIFY(jsonBool(old, "removable"));
+
+    const auto store =
+        findById(jsonArray(snapshot, "remote"), "org.lunadash.kde-behavior");
+    VERIFY(store.is_object());
+    VERIFY(jsonBool(store, "updateAvailable"));
 
     VERIFY(removeTree(directory));
   }
 
   void legacyDestinationCanBeUpdatedWhenIdentityMatches() {
-    const auto directory = root / "org.lunadash.digitalclock";
+    const auto directory = root / "org.lunadash.kde-behavior";
     VERIFY(createDirectories(directory));
     VERIFY(writeText(
         directory / "manifest.json",
-        R"({"id":"org.lunadash.digitalclock","name":"Digital Clock","version":"1.0.0"})"));
+        R"({"id":"org.lunadash.kde-behavior","name":"KDE Behavior","version":"0.1.0"})"));
 
     PluginManager manager;
     std::string error;
     // The one-click update is asynchronous; success here means the stale
     // destination was accepted and the download/build pipeline was started
     // instead of returning "Plugin destination already exists".
-    VERIFY2(manager.installFromStore("org.lunadash.digitalclock", &error),
+    VERIFY2(manager.installFromStore("org.lunadash.kde-behavior", &error),
             error);
     VERIFY(error.empty());
     VERIFY(removeTree(directory));
@@ -291,45 +298,43 @@ public:
   }
 
   void exclusiveTargetOwnership() {
-    const auto first = root / "org.example.panel-a";
-    const auto second = root / "org.example.panel-b";
-    VERIFY(createQmlPlugin(root, "org.example.panel-a", "panel"));
-    VERIFY(createQmlPlugin(root, "org.example.panel-b", "panel"));
+    const auto first = root / "org.example.rules-a";
+    const auto second = root / "org.example.rules-b";
+    VERIFY(createEffectPlugin(root, "org.example.rules-a", "window-rules"));
+    VERIFY(createEffectPlugin(root, "org.example.rules-b", "window-rules"));
 
     const Json conflicting{
         {"schemaVersion", 1},
         {"builtins", Json::object()},
         {"plugins",
-         Json{{"org.example.panel-a", Json{{"enabled", true},
+         Json{{"org.example.rules-a", Json{{"enabled", true},
                                            {"mode", "augment"},
                                            {"settings", Json::object()}}},
-              {"org.example.panel-b", Json{{"enabled", true},
+              {"org.example.rules-b", Json{{"enabled", true},
                                            {"mode", "augment"},
                                            {"settings", Json::object()}}}}}};
     std::string error;
     VERIFY(!saveExtensionConfiguration(jsonCompact(conflicting), &error));
-    VERIFY2(error.find("Only one plugin can be enabled for: panel") !=
+    VERIFY2(error.find("Only one plugin can be enabled for: window-rules") !=
                 std::string::npos,
             error);
 
     PluginManager manager;
     manager.refresh();
-    int panelPlugins = 0;
-    int available = 0;
+    // Both packages are enabled by default; the second one loses the target.
+    // (The first one only fails to load its placeholder library.)
+    int rulesPlugins = 0;
     int conflicts = 0;
     for (const auto &item : jsonArray(manager.snapshot(), "installed")) {
-      if (jsonString(item, "target") != "panel" ||
-          !jsonString(item, "id").starts_with("org.example.panel-"))
+      if (jsonString(item, "target") != "window-rules" ||
+          !jsonString(item, "id").starts_with("org.example.rules-"))
         continue;
-      ++panelPlugins;
-      if (jsonBool(item, "available"))
-        ++available;
+      ++rulesPlugins;
       if (jsonString(item, "error").find("single-owner target") !=
           std::string::npos)
         ++conflicts;
     }
-    COMPARE(panelPlugins, 2);
-    COMPARE(available, 1);
+    COMPARE(rulesPlugins, 2);
     COMPARE(conflicts, 1);
 
     VERIFY(removeTree(first));
@@ -350,6 +355,7 @@ int main(int argc, char **argv) {
        {"bundledStoreRegistry", &Fixture::bundledStoreRegistry},
        {"hidesLegacyPluginsAndRemovesUserPackages",
         &Fixture::hidesLegacyPluginsAndRemovesUserPackages},
+       {"visualPluginTypesAreRejected", &Fixture::visualPluginTypesAreRejected},
        {"outdatedStoreVersionRemainsOperable",
         &Fixture::outdatedStoreVersionRemainsOperable},
        {"legacyDestinationCanBeUpdatedWhenIdentityMatches",

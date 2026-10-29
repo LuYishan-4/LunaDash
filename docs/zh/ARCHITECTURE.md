@@ -69,8 +69,8 @@ MPRIS media library 使用 GLib GDBus 與 nlohmann/json，可同時搜尋 sessio
 Plugin metadata discovery 在 `src/config/plugins/`，因此設定 UI 可以檢視 plugin 而不用 include compositor loader。Plugin 分成：
 
 - `effect`：C11/C++20，透過版本化 C ABI 的同步 JSON hook。
-- `quickshell`：QML/JavaScript visual slot。
-- `opengl`：由 SDK 透過 `qsb` 建置的 Quickshell shader package。
+
+視覺類的 `quickshell`／`opengl` 插件屬於舊 QML 殼層，已移除。
 
 原生 plugin 預設關閉，而且 metadata / build receipt **不是 sandbox 或簽章**。開發版不承諾穩定的原生 binary ABI。
 
@@ -82,7 +82,7 @@ Plugin metadata discovery 在 `src/config/plugins/`，因此設定 UI 可以檢�
 
 另外保留一套 toolkit-neutral render-element library 於 `src/compositor/renderer/`。所有專案自有 raw OpenGL 都在 `renderer/opengl/`；`GLDispatch.c` 負責 function loading，`Shader`、`Program`、`Texture`、`Framebuffer` 以 RAII 管資源。呼叫端提供 current EGL context；這套 library 有獨立測試，但目前不是 wlroots scene 的主 renderer。
 
-內建 shader 明確列在 CMake 中並嵌入產生的 C++ resource header，安裝後不依賴 source checkout。SDK 2 的 OpenGL plugin 是另一條 Quickshell visual-slot 路徑，不能任意改 application buffer 或 wlroots output framebuffer。
+內建 shader 明確列在 CMake 中並嵌入產生的 C++ resource header，安裝後不依賴 source checkout。
 
 ## 新增功能時
 
@@ -108,7 +108,7 @@ wlroots compositor 透過 Wayland protocol 接收不同 toolkit 的 client。若
 
 ## NyxNiri 桌面整合、Orbit 與動態桌布
 
-參照布局沿用 `panel`、`overview`、`launcher` 與 `dock` 模組。`LunaDash-Shell/panel/` 負責面板顯示、`LunaDash-Shell/overview/` 負責控制中心；`LunaDash-Shell/settings/pages/appearance.qml` 與通用模組編輯器修改同一份面板設定。`data/modules/registry.json` 宣告經驗證的欄位及預設值，`src/shell/modules/` 管理正規化、儲存及檔案監看，`src/config/desktop/` 繼續管理 Dock 顯示等桌面偏好。底部 Dock 預設關閉，已有的明確偏好保持有效。
+殼層的面板、儀表板、啟動器與 Dock 位於 LunaDash-Shell repository；`src/config/desktop/` 管理 Dock 顯示等桌面偏好。
 
 面板工作區篩選只是顯示選項，不變更 compositor 的工作區配置。置中啟動器、視窗標題及 CPU／記憶體資訊使用既有 shell 狀態。作者風格配置維持使用 LunaDash 原有 JSON／設定介面供使用者編輯，不引入 Niri 設定解析器、替代 compositor 或第二套桌面 shell。首次安裝引導擴充原有安裝腳本並選擇性匯入應用程式設定，compositor 設定仍歸 LunaDash 管理。
 

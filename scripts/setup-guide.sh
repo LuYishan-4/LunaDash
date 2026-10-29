@@ -101,14 +101,11 @@ EOF
             IFS= read -r shell_command || { echo 'Setup cancelled before installation.' >&2; exit 1; }
         done
     fi
-    if ! $setup_desktop && setup_ask 'Create the editable LunaDash panel profile when missing?' yes; then
-        setup_desktop=true
-    fi
     if ! $setup_author && setup_ask 'Add portable author-inspired terminal templates when missing?' yes; then
         setup_author=true
     fi
-    printf '\nInstallation: LunaDash core\nDesktop shell: %s\nOptional groups: %s\nDesktop profile: %s\nTerminal templates: %s\n' \
-        "${shell_choice}${shell_command:+ ($shell_command)}" "${setup_apps:-none}" "$setup_desktop" "$setup_author"
+    printf '\nInstallation: LunaDash core\nDesktop shell: %s\nOptional groups: %s\nTerminal templates: %s\n' \
+        "${shell_choice}${shell_command:+ ($shell_command)}" "${setup_apps:-none}" "$setup_author"
     setup_ask 'Continue with these choices?' yes || { echo 'Setup cancelled before installation.'; exit 0; }
 }
 
@@ -145,7 +142,6 @@ setup_install_apps() {
 setup_write_profile() {
     $setup_requested || return 0
     local -a args=(python3 "$project_dir/scripts/setup-profile.py" --complete --apps "${setup_apps:-none}")
-    $setup_desktop && args+=(--desktop-profile)
     $setup_author && args+=(--author-config)
     run "${args[@]}"
 }
