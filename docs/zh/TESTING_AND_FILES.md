@@ -26,6 +26,8 @@ cmake --build build --parallel 2
 ctest --test-dir build --output-on-failure
 ```
 
+`lunadash-audio-settings` CTest 會檢查 WirePlumber 輸出的解析，不會變更主機音訊設定。格式錯誤的裝置列不得阻擋後續項目或讓合成器卡住，包含最後一列沒有換行的情況。裝置名稱中的 `*` 會完整保留；只有數字裝置 ID 前的標記才代表預設輸出。這些斷言在 Release 建置中仍會啟用，測試逾時設為十秒。
+
 ## Plugin SDK 2
 
 ```sh

@@ -67,24 +67,25 @@ nlohmann::json parseAudioDevices(std::string_view text) {
     } else if (sinks) {
       const auto volume = line.find("[vol:");
       if (volume != std::string_view::npos) {
-        auto description = trim(line.substr(0, volume));
-        const auto marker = description.find('*');
-        const bool isDefault = marker != std::string::npos;
-        if (isDefault)
-          description.erase(0, marker + 1);
+        const auto description = trim(line.substr(0, volume));
         const auto idStart = description.find_first_of("0123456789");
-        if (idStart == std::string::npos)
-          continue;
-        const auto separator = description.find('.', idStart);
-        int id = -1;
-        if (separator != std::string::npos &&
-            parseNonNegativeInteger(std::string_view(description)
-                                        .substr(idStart, separator - idStart),
-                                    &id)) {
-          const auto name =
-              trim(std::string_view(description).substr(separator + 1));
-          devices.push_back(
-              {{"id", id}, {"name", name}, {"default", isDefault}});
+        if (idStart != std::string::npos) {
+          const auto separator = description.find('.', idStart);
+          int id = -1;
+          if (separator != std::string::npos &&
+              parseNonNegativeInteger(std::string_view(description)
+                                          .substr(idStart, separator - idStart),
+                                      &id)) {
+            // The default marker precedes the ID; asterisks in the device
+            // name are ordinary text.
+            const bool isDefault =
+                std::string_view(description).substr(0, idStart).find('*') !=
+                std::string_view::npos;
+            const auto name =
+                trim(std::string_view(description).substr(separator + 1));
+            devices.push_back(
+                {{"id", id}, {"name", name}, {"default", isDefault}});
+          }
         }
       }
     }

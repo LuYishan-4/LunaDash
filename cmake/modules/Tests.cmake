@@ -57,6 +57,7 @@ if(BUILD_TESTING)
     target_link_libraries(lunadash-audio-settings-test
         PRIVATE ludash-audio-settings)
     add_test(NAME lunadash-audio-settings COMMAND lunadash-audio-settings-test)
+    set_tests_properties(lunadash-audio-settings PROPERTIES TIMEOUT 10)
 
     add_executable(lunadash-power-settings-test
         tests/power/PowerSettingsTests.cpp)

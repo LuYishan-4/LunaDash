@@ -1,5 +1,7 @@
 #include "desktop/audio/AudioSettings.hpp"
 
+// Keep the regression checks active in Release builds too.
+#undef NDEBUG
 #include <cassert>
 
 int main() {
@@ -31,6 +33,21 @@ int main() {
   assert(devices.at(0).at("default") == true);
   assert(devices.at(1).at("id") == 88);
   assert(devices.at(1).at("default") == false);
+
+  const auto unusualDevices =
+      parseAudioDevices("Audio\n"
+                        " ├─ Sinks:\n"
+                        " │    Missing device ID [vol: 1.00]\n"
+                        " │    42. Studio * Speakers [vol: 0.75]\n"
+                        " │  * 88. Headphones * 2.1 [vol: 0.50]\n"
+                        " │    Missing final ID [vol: 0.25]");
+  assert(unusualDevices.size() == 2);
+  assert(unusualDevices.at(0).at("id") == 42);
+  assert(unusualDevices.at(0).at("name") == "Studio * Speakers");
+  assert(unusualDevices.at(0).at("default") == false);
+  assert(unusualDevices.at(1).at("id") == 88);
+  assert(unusualDevices.at(1).at("name") == "Headphones * 2.1");
+  assert(unusualDevices.at(1).at("default") == true);
 
   assert((audioCommand({{"device", "output"}, {"volume", 45}}) ==
           std::vector<std::string>{"set-volume", "@DEFAULT_AUDIO_SINK@", "45%",

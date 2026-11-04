@@ -25,6 +25,8 @@ ctest --test-dir build --output-on-failure
 
 The architecture checker enforces lowercase domains, PascalCase C++ filenames, small domain-local entrypoints, source-root includes, dependency direction, raw GL placement and explicit CMake inventories. Its fixture tests intentionally introduce invalid layouts and ensure rejection. `.clang-format` defines source formatting; use `clang-format -i` on modified C/C++ files. Static analysis runs in the shared full CI suites; see [CI](CI.md).
 
+The `lunadash-audio-settings` CTest checks WirePlumber output parsing without changing host audio settings. Malformed device lines must not block later entries or stall the compositor, including when the last line has no newline. Device names containing `*` remain intact; only a marker before the numeric device ID identifies the default output. These assertions remain enabled in Release builds, and the test has a ten-second timeout.
+
 ## Plugin SDK checks
 
 Native CTest coverage includes plugin validation, enable/disable, settings updates, native revision reload and the stacking layout example. QML tests exercise replacement readiness, augmentation, failure fallback and recovery. The template integration test builds and stages all four SDK templates; it additionally needs Qt Shader Tools. Run it against either the build-tree SDK or a relocated installation:
