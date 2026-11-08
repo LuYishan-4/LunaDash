@@ -80,7 +80,7 @@ Plugin metadata discovery 在 `src/config/plugins/`，因此設定 UI 可以檢�
 
 應用程式毛玻璃沿用這條 scene 繪圖路徑。`renderer/blur/WindowGlass` 在受管理視窗 tree 下方維護不接收輸入的同層背景節點；`SceneBackdrop.c` 只擷取堆疊順序較低的 scene 內容，再透過 wlroots render pass 模糊。用戶端 buffer 保持清晰並畫在其上。輸出提交前更新背景快取，暫時動畫透明度仍由既有動畫程式控制。內容 commit revision 及 scene 幾何變動會更新快取；只有 frame callback 的 commit 及視窗自身的背景節點不會觸發更新。Scene 銷毀 listener 會在 renderer 結束前釋放保留的 buffer。沿用現有外觀偏好設定，全螢幕、utility 及桌面視窗不套用此效果。
 
-另外保留一套 toolkit-neutral render-element library 於 `src/compositor/renderer/`。所有專案自有 raw OpenGL 都在 `renderer/opengl/`；`GLDispatch.c` 負責 function loading，`Shader`、`Program`、`Texture`、`Framebuffer` 以 RAII 管資源。呼叫端提供 current EGL context；這套 library 有獨立測試，但目前不是 wlroots scene 的主 renderer。
+另外保留一套 toolkit-neutral render-element library 於 `src/compositor/renderer/`。所有專案自有 raw OpenGL 都在 `renderer/opengl/`；`GLDispatch.c` 負責 function loading，`Shader`、`Program`、`Texture`、`Framebuffer` 以 RAII 管資源。呼叫端提供 current EGL context；這套 library 目前不是 wlroots scene 的主 renderer。
 
 內建 shader 明確列在 CMake 中並嵌入產生的 C++ resource header，安裝後不依賴 source checkout。
 
@@ -91,20 +91,19 @@ Plugin metadata discovery 在 `src/config/plugins/`，因此設定 UI 可以檢�
 3. 將 source 明確加入對應 CMake target。
 4. QML 放 `LunaDash-Shell/<feature>/`；翻譯放外部 catalog。
 5. 只有真的需要 extension boundary 時才新增 manager/provider 抽象。
-6. renderer、input、Wayland lifetime 與 plugin contract 都要補對應測試。
+6. renderer、input、Wayland lifetime 與 plugin contract 的變更都要在真實工作階段驗證。
 
 ## 驗證與限制
 
 ```sh
 python3 scripts/check-source-layout.py
-python3 tests/architecture/test_source_layout.py
 ```
 
-架構檢查會拒絕錯誤命名、舊 renderer 結構、違反 include 方向、漏列的 CMake source、錯放 shader 與 renderer 外的 raw OpenGL。
+架構檢查會拒絕錯誤命名、舊 renderer 結構、違反 include 方向、漏列的 CMake source、錯放 shader 與 renderer 外的 raw OpenGL。CI 不會執行這項檢查，push 前請在本機執行。
 
-wlroots compositor 透過 Wayland protocol 接收不同 toolkit 的 client。若系統安裝的 wlroots headers 有 `xdg-activation-v1`，compositor 會註冊此 protocol，並驗證來源 seat client 的輸入 serial，才接受已映射應用程式視窗的啟用請求；較舊 wlroots 建置的 client 仍需準備 fallback。CI 會覆蓋 protocol globals、xdg lifecycle、headless compositor、on-demand XWayland、renderer 資源與 plugin SDK regression，並以 source contract 檢查 activation serial policy。實體 GPU、Chrome/Zed、Fcitx 候選視窗、實體輸入、多螢幕與 display-manager login 仍需真實工作階段測試。FileChooser portal 也不是完整 PipeWire ScreenCast portal。
+wlroots compositor 透過 Wayland protocol 接收不同 toolkit 的 client。若系統安裝的 wlroots headers 有 `xdg-activation-v1`，compositor 會註冊此 protocol，並驗證來源 seat client 的輸入 serial，才接受已映射應用程式視窗的啟用請求；較舊 wlroots 建置的 client 仍需準備 fallback。實體 GPU、Chrome/Zed、Fcitx 候選視窗、實體輸入、多螢幕與 display-manager login 仍需真實工作階段測試。FileChooser portal 也不是完整 PipeWire ScreenCast portal。
 
-延伸閱讀：[測試與原始碼地圖](TESTING_AND_FILES.md)、[圖形](GRAPHICS.md)、[輸入法](INPUT_METHODS.md)、[Plugin SDK 2](PLUGINS.md)。
+延伸閱讀：[建置與原始碼地圖](TESTING_AND_FILES.md)、[圖形](GRAPHICS.md)、[輸入法](INPUT_METHODS.md)、[Plugin SDK 2](PLUGINS.md)。
 
 ## NyxNiri 桌面整合、Orbit 與動態桌布
 

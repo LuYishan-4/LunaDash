@@ -67,7 +67,7 @@ cd LunaDash
 
 インストーラーはディストリビューションの依存関係を処理し、LunaDash をビルドしてログインセッションをインストールします。完了したらログアウトし、ディスプレイマネージャーで **LunaDash** を選択してください。初回起動時には 1.0.1a Welcome カード、システム情報、クイックアクションが表示されます。言語とデスクトップの外観は設定画面で変更できます。
 
-`./scripts/install-session.sh --dry-run` で実行内容を事前に確認できます。デスクトップシェルは SlintLu 上で動作し、インストーラーが `packaging/slintlu-revision` のリビジョンをソースからビルドします（Slint と同じく Rust 1.92+ が必要です）。オプションと復旧方法は[インストールガイド](../LOGIN_SESSION.md)、手動ビルドやネストしたセッションは[ビルドとテスト](../TESTING_AND_FILES.md)を参照してください。
+`./scripts/install-session.sh --dry-run` で実行内容を事前に確認できます。デスクトップシェルは SlintLu 上で動作し、インストーラーが `packaging/slintlu-revision` のリビジョンをソースからビルドします（Slint と同じく Rust 1.92+ が必要です）。オプションと復旧方法は[インストールガイド](../LOGIN_SESSION.md)、手動ビルドは[ビルドとソースマップ](../TESTING_AND_FILES.md)を参照してください。
 
 ## 主なショートカット
 
@@ -92,7 +92,7 @@ cd LunaDash
 | はじめに | カスタマイズ |
 | --- | --- |
 | [インストールと実行](../LOGIN_SESSION.md) | [外観と構成](../CONFIGURATION.md) |
-| [ビルドとテスト](../TESTING_AND_FILES.md) | [設定とショートカット](../SETTINGS.md) |
+| [ビルドとソースマップ](../TESTING_AND_FILES.md) | [設定とショートカット](../SETTINGS.md) |
 | [ディスプレイ・DDC/CI・起動](../DISPLAY_AND_STARTUP.md) |  |
 | [範囲指定スクリーンショット](../SCREEN_CAPTURE.md) | [既定のアプリとファイル](../DEFAULT_APPS_AND_FILES.md) |
 | [ソース構成](../ARCHITECTURE.md) | [プラグインインターフェース](../PLUGINS.md) |

@@ -77,7 +77,7 @@ cd LunaDash
 
 The installer handles distribution dependencies, fetches and installs the pinned LunaDash-Shell, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to choose your language and personalize the desktop.
 
-Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell runs on SlintLu, which the installer builds from the revision pinned in `packaging/slintlu-revision` (Rust 1.92+ is required, as for Slint). See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and testing](docs/en/TESTING_AND_FILES.md) for manual builds and nested sessions.
+Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell runs on SlintLu, which the installer builds from the revision pinned in `packaging/slintlu-revision` (Rust 1.92+ is required, as for Slint). See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and source map](docs/en/TESTING_AND_FILES.md) for manual builds.
 
 The compositor and desktop services remain in this repository. The Slint shell, its SlintLu runtime and the Astro website live in the independent [LunaDash-Shell](https://github.com/LunaDashWM/LunaDash-Shell), [SlintLu](https://github.com/LunaDashWM/SlintLu) and [LunaDash-docs](https://github.com/LunaDashWM/LunaDash-docs) repositories; none of those source trees is included here. The normal installer fetches the commits recorded in `packaging/shell-revision` and `packaging/slintlu-revision` ([shell](docs/en/SHELL.md)); website workflows clone LunaDash-docs into a temporary runner directory. See the [repository workflow](docs/COMPONENT_REPOS.md) to work on either component.
 
@@ -109,7 +109,7 @@ The compositor and desktop services remain in this repository. The Slint shell, 
 | Start here | Make it yours |
 | --- | --- |
 | [Install and run](docs/en/LOGIN_SESSION.md) | [Appearance and configuration](docs/en/CONFIGURATION.md) |
-| [Build and test](docs/en/TESTING_AND_FILES.md) | [Settings and shortcuts](docs/en/SETTINGS.md) |
+| [Build and source map](docs/en/TESTING_AND_FILES.md) | [Settings and shortcuts](docs/en/SETTINGS.md) |
 | [Display, DDC/CI and startup](docs/en/DISPLAY_AND_STARTUP.md) | |
 | [Region screenshots](docs/en/SCREEN_CAPTURE.md) | [Default apps and Files](docs/en/DEFAULT_APPS_AND_FILES.md) |
 | [Source architecture](docs/en/ARCHITECTURE.md) | [Plugin interfaces](docs/en/PLUGINS.md) |

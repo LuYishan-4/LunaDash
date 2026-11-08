@@ -32,9 +32,7 @@ Tiling has two modes, switched with Meta+Shift+Space or Settings → Windows. **
 
 ## Validation
 
-`lunadash-thumbnail` verifies actual rendered pixel scaling using a software renderer without starting a compositor. `lunadash-window-layout` runs through CTest and checks bounded geometry for up to 64 windows on landscape and portrait areas, stable split insertion, output resizing, eight-member capacity, minimized/restored slots, exact swaps, insertion, non-overlapping geometry, height redistribution, single-window movement, workspace transfer, maximize/hide/restore without changing saved tile geometry, selector lifecycle and shortcut migration. It needs no running compositor. Qt Quick component checks can run offscreen.
-
-After installing and starting a real session, verify bare-Meta launcher activation, Meta+key shortcuts, Alt dragging, modifier release, rapid Alt+Tab hover selection, workspace-grid confirmation, popup menus, dialogs, application size hints, and display scaling on the intended hardware. Unit tests and CI builds do not establish frame-rate or multi-monitor interaction correctness. Multi-output layout is still incomplete.
+After installing and starting a real session, verify bare-Meta launcher activation, Meta+key shortcuts, Alt dragging, modifier release, rapid Alt+Tab hover selection, workspace-grid confirmation, popup menus, dialogs, application size hints, and display scaling on the intended hardware. CI builds do not establish frame-rate or multi-monitor interaction correctness. Multi-output layout is still incomplete.
 
 
 ## Panel, dashboard and clipboard interactions

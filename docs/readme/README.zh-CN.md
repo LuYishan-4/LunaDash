@@ -67,7 +67,7 @@ cd LunaDash
 
 安装程序会处理发行版依赖、编译 LunaDash 并安装登录会话。完成后注销，在登录管理器中选择 **LunaDash**。首次启动会显示 1.0.1a Welcome 卡片、系统信息与快捷操作。语言及桌面外观可在设置中调整。
 
-可先运行 `./scripts/install-session.sh --dry-run` 预览安装步骤。桌面外壳运行于 SlintLu，安装程序会按 `packaging/slintlu-revision` 从源码构建（与 Slint 相同，需要 Rust 1.92+）。选项与恢复方法请见[安装指南](../LOGIN_SESSION.md)，手动编译与嵌套会话请见[构建与测试](../TESTING_AND_FILES.md)。
+可先运行 `./scripts/install-session.sh --dry-run` 预览安装步骤。桌面外壳运行于 SlintLu，安装程序会按 `packaging/slintlu-revision` 从源码构建（与 Slint 相同，需要 Rust 1.92+）。选项与恢复方法请见[安装指南](../LOGIN_SESSION.md)，手动编译请见[构建与源码地图](../TESTING_AND_FILES.md)。
 
 ## 常用快捷键
 
@@ -92,7 +92,7 @@ cd LunaDash
 | 开始使用 | 个性化 |
 | --- | --- |
 | [安装与运行](../LOGIN_SESSION.md) | [外观与配置](../CONFIGURATION.md) |
-| [构建与测试](../TESTING_AND_FILES.md) | [设置与快捷键](../SETTINGS.md) |
+| [构建与源码地图](../TESTING_AND_FILES.md) | [设置与快捷键](../SETTINGS.md) |
 | [显示器、DDC/CI 与启动](../DISPLAY_AND_STARTUP.md) |  |
 | [区域截图](../SCREEN_CAPTURE.md) | [默认应用程序与文件](../DEFAULT_APPS_AND_FILES.md) |
 | [源码架构](../ARCHITECTURE.md) | [插件接口](../PLUGINS.md) |

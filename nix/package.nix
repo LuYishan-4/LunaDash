@@ -67,7 +67,7 @@ stdenv.mkDerivation {
     root = ../.;
     fileset = lib.fileset.unions [
       ../CMakeLists.txt ../cmake ../src ../data
-      ../protocols ../scripts ../tests ../LICENSE
+      ../protocols ../scripts ../LICENSE
       ../docs/PLUGIN_TARGETS.md ../docs/PLUGINS.md
     ];
   };
@@ -80,7 +80,6 @@ stdenv.mkDerivation {
     pixman libdrm libxcb libxcb-wm systemd nlohmann_json libglvnd gdk-pixbuf curl
   ];
   cmakeFlags = [
-    "-DBUILD_TESTING=OFF"
     "-DCMAKE_INSTALL_SYSCONFDIR=etc"
     "-DCMAKE_INSTALL_LIBEXECDIR=libexec"
     "-DLUDASH_SHELL_SOURCE_DIR=${shellSource}"

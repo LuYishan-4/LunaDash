@@ -8,7 +8,7 @@ Keep relevant public behavior documented in paired `docs/en/` and `docs/zh/` pag
 
 Contribution PRs cannot modify `.github/workflows/`. Do not commit generated release Markdown/MDX under `LunaDash-docs/src/pages/releases/` or the generated `LunaDash-docs/src/data/releases.json`. Maintainer workflow changes made on `dev` can be carried by the same-repository promotion PR. Describe release impact in the PR body.
 
-[Dev CI](CI.md) selects builds from the complete diff; [Main CI](CI.md), scheduled and full runs build everything, including NixOS and all distributions. CI does not test: run `scripts/run-tests.sh all` on the promotion commit before promoting it. Require the aggregate `CI result` in branch protection and inspect results for the exact promotion commit. A skipped suite does not establish successful execution.
+[Dev CI](CI.md) selects builds from the complete diff; [Main CI](CI.md), scheduled and full runs build everything, including NixOS and all distributions. CI does not test: before promoting, run the local checks listed in [CONTRIBUTING](../../CONTRIBUTING.md#before-pushing) and a full build on the promotion commit. Require the aggregate `CI result` in branch protection and inspect results for the exact promotion commit. A skipped suite does not establish successful execution.
 
 NixOS releases include the root flake, lock and `nix/` definitions. See [NixOS](NIXOS.md) for generation-based updates and the limits of automated runtime verification.
 

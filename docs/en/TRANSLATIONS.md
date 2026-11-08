@@ -33,8 +33,7 @@ visible label and popup rows without changing the model, `currentText`, or
 arrays whenever a shell status snapshot arrives. Settings search indexes both
 source and translated aliases.
 
-Run `python3 scripts/check-translations.py` and
-`python3 scripts/test-translation-checker.py`. The coverage check scans literal
+Run `python3 scripts/check-translations.py`. The coverage check scans literal
 translation calls, common UI text properties, selected model-label tables, and
 update-check errors. It checks JSON values, conflicting duplicates, cross-catalog
 duplicates, and placeholder parity. It is not a semantic proof that arbitrary
@@ -42,12 +41,8 @@ runtime strings or external application content have translations. The original
 catalog currently has a repeated identical `Use LunaDash default` key; this is
 reported as a warning, while conflicting values are errors.
 
-The translation-review workflow also parses all shell QML, builds the native
-localization implementation without Qt, compares loaded dictionaries with source
-catalogs, checks English fallback and locale preference migration, and runs a QML
-dropdown regression for label/value separation and preserving scroll position
-during a language change. These headless tests do not replace visual or
-input-device testing in a session.
+The coverage check does not replace visual or input-device testing in a
+session.
 
 Translation catalogs are ordinary JSON files loaded from the source tree during
 development and from `${datadir}/ludash/translations` after installation. Updating

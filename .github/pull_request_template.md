@@ -12,7 +12,7 @@ with one tag for each change type checked below, in the order [Source][Script][O
 Titles such as "Dev", "Update" or "Fix bugs" are not accepted.
 -->
 
-#### What does this PR change? Check every type the diff contains, across all commits. Files under `tests/` count as the type of the code they test. (If the boxes or the title tags don't match the actual commits, you will be asked to correct them before review continues.)
+#### What does this PR change? Check every type the diff contains, across all commits. (If the boxes or the title tags don't match the actual commits, you will be asked to correct them before review continues.)
 
 - [ ] Source: `src/` (C++, C, Slint, shaders), `protocols/`, `CMakeLists.txt`, `cmake/`
 - [ ] Script: `scripts/`, `install.sh`
@@ -22,7 +22,7 @@ Titles such as "Dev", "Update" or "Fix bugs" are not accepted.
 #### Describe your PR, what does it fix/add? (What triggers the problem, what happened before, what happens after the change, and how it affects the defaults or optional settings, if relevant.)
 
 
-#### How did you test it? (CI only builds. List the `./scripts/run-tests.sh` suites and other commands you actually ran with their results, and the platforms or hardware covered. Report failed or skipped checks. For visible UI changes, attach before/after screenshots from a real session.)
+#### How did you test it? (CI only builds. List the commands you actually ran with their results, and the platforms or hardware covered. Report failed or skipped checks. For visible UI changes, attach before/after screenshots from a real session.)
 
 
 #### Is there anything you want to mention? (unverified behavior, new dependencies, configuration changes, updated `shell-revision` or `slintlu-revision` pins, whether users must log in again or restart, security or wlroots/Wayland lifetime concerns, etc.)

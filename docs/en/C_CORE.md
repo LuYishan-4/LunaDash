@@ -12,4 +12,4 @@ Paths above are relative to `src/`. C functions retain the `ludash_` prefix and 
 
 Shader compilation, program linking, texture and framebuffer ownership are C++ RAII objects inside `renderer/opengl`; they are not a second C renderer. wlroots owns the active compositor renderer/allocator and Wayland protocol lifetimes. These boundaries are enforced by the source-layout scanner.
 
-The renderer's failure-injection regression checks partial resource cleanup without a GPU; its optional software OpenGL test compiles embedded shaders and draws with a current context. The file tests and Wayland lifecycle tests cover their respective owners. See [graphics](GRAPHICS.md) and [testing](TESTING_AND_FILES.md) for current commands and limits.
+See [graphics](GRAPHICS.md) and [build and source map](TESTING_AND_FILES.md) for build commands and limits.

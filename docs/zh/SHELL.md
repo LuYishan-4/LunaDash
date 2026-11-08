@@ -80,8 +80,6 @@ SlintLu 透過控制 socket 辨識 LunaDash 並輪詢其狀態：
   只要指標下方的介面沒有自己的游標（包括 `slurp` 選取畫面這類介面剛關閉時），合成器都會顯示預設箭頭。
 
 殼層呼叫了合成器沒有處理的方法時，`scripts/ci/check_shell_actions.py` 會失敗。
-`tests/wayland/test_session_shell.py` 會以固定版本的殼層與 SlintLu 啟動合成器，並檢查上述往返
-流程（`scripts/run-tests.sh` 會執行這兩項）。
 
 ## Slint 殼層尚未提供的功能
 

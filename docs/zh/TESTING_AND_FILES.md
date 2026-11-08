@@ -1,4 +1,4 @@
-# 建置、測試與原始碼地圖
+# 建置與原始碼地圖
 
 [English](../en/TESTING_AND_FILES.md) · [繁中索引](README.md)
 
@@ -12,52 +12,20 @@ Arch Linux 是主要開發環境。完成程式、packaging 與文件修改後�
 
 ```sh
 python3 scripts/check-source-layout.py
-python3 tests/architecture/test_source_layout.py
-python3 tests/renderer/test_render_architecture.py
-python3 tests/renderer/test_shader_extensions.py
-python3 tests/wayland/test_no_qtwayland.py
-python3 tests/security/test_source_language.py
+python3 scripts/check-translations.py
 python3 scripts/ci/check_shell_actions.py
 python3 scripts/gen-ui-icons.py --check
-
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DLUDASH_BUILD_RENDERER_TESTS=ON
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure
 ```
 
-`lunadash-audio-settings` CTest 會檢查 WirePlumber 輸出的解析，不會變更主機音訊設定。格式錯誤的裝置列不得阻擋後續項目或讓合成器卡住，包含最後一列沒有換行的情況。裝置名稱中的 `*` 會完整保留；只有數字裝置 ID 前的標記才代表預設輸出。這些斷言在 Release 建置中仍會啟用，測試逾時設為十秒。
+架構檢查器會強制小寫 domain、PascalCase C++ 檔名、精簡的 domain 內進入點、source-root include、相依方向、raw GL 位置與明確的 CMake 清單。`.clang-format` 定義原始碼格式；修改過的 C/C++ 檔案請用 `clang-format -i` 格式化。CI 執行的內容見 [CI](CI.md)。
 
-## Plugin SDK 2
-
-```sh
-python3 tests/plugins/test_sdk.py --sdk build/sdk-build
-QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software qmltestrunner -input tests/qml
-```
-
-測試覆蓋 metadata/receipt validation、enable/disable、settings、native revision reload、stacking example，以及 QML replacement/augmentation/fallback/recovery。
-
-## Runtime / Wayland / renderer
+## 安裝
 
 ```sh
-LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
-./scripts/test-xdg-lifecycle.sh "$PWD/build"
-python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
-xvfb-run -a python3 tests/wayland/test_xwayland.py build
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
-  ./build/lunadash-renderer-test --opengl
 DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr
 ```
-
-Headless wlroots 使用 pixman 與隔離的 runtime/config。Lifecycle 覆蓋 map/unmap/role destruction/popup；XWayland 覆蓋 hidden helper、authenticated launch、reuse/cleanup；renderer 驗 relocation、diagnostics、partial GL cleanup 與 software GL shader draw。
-
-Host Wayland：
-
-```sh
-LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
-```
-
-真實 release 仍應人工確認 Chrome/Zed、pointer/physical keyboard、Fcitx preedit/candidate、wallpaper、animation、FileChooser portal 與 logout。
 
 一般安裝包含執行檔／相容別名、session entry、Shell QML、翻譯、portal 設定、資產及選用的範例 plugin。啟用 `BUILD_SHARED_LIBS` 時，LunaDash 內部 shared library 會安裝至 `CMAKE_INSTALL_LIBDIR`，執行檔使用相對 runtime path；static build 不需另外安裝這些 library。內建 GLSL 已嵌入，不需額外安裝 shader 目錄。
 
@@ -72,9 +40,11 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 
 ## CI
 
-[Dev CI 與 Main CI](CI.md) 只負責建置：Ubuntu、網站、Nix 套件與 Arch（main 與完整流程建置五個發行版）。本文件中的測試都在本機執行；`scripts/run-tests.sh` 會執行維護中的測試集。
+[Dev CI 與 Main CI](CI.md) 只負責建置：Ubuntu、網站、Nix 套件與 Arch（main 與完整流程建置五個發行版）。沒有任何 workflow 執行測試；CI 通過只代表該 commit 能夠建置。請查看指定 commit 的完成結果。
 
-[NixOS](NIXOS.md) 提供鎖定的 flake、套件與系統模組。CI 建置 x86_64、求值 aarch64 並檢查安裝後的 headless runtime；真實登入及 GPU 行為仍需實機驗證。請查看指定 commit 的完成結果。Void／Gentoo 保留 installer path，但沒有相同 CI 覆蓋。
+[NixOS](NIXOS.md) 提供鎖定的 flake、套件與系統模組；CI 只建置 x86_64 套件。Void／Gentoo 保留 installer path，但沒有相同 CI 覆蓋。
+
+建置成功不代表 runtime 行為正確。真實 release 仍應人工確認 Chrome/Zed、pointer/physical keyboard、Fcitx preedit/candidate、wallpaper、animation、FileChooser portal 與 logout；完整的設定頁、區域選取、視窗動態、硬體亮度與應用程式相容性也需要在真實 session 中驗證。
 
 ## 原始碼地圖
 
@@ -99,7 +69,7 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 | `nix`、`flake.nix`、`flake.lock` | Nix 套件、NixOS 模組與鎖定的相依來源 |
 | LunaDash-Shell | Shell UI，透過 `packaging/shell-revision` 固定版本並獨立安裝 |
 | `data` | assets/translations/metadata |
-| `scripts`, `tests` | install/diagnostics/regression |
+| `scripts` | install/diagnostics/repository checks |
 | LunaDash-docs | 公開網站，由各自的 CI 驗證並由根 Pages workflow 抓取部署 |
 | `src/compositor` | compositor 原始碼，透過根目錄 CMake targets 建置 |
 

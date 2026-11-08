@@ -16,15 +16,15 @@ def select(paths, full=False):
     if full:
         return selected
     for path in paths:
-        if path.startswith((".github/", "scripts/ci/", "tests/ci/", "scripts/security/", "tests/security/")) or path == ".clang-tidy":
+        if path.startswith((".github/", "scripts/ci/", "scripts/security/")) or path == ".clang-tidy":
             return dict.fromkeys(SUITES, True)
-        if path.startswith(("tests/site/", "scripts/site/", "docs/brand/", "docs/image/")):
+        if path.startswith(("scripts/site/", "docs/brand/", "docs/image/")):
             selected["website"] = True
         elif path.startswith(("docs/",)) or path.endswith(".md") or path in ("LICENSE", ".gitignore", ".clang-format"):
             continue
         elif path in ("flake.nix", "flake.lock") or path.startswith("nix/"):
             selected["nix"] = True
-        elif path.startswith(("src/", "cmake/", "data/", "protocols/", "tests/", "scripts/", "packaging/")) or path in ("CMakeLists.txt", "install.sh"):
+        elif path.startswith(("src/", "cmake/", "data/", "protocols/", "scripts/", "packaging/")) or path in ("CMakeLists.txt", "install.sh"):
             selected.update(native=True, nix=True, distro=True)
         else:
             # A newly introduced domain must never silently lose coverage.

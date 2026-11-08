@@ -9,13 +9,6 @@ Shell 與 compositor 是不同 process，也有不同 rendering path：
 
 Renderer 政策只套用於 Shell 子程序，不再向所有應用程式強制設定 OpenGL。
 
-要在 host Wayland 內比較 software Shell：
-
-```sh
-LUDASH_SHELL_RENDERER=software LUDASH_TEST_HOST_WAYLAND=1 \
-  LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
-```
-
 Software rendering 可能提高 CPU 使用量。
 
 `compositor/session/ShellRendering` 現在於啟動 shell 時套用。NVIDIA 自動選擇軟體模式是相容性預設，可由使用者明確選擇 OpenGL 或 Vulkan 覆寫；不代表每一版本的驅動都有相同問題。
@@ -32,9 +25,7 @@ QProcess: Cannot create pipe (Too many open files)
 
 獨立 EGL render-element library 透過 CMake 產生的 C++ header 嵌入 `src/compositor/renderer/opengl/shaders/` 的明列 shader。`ShaderAssetLoader` 可辨識 vertex/fragment/geometry/compute/tessellation suffix 與 stage pragma，並在來源缺 version 時補上適合版本。
 
-Renderer tests 驗 relocation、software OpenGL、failure cleanup，但不能證明所有 GPU/fence leak 都不存在，也不能表示這些 standalone GL pass 已接到 wlroots scene。
-
-更多：[Graphics](GRAPHICS.md)、[Effects](EFFECTS.md)、[Testing](TESTING_AND_FILES.md)。
+更多：[Graphics](GRAPHICS.md)、[Effects](EFFECTS.md)、[建置與原始碼地圖](TESTING_AND_FILES.md)。
 
 
 ## 共用 Surface 設計

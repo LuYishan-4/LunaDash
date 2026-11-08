@@ -59,8 +59,7 @@ JavaScript 無法安全表示的整數、錯誤型別、重複列舉與不相容
 hook 的實際用途，不只是顯示用 metadata。
 
 SDK ABI 2 與 manifest schemaVersion 2 不變；manifest 改動仍需重建插件。
-`core/settings/SettingsSchema.hpp` 與安裝版 SDK `SettingsSchema.py` 共用
-`tests/settings/contract.json` 測試資料，防止建置與執行時驗證規則不一致。
+Schema 檢查位於 `core/settings/SettingsSchema.hpp` 與安裝版 SDK `SettingsSchema.py`。
 
 ## 視窗操作邊界
 

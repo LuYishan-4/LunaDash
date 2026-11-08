@@ -7,7 +7,7 @@ on:
         default: false
 permissions:
   contents: read
-# CI only builds. Tests run locally with scripts/run-tests.sh (docs/en/TESTING.md).
+# CI only builds.
 jobs:
   changes:
     name: Select suites
@@ -81,7 +81,6 @@ jobs:
             -DLUDASH_SHELL_SOURCE_DIR="$RUNNER_TEMP/LunaDash-Shell" \
             -DLUDASH_SLINTLU_SOURCE_DIR="$RUNNER_TEMP/SlintLu" \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DBUILD_TESTING=OFF \
             2>&1 | tee build-main.log
           test "${PIPESTATUS[0]}" -eq 0
           cmake --build build-main --parallel 2 -- -k 0 2>&1 | tee -a build-main.log

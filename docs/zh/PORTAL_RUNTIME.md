@@ -33,60 +33,11 @@ dmenu 模式必須原樣回傳選中的輸入行；UTF-8 名稱與尾端空白�
 的一部分。刪除空白可能使 xdpw 把使用者已確認的來源判成未知來源。
 取消時不輸出來源；縮圖擷取失敗不應阻止選擇。
 
-## 自動執行的核心測試
-
-PR 規則禁止修改 .github/workflows，因此回歸測試改由 CTest 註冊，
-不新增 workflow。啟用 BUILD_TESTING 時，既有 Ubuntu 建置會執行
-lunadash-portal-protocol、lunadash-session-launcher，以及原本的
-lunadash-portal-picker。協議測試透過 Qt Test 與 dbus-run-session，
-在私人匯流排啟動另一個真正的後端程序，檢查第一次查詢的函式／訊號型別、
-FileChooser 第 4 版、Settings.Read，以及 OpenFile／SaveFile 取消後
-後端是否仍存活。它不需要 Xvfb 或 Python D-Bus 套件。登入測試另檢查
-匯流排重用、路由衝突與使用者設定保留。
-
-```sh
-cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
-cmake --build build --target lunadash-portal-protocol-test lunadash-portal-picker-test
-ctest --test-dir build --output-on-failure -R '^lunadash-(portal-protocol|portal-picker|session-launcher)$'
-```
-
-## 完整前端與介面整合測試
-
-tests/portal/test_runtime.py 另外驗證真正的開檔／存檔／SaveFiles
-確認與回傳 URI、透過真正 xdg-desktop-portal 前端呼叫剛啟動的後端、
-公開 Request.Response 與深淺色設定、沒有遞迴啟動前端，以及來源選擇器
-的確認／取消與 UTF-8、空白完整保留。測試會啟動獨立的 headless wlroots
-compositor，並透過 `wtype` 在 Wayland 上操作 Slint 選擇器，也會保留介面截圖；
-不使用 AUTOPICK 捷徑。
-主要 Ubuntu workflow 會啟用這組測試並透過 CTest 執行；其他 job 與本機建置
-只有在明確開啟選項時才會執行。回報時應以實際執行該測試的 job 結果為準。
-
-先安裝 xdg-desktop-portal、Xvfb、xauth、wtype 與所選 Python 的
-dbus／gi 套件。Ubuntu 對應 xdg-desktop-portal、xvfb、xauth、wtype、
-python3-dbus、python3-gi；Arch 對應 xdg-desktop-portal、
-xorg-server-xvfb、xorg-xauth、wtype、python-dbus、python-gobject。
-接著啟用並執行：
-
-```sh
-cmake -S . -B build -G Ninja -DBUILD_TESTING=ON -DLUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON
-cmake --build build --target lunadash-portal lunadash-compositor
-ctest --test-dir build --output-on-failure -R '^lunadash-portal-runtime$'
-```
-
-啟用後缺少依賴會直接造成 CMake 設定失敗，不會靜默跳過。包裝腳本建立
-私人 runtime 目錄、X 顯示與 D-Bus；測試會另外啟動 headless Wayland
-compositor 供 Slint 選擇器使用。前後端日誌與介面 XML 保留在
-build/portal-runtime，選擇器截圖存放於 build/ci-evidence/。
-
 ## 驗證範圍
 
-協議測試目前以 Qt Test 驗證 Qt D-Bus service；完整測試使用虛擬 X 顯示
-啟動 portal frontend，並以 headless Wayland 顯示驗證兩個 Slint picker。這些
-測試都不等於已驗證實機的
-焦點、Flatpak 應用程式辨識或 NVIDIA／PipeWire
-長時間串流。既有 Wayland 檢查驗證擷取協議與來源類型，不能當成已完成
-Discord 直播驗收。分支 push 通過也不等於 PR 通過，還須確認同一版本的
-PR 規則、儲存庫衛生、C++ 記憶體安全、Qt 生命週期與 CodeQL 檢查。
+沒有任何 workflow 執行 portal 後端；CI 只負責建置。實機的焦點、Flatpak 應用程式
+辨識與 NVIDIA／PipeWire 長時間串流都必須在實機工作階段中確認。支援擷取協議與
+來源類型，不能當成已完成 Discord 直播驗收。
 
 ## 實機診斷
 

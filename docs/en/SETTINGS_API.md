@@ -72,8 +72,7 @@ misleading slider spanning a forbidden interval.
 `data/plugins/fade` demonstrates all four controls and consumes each option in
 its native hook. SDK ABI 2 and manifest schemaVersion 2 are unchanged; rebuild
 packages when their manifest changes. Schema checking lives in
-`core/settings/SettingsSchema.hpp` and the installed SDK `SettingsSchema.py`;
-both run the shared `tests/settings/contract.json` fixtures.
+`core/settings/SettingsSchema.hpp` and the installed SDK `SettingsSchema.py`.
 
 ## Layout action boundary
 

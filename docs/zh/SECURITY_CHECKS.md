@@ -2,20 +2,17 @@
 
 [English](../en/SECURITY_CHECKS.md) · [繁中索引](README.md)
 
-[Dev CI 與 Main CI](CI.md) 只負責建置。Source／repository contracts 請在本機以 `scripts/run-tests.sh contracts` 執行。沒有任何 workflow 執行測試或分析工具。PR code 使用 GitHub-hosted runner，不使用 `pull_request_target`，checkout 不保留憑證。只有 Pages 部署使用 Pages／id-token 寫入權限。
+[Dev CI 與 Main CI](CI.md) 只負責建置。下列 source／repository 檢查請在本機執行。沒有任何 workflow 執行測試或分析工具。PR code 使用 GitHub-hosted runner，不使用 `pull_request_target`，checkout 不保留憑證。只有 Pages 部署使用 Pages／id-token 寫入權限。
 
 | 檢查 | 主要覆蓋 | 失敗條件 |
 | --- | --- | --- |
-| Ubuntu build | C/C++、Files test、architecture | build/test 非 0 |
-| Source architecture | 命名、dependency direction、GL ownership、CMake inventory | 任一違規 |
-| Workflow policy/style | workflow permission、credential persistence、unsafe trigger | policy error |
-| Secret/path scan | token、private key、個人絕對路徑 | 高信心命中 |
-| Source language/shell | 英文 source policy、shell syntax/shellcheck | violation |
-| clang-tidy | null/dangling、memory/lifetime、安全 API | compiler／analyzer 執行失敗；clang-tidy 診斷保留為 warning |
+| Ubuntu build（CI） | 合成器、應用程式、SlintLu 與 plugin SDK 的 C/C++ 建置 | build 非 0 |
+| Source architecture（`scripts/check-source-layout.py`） | 命名、dependency direction、GL ownership、CMake inventory | 任一違規 |
+| Workflow policy/style（`check_repository_hygiene.py workflows`） | workflow permission、credential persistence、unsafe trigger | policy error |
+| Secret/path scan（`check_repository_hygiene.py secrets`、`paths`） | token、private key、個人絕對路徑 | 高信心命中 |
+| clang-tidy（`CMAKE_CXX_CLANG_TIDY`） | null/dangling、memory/lifetime、安全 API | compiler／analyzer 執行失敗；clang-tidy 診斷保留為 warning |
 
-Ubuntu 24.04 的 Qt lifetime 測試仍保留 `clang-analyzer-cplusplus.NewDelete`。測試只接受 synthetic project source 本身的診斷，因此 Clang 18 若把 valid `QPointer` 的主要診斷位置落在 Qt system header，不會再誤判成 LunaDash 的 use-after-free；刻意建立的 invalid lifetime 仍必須被 analyzer 擋下。
-
-Static analysis 與 dynamic test 都不是安全證明；前者可能誤報/漏報，後者只涵蓋實際執行路徑。
+Static analysis 與 sanitizer 都不是安全證明；前者可能誤報/漏報，後者只涵蓋實際執行路徑。
 
 ## GitHub Rulesets
 
@@ -24,18 +21,25 @@ Workflow YAML 本身不能啟用 branch protection。Maintainer 應在 GitHub Ru
 ## 本機檢查
 
 ```sh
-python3 tests/security/test_analyzer.py clang-tidy
+python3 scripts/security/check_repository_hygiene.py workflows
+python3 scripts/security/check_repository_hygiene.py secrets
+python3 scripts/security/check_repository_hygiene.py paths
 
 cmake -S . -B build-checked -G Ninja -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_CXX_CLANG_TIDY=clang-tidy
 cmake --build build-checked --parallel 4
-
-LUDASH_GRAPHICS=opengl LUDASH_TEST_NO_SHELL=1 \
-  LUDASH_BUILD_DIR="$PWD/build-checked" ./scripts/test-wayland.sh
 ```
 
-最後一個是 headless wlroots/pixman session，不等於實體 GPU 測試。Separate software OpenGL regression 請看 [Graphics](GRAPHICS.md)。
+要檢查記憶體與 undefined behavior 錯誤時，以 ASan 與 UBSan 建置專案程式碼：
+
+```sh
+cmake -S . -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DLUDASH_ENABLE_SANITIZERS=ON
+cmake --build build-asan --parallel 4
+```
+
+請在真實或巢狀 session 中執行 sanitizer 建置，實際走過要檢查的路徑。單純建置不等於驗證實體 GPU 驅動或完整的獨立登入 session。
 
 
 ## 1.0.1a UI／process 安全補充

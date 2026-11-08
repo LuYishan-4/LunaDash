@@ -30,4 +30,4 @@
 - “Motion” is not a standalone settings feature. Use “Visual effects” for appearance controls and “Reduced motion” only for accessibility.
 - Native plugin metadata is validation, not isolation; never describe native plugins as sandboxed.
 - Update the matching English and Traditional Chinese canonical docs whenever visible desktop behavior changes. Root `docs/*.md` compatibility paths remain small forwarding pages.
-- After LunaDash-owned UI changes, run Slint design/action audits; shell integration changes require `scripts/ci/check_shell_actions.py` and `tests/wayland/test_session_shell.py`. A real-session screenshot is still required for final visual verification.
+- After LunaDash-owned UI changes, run Slint design/action audits; shell integration changes require `scripts/ci/check_shell_actions.py`. A real-session screenshot is still required for final visual verification.

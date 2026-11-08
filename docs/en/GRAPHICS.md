@@ -6,24 +6,7 @@ LunaDash also builds a toolkit-neutral OpenGL render-element library under `src/
 
 `Fullscreen.vert`, `Wallpaper.frag`, `Blur.frag` and `Decoration.frag` live in `src/compositor/renderer/opengl/shaders`. CMake generates a C++ resource header from these explicit files; no source checkout, installed shader directory or particular working directory is required. `ShaderAssetLoader` retains stage aliases and generic GLSL suffix support. `Shader` and `Program` report compilation/link diagnostics and use RAII to release every partial allocation on failure. Textures, framebuffers, programs and vertex arrays must be released with the owning context current.
 
-## Automated verification
-
-```sh
-cmake -S . -B build -G Ninja -DLUDASH_BUILD_RENDERER_TESTS=ON
-cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure -R '^lunadash-renderer$'
- EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 \
-  ./build/lunadash-renderer-test --opengl
-```
-
-The default test covers embedded assets from an unrelated working directory, missing context diagnostics, and resource cleanup after injected creation, compilation and linking failures. The `--opengl` path compiles all shipped shaders and renders into a framebuffer. Main OpenGL CI additionally installs the test executable using CMake's explicit `Tests` component and runs the relocated copy. Tests are excluded from a normal installation.
-
-```sh
-LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
-python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
-```
-
-These session checks use wlroots' headless pixman path, including renderer fallback and invalid CLI diagnostics. Software OpenGL and pixman results are separate evidence; neither proves NVIDIA/AMD/Intel/ARM hardware, dmabuf interoperability or physical-seat startup. A real host-Wayland test is available through `LUDASH_TEST_HOST_WAYLAND=1`, and requires an existing desktop socket.
+Software OpenGL and pixman results do not prove NVIDIA/AMD/Intel/ARM hardware, dmabuf interoperability or physical-seat startup.
 
 The shell (SlintLu) has its own rendering policy and process. See [shell rendering](SHELL_RENDERING.md) and [architecture](ARCHITECTURE.md).
 
@@ -35,13 +18,6 @@ The C11 selection code lives in `renderer/selection/RenderSelection.c`, links on
 
 Both compositor renderers use the existing wlroots scene, allocator, dmabuf feedback and capability-gated explicit synchronization. Client GTK/Qt APIs are independent of the compositor renderer. The retained standalone EGL OpenGL render-element library remains OpenGL-specific. Shell selection is separate: `LUDASH_SHELL_RENDERER=vulkan` uses Qt Quick's Vulkan path only in Quickshell.
 
-To validate actual clients on a GPU host:
-
-```sh
-LUDASH_TEST_RENDERER=vulkan LUDASH_TEST_HOST_WAYLAND=1 \
-  dbus-run-session -- python3 tests/wayland/test_toolkits.py build
-```
-
-This checks GTK 3, GTK 4 and Qt map/capture/close and saves state/log/screenshot evidence. Without the environment variables it tests headless pixman. CI tests explicit Vulkan failure and shell selection separately; software results are not a Vulkan hardware claim.
+Software rendering results are not a Vulkan hardware claim.
 
 Local verification on 2026-10-05: Arch Linux, wlroots 0.20.2, AMD Radeon 680M with RADV/Mesa 26.2.3 passed the nested Vulkan GTK 3/GTK 4/Qt map/capture/close test. This is one GPU in a host Wayland session, not a verified physical login or a claim about other drivers.

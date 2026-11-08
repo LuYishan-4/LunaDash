@@ -40,12 +40,6 @@ LunaDash reserves an unused local X socket, restricts it to its owner and passes
 
 Only this compatibility instance's process group is terminated during cleanup. The runtime authority file and owned socket are removed on normal shutdown. Status exposes `xwayland.available`, `xwayland.running`, `xwayland.mode`, `xwayland.rootWindowVisible`, its display/authority path and a diagnostic error. No cookie value is sent over IPC or logged. Set `LUDASH_DISABLE_XWAYLAND=1` before startup to disable the optional service.
 
-The generic integration test launches Qt applications through XCB, verifies on-demand startup and display reuse, rejects an unauthenticated X11 setup request, and checks cleanup:
-
-```sh
-xvfb-run -a python3 tests/wayland/test_xwayland.py build
-```
-
 ## Limits
 
 Rootless satellite integration is not enabled. The compatibility container has no internal X11 window manager: internal stacking, positioning and decorations remain limited. Save work and close X11 applications before closing their shared container: closing the container ends its X server and disconnects all applications inside it.
@@ -103,7 +97,7 @@ The optional user file is `~/.config/lunadash/launch-capabilities.json`. Matchin
 
 ## Recording notification teardown
 
-XWayland scene trees have an independent destroy listener. wlroots can destroy the subsurface tree before XWM emits `dissociate`; the listener clears the client pointer immediately so dissociate and layout never reuse freed scene memory. Repeated accelerated override-redirect notifications are exercised by `tests/wayland/test_xwayland_notifications.py BUILD_DIR`. Set `LUNADASH_TEST_GSR_NOTIFY` to a local `gsr-notify` executable to repeat the test with the real recorder helper. These tests isolate notification lifecycle; they do not certify the full NVIDIA KMS recording path.
+XWayland scene trees have an independent destroy listener. wlroots can destroy the subsurface tree before XWM emits `dissociate`; the listener clears the client pointer immediately so dissociate and layout never reuse freed scene memory.
 
 The status response exposes these helpers separately as `xwayland.utilitySurfaces`, with each surface's `id` and `mapped` state. They remain excluded from the application-facing `clients` list. The notification test uses this diagnostic list to observe mapping and complete removal after teardown; CI preserves `xwayland-notifications.log` with its Wayland diagnostics.
 

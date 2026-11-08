@@ -1,4 +1,4 @@
-# Testing and source map
+# Build and source map
 
 Finish code, packaging and documentation changes before building. Arch Linux is the primary development environment; CI configuration is not a substitute for observing a completed run on the intended commit.
 
@@ -10,51 +10,22 @@ The toolchain requires CMake 3.21+, Ninja, Python 3, C11/C++20, Rust/Cargo 1.92+
 
 ```sh
 python3 scripts/check-source-layout.py
-python3 tests/architecture/test_source_layout.py
-python3 tests/renderer/test_render_architecture.py
-python3 tests/renderer/test_shader_extensions.py
-python3 tests/wayland/test_no_qtwayland.py
-python3 tests/security/test_source_language.py
+python3 scripts/check-translations.py
 python3 scripts/ci/check_shell_actions.py
 python3 scripts/gen-ui-icons.py --check
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DLUDASH_BUILD_RENDERER_TESTS=ON
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure
 ```
 
-The architecture checker enforces lowercase domains, PascalCase C++ filenames, small domain-local entrypoints, source-root includes, dependency direction, raw GL placement and explicit CMake inventories. Its fixture tests intentionally introduce invalid layouts and ensure rejection. `.clang-format` defines source formatting; use `clang-format -i` on modified C/C++ files. Static analysis runs in the shared full CI suites; see [CI](CI.md).
-
-The `lunadash-audio-settings` CTest checks WirePlumber output parsing without changing host audio settings. Malformed device lines must not block later entries or stall the compositor, including when the last line has no newline. Device names containing `*` remain intact; only a marker before the numeric device ID identifies the default output. These assertions remain enabled in Release builds, and the test has a ten-second timeout.
-
-## Plugin SDK checks
-
-Native CTest coverage includes plugin validation, enable/disable, settings updates, native revision reload and the stacking layout example. QML tests exercise replacement readiness, augmentation, failure fallback and recovery. The template integration test builds and stages all four SDK templates; it additionally needs Qt Shader Tools. Run it against either the build-tree SDK or a relocated installation:
-
-```sh
-python3 tests/plugins/test_sdk.py --sdk build/sdk-build
-QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software qmltestrunner -input tests/qml
-```
-
-These tests use temporary configuration/data directories and do not install plugins into the active user's desktop.
+The architecture checker enforces lowercase domains, PascalCase C++ filenames, small domain-local entrypoints, source-root includes, dependency direction, raw GL placement and explicit CMake inventories. `.clang-format` defines source formatting; use `clang-format -i` on modified C/C++ files. See [CI](CI.md) for what CI runs.
 
 ## Runtime and installation
 
 ```sh
-LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
-./scripts/test-xdg-lifecycle.sh "$PWD/build"
-python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
-xvfb-run -a python3 tests/wayland/test_xwayland.py build
-QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a \
-  ./build/lunadash-renderer-test --opengl
 DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr
 ```
 
-Headless wlroots tests use pixman and private runtime/configuration directories. The lifecycle client exercises map, unmap, role destruction and popup nesting. XWayland checks cover on-demand startup, authenticated application launches, display reuse and cleanup. Renderer checks cover resource relocation, error diagnostics, partial GL allocation cleanup and software OpenGL shader compilation/drawing. Translation checks validate catalog structure and preserve the stored values of translated controls.
-
-For a real desktop, use `LUDASH_TEST_HOST_WAYLAND=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh`. It uses the host Wayland socket and writes `build/wayland.log` and `build/wayland-state.json`. Run without `LUDASH_TEST_NO_SHELL` to check Quickshell. A complete manual session also checks Chrome/Zed, pointer and physical keyboard input, Fcitx preedit/candidate positioning, wallpaper changes, animation, file chooser D-Bus activation and logout. Do not infer these results from successful compilation.
-
-Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. When `BUILD_SHARED_LIBS` is enabled, LunaDash's internal shared libraries are installed in `CMAKE_INSTALL_LIBDIR` and executables use relative runtime paths; static builds need no separate library installation. Internal GLSL is embedded and needs no installed shader directory. For explicit relocation testing, install `--component Tests` into a temporary prefix and run `libexec/lunadash/tests/lunadash-renderer-test` there; that component is excluded from normal installs.
+Normal installation includes executables/compatibility aliases, session entries, shell QML, translations, portal configuration, assets and the optional example plugin. When `BUILD_SHARED_LIBS` is enabled, LunaDash's internal shared libraries are installed in `CMAKE_INSTALL_LIBDIR` and executables use relative runtime paths; static builds need no separate library installation. Internal GLSL is embedded and needs no installed shader directory.
 
 On Arch, also verify the source archive used by `./scripts/install-session.sh`, since a checkout build cannot detect missing archive contents:
 
@@ -67,9 +38,11 @@ This builds packages without installing them. The archive must include `data/plu
 
 ## CI coverage
 
-[Dev CI and Main CI](CI.md) only build: Ubuntu, the website, the Nix package and Arch (all five distributions on main and full runs). Every test in this document runs locally; `scripts/run-tests.sh` runs the maintained suites.
+[Dev CI and Main CI](CI.md) only build: Ubuntu, the website, the Nix package and Arch (all five distributions on main and full runs). No workflow runs tests; a green run proves only that the commit builds. Inspect completed results for the exact commit.
 
-[NixOS](NIXOS.md) has a locked flake, package and system module. CI builds x86_64, evaluates aarch64 and checks installed headless runtime; physical login and GPU behavior still require a real session. Inspect completed results for the exact commit. Void/Gentoo retain installer paths without the same CI coverage.
+[NixOS](NIXOS.md) has a locked flake, package and system module; CI only builds the x86_64 package. Void/Gentoo retain installer paths without the same CI coverage.
+
+A successful build does not verify runtime behavior. A complete manual session checks Chrome/Zed, pointer and physical keyboard input, Fcitx preedit/candidate positioning, wallpaper changes, animation, file chooser D-Bus activation and logout. Full settings-page coverage, region selection, window motion, hardware brightness and application compatibility also require real-session verification when preparing a release.
 
 ## Source map
 
@@ -93,10 +66,7 @@ This builds packages without installing them. The archive must include `data/plu
 | `src/compositor` | Compositor sources, built with the root CMake targets |
 | `data` | User-facing assets, templates, translations and portal/plugin metadata |
 | `cmake/modules/Renderer.cmake` | Explicit render sources and embedded shader inventory |
-| `cmake/modules/Tests.cmake` | Optional renderer tests and staged test installation |
-| `scripts`, `tests` | Installation, diagnostics and executable regression checks |
+| `scripts` | Installation, diagnostics and repository checks |
 | `LunaDash-docs/src/pages/docs/architecture.astro` | Website architecture guide in LunaDash-docs |
 
-See [architecture](ARCHITECTURE.md) for ownership contracts. Existing historical Python tests that assume the previous Qt compositor or Xvfb keyboard injection are not part of the current wlroots CI gate; use the current lifecycle and protocol tests above and port a historical test before relying on it as release evidence.
-
-CI focuses on reusable build, protocol, lifecycle, renderer, translation and source-quality checks. Temporary tests and mock applications written for individual desktop bug reports are not part of the maintained suite. Full settings-page coverage, region selection, window motion, hardware brightness and application compatibility require real-session verification when preparing a release.
+See [architecture](ARCHITECTURE.md) for ownership contracts.

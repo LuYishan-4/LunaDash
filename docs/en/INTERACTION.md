@@ -82,8 +82,6 @@ terminology is standardized separately from ordinary module/layout settings.
 
 ## Validation
 
-Run the source-layout, QML style/action and input-contract audits; CTest includes
-window selection/removal/scope and shortcut-conflict cases. QML tests exercise
-popup toggles, package enablement diffs and sample template rendering/commands.
-Native Wayland keyboard delivery, fast repeated clicks and screenshots of the
-actual shell still require the corresponding runtime tests or a real session.
+Run the source-layout and shell action checks. Native Wayland keyboard delivery,
+fast repeated clicks and screenshots of the actual shell still require a real
+session.

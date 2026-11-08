@@ -6,7 +6,6 @@ if(POLICY CMP0135)
     set(LUDASH_FETCHCONTENT_TIMESTAMP DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 endif()
 
-
 # ==============================================================================
 # LunaDash build options
 # ==============================================================================
@@ -14,7 +13,6 @@ endif()
 # Quick start:
 #   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 #   cmake --build build --parallel
-#   ctest --test-dir build --output-on-failure
 #   sudo cmake --install build
 #
 # ----- Shell -------------------------------------------------------------------
@@ -33,21 +31,21 @@ endif()
 #                                      OFF builds Slint from source and needs rustc + cargo.
 #   LUDASH_ENABLE_VULKAN=ON|OFF        Enable the wlroots Vulkan renderer when available (default: ON).
 #
-# ----- Debug / tests ----------------------------------------------------------
+# ----- Debug ------------------------------------------------------------------
 #   LUDASH_ENABLE_SANITIZERS=ON|OFF    Build project code with ASan + UBSan (default: OFF).
-#   LUDASH_BUILD_RENDERER_TESTS=ON|OFF Build shader and GL lifetime regression tests (default: OFF).
-#   LUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON|OFF
-#                                      Run the real portal frontend and Wayland UI suite (default: OFF).
-#                                      Requires xvfb-run, xauth, wtype, xdg-desktop-portal.
 #
 # ----- Standard CMake ---------------------------------------------------------
 #   CMAKE_BUILD_TYPE                   Debug | Release | RelWithDebInfo | MinSizeRel
 #   CMAKE_INSTALL_PREFIX               Install prefix (installer uses /usr).
-#   BUILD_TESTING=ON|OFF               Native and portal tests (default: ON, from CTest).
 #   CMAKE_CXX_CLANG_TIDY=clang-tidy    Run clang-tidy during the build (also applied to C).
 #
 # ----- Useful commands --------------------------------------------------------
-#   cmake --fresh -S . -B
+#   cmake --fresh -S . -B build                                    Reconfigure from scratch (3.24+)
+#   cmake --build build --target ludash-compositor                 Build a single target
+#   cmake --build build --target clean                             Clean build outputs
+#   DESTDIR="$PWD/build/stage" cmake --install build --prefix /usr Staged install
+#   cmake -LH build                                                List cache options with help
+# ==============================================================================
 
 # The session shell is the external LunaDash-Shell repository: Slint files run by SlintLu
 # (shell.slint).
@@ -133,12 +131,6 @@ endif()
 # libinput context and does not route compositor input through Qt.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashExtras.cmake)
 
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/modules/Tests.cmake)
-
-if(BUILD_TESTING)
-    include(${CMAKE_CURRENT_LIST_DIR}/cmake/modules/PortalTests.cmake)
-endif()
-
 # Slint enables BUILD_SHARED_LIBS for its runtime. Install LunaDash's shared
 # components as well so installed executables do not retain build-tree-only
 # dependencies. Static builds need no separate component installation.
@@ -162,8 +154,3 @@ foreach(LUDASH_RUNTIME_TARGET IN ITEMS
             "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
     endif()
 endforeach()
-
-if(TARGET lunadash-renderer-test)
-    set_property(TARGET lunadash-renderer-test PROPERTY INSTALL_RPATH
-        "$ORIGIN/../../../${CMAKE_INSTALL_LIBDIR}")
-endif()

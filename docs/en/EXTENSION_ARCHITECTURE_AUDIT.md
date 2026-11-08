@@ -18,7 +18,7 @@ remain active and were not replaced with the obsolete adapters.
 - Module IDs, defaults, controls and limits moved from duplicate C++/QML forms
   into a shared data registry with common sections and explicit overrides.
 - Extension and layout settings validation now uses the same host contract;
-  the SDK counterpart runs shared fixtures. Effect configuration is exposed
+  the SDK counterpart applies the same rules. Effect configuration is exposed
   automatically alongside visual plugin configuration.
 - Generic setting targets support scoped revision-checked updates, draft forms
   and filtering without knowing each plugin/module's setting names.
@@ -43,12 +43,8 @@ path is free of dead code or that every subsystem has a runtime plugin ABI.
 SDK 2 remains a synchronous configuration/placement hook ABI; it does not permit
 arbitrary replacement of wlroots resources or compositor renderer ownership.
 
-## Regression checks
+## Checks
 
-Run the source layout, architecture, render-boundary, QML action/style and
-`tests/settings/test_schema.py` checks. CTest also builds/runs
-`lunadash-settings`, covering shared fixtures, stale/read-only writes, module
-host invariants and settings reaching the real native fade hook. The existing
-QML runner includes `tst_settings_schema.qml` for generated controls. No test
-was removed or relaxed to bypass a failed build. GPU/session integration is
-still verified by the existing Wayland/OpenGL/startup workflows.
+Run `python3 scripts/check-source-layout.py` and
+`python3 scripts/ci/check_shell_actions.py`. CI only builds; GPU and session
+integration still require verification in a real session.

@@ -28,27 +28,7 @@ src/compositor/renderer/opengl/shaders/
 
 CMake 會根據明確列出的 shader 檔案產生 C++ embedded resource header，因此 installed build 不依賴 source checkout 或工作目錄。
 
-## 測試
-
-```sh
-cmake -S . -B build -G Ninja -DLUDASH_BUILD_RENDERER_TESTS=ON
-cmake --build build --parallel 2
-ctest --test-dir build --output-on-failure -R '^lunadash-renderer$'
-
-EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 \
-  ./build/lunadash-renderer-test --opengl
-```
-
-Default renderer test 會驗 embedded resources、missing-context diagnostic，以及 creation/compile/link 失敗後是否釋放 partial allocation；`--opengl` 會以 software GL compile 所有 shipped shader 並實際 draw 到 framebuffer。
-
-wlroots session test 是另一條 pixman 路徑：
-
-```sh
-LUDASH_TEST_NO_SHELL=1 LUDASH_BUILD_DIR="$PWD/build" ./scripts/test-wayland.sh
-python3 tests/renderer/test_startup_failure.py build/lunadash-compositor
-```
-
-Software OpenGL 與 pixman 都不能證明特定 NVIDIA/AMD/Intel/ARM 實體 GPU、dmabuf 或 DRM/KMS 一定正常。Host Wayland 可用 `LUDASH_TEST_HOST_WAYLAND=1` 額外測試。
+Software OpenGL 與 pixman 都不能證明特定 NVIDIA/AMD/Intel/ARM 實體 GPU、dmabuf 或 DRM/KMS 一定正常。
 
 Shell（SlintLu）有自己的 rendering policy，見 [Shell rendering](SHELL_RENDERING.md)。
 
@@ -60,13 +40,6 @@ C11 選擇程式位於 `renderer/selection/RenderSelection.c`，僅連結 wlroot
 
 兩種 compositor renderer 共用 wlroots scene、allocator、dmabuf feedback 與依能力啟用的 explicit synchronization。GTK／Qt 客戶端使用的繪圖 API 不受 compositor 選擇限制。獨立 EGL OpenGL render-element library 仍限定 OpenGL。`LUDASH_SHELL_RENDERER=vulkan` 僅選擇殼層（SlintLu）的 Vulkan 路徑。建置 render-element target 需要 EGL 開發套件。
 
-GPU 主機可執行：
-
-```sh
-LUDASH_TEST_RENDERER=vulkan LUDASH_TEST_HOST_WAYLAND=1 \
-  dbus-run-session -- python3 tests/wayland/test_toolkits.py build
-```
-
-此測試檢查 GTK 3、GTK 4 與 Qt 的映射、擷取及關閉，並保留狀態、紀錄與截圖。未設定環境變數時使用 headless pixman。CI 另行驗證 Vulkan 失敗處理與 shell 選擇；軟體測試不代表實體 Vulkan GPU 已驗證。
+軟體渲染結果不代表實體 Vulkan GPU 已驗證。
 
 2026-10-05 本機驗證：Arch Linux、wlroots 0.20.2、AMD Radeon 680M 搭配 RADV／Mesa 26.2.3，通過巢狀 Vulkan 工作階段的 GTK 3／GTK 4／Qt 映射、擷取與關閉測試。此結果僅涵蓋該 GPU 的 host Wayland 工作階段，不代表實體登入或其他驅動已驗證。

@@ -154,7 +154,7 @@ The helper uses `emerge --noreplace` with Qt 6 slots and the required Wayland/in
 
 ### Other Linux distributions
 
-Install the dependencies listed in the [build and testing guide](TESTING_AND_FILES.md#build-and-static-checks), plus Rust/Cargo 1.92+ for Slint and SlintLu, then either run:
+Install the dependencies listed in the [build and source map](TESTING_AND_FILES.md#build-and-static-checks), plus Rust/Cargo 1.92+ for Slint and SlintLu, then either run:
 
 ```sh
 ./scripts/install-session.sh --skip-deps

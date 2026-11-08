@@ -14,4 +14,4 @@ C symbol 保留 `ludash_` 前綴與既有 C type 名稱。Header 在 C++ 中以 
 
 Shader compilation、program linking、texture/FBO ownership 是 `renderer/opengl` 的 C++ RAII；並不存在第二套 C renderer。實際 compositor renderer/allocator 與 Wayland protocol lifetime 仍由 wlroots 擁有。
 
-Renderer failure-injection test 驗 partial cleanup；software OpenGL path 驗 embedded shader compile/draw。更多內容見 [Graphics](GRAPHICS.md) 與 [Testing](TESTING_AND_FILES.md)。
+更多內容見 [Graphics](GRAPHICS.md) 與 [建置與原始碼地圖](TESTING_AND_FILES.md)。

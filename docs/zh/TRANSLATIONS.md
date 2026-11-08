@@ -35,12 +35,11 @@ shell.tr("Switch to workspace %1").arg(number)
 
 ```sh
 python3 scripts/check-translations.py
-python3 scripts/test-translation-checker.py
 ```
 
 檢查內容包含 catalog JSON、literal translation call、常見 UI text property、部分 model label、placeholder parity、conflicting duplicate 與 cross-catalog duplicate。這不是 semantic proof，runtime dynamic string 或第三方 app text 仍可能沒有翻譯。
 
-Translation review 也會 parse Shell QML、在不連結 Qt 的情況下 build native localization、比較載入的 dictionary 與 source catalog、測 English fallback 和語系偏好遷移，並測 dropdown label/value separation。
+覆蓋率檢查不能取代在工作階段中的視覺與輸入裝置測試。
 
 Translation catalog 是一般 JSON 檔。開發時從 source tree 讀取，安裝後從 `${datadir}/ludash/translations` 讀取。更新已安裝 catalog 不需重新 build LunaDash；重新啟動受影響的 client 或 compositor 即可重新載入 dictionary。
 

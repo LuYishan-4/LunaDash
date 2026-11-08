@@ -13,7 +13,7 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 
 - [Boot, install and recovery](LOGIN_SESSION.md)
 - [Settings, shortcuts and desktop behavior](SETTINGS.md)
-- [Build, test and source map](TESTING_AND_FILES.md)
+- [Build and source map](TESTING_AND_FILES.md)
 - [Source architecture](ARCHITECTURE.md)
 - [Repository workflow](COMPONENT_REPOS.md)
 - [Slint and wlroots migration](SLINT_WLROOTS_MIGRATION.md)
@@ -47,7 +47,6 @@ These guides describe the current `dev` branch. LunaDash remains a development p
 - [Security and crash checks](SECURITY_CHECKS.md)
 - [Release process](RELEASE_PROCESS.md)
 - [Website and GitHub Pages](WEBSITE.md)
-- [Testing shortcut](TESTING.md)
 
 ## Current dev snapshot — 1.0.1a
 

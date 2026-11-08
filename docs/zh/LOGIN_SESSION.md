@@ -118,7 +118,7 @@ Arch 是主要開發環境，安裝後可用：
 sudo pacman -R ludash
 ```
 
-Debian/Ubuntu、Fedora、openSUSE、Alpine 由 dependency helper 選對應 Qt 6、Wayland、wlroots/input/GL 等套件再走 CMake install。Void/Gentoo 也有安裝路徑，但 CI breadth 比前述平台小。其他 Linux 可先依 [測試與建置](TESTING_AND_FILES.md) 準備 toolchain，再：
+Debian/Ubuntu、Fedora、openSUSE、Alpine 由 dependency helper 選對應 Qt 6、Wayland、wlroots/input/GL 等套件再走 CMake install。Void/Gentoo 也有安裝路徑，但 CI breadth 比前述平台小。其他 Linux 可先依 [建置與原始碼地圖](TESTING_AND_FILES.md) 準備 toolchain，再：
 
 ```sh
 ./scripts/install-session.sh --skip-deps

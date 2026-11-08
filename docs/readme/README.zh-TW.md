@@ -68,7 +68,7 @@ cd LunaDash
 
 安裝程式會處理發行版依賴、編譯 LunaDash 並安裝登入工作階段。完成後登出，在登入管理員中選擇 **LunaDash**。首次啟動會顯示 1.0.1a Welcome 卡片、系統資訊與快捷操作。語言及桌面外觀可在設定中調整。
 
-可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面殼層執行於 SlintLu，安裝程式會依 `packaging/slintlu-revision` 從原始碼建置（與 Slint 相同，需要 Rust 1.92+）。選項與復原方式請見[安裝指南](../zh/LOGIN_SESSION.md)，手動編譯與巢狀工作階段請見[建置與測試](../zh/TESTING_AND_FILES.md)。
+可先執行 `./scripts/install-session.sh --dry-run` 預覽安裝步驟。桌面殼層執行於 SlintLu，安裝程式會依 `packaging/slintlu-revision` 從原始碼建置（與 Slint 相同，需要 Rust 1.92+）。選項與復原方式請見[安裝指南](../zh/LOGIN_SESSION.md)，手動編譯請見[建置與原始碼地圖](../zh/TESTING_AND_FILES.md)。
 
 ## 常用快捷鍵
 
@@ -93,7 +93,7 @@ cd LunaDash
 | 開始使用 | 個人化 |
 | --- | --- |
 | [安裝與執行](../zh/LOGIN_SESSION.md) | [外觀與組態](../zh/CONFIGURATION.md) |
-| [建置與測試](../zh/TESTING_AND_FILES.md) | [設定與快捷鍵](../zh/SETTINGS.md) |
+| [建置與原始碼地圖](../zh/TESTING_AND_FILES.md) | [設定與快捷鍵](../zh/SETTINGS.md) |
 | [顯示器、DDC/CI 與啟動](../zh/DISPLAY_AND_STARTUP.md) |  |
 | [範圍截圖](../zh/SCREEN_CAPTURE.md) | [預設應用程式與檔案](../zh/DEFAULT_APPS_AND_FILES.md) |
 | [原始碼架構](../zh/ARCHITECTURE.md) | [外掛介面](../zh/PLUGINS.md) |

@@ -57,15 +57,14 @@ LunaDash 自有的 Welcome、Package Manager、FileChooser 與 ScreenCast choose
 
 多個 compositor/service target 已改用標準 C++、nlohmann/json、GIO、libcurl、POSIX process runner 與 wlroots event loop。OpenGL render-element 使用呼叫端提供的 EGL context；Qt Quick-only wallpaper/blur wrapper 已移除。Shell module、Orbit settings、media、network、system status、weather、update checks、keyboard 與 shortcut service 已有 Qt-free target。桌面偏好 API 與 keyboard preference application 現在使用 nlohmann/json 和標準字串；GLib `GKeyFile` 會一次性匯入舊 desktop/setup/wallpaper 設定，並保留原 INI 檔。
 
-LunaDash 本身的建置已不再尋找或連結 Qt。Compositor、plugin manager 與 catalogue、settings API、視窗 layout、桌面 service、內建 Slint client、portal backend 與 native 測試都改用標準 C++、nlohmann/json、GLib/GIO、libcurl、POSIX process runner 與 wlroots event loop。`src/core/` 的小型工具取代原本的 Qt 值型別：保留 layout 既有「右／下邊界含端點」語意的整數幾何（`Rect`、`Size`、`Point`）、寬鬆 JSON 讀取、UTF-8/URL 工具、原子化寫檔、暫存目錄與 printf 形式的 log。Compositor 在自己的 `poll` 迴圈中驅動 GLib 預設 main context，因此 GIO file monitor、D-Bus 呼叫與非同步 I/O 不需要工具包 dispatcher，也會在 compositor thread 執行。
+LunaDash 本身的建置已不再尋找或連結 Qt。Compositor、plugin manager 與 catalogue、settings API、視窗 layout、桌面 service、內建 Slint client 與 portal backend 都改用標準 C++、nlohmann/json、GLib/GIO、libcurl、POSIX process runner 與 wlroots event loop。`src/core/` 的小型工具取代原本的 Qt 值型別：保留 layout 既有「右／下邊界含端點」語意的整數幾何（`Rect`、`Size`、`Point`）、寬鬆 JSON 讀取、UTF-8/URL 工具、原子化寫檔、暫存目錄與 printf 形式的 log。Compositor 在自己的 `poll` 迴圈中驅動 GLib 預設 main context，因此 GIO file monitor、D-Bus 呼叫與非同步 I/O 不需要工具包 dispatcher，也會在 compositor thread 執行。
 
-Native C++ 測試使用 `tests/support/TestHarness.hpp`；D-Bus fixture 改用 GDBus。`tests/architecture/test_no_qt.py` 會拒絕 `src/`、`tests/` 與建置設定中的 Qt header、型別、macro 與 CMake 連結。刻意保留、且不屬於 LunaDash binary 的只有兩項：獨立的 `LunaDash-Shell`（Quickshell/QML）及其 QML CI，以及 plugin SDK 為該 Shell 載入的 OpenGL plugin 產生 `.qsb` shader 的可選步驟。Compositor 傳給第三方 Qt 應用程式的環境變數屬於設定，不是連結。
+刻意保留、且不屬於 LunaDash binary 的只有兩項：獨立的 `LunaDash-Shell`（Quickshell/QML）及其 QML CI，以及 plugin SDK 為該 Shell 載入的 OpenGL plugin 產生 `.qsb` shader 的可選步驟。Compositor 傳給第三方 Qt 應用程式的環境變數屬於設定，不是連結。
 
 ## 驗證狀態與限制
 
-- `cmake --build build -j2` 成功；`ctest --test-dir build --output-on-failure` 通過 37/37。
+- `cmake --build build -j2` 成功。
 - 翻譯檢查的 `zh_TW`、`zh_CN`、`ja_JP` 靜態字串覆蓋率皆為 100%，重複 key 為 0；QML design/action 稽核通過。
-- Pixman headless toolkit flow 讓 GTK 3、GTK 4、Qt Wayland 與 Slint clients 完成映射、擷取及關閉。套件管理器 screenshot 位於 build 證據目錄。
 - staged `/usr` 安裝中，所有安裝的 executable 都能在沒有 `LD_LIBRARY_PATH` 時解析依賴；Slint UI、control client 與 portal client 沒有 Qt runtime。
 - Host nested Wayland 嘗試在 wlroots swapchain test 失敗，Pixman 與 GLES2 都如此；實體 GPU／登入工作階段尚未完成視覺驗證。
 

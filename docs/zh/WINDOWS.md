@@ -43,8 +43,6 @@ Tiled 視窗收到 tile 尺寸時會一併收到 xdg-shell 的 tiled 狀態，�
 
 ## 驗證
 
-CTest 的 window-layout 測試覆蓋最多 64 window 的 bounded geometry、split insertion、output resize、8-member capacity、minimize/restore、swap、group insertion、resize distribution、workspace transfer、maximize/restore 與 shortcut migration。
-
 真實 session 仍要驗 Alt drag、modifier release、快速 Alt+Tab、popup/dialog、client size hint、display scaling 與多輸出。CI 不代表實際 frame rate。
 
 

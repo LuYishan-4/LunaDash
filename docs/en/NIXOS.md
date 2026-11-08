@@ -73,7 +73,7 @@ Use NixOS generations for installation, updates and rollback. `install.sh`, `ins
 
 ## Verification limits
 
-The Nix CI suite evaluates module assertions and session/portal registration, builds the installed package and starts its compositor with headless wlroots/pixman using the installed wrappers. Its state JSON is retained as a CI artifact. This does not verify an actual display-manager login, Quickshell visuals, physical input, GPU drivers, multi-monitor behavior or PipeWire capture on NixOS. Those need a real session and screenshots before release qualification. See [CI](CI.md) and [testing](TESTING_AND_FILES.md).
+The Nix CI job only builds the x86_64 package. This does not verify an actual display-manager login, Quickshell visuals, physical input, GPU drivers, multi-monitor behavior or PipeWire capture on NixOS. Those need a real session and screenshots before release qualification. See [CI](CI.md) and [build and source map](TESTING_AND_FILES.md).
 
 Packaging follows the upstream [Qt wrapper guidance](https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/qt.section.md) and [NixOS portal module](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/config/xdg/portal.nix).
 

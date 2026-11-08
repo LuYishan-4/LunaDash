@@ -1,7 +1,7 @@
 # Continuous integration
 
-CI only builds. Tests, contract checks and runtime sessions run locally with
-`scripts/run-tests.sh` ([testing](TESTING.md)); run it before pushing.
+CI only builds. No workflow runs tests, linters or analyzers; run the local checks in
+[build and source map](TESTING_AND_FILES.md) before pushing.
 
 `dev-ci.yml` and `main-ci.yml` are separate entry points sharing `main-build.yml`.
 
@@ -16,12 +16,12 @@ CI only builds. Tests, contract checks and runtime sessions run locally with
 CI/policy changes and unknown source domains select every build and the full distribution
 matrix, as do new branches and unavailable base commits. Renames and deletions take part in
 selection. Documentation changes do not build the desktop on `dev`; website changes build the
-website. `scripts/ci/changes.py` makes the selection (`tests/ci/test_changes.py` covers it).
+website. `scripts/ci/changes.py` makes the selection.
 
 ## Builds
 
 - **Ubuntu:** one cached CMake build (ccache, Slint's Cargo output, SlintLu) of the compositor,
-  apps, SlintLu and plugin SDK, with `-DBUILD_TESTING=OFF`.
+  apps, SlintLu and plugin SDK.
 - **Website:** production build of the Astro site.
 - **NixOS:** `nix build` of the x86_64 package. Slint and SlintLu are separate derivations and
   the Nix store is cached between runs, so only changed derivations rebuild; a cold store can
@@ -49,5 +49,5 @@ promotion is explicitly allowed, including previously reviewed workflow changes.
 
 A green CI run proves that the commit builds, nothing more. Physical GPU/input, real login,
 shell visuals and application compatibility still need release-session testing. See
-[testing](TESTING_AND_FILES.md) and [security checks](SECURITY_CHECKS.md). Public Pages
+[build and source map](TESTING_AND_FILES.md) and [security checks](SECURITY_CHECKS.md). Public Pages
 deployment happens from `main`.

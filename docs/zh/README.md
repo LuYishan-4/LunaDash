@@ -11,7 +11,7 @@ NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證�
 
 - [安裝、登入與救援](LOGIN_SESSION.md)
 - [設定、快捷鍵與桌面行為](SETTINGS.md)
-- [建置、測試與原始碼地圖](TESTING_AND_FILES.md)
+- [建置與原始碼地圖](TESTING_AND_FILES.md)
 - [原始碼架構](ARCHITECTURE.md)
 - [Repository 工作流程](COMPONENT_REPOS.md)
 - [Slint 與 wlroots 遷移](SLINT_WLROOTS_MIGRATION.md)
@@ -47,7 +47,6 @@ NixOS 請使用 [flake 與系統模組](NIXOS.md)。分支檢查範圍及驗證�
 - [安全與崩潰檢查](SECURITY_CHECKS.md)
 - [發布流程](RELEASE_PROCESS.md)
 - [網站與 GitHub Pages](WEBSITE.md)
-- [測試快速入口](TESTING.md)
 
 ## 目前 dev 1.0.1a 已涵蓋的重點
 

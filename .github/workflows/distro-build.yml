@@ -45,7 +45,7 @@ jobs:
                 bash scripts/fetch-shell.sh /tmp/LunaDash-Shell
                 bash scripts/fetch-slintlu.sh /tmp/SlintLu
                 cmake -S . -B build-distro -G Ninja \\
-                  -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \\
+                  -DCMAKE_BUILD_TYPE=Release \\
                   -DLUDASH_SHELL_SOURCE_DIR=/tmp/LunaDash-Shell \\
                   -DLUDASH_SLINTLU_SOURCE_DIR=/tmp/SlintLu 2>&1 | tee build-distro.log
                 test \${PIPESTATUS[0]} -eq 0

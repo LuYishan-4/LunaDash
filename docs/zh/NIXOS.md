@@ -75,7 +75,7 @@ NixOS 的安裝、更新與回復都使用系統世代。`install.sh`、`install
 
 ## 驗證範圍
 
-Nix CI 會求值模組斷言及 session／portal 註冊、建置安裝後的套件，再透過已安裝 wrapper 啟動 headless wlroots／pixman compositor。狀態 JSON 保留為 CI artifact。這不代表已驗證 NixOS 的實際登入畫面、Quickshell 外觀、實體輸入、GPU 驅動、多螢幕或 PipeWire 擷取；發行前仍需要真實工作階段及截圖。詳見 [CI](CI.md) 與[測試指南](TESTING_AND_FILES.md)。
+Nix CI 只建置 x86_64 套件。這不代表已驗證 NixOS 的實際登入畫面、Quickshell 外觀、實體輸入、GPU 驅動、多螢幕或 PipeWire 擷取；發行前仍需要真實工作階段及截圖。詳見 [CI](CI.md) 與[建置與原始碼地圖](TESTING_AND_FILES.md)。
 
 套件實作依循上游 [Qt wrapper 說明](https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/qt.section.md)與 [NixOS portal 模組](https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/config/xdg/portal.nix)。
 
