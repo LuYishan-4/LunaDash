@@ -18,21 +18,25 @@ using Templates::detachListener;
 using Templates::listenerOwner;
 
 namespace {
-// Layer surfaces slide in from the edge they are anchored to (panels, docks, popups);
-// centred and full-screen surfaces only fade.
-std::pair<int, int> layerSlide(const wlr_layer_surface_v1 *surface) {
-  constexpr int distance = 18;
-  const auto anchor = surface->current.anchor;
-  const bool top = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
-  const bool bottom = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
-  const bool left = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
-  const bool right = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
-  if (top != bottom)
-    return {0, top ? -distance : distance};
-  if (left != right)
-    return {left ? -distance : distance, 0};
-  return {0, 0};
-}
+    struct LayerSlideOffset {
+      int dx = 0;
+      int dy = 0;
+    };
+
+
+    LayerSlideOffset layerSlide(const wlr_layer_surface_v1 *surface) {
+      constexpr int distance = 18;
+      const auto anchor = surface->current.anchor;
+      const bool top = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP;
+      const bool bottom = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM;
+      const bool left = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT;
+      const bool right = anchor & ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+      if (top != bottom)
+        return {0, top ? -distance : distance};
+      if (left != right)
+        return {left ? -distance : distance, 0};
+      return {};
+    }
 } // namespace
 
 SceneAnimationRectangle
