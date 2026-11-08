@@ -6,6 +6,49 @@ if(POLICY CMP0135)
     set(LUDASH_FETCHCONTENT_TIMESTAMP DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 endif()
 
+
+# ==============================================================================
+# LunaDash build options
+# ==============================================================================
+#
+# Quick start:
+#   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+#   cmake --build build --parallel
+#   ctest --test-dir build --output-on-failure
+#   sudo cmake --install build
+#
+# ----- Shell -------------------------------------------------------------------
+#   LUDASH_INSTALL_SHELL=ON|OFF        Build/install LunaDash-Shell and SlintLu (default: ON).
+#                                      OFF builds the compositor only and installs
+#                                      session.json with {"shell": "none"}.
+#   LUDASH_SHELL_SOURCE_DIR=<path>     LunaDash-Shell checkout (default: ./shell).
+#                                      Fetch with: scripts/fetch-shell.sh <dir>
+#   LUDASH_QML_SOURCE_DIR=<path>       Legacy alias of LUDASH_SHELL_SOURCE_DIR.
+#   LUDASH_SLINTLU_SOURCE_DIR=<path>   SlintLu checkout built into libexec/lunadash (optional).
+#                                      Empty uses `slintlu` from PATH.
+#                                      Fetch with: scripts/fetch-slintlu.sh <dir>
+#
+# ----- Dependencies / rendering -----------------------------------------------
+#   LUDASH_SYSTEM_SLINT=ON|OFF         Use an installed Slint C++ package (default: OFF).
+#                                      OFF builds Slint from source and needs rustc + cargo.
+#   LUDASH_ENABLE_VULKAN=ON|OFF        Enable the wlroots Vulkan renderer when available (default: ON).
+#
+# ----- Debug / tests ----------------------------------------------------------
+#   LUDASH_ENABLE_SANITIZERS=ON|OFF    Build project code with ASan + UBSan (default: OFF).
+#   LUDASH_BUILD_RENDERER_TESTS=ON|OFF Build shader and GL lifetime regression tests (default: OFF).
+#   LUDASH_BUILD_PORTAL_RUNTIME_TESTS=ON|OFF
+#                                      Run the real portal frontend and Wayland UI suite (default: OFF).
+#                                      Requires xvfb-run, xauth, wtype, xdg-desktop-portal.
+#
+# ----- Standard CMake ---------------------------------------------------------
+#   CMAKE_BUILD_TYPE                   Debug | Release | RelWithDebInfo | MinSizeRel
+#   CMAKE_INSTALL_PREFIX               Install prefix (installer uses /usr).
+#   BUILD_TESTING=ON|OFF               Native and portal tests (default: ON, from CTest).
+#   CMAKE_CXX_CLANG_TIDY=clang-tidy    Run clang-tidy during the build (also applied to C).
+#
+# ----- Useful commands --------------------------------------------------------
+#   cmake --fresh -S . -B
+
 # The session shell is the external LunaDash-Shell repository: Slint files run by SlintLu
 # (shell.slint).
 # LUDASH_QML_SOURCE_DIR is the former name of this setting and still works.
