@@ -122,4 +122,7 @@ inline int expectedSeatProtocolVersion() {
 #endif
 }
 
+// wl_data_device_manager version that wlr_data_device_manager_create() advertises.
+inline constexpr int dataDeviceProtocolVersion = 3;
+
 } // namespace LunaDash::WlrootsCompat

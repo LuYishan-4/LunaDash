@@ -237,4 +237,16 @@ std::vector<std::string> systemSettingsCommand(std::string_view id) {
   return {};
 }
 
+std::vector<std::string> networkConnectionEditorCommand() {
+  if (auto editor = findExecutable("nm-connection-editor"); !editor.empty())
+    return {editor};
+  if (findExecutable("nmtui").empty())
+    return {};
+  // Terminals that run a command given after -e.
+  for (const auto *terminal : {"kitty", "konsole", "alacritty", "foot"})
+    if (auto path = findExecutable(terminal); !path.empty())
+      return {path, "-e", "nmtui"};
+  return {};
+}
+
 } // namespace LunaDash

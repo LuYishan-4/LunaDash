@@ -37,7 +37,7 @@ bool belongsToProcess(std::int64_t candidate, std::int64_t launched) {
 
 bool WaylandCompositor::toggleScratchpad(std::string *error) {
   for (const auto &client : clients_) {
-    if (client->id != scratchpadWindow_)
+    if (client->id != scratchpad_.window)
       continue;
     const bool hide = client->mapped && !client->minimized &&
                       client->workspace == workspace_ &&
@@ -53,8 +53,8 @@ bool WaylandCompositor::toggleScratchpad(std::string *error) {
       focus(client.get());
     return true;
   }
-  scratchpadWindow_ = 0;
-  if (scratchpadPending_)
+  scratchpad_.window = 0;
+  if (scratchpad_.pending)
     return true;
   std::string nativeError;
   auto command = defaultApplicationCommand("terminal", &nativeError);
@@ -62,9 +62,9 @@ bool WaylandCompositor::toggleScratchpad(std::string *error) {
     *error = (nativeError);
   if (command.empty())
     return false;
-  scratchpadPending_ = true;
-  const auto generation = ++scratchpadGeneration_;
-  scratchpadError_.clear();
+  scratchpad_.pending = true;
+  const auto generation = ++scratchpad_.generation;
+  scratchpad_.error.clear();
   const auto executable = (command.front());
   std::vector<std::string> arguments;
   for (auto argument = std::next(command.begin()); argument != command.end();
@@ -72,41 +72,41 @@ bool WaylandCompositor::toggleScratchpad(std::string *error) {
     arguments.push_back((*argument));
   auto *process = spawn(arguments, executable, false,
                         [this, generation](const ProcessResult &result) {
-                          if (result.success || !scratchpadPending_ ||
-                              scratchpadGeneration_ != generation)
+                          if (result.success || !scratchpad_.pending ||
+                              scratchpad_.generation != generation)
                             return;
                           d->cancelScratchpadTimeout();
-                          scratchpadPending_ = false;
-                          scratchpadProcess_ = 0;
-                          scratchpadError_ =
+                          scratchpad_.pending = false;
+                          scratchpad_.process = 0;
+                          scratchpad_.error =
                               "Could not launch the configured terminal.";
                         });
   if (!process) {
-    scratchpadPending_ = false;
+    scratchpad_.pending = false;
     if (error)
       *error = "Could not launch the configured terminal.";
     return false;
   }
-  scratchpadProcess_ = process->processId();
+  scratchpad_.process = process->processId();
   if (!d->scheduleScratchpadTimeout(generation)) {
-    scratchpadPending_ = false;
-    scratchpadError_ = "Could not monitor the configured terminal launch.";
+    scratchpad_.pending = false;
+    scratchpad_.error = "Could not monitor the configured terminal launch.";
   }
   return true;
 }
 
 void WaylandCompositor::adoptScratchpad(ClientWindow *client) {
-  if (client && client->id == scratchpadWindow_) {
+  if (client && client->id == scratchpad_.window) {
     client->floating = true;
     return;
   }
-  if (!client || !scratchpadPending_ || client->utility ||
-      !belongsToProcess(client->processId, scratchpadProcess_))
+  if (!client || !scratchpad_.pending || client->utility ||
+      !belongsToProcess(client->processId, scratchpad_.process))
     return;
-  scratchpadWindow_ = client->id;
+  scratchpad_.window = client->id;
   d->cancelScratchpadTimeout();
-  scratchpadPending_ = false;
-  scratchpadProcess_ = 0;
+  scratchpad_.pending = false;
+  scratchpad_.process = 0;
   client->floating = true;
   client->workspace = workspace_;
   client->preferredFloatingSize = Size(960, 540);

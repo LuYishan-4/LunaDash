@@ -291,4 +291,25 @@ bool XWaylandSupport::launch(const std::vector<std::string> &command,
   return true;
 }
 
+void applyXWaylandEnvironment(std::map<std::string, std::string> &environment,
+                              const XWaylandSupport *support) {
+  std::map<std::string, std::string> displayEnvironment;
+  for (const auto *name : {"DISPLAY", "XAUTHORITY"}) {
+    if (const auto found = environment.find(name); found != environment.end())
+      displayEnvironment.emplace(name, found->second);
+  }
+  if (support)
+    support->applyEnvironment(displayEnvironment);
+  else {
+    displayEnvironment.erase("DISPLAY");
+    displayEnvironment.erase("XAUTHORITY");
+  }
+  for (const auto *name : {"DISPLAY", "XAUTHORITY"}) {
+    environment.erase(name);
+    if (const auto found = displayEnvironment.find(name);
+        found != displayEnvironment.end())
+      environment.emplace(name, found->second);
+  }
+}
+
 } // namespace LunaDash

@@ -123,9 +123,11 @@ add_library(ludash-file-io src/core/filesystem/FileIo.cpp
 target_include_directories(ludash-file-io PUBLIC src)
 add_library(ludash-log src/core/log/Log.cpp)
 target_include_directories(ludash-log PUBLIC src)
-add_library(ludash-process-runner src/core/process/ProcessRunner.cpp)
+add_library(ludash-process-runner src/core/process/ProcessRunner.cpp
+    src/core/process/ExecutableLookup.cpp)
 target_include_directories(ludash-process-runner PUBLIC src)
-target_link_libraries(ludash-process-runner PUBLIC PkgConfig::WAYLAND_SERVER)
+target_link_libraries(ludash-process-runner PUBLIC PkgConfig::WAYLAND_SERVER
+    PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-crypto src/core/crypto/Sha256.cpp)
 target_include_directories(ludash-crypto PUBLIC src)
 target_link_libraries(ludash-crypto PUBLIC PkgConfig::LUDASH_GIO)
@@ -219,6 +221,7 @@ target_link_libraries(ludash-system-status
 add_library(ludash-tiling
     src/compositor/layout/WindowLayout.cpp
     src/compositor/window/WindowTemplate.cpp
+    src/compositor/window/BuiltinWindowTemplates.cpp
     src/compositor/layout/FreeformLayout.cpp
     src/compositor/layout/ScrollingLayout.cpp
     src/compositor/tiling/TilingLayout.cpp)
@@ -453,7 +456,30 @@ target_link_libraries(ludash-scene-window-effects
 add_library(ludash-wayland
     src/compositor/wayland/NightLight.cpp
     src/compositor/window/Scratchpad.cpp
+    src/compositor/window/Arrange.cpp
+    src/compositor/window/WindowFocus.cpp
+    src/compositor/window/WindowLayoutSettings.cpp
+    src/compositor/window/animation/AnimationProfile.cpp
     src/compositor/wayland/WaylandCompositor.cpp
+    src/compositor/session/SessionStartup.cpp
+    src/compositor/session/SessionHelpers.cpp
+    src/compositor/session/ShellLocation.cpp
+    src/compositor/session/ShellRequests.cpp
+    src/compositor/capture/ScreenshotRequests.cpp
+    src/compositor/client/ClientWindowControl.cpp
+    src/compositor/commands/BuiltinCommands.cpp
+    src/compositor/commands/CommandArguments.cpp
+    src/compositor/commands/CaptureCommands.cpp
+    src/compositor/commands/DeviceCommands.cpp
+    src/compositor/commands/ExtensionCommands.cpp
+    src/compositor/commands/LaunchCommands.cpp
+    src/compositor/commands/SessionCommands.cpp
+    src/compositor/commands/SettingsCommands.cpp
+    src/compositor/commands/WallpaperCommands.cpp
+    src/compositor/commands/WindowCommands.cpp
+    src/compositor/ipc/StateSnapshot.cpp
+    src/compositor/settings/SettingsPages.cpp
+    src/compositor/input/ShortcutActions.cpp
     src/compositor/wayland/DebugSnapshot.cpp
     src/compositor/wayland/Register.cpp
     src/compositor/wayland/Runtime.cpp
@@ -530,6 +556,7 @@ target_link_libraries(ludash-wayland
         ludash-json
         ludash-text
         ludash-file-io
+        ludash-process-runner
         ludash-log
         PkgConfig::WAYLAND_SERVER
         PkgConfig::WLROOTS

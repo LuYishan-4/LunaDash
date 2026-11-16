@@ -419,7 +419,7 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
   if (!handled && !virtualKeyboard)
     for (int i = 0; i < count; ++i)
       if (keypadSymbol(symbols[i])) {
-        ++desktop->keypadKeyForwards_;
+        ++desktop->keyboardDiagnostics_.keypadKeyForwards;
         break;
       }
 
@@ -495,7 +495,7 @@ void WaylandCompositor::Impl::KeyboardState::onModifiers() {
       // Lock state belongs to the physical keyboard and must also reach the
       // focused wl_keyboard. Ordinary Shift/Ctrl/Alt remain owned by the IME.
       wlr_seat_keyboard_send_modifiers(impl->seat, &current);
-      ++desktop->modifierResends_;
+      ++desktop->keyboardDiagnostics_.modifierResends;
     }
   } else {
     wlr_seat_keyboard_notify_modifiers(impl->seat, &keyboard->modifiers);
@@ -540,7 +540,7 @@ void WaylandCompositor::Impl::KeyboardState::onDestroy() {
   if (physical) {
     wlr_seat_set_keyboard(owner->seat, physical);
     wlr_seat_keyboard_notify_modifiers(owner->seat, &physical->modifiers);
-    ++owner->q->modifierResends_;
+    ++owner->q->keyboardDiagnostics_.modifierResends;
   } else {
     owner->restorePreferredKeyboard();
   }
@@ -680,7 +680,7 @@ void WaylandCompositor::Impl::InputMethodState::onGrabKeyboard(
     wlr_input_method_keyboard_grab_v2_send_modifiers(grab, &modifiers);
     wlr_seat_set_keyboard(impl->seat, keyboard);
     wlr_seat_keyboard_send_modifiers(impl->seat, &modifiers);
-    ++impl->q->modifierResends_;
+    ++impl->q->keyboardDiagnostics_.modifierResends;
   }
 }
 
@@ -692,7 +692,7 @@ void WaylandCompositor::Impl::InputMethodState::onDestroy() {
   if (auto *keyboard = owner->preferredKeyboard()) {
     wlr_seat_set_keyboard(owner->seat, keyboard);
     wlr_seat_keyboard_notify_modifiers(owner->seat, &keyboard->modifiers);
-    ++owner->q->modifierResends_;
+    ++owner->q->keyboardDiagnostics_.modifierResends;
   }
 }
 

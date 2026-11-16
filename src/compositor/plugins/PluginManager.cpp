@@ -1108,9 +1108,10 @@ std::string PluginManager::windowTemplateKey() const {
         !errors_.contains(pluginInstanceId(plugin)) &&
         plugin.manifest == native->descriptor.manifest &&
         plugin.target == "window-layout" && plugin.mode == "replace")
-      return jsonString(plugin.implementation, "windowTemplate", "tiling");
+      return jsonString(plugin.implementation, "windowTemplate");
   }
-  return "tiling";
+  // No layout plugin: the registry's default template.
+  return {};
 }
 
 Json PluginManager::filter(const std::string &target, const Json &builtin,

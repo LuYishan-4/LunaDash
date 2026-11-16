@@ -1,6 +1,6 @@
 # Window layout templates
 
-`src/compositor/layout/WindowLayout.hpp` is the contract between the compositor and a layout implementation. `src/compositor/window/WindowTemplate.cpp` registers the known modes, their settings and their factories. The compositor holds a `WindowLayout` rather than depending directly on `TilingLayout`.
+`src/compositor/layout/WindowLayout.hpp` is the contract between the compositor and a layout implementation. `src/compositor/window/WindowTemplate.cpp` is the template registry. `registerWindowTemplate()` adds a template with its settings, actions, factory and the layout mode it reports. `src/compositor/window/BuiltinWindowTemplates.cpp` registers the built-in `tiling` (the default), `stacking` and `scrolling` templates. The compositor holds a `WindowLayout` rather than depending directly on `TilingLayout`, and finds templates by key. A template can name a variant preference: `tiling` and `scrolling` are the `fill` and `scroll` variants of the `tilingMode` preference, so the compositor resolves the variant from template data instead of comparing template names.
 
 | Template | Available | Implementation |
 | --- | --- | --- |

@@ -160,8 +160,8 @@ Json WaylandCompositor::debugSnapshot() const {
       {"capture",
        {
            {"phase", screenCapture_ ? screenCapture_->phase() : "unavailable"},
-           {"last", lastCapture_},
-           {"error", captureError_},
+           {"last", capture_.last},
+           {"error", capture_.error},
        }},
       {"processes", processes},
       {"eventLoop",

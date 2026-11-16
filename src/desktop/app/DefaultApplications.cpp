@@ -21,7 +21,9 @@ namespace fs = std::filesystem;
 using Json = nlohmann::json;
 using Command = std::vector<std::string>;
 
-constexpr std::array<std::string_view, 3> roles{"terminal", "files", "browser"};
+constexpr std::array<std::string_view, 3> roles{DefaultApplicationRole::terminal,
+                                                DefaultApplicationRole::files,
+                                                DefaultApplicationRole::browser};
 
 void setError(std::string *error, std::string message) {
   if (error)
@@ -407,5 +409,9 @@ Command defaultApplicationCommand(std::string_view role, std::string *error) {
 }
 
 Command konsoleCommand() { return userKonsoleCommand(); }
+
+bool isDefaultApplicationRole(std::string_view role) {
+  return std::find(roles.begin(), roles.end(), role) != roles.end();
+}
 
 } // namespace LunaDash

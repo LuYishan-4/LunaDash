@@ -585,7 +585,7 @@ void WaylandCompositor::Impl::LayerState::onDestroy() {
 }
 
 void WaylandCompositor::Impl::restoreLayerFocus() {
-  if (q->shuttingDown_ || q->testStopping_)
+  if (q->lifecycle_.shuttingDown || q->lifecycle_.testStopping)
     return;
   LayerState *target = nullptr;
   for (auto *layer : layers) {

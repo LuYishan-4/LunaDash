@@ -10,7 +10,7 @@ namespace LunaDash {
 
 bool WaylandCompositor::Impl::fail(const char *message) {
   logCritical("LunaDash wlroots: %s", message);
-  q->processFailure_ = true;
+  q->lifecycle_.processFailure = true;
   terminateEventLoop(2);
   return false;
 }
@@ -32,7 +32,7 @@ int WaylandCompositor::Impl::runEventLoop(bool profile) {
     const auto started = std::chrono::steady_clock::now();
     if (wl_event_loop_dispatch(eventLoop, 0) < 0) {
       logCritical("LunaDash wlroots event dispatch failed.");
-      q->processFailure_ = true;
+      q->lifecycle_.processFailure = true;
       exitCode = 2;
       break;
     }
@@ -77,7 +77,7 @@ int WaylandCompositor::Impl::runEventLoop(bool profile) {
     if (result < 0 ||
         (descriptors.front().revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
       logCritical("LunaDash could not poll the wlroots event loop.");
-      q->processFailure_ = true;
+      q->lifecycle_.processFailure = true;
       exitCode = 2;
       break;
     }
@@ -129,11 +129,11 @@ void WaylandCompositor::Impl::cancelScratchpadTimeout() {
 
 void WaylandCompositor::Impl::onScratchpadTimeout() {
   cancelScratchpadTimeout();
-  if (q && q->scratchpadPending_ &&
-      q->scratchpadGeneration_ == scratchpadTimeoutGeneration) {
-    q->scratchpadPending_ = false;
-    q->scratchpadProcess_ = 0;
-    q->scratchpadError_ =
+  if (q && q->scratchpad_.pending &&
+      q->scratchpad_.generation == scratchpadTimeoutGeneration) {
+    q->scratchpad_.pending = false;
+    q->scratchpad_.process = 0;
+    q->scratchpad_.error =
         "The terminal did not create a new window. Configure "
         "the terminal role to start a separate process.";
   }

@@ -52,7 +52,8 @@ Source archive 必須含 `data/plugins/` 與 `templates/`，不然 installed plu
 | --- | --- |
 | `src/compositor/session` | startup / child environment / launch policy |
 | `src/compositor/wayland` | runtime/output/surface lifetime |
-| `src/compositor/input` | keyboard/pointer/IME |
+| `src/compositor/input` | keyboard/pointer/IME、快捷鍵動作 |
+| `src/compositor/commands` | 控制通道方法註冊表與各領域內建方法 |
 | `src/compositor/layout` | WindowLayout contract/factory |
 | `src/compositor/tiling` | 預設 bounded tiling |
 | `src/compositor/stacking` | optional stacking |

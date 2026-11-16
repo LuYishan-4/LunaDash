@@ -19,5 +19,8 @@ struct SystemSettingsTool {
 std::vector<SystemSettingsTool> systemSettingsTools();
 bool systemSettingsToolUsesHost(std::string_view id);
 std::vector<std::string> systemSettingsCommand(std::string_view id);
+// The graphical network connection editor, or nmtui in a terminal; empty when
+// neither is installed.
+std::vector<std::string> networkConnectionEditorCommand();
 
 } // namespace LunaDash

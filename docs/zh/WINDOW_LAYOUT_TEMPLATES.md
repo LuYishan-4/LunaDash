@@ -2,7 +2,7 @@
 
 [English](../en/WINDOW_LAYOUT_TEMPLATES.md) · [繁中索引](README.md)
 
-`src/compositor/layout/WindowLayout.hpp` 是 compositor 與 layout implementation 之間的共用 contract；`src/compositor/window/WindowTemplate.cpp` 註冊模式、設定及建立 implementation 的 factory。Compositor 只依賴 `WindowLayout`，不直接綁死 `TilingLayout`。
+`src/compositor/layout/WindowLayout.hpp` 是 compositor 與 layout implementation 之間的共用 contract；`src/compositor/window/WindowTemplate.cpp` 是模板註冊表：`registerWindowTemplate()` 加入模板及其設定、動作、factory 與回報的 layout mode；`src/compositor/window/BuiltinWindowTemplates.cpp` 註冊內建的 `tiling`（預設）、`stacking` 與 `scrolling`。Compositor 只依賴 `WindowLayout`，不直接綁死 `TilingLayout`，並以 key 查找模板。模板可以指定 variant 偏好：`tiling` 與 `scrolling` 是 `tilingMode` 偏好的 `fill` 與 `scroll` 兩個 variant，因此 compositor 依模板資料決定 variant，不比較模板名稱。
 
 | Template | 狀態 | Implementation |
 | --- | --- | --- |

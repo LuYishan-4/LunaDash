@@ -1,5 +1,7 @@
 #include "core/text/Url.hpp"
 
+#include <glib.h>
+
 namespace LunaDash {
 namespace {
 bool unreserved(unsigned char character) {
@@ -109,6 +111,19 @@ bool isHttpsUrl(std::string_view url) {
   const auto host = at == std::string_view::npos ? authority
                                                  : authority.substr(at + 1);
   return !host.empty() && host.front() != ':';
+}
+
+std::string localFileUri(const std::string &path) {
+  GError *error = nullptr;
+  gchar *uri = g_filename_to_uri(path.c_str(), nullptr, &error);
+  if (!uri) {
+    if (error)
+      g_error_free(error);
+    return {};
+  }
+  const std::string result(uri);
+  g_free(uri);
+  return result;
 }
 
 } // namespace LunaDash

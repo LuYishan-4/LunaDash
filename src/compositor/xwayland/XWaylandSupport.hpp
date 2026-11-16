@@ -20,6 +20,8 @@ struct wlr_xwayland_surface;
 namespace LunaDash {
 
 struct XWaylandSnapshot {
+  // XWayland starts on the first X11 client and runs rootless with the wlroots XWM.
+  static constexpr const char *mode = "rootless-lazy-xwm";
   bool available = false;
   bool running = false;
   bool selectionBridge = false;
@@ -66,5 +68,10 @@ private:
   std::string error_;
   bool xwmReady_ = false;
 };
+
+// Replaces DISPLAY/XAUTHORITY in a client environment with the running
+// XWayland server's values, or removes them without XWayland.
+void applyXWaylandEnvironment(std::map<std::string, std::string> &environment,
+                              const XWaylandSupport *support);
 
 } // namespace LunaDash

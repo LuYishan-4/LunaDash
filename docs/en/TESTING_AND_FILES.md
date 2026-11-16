@@ -50,7 +50,8 @@ A successful build does not verify runtime behavior. A complete manual session c
 | --- | --- |
 | `src/compositor/session` | Startup, child environments and launch policy |
 | `src/compositor/wayland` | Runtime, output and surface lifetimes; private wlroots compatibility boundary |
-| `src/compositor/input` | Physical keyboard and pointer handling, text-input/input-method bridge |
+| `src/compositor/input` | Physical keyboard and pointer handling, text-input/input-method bridge, shortcut actions |
+| `src/compositor/commands` | Control-channel method registry and the built-in methods per domain |
 | `src/compositor/tiling`, `window`, `client` | Layout, rules and client state |
 | `src/compositor/window/animation` | wlroots scene transitions |
 | `src/compositor/renderer` | Render orchestration, common types and item adapters |
