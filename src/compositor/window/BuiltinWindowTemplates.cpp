@@ -24,9 +24,23 @@ std::unique_ptr<WindowLayout> createScrollingLayout() {
 Json defaultWindowAnimation() {
   return {{"duration", -1},
           {"enterOffset", 8},
-          {"focusOpacity", 0.88},
+          {"focusOpacity", 1.0},
           {"exitScale", 0.96},
           {"easing", "outCubic"}};
+}
+
+// Critically damped springs: no overshoot, and interrupted motions continue
+// with their velocity. Workspaces switch slightly faster than windows move.
+Json defaultWindowMotion() {
+  const auto spring = [](double stiffness) {
+    return Json{{"stiffness", stiffness}, {"dampingRatio", 1.0}};
+  };
+  return {{"openScale", 0.92},
+          {"closeDuration", 150},
+          {"windowOpen", spring(800)},
+          {"windowMovement", spring(800)},
+          {"windowResize", spring(800)},
+          {"workspaceSwitch", spring(1000)}};
 }
 
 Json commonActions() {
@@ -103,6 +117,7 @@ WindowTemplate tilingTemplate() {
   value.variantPreference = tilingModePreference;
   value.variant = "fill";
   value.sharesDesktopGap = true;
+  value.motion = defaultWindowMotion();
   return value;
 }
 
@@ -123,6 +138,7 @@ WindowTemplate stackingTemplate() {
                        schema, windowTemplateDefaults(schema), actions,
                        defaultWindowAnimation()};
   value.layoutMode = "stacking";
+  value.motion = defaultWindowMotion();
   return value;
 }
 // niri-like columns: the "normal" counterpart of tiling's fill-the-screen tree.
@@ -154,6 +170,7 @@ WindowTemplate scrollingTemplate() {
   value.variantPreference = tilingModePreference;
   value.variant = "scroll";
   value.sharesDesktopGap = true;
+  value.motion = defaultWindowMotion();
   return value;
 }
 } // namespace

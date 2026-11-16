@@ -71,8 +71,10 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
       logWarning("Could not schedule a plugin change relayout.");
   });
   windowAnimations_ = std::make_unique<SceneWindowAnimationTemplate>();
-  windowAnimations_->configure(sceneAnimationOptions(windowAnimationProfile(
-      *pluginManager_, desktopPreferences(), *windowTemplate_)));
+  windowAnimations_->animation().setSnapshotLayer(d->animationLayer);
+  windowAnimations_->configure(sceneAnimationOptions(
+      windowAnimationProfile(*pluginManager_, desktopPreferences(), *windowTemplate_),
+      windowTemplate_->motion));
 
   startControlServer(socket);
 

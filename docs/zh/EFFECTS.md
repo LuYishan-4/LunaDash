@@ -2,7 +2,7 @@
 
 [English](../en/EFFECTS.md) · [繁中索引](README.md)
 
-活動中的 wlroots compositor 使用 `src/compositor/window/animation/SceneAnimation`。預設 220 ms：map 時淡入並輕微上移；close/unmap 時保留 scene snapshot，讓 surface 已消失後動畫仍能正常結束。Move 會更新 scene position。切換工作區時，舊工作區的視窗依切換方向滑出、新工作區的視窗滑入；最小化時視窗會一邊淡出一邊往 Dock 方向下沉；layer-shell 介面（面板、Dock、彈出視窗、通知）會從錨定的邊緣滑入，置中或全螢幕的介面只淡入淡出。桌布、截圖的區域選取畫面，以及截圖進行中的任何介面都不做動畫，確保截圖裡不會出現淡出中的殘影。`lunadashctl debug animations` 可查看實際動畫時間與進行中的動畫數量。
+活動中的 wlroots compositor 使用 `src/compositor/window/animation/SceneAnimation`。視窗位置與大小以臨界阻尼彈簧移動：新的動作打斷進行中的動畫時（連按聚焦或版面快捷鍵、重新排版時開啟新視窗），會從目前位置與速度接續，而不是從頭開始。新視窗使用第一個畫面的 snapshot，從 92% 大小一邊放大一邊淡入；無法建立 snapshot 時（explicit-sync buffer）改為淡入並依設定的偏移上移。close/unmap 時保留 scene snapshot，以 150 ms 縮小並淡出，讓 surface 已消失後動畫仍能正常結束。調整大小時，舊畫面會裁切到移動中的矩形而不是被拉伸，新內容在動作後半段交叉淡入。聚焦切換預設不再讓視窗閃一下（`focusOpacity` 為 1）；window-animation target 仍可設定較低的值。動畫推進到下一個畫面預計顯示的時間（提前一個刷新週期）。動畫時間偏好（預設 220 ms）會等比例調整彈簧與關閉動畫。彈簧的剛性與阻尼屬於視窗模板的 `motion`，不在插件可見的 profile 裡。切換工作區時，舊工作區的視窗依切換方向滑出、新工作區的視窗滑入；最小化時視窗會一邊淡出一邊往 Dock 方向下沉；layer-shell 介面（面板、Dock、彈出視窗、通知）會從錨定的邊緣滑入，置中或全螢幕的介面只淡入淡出。桌布、截圖的區域選取畫面，以及截圖進行中的任何介面都不做動畫，確保截圖裡不會出現淡出中的殘影。`lunadashctl debug animations` 可查看實際動畫時間與進行中的動畫數量。尚未實作：用觸控板手勢拖動工作區或捲動版面、捲動版面獨立的鏡頭彈簧（目前欄位跟著視窗彈簧移動），以及次像素定位（scene 位置仍是整數邏輯像素）。
 
 ```sh
 export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"

@@ -341,7 +341,14 @@ void WaylandCompositor::Impl::OutputState::advanceAnimations(
   if (!animations)
     return;
   const bool wasAnimating = animations->activeCount() > 0;
-  animations->advance();
+  // This frame reaches the screen about one refresh period from now; step the
+  // animations to that time instead of to the moment the frame is built.
+  constexpr std::uint64_t fallbackRefreshPeriodNs = 16666667ULL;
+  const std::uint64_t periodNs =
+      output->refresh > 0
+          ? 1000000000000ULL / static_cast<std::uint64_t>(output->refresh)
+          : fallbackRefreshPeriodNs;
+  animations->advance(nowNs + periodNs);
   const bool stillAnimating = animations->activeCount() > 0;
   // Publish the moving layout at about 30 Hz, and once more when it settles.
   if (wasAnimating &&
