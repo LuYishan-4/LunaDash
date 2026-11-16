@@ -37,7 +37,9 @@ public:
   }
 
   void clear() { animation_.clear(); }
-  void advance() { animation_.advance(); }
+  template <typename... Args> void advance(Args &&...args) {
+    animation_.advance(std::forward<Args>(args)...);
+  }
   int activeCount() const { return animation_.activeCount(); }
 
   Animation &animation() { return animation_; }

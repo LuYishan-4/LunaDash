@@ -223,8 +223,9 @@ void WaylandCompositor::arrange() {
   applyVisualPreferences(preferences);
   const bool templateChanged = selectWindowTemplate();
   if (windowAnimations_)
-    windowAnimations_->configure(sceneAnimationOptions(windowAnimationProfile(
-        *pluginManager_, preferences, *windowTemplate_)));
+    windowAnimations_->configure(sceneAnimationOptions(
+        windowAnimationProfile(*pluginManager_, preferences, *windowTemplate_),
+        windowTemplate_->motion));
   const int count = workspaceCount();
   workspace_ = std::clamp(workspace_, 0, std::max(0, count - 1));
   const Rect area = workArea();

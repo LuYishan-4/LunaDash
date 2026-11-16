@@ -21,7 +21,7 @@
       },
       "focusOpacity": {
         "type": "number",
-        "default": 0.82,
+        "default": 1,
         "minimum": 0,
         "maximum": 1
       },

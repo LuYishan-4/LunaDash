@@ -23,7 +23,12 @@ struct WindowTemplate {
   Json layoutSettingsSchema = Json::object();
   Json layoutSettingsDefaults = Json::object();
   Json layoutActions = Json::object();
+  // Window-animation profile (the window-animation plugin target's settings).
   Json animation = Json::object();
+  // Springs and timings of the scene animation, not exposed to plugins:
+  // openScale, closeDuration and {stiffness, dampingRatio} objects for
+  // windowOpen, windowMovement, windowResize and workspaceSwitch.
+  Json motion = Json::object();
   // Layout mode reported to the shell (state().layoutMode).
   std::string layoutMode;
   // Templates sharing a variant preference are alternatives of one layout: the
