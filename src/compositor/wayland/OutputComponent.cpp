@@ -79,7 +79,8 @@ bool WaylandCompositor::Impl::OutputComponent::commitInitialState(
     wlr_output_state_set_mode(&pending, chosen);
   else if (!impl->fullscreen)
     wlr_output_state_set_custom_mode(
-        &pending, 1440, 900,
+        &pending, impl->virtualOutputSize.width(),
+        impl->virtualOutputSize.height(),
         WlrootsCompat::nestedModeRefresh(output, kDefaultOutputRefreshMilliHz));
   const float scale =
       std::clamp(static_cast<float>(settings.value("scale", 1.0)), 1.0f, 3.0f);

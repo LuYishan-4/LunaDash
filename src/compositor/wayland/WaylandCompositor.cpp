@@ -882,7 +882,11 @@ bool WaylandCompositor::updateWindowLayoutSettings(const Json &changes,
 }
 
 Rect WaylandCompositor::workArea() const {
-  Rect area = d ? d->usableArea : Rect(0, 0, 1440, 900);
+  Rect area = d ? d->usableArea : Rect();
+  if (!d) {
+    const Size size = virtualOutputSize(desktopPreferences());
+    area = Rect(0, 0, size.width(), size.height());
+  }
   const auto settings = currentWindowLayoutSettings();
   const int gap = jsonContains(settings, "gap")
                       ? jsonInt(settings, "gap")
@@ -2234,8 +2238,10 @@ Json WaylandCompositor::control(const Json &request) {
     if (!resetDesktopPreferences(&nativeError))
       return {{"error", (nativeError)}};
     weatherStatus_->refresh();
-    if (d)
+    if (d) {
+      d->loadOutputSizePreferences();
       d->updateNightLight();
+    }
     applyKeyboardConfiguration();
     arrange();
   } else if (method == "window-layout-action") {
@@ -2372,6 +2378,7 @@ Json WaylandCompositor::control(const Json &request) {
       refreshWallpaperPalette(d->eventLoop, path, wallpaperIsVideo(path));
     }
     if (d) {
+      d->loadOutputSizePreferences();
       d->updateBackground();
       d->updateNightLight();
     }

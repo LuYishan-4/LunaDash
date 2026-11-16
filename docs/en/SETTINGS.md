@@ -50,8 +50,10 @@ Additional keys in the existing `[desktop]` group:
 | `fontFamily` | sans-serif | sans-serif, serif, monospace |
 | `clock24Hour` | true | Boolean |
 | `startupApps` | empty | Unique built-in IDs: files, packages, welcome |
+| `virtualOutputSize` | 1440x900 | `WIDTHxHEIGHT` from 320x240 to 7680x4320; size of an output without modes (nested window, headless) until it is resized |
+| `virtualOutputSizes` | 800x600, 1280x720, 1440x900, 1920x1080 | 1–8 unique `WIDTHxHEIGHT` sizes; the only sizes `desktop-size` accepts and the modes Settings → Display offers in a windowed nested session |
 
-Startup selection runs after the shell starts in sessions whose welcome screen has been dismissed. Network, audio, power and account settings belong to their system services and are not copied into LunaDash's INI file. Resetting desktop preferences does not delete documents, reset language/wallpaper selections or modify system-service configuration. Nested window size is session-local.
+Startup selection runs after the shell starts in sessions whose welcome screen has been dismissed. Network, audio, power and account settings belong to their system services and are not copied into LunaDash's INI file. Resetting desktop preferences does not delete documents, reset language/wallpaper selections or modify system-service configuration. A nested window resize is session-local; change `virtualOutputSizes` to offer other sizes.
 
 ## IPC and tests
 
@@ -65,6 +67,7 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadashctl reset-shortcuts
 ./build/lunadashctl check-update
 ./build/lunadashctl send-key copy
+./build/lunadashctl appearance '{"virtualOutputSizes":["1280x720","2560x1440"]}'
 ./build/lunadashctl desktop-size 1280x720
 ./build/lunadashctl screenshot
 ./build/lunadashctl capture /tmp/lunadash.png

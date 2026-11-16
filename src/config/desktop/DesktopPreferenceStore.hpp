@@ -1,14 +1,27 @@
 #pragma once
 
+#include "core/geometry/Geometry.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace LunaDash {
 
 nlohmann::json defaultDesktopPreferenceValues();
+
+// "WIDTHxHEIGHT" between 320x240 and 7680x4320, as virtual output sizes are
+// written in preferences and in the desktop-size command.
+std::optional<Size> parseVirtualOutputSize(std::string_view text);
+// The size of an output that advertises no modes (nested windows, headless
+// outputs) until something resizes it.
+Size virtualOutputSize(const nlohmann::json &preferences);
+// The sizes desktop-size and the nested Settings → Display modes offer.
+std::vector<Size> virtualOutputSizes(const nlohmann::json &preferences);
 nlohmann::json loadDesktopPreferences();
 bool saveDesktopPreferences(const nlohmann::json &changes, std::string *error);
 bool resetDesktopPreferences(std::string *error);

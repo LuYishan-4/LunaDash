@@ -47,7 +47,12 @@ cursorSize        24 px    (16–64，下一次 session)
 fontFamily        sans-serif
 clock24Hour       true
 startupApps       []
+virtualOutputSize   1440x900   (WIDTHxHEIGHT，320x240–7680x4320；沒有 mode 的 output——巢狀視窗、headless——在被調整前的大小)
+virtualOutputSizes  ["800x600","1280x720","1440x900","1920x1080"]
+                               (1–8 個不重複的 WIDTHxHEIGHT；desktop-size 只接受這些大小，視窗化巢狀 session 的「設定 → 顯示」也只列出這些 mode)
 ```
+
+巢狀視窗的大小調整只在當次 session 有效；要提供其他大小，請修改 `virtualOutputSizes`。
 
 ## IPC
 
@@ -60,6 +65,8 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 ./build/lunadashctl reset-shortcuts
 ./build/lunadashctl check-update
 ./build/lunadashctl send-key copy
+./build/lunadashctl appearance '{"virtualOutputSizes":["1280x720","2560x1440"]}'
+./build/lunadashctl desktop-size 1280x720
 ./build/lunadashctl screenshot
 ./build/lunadashctl capture /tmp/lunadash.png
 ```

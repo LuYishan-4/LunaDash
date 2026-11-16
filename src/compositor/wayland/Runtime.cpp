@@ -13,6 +13,8 @@ WaylandCompositor::Impl::Impl(WaylandCompositor *owner,
       nested(!environmentValue("WAYLAND_DISPLAY").empty() ||
              !environmentValue("DISPLAY").empty()),
       rendererPreference(renderer) {
+  loadOutputSizePreferences();
+  usableArea = Rect(0, 0, virtualOutputSize.width(), virtualOutputSize.height());
   display = wl_display_create();
   if (display)
     eventLoop = wl_display_get_event_loop(display);
@@ -107,7 +109,8 @@ bool WaylandCompositor::Impl::createRuntime() {
   fullscreenLayer = wlr_scene_tree_create(&scene->tree);
   overlayLayer = wlr_scene_tree_create(&scene->tree);
   const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
-  background = wlr_scene_rect_create(backgroundLayer, 1440, 900, color);
+  background = wlr_scene_rect_create(backgroundLayer, virtualOutputSize.width(),
+                                     virtualOutputSize.height(), color);
   windowGlass =
       std::make_unique<WindowGlass>(renderer, allocator, &scene->tree.node);
   windowCorners = std::make_unique<WindowCorners>();

@@ -439,6 +439,23 @@ bool validDesktopPreference(std::string_view key, const Json &value) {
     return std::isfinite(number) && std::floor(number) == number &&
            number >= minimum && number <= maximum;
   }
+  if (key == "virtualOutputSize")
+    return isString(value, 16) &&
+           parseVirtualOutputSize(value.get<std::string>()).has_value();
+  if (key == "virtualOutputSizes") {
+    if (!value.is_array() || value.empty() || value.size() > 8)
+      return false;
+    std::vector<Size> seen;
+    for (const auto &entry : value) {
+      const auto size = isString(entry, 16)
+                            ? parseVirtualOutputSize(entry.get<std::string>())
+                            : std::nullopt;
+      if (!size || std::find(seen.begin(), seen.end(), *size) != seen.end())
+        return false;
+      seen.push_back(*size);
+    }
+    return true;
+  }
   if (key == "accent" || key == "secondaryAccent")
     return validColor(value);
   // "fill": the split tree fills the screen; "scroll": niri-like columns.
@@ -589,7 +606,50 @@ Json defaultDesktopPreferenceValues() {
       {"proxyBypass", ""},
       {"overview", false},
       {"showHostDetails", false},
-      {"updateChannel", "stable"}};
+      {"updateChannel", "stable"},
+      {"virtualOutputSize", "1440x900"},
+      {"virtualOutputSizes", {"800x600", "1280x720", "1440x900", "1920x1080"}}};
+}
+
+std::optional<Size> parseVirtualOutputSize(std::string_view text) {
+  const auto separator = text.find('x');
+  if (separator == std::string_view::npos)
+    return std::nullopt;
+  const auto parse = [](std::string_view digits) -> std::optional<int> {
+    int value = 0;
+    const auto *end = digits.data() + digits.size();
+    const auto result = std::from_chars(digits.data(), end, value);
+    if (digits.empty() || result.ec != std::errc() || result.ptr != end)
+      return std::nullopt;
+    return value;
+  };
+  const auto width = parse(text.substr(0, separator));
+  const auto height = parse(text.substr(separator + 1));
+  if (!width || !height || *width < 320 || *width > 7680 || *height < 240 ||
+      *height > 4320)
+    return std::nullopt;
+  return Size(*width, *height);
+}
+
+Size virtualOutputSize(const Json &preferences) {
+  const auto value = preferences.find("virtualOutputSize");
+  if (value != preferences.end() && value->is_string())
+    if (const auto size = parseVirtualOutputSize(value->get<std::string>()))
+      return *size;
+  return *parseVirtualOutputSize(
+      defaultDesktopPreferenceValues()["virtualOutputSize"].get<std::string>());
+}
+
+std::vector<Size> virtualOutputSizes(const Json &preferences) {
+  auto value = preferences.find("virtualOutputSizes");
+  const auto defaults = defaultDesktopPreferenceValues();
+  if (value == preferences.end() ||
+      !validDesktopPreference("virtualOutputSizes", *value))
+    value = defaults.find("virtualOutputSizes");
+  std::vector<Size> sizes;
+  for (const auto &entry : *value)
+    sizes.push_back(*parseVirtualOutputSize(entry.get<std::string>()));
+  return sizes;
 }
 
 Json loadDesktopPreferences() {

@@ -53,7 +53,7 @@ std::uint64_t nanoseconds(const timespec &time) {
 
 Size WaylandCompositor::Impl::outputSize() const {
   if (!primaryOutput)
-    return {1440, 900};
+    return virtualOutputSize;
   int width = 0;
   int height = 0;
   wlr_output_effective_resolution(primaryOutput, &width, &height);
@@ -221,29 +221,30 @@ void WaylandCompositor::Impl::arrangeLayers() {
   usableArea = Rect(usable.x, usable.y, usable.width, usable.height);
 }
 
+void WaylandCompositor::Impl::loadOutputSizePreferences() {
+  const auto preferences = desktopPreferences();
+  virtualOutputSize = LunaDash::virtualOutputSize(preferences);
+  virtualOutputSizes = LunaDash::virtualOutputSizes(preferences);
+}
+
 bool WaylandCompositor::Impl::resizePrimaryOutput(const std::string &preset,
                                                   std::string *error) {
-  static const std::array<std::pair<std::string_view, Size>, 4> sizes{{
-      {"800x600", {800, 600}},
-      {"1280x720", {1280, 720}},
-      {"1440x900", {1440, 900}},
-      {"1920x1080", {1920, 1080}},
-  }};
-  const auto presetName = preset;
-  const auto size = std::find_if(sizes.begin(), sizes.end(),
-                                 [&presetName](const auto &entry) {
-                                   return entry.first == presetName;
-                                 });
-  if (!nested || fullscreen || size == sizes.end() || !primaryOutput) {
+  // The offered sizes are the desktop preference virtualOutputSizes.
+  const auto size = parseVirtualOutputSize(preset);
+  const bool offered =
+      size && std::find(virtualOutputSizes.begin(), virtualOutputSizes.end(),
+                        *size) != virtualOutputSizes.end();
+  if (!nested || fullscreen || !offered || !primaryOutput) {
     if (error)
-      *error = "Choose a supported size in a windowed nested wlroots session.";
+      *error = "Choose a size from virtualOutputSizes in a windowed nested "
+               "wlroots session.";
     return false;
   }
 
   wlr_output_state state;
   wlr_output_state_init(&state);
   wlr_output_state_set_custom_mode(
-      &state, size->second.width(), size->second.height(),
+      &state, size->width(), size->height(),
       WlrootsCompat::nestedModeRefresh(primaryOutput,
                                        kDefaultOutputRefreshMilliHz));
   const bool ok = wlr_output_commit_state(primaryOutput, &state);

@@ -384,7 +384,11 @@ public:
   wl_event_source *scratchpadTimeout = nullptr;
   std::uint64_t scratchpadTimeoutGeneration = 0;
   std::string displayError;
-  Rect usableArea{0, 0, 1440, 900};
+  // Desktop preferences virtualOutputSize and virtualOutputSizes; read once
+  // and again after preferences change, never per frame or layout.
+  Size virtualOutputSize;
+  std::vector<Size> virtualOutputSizes;
+  Rect usableArea;
   bool eyeCareActive = false;
   float steadyWindowOpacity = 0.90f;
   std::uint64_t dispatchCalls = 0;
@@ -497,6 +501,7 @@ public:
   Size outputSize() const;
   // Background, layer-shell work area and window layout after a size change.
   void relayoutOutputs();
+  void loadOutputSizePreferences();
 
   Json displaySnapshot() const;
   Json displayModes() const;
