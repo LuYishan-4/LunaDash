@@ -10,24 +10,72 @@
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/filesystem/FileIo.hpp"
 #include "core/log/Log.hpp"
+#include "core/templates/LunaClint.hpp"
 #include "core/templates/WaylandSlot.hpp"
 #include "core/text/Text.hpp"
 #include <algorithm>
 #include <chrono>
+#include <ctime>
 #include <functional>
+#include <memory>
 #include <unordered_set>
 #include <vector>
 #include <wayland-server-core.h>
+
+// Signal payloads of optional wlroots features; complete only when enabled.
+struct wlr_xwayland_surface_configure_event;
+struct wlr_xwayland_minimize_event;
+
 namespace LunaDash {
+using Templates::LunaClint;
 using Templates::WaylandSlot;
 inline constexpr int kDefaultOutputRefreshMilliHz = 60000;
+
+// The wlroots runtime of one compositor session.
+//
+// Global wlroots signals (a new output, a new window, pointer motion) go to the
+// domain components that Register.cpp registers. Signals of one object (a
+// frame of one output, a commit of one window) go to that object's state below.
+// Every handler is an onXxx member function; slots disconnect themselves.
 class WaylandCompositor::Impl {
 public:
   template <typename Owner> using Slot = WaylandSlot<Owner>;
 
-  struct OutputState {
-    Impl *impl = nullptr;
-    wlr_output *output = nullptr;
+  // One domain's protocol globals and the global signals they emit.
+  class Component {
+  public:
+    explicit Component(Impl *owner) : impl(owner) {}
+    virtual ~Component() = default;
+    Component(const Component &) = delete;
+    Component &operator=(const Component &) = delete;
+    // Creates the domain's globals and listens to their signals.
+    virtual bool start() = 0;
+
+  protected:
+    Impl *const impl;
+  };
+  class OutputComponent;
+  class XdgShellComponent;
+  class LayerShellComponent;
+  class WindowCaptureComponent;
+  class InputDeviceComponent;
+  class PointerComponent;
+  class TextInputComponent;
+  class ClipboardComponent;
+
+  struct OutputState : LunaClint<OutputState> {
+    OutputState(Impl *owner, wlr_output *wlrOutput);
+    ~OutputState();
+    OutputState(const OutputState &) = delete;
+    OutputState &operator=(const OutputState &) = delete;
+
+    void onFrame();
+    void onRequestState(wlr_output_event_request_state *event);
+    void onDestroy();
+    void onScreencopyTimer();
+
+    Impl *const impl;
+    wlr_output *const output;
     wlr_scene_output *sceneOutput = nullptr;
     // Keep a short frame tail after a screencopy request is consumed so
     // portal clients have time to queue their next streaming frame.
@@ -47,11 +95,51 @@ public:
     Slot<OutputState> frame;
     Slot<OutputState> destroy;
     Slot<OutputState> requestState;
+
+  private:
+    bool updateCaptureCursor();
+    void advanceAnimations(std::uint64_t nowNs);
+    void commitScene();
+    void sendFrameDone(timespec *now);
+    void scheduleCaptureTail(bool capturePending);
+    void recordFrameWork(std::uint64_t startedNs);
   };
 
-  struct ToplevelState {
-    Impl *impl = nullptr;
-    ClientWindow *client = nullptr;
+  struct ToplevelState : LunaClint<ToplevelState> {
+    ToplevelState(Impl *owner, ClientWindow *window);
+    ~ToplevelState();
+    ToplevelState(const ToplevelState &) = delete;
+    ToplevelState &operator=(const ToplevelState &) = delete;
+    void listenTo(wlr_xdg_surface *surface, wlr_xdg_toplevel *toplevel);
+
+    void onMap();
+    void onUnmap();
+    void onCommit();
+    void onMetadata();
+    void onParent();
+    void onMinimize();
+    void onMaximize();
+    void onFullscreen();
+    void onMove(wlr_xdg_toplevel_move_event *event);
+    void onResize(wlr_xdg_toplevel_resize_event *event);
+    void onSceneContentDestroy();
+    void onDestroy();
+
+#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
+    void createForeignToplevel();
+    void updateForeignToplevel();
+    void destroyForeignToplevel();
+#endif
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+    void createLegacyForeignToplevel();
+    void updateLegacyForeignToplevel();
+    void destroyLegacyForeignToplevel();
+#endif
+    // Foreign-toplevel handles and the capture scene; safe to call twice.
+    void releaseProtocolObjects();
+
+    Impl *const impl;
+    ClientWindow *const client;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
     wlr_scene *imageCaptureScene = nullptr;
     wlr_scene_tree *imageCaptureTree = nullptr;
@@ -80,9 +168,31 @@ public:
     Slot<ToplevelState> requestResize;
   };
 
-  struct XWaylandState {
-    Impl *impl = nullptr;
-    ClientWindow *client = nullptr;
+  struct XWaylandState : LunaClint<XWaylandState> {
+    XWaylandState(Impl *owner, ClientWindow *window,
+                  wlr_xwayland_surface *xwaylandSurface);
+    XWaylandState(const XWaylandState &) = delete;
+    XWaylandState &operator=(const XWaylandState &) = delete;
+    void listenToSurface();
+
+    void onAssociate();
+    void onDissociate();
+    void onMap();
+    void onUnmap();
+    void onConfigure(wlr_xwayland_surface_configure_event *event);
+    void onMove();
+    void onResize();
+    void onMinimize(wlr_xwayland_minimize_event *event);
+    void onMaximize();
+    void onFullscreen();
+    void onActivate();
+    void onMetadata();
+    void onSceneDestroy();
+    void onSceneContentDestroy();
+    void onDestroy();
+
+    Impl *const impl;
+    ClientWindow *const client;
     wlr_xwayland_surface *surface = nullptr;
     Slot<XWaylandState> associate;
     Slot<XWaylandState> dissociate;
@@ -106,21 +216,32 @@ public:
   };
 
   struct DeferredClientRemoval {
+    void onTimer();
     Impl *impl = nullptr;
-    WaylandCompositor *owner = nullptr;
     ClientWindow *client = nullptr;
   };
 
   struct ScheduledCallback {
+    void onTimer();
     Impl *impl = nullptr;
     wl_event_source *source = nullptr;
     std::function<void()> callback;
   };
 
-  struct LayerState {
-    Impl *impl = nullptr;
-    wlr_layer_surface_v1 *surface = nullptr;
-    wlr_scene_layer_surface_v1 *sceneLayer = nullptr;
+  struct LayerState : LunaClint<LayerState> {
+    LayerState(Impl *owner, wlr_layer_surface_v1 *layerSurface,
+               wlr_scene_layer_surface_v1 *scene);
+    LayerState(const LayerState &) = delete;
+    LayerState &operator=(const LayerState &) = delete;
+
+    void onMap();
+    void onUnmap();
+    void onCommit();
+    void onDestroy();
+
+    Impl *const impl;
+    wlr_layer_surface_v1 *const surface;
+    wlr_scene_layer_surface_v1 *const sceneLayer;
     bool mapped = false;
     bool configured = false;
     Slot<LayerState> map;
@@ -129,9 +250,17 @@ public:
     Slot<LayerState> destroy;
   };
 
-  struct XdgPopupState {
-    Impl *impl = nullptr;
-    wlr_xdg_popup *popup = nullptr;
+  struct XdgPopupState : LunaClint<XdgPopupState> {
+    XdgPopupState(Impl *owner, wlr_xdg_popup *xdgPopup);
+    XdgPopupState(const XdgPopupState &) = delete;
+    XdgPopupState &operator=(const XdgPopupState &) = delete;
+
+    void onCommit();
+    void onReposition();
+    void onDestroy();
+
+    Impl *const impl;
+    wlr_xdg_popup *const popup;
     wlr_scene_tree *sceneTree = nullptr;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
     wlr_scene_tree *captureTree = nullptr;
@@ -141,11 +270,23 @@ public:
     Slot<XdgPopupState> destroy;
   };
 
-  struct KeyboardState {
-    Impl *impl = nullptr;
-    wlr_keyboard *keyboard = nullptr;
-    wl_client *ownerClient = nullptr;
-    bool virtualKeyboard = false;
+  struct KeyboardState : LunaClint<KeyboardState> {
+    KeyboardState(Impl *owner, wlr_keyboard *wlrKeyboard, bool isVirtual,
+                  wl_client *owningClient);
+    KeyboardState(const KeyboardState &) = delete;
+    KeyboardState &operator=(const KeyboardState &) = delete;
+    // Runs after the seat's own keymap listener, see Impl::addKeyboard().
+    void listenForKeymap();
+
+    void onKey(wlr_keyboard_key_event *event);
+    void onModifiers();
+    void onKeymap();
+    void onDestroy();
+
+    Impl *const impl;
+    wlr_keyboard *const keyboard;
+    wl_client *const ownerClient;
+    const bool virtualKeyboard;
     uint32_t lastLockedModifiers = 0;
     std::unordered_set<uint32_t> consumedKeys;
     bool metaTapPending = false;
@@ -154,30 +295,59 @@ public:
     Slot<KeyboardState> keymap;
     Slot<KeyboardState> modifiers;
     Slot<KeyboardState> destroy;
+
+  private:
+    // True when the input method's keyboard grab owns the hardware stream.
+    bool inputMethodBridgeActive() const;
   };
 
-  struct InputMethodState {
-    Impl *impl = nullptr;
-    wlr_input_method_v2 *method = nullptr;
+  struct InputMethodState : LunaClint<InputMethodState> {
+    InputMethodState(Impl *owner, wlr_input_method_v2 *inputMethod);
+    InputMethodState(const InputMethodState &) = delete;
+    InputMethodState &operator=(const InputMethodState &) = delete;
+
+    void onCommit();
+    void onNewPopup(wlr_input_popup_surface_v2 *popup);
+    void onGrabKeyboard(wlr_input_method_keyboard_grab_v2 *grab);
+    void onDestroy();
+
+    Impl *const impl;
+    wlr_input_method_v2 *const method;
     Slot<InputMethodState> commit;
     Slot<InputMethodState> newPopup;
     Slot<InputMethodState> grabKeyboard;
     Slot<InputMethodState> destroy;
   };
 
-  struct TextInputState {
-    Impl *impl = nullptr;
-    wlr_text_input_v3 *text = nullptr;
+  struct TextInputState : LunaClint<TextInputState> {
+    TextInputState(Impl *owner, wlr_text_input_v3 *textInput);
+    TextInputState(const TextInputState &) = delete;
+    TextInputState &operator=(const TextInputState &) = delete;
+
+    void onEnable();
+    void onCommit();
+    void onDisable();
+    void onDestroy();
+
+    Impl *const impl;
+    wlr_text_input_v3 *const text;
     Slot<TextInputState> enable;
     Slot<TextInputState> commit;
     Slot<TextInputState> disable;
     Slot<TextInputState> destroy;
   };
 
-  struct PopupState {
-    Impl *impl = nullptr;
-    wlr_input_popup_surface_v2 *popup = nullptr;
-    wlr_scene_tree *sceneTree = nullptr;
+  struct PopupState : LunaClint<PopupState> {
+    PopupState(Impl *owner, wlr_input_popup_surface_v2 *inputPopup,
+               wlr_scene_tree *tree);
+    PopupState(const PopupState &) = delete;
+    PopupState &operator=(const PopupState &) = delete;
+
+    void onDestroy();
+
+    Impl *const impl;
+    wlr_input_popup_surface_v2 *const popup;
+    wlr_scene_tree *const sceneTree;
     Slot<PopupState> destroy;
   };
 
@@ -257,6 +427,8 @@ public:
   wlr_text_input_manager_v3 *textInputManager = nullptr;
   wlr_virtual_keyboard_manager_v1 *virtualKeyboardManager = nullptr;
 
+  // Registration order; stopped in reverse. See Register.cpp.
+  std::vector<std::unique_ptr<Component>> components;
   std::vector<OutputState *> outputs;
   std::vector<XWaylandState *> xwaylandSurfaces;
   std::vector<LayerState *> layers;
@@ -292,51 +464,39 @@ public:
   bool updateWindowPointer();
   void finishWindowPointer(bool apply);
 
-  Slot<Impl> newOutput;
-  Slot<Impl> newInput;
-  Slot<Impl> newXdgSurface;
-  Slot<Impl> newXdgPopup;
-  Slot<Impl> newLayerSurface;
-#if LUDASH_WLR_HAS_XDG_ACTIVATION
-  Slot<Impl> requestXdgActivation;
-#endif
-  Slot<Impl> requestCursor;
-  Slot<Impl> requestCursorShape;
-  Slot<Impl> pointerFocusChange;
-  Slot<Impl> requestSelection;
-  Slot<Impl> keyboardFocusChange;
-  Slot<Impl> cursorMotion;
-  Slot<Impl> cursorMotionAbsolute;
-  Slot<Impl> cursorButton;
-  Slot<Impl> cursorAxis;
-  Slot<Impl> cursorFrame;
-  Slot<Impl> newInputMethod;
-  Slot<Impl> newTextInput;
-  Slot<Impl> newVirtualKeyboard;
-#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-  Slot<Impl> foreignToplevelCaptureRequest;
-#endif
-
   explicit Impl(WaylandCompositor *owner, const std::string &socket,
                 bool wantsFullscreen, const std::string &renderer);
 
   ~Impl();
 
+  // Register.cpp: the runtime, every component, and their teardown.
   bool initialize();
-
-  bool fail(const char *message);
-
-  int runEventLoop(bool profile);
-
-  void terminateEventLoop(int exitCode);
-
   void shutdown();
   // Tears down clients, the scene and wlroots objects but keeps the Wayland
   // display and its event loop, so owners of event sources can remove them
   // before shutdown() destroys the loop.
   void releaseRuntime();
+  template <typename ComponentType> bool registerComponent();
+
+  // Runtime.cpp: renderer, scene, seat and the globals no component owns.
+  bool createRuntime();
+  // Opens the client sockets and starts delivering outputs and input devices.
+  bool startRuntime();
+  void destroyRuntime();
+
+  // EventLoop.cpp
+  bool fail(const char *message);
+  int runEventLoop(bool profile);
+  void terminateEventLoop(int exitCode);
+  bool scheduleScratchpadTimeout(std::uint64_t generation);
+  void cancelScratchpadTimeout();
+  void onScratchpadTimeout();
+  bool scheduleCallback(int delayMilliseconds, std::function<void()> callback);
+  void cancelScheduledCallbacks();
 
   Size outputSize() const;
+  // Background, layer-shell work area and window layout after a size change.
+  void relayoutOutputs();
 
   Json displaySnapshot() const;
   Json displayModes() const;
@@ -344,7 +504,6 @@ public:
   void confirmDisplay();
   void revertDisplay();
   void clearPendingDisplay();
-  static int handleDisplayRevertTimer(void *data);
 
   int mappedLayerCount() const;
 
@@ -366,10 +525,6 @@ public:
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   wlr_scene_tree *captureSceneForSurface(wlr_surface *surface) const;
 #endif
-  static void handleNewXdgPopup(wl_listener *listener, void *data);
-  static void handleXdgPopupCommit(wl_listener *listener, void *data);
-  static void handleXdgPopupReposition(wl_listener *listener, void *data);
-  static void handleXdgPopupDestroy(wl_listener *listener, void *data);
 
   bool resizePrimaryOutput(const std::string &preset, std::string *error);
 
@@ -417,146 +572,13 @@ public:
 
   void positionInputPopup(PopupState *popup);
 
-  static void handleNewOutput(wl_listener *listener, void *data);
-
-  static void handleOutputFrame(wl_listener *listener, void *);
-  static int handleScreencopyTimer(void *data);
-
-  static void handleOutputRequestState(wl_listener *listener, void *data);
-
-  static void handleOutputDestroy(wl_listener *listener, void *);
-
-  static void handleNewInput(wl_listener *listener, void *data);
-
-  static void handleKeyboardKey(wl_listener *listener, void *data);
-
-  static void handleKeyboardModifiers(wl_listener *listener, void *);
-
-  static void handleKeyboardDestroy(wl_listener *listener, void *);
-
-  static void handleCursorMotion(wl_listener *listener, void *data);
-
-  static void handleCursorMotionAbsolute(wl_listener *listener, void *data);
-
-  static void handleCursorButton(wl_listener *listener, void *data);
-
-  static void handleCursorAxis(wl_listener *listener, void *data);
-
-  static void handleCursorFrame(wl_listener *listener, void *);
-
-  static void handleRequestCursor(wl_listener *listener, void *data);
-
-  static void handleRequestCursorShape(wl_listener *listener, void *data);
-
-  static void handlePointerFocusChange(wl_listener *listener, void *data);
-
-  static void handleRequestSelection(wl_listener *listener, void *data);
-
-  static void handleKeyboardFocusChange(wl_listener *listener, void *data);
-
   void configureInitialToplevel(ClientWindow *client);
 
   void addXdgToplevel(wlr_xdg_surface *surface, wlr_xdg_toplevel *toplevel);
 
-#if WLR_VERSION_MINOR < 18
-  static void handleNewXdgSurface(wl_listener *listener, void *data);
-#else
-  static void handleNewXdgToplevel(wl_listener *listener, void *data);
-#endif
-
-#if LUDASH_WLR_HAS_XDG_ACTIVATION
-  static void handleXdgActivationRequest(wl_listener *listener, void *data);
-#endif
-
-  static void handleToplevelMap(wl_listener *listener, void *);
-
-  static void handleToplevelUnmap(wl_listener *listener, void *);
-
-  static void handleToplevelCommit(wl_listener *listener, void *);
-
-  static void handleToplevelMetadata(wl_listener *listener, void *);
-
-  static void handleToplevelParent(wl_listener *listener, void *);
-
-  static void handleToplevelMinimize(wl_listener *listener, void *);
-
-  static void handleToplevelMaximize(wl_listener *listener, void *);
-
-  static void handleToplevelFullscreen(wl_listener *listener, void *);
-
-  static void handleToplevelMove(wl_listener *listener, void *data);
-  static void handleToplevelResize(wl_listener *listener, void *data);
-
-  static void handleToplevelDestroy(wl_listener *listener, void *);
-
-  static void handleXWaylandAssociate(wl_listener *listener, void *data);
-  static void handleXWaylandDissociate(wl_listener *listener, void *data);
-  static void handleXWaylandMap(wl_listener *listener, void *data);
-  static void handleXWaylandUnmap(wl_listener *listener, void *data);
-  static void handleXWaylandSceneDestroy(wl_listener *listener, void *data);
-  static void handleXWaylandDestroy(wl_listener *listener, void *data);
-  static void handleDeferredClientRemoval(void *data);
   void deferClientRemoval(ClientWindow *client);
-  bool scheduleScratchpadTimeout(std::uint64_t generation);
-  void cancelScratchpadTimeout();
-  static int handleScratchpadTimeout(void *data);
-  bool scheduleCallback(int delayMilliseconds, std::function<void()> callback);
-  void cancelScheduledCallbacks();
-  static int handleScheduledCallback(void *data);
-  static void handleXWaylandConfigure(wl_listener *listener, void *data);
-  static void handleXWaylandMove(wl_listener *listener, void *data);
-  static void handleXWaylandResize(wl_listener *listener, void *data);
-  static void handleXWaylandMinimize(wl_listener *listener, void *data);
-  static void handleXWaylandMaximize(wl_listener *listener, void *data);
-  static void handleXWaylandFullscreen(wl_listener *listener, void *data);
-  static void handleXWaylandActivate(wl_listener *listener, void *data);
-  static void handleXWaylandMetadata(wl_listener *listener, void *data);
-
-  static void handleNewLayerSurface(wl_listener *listener, void *data);
-
-  static void handleLayerMap(wl_listener *listener, void *);
-
-  static void handleLayerUnmap(wl_listener *listener, void *);
-
-  static void handleLayerCommit(wl_listener *listener, void *);
-
-  static void handleLayerDestroy(wl_listener *listener, void *);
-
-  static void handleNewInputMethod(wl_listener *listener, void *data);
-
-  static void handleInputMethodCommit(wl_listener *listener, void *);
-
-  static void handleInputMethodPopup(wl_listener *listener, void *data);
-
-  static void handleInputPopupDestroy(wl_listener *listener, void *);
-
-  static void handleInputMethodGrab(wl_listener *listener, void *data);
-
-  static void handleInputMethodDestroy(wl_listener *listener, void *);
-
-  static void handleNewTextInput(wl_listener *listener, void *data);
-
-  static void handleTextInputEnable(wl_listener *listener, void *);
-
-  static void handleTextInputCommit(wl_listener *listener, void *);
-
-  static void handleTextInputDisable(wl_listener *listener, void *);
-
-  static void handleTextInputDestroy(wl_listener *listener, void *);
-
-  static void handleNewVirtualKeyboard(wl_listener *listener, void *data);
-#if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-  static void updateForeignToplevel(ToplevelState *state);
-  static void createForeignToplevel(ToplevelState *state);
-  static void destroyForeignToplevel(ToplevelState *state);
-  static void handleForeignToplevelCaptureRequest(wl_listener *listener,
-                                                  void *data);
-#endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   static void updateClientLegacyForeignToplevel(ClientWindow *client);
-  static void updateLegacyForeignToplevel(ToplevelState *state);
-  static void createLegacyForeignToplevel(ToplevelState *state);
-  static void destroyLegacyForeignToplevel(ToplevelState *state);
 #endif
 };
 

@@ -81,11 +81,6 @@
 namespace LunaDash {
 namespace {
 
-using Templates::attachListener;
-using Templates::detachListener;
-using Templates::listenerOwner;
-using Templates::WaylandSlot;
-
 std::filesystem::path filePath(const std::string &path) {
   return std::filesystem::path(path);
 }

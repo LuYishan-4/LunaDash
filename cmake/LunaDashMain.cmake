@@ -456,13 +456,23 @@ add_library(ludash-wayland
     src/compositor/wayland/WaylandCompositor.cpp
     src/compositor/wayland/DebugSnapshot.cpp
     src/compositor/wayland/Register.cpp
+    src/compositor/wayland/Runtime.cpp
+    src/compositor/wayland/EventLoop.cpp
     src/compositor/wayland/Output.cpp
+    src/compositor/wayland/OutputComponent.cpp
     src/compositor/wayland/BackgroundEffectManager.cpp
     src/compositor/wayland/DisplayConfiguration.cpp
     src/compositor/wayland/Surface.cpp
+    src/compositor/wayland/XdgShellComponent.cpp
+    src/compositor/wayland/LayerShellComponent.cpp
+    src/compositor/wayland/WindowCaptureComponent.cpp
     src/compositor/wayland/XWayland.cpp
     src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
+    src/compositor/input/InputDeviceComponent.cpp
+    src/compositor/input/PointerComponent.cpp
+    src/compositor/input/TextInputComponent.cpp
+    src/compositor/input/ClipboardComponent.cpp
     src/compositor/settings/SettingsApi.cpp
     src/compositor/window/WindowPointer.cpp
     src/compositor/window/WindowSwitch.cpp

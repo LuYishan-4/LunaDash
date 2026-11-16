@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "compositor/wayland/wlroots/WlrootsSceneHeaders.hpp"
-#include "core/templates/WaylandSlot.hpp"
+#include "core/templates/LunaClint.hpp"
 
 extern "C" {
 #include <wlr/version.h>
@@ -150,7 +150,12 @@ double ease(SceneAnimationCurve curve, double progress) {
 }
 } // namespace
 
-struct SceneAnimation::LiveState {
+struct SceneAnimation::LiveState : Templates::LunaClint<LiveState> {
+  void watchTree() {
+    listen<&LiveState::onTreeDestroy>(&tree->node.events.destroy, destroy);
+  }
+  void onTreeDestroy() { owner->finishLive(tree, this, false); }
+
   SceneAnimation *owner = nullptr;
   wlr_scene_tree *tree = nullptr;
   Templates::WaylandSlot<LiveState> destroy;
@@ -165,7 +170,17 @@ struct SceneAnimation::LiveState {
   SnapshotState *preview = nullptr;
 };
 
-struct SceneAnimation::SnapshotState {
+struct SceneAnimation::SnapshotState : Templates::LunaClint<SnapshotState> {
+  void watchTree() {
+    listen<&SnapshotState::onTreeDestroy>(&tree->node.events.destroy, destroy);
+  }
+  void onTreeDestroy() {
+    std::erase(owner->snapshots_, this);
+    if (live)
+      live->preview = nullptr;
+    delete this;
+  }
+
   SceneAnimation *owner = nullptr;
   LiveState *live = nullptr;
   wlr_scene_tree *tree = nullptr;
@@ -229,12 +244,7 @@ void SceneAnimation::startLive(LiveState *state) {
   state->duration = duration_;
   state->started = Clock::now();
   live_.insert_or_assign(state->tree, state);
-  Templates::attachListener(&state->tree->node.events.destroy, state->destroy,
-                            state, [](wl_listener *listener, void *) {
-                              auto *live =
-                                  Templates::listenerOwner<LiveState>(listener);
-                              live->owner->finishLive(live->tree, live, false);
-                            });
+  state->watchTree();
   applyLive(state, 0.0);
 }
 
@@ -389,16 +399,7 @@ SceneAnimation::createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
   state->duration = duration_;
   state->started = Clock::now();
   snapshots_.push_back(state);
-  Templates::attachListener(
-      &tree->node.events.destroy, state->destroy, state,
-      [](wl_listener *listener, void *) {
-        auto *snapshot = Templates::listenerOwner<SnapshotState>(listener);
-        Templates::detachListener(snapshot->destroy);
-        std::erase(snapshot->owner->snapshots_, snapshot);
-        if (snapshot->live)
-          snapshot->live->preview = nullptr;
-        delete snapshot;
-      });
+  state->watchTree();
   applySnapshot(state, state->original, 1.0);
   return state;
 }

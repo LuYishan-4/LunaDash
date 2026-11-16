@@ -11,6 +11,7 @@
 - Name project types, directories and targets by their concrete responsibility; do not introduce generic Backend names. External API/environment spellings remain unchanged.
 - Headers declare interfaces and types; `.cpp` files contain implementations. Do not accumulate unrelated features in a shared implementation file.
 - Keep small `Main.cpp` entry points in their owning executable domain, and add every source explicitly to CMake targets.
+- `compositor/wayland/Register.cpp` only registers components and tears the runtime down. Global wlroots signals belong to an `Impl::Component` in its owning domain; signals of one object belong to that object's state. Every listener is an `onXxx` member function connected with `LunaClint::listen<>`; do not add `static handleXxx(wl_listener *, void *)` handlers.
 - Finish the intended code, packaging, and documentation changes before building. Do not build after each intermediate edit.
 - Target Arch Linux first, with portable CMake support and documented dependencies for other Linux distributions. Distinguish configured CI from actually verified platforms.
 - Do not describe this development version as a production-ready KDE replacement. Document missing protocol and session features accurately.

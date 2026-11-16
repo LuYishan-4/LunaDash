@@ -44,11 +44,12 @@ int layerBlurRadius(const wlr_layer_surface_v1 &layer) {
                            state.margin.left == 0;
   return fillsOutput ? 0 : kShellSurfaceRadius;
 }
-} // namespace
 
-using Templates::attachListener;
-using Templates::detachListener;
-using Templates::listenerOwner;
+std::uint64_t nanoseconds(const timespec &time) {
+  return static_cast<std::uint64_t>(time.tv_sec) * 1000000000ULL +
+         static_cast<std::uint64_t>(time.tv_nsec);
+}
+} // namespace
 
 Size WaylandCompositor::Impl::outputSize() const {
   if (!primaryOutput)
@@ -252,260 +253,190 @@ bool WaylandCompositor::Impl::resizePrimaryOutput(const std::string &preset,
       *error = "The wlroots backend rejected this nested output size.";
     return false;
   }
-  updateBackground();
-  arrangeLayers();
-  q->arrange();
+  relayoutOutputs();
   return true;
 }
 
-void WaylandCompositor::Impl::handleNewOutput(wl_listener *listener,
-                                              void *data) {
-  auto *self = listenerOwner<Impl>(listener);
-  auto *output = static_cast<wlr_output *>(data);
-  if (!self || !output)
-    return;
+void WaylandCompositor::Impl::relayoutOutputs() {
+  updateBackground();
+  arrangeLayers();
+  q->arrange();
+}
 
-  if (!wlr_output_init_render(output, self->allocator, self->renderer)) {
-    self->fail("Could not initialize output rendering.");
-    return;
-  }
-
-  wlr_output_state pending;
-  wlr_output_state_init(&pending);
-  wlr_output_state_set_enabled(&pending, true);
-  auto *chosen = wlr_output_preferred_mode(output);
-  if (chosen && !self->nested) {
-    wlr_output_mode *candidate = nullptr;
-    wl_list_for_each(candidate, &output->modes, link) {
-      if (candidate->width == chosen->width &&
-          candidate->height == chosen->height &&
-          candidate->refresh > chosen->refresh)
-        chosen = candidate;
-    }
-  }
-  std::string settingsError;
-  const auto settings = loadDisplayConfiguration(output->name, &settingsError);
-  if (!settingsError.empty())
-    logWarning("Could not migrate saved display settings: %s",
-             settingsError.c_str());
-  if (!self->nested) {
-    wlr_output_mode *candidate = nullptr;
-    wl_list_for_each(candidate, &output->modes, link) {
-      if (candidate->width == settings.value("width", 0) &&
-          candidate->height == settings.value("height", 0) &&
-          candidate->refresh == settings.value("refresh", 0)) {
-        chosen = candidate;
-        break;
-      }
-    }
-  }
-  if (chosen)
-    wlr_output_state_set_mode(&pending, chosen);
-  else if (!self->fullscreen)
-    wlr_output_state_set_custom_mode(
-        &pending, 1440, 900,
-        WlrootsCompat::nestedModeRefresh(output,
-                                         kDefaultOutputRefreshMilliHz));
-  const float scale =
-      std::clamp(static_cast<float>(settings.value("scale", 1.0)), 1.0f, 3.0f);
-  wlr_output_state_set_scale(&pending, scale);
-  if (!wlr_output_test_state(output, &pending) ||
-      !wlr_output_commit_state(output, &pending)) {
-    wlr_output_state_set_scale(&pending, 1.0f);
-    if (auto *preferred = wlr_output_preferred_mode(output))
-      wlr_output_state_set_mode(&pending, preferred);
-    if (!wlr_output_commit_state(output, &pending)) {
-      wlr_output_state_finish(&pending);
-      self->fail("wlroots rejected the output configuration.");
-      return;
-    }
-  }
-  wlr_output_state_finish(&pending);
-
-  auto *state = new OutputState;
-  state->impl = self;
-  state->output = output;
+WaylandCompositor::Impl::OutputState::OutputState(Impl *owner,
+                                                  wlr_output *wlrOutput)
+    : impl(owner), output(wlrOutput) {
   // Hardware cursor planes avoid a full scene composition on every mouse
   // movement. Screencopy temporarily switches to software cursors so portal
   // streams still receive the pointer. Direct-KMS recorders can opt into the
   // old always-composited behavior with LUDASH_SOFTWARE_CURSOR=1.
-  state->forceSoftwareCursor =
-      !self->nested && environmentInt("LUDASH_SOFTWARE_CURSOR") == 1;
-  if (state->forceSoftwareCursor) {
+  forceSoftwareCursor =
+      !impl->nested && environmentInt("LUDASH_SOFTWARE_CURSOR") == 1;
+  if (forceSoftwareCursor) {
     wlr_output_lock_software_cursors(output, true);
-    state->softwareCursorLocked = true;
+    softwareCursorLocked = true;
   }
-  auto *layoutOutput = wlr_output_layout_add_auto(self->outputLayout, output);
-  state->sceneOutput = wlr_scene_output_create(self->scene, output);
-  if (layoutOutput && state->sceneOutput)
-    wlr_scene_output_layout_add_output(self->sceneLayout, layoutOutput,
-                                       state->sceneOutput);
+  auto *layoutOutput = wlr_output_layout_add_auto(impl->outputLayout, output);
+  sceneOutput = wlr_scene_output_create(impl->scene, output);
+  if (layoutOutput && sceneOutput)
+    wlr_scene_output_layout_add_output(impl->sceneLayout, layoutOutput,
+                                       sceneOutput);
 
-  attachListener(&output->events.frame, state->frame, state, handleOutputFrame);
-  attachListener(&output->events.destroy, state->destroy, state,
-                 handleOutputDestroy);
-  attachListener(&output->events.request_state, state->requestState, state,
-                 handleOutputRequestState);
-  self->outputs.push_back(state);
-  self->updateNightLight();
-
-  if (!self->primaryOutput)
-    self->primaryOutput = output;
-  self->updateBackground();
-  self->arrangeLayers();
-  self->q->arrange();
-  self->setCursorImage("default");
+  listen<&OutputState::onFrame>(&output->events.frame, frame);
+  listen<&OutputState::onDestroy>(&output->events.destroy, destroy);
+  listen<&OutputState::onRequestState>(&output->events.request_state,
+                                       requestState);
 }
 
-void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
-  auto *state = listenerOwner<OutputState>(listener);
-  if (!state || !state->sceneOutput)
+WaylandCompositor::Impl::OutputState::~OutputState() {
+  if (screencopyTimer)
+    wl_event_source_remove(screencopyTimer);
+  ludash_night_color_destroy(nightColor);
+}
+
+void WaylandCompositor::Impl::OutputState::onFrame() {
+  if (!sceneOutput)
     return;
-  ++state->frameCallbacks;
+  ++frameCallbacks;
   timespec now{};
   clock_gettime(CLOCK_MONOTONIC, &now);
-  const std::uint64_t nowNs = static_cast<std::uint64_t>(now.tv_sec) * 1000000000ULL +
-                        static_cast<std::uint64_t>(now.tv_nsec);
+  const std::uint64_t nowNs = nanoseconds(now);
 
+  const bool capturePending = updateCaptureCursor();
+  advanceAnimations(nowNs);
+  impl->updateWindowGlass();
+  commitScene();
+  sendFrameDone(&now);
+  if (impl->q->windowAnimations_ &&
+      impl->q->windowAnimations_->activeCount() > 0)
+    wlr_output_schedule_frame(output);
+  scheduleCaptureTail(capturePending);
+  recordFrameWork(nowNs);
+}
+
+bool WaylandCompositor::Impl::OutputState::updateCaptureCursor() {
   // Sample before commit: a screencopy frame is removed when this output
   // commit satisfies it. The tail bridges the small gap before xdpw queues
   // the next PipeWire frame and prevents a one-frame/frozen stream.
   const bool capturePending =
-      screencopyPendingForOutput(state->impl->screencopy, state->output);
+      screencopyPendingForOutput(impl->screencopy, output);
   if (capturePending)
-    state->screencopyKeepalive = 6;
-  else if (state->screencopyKeepalive > 0)
-    --state->screencopyKeepalive;
+    screencopyKeepalive = 6;
+  else if (screencopyKeepalive > 0)
+    --screencopyKeepalive;
 
   const bool needsSoftwareCursor =
-      state->forceSoftwareCursor || capturePending || state->screencopyKeepalive > 0;
-  if (needsSoftwareCursor != state->softwareCursorLocked) {
-    wlr_output_lock_software_cursors(state->output, needsSoftwareCursor);
-    state->softwareCursorLocked = needsSoftwareCursor;
+      forceSoftwareCursor || capturePending || screencopyKeepalive > 0;
+  if (needsSoftwareCursor != softwareCursorLocked) {
+    wlr_output_lock_software_cursors(output, needsSoftwareCursor);
+    softwareCursorLocked = needsSoftwareCursor;
   }
+  return capturePending;
+}
 
-  auto *animations = state->impl->q->windowAnimations_.get();
-  const bool wasAnimating = animations && animations->activeCount() > 0;
-  if (animations)
-    animations->advance();
-  const bool stillAnimating = animations && animations->activeCount() > 0;
+void WaylandCompositor::Impl::OutputState::advanceAnimations(
+    std::uint64_t nowNs) {
+  auto *animations = impl->q->windowAnimations_.get();
+  if (!animations)
+    return;
+  const bool wasAnimating = animations->activeCount() > 0;
+  animations->advance();
+  const bool stillAnimating = animations->activeCount() > 0;
+  // Publish the moving layout at about 30 Hz, and once more when it settles.
   if (wasAnimating &&
-      (!stillAnimating || state->lastAnimationPublishNs == 0 ||
-       nowNs - state->lastAnimationPublishNs >= 33000000ULL)) {
-    state->impl->q->publishWindowLayout();
-    state->lastAnimationPublishNs = stillAnimating ? nowNs : 0;
+      (!stillAnimating || lastAnimationPublishNs == 0 ||
+       nowNs - lastAnimationPublishNs >= 33000000ULL)) {
+    impl->q->publishWindowLayout();
+    lastAnimationPublishNs = stillAnimating ? nowNs : 0;
   } else if (!wasAnimating) {
-    state->lastAnimationPublishNs = 0;
+    lastAnimationPublishNs = 0;
   }
-  state->impl->updateWindowGlass();
-  if (!ludash_night_color_commit(state->sceneOutput, state->nightColor)) {
-    logWarning("wlroots scene output commit failed.");
-    if (state->nightColor) {
-      ludash_night_color_destroy(state->nightColor);
-      state->nightColor = nullptr;
-      state->nightTemperature = 6500;
-      state->nightError = "The renderer rejected night light; the normal output has been restored.";
-      wlr_output_schedule_frame(state->output);
-    }
-  }
-  wlr_scene_output_send_frame_done(state->sceneOutput, &now);
+}
 
-  for (const auto &client : state->impl->q->clients_)
+void WaylandCompositor::Impl::OutputState::commitScene() {
+  if (ludash_night_color_commit(sceneOutput, nightColor))
+    return;
+  logWarning("wlroots scene output commit failed.");
+  if (!nightColor)
+    return;
+  ludash_night_color_destroy(nightColor);
+  nightColor = nullptr;
+  nightTemperature = 6500;
+  nightError =
+      "The renderer rejected night light; the normal output has been restored.";
+  wlr_output_schedule_frame(output);
+}
+
+void WaylandCompositor::Impl::OutputState::sendFrameDone(timespec *now) {
+  wlr_scene_output_send_frame_done(sceneOutput, now);
+  for (const auto &client : impl->q->clients_)
     if (client->mapped && client->wlSurface &&
-        client->workspace == state->impl->q->workspace_)
+        client->workspace == impl->q->workspace_)
       wlr_surface_for_each_surface(
           client->wlSurface,
           [](wlr_surface *surface, int, int, void *data) {
             wlr_surface_send_frame_done(surface, static_cast<timespec *>(data));
           },
-          &now);
+          now);
+}
 
-  if (animations && animations->activeCount() > 0)
-    wlr_output_schedule_frame(state->output);
-
+void WaylandCompositor::Impl::OutputState::scheduleCaptureTail(
+    bool capturePending) {
+  if (!capturePending && screencopyKeepalive == 0)
+    return;
   // Do not spin a screencopy tail synchronously from the output frame
   // callback. The headless backend can deliver scheduled frames immediately;
   // chaining them here starves the Wayland event loop and later screencopy
   // clients never get far enough to submit their copy request. Pace the tail
   // at roughly one display interval instead. wlroots still schedules the
   // first frame for every copy request itself.
-  if (capturePending || state->screencopyKeepalive > 0) {
-    // Coalesce callbacks from capture, client damage and animation into one
-    // wakeup per output. Several frames inside 16 ms must not grow a timer tail.
-    if (!state->screencopyTimer) {
-      state->screencopyTimer = wl_event_loop_add_timer(
-          state->impl->eventLoop, handleScreencopyTimer, state);
-    }
-    if (state->screencopyTimer && !state->screencopyTimerScheduled) {
-      if (wl_event_source_timer_update(state->screencopyTimer, 16) == 0)
-        state->screencopyTimerScheduled = true;
-      else
-        wlr_log(WLR_ERROR, "Could not schedule screencopy continuation.");
-    } else if (!state->screencopyTimer) {
-      wlr_log(WLR_ERROR, "Could not create screencopy continuation timer.");
-    }
+  //
+  // Coalesce callbacks from capture, client damage and animation into one
+  // wakeup per output. Several frames inside 16 ms must not grow a timer tail.
+  if (!screencopyTimer)
+    screencopyTimer = timer<&OutputState::onScreencopyTimer>(impl->eventLoop);
+  if (!screencopyTimer) {
+    wlr_log(WLR_ERROR, "Could not create screencopy continuation timer.");
+    return;
   }
+  if (screencopyTimerScheduled)
+    return;
+  if (wl_event_source_timer_update(screencopyTimer, 16) == 0)
+    screencopyTimerScheduled = true;
+  else
+    wlr_log(WLR_ERROR, "Could not schedule screencopy continuation.");
+}
 
+void WaylandCompositor::Impl::OutputState::recordFrameWork(
+    std::uint64_t startedNs) {
   timespec finished{};
   clock_gettime(CLOCK_MONOTONIC, &finished);
-  const std::uint64_t finishedNs =
-      static_cast<std::uint64_t>(finished.tv_sec) * 1000000000ULL +
-      static_cast<std::uint64_t>(finished.tv_nsec);
-  state->lastFrameWorkUsec =
-      static_cast<std::int64_t>((finishedNs - nowNs) / 1000ULL);
-  state->maxFrameWorkUsec =
-      std::max(state->maxFrameWorkUsec, state->lastFrameWorkUsec);
-  if (state->lastFrameWorkUsec >= 8000)
-    ++state->slowFrames;
+  lastFrameWorkUsec =
+      static_cast<std::int64_t>((nanoseconds(finished) - startedNs) / 1000ULL);
+  maxFrameWorkUsec = std::max(maxFrameWorkUsec, lastFrameWorkUsec);
+  if (lastFrameWorkUsec >= 8000)
+    ++slowFrames;
 }
 
-int WaylandCompositor::Impl::handleScreencopyTimer(void *data) {
-  auto *state = static_cast<OutputState *>(data);
-  if (!state)
-    return 0;
-  state->screencopyTimerScheduled = false;
-  if (state->output)
-    wlr_output_schedule_frame(state->output);
-  return 0;
+void WaylandCompositor::Impl::OutputState::onScreencopyTimer() {
+  screencopyTimerScheduled = false;
+  wlr_output_schedule_frame(output);
 }
 
-void WaylandCompositor::Impl::handleOutputRequestState(wl_listener *listener,
-                                                       void *data) {
-  auto *state = listenerOwner<OutputState>(listener);
-  auto *event = static_cast<wlr_output_event_request_state *>(data);
-  if (state && event && wlr_output_commit_state(state->output, event->state)) {
-    state->impl->updateBackground();
-    state->impl->arrangeLayers();
-    state->impl->q->arrange();
-  }
+void WaylandCompositor::Impl::OutputState::onRequestState(
+    wlr_output_event_request_state *event) {
+  if (event && wlr_output_commit_state(output, event->state))
+    impl->relayoutOutputs();
 }
 
-void WaylandCompositor::Impl::handleOutputDestroy(wl_listener *listener,
-                                                  void *) {
-  auto *state = listenerOwner<OutputState>(listener);
-  if (!state)
-    return;
-  auto *self = state->impl;
-  if (state->screencopyTimer)
-    wl_event_source_remove(state->screencopyTimer);
-  state->screencopyTimer = nullptr;
-  if (self->pendingDisplay == state->output)
-    self->clearPendingDisplay();
-  detachListener(state->frame);
-  detachListener(state->destroy);
-  detachListener(state->requestState);
-  if (self->primaryOutput == state->output)
-    self->primaryOutput = nullptr;
-  std::erase(self->outputs, state);
-  ludash_night_color_destroy(state->nightColor);
-  for (auto *candidate : self->outputs)
-    if (candidate && candidate->output) {
-      self->primaryOutput = candidate->output;
-      break;
-    }
-  delete state;
-  self->updateBackground();
-  self->arrangeLayers();
-  self->q->arrange();
+void WaylandCompositor::Impl::OutputState::onDestroy() {
+  Impl *owner = impl;
+  if (owner->pendingDisplay == output)
+    owner->clearPendingDisplay();
+  std::erase(owner->outputs, this);
+  owner->primaryOutput =
+      owner->outputs.empty() ? nullptr : owner->outputs.front()->output;
+  delete this;
+  owner->relayoutOutputs();
 }
 } // namespace LunaDash

@@ -46,9 +46,9 @@ C++ 檔名使用 PascalCase 的 `.hpp/.cpp`，資料夾使用小寫 domain；C �
 
 相依方向大致是 `core → config → runtime domains`。Core 不可 include 上層模組；desktop 不可直接依賴 compositor internals；renderer 不可依賴 desktop UI。專案用 `"compositor/renderer/Renderer.hpp"` 這種 source-root include，避免深層相對路徑。
 
-`WaylandCompositor` 擁有工作階段整合；`Runtime.cpp` 管 setup/teardown，`Output.cpp` 管 output，`Surface.cpp` 管 xdg/layer surface，`input/Input.cpp` 管輸入事件與 input-method bridge。物理鍵盤 map 與 repeat 由 `Keyboard.cpp` 套用；`desktop/input` 使用 xkbcommon 驗證 layout 名稱，不連結 Qt，也不直接操作 wlroots keyboard device。
+`WaylandCompositor` 擁有工作階段整合；私有的 `wayland/Register.hpp` 宣告 wlroots runtime：共用狀態、逐物件狀態（每個 output、視窗、layer surface、popup、鍵盤與 text input 各一份）和各領域部件。`Register.cpp` 只依啟動順序註冊部件，並以相反順序拆除 runtime；`Runtime.cpp` 建立 renderer、scene、seat 與不屬於任何部件的 global；`EventLoop.cpp` 執行 event loop 與 timer。全域 wlroots signal 交給部件處理：`wayland/` 的 `OutputComponent`、`XdgShellComponent`、`LayerShellComponent`、`WindowCaptureComponent`，以及 `input/` 的 `InputDeviceComponent`、`PointerComponent`、`TextInputComponent`、`ClipboardComponent`；每個部件在 `start()` 建立自己的協定 global。單一物件的 signal 交給該物件的狀態，實作在 `Output.cpp`、`Surface.cpp`、`XdgPopup.cpp`、`XWayland.cpp` 與 `input/Input.cpp`。物理鍵盤 map 與 repeat 由 `Keyboard.cpp` 套用；`desktop/input` 使用 xkbcommon 驗證 layout 名稱，不連結 Qt，也不直接操作 wlroots keyboard device。
 
-`core/templates/WaylandListener.hpp` 統一 wl_listener 的註冊與移除，owner 銷毀前先 disconnect。視窗關閉動畫使用保留的 scene snapshot，不保留已失效 surface callback。實際 wlroots 視窗動畫由 `SceneWindowAnimations` 驅動。
+所有接收 wlroots signal 的型別都繼承 `core/templates/LunaClint.hpp`，並以 `onXxx` 成員函式處理：`listen<&Type::onXxx>(signal, slot)` 連接 `WaylandSlot`，owner 一律是 `this`，事件參數已是實際型別。`WaylandSlot` 在 owner 銷毀時自動 disconnect，狀態與部件只需比所監聽的 signal 活得久。視窗關閉動畫使用保留的 scene snapshot，不保留已失效 surface callback。實際 wlroots 視窗動畫由 `SceneWindowAnimations` 驅動。
 
 MPRIS media library 使用 GLib GDBus 與 nlohmann/json，可同時搜尋 session bus 與登入使用者的 runtime bus，不連結 QtDBus。Audio-spectrum library 透過 `posix_spawnp` 和 `poll` 只擷取播放監聽 PCM，並輸出有界 JSON frame，不使用 Qt process 或 event-loop API。Shell tool 的其他 Qt 模組仍待遷移。
 

@@ -2,9 +2,6 @@
 #include "compositor/client/ClientWindow.hpp"
 
 namespace LunaDash {
-using Templates::attachListener;
-using Templates::detachListener;
-using Templates::listenerOwner;
 
 wlr_scene_tree *
 WaylandCompositor::Impl::sceneForSurface(wlr_surface *surface) const {
@@ -79,57 +76,40 @@ void WaylandCompositor::Impl::configureXdgPopup(XdgPopupState *state) {
 void WaylandCompositor::Impl::addXdgPopup(wlr_xdg_popup *popup) {
   if (!popup || !popup->base)
     return;
-  auto *state = new XdgPopupState;
-  state->impl = this;
-  state->popup = popup;
+  auto *state = new XdgPopupState(this, popup);
   xdgPopups.push_back(state);
-  attachListener(&popup->base->surface->events.commit, state->commit, state,
-                 handleXdgPopupCommit);
-  attachListener(&popup->events.reposition, state->reposition, state,
-                 handleXdgPopupReposition);
 #if WLR_VERSION_MINOR < 18
-  attachListener(&popup->base->events.destroy, state->destroy, state,
-                 handleXdgPopupDestroy);
   // 0.17 announces the role during its first commit, before this listener.
   if (popup->base->initial_commit)
     configureXdgPopup(state);
-#else
-  attachListener(&popup->events.destroy, state->destroy, state,
-                 handleXdgPopupDestroy);
 #endif
 }
 
-void WaylandCompositor::Impl::handleNewXdgPopup(wl_listener *listener,
-                                                void *data) {
-  if (auto *self = listenerOwner<Impl>(listener))
-    self->addXdgPopup(static_cast<wlr_xdg_popup *>(data));
+WaylandCompositor::Impl::XdgPopupState::XdgPopupState(Impl *owner,
+                                                      wlr_xdg_popup *xdgPopup)
+    : impl(owner), popup(xdgPopup) {
+  listen<&XdgPopupState::onCommit>(&popup->base->surface->events.commit, commit);
+  listen<&XdgPopupState::onReposition>(&popup->events.reposition, reposition);
+#if WLR_VERSION_MINOR < 18
+  listen<&XdgPopupState::onDestroy>(&popup->base->events.destroy, destroy);
+#else
+  listen<&XdgPopupState::onDestroy>(&popup->events.destroy, destroy);
+#endif
 }
 
-void WaylandCompositor::Impl::handleXdgPopupCommit(wl_listener *listener,
-                                                   void *) {
-  auto *state = listenerOwner<XdgPopupState>(listener);
-  if (state && state->popup->base->initial_commit)
-    state->impl->configureXdgPopup(state);
+void WaylandCompositor::Impl::XdgPopupState::onCommit() {
+  if (popup->base->initial_commit)
+    impl->configureXdgPopup(this);
 }
 
-void WaylandCompositor::Impl::handleXdgPopupReposition(wl_listener *listener,
-                                                       void *) {
-  auto *state = listenerOwner<XdgPopupState>(listener);
-  if (state)
-    state->impl->configureXdgPopup(state);
+void WaylandCompositor::Impl::XdgPopupState::onReposition() {
+  impl->configureXdgPopup(this);
 }
 
-void WaylandCompositor::Impl::handleXdgPopupDestroy(wl_listener *listener,
-                                                    void *) {
-  auto *state = listenerOwner<XdgPopupState>(listener);
-  if (!state)
-    return;
-  detachListener(state->commit);
-  detachListener(state->reposition);
-  detachListener(state->destroy);
+void WaylandCompositor::Impl::XdgPopupState::onDestroy() {
   // The scene helper owns its surface/node listeners and destroys the tree.
-  state->popup->base->data = nullptr;
-  std::erase(state->impl->xdgPopups, state);
-  delete state;
+  popup->base->data = nullptr;
+  std::erase(impl->xdgPopups, this);
+  delete this;
 }
 } // namespace LunaDash

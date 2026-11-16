@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/templates/WaylandSlot.hpp"
+#include "core/templates/LunaClint.hpp"
 
 #include <functional>
 #include <map>
@@ -27,7 +27,7 @@ struct XWaylandSnapshot {
   std::string error;
 };
 
-class XWaylandSupport final {
+class XWaylandSupport final : public Templates::LunaClint<XWaylandSupport> {
 public:
   using NewSurfaceCallback = std::function<void(wlr_xwayland_surface *)>;
 
@@ -48,9 +48,9 @@ public:
 
 private:
   using Slot = Templates::WaylandSlot<XWaylandSupport>;
-  static void handleReady(wl_listener *listener, void *data);
-  static void handleNewSurface(wl_listener *listener, void *data);
-  static int handleClientReaper(void *data);
+  void onReady();
+  void onNewSurface(wlr_xwayland_surface *surface);
+  // Collects exited X11 helper processes; runs from the event loop.
   void reapClients();
   bool ensureClientReaper();
 

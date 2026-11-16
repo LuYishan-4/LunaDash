@@ -2,7 +2,7 @@
 #include "compositor/renderer/blur/SceneBackdrop.h"
 #include "compositor/renderer/clip/CornerGeometry.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
-#include "core/templates/WaylandSlot.hpp"
+#include "core/templates/LunaClint.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -68,9 +68,9 @@ void setWindowOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
 }
 } // namespace
 
-class WindowGlass::Impl {
+class WindowGlass::Impl : public Templates::LunaClint<WindowGlass::Impl> {
 public:
-  struct SurfaceWatch {
+  struct SurfaceWatch : Templates::LunaClint<SurfaceWatch> {
     Impl *owner = nullptr;
     wlr_surface *surface = nullptr;
     std::uint64_t revision = 0;
@@ -81,41 +81,33 @@ public:
 
     SurfaceWatch(Impl *ownerValue, wlr_surface *value)
         : owner(ownerValue), surface(value) {
-      Templates::attachListener(
-          &surface->events.commit, commit, this,
-          [](wl_listener *listener, void *) {
-            auto *watch = Templates::listenerOwner<SurfaceWatch>(listener);
-            constexpr uint32_t content =
-                WLR_SURFACE_STATE_BUFFER | WLR_SURFACE_STATE_SURFACE_DAMAGE |
-                WLR_SURFACE_STATE_BUFFER_DAMAGE | WLR_SURFACE_STATE_TRANSFORM |
-                WLR_SURFACE_STATE_SCALE | WLR_SURFACE_STATE_VIEWPORT |
-                WLR_SURFACE_STATE_OFFSET;
-            // Callback-only commits do not change pixels. Counting them would
-            // let our own scene damage sustain an idle frame/blur loop.
-            if (watch->surface->current.committed & content) {
-              watch->rapid = watch->commitClock.isValid() &&
-                             watch->commitClock.elapsed() < 40;
-              watch->commitClock.restart();
-              ++watch->revision;
-              ++watch->owner->sceneRevision;
-            }
-          });
-      Templates::attachListener(
-          &surface->events.destroy, destroy, this,
-          [](wl_listener *listener, void *) {
-            auto *watch = Templates::listenerOwner<SurfaceWatch>(listener);
-            Templates::detachListener(watch->commit);
-            Templates::detachListener(watch->destroy);
-            watch->surface = nullptr;
-          });
+      listen<&SurfaceWatch::onCommit>(&surface->events.commit, commit);
+      listen<&SurfaceWatch::onDestroy>(&surface->events.destroy, destroy);
     }
-    ~SurfaceWatch() {
-      Templates::detachListener(commit);
-      Templates::detachListener(destroy);
+
+    void onCommit() {
+      constexpr uint32_t content =
+          WLR_SURFACE_STATE_BUFFER | WLR_SURFACE_STATE_SURFACE_DAMAGE |
+          WLR_SURFACE_STATE_BUFFER_DAMAGE | WLR_SURFACE_STATE_TRANSFORM |
+          WLR_SURFACE_STATE_SCALE | WLR_SURFACE_STATE_VIEWPORT |
+          WLR_SURFACE_STATE_OFFSET;
+      // Callback-only commits do not change pixels. Counting them would
+      // let our own scene damage sustain an idle frame/blur loop.
+      if (!(surface->current.committed & content))
+        return;
+      rapid = commitClock.isValid() && commitClock.elapsed() < 40;
+      commitClock.restart();
+      ++revision;
+      ++owner->sceneRevision;
+    }
+
+    void onDestroy() {
+      Templates::detachListeners(commit, destroy);
+      surface = nullptr;
     }
   };
 
-  struct Entry {
+  struct Entry : Templates::LunaClint<Entry> {
     wlr_scene_tree *tree = nullptr;
     wlr_scene_tree *glass = nullptr;
     std::vector<wlr_scene_buffer *> parts;
@@ -134,18 +126,30 @@ public:
     std::string error;
 
     explicit Entry(wlr_scene_tree *value) : tree(value) {
-      Templates::attachListener(&tree->node.events.destroy, treeDestroy, this,
-                                [](wl_listener *listener, void *) {
-                                  auto *entry =
-                                      Templates::listenerOwner<Entry>(listener);
-                                  Templates::detachListener(entry->treeDestroy);
-                                  entry->tree = nullptr;
-                                  entry->clearGlass();
-                                });
+      listen<&Entry::onTreeDestroy>(&tree->node.events.destroy, treeDestroy);
     }
     ~Entry() {
       Templates::detachListener(treeDestroy);
       clearGlass();
+    }
+    void onTreeDestroy() {
+      Templates::detachListener(treeDestroy);
+      tree = nullptr;
+      clearGlass();
+    }
+    void onGlassDestroy() {
+      Templates::detachListener(glassDestroy);
+      glass = nullptr;
+      parts.clear();
+      clipSize = {};
+      cornerRadius = -1;
+      if (backing)
+        wlr_buffer_unlock(backing);
+      backing = nullptr;
+      attempted = false;
+      sceneRevision = 0;
+      rapidBackdrop = false;
+      captureClock.invalidate();
     }
     void clearGlass() {
       Templates::detachListener(glassDestroy);
@@ -170,23 +174,7 @@ public:
       if (!glass)
         return false;
       wlr_scene_node_set_enabled(&glass->node, false);
-      Templates::attachListener(
-          &glass->node.events.destroy, glassDestroy, this,
-          [](wl_listener *listener, void *) {
-            auto *entry = Templates::listenerOwner<Entry>(listener);
-            Templates::detachListener(entry->glassDestroy);
-            entry->glass = nullptr;
-            entry->parts.clear();
-            entry->clipSize = {};
-            entry->cornerRadius = -1;
-            if (entry->backing)
-              wlr_buffer_unlock(entry->backing);
-            entry->backing = nullptr;
-            entry->attempted = false;
-            entry->sceneRevision = 0;
-            entry->rapidBackdrop = false;
-            entry->captureClock.invalidate();
-          });
+      listen<&Entry::onGlassDestroy>(&glass->node.events.destroy, glassDestroy);
       return true;
     }
 
@@ -258,16 +246,14 @@ public:
        wlr_scene_node *rootValue)
       : renderer(rendererValue), allocator(allocatorValue), root(rootValue) {
     if (root)
-      Templates::attachListener(&root->events.destroy, rootDestroy, this,
-                                [](wl_listener *listener, void *) {
-                                  auto *self =
-                                      Templates::listenerOwner<Impl>(listener);
-                                  Templates::detachListener(self->rootDestroy);
-                                  self->entries.clear();
-                                  self->watches.clear();
-                                  self->steadyOpacity.clear();
-                                  self->root = nullptr;
-                                });
+      listen<&Impl::onRootDestroy>(&root->events.destroy, rootDestroy);
+  }
+  void onRootDestroy() {
+    Templates::detachListener(rootDestroy);
+    entries.clear();
+    watches.clear();
+    steadyOpacity.clear();
+    root = nullptr;
   }
   ~Impl() {
     Templates::detachListener(rootDestroy);

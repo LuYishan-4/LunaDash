@@ -1,7 +1,7 @@
 #include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/clip/CornerGeometry.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
-#include "core/templates/WaylandSlot.hpp"
+#include "core/templates/LunaClint.hpp"
 
 #include <algorithm>
 #include <unordered_map>
@@ -16,7 +16,7 @@ void initialOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
 
 class WindowCorners::Impl {
 public:
-  struct Entry {
+  struct Entry : Templates::LunaClint<Entry> {
     wlr_scene_tree *tree;
     wlr_scene_tree *content;
     wlr_surface *surface;
@@ -31,36 +31,35 @@ public:
 
     explicit Entry(const Surface &value)
         : tree(value.tree), content(value.content), surface(value.surface) {
-      Templates::attachListener(&tree->node.events.destroy, treeDestroy, this,
-                                [](wl_listener *listener, void *) {
-                                  auto *entry =
-                                      Templates::listenerOwner<Entry>(listener);
-                                  Templates::detachListener(entry->treeDestroy);
-                                  entry->tree = nullptr;
-                                  entry->clearViews(false);
-                                });
-      Templates::attachListener(
-          &content->node.events.destroy, contentDestroy, this,
-          [](wl_listener *listener, void *) {
-            auto *entry = Templates::listenerOwner<Entry>(listener);
-            Templates::detachListener(entry->contentDestroy);
-            entry->content = nullptr;
-            entry->clearViews(false);
-          });
-      Templates::attachListener(
-          &surface->events.destroy, surfaceDestroy, this,
-          [](wl_listener *listener, void *) {
-            auto *entry = Templates::listenerOwner<Entry>(listener);
-            Templates::detachListener(entry->surfaceDestroy);
-            entry->surface = nullptr;
-            entry->clearViews(false);
-          });
+      listen<&Entry::onTreeDestroy>(&tree->node.events.destroy, treeDestroy);
+      listen<&Entry::onContentDestroy>(&content->node.events.destroy,
+                                       contentDestroy);
+      listen<&Entry::onSurfaceDestroy>(&surface->events.destroy, surfaceDestroy);
     }
     ~Entry() {
-      Templates::detachListener(treeDestroy);
-      Templates::detachListener(contentDestroy);
-      Templates::detachListener(surfaceDestroy);
+      Templates::detachListeners(treeDestroy, contentDestroy, surfaceDestroy);
       clearViews(true);
+    }
+
+    void onTreeDestroy() {
+      Templates::detachListener(treeDestroy);
+      tree = nullptr;
+      clearViews(false);
+    }
+    void onContentDestroy() {
+      Templates::detachListener(contentDestroy);
+      content = nullptr;
+      clearViews(false);
+    }
+    void onSurfaceDestroy() {
+      Templates::detachListener(surfaceDestroy);
+      surface = nullptr;
+      clearViews(false);
+    }
+    void onViewsDestroy() {
+      Templates::detachListener(viewsDestroy);
+      views = nullptr;
+      radius = 0;
     }
 
     void clearViews(bool restore) {
@@ -123,14 +122,7 @@ public:
       }
       clearViews(false);
       views = next;
-      Templates::attachListener(
-          &views->node.events.destroy, viewsDestroy, this,
-          [](wl_listener *listener, void *) {
-            auto *entry = Templates::listenerOwner<Entry>(listener);
-            Templates::detachListener(entry->viewsDestroy);
-            entry->views = nullptr;
-            entry->radius = 0;
-          });
+      listen<&Entry::onViewsDestroy>(&views->node.events.destroy, viewsDestroy);
       wlr_scene_node_place_below(&views->node, &content->node);
       wlr_scene_node_set_enabled(&views->node, true);
       wlr_scene_node_set_enabled(&content->node, false);

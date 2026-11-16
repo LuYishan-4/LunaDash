@@ -134,7 +134,7 @@ bool WaylandCompositor::Impl::configureDisplay(const Json &changes,
   displayError.clear();
   if (!displayRevertTimer)
     displayRevertTimer =
-        wl_event_loop_add_timer(eventLoop, handleDisplayRevertTimer, this);
+        Templates::addTimer<&Impl::revertDisplay>(eventLoop, this);
   if (!displayRevertTimer ||
       wl_event_source_timer_update(displayRevertTimer, 15000) < 0) {
     const bool restored =
@@ -145,24 +145,13 @@ bool WaylandCompositor::Impl::configureDisplay(const Json &changes,
                          "the previous display mode.";
     *error = displayError;
     clearPendingDisplay();
-    updateBackground();
-    arrangeLayers();
-    q->arrange();
+    relayoutOutputs();
     return false;
   }
   displayRevertDeadline =
       std::chrono::steady_clock::now() + std::chrono::milliseconds(15000);
-  updateBackground();
-  arrangeLayers();
-  q->arrange();
+  relayoutOutputs();
   return true;
-}
-
-int WaylandCompositor::Impl::handleDisplayRevertTimer(void *data) {
-  auto *self = static_cast<Impl *>(data);
-  if (self)
-    self->revertDisplay();
-  return 0;
 }
 
 void WaylandCompositor::Impl::confirmDisplay() {
@@ -197,8 +186,6 @@ void WaylandCompositor::Impl::revertDisplay() {
   if (!wlr_output_commit_state(pendingDisplay, &previousDisplay))
     displayError = "Could not restore the previous display mode.";
   clearPendingDisplay();
-  updateBackground();
-  arrangeLayers();
-  q->arrange();
+  relayoutOutputs();
 }
 } // namespace LunaDash

@@ -17,8 +17,6 @@
 
 namespace LunaDash {
 namespace {
-using Templates::listenerOwner;
-
 std::string findExecutable(std::string_view program) {
   if (program.empty())
     return {};
@@ -95,31 +93,28 @@ bool XWaylandSupport::start(wl_display *display, wlr_compositor *compositor,
 
   xwayland_->data = this;
   wlr_xwayland_set_seat(xwayland_, seat_);
-  attachListener(&xwayland_->events.ready, ready_, this, handleReady);
-  attachListener(&xwayland_->events.new_surface, newSurfaceListener_, this,
-                 handleNewSurface);
+  listen<&XWaylandSupport::onReady>(&xwayland_->events.ready, ready_);
+  listen<&XWaylandSupport::onNewSurface>(&xwayland_->events.new_surface,
+                                         newSurfaceListener_);
   return true;
 #endif
 }
 
-void XWaylandSupport::handleReady(wl_listener *listener, void *) {
-  auto *self = listenerOwner<XWaylandSupport>(listener);
-  if (!self || !self->xwayland_)
+void XWaylandSupport::onReady() {
+  if (!xwayland_)
     return;
 #if LUDASH_WLR_HAS_XWAYLAND
   // XWM creates the X11 CLIPBOARD/PRIMARY/DnD bridge on ready. Point it at the
   // same seat used by wl_data_device and zwlr_data_control so X11 and Wayland
   // selections become one compositor-owned clipboard domain.
-  wlr_xwayland_set_seat(self->xwayland_, self->seat_);
+  wlr_xwayland_set_seat(xwayland_, seat_);
 #endif
-  self->xwmReady_ = true;
+  xwmReady_ = true;
 }
 
-void XWaylandSupport::handleNewSurface(wl_listener *listener, void *data) {
-  auto *self = listenerOwner<XWaylandSupport>(listener);
-  if (!self || !data || !self->newSurface_)
-    return;
-  self->newSurface_(static_cast<wlr_xwayland_surface *>(data));
+void XWaylandSupport::onNewSurface(wlr_xwayland_surface *surface) {
+  if (surface && newSurface_)
+    newSurface_(surface);
 }
 
 void XWaylandSupport::stop() {
@@ -162,8 +157,7 @@ void XWaylandSupport::stop() {
   }
   clients_.clear();
 
-  detachListener(newSurfaceListener_);
-  detachListener(ready_);
+  Templates::detachListeners(newSurfaceListener_, ready_);
 #if LUDASH_WLR_HAS_XWAYLAND
   if (xwayland_) {
     xwayland_->data = nullptr;
@@ -222,17 +216,8 @@ bool XWaylandSupport::ensureClientReaper() {
     return true;
   if (!eventLoop_)
     return false;
-  clientReaper_ = wl_event_loop_add_timer(
-      eventLoop_, handleClientReaper, this);
+  clientReaper_ = timer<&XWaylandSupport::reapClients>(eventLoop_);
   return clientReaper_ != nullptr;
-}
-
-int XWaylandSupport::handleClientReaper(void *data) {
-  auto *self = static_cast<XWaylandSupport *>(data);
-  if (!self)
-    return 0;
-  self->reapClients();
-  return 0;
 }
 
 void XWaylandSupport::reapClients() {
