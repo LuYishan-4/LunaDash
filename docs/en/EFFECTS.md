@@ -22,6 +22,12 @@ Settings > Visual effects controls **Background blur**, **Blur strength** (0–3
 
 The status reports actual `blurReady`, `blurFailed`, `blurFrames` and the blur error. Unsupported buffer imports or render-target allocation failures keep the application usable and report failure. This is a development effect, not evidence that every hardware driver, HDR/color-management path, video overlay or application has been verified. Layer-shell panels and special fullscreen surfaces are outside the ordinary application-window effect.
 
+## Layer-shell background blur
+
+Layer-shell clients opt into the same scene backdrop with the staging protocol `ext-background-effect-v1`: a client that sets a non-empty blur region on its surface gets a blurred underlay; the compositor no longer recognises LunaDash-Shell surfaces by their layer-shell namespace. LunaDash-Shell's overlays, panel popups, window switcher and polkit dialog ask for it through SlintLu's `PanelWindow.background-blur`; the panel, dock, wallpaper, notifications and OSD do not. Any other client that implements the protocol is treated the same way.
+
+The region only switches the effect on: the whole surface is blurred, not the exact region. A surface anchored to all four output edges without margins gets square corners so the screen corners stay covered; any other layer surface uses the shared 24-pixel surface radius. The blur region is double-buffered and removing the effect takes effect on the surface's next commit. The `blur` capability is withdrawn when **Background blur** is off or eye-care mode is on. Layer-shell clients without the protocol are drawn as they are.
+
 On wlroots 0.19 and newer, a lower source window using explicit synchronization disables the backdrop that would sample it. The optional effect does not queue that extra read until asynchronous commit-release ownership is implemented. An explicit-sync target window can still show a backdrop composed from implicit-sync content below it, since the target itself is never sampled. Normal application rendering continues through wlroots.
 
 The separate toolkit-neutral render-element library retains its OpenGL blur, procedural wallpaper and decoration shaders under `renderer/opengl`. It is not substituted for the active wlroots scene. CI includes pixel-level backdrop isolation, Gaussian smoothing, bounds and ownership regression tests; the Arch shell workflow captures the actual software Wayland session. Physical GPU performance and a real login-session screenshot remain required for final visual verification.

@@ -1017,6 +1017,10 @@ void WaylandCompositor::arrange() {
   d->steadyWindowOpacity =
       d->eyeCareActive ? 1.0f
                        : preferences.value("windowOpacity", 90) / 100.0f;
+  // Tell ext-background-effect-v1 clients whether the blur they ask for is applied.
+  if (d->backgroundEffects)
+    d->backgroundEffects->setBlurAvailable(preferences.value("blur", true) &&
+                                           !d->eyeCareActive);
   if (d->windowGlass) {
     const bool changed = d->windowGlass->configure(
         preferences.value("blur", true) && !d->eyeCareActive,

@@ -2,6 +2,7 @@
 
 // Private wlroots runtime state. Public callers use WaylandCompositor.hpp.
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/wayland/BackgroundEffectManager.hpp"
 #include "compositor/renderer/blur/WindowGlass.hpp"
 #include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/color/NightColor.h"
@@ -235,6 +236,7 @@ public:
   wlr_cursor *cursor = nullptr;
   wlr_xcursor_manager *cursorManager = nullptr;
   wlr_cursor_shape_manager_v1 *cursorShapeManager = nullptr;
+  std::unique_ptr<BackgroundEffectManager> backgroundEffects;
   wlr_fractional_scale_manager_v1 *fractionalScale = nullptr;
   wlr_screencopy_manager_v1 *screencopy = nullptr;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE

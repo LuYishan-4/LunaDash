@@ -131,6 +131,15 @@ bool WaylandCompositor::Impl::initialize() {
 
   xdgShell = wlr_xdg_shell_create(display, 3);
   layerShell = wlr_layer_shell_v1_create(display, 4);
+  // Optional: shells opt their layer surfaces into the scene blur with it.
+  backgroundEffects = std::make_unique<BackgroundEffectManager>(display, [this] {
+    for (const auto *output : outputs)
+      wlr_output_schedule_frame(output->output);
+  });
+  if (!backgroundEffects->valid()) {
+    logWarning("wlroots could not create the ext-background-effect-v1 global.");
+    backgroundEffects.reset();
+  }
 #if LUDASH_WLR_HAS_XDG_ACTIVATION
   // xdg-activation is optional in older wlroots builds. Its requests are
   // filtered through the seat's event-serial history before focus changes.
@@ -484,6 +493,8 @@ void WaylandCompositor::Impl::releaseRuntime() {
   windowGlass.reset();
   windowCorners.reset();
   wl_display_destroy_clients(display);
+  // Client resources reach back into the manager while they are destroyed.
+  backgroundEffects.reset();
 
   detachListener(newOutput);
   detachListener(newInput);
