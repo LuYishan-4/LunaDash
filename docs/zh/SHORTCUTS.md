@@ -2,21 +2,22 @@
 
 [English](../en/SHORTCUTS.md)
 
-以下為桌面預設值。**Meta／Super 通常是 Windows 鍵**。設定 → 鍵盤快捷鍵會顯示目前實際綁定，包含自訂及停用的項目；此表不會覆蓋已儲存的設定。共有 51 個可配置動作（31 個指令及 20 個工作區綁定），來源為 `src/desktop/shortcuts/ShortcutSettings.cpp`。
+以下為桌面預設值。**Meta／Super 通常是 Windows 鍵**。設定 → 鍵盤快捷鍵會顯示目前實際綁定，包含自訂及停用的項目；此表不會覆蓋已儲存的設定。共有 52 個可配置動作（32 個指令及 20 個工作區綁定），預設按鍵比照 niri，來源為 `src/desktop/shortcuts/ShortcutSettings.cpp`。
 
 | 按鍵 | 動作 |
 | --- | --- |
 | Meta+H／L／K／J | 焦點向左／右／上／下 |
-| Meta+Shift+H／L | 與左／右欄群組 |
+| Meta+[／Meta+] | 與左／右欄群組 |
 | Meta+Ctrl+H／L | 將欄向左／右移動 |
-| Meta+Shift+E | 將目前視窗移出群組 |
-| Meta+Shift+C | 將欄置中 |
+| Meta+. | 將目前視窗移出群組 |
+| Meta+C | 將欄置中 |
 | Meta+=／Meta+- | 加寬／縮窄欄 |
 | Meta+F | 最大化／還原 |
 | Meta+Shift+F | 進入／離開全螢幕 |
-| Meta+Shift+Space | 平鋪在「填滿」（分割畫面）與「正常」（類似 niri 的欄位）之間切換 |
+| Meta+Tab | 開啟／關閉工作區總覽 |
+| Meta+Shift+Space | 平鋪在「正常」（類似 niri 的欄位，預設）與「填滿」（分割畫面）之間切換 |
 | Meta+Shift+T | 切換浮動／平鋪 |
-| Meta+C 或 Meta+Q | 關閉目前視窗 |
+| Meta+Q | 關閉目前視窗 |
 | Meta+M | 最小化目前視窗 |
 | Meta+T 或 Meta+Enter | 開啟設定的終端機 |
 | Meta+E | 開啟設定的檔案管理器，預設 Dolphin |
@@ -31,7 +32,7 @@
 | Meta+V | 開啟剪貼簿歷史 |
 | Meta+X | 開啟工作階段／電源選單 |
 | Meta+1…9、Meta+0 | 切換工作區 1…9、10 |
-| Meta+Shift+1…9、Meta+Shift+0 | 移動目前視窗至工作區 1…9、10 |
+| Meta+Ctrl+1…9、Meta+Ctrl+0 | 移動目前視窗至工作區 1…9、10 |
 
 切換的目的工作區須已在設定中啟用。布局操作遵循目前模板；替換模板可能不支援群組或欄操作。
 
@@ -39,7 +40,7 @@
 
 | 按鍵／手勢 | 動作 |
 | --- | --- |
-| 單按 Meta | 開啟應用程式搜尋 |
+| 單按 Meta | 開啟／關閉工作區總覽 |
 | F12 | 切換全螢幕 |
 | Alt+Tab／Alt+Shift+Tab | 在視窗切換器向前／向後選擇 |
 | 切換器內方向鍵 | 左右移動一項，上下移動五項 |

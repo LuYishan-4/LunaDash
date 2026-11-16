@@ -70,6 +70,8 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
       return;
     }
   }
+  if (desktop->overviewPointerButton(event->button, pressed))
+    return;
   if (impl->pointerWindow) {
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
         event->button == impl->pointerButton) {
@@ -129,6 +131,9 @@ void WaylandCompositor::Impl::PointerComponent::dismissShellPopups() {
 void WaylandCompositor::Impl::PointerComponent::onAxis(
     wlr_pointer_axis_event *event) {
   if (!event)
+    return;
+  if (event->orientation == WL_POINTER_AXIS_VERTICAL_SCROLL &&
+      impl->q->overviewAxis(event->delta))
     return;
   auto *switcher = impl->q->windowSwitcher_.get();
   if (switcher->active()) {

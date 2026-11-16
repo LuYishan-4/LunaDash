@@ -87,42 +87,6 @@ double ease(SceneAnimationCurve curve, double progress) {
   }
 }
 
-// Exact solution of x'' = -k x - 2 zeta sqrt(k) x' over `seconds`, so the
-// result does not depend on the frame rate.
-void stepSpring(double &offset, double &velocity, const SceneSpring &spring,
-                double seconds) {
-  if (seconds <= 0.0)
-    return;
-  const double omega = std::sqrt(std::max(1e-6, spring.stiffness));
-  const double zeta = std::max(0.0, spring.dampingRatio);
-  const double x = offset;
-  const double v = velocity;
-  if (std::abs(zeta - 1.0) < 1e-6) {
-    const double b = v + omega * x;
-    const double decay = std::exp(-omega * seconds);
-    offset = (x + b * seconds) * decay;
-    velocity = (b - omega * (x + b * seconds)) * decay;
-  } else if (zeta < 1.0) {
-    const double damped = omega * std::sqrt(1.0 - zeta * zeta);
-    const double b = (v + zeta * omega * x) / damped;
-    const double decay = std::exp(-zeta * omega * seconds);
-    const double cosine = std::cos(damped * seconds);
-    const double sine = std::sin(damped * seconds);
-    offset = decay * (x * cosine + b * sine);
-    velocity = decay * ((b * damped - zeta * omega * x) * cosine -
-                        (x * damped + zeta * omega * b) * sine);
-  } else {
-    const double root = omega * std::sqrt(zeta * zeta - 1.0);
-    const double r1 = -zeta * omega + root;
-    const double r2 = -zeta * omega - root;
-    const double c1 = (v - r2 * x) / (r1 - r2);
-    const double c2 = x - c1;
-    const double e1 = std::exp(r1 * seconds);
-    const double e2 = std::exp(r2 * seconds);
-    offset = c1 * e1 + c2 * e2;
-    velocity = c1 * r1 * e1 + c2 * r2 * e2;
-  }
-}
 
 SceneSpring sanitized(const SceneSpring &spring) {
   return {std::clamp(spring.stiffness, 1.0, 20000.0),
@@ -243,6 +207,43 @@ SceneAnimationRectangle scaledAroundCenter(const SceneAnimationRectangle &rect,
 }
 } // namespace
 
+// Exact solution of x'' = -k x - 2 zeta sqrt(k) x' over `seconds`, so the
+// result does not depend on the frame rate.
+void stepSceneSpring(double &offset, double &velocity, const SceneSpring &spring,
+                double seconds) {
+  if (seconds <= 0.0)
+    return;
+  const double omega = std::sqrt(std::max(1e-6, spring.stiffness));
+  const double zeta = std::max(0.0, spring.dampingRatio);
+  const double x = offset;
+  const double v = velocity;
+  if (std::abs(zeta - 1.0) < 1e-6) {
+    const double b = v + omega * x;
+    const double decay = std::exp(-omega * seconds);
+    offset = (x + b * seconds) * decay;
+    velocity = (b - omega * (x + b * seconds)) * decay;
+  } else if (zeta < 1.0) {
+    const double damped = omega * std::sqrt(1.0 - zeta * zeta);
+    const double b = (v + zeta * omega * x) / damped;
+    const double decay = std::exp(-zeta * omega * seconds);
+    const double cosine = std::cos(damped * seconds);
+    const double sine = std::sin(damped * seconds);
+    offset = decay * (x * cosine + b * sine);
+    velocity = decay * ((b * damped - zeta * omega * x) * cosine -
+                        (x * damped + zeta * omega * b) * sine);
+  } else {
+    const double root = omega * std::sqrt(zeta * zeta - 1.0);
+    const double r1 = -zeta * omega + root;
+    const double r2 = -zeta * omega - root;
+    const double c1 = (v - r2 * x) / (r1 - r2);
+    const double c2 = x - c1;
+    const double e1 = std::exp(r1 * seconds);
+    const double e2 = std::exp(r2 * seconds);
+    offset = c1 * e1 + c2 * e2;
+    velocity = c1 * r1 * e1 + c2 * r2 * e2;
+  }
+}
+
 void SceneAnimation::Motion::start(const SceneSpring &parameters,
                                    const SceneAnimationRectangle &from,
                                    const SceneAnimationRectangle &to) {
@@ -271,7 +272,7 @@ void SceneAnimation::Motion::retarget(const SceneAnimationRectangle &to) {
 
 void SceneAnimation::Motion::step(double seconds) {
   for (std::size_t axis = 0; axis < offset.size(); ++axis)
-    stepSpring(offset[axis], velocity[axis], spring, seconds);
+    stepSceneSpring(offset[axis], velocity[axis], spring, seconds);
 }
 
 bool SceneAnimation::Motion::settled() const {

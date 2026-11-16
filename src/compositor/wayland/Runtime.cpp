@@ -103,6 +103,7 @@ bool WaylandCompositor::Impl::createRuntime() {
   bottomLayer = wlr_scene_tree_create(&scene->tree);
   normalLayer = wlr_scene_tree_create(&scene->tree);
   animationLayer = wlr_scene_tree_create(&scene->tree);
+  overviewLayer = wlr_scene_tree_create(&scene->tree);
   topLayer = wlr_scene_tree_create(&scene->tree);
   // True xdg fullscreen sits above ordinary top-layer panels. Layer-shell
   // OVERLAY stays above it for OSD/recorder overlays and selectors.
@@ -169,6 +170,7 @@ void WaylandCompositor::Impl::destroyRuntime() {
   bottomLayer = nullptr;
   normalLayer = nullptr;
   animationLayer = nullptr;
+  overviewLayer = nullptr;
   topLayer = nullptr;
   fullscreenLayer = nullptr;
   overlayLayer = nullptr;

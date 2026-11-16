@@ -1,4 +1,5 @@
 #include "service/portal/filepicker/FilePickerApplication.hpp"
+#include "desktop/theme/InterfaceFont.hpp"
 
 #include "core/process/ProcessRunner.hpp"
 #include "FilePicker.h"
@@ -1197,6 +1198,7 @@ int FilePickerApplication::run(int argc, char **argv) {
     return 2;
   }
   auto window = FilePickerWindow::create();
+  window->set_font_family(slint::SharedString(desktopFontFamily()));
   PickerState picker(window, request, std::move(translations), std::move(palette),
                      temporary.path());
   picker.connect();

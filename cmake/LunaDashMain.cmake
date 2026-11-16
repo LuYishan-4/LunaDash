@@ -256,6 +256,11 @@ target_compile_definitions(ludash-plugins PRIVATE
 add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp src/desktop/browser/Browser.cpp)
 target_include_directories(ludash-default-applications PUBLIC src)
 target_link_libraries(ludash-default-applications PUBLIC nlohmann_json::nlohmann_json)
+# The desktop's font for LunaDash's own Slint windows.
+add_library(ludash-interface-font src/desktop/theme/InterfaceFont.cpp)
+target_include_directories(ludash-interface-font PUBLIC src)
+target_link_libraries(ludash-interface-font
+    PUBLIC ludash-desktop-preferences PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-package-policy src/desktop/package/PackageManager.cpp)
 target_include_directories(ludash-package-policy PUBLIC src)
 add_executable(ludash-welcome
@@ -263,7 +268,7 @@ add_executable(ludash-welcome
     src/desktop/welcome/WelcomeApplication.hpp
     src/desktop/welcome/WelcomeApplication.cpp)
 target_include_directories(ludash-welcome PRIVATE src)
-target_link_libraries(ludash-welcome PRIVATE Slint::Slint nlohmann_json::nlohmann_json)
+target_link_libraries(ludash-welcome PRIVATE Slint::Slint ludash-interface-font nlohmann_json::nlohmann_json)
 slint_target_sources(ludash-welcome src/desktop/welcome/Welcome.slint)
 set_target_properties(ludash-welcome PROPERTIES OUTPUT_NAME lunadash-welcome)
 add_custom_command(TARGET ludash-welcome POST_BUILD
@@ -276,7 +281,7 @@ add_executable(ludash-packages
     src/desktop/package/PackageManagerApplication.cpp)
 target_include_directories(ludash-packages PRIVATE src)
 target_link_libraries(ludash-packages PRIVATE
-    Slint::Slint ludash-package-policy ludash-default-applications
+    Slint::Slint ludash-interface-font ludash-package-policy ludash-default-applications
     ludash-desktop-preferences ludash-appearance-palette
     ludash-localization PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
 slint_target_sources(ludash-packages
@@ -296,7 +301,7 @@ target_compile_definitions(ludash-screencast-chooser PRIVATE
     LUDASH_TRANSLATIONS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/translations"
     LUDASH_TRANSLATIONS_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ludash/translations")
 target_link_libraries(ludash-screencast-chooser PRIVATE
-    Slint::Slint ludash-process-runner nlohmann_json::nlohmann_json)
+    Slint::Slint ludash-interface-font ludash-process-runner nlohmann_json::nlohmann_json)
 slint_target_sources(ludash-screencast-chooser
     src/service/portal/screencast/ScreenCastChooser.slint)
 set_target_properties(ludash-screencast-chooser PROPERTIES
@@ -311,7 +316,7 @@ target_compile_definitions(ludash-filepicker PRIVATE
     LUDASH_TRANSLATIONS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/translations"
     LUDASH_TRANSLATIONS_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ludash/translations")
 target_link_libraries(ludash-filepicker PRIVATE
-    Slint::Slint ludash-process-runner PkgConfig::LUDASH_GDK_PIXBUF
+    Slint::Slint ludash-interface-font ludash-process-runner PkgConfig::LUDASH_GDK_PIXBUF
     PkgConfig::LUDASH_GIO
     nlohmann_json::nlohmann_json)
 slint_target_sources(ludash-filepicker
@@ -459,6 +464,7 @@ add_library(ludash-wayland
     src/compositor/window/Arrange.cpp
     src/compositor/window/WindowFocus.cpp
     src/compositor/window/WindowLayoutSettings.cpp
+    src/compositor/window/WorkspaceOverview.cpp
     src/compositor/window/animation/AnimationProfile.cpp
     src/compositor/wayland/WaylandCompositor.cpp
     src/compositor/session/SessionStartup.cpp

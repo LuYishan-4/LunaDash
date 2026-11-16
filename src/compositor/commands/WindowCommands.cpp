@@ -135,6 +135,15 @@ void CompositorCommands::registerWindowCommands(CommandRegistry &registry) {
     return {};
   });
 
+  // The workspace overview: "toggle", "open" or "close".
+  registry.add("overview", [](C &c, const R &r) -> CommandResult {
+    if (r.value != "toggle" && r.value != "open" && r.value != "close")
+      return commandError("Overview expects toggle, open or close.");
+    if (r.value == "toggle" || (r.value == "open") != c.overview_.open)
+      c.toggleOverview();
+    return {};
+  });
+
   // Window switcher (Alt+Tab and the shell's overview).
   registry.add("switch-window", [](C &c, const R &r) -> CommandResult {
     const auto id = textWindowId(r.value);

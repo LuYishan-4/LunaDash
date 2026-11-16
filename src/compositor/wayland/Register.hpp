@@ -99,6 +99,8 @@ public:
   private:
     bool updateCaptureCursor();
     void advanceAnimations(std::uint64_t nowNs);
+    // Time from building a frame to its presentation, one refresh period.
+    std::uint64_t refreshPeriodNs() const;
     void commitScene();
     void sendFrameDone(timespec *now);
     void scheduleCaptureTail(bool capturePending);
@@ -372,6 +374,8 @@ public:
   wlr_scene_tree *bottomLayer = nullptr;
   wlr_scene_tree *normalLayer = nullptr;
   wlr_scene_tree *animationLayer = nullptr;
+  // Window previews of the workspace overview, below the shell's panels.
+  wlr_scene_tree *overviewLayer = nullptr;
   wlr_scene_tree *topLayer = nullptr;
   wlr_scene_tree *fullscreenLayer = nullptr;
   wlr_scene_tree *overlayLayer = nullptr;

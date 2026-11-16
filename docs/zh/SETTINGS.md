@@ -39,12 +39,12 @@ System command 來自固定 allowlist，不經 shell evaluation。Logout 結束 
 
 ```text
 workspaceCount    10       (1–10，已不使用：工作區跟著視窗增減)
-tilingMode        fill     (fill：分割樹填滿畫面；scroll：類似 niri 的欄位保留寬度；Meta+Shift+Space 切換)
+tilingMode        scroll   (scroll：類似 niri 的欄位保留寬度；fill：分割樹填滿畫面；Meta+Shift+Space 切換)
 keyboardLayout    us       (us/gb/de/fr/es/jp/tw)
 keyRepeatRate     25       (0–60)
 keyRepeatDelay    600 ms   (200–1500)
 cursorSize        24 px    (16–64，下一次 session)
-fontFamily        sans-serif
+fontFamily        sans-serif  (LunaDash 自己的視窗（歡迎、套件、portal 選擇器）使用桌面對應的字體：sans-serif 為介面字體（經 portal 或 GSettings 讀取 org.gnome.desktop.interface font-name），monospace 為等寬字體；serif 或桌面未設定時交給 fontconfig)
 clock24Hour       true
 startupApps       []
 virtualOutputSize   1440x900   (WIDTHxHEIGHT，320x240–7680x4320；沒有 mode 的 output——巢狀視窗、headless——在被調整前的大小)
@@ -77,9 +77,9 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 Taskbar 以 workspace capsule 分組已 map 視窗，和 tiling column 是兩套概念。點 task 時，必要時先切 workspace；一般 tiled task 會最大化該視窗並暫時隱藏同 workspace 其他 tile。再次點 active task 或按 `Super+F` 會回復原 split ratios/row heights。
 
-新視窗切割最大 tile；Alt+drag 可換 slot／插入 group；Shift+Alt+drag 調 shared boundary；`Super+Shift+H/L` 合併到鄰近 column，`Super+Shift+E` 分離。
+新視窗切割最大 tile；Alt+drag 可換 slot／插入 group；Shift+Alt+drag 調 shared boundary；`Super+[`／`Super+]` 合併到鄰近 column，`Super+.` 分離。
 
-`Alt+Tab` 列出工作列上所有視窗（目前工作區優先），`Super+Tab` 開工作區切換器。Tab/Shift+Tab、方向鍵都能移動；放開 Alt／Super 或點選切換，Esc 取消。`Super+0` 對應第十個工作區。
+`Alt+Tab` 列出工作列上所有視窗（目前工作區優先）；Tab/Shift+Tab、方向鍵都能移動，放開 Alt 或點選切換，Esc 取消。`Super+Tab` 或單按 Super 開啟工作區總覽（見〈互動〉）。`Super+0` 對應第十個工作區。
 
 ## Update 與授權
 

@@ -10,9 +10,9 @@ LunaDash keeps all ordinary windows within one screen using a persistent split t
 | Alt + left-drag onto the middle of another window | Exchanges the two slots; slot dimensions remain unchanged |
 | Alt + left-drag onto a top/bottom edge | Inserts before/after that member, with a visible insertion marker; maximum eight members |
 | Shift + Alt + left-drag | Moves the nearest shared split boundaries and redistributes grouped row heights; neighbors stay on screen without reordering |
-| Tap Meta | Opens the application search immediately; Meta+key shortcuts continue to use their existing bindings |
+| Tap Meta | Opens the workspace overview; Meta+key shortcuts continue to use their existing bindings |
 | Alt+Tab / Alt+Shift+Tab | Shows every window in the taskbar (current workspace first) and selects next/previous |
-| Super+Tab / Super+Shift+Tab | Opens the workspace overview and selects next/previous |
+| Super+Tab | Opens / closes the workspace overview: click or drag windows to switch, swap or move them |
 | Hover a workspace in the switcher | Moves the selection immediately without requiring a click |
 | Release Alt / click a workspace | Switches to the selected workspace |
 | Esc in the overview | Cancels and retains the original focus |
@@ -28,7 +28,7 @@ Drag/drop slot swaps and group insertions use the shared scene transition after 
 
 ## Fill and Normal tiling
 
-Tiling has two modes, switched with Meta+Shift+Space or Settings → Windows. **Fill** is the split tree described above: windows divide the screen between them. **Normal** works like niri: every window keeps its column width (half the screen by default, `columnWidth` in the `scrolling` layout template), new windows open as a column to the right of the focused one, and the view scrolls sideways to keep the focused column on screen; a strip narrower than the screen is centred. Meta+H/L move focus between columns and scroll, Meta+Shift+H/L move the window into the neighbouring column (stacking it), Meta+Shift+E expels it into its own column, Meta+Ctrl+H/L reorder columns, Meta+= / Meta+- change the column width and Meta+Shift+C centres it. Switching modes keeps every window and its workspace.
+Tiling has two modes, switched with Meta+Shift+Space or Settings → Windows; **Normal** is the default. **Fill** is the split tree described above: windows divide the screen between them. **Normal** works like niri: every window keeps its column width (half the screen by default, `columnWidth` in the `scrolling` layout template), new windows open as a column to the right of the focused one, and the view scrolls sideways to keep the focused column on screen; a strip narrower than the screen is centred. Meta+H/L move focus between columns and scroll, Meta+[ / Meta+] move the window into the neighbouring column (stacking it), Meta+. expels it into its own column, Meta+Ctrl+H/L reorder columns, Meta+= / Meta+- change the column width and Meta+C centres it. Switching modes keeps every window and its workspace.
 
 ## Validation
 

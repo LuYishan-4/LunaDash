@@ -38,6 +38,9 @@ component PackageAction inherits Rectangle {
 }
 
 export component PackageManagerWindow inherits Window {
+    // The desktop's font (desktop/theme/InterfaceFont), set by the application.
+    in property <string> font-family;
+    default-font-family: root.font-family;
     no-frame: true;
     resize-border-width: 8px;
     title: root.window-title;

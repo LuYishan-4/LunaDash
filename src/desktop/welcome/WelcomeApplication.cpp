@@ -1,4 +1,5 @@
 #include "desktop/welcome/WelcomeApplication.hpp"
+#include "desktop/theme/InterfaceFont.hpp"
 
 #include "Welcome.h"
 
@@ -242,6 +243,7 @@ int WelcomeApplication::run(int argc, char **argv) {
   (void)argc;
   (void)argv;
   auto window = WelcomeWindow::create();
+  window->set_font_family(slint::SharedString(desktopFontFamily()));
   auto state = request("status");
   applyState(window, state);
 

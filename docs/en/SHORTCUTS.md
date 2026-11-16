@@ -2,21 +2,22 @@
 
 [Traditional Chinese](../zh/SHORTCUTS.md)
 
-These are the shipped desktop defaults. **Meta / Super** is usually the Windows key. Settings > Keyboard shortcuts shows the current bindings, including custom values and disabled actions; the tables below do not replace saved choices. There are 51 configurable actions (31 commands and 20 workspace bindings). The source is `src/desktop/shortcuts/ShortcutSettings.cpp`.
+These are the shipped desktop defaults. **Meta / Super** is usually the Windows key. Settings > Keyboard shortcuts shows the current bindings, including custom values and disabled actions; the tables below do not replace saved choices. There are 52 configurable actions (32 commands and 20 workspace bindings). The defaults follow niri's layout. The source is `src/desktop/shortcuts/ShortcutSettings.cpp`.
 
 | Keys | Action |
 | --- | --- |
 | Meta+H / L / K / J | Focus left / right / up / down |
-| Meta+Shift+H / L | Group with the left / right column |
+| Meta+[ / Meta+] | Group with the left / right column |
 | Meta+Ctrl+H / L | Move the column left / right |
-| Meta+Shift+E | Expel the focused window from its group |
-| Meta+Shift+C | Center the column |
+| Meta+. | Expel the focused window from its group |
+| Meta+C | Center the column |
 | Meta+= / Meta+- | Widen / narrow the column |
 | Meta+F | Maximize / restore |
 | Meta+Shift+F | Enter / leave fullscreen |
-| Meta+Shift+Space | Switch tiling between Fill (split screen) and Normal (niri-like columns) |
+| Meta+Tab | Open / close the workspace overview |
+| Meta+Shift+Space | Switch tiling between Normal (niri-like columns, the default) and Fill (split screen) |
 | Meta+Shift+T | Toggle floating / tiled |
-| Meta+C or Meta+Q | Close the focused window |
+| Meta+Q | Close the focused window |
 | Meta+M | Minimize the focused window |
 | Meta+T or Meta+Enter | Open the configured terminal |
 | Meta+E | Open the configured file manager (Dolphin by default) |
@@ -31,7 +32,7 @@ These are the shipped desktop defaults. **Meta / Super** is usually the Windows 
 | Meta+V | Open clipboard history |
 | Meta+X | Open session/power controls |
 | Meta+1…9, Meta+0 | Switch to workspace 1…9, 10 |
-| Meta+Shift+1…9, Meta+Shift+0 | Move the focused window to workspace 1…9, 10 |
+| Meta+Ctrl+1…9, Meta+Ctrl+0 | Move the focused window to workspace 1…9, 10 |
 
 Workspace switching requires the destination workspace to be enabled in Settings. Layout operations follow the active template; grouping/column actions can be unavailable in a replacement template.
 
@@ -39,7 +40,7 @@ The following controls are fixed and also listed at the bottom of Settings > Key
 
 | Keys / gesture | Action |
 | --- | --- |
-| Tap Meta alone | Open application search |
+| Tap Meta alone | Open / close the workspace overview |
 | F12 | Toggle fullscreen |
 | Alt+Tab / Alt+Shift+Tab | Step forward / backward in the window switcher |
 | Arrow keys in switcher | Select; left/right step one item, up/down step five |

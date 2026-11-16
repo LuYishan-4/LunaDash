@@ -14,11 +14,11 @@ nlohmann::json defaults() {
   nlohmann::json result{
       {"focusLeft", "Meta+H"},         {"focusRight", "Meta+L"},
       {"focusUp", "Meta+K"},           {"focusDown", "Meta+J"},
-      {"groupLeft", "Meta+Shift+H"},   {"groupRight", "Meta+Shift+L"},
+      {"groupLeft", "Meta+bracketleft"}, {"groupRight", "Meta+bracketright"},
       {"reorderLeft", "Meta+Ctrl+H"},  {"reorderRight", "Meta+Ctrl+L"},
-      {"expelWindow", "Meta+Shift+E"}, {"centerColumn", "Meta+Shift+C"},
+      {"expelWindow", "Meta+period"},  {"centerColumn", "Meta+C"},
       {"widenColumn", "Meta+="},       {"narrowColumn", "Meta+-"},
-      {"maximizeWindow", "Meta+F"},    {"closeWindow", "Meta+C"},
+      {"maximizeWindow", "Meta+F"},    {"closeWindow", "Meta+Q"},
       {"minimizeWindow", "Meta+M"},    {"launchTerminal", "Meta+T"},
       {"launchFiles", "Meta+E"},       {"launchLauncher", "Meta+D"},
       {"screenshot", "Meta+Shift+S"},  {"launchOrbit", "Meta+A"},
@@ -26,12 +26,12 @@ nlohmann::json defaults() {
       {"toggleEyeCare", "Meta+N"},     {"toggleScratchpad", "Meta+grave"},
       {"openControlCenter", "Meta+I"}, {"openClipboard", "Meta+V"},
       {"openPowerMenu", "Meta+X"},     {"toggleFullscreen", "Meta+Shift+F"},
-      {"toggleTilingMode", "Meta+Shift+Space"}};
+      {"toggleTilingMode", "Meta+Shift+Space"}, {"toggleOverview", "Meta+Tab"}};
   for (int workspace = 1; workspace <= 10; ++workspace) {
     const auto number = std::to_string(workspace % 10);
     result["workspace" + std::to_string(workspace)] = "Meta+" + number;
     result["moveToWorkspace" + std::to_string(workspace)] =
-        "Meta+Shift+" + number;
+        "Meta+Ctrl+" + number;
   }
   return result;
 }
@@ -123,13 +123,12 @@ ParsedShortcut parseShortcut(std::string_view text) {
   return {symbol, modifiers, std::move(canonical)};
 }
 
+// Alt+Tab drives the window switcher, which the compositor handles itself.
 bool reservedWindowSwitchKey(const ParsedShortcut &shortcut) {
   return (shortcut.symbol == XKB_KEY_Tab ||
           shortcut.symbol == XKB_KEY_ISO_Left_Tab) &&
          (shortcut.modifiers == ShortcutAlt ||
-          shortcut.modifiers == (ShortcutAlt | ShortcutShift) ||
-          shortcut.modifiers == ShortcutMeta ||
-          shortcut.modifiers == (ShortcutMeta | ShortcutShift));
+          shortcut.modifiers == (ShortcutAlt | ShortcutShift));
 }
 
 } // namespace
@@ -186,7 +185,7 @@ ShortcutSettings::ShortcutSettings(nlohmann::json legacyBindings)
   if (!configured.contains("workspace10") && uses("Meta+0", "workspace10"))
     bindings_["workspace10"] = "Disabled";
   if (!configured.contains("moveToWorkspace10") &&
-      uses("Meta+Shift+0", "moveToWorkspace10"))
+      uses("Meta+Ctrl+0", "moveToWorkspace10"))
     bindings_["moveToWorkspace10"] = "Disabled";
   for (auto &[key, value] : configured.items()) {
     (void)key;
@@ -259,8 +258,7 @@ bool ShortcutSettings::apply(const nlohmann::json &changes,
     }
     if (reservedWindowSwitchKey(parsed)) {
       if (error)
-        *error = "Alt+Tab and Super+Tab are reserved for window and workspace "
-                 "switching.";
+        *error = "Alt+Tab is reserved for window switching.";
       return false;
     }
     candidate[action] = parsed.canonical;

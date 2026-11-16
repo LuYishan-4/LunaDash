@@ -23,7 +23,8 @@ inline constexpr PreferenceKey<int> windowOpacity{"windowOpacity", 90};
 inline constexpr PreferenceKey<bool> animations{"animations", true};
 inline constexpr PreferenceKey<int> animationDuration{"animationDuration", 220};
 inline constexpr PreferenceKey<int> gap{"gap", 12};
-inline constexpr PreferenceKey<std::string_view> tilingMode{"tilingMode", "fill"};
+// Scrolling columns (niri-like) by default; "fill" splits the screen.
+inline constexpr PreferenceKey<std::string_view> tilingMode{"tilingMode", "scroll"};
 inline constexpr PreferenceKey<int> cursorSize{"cursorSize", 24};
 inline constexpr PreferenceKey<std::string_view> keyboardLayout{"keyboardLayout", "us"};
 inline constexpr PreferenceKey<std::string_view> updateChannel{"updateChannel", "stable"};

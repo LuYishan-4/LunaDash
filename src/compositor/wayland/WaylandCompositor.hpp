@@ -18,6 +18,7 @@
 #include <vector>
 
 struct wlr_layer_surface_v1;
+struct wlr_scene_tree;
 
 namespace LunaDash {
 
@@ -122,6 +123,31 @@ private:
     std::string error;
   };
 
+  // The workspace overview: every workspace zoomed out with live previews of
+  // its windows, like niri's overview.
+  struct OverviewState {
+    struct Preview {
+      int window = 0;
+      int workspace = 0;
+      Rect rect;
+    };
+    bool open = false;
+    // 0 is the normal view, 1 fully zoomed out.
+    double progress = 0.0;
+    double velocity = 0.0;
+    std::uint64_t lastStep = 0;
+    wlr_scene_tree *tree = nullptr;
+    std::vector<Preview> previews;
+    // RGBA of the focus ring, read when the overview opens.
+    float accent[4] = {0.61f, 0.80f, 0.98f, 1.0f};
+    int hovered = 0;
+    int pressed = 0;
+    double pressX = 0.0;
+    double pressY = 0.0;
+    bool dragging = false;
+    double scroll = 0.0;
+  };
+
   // Counters reported by state() for input diagnostics.
   struct KeyboardDiagnostics {
     int modifierResends = 0;
@@ -179,6 +205,7 @@ private:
   ShellRequestState shellRequests_;
   ActivationEnvironmentState activationEnvironment_;
   KeyboardDiagnostics keyboardDiagnostics_;
+  OverviewState overview_;
 
   // Construction steps (WaylandCompositor.cpp).
   void registerBuiltins();
@@ -262,6 +289,25 @@ private:
   void captureWorkspaceThumbnail(int serial, std::vector<int> windows);
   void pollThumbnailWrite();
   void finishWindowSwitch(bool accept);
+
+  // Workspace overview (compositor/window/WorkspaceOverview.cpp).
+  void toggleOverview();
+  void closeOverview();
+  bool overviewShown() const;
+  // Steps the zoom to `presentNs` and redraws the previews; called every frame.
+  void advanceOverview(std::uint64_t presentNs);
+  // Pointer and key handling while the overview is shown; true when consumed.
+  bool overviewPointerMotion();
+  bool overviewPointerButton(std::uint32_t button, bool pressed);
+  bool overviewAxis(double delta);
+  bool overviewKey(std::uint32_t symbol, std::uint32_t modifiers);
+  void rebuildOverviewPreviews();
+  Rect overviewRect(const Rect &rectangle, int workspace) const;
+  const OverviewState::Preview *overviewPreviewAt(double x, double y,
+                                                  int except = 0) const;
+  int overviewWorkspaceAt(double y) const;
+  bool pointerOverShell() const;
+  void moveClientToWorkspace(ClientWindow *client, int workspace);
 
   // Input (compositor/input/ShortcutActions.cpp).
   void handleShortcut(std::string_view action);

@@ -111,7 +111,7 @@ bool copyKeyboardLocks(wlr_keyboard *target, const wlr_keyboard *source) {
 
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
-  if (updateWindowPointer())
+  if (updateWindowPointer() || q->overviewPointerMotion())
     return;
   double sx = 0;
   double sy = 0;
@@ -316,7 +316,7 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
               symbols[i] == XKB_KEY_Super_L ||
               symbols[i] == XKB_KEY_Super_R;
 
-  // Reserve a quick press-and-release of Meta for the shell launcher without
+  // Reserve a quick press-and-release of Meta for the overview without
   // breaking the existing Meta+key compositor shortcuts. The modifier event is
   // still delivered through wl_keyboard.modifiers, so an unbound Meta combo
   // can continue to reach a client even though the bare modifier key event is
@@ -336,11 +336,11 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
 
     if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
         metaTapKeycode == static_cast<int>(event->keycode)) {
-      const bool openLauncher = metaTapPending;
+      const bool tapped = metaTapPending;
       metaTapPending = false;
       metaTapKeycode = -1;
-      if (openLauncher)
-        desktop->handleShortcut("launchLauncher");
+      if (tapped)
+        desktop->handleShortcut("toggleOverview");
       return;
     }
   }
@@ -382,10 +382,6 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
           !(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_LOGO))) {
         desktop->beginWindowSwitch(modifiers & WLR_MODIFIER_SHIFT ? -1 : 1);
         handled = true;
-      } else if (tab && (modifiers & WLR_MODIFIER_LOGO) &&
-                 !(modifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT))) {
-        desktop->beginWindowSwitch(modifiers & WLR_MODIFIER_SHIFT ? -1 : 1, true);
-        handled = true;
       } else if (switcher->active()) {
         if (symbol == XKB_KEY_Escape)
           desktop->finishWindowSwitch(false);
@@ -414,6 +410,12 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
         handled = true;
       }
     }
+  }
+
+  if (!handled && shortcutPress && desktop->overviewShown()) {
+    const auto modifiers = wlr_keyboard_get_modifiers(keyboard);
+    for (int i = 0; i < count && !handled; ++i)
+      handled = desktop->overviewKey(symbols[i], modifiers);
   }
 
   if (!handled && !virtualKeyboard)

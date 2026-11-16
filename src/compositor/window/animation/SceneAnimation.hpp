@@ -39,6 +39,11 @@ struct SceneSpring {
   double restSpeed = 10.0;
 };
 
+// Advances a spring by `seconds`: `offset` is the value minus its target. Exact for
+// any step length, so the motion does not depend on the frame rate.
+void stepSceneSpring(double &offset, double &velocity, const SceneSpring &spring,
+                     double seconds);
+
 struct SceneAnimationOptions {
   // Fades and the close animation; 0 disables all animation.
   int duration = 220;

@@ -1,6 +1,6 @@
 # Desktop shell
 
-The panel, dock, launcher, dashboard, notifications, lock screen and shell settings come from
+The panel (numbered workspaces and a taskbar like waybar's), dock (off by default), wallpaper (with fade, wipe, disc or zoom transitions), launcher, dashboard, notifications, lock screen and shell settings come from
 the independent [LunaDash-Shell](https://github.com/LunaDashWM/LunaDash-Shell) repository. It
 is written in Slint and runs on [SlintLu](https://github.com/LunaDashWM/SlintLu), which turns
 Slint files into Wayland layer-shell windows and provides the desktop services (audio, network,

@@ -141,6 +141,8 @@ void ShortcutActions::registerBuiltins(ShortcutRegistry &registry) {
     add(name, ShortcutNone,
         [](C &c, std::string_view action) { c.requestShellAction(action); });
   add("launchLauncher", ShortcutNoRelayout, [](C &c, auto) { toggleLauncher(c); });
+  // The workspace overview; Super tap and Super+Tab by default.
+  add("toggleOverview", ShortcutNoRelayout, [](C &c, auto) { c.toggleOverview(); });
   // A repeated shortcut must leave keyboard focus on the active selector so
   // Escape can still cancel it.
   add("screenshot", ShortcutNoRelayout, [](C &c, auto) { c.captureScreen(); });
@@ -151,12 +153,8 @@ void ShortcutActions::registerBuiltins(ShortcutRegistry &registry) {
       c.selectWorkspace(std::min(number, c.workspaceCount()) - 1);
   }});
   registry.numbered.add("moveToWorkspace", NumberedShortcutAction{[](C &c, int number) {
-    if (number <= 0 || !c.focused_)
-      return;
-    c.focused_->workspace = std::min(number, c.workspaceCount()) - 1;
-    c.windowLayout_->moveToWorkspace(c.focused_->id, c.focused_->workspace);
-    c.arrange();
-    c.synchronizeWindowFocus();
+    if (number > 0 && c.focused_)
+      c.moveClientToWorkspace(c.focused_, std::min(number, c.workspaceCount()) - 1);
   }});
 }
 

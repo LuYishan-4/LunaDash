@@ -1,4 +1,5 @@
 #include "service/portal/screencast/ScreenCastChooserApplication.hpp"
+#include "desktop/theme/InterfaceFont.hpp"
 
 #include "core/process/ProcessRunner.hpp"
 #include "ScreenCastChooser.h"
@@ -426,6 +427,8 @@ int ScreenCastChooserApplication::run(int argc, char **argv) {
   }
 
   auto window = ScreenCastChooserWindow::create();
+
+  window->set_font_family(slint::SharedString(desktopFontFamily()));
   const auto translations = [&state] {
     const auto found = state.find("translations");
     if (found != state.end() && found->is_object())

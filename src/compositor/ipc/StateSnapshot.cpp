@@ -340,6 +340,10 @@ Json WaylandCompositor::state(bool includeTranslations) const {
       {"session", session_.describe()},
       {"activeAnimations",
        windowAnimations_ ? windowAnimations_->activeCount() : 0},
+      {"overview", Json::object({{"open", overview_.open},
+                                 {"progress", overview_.progress},
+                                 {"previews", static_cast<std::int64_t>(
+                                                  overview_.previews.size())}})},
       {"xwayland", describeXWayland(xwaylandUtilities)},
       {"screenCapture", Json::object({{"protocol", ScreenCapture::protocol},
                                       {"version", ScreenCapture::protocolVersion},

@@ -205,6 +205,9 @@ component PlaceRow inherits Rectangle {
 }
 
 export component FilePickerWindow inherits Window {
+    // The desktop's font (desktop/theme/InterfaceFont), set by the application.
+    in property <string> font-family;
+    default-font-family: root.font-family;
     title: root.window-title;
     no-frame: true;
     resize-border-width: 8px;

@@ -13,15 +13,21 @@ import sys
 root = Path(__file__).resolve().parents[2]
 shell_root = Path(os.environ.get("LUDASH_SHELL_SOURCE_DIR")
                   or os.environ.get("LUDASH_QML_SOURCE_DIR", root / "shell")).resolve()
-compositor = (root / "src/compositor/wayland/WaylandCompositor.cpp").read_text(encoding="utf-8")
+# Control methods are registered per domain in src/compositor/commands/*Commands.cpp.
+commands = "\n".join(path.read_text(encoding="utf-8")
+                     for path in sorted((root / "src/compositor/commands").glob("*.cpp")))
+# Default application roles are declared by the default-applications domain.
+applications = (root / "src/desktop/app/DefaultApplications.hpp").read_text(encoding="utf-8")
 
 if not (shell_root / "shell.slint").is_file():
     sys.exit(f"The pinned LunaDash-Shell checkout has no shell.slint: {shell_root}")
 
-supported = set(re.findall(r'method\s*==\s*"([^"]+)"', compositor))
-launch_block = compositor[compositor.index('method == "launch-default"'):]
-launch_block = launch_block[: launch_block.index("{")]
-launch_roles = set(re.findall(r'value\s*==\s*"([^"]+)"', launch_block))
+supported = set(re.findall(r'registry\.add\(\s*"([^"]+)"', commands))
+launch_roles = set(re.findall(
+    r'inline constexpr std::string_view \w+ = "([^"]+)";',
+    applications[applications.index("namespace DefaultApplicationRole"):]))
+if not supported:
+    sys.exit("No compositor commands are registered in src/compositor/commands.")
 
 call = re.compile(r'Compositor\.command\(\s*"([^"]+)"\s*,\s*("([^"]*)")?')
 methods, roles, problems = set(), set(), []

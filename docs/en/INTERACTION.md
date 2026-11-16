@@ -7,8 +7,20 @@ the last occupied one, a window on that empty workspace adds the next one, and a
 empty workspace between occupied ones disappears once you leave it. Switching
 slides the whole workspace sideways (Reduced motion turns the slide off).
 
-`Super+Tab` / `Super+Shift+Tab` opens the workspace switcher. Release Super to
-select the highlighted workspace. `Alt+Tab` / `Alt+Shift+Tab` opens the window
+`Super+Tab` or a tap of Super alone opens the workspace overview, like niri's. The compositor
+zooms the screen out to half size: every workspace is stacked vertically around the current
+one and every window is drawn live where the layout places it, over the dimmed wallpaper;
+the shell's bar stays on top. Click a window to switch to it (and close the overview), or a
+free spot to switch to that workspace. Drag a window onto another window to swap them,
+moving it to that workspace first when needed, or onto a free spot of another workspace to
+move it there; the overview stays open. Middle-click closes a window. Scroll switches
+workspaces. Arrow keys or H/J/K/L move the focus (left/right between columns, up/down between
+workspaces); with Ctrl they move the focused column, or the focused window to the workspace
+above/below. Esc, Enter or Super closes it, and the compositor's other shortcuts keep working.
+`lunadashctl overview toggle|open|close` drives it from scripts or a shell button. The
+previews have square corners and no shadows yet.
+
+`Alt+Tab` / `Alt+Shift+Tab` opens the window
 switcher: every mapped application window in the taskbar, the current workspace
 first, including minimized windows. Release Alt to focus and restore the selected
 window, switching to its workspace. The shell draws both as a box in the middle of

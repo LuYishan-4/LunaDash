@@ -305,11 +305,14 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
 
   const bool capturePending = updateCaptureCursor();
   advanceAnimations(nowNs);
+  impl->q->advanceOverview(nowNs + refreshPeriodNs());
   impl->updateWindowGlass();
   commitScene();
   sendFrameDone(&now);
-  if (impl->q->windowAnimations_ &&
-      impl->q->windowAnimations_->activeCount() > 0)
+  // Animations and the overview's live previews redraw every frame.
+  if ((impl->q->windowAnimations_ &&
+       impl->q->windowAnimations_->activeCount() > 0) ||
+      impl->q->overviewShown())
     wlr_output_schedule_frame(output);
   scheduleCaptureTail(capturePending);
   recordFrameWork(nowNs);
@@ -335,6 +338,13 @@ bool WaylandCompositor::Impl::OutputState::updateCaptureCursor() {
   return capturePending;
 }
 
+std::uint64_t WaylandCompositor::Impl::OutputState::refreshPeriodNs() const {
+  constexpr std::uint64_t fallbackRefreshPeriodNs = 16666667ULL;
+  return output->refresh > 0
+             ? 1000000000000ULL / static_cast<std::uint64_t>(output->refresh)
+             : fallbackRefreshPeriodNs;
+}
+
 void WaylandCompositor::Impl::OutputState::advanceAnimations(
     std::uint64_t nowNs) {
   auto *animations = impl->q->windowAnimations_.get();
@@ -343,12 +353,7 @@ void WaylandCompositor::Impl::OutputState::advanceAnimations(
   const bool wasAnimating = animations->activeCount() > 0;
   // This frame reaches the screen about one refresh period from now; step the
   // animations to that time instead of to the moment the frame is built.
-  constexpr std::uint64_t fallbackRefreshPeriodNs = 16666667ULL;
-  const std::uint64_t periodNs =
-      output->refresh > 0
-          ? 1000000000000ULL / static_cast<std::uint64_t>(output->refresh)
-          : fallbackRefreshPeriodNs;
-  animations->advance(nowNs + periodNs);
+  animations->advance(nowNs + refreshPeriodNs());
   const bool stillAnimating = animations->activeCount() > 0;
   // Publish the moving layout at about 30 Hz, and once more when it settles.
   if (wasAnimating &&
@@ -378,8 +383,9 @@ void WaylandCompositor::Impl::OutputState::commitScene() {
 void WaylandCompositor::Impl::OutputState::sendFrameDone(timespec *now) {
   wlr_scene_output_send_frame_done(sceneOutput, now);
   for (const auto &client : impl->q->clients_)
+    // The overview shows every workspace's windows live.
     if (client->mapped && client->wlSurface &&
-        client->workspace == impl->q->workspace_)
+        (client->workspace == impl->q->workspace_ || impl->q->overviewShown()))
       wlr_surface_for_each_surface(
           client->wlSurface,
           [](wlr_surface *surface, int, int, void *data) {

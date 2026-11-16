@@ -1,4 +1,5 @@
 #include "desktop/package/PackageManagerApplication.hpp"
+#include "desktop/theme/InterfaceFont.hpp"
 
 #include "PackageManager.h"
 #include "config/appearance/AppearancePalette.hpp"
@@ -310,6 +311,7 @@ int PackageManagerApplication::run(int argc, char **argv) {
   (void)argc;
   (void)argv;
   auto window = PackageManagerWindow::create();
+  window->set_font_family(slint::SharedString(desktopFontFamily()));
   auto *legacySettings = loadLegacySettings();
   const auto locale = LunaDash::selectedLanguage();
   const auto catalog = languageDictionary(locale);
