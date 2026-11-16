@@ -407,6 +407,16 @@ void WaylandCompositor::Impl::handleOutputFrame(wl_listener *listener, void *) {
   }
   wlr_scene_output_send_frame_done(state->sceneOutput, &now);
 
+  for (const auto &client : state->impl->q->clients_)
+    if (client->mapped && client->wlSurface &&
+        client->workspace == state->impl->q->workspace_)
+      wlr_surface_for_each_surface(
+          client->wlSurface,
+          [](wlr_surface *surface, int, int, void *data) {
+            wlr_surface_send_frame_done(surface, static_cast<timespec *>(data));
+          },
+          &now);
+
   if (animations && animations->activeCount() > 0)
     wlr_output_schedule_frame(state->output);
 

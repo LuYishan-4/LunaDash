@@ -12,15 +12,19 @@ inline wlr_backend *createPlatform(wl_display *display) {
 #endif
 }
 
-// Refresh rate for a custom nested mode. The X11 backend rejects explicit
-// custom refresh rates, while headless and Wayland outputs report the rate
-// they were given.
+// Refresh rate for a custom nested mode. The X11 and Wayland backends reject
+// explicit custom refresh rates (the host paces frames), while headless outputs
+// report the rate they were given.
 inline int nestedModeRefresh(wlr_output *output, int fallbackMilliHz) {
+  if (!output)
+    return fallbackMilliHz;
 #if LUDASH_WLR_HAS_X11_BACKEND
-  if (output && wlr_output_is_x11(output))
+  if (wlr_output_is_x11(output))
     return 0;
-#else
-  (void)output;
+#endif
+#if LUDASH_WLR_HAS_WAYLAND_BACKEND
+  if (wlr_output_is_wl(output))
+    return 0;
 #endif
   return fallbackMilliHz;
 }

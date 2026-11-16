@@ -26,6 +26,12 @@ extern "C" {
 #else
 #define LUDASH_WLR_HAS_X11_BACKEND 0
 #endif
+#if __has_include(<wlr/backend/wayland.h>)
+#include <wlr/backend/wayland.h>
+#define LUDASH_WLR_HAS_WAYLAND_BACKEND 1
+#else
+#define LUDASH_WLR_HAS_WAYLAND_BACKEND 0
+#endif
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #if __has_include(<wlr/types/wlr_buffer.h>)
