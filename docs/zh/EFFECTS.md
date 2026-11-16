@@ -24,6 +24,12 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 狀態中的 `blurReady`、`blurFailed`、`blurFrames` 與 blur error 反映實際結果。buffer 無法匯入或配置 render target 失敗時，程式仍能使用並回報錯誤。這是開發中的特效，不代表所有硬體驅動、HDR／色彩管理路徑、影片 overlay 或應用程式均已驗證。Layer-shell 面板與特殊全螢幕表面不屬於一般應用程式視窗效果範圍。
 
+## Layer-shell 背景模糊
+
+Layer-shell 程式透過 staging 協定 `ext-background-effect-v1` 主動要求相同的場景模糊背景：程式在自己的表面設定非空的模糊區域後，就會得到模糊底層；合成器不再依 layer-shell namespace 辨識 LunaDash-Shell 的表面。LunaDash-Shell 的全螢幕覆蓋層、面板彈出視窗、視窗切換器與 polkit 對話框透過 SlintLu 的 `PanelWindow.background-blur` 提出要求；面板、Dock、桌布、通知與 OSD 不會。其他實作此協定的程式也以相同方式處理。
+
+模糊區域目前只作為開關：模糊範圍是整個表面，而不是精確的區域。四邊都貼齊輸出且沒有邊距的表面使用直角，確保螢幕角落也被覆蓋；其他 layer 表面使用共用的 24 像素表面圓角。模糊區域是雙緩衝狀態，移除效果會在表面下一次 commit 時生效。關閉「背景模糊」或開啟護眼模式時，合成器會撤回 `blur` 能力。未實作此協定的 layer-shell 程式維持原樣繪製。
+
 在 wlroots 0.19 以上版本，若需要取樣的下方來源視窗使用 explicit sync，該次模糊背景會停用。在非同步 commit-release 資源管理完成前，這項可選特效不會排入額外的來源讀取。使用 explicit sync 的目標視窗仍可顯示由下方 implicit-sync 內容組成的模糊背景，因為目標本身不會被取樣。一般應用程式畫面仍由 wlroots 正常繪製。
 
 獨立 toolkit-neutral render-element library 仍保留 `renderer/opengl` 下的 OpenGL blur、procedural wallpaper 與 decoration shader，沒有取代活動中的 wlroots scene。CI 包含背景隔離、Gaussian 模糊像素、尺寸界線與資源生命週期測試；Arch shell workflow 會擷取實際軟體 Wayland 工作階段。最終視覺驗證仍需實體 GPU 效能測試與真實登入工作階段截圖。

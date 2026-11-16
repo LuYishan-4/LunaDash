@@ -100,6 +100,9 @@ Json WaylandCompositor::debugSnapshot() const {
         {"width", current.actual_width},
         {"height", current.actual_height},
         {"exclusiveZone", current.exclusive_zone},
+        // Whether the layer asked for blur (ext-background-effect-v1) and gets it.
+        {"backgroundBlur", d->backgroundEffects &&
+                               d->backgroundEffects->wantsBlur(state->surface->surface)},
     });
   }
 
@@ -170,6 +173,7 @@ Json WaylandCompositor::debugSnapshot() const {
        }},
       {"protocols",
        {
+           {"backgroundEffect", d->backgroundEffects != nullptr},
            {"cursorShape", d->cursorShapeManager != nullptr},
            {"fractionalScale", d->fractionalScale != nullptr},
            {"inputMethod", d->inputMethodManager != nullptr},

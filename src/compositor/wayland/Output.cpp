@@ -8,7 +8,7 @@
 #include "core/filesystem/FileIo.hpp"
 #include "core/log/Log.hpp"
 #include <algorithm>
-#include <unordered_set>
+#include <cstdint>
 #include <array>
 #include <chrono>
 #include <ctime>
@@ -27,6 +27,22 @@ bool screencopyPendingForOutput(wlr_screencopy_manager_v1 *manager,
     if (frame->output == output)
       return true;
   return false;
+}
+
+// LunaDash-Shell's surface cards share one radius (its Style.radius).
+constexpr int kShellSurfaceRadius = 24;
+
+// A layer stretched over its whole output gets square corners: a rounded blur
+// would leave the screen corners sharp. Anything smaller is a surface card.
+int layerBlurRadius(const wlr_layer_surface_v1 &layer) {
+  constexpr std::uint32_t edges =
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT;
+  const auto &state = layer.current;
+  const bool fillsOutput = (state.anchor & edges) == edges && state.margin.top == 0 &&
+                           state.margin.right == 0 && state.margin.bottom == 0 &&
+                           state.margin.left == 0;
+  return fillsOutput ? 0 : kShellSurfaceRadius;
 }
 } // namespace
 
@@ -158,31 +174,18 @@ void WaylandCompositor::Impl::updateWindowGlass() {
                        client->mapped && !client->fullscreen &&
                            !client->desktop && !client->utility,
                        windowCorners ? windowCorners->radius(client->sceneTree) : 0});
-  // The shell's overlays and popups are layer-shell surfaces, not xdg
-  // toplevels. Give them the same producer-owned, input-transparent blur
-  // underlays; never sample the panel's own text or change its buffer alpha.
-  // Without blur support they keep their own (more opaque) glass.
+  // Layer-shell surfaces (the shell's overlays and popups) opt in through
+  // ext-background-effect-v1 and get the same producer-owned,
+  // input-transparent blur underlays; never sample the panel's own text or
+  // change its buffer alpha. Without the blur capability shells keep their
+  // own (more opaque) glass.
   for (const auto *layer : layers) {
-    if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer)
-      continue;
-    const std::string name =
-        layer->surface->namespace_ ? layer->surface->namespace_ : "";
-    // LunaDash-Shell overlays cover the screen; its popups are exactly their rounded surface
-    // (Style.radius 24). The panel, dock, wallpaper, toasts and OSD are not frosted.
-    static const std::unordered_set<std::string> overlays{
-        "lunadash-settings", "lunadash-dashboard", "lunadash-launcher", "lunadash-gallery",
-        "lunadash-wallpaper-library", "lunadash-switcher", "lunadash-power",
-        "lunadash-polkit", "lunadash-welcome"};
-    static const std::unordered_set<std::string> popups{
-        "lunadash-audio", "lunadash-calendar", "lunadash-clipboard", "lunadash-network",
-        "lunadash-tray-menu"};
-    // Full-screen overlays need square corners: a rounded blur leaves the screen corners sharp.
-    const int radius = overlays.contains(name) ? 0 : popups.contains(name) ? 24 : -1;
-    if (radius < 0)
+    if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer ||
+        !backgroundEffects || !backgroundEffects->wantsBlur(layer->surface->surface))
       continue;
     const auto &state = layer->surface->surface->current;
     surfaces.push_back({layer->sceneLayer->tree, {state.width, state.height},
-                     true, radius, 1.0f});
+                     true, layerBlurRadius(*layer->surface), 1.0f});
   }
   const bool animating = q->windowAnimations_ &&
                          q->windowAnimations_->activeCount() > 0;

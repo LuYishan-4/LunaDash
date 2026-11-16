@@ -366,6 +366,33 @@ add_custom_command(
     DEPENDS ${LUDASH_CURSOR_SHAPE_PROTOCOL_XML}
     VERBATIM)
 
+# wlroots has no ext-background-effect-v1 implementation; LunaDash implements
+# the global itself, so it also compiles the scanner's interface code.
+set(LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML
+    ${WAYLAND_PROTOCOLS_DATADIR}/staging/ext-background-effect/ext-background-effect-v1.xml)
+if(NOT EXISTS "${LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML}")
+    message(FATAL_ERROR
+        "wayland-protocols ext-background-effect XML not found (a wayland-protocols release that ships staging/ext-background-effect is required): ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML}")
+endif()
+set(LUDASH_BACKGROUND_EFFECT_PROTOCOL_HEADER
+    ${CMAKE_CURRENT_BINARY_DIR}/ext-background-effect-v1-protocol.h)
+set(LUDASH_BACKGROUND_EFFECT_PROTOCOL_CODE
+    ${CMAKE_CURRENT_BINARY_DIR}/ext-background-effect-v1-protocol.c)
+add_custom_command(
+    OUTPUT ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_HEADER}
+    COMMAND ${WAYLAND_SCANNER} server-header
+            ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML}
+            ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_HEADER}
+    DEPENDS ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML}
+    VERBATIM)
+add_custom_command(
+    OUTPUT ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_CODE}
+    COMMAND ${WAYLAND_SCANNER} private-code
+            ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML}
+            ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_CODE}
+    DEPENDS ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML}
+    VERBATIM)
+
 add_custom_target(ludash-wlroots-protocol-headers
     DEPENDS ${LUDASH_WLR_LAYER_PROTOCOL_HEADER} ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
             ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER})
@@ -430,6 +457,7 @@ add_library(ludash-wayland
     src/compositor/wayland/DebugSnapshot.cpp
     src/compositor/wayland/Register.cpp
     src/compositor/wayland/Output.cpp
+    src/compositor/wayland/BackgroundEffectManager.cpp
     src/compositor/wayland/DisplayConfiguration.cpp
     src/compositor/wayland/Surface.cpp
     src/compositor/wayland/XWayland.cpp
@@ -443,6 +471,8 @@ add_library(ludash-wayland
     ${LUDASH_WLR_LAYER_PROTOCOL_HEADER}
     ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
     ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER}
+    ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_HEADER}
+    ${LUDASH_BACKGROUND_EFFECT_PROTOCOL_CODE}
     ${LUDASH_EXT_CAPTURE_PROTOCOL_HEADER})
 target_include_directories(ludash-wayland
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src
