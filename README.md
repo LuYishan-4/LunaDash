@@ -27,9 +27,9 @@ A Wayland desktop that brings everyday essentials together, with room to make it
 
 ## LunaDash
 
-- **Everyday essentials, together.** A panel, launcher, card-based dashboard, resizable settings center, notifications and LunaDash-styled file/portal pickers are part of the desktop.
+- **Everyday essentials, together.** A panel, a launcher that lists applications with their descriptions, a card-based dashboard, resizable settings center, notifications and LunaDash-styled file/portal pickers are part of the desktop.
 - **A workspace that moves with you.** Tiles contained within one screen, groups of up to eight windows, Alt dragging, workspaces that grow and shrink with your windows, sliding workspace switches, an Alt+Tab box listing every window and a taskbar spanning all workspaces.
-- **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings.
+- **Make the defaults yours.** Change wallpaper, colors, spacing, shortcuts and default applications from Settings, and choose what right-clicking the desktop offers: built-in entries in your order, plus commands of your own (started without a shell).
 - **Go further when you want.** Customize the Slint shell and use the local control interface for your own workflow.
 
 Built with **C++20 · C11 · wlroots · OpenGL · Slint** (the shell runs on [SlintLu](https://github.com/LunaDashWM/SlintLu)). The current development version is **1.0.1a**. LunaDash is an active development preview, with Arch Linux as its primary platform.
