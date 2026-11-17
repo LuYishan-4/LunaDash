@@ -225,7 +225,7 @@ int SessionApplication::run(int argc, char **argv) {
         }))
       return 2;
   }
-
+  /*
   if (options.exitAfterSet) {
     if (!compositor.scheduleEventLoopCallback(
             std::max(1000, options.exitAfterMilliseconds), [&] {
@@ -250,6 +250,7 @@ int SessionApplication::run(int argc, char **argv) {
             }))
       return 2;
   }
+  */
 
   return compositor.runEventLoop(options.profile);
 }

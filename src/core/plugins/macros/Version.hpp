@@ -3,5 +3,5 @@
 #define LUDASH_VERSION "1.0.2a"
 #endif
 #ifndef LUDASH_GIT_COMMIT
-#define LUDASH_GIT_COMMIT "06518dddda3c72554912e0098b6c4acebcc12845"
+#define LUDASH_GIT_COMMIT "983da1568b82911fa0e6cbdad0ccd128f987f7da"
 #endif
