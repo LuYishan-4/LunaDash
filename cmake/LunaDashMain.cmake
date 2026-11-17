@@ -619,5 +619,3 @@ install(FILES data/session/lunadash-session.rules
 install(FILES data/session/launch-capabilities.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/session)
 install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)
-
-install(DIRECTORY data/themes/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/themes)
