@@ -74,7 +74,7 @@ add_library(ludash-xwayland src/compositor/xwayland/XWaylandSupport.cpp)
 target_include_directories(ludash-xwayland PUBLIC src)
 target_compile_definitions(ludash-xwayland PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-xwayland PUBLIC
-    PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
+    ludash-executable-lookup PkgConfig::WLROOTS PkgConfig::WAYLAND_SERVER)
 add_library(ludash-wallpaper src/desktop/wallpaper/WallpaperSettings.cpp
     src/desktop/wallpaper/WallpaperPalette.cpp
     src/desktop/wallpaper/VideoWallpaperPlayer.cpp)
@@ -123,10 +123,12 @@ add_library(ludash-file-io src/core/filesystem/FileIo.cpp
 target_include_directories(ludash-file-io PUBLIC src)
 add_library(ludash-log src/core/log/Log.cpp)
 target_include_directories(ludash-log PUBLIC src)
-add_library(ludash-process-runner src/core/process/ProcessRunner.cpp
-    src/core/process/ExecutableLookup.cpp)
+add_library(ludash-executable-lookup src/core/process/ExecutableLookup.cpp)
+target_include_directories(ludash-executable-lookup PUBLIC src)
+add_library(ludash-process-runner src/core/process/ProcessRunner.cpp)
 target_include_directories(ludash-process-runner PUBLIC src)
-target_link_libraries(ludash-process-runner PUBLIC PkgConfig::WAYLAND_SERVER
+target_link_libraries(ludash-process-runner PUBLIC ludash-executable-lookup
+    PkgConfig::WAYLAND_SERVER
     PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-crypto src/core/crypto/Sha256.cpp)
 target_include_directories(ludash-crypto PUBLIC src)
@@ -141,6 +143,7 @@ target_link_libraries(ludash-power-settings PUBLIC
     ludash-process-runner nlohmann_json::nlohmann_json)
 add_library(ludash-system-tools src/desktop/system/SystemTools.cpp)
 target_include_directories(ludash-system-tools PUBLIC src)
+target_link_libraries(ludash-system-tools PUBLIC ludash-executable-lookup)
 add_library(ludash-display-settings
     src/desktop/display/BrightnessSettings.cpp
     src/desktop/display/DdcBrightnessSettings.cpp)
@@ -251,7 +254,8 @@ target_compile_definitions(ludash-plugins PRIVATE
     LUDASH_PLUGIN_CATALOG_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/plugins/catalog.json")
 add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp src/desktop/browser/Browser.cpp)
 target_include_directories(ludash-default-applications PUBLIC src)
-target_link_libraries(ludash-default-applications PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(ludash-default-applications
+    PUBLIC ludash-executable-lookup nlohmann_json::nlohmann_json)
 # The desktop's font for LunaDash's own Slint windows.
 add_library(ludash-interface-font src/desktop/theme/InterfaceFont.cpp)
 target_include_directories(ludash-interface-font PUBLIC src)
@@ -278,6 +282,7 @@ add_executable(ludash-packages
 target_include_directories(ludash-packages PRIVATE src)
 target_link_libraries(ludash-packages PRIVATE
     Slint::Slint ludash-interface-font ludash-package-policy ludash-default-applications
+    ludash-executable-lookup
     ludash-desktop-preferences ludash-appearance-palette
     ludash-localization PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
 slint_target_sources(ludash-packages

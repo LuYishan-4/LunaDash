@@ -1,4 +1,5 @@
 #include "compositor/capture/ScreenCapture.hpp"
+#include "core/process/ExecutableLookup.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -6,45 +7,19 @@
 #include <filesystem>
 #include <regex>
 #include <string_view>
-#include <system_error>
 #include <sys/stat.h>
+#include <system_error>
 #include <unistd.h>
 #include <vector>
 
 namespace LunaDash {
 namespace {
-std::string findExecutable(std::string_view name,
-                           const ProcessEnvironment &environment) {
-  if (name.empty())
-    return {};
-  if (name.find('/') != std::string_view::npos) {
-    return ::access(std::string(name).c_str(), X_OK) == 0
-               ? std::string(name)
-               : std::string{};
-  }
-
+std::string findCaptureExecutable(std::string_view name,
+                                  const ProcessEnvironment &environment) {
   const auto pathValue = environment.find("PATH");
-  const char *path = pathValue == environment.end()
-                         ? std::getenv("PATH")
-                         : pathValue->second.c_str();
-  if (!path)
-    return {};
-
-  std::string_view directories(path);
-  while (true) {
-    const auto separator = directories.find(':');
-    const auto directory = directories.substr(0, separator);
-    const auto candidate =
-        (directory.empty() ? std::filesystem::path(".")
-                           : std::filesystem::path(directory)) /
-        name;
-    if (::access(candidate.c_str(), X_OK) == 0)
-      return candidate.string();
-    if (separator == std::string_view::npos)
-      break;
-    directories.remove_prefix(separator + 1);
-  }
-  return {};
+  return pathValue == environment.end()
+             ? findExecutable(name)
+             : findExecutable(name, pathValue->second);
 }
 
 std::string trim(std::string value) {
@@ -138,13 +113,12 @@ bool ScreenCapture::createTemporary(std::string *error) {
 }
 
 bool ScreenCapture::captureOutput(const ProcessEnvironment &environment,
-                                  const std::string &path,
-                                  std::string *error) {
+                                  const std::string &path, std::string *error) {
   if (busy()) {
     *error = "A screenshot capture is already active.";
     return false;
   }
-  grim_ = findExecutable("grim", environment);
+  grim_ = findCaptureExecutable("grim", environment);
   if (grim_.empty()) {
     *error = "Install grim to capture the compositor output.";
     return false;
@@ -171,14 +145,13 @@ bool ScreenCapture::captureOutput(const ProcessEnvironment &environment,
 }
 
 bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
-                                 const std::string &path,
-                                 std::string *error) {
+                                 const std::string &path, std::string *error) {
   if (busy()) {
     *error = "A screenshot selection is already active.";
     return false;
   }
-  const auto selector = findExecutable("slurp", environment);
-  grim_ = findExecutable("grim", environment);
+  const auto selector = findCaptureExecutable("slurp", environment);
+  grim_ = findCaptureExecutable("grim", environment);
   if (selector.empty() || grim_.empty()) {
     *error = "Install grim and slurp to select a screenshot region.";
     return false;
@@ -191,8 +164,8 @@ bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
   phase_ = "selecting";
   if (!process_.runDetailed(
           selector, {"-f", "%x,%y %wx%h"},
-          [this](const ProcessResult &result) { processFinished(result); },
-          0, environment_)) {
+          [this](const ProcessResult &result) { processFinished(result); }, 0,
+          environment_)) {
     phase_ = "idle";
     destination_.clear();
     *error = "Could not start the screenshot selector.";

@@ -1,8 +1,9 @@
 #include "service/portal/screencast/ScreenCastChooserApplication.hpp"
 #include "desktop/theme/InterfaceFont.hpp"
 
-#include "core/process/ProcessRunner.hpp"
 #include "ScreenCastChooser.h"
+#include "core/process/ExecutableLookup.hpp"
+#include "core/process/ProcessRunner.hpp"
 
 #include <nlohmann/json.hpp>
 #include <slint.h>
@@ -20,8 +21,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -40,9 +39,9 @@ struct Source {
 class TemporaryDirectory final {
 public:
   TemporaryDirectory() {
-    auto pattern = (std::filesystem::temp_directory_path() /
-                    "lunadash-screencast-XXXXXX")
-                       .string();
+    auto pattern =
+        (std::filesystem::temp_directory_path() / "lunadash-screencast-XXXXXX")
+            .string();
     std::vector<char> writable(pattern.begin(), pattern.end());
     writable.push_back('\0');
     if (char *created = ::mkdtemp(writable.data()))
@@ -97,39 +96,19 @@ ProcessResult runProcess(wl_event_loop *eventLoop, const std::string &program,
   return result;
 }
 
-std::string findExecutable(const std::string &name) {
+std::string findBundledOrPathExecutable(const std::string &name) {
   std::error_code error;
-  const auto executablePath = std::filesystem::read_symlink("/proc/self/exe", error);
+  const auto executablePath =
+      std::filesystem::read_symlink("/proc/self/exe", error);
   if (!error) {
     const auto sibling = executablePath.parent_path() / name;
-    struct stat status {};
-    if (::stat(sibling.c_str(), &status) == 0 && S_ISREG(status.st_mode) &&
-        ::access(sibling.c_str(), X_OK) == 0)
+    if (fileIsExecutable(sibling.string()))
       return sibling.string();
   }
-
   const char *pathValue = std::getenv("PATH");
-  const std::string_view path = pathValue && *pathValue
-                                    ? pathValue
-                                    : "/usr/local/bin:/usr/bin:/bin";
-  std::size_t start = 0;
-  while (start <= path.size()) {
-    const auto separator = path.find(':', start);
-    const auto directory = path.substr(
-        start, separator == std::string_view::npos ? path.size() - start
-                                                   : separator - start);
-    if (!directory.empty()) {
-      const auto candidate = std::filesystem::path(directory) / name;
-      struct stat status {};
-      if (::stat(candidate.c_str(), &status) == 0 && S_ISREG(status.st_mode) &&
-          ::access(candidate.c_str(), X_OK) == 0)
-        return candidate.string();
-    }
-    if (separator == std::string_view::npos)
-      break;
-    start = separator + 1;
-  }
-  return {};
+  return pathValue && *pathValue
+             ? LunaDash::findExecutable(name, pathValue)
+             : LunaDash::findExecutable(name, "/usr/local/bin:/usr/bin:/bin");
 }
 
 std::vector<std::string> readSources() {
@@ -159,8 +138,8 @@ std::string canonicalLocale(std::string locale) {
 }
 
 Json loadTranslationDictionary(const std::string &locale) {
-  std::vector<std::filesystem::path> roots{
-      LUDASH_TRANSLATIONS_SOURCE_DIR, LUDASH_TRANSLATIONS_INSTALL_DIR};
+  std::vector<std::filesystem::path> roots{LUDASH_TRANSLATIONS_SOURCE_DIR,
+                                           LUDASH_TRANSLATIONS_INSTALL_DIR};
   for (const auto &root : roots) {
     std::error_code error;
     if (!std::filesystem::is_directory(root, error) || error)
@@ -212,10 +191,10 @@ std::string substitute(std::string value, std::string_view replacement) {
 }
 
 std::string trimmed(std::string value) {
-  const auto first = std::find_if_not(value.begin(), value.end(),
-                                      [](unsigned char character) {
-                                        return std::isspace(character);
-                                      });
+  const auto first =
+      std::find_if_not(value.begin(), value.end(), [](unsigned char character) {
+        return std::isspace(character);
+      });
   const auto last = std::find_if_not(value.rbegin(), value.rend(),
                                      [](unsigned char character) {
                                        return std::isspace(character);
@@ -237,7 +216,7 @@ std::optional<Json> compositorState(wl_event_loop *eventLoop) {
   const char *legacyControl = std::getenv("LUDASH_CONTROL");
   if ((!control || !*control) && (!legacyControl || !*legacyControl))
     return std::nullopt;
-  const auto executable = findExecutable("lunadashctl");
+  const auto executable = findBundledOrPathExecutable("lunadashctl");
   if (executable.empty())
     return std::nullopt;
   const auto result = runProcess(eventLoop, executable, {"status"}, 1800);
@@ -256,9 +235,10 @@ std::optional<Json> matchingWindow(const Json &state, std::string_view title) {
     if (!client.is_object())
       continue;
     const std::string candidate = client.value("title", ""s);
-    if (candidate == title || (!candidate.empty() &&
-                               (title.find(candidate) != std::string_view::npos ||
-                                candidate.find(title) != std::string::npos)))
+    if (candidate == title ||
+        (!candidate.empty() &&
+         (title.find(candidate) != std::string_view::npos ||
+          candidate.find(title) != std::string::npos)))
       return client;
   }
   return std::nullopt;
@@ -272,8 +252,8 @@ slint::Color color(const Json &palette, std::string_view key,
     if (value.size() == 7 && value.front() == '#') {
       try {
         return slint::Color::from_argb_encoded(
-            0xff000000u |
-            static_cast<std::uint32_t>(std::stoul(value.substr(1), nullptr, 16)));
+            0xff000000u | static_cast<std::uint32_t>(
+                              std::stoul(value.substr(1), nullptr, 16)));
       } catch (const std::exception &) {
       }
     }
@@ -281,9 +261,10 @@ slint::Color color(const Json &palette, std::string_view key,
   return slint::Color::from_argb_encoded(fallback);
 }
 
-std::vector<Source> prepareSources(
-    wl_event_loop *eventLoop, const std::vector<std::string> &rawSources,
-    const Json &state, const std::filesystem::path &temporaryPath) {
+std::vector<Source> prepareSources(wl_event_loop *eventLoop,
+                                   const std::vector<std::string> &rawSources,
+                                   const Json &state,
+                                   const std::filesystem::path &temporaryPath) {
   std::vector<Source> sources;
   sources.reserve(rawSources.size());
   const auto messages = [&state] {
@@ -291,13 +272,12 @@ std::vector<Source> prepareSources(
     if (translations != state.end() && translations->is_object())
       return *translations;
     const auto language = state.value("language", std::string{});
-    return loadTranslationDictionary(
-        canonicalLocale(language.empty()
-                            ? (std::getenv("LUDASH_LANGUAGE")
-                                   ? std::getenv("LUDASH_LANGUAGE")
-                                   : (std::getenv("LANG") ? std::getenv("LANG")
-                                                          : "en_US"))
-                            : language));
+    return loadTranslationDictionary(canonicalLocale(
+        language.empty()
+            ? (std::getenv("LUDASH_LANGUAGE")
+                   ? std::getenv("LUDASH_LANGUAGE")
+                   : (std::getenv("LANG") ? std::getenv("LANG") : "en_US"))
+            : language));
   }();
 
   std::optional<std::filesystem::path> desktopPreview;
@@ -305,8 +285,9 @@ std::vector<Source> prepareSources(
         return source.starts_with("Monitor: ");
       })) {
     const auto path = temporaryPath / "desktop.png";
-    const auto result = runProcess(eventLoop, findExecutable("grim"),
-                                   {path.string()}, 1800, false);
+    const auto result =
+        runProcess(eventLoop, findBundledOrPathExecutable("grim"),
+                   {path.string()}, 1800, false);
     if (result.success)
       desktopPreview = path;
   }
@@ -329,14 +310,15 @@ std::vector<Source> prepareSources(
             !client->value("hiddenByMaximize", false) &&
             client->value("visible", true) &&
             captures.size() < kMaximumWindowPreviews) {
-          const auto path = temporaryPath / ("window-" +
-                                              std::to_string(index) + ".png");
+          const auto path =
+              temporaryPath / ("window-" + std::to_string(index) + ".png");
           source.preview = path;
           captures.push_back(
-              {index, {"-g", std::to_string(x) + "," + std::to_string(y) +
-                                " " + std::to_string(width) + "x" +
-                                std::to_string(height),
-                       path.string()}});
+              {index,
+               {"-g",
+                std::to_string(x) + "," + std::to_string(y) + " " +
+                    std::to_string(width) + "x" + std::to_string(height),
+                path.string()}});
         }
       }
     }
@@ -349,7 +331,7 @@ std::vector<Source> prepareSources(
     auto runner = std::make_unique<ProcessRunner>(eventLoop, false);
     ++pending;
     const bool started = runner->run(
-        findExecutable("grim"), arguments,
+        findBundledOrPathExecutable("grim"), arguments,
         [&pending, &sources, index](bool success, const std::string &) {
           if (!success)
             sources[index].preview.clear();
@@ -399,7 +381,8 @@ int ScreenCastChooserApplication::run(int argc, char **argv) {
   if (rawSources.empty())
     return 1;
 
-  if (const char *autopick = std::getenv("LUNADASH_SCREENCAST_CHOOSER_AUTOPICK");
+  if (const char *autopick =
+          std::getenv("LUNADASH_SCREENCAST_CHOOSER_AUTOPICK");
       autopick && std::string_view(autopick) == "1") {
     std::cout << rawSources.front() << '\n' << std::flush;
     return 0;
@@ -407,21 +390,24 @@ int ScreenCastChooserApplication::run(int argc, char **argv) {
 
   wl_event_loop *eventLoop = wl_event_loop_create();
   if (!eventLoop) {
-    std::cerr << "LunaDash ScreenCast chooser could not create its process loop.\n";
+    std::cerr
+        << "LunaDash ScreenCast chooser could not create its process loop.\n";
     return 1;
   }
   const auto destroyEventLoop = [](wl_event_loop *loop) {
     wl_event_loop_destroy(loop);
   };
-  std::unique_ptr<wl_event_loop, decltype(destroyEventLoop)> loop(eventLoop,
-                                                                  destroyEventLoop);
+  std::unique_ptr<wl_event_loop, decltype(destroyEventLoop)> loop(
+      eventLoop, destroyEventLoop);
   const auto state = compositorState(eventLoop).value_or(Json::object());
   TemporaryDirectory temporary;
   std::vector<Source> sources;
   if (temporary.path().empty()) {
     for (const auto &raw : rawSources)
       sources.push_back(
-          {raw, displayLabel(raw, state.value("translations", Json::object())), {}});
+          {raw,
+           displayLabel(raw, state.value("translations", Json::object())),
+           {}});
   } else {
     sources = prepareSources(eventLoop, rawSources, state, temporary.path());
   }
@@ -436,7 +422,8 @@ int ScreenCastChooserApplication::run(int argc, char **argv) {
     const char *language = std::getenv("LUDASH_LANGUAGE");
     if (!language || !*language)
       language = std::getenv("LANG");
-    return loadTranslationDictionary(canonicalLocale(language ? language : "en_US"));
+    return loadTranslationDictionary(
+        canonicalLocale(language ? language : "en_US"));
   }();
   window->set_window_title(
       slint::SharedString(translated(translations, "Share your screen")));
@@ -444,16 +431,19 @@ int ScreenCastChooserApplication::run(int argc, char **argv) {
       slint::SharedString(translated(translations, "Choose what to share")));
   window->set_description(slint::SharedString(translated(
       translations,
-      "Select a screen or application window. Visible LunaDash windows use a live frame preview captured when this chooser opens; unavailable or minimized windows keep a labelled card.")));
-  const bool hasPreview = std::any_of(
-      sources.begin(), sources.end(), [](const Source &source) {
+      "Select a screen or application window. Visible LunaDash windows use a "
+      "live frame preview captured when this chooser opens; unavailable or "
+      "minimized windows keep a labelled card.")));
+  const bool hasPreview =
+      std::any_of(sources.begin(), sources.end(), [](const Source &source) {
         return !source.preview.empty() &&
                std::filesystem::is_regular_file(source.preview);
       });
   window->set_preview_note(slint::SharedString(translated(
-      translations, hasPreview
-                       ? "Previews are local and are not shared until you confirm."
-                       : "Preview capture is unavailable; source selection still works.")));
+      translations,
+      hasPreview
+          ? "Previews are local and are not shared until you confirm."
+          : "Preview capture is unavailable; source selection still works.")));
   window->set_cancel_label(
       slint::SharedString(translated(translations, "Cancel")));
   window->set_share_label(
@@ -471,8 +461,8 @@ int ScreenCastChooserApplication::run(int argc, char **argv) {
           slint::SharedString(source.preview.string()));
     model.push_back(std::move(row));
   }
-  window->set_sources(std::make_shared<slint::VectorModel<ShareSource>>(
-      std::move(model)));
+  window->set_sources(
+      std::make_shared<slint::VectorModel<ShareSource>>(std::move(model)));
 
   std::optional<std::string> selected;
   window->on_confirm([&](int index) {

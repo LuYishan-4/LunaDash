@@ -1,52 +1,20 @@
 #include "compositor/xwayland/XWaylandSupport.hpp"
 
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
+#include "core/process/ExecutableLookup.hpp"
 
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
-#include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <spawn.h>
-#include <string_view>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
 
 namespace LunaDash {
 namespace {
-std::string findExecutable(std::string_view program) {
-  if (program.empty())
-    return {};
-  const std::filesystem::path requested(program);
-  if (requested.has_parent_path())
-    return ::access(requested.c_str(), X_OK) == 0 ? requested.string()
-                                                   : std::string{};
-
-  const auto foundPath = std::getenv("PATH");
-  if (!foundPath)
-    return {};
-  const std::string_view searchPath(foundPath);
-  std::size_t start = 0;
-  while (start <= searchPath.size()) {
-    const auto separator = searchPath.find(':', start);
-    const auto directory = searchPath.substr(
-        start, separator == std::string_view::npos ? searchPath.size() - start
-                                                   : separator - start);
-    if (!directory.empty()) {
-      const auto candidate = std::filesystem::path(directory) / requested;
-      if (::access(candidate.c_str(), X_OK) == 0)
-        return candidate.string();
-    }
-    if (separator == std::string_view::npos)
-      break;
-    start = separator + 1;
-  }
-  return {};
-}
-
 void setError(std::string *error, std::string value) {
   if (error)
     *error = std::move(value);
@@ -83,8 +51,6 @@ bool XWaylandSupport::start(wl_display *display, wlr_compositor *compositor,
     return false;
   }
 
-  // wlroots owns the X server sockets and XWM. Lazy mode reserves DISPLAY now
-  // and starts the Xwayland process only when an X11 client connects.
   xwayland_ = wlr_xwayland_create(display, compositor, true);
   if (!xwayland_) {
     error_ = "wlroots could not create the XWayland/XWM bridge.";
@@ -136,8 +102,8 @@ void XWaylandSupport::stop() {
     }
   }
 
-  const auto deadline = std::chrono::steady_clock::now() +
-                        std::chrono::milliseconds(800);
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
   while (!remaining.empty() && std::chrono::steady_clock::now() < deadline) {
     std::erase_if(remaining, [](pid_t client) {
       int status = 0;
@@ -188,8 +154,8 @@ XWaylandSnapshot XWaylandSupport::snapshot() const {
 #if LUDASH_WLR_HAS_XWAYLAND
   if (xwayland_) {
     result.display = xwayland_->display_name ? xwayland_->display_name : "";
-    result.running = xwmReady_ ||
-                     (xwayland_->server && xwayland_->server->pid > 0);
+    result.running =
+        xwmReady_ || (xwayland_->server && xwayland_->server->pid > 0);
   }
 #endif
   result.available = xwayland_ != nullptr && error_.empty();
@@ -278,12 +244,12 @@ bool XWaylandSupport::launch(const std::vector<std::string> &command,
   environmentPointers.push_back(nullptr);
 
   pid_t process = 0;
-  const int status = ::posix_spawn(
-      &process, executable.c_str(), nullptr, nullptr, arguments.data(),
-      environmentPointers.data());
+  const int status =
+      ::posix_spawn(&process, executable.c_str(), nullptr, nullptr,
+                    arguments.data(), environmentPointers.data());
   if (status != 0) {
     setError(error, "Could not launch X11 application: " +
-                         std::string(std::strerror(status)));
+                        std::string(std::strerror(status)));
     return false;
   }
   clients_.push_back(process);

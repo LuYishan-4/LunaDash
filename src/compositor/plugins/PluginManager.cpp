@@ -5,14 +5,15 @@
 #include "core/filesystem/FileIo.hpp"
 #include "core/filesystem/TemporaryDirectory.hpp"
 #include "core/plugins/PluginApi.h"
+#include "core/process/ExecutableLookup.hpp"
 #include "core/text/Text.hpp"
 #include "core/text/Url.hpp"
-#include <glib.h>
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <dlfcn.h>
 #include <filesystem>
+#include <glib.h>
 #include <map>
 #include <set>
 #include <string_view>
@@ -169,7 +170,8 @@ bool removeExtensionPackageConfiguration(const std::string &id,
 } // namespace
 
 PluginManager::PluginManager(wl_event_loop *eventLoop) : eventLoop_(eventLoop) {
-  std::optional<std::string> bundled = readFile(LUDASH_PLUGIN_CATALOG_SOURCE_FILE);
+  std::optional<std::string> bundled =
+      readFile(LUDASH_PLUGIN_CATALOG_SOURCE_FILE);
   if (!bundled)
     bundled = readFile(LUDASH_PLUGIN_CATALOG_INSTALL_FILE);
   if (!bundled) {
@@ -365,7 +367,8 @@ bool PluginManager::applyStoreCatalog(const std::string &bytes,
       }
       if (!metadata || !cmakeProject) {
         if (error)
-          *error = "Plugin install package must include metadata.json and CMakeLists.txt";
+          *error = "Plugin install package must include metadata.json and "
+                   "CMakeLists.txt";
         return false;
       }
     }
@@ -402,9 +405,9 @@ void PluginManager::refreshStore() {
   storeError_.clear();
   snapshotDirty_ = true;
   const std::vector<std::string> arguments{
-      "--fail", "--location", "--proto", "=https", "--proto-redir", "=https",
-      "--max-redirs", "5", "--max-filesize", "262144", "--silent",
-      "--show-error", "--", configured};
+      "--fail",   "--location",   "--proto", "=https",         "--proto-redir",
+      "=https",   "--max-redirs", "5",       "--max-filesize", "262144",
+      "--silent", "--show-error", "--",      configured};
   const bool started = catalogRunner_->runDetailed(
       "curl", arguments,
       [this](const ProcessResult &result) {
@@ -547,9 +550,10 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
   }
   job->process = std::make_unique<ProcessRunner>(eventLoop_, false);
   const std::vector<std::string> arguments{
-      "--fail", "--location", "--proto", "=https", "--proto-redir", "=https",
-      "--max-redirs", "5", "--max-filesize", "4194304", "--silent",
-      "--show-error", "--output", path, "--", url};
+      "--fail",         "--location", "--proto",      "=https",
+      "--proto-redir",  "=https",     "--max-redirs", "5",
+      "--max-filesize", "4194304",    "--silent",     "--show-error",
+      "--output",       path,         "--",           url};
   const bool started = job->process->runDetailed(
       "curl", arguments,
       [this, job, expectedSha, path](const ProcessResult &result) {
@@ -560,13 +564,13 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
               }
               const auto data = readFile(path, 4 * 1024 * 1024);
               if (!data) {
-                finishStoreInstall(job,
-                                   "Plugin file exceeds the 4 MiB limit or is unreadable");
+                finishStoreInstall(
+                    job,
+                    "Plugin file exceeds the 4 MiB limit or is unreadable");
                 return;
               }
               if (sha256Hex(*data) != expectedSha) {
-                finishStoreInstall(job,
-                                   "Plugin file hash verification failed");
+                finishStoreInstall(job, "Plugin file hash verification failed");
                 return;
               }
               std::error_code permissionError;
@@ -576,7 +580,8 @@ void PluginManager::continueStoreInstall(StoreInstall *job) {
                       std::filesystem::perms::owner_write,
                   std::filesystem::perm_options::replace, permissionError);
               if (permissionError) {
-                finishStoreInstall(job, "Could not secure the staged plugin file");
+                finishStoreInstall(job,
+                                   "Could not secure the staged plugin file");
                 return;
               }
               ++job->index;
@@ -599,16 +604,11 @@ void PluginManager::startStoreBuild(StoreInstall *job) {
   const auto metadataFile = job->stage->filePath("metadata.json");
   if (!std::filesystem::is_regular_file(cmakeFile, fileError) ||
       !std::filesystem::is_regular_file(metadataFile, fileError)) {
-    finishStoreInstall(job, "Downloaded plugin is missing its SDK CMake project");
+    finishStoreInstall(job,
+                       "Downloaded plugin is missing its SDK CMake project");
     return;
   }
 
-  const auto findExecutable = [](const char *name) {
-    gchar *path = g_find_program_in_path(name);
-    const std::string result = path ? std::string(path) : std::string();
-    g_free(path);
-    return result;
-  };
   job->cmakeExecutable = findExecutable("cmake");
   const auto ninja = findExecutable("ninja");
   if (job->cmakeExecutable.empty() || ninja.empty()) {
@@ -637,9 +637,12 @@ void PluginManager::runStoreBuildStep(StoreInstall *job) {
   std::vector<std::string> arguments;
   if (job->buildStep == 0) {
     arguments = {
-        "-S", job->stage->path().string(),
-        "-B", job->buildDirectory,
-        "-G", "Ninja",
+        "-S",
+        job->stage->path().string(),
+        "-B",
+        job->buildDirectory,
+        "-G",
+        "Ninja",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_INSTALL_PREFIX=" + job->installPrefix,
     };
@@ -659,8 +662,8 @@ void PluginManager::runStoreBuildStep(StoreInstall *job) {
       [this, job](const ProcessResult &result) {
         if (!defer([this, job, result] {
               if (!result.success) {
-                finishStoreInstall(
-                    job, "Plugin SDK " + job->phase + " step failed");
+                finishStoreInstall(job,
+                                   "Plugin SDK " + job->phase + " step failed");
                 return;
               }
               if (job->buildStep < 2) {
@@ -692,27 +695,29 @@ void PluginManager::installBuiltStorePackage(StoreInstall *job) {
                     return descriptor.id != job->id ||
                            !descriptor.error.empty();
                   })) {
-    finishStoreInstall(
-        job, "Built plugin failed LunaDash SDK/runtime validation");
+    finishStoreInstall(job,
+                       "Built plugin failed LunaDash SDK/runtime validation");
     return;
   }
 
   if (!writeFileAtomically(
           builtDirectory / ".lunadash-store.json",
-          jsonCompact(Json{{"fingerprint", pluginStoreFingerprint(job->item)}}))) {
+          jsonCompact(
+              Json{{"fingerprint", pluginStoreFingerprint(job->item)}}))) {
     finishStoreInstall(job, "Could not write the Store revision receipt");
     return;
   }
 
   const auto root = std::filesystem::path(userPluginRoot());
   const auto destination = root / job->id;
-  const auto backup = root / (".old-" + job->id + "-" + millisecondsSinceEpoch());
+  const auto backup =
+      root / (".old-" + job->id + "-" + millisecondsSinceEpoch());
 
   std::string configError;
   if (!removeExtensionPackageConfiguration(job->id, &configError)) {
-    finishStoreInstall(
-        job, configError.empty() ? "Could not reset the plugin configuration"
-                                 : configError);
+    finishStoreInstall(job, configError.empty()
+                                ? "Could not reset the plugin configuration"
+                                : configError);
     return;
   }
   refresh();
@@ -786,8 +791,9 @@ bool PluginManager::removeInstalledPlugin(const std::string &id,
       (std::filesystem::path(destinationCanonical) / "metadata.json").string();
   const auto descriptors = readPluginMetadataTargets(metadataPath, false);
   if (descriptors.empty() ||
-      std::none_of(descriptors.cbegin(), descriptors.cend(),
-                   [&](const auto &descriptor) { return descriptor.id == id; })) {
+      std::none_of(
+          descriptors.cbegin(), descriptors.cend(),
+          [&](const auto &descriptor) { return descriptor.id == id; })) {
     if (error)
       *error = "Installed plugin metadata does not match the requested id";
     return false;
@@ -796,8 +802,9 @@ bool PluginManager::removeInstalledPlugin(const std::string &id,
   std::string configError;
   if (!removeExtensionPackageConfiguration(id, &configError)) {
     if (error)
-      *error = configError.empty() ? "Could not disable the plugin before removal"
-                                   : configError;
+      *error = configError.empty()
+                   ? "Could not disable the plugin before removal"
+                   : configError;
     return false;
   }
 
@@ -830,10 +837,9 @@ void PluginManager::refresh() {
 
   for (auto descriptor : discovered) {
     const auto key = pluginInstanceId(descriptor);
-    const auto previous =
-        std::find_if(catalog_.cbegin(), catalog_.cend(), [&](const auto &plugin) {
-          return pluginInstanceId(plugin) == key;
-        });
+    const auto previous = std::find_if(
+        catalog_.cbegin(), catalog_.cend(),
+        [&](const auto &plugin) { return pluginInstanceId(plugin) == key; });
     if (previous == catalog_.cend() ||
         previous->manifest != descriptor.manifest ||
         previous->mode != descriptor.mode ||
@@ -900,15 +906,14 @@ void PluginManager::refresh() {
           const char *loadError = ::dlerror();
           const auto entry = reinterpret_cast<Entry>(symbol);
           if (!native->library || loadError || !entry) {
-            errors_[key] = native->library && loadError
-                               ? std::string(loadError)
-                               : libraryError;
+            errors_[key] = native->library && loadError ? std::string(loadError)
+                                                        : libraryError;
           } else {
             native->api = entry();
             const auto *api = native->api;
             if (!api || api->struct_size != sizeof(ludash_plugin_api) ||
-                api->api_version != LUDASH_PLUGIN_API_VERSION || !api->process ||
-                !api->metadata_json ||
+                api->api_version != LUDASH_PLUGIN_API_VERSION ||
+                !api->process || !api->metadata_json ||
                 parseJson(api->metadata_json) != descriptor.manifest) {
               errors_[key] = "SDK ABI or embedded metadata mismatch";
             } else {
@@ -976,7 +981,8 @@ Json PluginManager::snapshot() {
         std::filesystem::absolute(descriptor.metadataPath).parent_path());
     item["removable"] =
         !removableRoot.empty() && !packageDir.empty() &&
-        std::filesystem::path(packageDir).parent_path().string() == removableRoot;
+        std::filesystem::path(packageDir).parent_path().string() ==
+            removableRoot;
     std::string error = descriptor.error;
     if (error.empty()) {
       const auto errorIt = errors_.find(pluginInstanceId(descriptor));
@@ -1142,7 +1148,8 @@ Json PluginManager::filter(const std::string &target, const Json &builtin,
         length = native->api->process(payload.c_str(), response.data(),
                                       response.size());
       } catch (...) {
-        reportError(pluginInstanceId(descriptor), "Plugin threw across its C ABI");
+        reportError(pluginInstanceId(descriptor),
+                    "Plugin threw across its C ABI");
         continue;
       }
       if (length < 0 || static_cast<std::size_t>(length) >= response.size()) {
@@ -1150,9 +1157,8 @@ Json PluginManager::filter(const std::string &target, const Json &builtin,
                     "Plugin returned an invalid response length");
         continue;
       }
-      const auto result =
-          parseJson(std::string_view(response.data(),
-                                     static_cast<std::size_t>(length)));
+      const auto result = parseJson(
+          std::string_view(response.data(), static_cast<std::size_t>(length)));
       if (!result.is_object() || !validate(result)) {
         reportError(pluginInstanceId(descriptor),
                     "Invalid plugin output; built-in/previous result retained");

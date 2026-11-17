@@ -1,11 +1,11 @@
 #include "desktop/app/DefaultApplications.hpp"
 
+#include "core/process/ExecutableLookup.hpp"
 #include "desktop/browser/Browser.hpp"
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
-#include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
@@ -13,7 +13,6 @@
 #include <iterator>
 #include <string>
 #include <system_error>
-#include <unistd.h>
 
 namespace LunaDash {
 namespace {
@@ -21,9 +20,9 @@ namespace fs = std::filesystem;
 using Json = nlohmann::json;
 using Command = std::vector<std::string>;
 
-constexpr std::array<std::string_view, 3> roles{DefaultApplicationRole::terminal,
-                                                DefaultApplicationRole::files,
-                                                DefaultApplicationRole::browser};
+constexpr std::array<std::string_view, 3> roles{
+    DefaultApplicationRole::terminal, DefaultApplicationRole::files,
+    DefaultApplicationRole::browser};
 
 void setError(std::string *error, std::string message) {
   if (error)
@@ -49,30 +48,7 @@ fs::path dataRoot() {
 }
 
 bool executableAvailable(std::string_view executable) {
-  if (executable.empty())
-    return false;
-  const fs::path program(executable);
-  if (program.has_parent_path())
-    return ::access(program.c_str(), X_OK) == 0;
-
-  const char *pathValue = std::getenv("PATH");
-  if (!pathValue)
-    return false;
-  const std::string path(pathValue);
-  std::size_t begin = 0;
-  while (begin <= path.size()) {
-    const auto end = path.find(':', begin);
-    const auto component = path.substr(
-        begin, end == std::string::npos ? std::string::npos : end - begin);
-    const fs::path directory =
-        component.empty() ? fs::current_path() : fs::path(component);
-    if (::access((directory / program).c_str(), X_OK) == 0)
-      return true;
-    if (end == std::string::npos)
-      break;
-    begin = end + 1;
-  }
-  return false;
+  return !findExecutable(executable).empty();
 }
 
 std::string basename(std::string_view value) {

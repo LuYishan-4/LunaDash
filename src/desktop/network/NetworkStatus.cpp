@@ -1,4 +1,5 @@
 #include "desktop/network/NetworkStatus.hpp"
+#include "core/process/ExecutableLookup.hpp"
 
 #include <gio/gio.h>
 
@@ -6,15 +7,12 @@
 #include <cctype>
 #include <charconv>
 #include <cmath>
-#include <cstdlib>
-#include <filesystem>
 #include <ifaddrs.h>
 #include <map>
 #include <net/if.h>
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -23,29 +21,6 @@ namespace {
 using Document = nlohmann::json;
 
 constexpr int kRefreshIntervalMilliseconds = 30000;
-
-std::string findExecutable(std::string_view name) {
-  const char *pathValue = std::getenv("PATH");
-  if (!pathValue)
-    return {};
-  const std::string path(pathValue);
-  std::size_t begin = 0;
-  while (begin <= path.size()) {
-    const auto end = path.find(':', begin);
-    const auto component = path.substr(
-        begin, end == std::string::npos ? std::string::npos : end - begin);
-    const std::filesystem::path directory =
-        component.empty() ? std::filesystem::current_path()
-                          : std::filesystem::path(component);
-    const auto candidate = directory / name;
-    if (::access(candidate.c_str(), X_OK) == 0)
-      return candidate.string();
-    if (end == std::string::npos)
-      break;
-    begin = end + 1;
-  }
-  return {};
-}
 
 bool boundedText(const Document &request, std::string_view key,
                  std::string *value, std::size_t maximum = 512,

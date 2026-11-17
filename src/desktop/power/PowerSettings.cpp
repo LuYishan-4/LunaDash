@@ -1,35 +1,12 @@
 #include "desktop/power/PowerSettings.hpp"
+#include "core/process/ExecutableLookup.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <string>
-#include <unistd.h>
 
 namespace LunaDash {
 namespace {
 constexpr int kRefreshIntervalMilliseconds = 10000;
-
-std::string findExecutable(std::string_view name) {
-  const char *pathValue = std::getenv("PATH");
-  if (!pathValue)
-    return {};
-  const std::string path(pathValue);
-  std::size_t begin = 0;
-  while (begin <= path.size()) {
-    const auto end = path.find(':', begin);
-    const auto component = path.substr(
-        begin, end == std::string::npos ? std::string::npos : end - begin);
-    const std::string candidate =
-        (component.empty() ? std::string(".") : component) + "/" +
-        std::string(name);
-    if (::access(candidate.c_str(), X_OK) == 0)
-      return candidate;
-    if (end == std::string::npos)
-      break;
-    begin = end + 1;
-  }
-  return {};
-}
 
 std::string trim(std::string value) {
   const auto first = value.find_first_not_of(" \t\r\n");

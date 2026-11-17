@@ -1,8 +1,9 @@
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 
 #include "config/desktop/DesktopPreferences.hpp"
-#include "desktop/wallpaper/WallpaperSettings.hpp"
+#include "core/process/ExecutableLookup.hpp"
 #include "core/process/ProcessRunner.hpp"
+#include "desktop/wallpaper/WallpaperSettings.hpp"
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <glib.h>
@@ -44,21 +45,20 @@ std::filesystem::path cacheStem(const std::filesystem::path &path) {
   const auto modified = std::filesystem::last_write_time(path, error);
   const std::string identity =
       path.string() + (error ? std::string{} : std::to_string(size)) +
-      (error ? std::string{} : std::to_string(modified.time_since_epoch().count()));
+      (error ? std::string{}
+             : std::to_string(modified.time_since_epoch().count()));
   GChecksum *checksum = g_checksum_new(G_CHECKSUM_SHA256);
-  g_checksum_update(checksum,
-                    reinterpret_cast<const guchar *>(identity.data()),
+  g_checksum_update(checksum, reinterpret_cast<const guchar *>(identity.data()),
                     identity.size());
   const auto *digest = g_checksum_get_string(checksum);
-  const auto result =
-      std::filesystem::path(g_get_user_cache_dir()) / "lunadash" /
-      "wallpapers" / digest;
+  const auto result = std::filesystem::path(g_get_user_cache_dir()) /
+                      "lunadash" / "wallpapers" / digest;
   g_checksum_free(checksum);
   return result;
 }
 
 std::filesystem::path ensureCacheDirectory(const std::filesystem::path &file,
-                                          std::string *error) {
+                                           std::string *error) {
   const auto directory = file.parent_path();
   std::error_code filesystemError;
   std::filesystem::create_directories(directory, filesystemError);
@@ -69,15 +69,6 @@ std::filesystem::path ensureCacheDirectory(const std::filesystem::path &file,
   return directory;
 }
 
-std::string findExecutable(const char *name) {
-  gchar *program = g_find_program_in_path(name);
-  if (!program)
-    return {};
-  std::string result(program);
-  g_free(program);
-  return result;
-}
-
 std::array<double, 3> rgbToHsl(double red, double green, double blue) {
   const double maximum = std::max({red, green, blue});
   const double minimum = std::min({red, green, blue});
@@ -86,9 +77,8 @@ std::array<double, 3> rgbToHsl(double red, double green, double blue) {
     return {0.0, 0.0, lightness};
 
   const double delta = maximum - minimum;
-  const double saturation =
-      lightness > 0.5 ? delta / (2.0 - maximum - minimum)
-                      : delta / (maximum + minimum);
+  const double saturation = lightness > 0.5 ? delta / (2.0 - maximum - minimum)
+                                            : delta / (maximum + minimum);
   double hue = 0.0;
   if (maximum == red)
     hue = (green - blue) / delta + (green < blue ? 6.0 : 0.0);
@@ -102,8 +92,7 @@ std::array<double, 3> rgbToHsl(double red, double green, double blue) {
 std::string hslHex(double hue, double saturation, double lightness) {
   const auto component = [hue, saturation, lightness](double offset) {
     const double k = std::fmod(offset + hue * 12.0, 12.0);
-    const double chroma =
-        saturation * std::min(lightness, 1.0 - lightness);
+    const double chroma = saturation * std::min(lightness, 1.0 - lightness);
     return lightness -
            chroma * std::max(-1.0, std::min({k - 3.0, 9.0 - k, 1.0}));
   };
@@ -112,9 +101,9 @@ std::string hslHex(double hue, double saturation, double lightness) {
   };
   constexpr char digits[] = "0123456789abcdef";
   std::string color = "#000000";
-  const std::array<unsigned, 3> channels{
-      channel(component(0.0)), channel(component(8.0 / 12.0)),
-      channel(component(4.0 / 12.0))};
+  const std::array<unsigned, 3> channels{channel(component(0.0)),
+                                         channel(component(8.0 / 12.0)),
+                                         channel(component(4.0 / 12.0))};
   for (std::size_t i = 0; i < channels.size(); ++i) {
     color[1 + i * 2] = digits[(channels[i] >> 4) & 0xf];
     color[2 + i * 2] = digits[channels[i] & 0xf];
@@ -129,8 +118,8 @@ bool extractPalette(const std::filesystem::path &imagePath,
     return true;
 
   GError *loadError = nullptr;
-  GdkPixbuf *loaded = gdk_pixbuf_new_from_file_at_scale(
-      imagePath.c_str(), 96, 96, TRUE, &loadError);
+  GdkPixbuf *loaded = gdk_pixbuf_new_from_file_at_scale(imagePath.c_str(), 96,
+                                                        96, TRUE, &loadError);
   if (!loaded) {
     if (loadError)
       g_error_free(loadError);
@@ -155,8 +144,8 @@ bool extractPalette(const std::filesystem::path &imagePath,
       const double alpha = hasAlpha ? pixel[3] / 255.0 : 1.0;
       if (alpha < 0.5)
         continue;
-      const auto hsl = rgbToHsl(pixel[0] / 255.0, pixel[1] / 255.0,
-                               pixel[2] / 255.0);
+      const auto hsl =
+          rgbToHsl(pixel[0] / 255.0, pixel[1] / 255.0, pixel[2] / 255.0);
       if (hsl[2] < 0.08 || hsl[2] > 0.93)
         continue;
       const auto index = std::clamp(static_cast<int>(hsl[0] * 24.0), 0, 23);
@@ -174,10 +163,9 @@ bool extractPalette(const std::filesystem::path &imagePath,
   const double hue = (index + 0.5) / 24.0;
   const double sat = std::clamp(saturation[index] / *largest, 0.25, 0.65);
   std::string error;
-  if (!updateDesktopPreferences(
-          {{"accent", hslHex(hue, sat, 0.78)},
-           {"secondaryAccent", hslHex(hue, 0.22, 0.65)}},
-          &error)) {
+  if (!updateDesktopPreferences({{"accent", hslHex(hue, sat, 0.78)},
+                                 {"secondaryAccent", hslHex(hue, 0.22, 0.65)}},
+                                &error)) {
     mediaState().error = std::move(error);
     return false;
   }
@@ -268,13 +256,11 @@ void startMediaTasks() {
   }
   const auto proxy = cacheStem(source).string() + "-1080p30.mp4";
   const auto temporary = std::filesystem::path(proxy + ".part.mp4");
-  if (!posterExists &&
-      ensureCacheDirectory(poster, &state.error).empty())
+  if (!posterExists && ensureCacheDirectory(poster, &state.error).empty())
     return;
 
   if (!std::filesystem::exists(proxy, filesystemError)) {
-    const auto proxyDirectory =
-        ensureCacheDirectory(proxy, &state.error);
+    const auto proxyDirectory = ensureCacheDirectory(proxy, &state.error);
     if (proxyDirectory.empty())
       return;
     std::filesystem::remove(temporary, filesystemError);
@@ -282,18 +268,35 @@ void startMediaTasks() {
     state.optimizationTemporary = temporary;
     state.optimizing = true;
     if (!state.optimizationRunner->runDetailed(
-        ffmpeg,
-        {"-nostdin", "-v", "error", "-y", "-i", source.string(), "-an",
-         "-vf",
-         "scale=w='min(iw,1920)':h='min(ih,1080)':force_original_aspect_ratio=decrease:force_divisible_by=2,fps=30",
-         "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-pix_fmt",
-         "yuv420p", "-movflags", "+faststart", "-threads", "1",
-         temporary.string()},
-        [generation = state.generation, source, proxy,
-         temporary](const ProcessResult &result) {
-          finishOptimization(generation, source, proxy, temporary, result);
-        },
-        0)) {
+            ffmpeg,
+            {"-nostdin",
+             "-v",
+             "error",
+             "-y",
+             "-i",
+             source.string(),
+             "-an",
+             "-vf",
+             "scale=w='min(iw,1920)':h='min(ih,1080)':force_original_aspect_"
+             "ratio=decrease:force_divisible_by=2,fps=30",
+             "-c:v",
+             "libx264",
+             "-preset",
+             "veryfast",
+             "-crf",
+             "24",
+             "-pix_fmt",
+             "yuv420p",
+             "-movflags",
+             "+faststart",
+             "-threads",
+             "1",
+             temporary.string()},
+            [generation = state.generation, source, proxy,
+             temporary](const ProcessResult &result) {
+              finishOptimization(generation, source, proxy, temporary, result);
+            },
+            0)) {
       state.optimizing = false;
       state.error = "Could not start ffmpeg for the live wallpaper proxy.";
       state.optimizationPath.clear();
@@ -305,15 +308,15 @@ void startMediaTasks() {
     return;
   state.extracting = true;
   if (!state.extractionRunner->runDetailed(
-      ffmpeg,
-      {"-nostdin", "-v", "error", "-y", "-protocol_whitelist", "file,pipe",
-       "-i", source.string(), "-frames:v", "1", "-vf", "scale=640:-2",
-       "-threads", "1", poster.string()},
-      [generation = state.generation, source,
-       poster](const ProcessResult &result) {
-        finishExtraction(generation, source, poster, result);
-      },
-      12000)) {
+          ffmpeg,
+          {"-nostdin", "-v", "error", "-y", "-protocol_whitelist", "file,pipe",
+           "-i", source.string(), "-frames:v", "1", "-vf", "scale=640:-2",
+           "-threads", "1", poster.string()},
+          [generation = state.generation, source,
+           poster](const ProcessResult &result) {
+            finishExtraction(generation, source, poster, result);
+          },
+          12000)) {
     state.extracting = false;
     state.error = "Could not start ffmpeg for the wallpaper preview.";
   }
@@ -324,12 +327,10 @@ std::filesystem::path wallpaperPoster(const std::filesystem::path &path) {
   return cacheStem(path).string() + ".png";
 }
 
-std::filesystem::path
-wallpaperPlaybackPath(const std::filesystem::path &path) {
+std::filesystem::path wallpaperPlaybackPath(const std::filesystem::path &path) {
   if (!wallpaperIsVideo(path))
     return path;
-  const std::filesystem::path proxy =
-      cacheStem(path).string() + "-1080p30.mp4";
+  const std::filesystem::path proxy = cacheStem(path).string() + "-1080p30.mp4";
   std::error_code error;
   if (std::filesystem::is_regular_file(proxy, error))
     return proxy;
@@ -359,7 +360,8 @@ void refreshWallpaperPalette(wl_event_loop *eventLoop,
     cancelWallpaperPalette();
   state.eventLoop = eventLoop;
   if (!state.optimizationRunner)
-    state.optimizationRunner = std::make_unique<ProcessRunner>(eventLoop, false);
+    state.optimizationRunner =
+        std::make_unique<ProcessRunner>(eventLoop, false);
   if (!state.extractionRunner)
     state.extractionRunner = std::make_unique<ProcessRunner>(eventLoop, false);
   state.selectedPath = path;

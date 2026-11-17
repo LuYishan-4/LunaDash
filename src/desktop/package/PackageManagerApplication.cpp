@@ -5,23 +5,24 @@
 #include "config/appearance/AppearancePalette.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include "config/localization/Localization.hpp"
+#include "core/process/ExecutableLookup.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/package/PackageManager.hpp"
 
 #include <gio/gio.h>
-#include <slint.h>
 #include <nlohmann/json.hpp>
+#include <slint.h>
 
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cctype>
 #include <cerrno>
 #include <chrono>
-#include <cctype>
 #include <csignal>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <cstdint>
 #include <fcntl.h>
 #include <filesystem>
 #include <iostream>
@@ -45,20 +46,21 @@ using Json = nlohmann::json;
 constexpr std::size_t maximumOutputBytes = 1024 * 1024;
 
 std::string trim(std::string value) {
-  const auto first = std::find_if_not(value.begin(), value.end(), [](unsigned char c) {
-    return std::isspace(c);
-  });
-  const auto last = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) {
-    return std::isspace(c);
-  }).base();
+  const auto first =
+      std::find_if_not(value.begin(), value.end(),
+                       [](unsigned char c) { return std::isspace(c); });
+  const auto last =
+      std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) {
+        return std::isspace(c);
+      }).base();
   if (first >= last)
     return {};
   return {first, last};
 }
 
 std::filesystem::path configDirectory() {
-  if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg &&
-      std::filesystem::path(xdg).is_absolute())
+  if (const char *xdg = std::getenv("XDG_CONFIG_HOME");
+      xdg && *xdg && std::filesystem::path(xdg).is_absolute())
     return xdg;
   if (const char *home = std::getenv("HOME"); home && *home)
     return std::filesystem::path(home) / ".config";
@@ -115,33 +117,6 @@ slint::Color paletteColor(const Json &palette, std::string_view key,
   return slint::Color::from_argb_encoded(fallback);
 }
 
-std::string findExecutable(std::string_view executable) {
-  if (executable.empty())
-    return {};
-  const std::filesystem::path requested(executable);
-  if (requested.has_parent_path())
-    return ::access(requested.c_str(), X_OK) == 0 ? requested.string() : "";
-  const char *pathValue = std::getenv("PATH");
-  if (!pathValue)
-    return {};
-  std::string searchPath(pathValue);
-  std::size_t begin = 0;
-  while (begin <= searchPath.size()) {
-    const auto end = searchPath.find(':', begin);
-    const auto part = searchPath.substr(
-        begin, end == std::string::npos ? std::string::npos : end - begin);
-    const auto directory = part.empty() ? std::filesystem::current_path()
-                                        : std::filesystem::path(part);
-    const auto candidate = directory / requested;
-    if (::access(candidate.c_str(), X_OK) == 0)
-      return candidate.string();
-    if (end == std::string::npos)
-      break;
-    begin = end + 1;
-  }
-  return {};
-}
-
 std::string sharedString(const slint::SharedString &value) {
   return {value.data(), value.size()};
 }
@@ -177,8 +152,8 @@ void trimOutput(std::string &output) {
 }
 
 bool spawnPacman(const std::string &pacman,
-                 const std::vector<std::string> &arguments,
-                 pid_t *pid, int *readDescriptor, std::string *error) {
+                 const std::vector<std::string> &arguments, pid_t *pid,
+                 int *readDescriptor, std::string *error) {
   int descriptors[2] = {-1, -1};
   if (::pipe2(descriptors, O_CLOEXEC) < 0) {
     if (error)
@@ -189,9 +164,11 @@ bool spawnPacman(const std::string &pacman,
   int status = ::posix_spawn_file_actions_init(&actions);
   const bool actionsInitialized = status == 0;
   if (status == 0)
-    status = ::posix_spawn_file_actions_adddup2(&actions, descriptors[1], STDOUT_FILENO);
+    status = ::posix_spawn_file_actions_adddup2(&actions, descriptors[1],
+                                                STDOUT_FILENO);
   if (status == 0)
-    status = ::posix_spawn_file_actions_adddup2(&actions, descriptors[1], STDERR_FILENO);
+    status = ::posix_spawn_file_actions_adddup2(&actions, descriptors[1],
+                                                STDERR_FILENO);
   if (status == 0)
     status = ::posix_spawn_file_actions_addclose(&actions, descriptors[0]);
   if (status == 0)
@@ -326,7 +303,8 @@ int PackageManagerApplication::run(int argc, char **argv) {
       "LunaDash · " + text("Package manager"));
   set(&PackageManagerWindow::set_heading, text("Package manager"));
   set(&PackageManagerWindow::set_description,
-      text("pacman: queries run without administrator privileges. Confirm installation and removal in a terminal."));
+      text("pacman: queries run without administrator privileges. Confirm "
+           "installation and removal in a terminal."));
   set(&PackageManagerWindow::set_package_placeholder,
       text("Package name, for example fcitx5"));
   set(&PackageManagerWindow::set_installed_label, text("Installed"));
@@ -336,8 +314,7 @@ int PackageManagerApplication::run(int argc, char **argv) {
   set(&PackageManagerWindow::set_upgrade_label, text("Full upgrade"));
   set(&PackageManagerWindow::set_output_label, text("Output"));
   set(&PackageManagerWindow::set_confirm_title, text("Confirm in terminal"));
-  set(&PackageManagerWindow::set_confirm_copy,
-      text("The terminal will run:"));
+  set(&PackageManagerWindow::set_confirm_copy, text("The terminal will run:"));
   set(&PackageManagerWindow::set_confirm_label, text("Open terminal"));
   set(&PackageManagerWindow::set_cancel_label, text("Cancel"));
   set(&PackageManagerWindow::set_close_label, text("Close"));
@@ -358,37 +335,37 @@ int PackageManagerApplication::run(int argc, char **argv) {
   window->set_muted_color(paletteColor(palette, "muted", 0xffa5a8b5));
   window->set_border_color(paletteColor(palette, "border", 0xff4c5060));
   window->set_accent_color(paletteColor(palette, "accent", 0xff9ccbfb));
-  window->set_accent_ink_color(
-      paletteColor(palette, "accentInk", 0xff171922));
+  window->set_accent_ink_color(paletteColor(palette, "accentInk", 0xff171922));
 
   const std::string pacman = findExecutable("pacman");
   window->set_pacman_available(!pacman.empty());
   if (pacman.empty())
     set(&PackageManagerWindow::set_output,
-        text("pacman is not available on this system. Other desktop features remain available."));
+        text("pacman is not available on this system. Other desktop features "
+             "remain available."));
 
   slint::ComponentWeakHandle<PackageManagerWindow> weakWindow(window);
   std::atomic<bool> busy{false};
   std::atomic<pid_t> activePid{-1};
   std::jthread queryThread;
-  const auto postState = [weakWindow](std::string output,
-                                      std::string status, bool isBusy) {
-    slint::invoke_from_event_loop(
-        [weakWindow, output = std::move(output), status = std::move(status),
-         isBusy] {
-          if (auto locked = weakWindow.lock()) {
-            (*locked)->set_output(slint::SharedString(output));
-            (*locked)->set_status(slint::SharedString(status));
-            (*locked)->set_busy(isBusy);
-          }
-        });
+  const auto postState = [weakWindow](std::string output, std::string status,
+                                      bool isBusy) {
+    slint::invoke_from_event_loop([weakWindow, output = std::move(output),
+                                   status = std::move(status), isBusy] {
+      if (auto locked = weakWindow.lock()) {
+        (*locked)->set_output(slint::SharedString(output));
+        (*locked)->set_status(slint::SharedString(status));
+        (*locked)->set_busy(isBusy);
+      }
+    });
   };
 
   const auto startQuery = [&](std::vector<std::string> arguments) {
     if (pacman.empty())
       return;
     if (busy.exchange(true)) {
-      window->set_status(slint::SharedString(text("A package query is already running.")));
+      window->set_status(
+          slint::SharedString(text("A package query is already running.")));
       return;
     }
     if (queryThread.joinable())
@@ -396,99 +373,103 @@ int PackageManagerApplication::run(int argc, char **argv) {
     window->set_busy(true);
     window->set_status({});
     window->set_output({});
-    queryThread = std::jthread(
-        [&, arguments = std::move(arguments)](std::stop_token stop) {
-          pid_t child = -1;
-          int outputDescriptor = -1;
-          std::string error;
-          if (stop.stop_requested() ||
-              !spawnPacman(pacman, arguments, &child, &outputDescriptor, &error)) {
-            busy.store(false);
-            postState(error.empty() ? std::string{} : error,
-                      error.empty() ? std::string{} : text("Could not start pacman: ") + error,
-                      false);
-            return;
-          }
-          activePid.store(child);
-          if (stop.stop_requested())
-            ::kill(-child, SIGTERM);
-          std::string output;
-          std::array<char, 8192> buffer{};
-          bool pipeOpen = true;
-          bool childExited = false;
-          bool signaled = false;
-          auto signalTime = std::chrono::steady_clock::time_point{};
-          auto childExitTime = std::chrono::steady_clock::time_point{};
-          int waitStatus = 0;
-          auto nextPublish = std::chrono::steady_clock::now();
-          while (pipeOpen || !childExited) {
-            if (stop.stop_requested() && !signaled) {
-              ::kill(-child, SIGTERM);
-              signalTime = std::chrono::steady_clock::now();
-              signaled = true;
-            } else if (signaled && !childExited &&
-                       std::chrono::steady_clock::now() - signalTime >
-                           std::chrono::milliseconds(800)) {
-              ::kill(-child, SIGKILL);
+    queryThread = std::jthread([&, arguments = std::move(arguments)](
+                                   std::stop_token stop) {
+      pid_t child = -1;
+      int outputDescriptor = -1;
+      std::string error;
+      if (stop.stop_requested() ||
+          !spawnPacman(pacman, arguments, &child, &outputDescriptor, &error)) {
+        busy.store(false);
+        postState(error.empty() ? std::string{} : error,
+                  error.empty() ? std::string{}
+                                : text("Could not start pacman: ") + error,
+                  false);
+        return;
+      }
+      activePid.store(child);
+      if (stop.stop_requested())
+        ::kill(-child, SIGTERM);
+      std::string output;
+      std::array<char, 8192> buffer{};
+      bool pipeOpen = true;
+      bool childExited = false;
+      bool signaled = false;
+      auto signalTime = std::chrono::steady_clock::time_point{};
+      auto childExitTime = std::chrono::steady_clock::time_point{};
+      int waitStatus = 0;
+      auto nextPublish = std::chrono::steady_clock::now();
+      while (pipeOpen || !childExited) {
+        if (stop.stop_requested() && !signaled) {
+          ::kill(-child, SIGTERM);
+          signalTime = std::chrono::steady_clock::now();
+          signaled = true;
+        } else if (signaled && !childExited &&
+                   std::chrono::steady_clock::now() - signalTime >
+                       std::chrono::milliseconds(800)) {
+          ::kill(-child, SIGKILL);
+        }
+        pollfd descriptor{outputDescriptor, POLLIN | POLLHUP, 0};
+        const int ready = ::poll(&descriptor, 1, 100);
+        if (ready > 0 && (descriptor.revents & (POLLIN | POLLHUP | POLLERR))) {
+          while (true) {
+            const auto count =
+                ::read(outputDescriptor, buffer.data(), buffer.size());
+            if (count > 0) {
+              output.append(buffer.data(), static_cast<std::size_t>(count));
+              trimOutput(output);
+              continue;
             }
-            pollfd descriptor{outputDescriptor, POLLIN | POLLHUP, 0};
-            const int ready = ::poll(&descriptor, 1, 100);
-            if (ready > 0 && (descriptor.revents & (POLLIN | POLLHUP | POLLERR))) {
-              while (true) {
-                const auto count = ::read(outputDescriptor, buffer.data(), buffer.size());
-                if (count > 0) {
-                  output.append(buffer.data(), static_cast<std::size_t>(count));
-                  trimOutput(output);
-                  continue;
-                }
-                if (count == 0) {
-                  pipeOpen = false;
-                  ::close(outputDescriptor);
-                  outputDescriptor = -1;
-                } else if (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
-                  pipeOpen = false;
-                  ::close(outputDescriptor);
-                  outputDescriptor = -1;
-                }
-                break;
-              }
-            }
-            if (!childExited) {
-              const auto result = ::waitpid(child, &waitStatus, WNOHANG);
-              if (result == child) {
-                childExited = true;
-                childExitTime = std::chrono::steady_clock::now();
-              } else if (result < 0 && errno != EINTR) {
-                childExited = true;
-                childExitTime = std::chrono::steady_clock::now();
-                waitStatus = 0;
-              }
-            }
-            if (childExited && pipeOpen &&
-                std::chrono::steady_clock::now() - childExitTime >
-                    std::chrono::seconds(2)) {
+            if (count == 0) {
+              pipeOpen = false;
+              ::close(outputDescriptor);
+              outputDescriptor = -1;
+            } else if (errno != EAGAIN && errno != EWOULDBLOCK &&
+                       errno != EINTR) {
               pipeOpen = false;
               ::close(outputDescriptor);
               outputDescriptor = -1;
             }
-            if (std::chrono::steady_clock::now() >= nextPublish) {
-              postState(output, {}, true);
-              nextPublish = std::chrono::steady_clock::now() +
-                            std::chrono::milliseconds(100);
-            }
+            break;
           }
-          if (outputDescriptor >= 0)
-            ::close(outputDescriptor);
-          if (!childExited) {
-            while (::waitpid(child, &waitStatus, 0) < 0 && errno == EINTR) {
-            }
+        }
+        if (!childExited) {
+          const auto result = ::waitpid(child, &waitStatus, WNOHANG);
+          if (result == child) {
+            childExited = true;
+            childExitTime = std::chrono::steady_clock::now();
+          } else if (result < 0 && errno != EINTR) {
+            childExited = true;
+            childExitTime = std::chrono::steady_clock::now();
+            waitStatus = 0;
           }
-          activePid.store(-1);
-          const int exitCode = WIFEXITED(waitStatus) ? WEXITSTATUS(waitStatus) : 128;
-          output += "\n[Exit code " + std::to_string(exitCode) + "]";
-          busy.store(false);
-          postState(std::move(output), {}, false);
-        });
+        }
+        if (childExited && pipeOpen &&
+            std::chrono::steady_clock::now() - childExitTime >
+                std::chrono::seconds(2)) {
+          pipeOpen = false;
+          ::close(outputDescriptor);
+          outputDescriptor = -1;
+        }
+        if (std::chrono::steady_clock::now() >= nextPublish) {
+          postState(output, {}, true);
+          nextPublish =
+              std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+        }
+      }
+      if (outputDescriptor >= 0)
+        ::close(outputDescriptor);
+      if (!childExited) {
+        while (::waitpid(child, &waitStatus, 0) < 0 && errno == EINTR) {
+        }
+      }
+      activePid.store(-1);
+      const int exitCode =
+          WIFEXITED(waitStatus) ? WEXITSTATUS(waitStatus) : 128;
+      output += "\n[Exit code " + std::to_string(exitCode) + "]";
+      busy.store(false);
+      postState(std::move(output), {}, false);
+    });
   };
 
   const auto packageName = [&window] {
@@ -498,7 +479,8 @@ int PackageManagerApplication::run(int argc, char **argv) {
   window->on_search_requested([&] {
     const auto package = packageName();
     if (package.empty()) {
-      window->set_status(slint::SharedString(text("Enter a package name to search.")));
+      window->set_status(
+          slint::SharedString(text("Enter a package name to search.")));
       return;
     }
     startQuery({"-Ss", "--", package});
@@ -507,31 +489,35 @@ int PackageManagerApplication::run(int argc, char **argv) {
   std::vector<std::string> pendingTransaction;
   const auto requestTransaction = [&](std::vector<std::string> arguments) {
     if (arguments.empty()) {
-      window->set_status(slint::SharedString(text("Enter one valid package name.")));
+      window->set_status(
+          slint::SharedString(text("Enter one valid package name.")));
       return;
     }
     const auto sudo = findExecutable("sudo");
     if (sudo.empty()) {
-      window->set_status(slint::SharedString(text("Ask your system administrator to manage packages.")));
+      window->set_status(slint::SharedString(
+          text("Ask your system administrator to manage packages.")));
       return;
     }
     std::string terminalError;
     auto terminal = defaultApplicationCommand("terminal", &terminalError);
     if (terminal.empty() || findExecutable(terminal.front()).empty()) {
-      window->set_status(slint::SharedString(
-          text("Install or configure a supported terminal to manage packages.")));
+      window->set_status(slint::SharedString(text(
+          "Install or configure a supported terminal to manage packages.")));
       return;
     }
     if (!appendTerminalExecuteOption(terminal)) {
-      window->set_status(slint::SharedString(
-          text("The configured terminal is not supported for package actions.")));
+      window->set_status(slint::SharedString(text(
+          "The configured terminal is not supported for package actions.")));
       return;
     }
     pendingTransaction = terminal;
     pendingTransaction.push_back(sudo);
     pendingTransaction.push_back(pacman);
-    pendingTransaction.insert(pendingTransaction.end(), arguments.begin(), arguments.end());
-    window->set_confirm_command(slint::SharedString(displayCommand(pendingTransaction)));
+    pendingTransaction.insert(pendingTransaction.end(), arguments.begin(),
+                              arguments.end());
+    window->set_confirm_command(
+        slint::SharedString(displayCommand(pendingTransaction)));
     window->set_confirmation_visible(true);
     window->set_status({});
   };
@@ -541,9 +527,8 @@ int PackageManagerApplication::run(int argc, char **argv) {
   window->on_remove_requested([&] {
     requestTransaction(packageTransactionArguments("remove", packageName()));
   });
-  window->on_upgrade_requested([&] {
-    requestTransaction(packageTransactionArguments("upgrade"));
-  });
+  window->on_upgrade_requested(
+      [&] { requestTransaction(packageTransactionArguments("upgrade")); });
   window->on_transaction_cancelled([&] {
     pendingTransaction.clear();
     window->set_confirmation_visible(false);
@@ -555,10 +540,11 @@ int PackageManagerApplication::run(int argc, char **argv) {
     }
     const auto result = runDetached(pendingTransaction);
     if (result != 0)
-      window->set_status(slint::SharedString(text("Launch failed: ") +
-                                             std::strerror(result)));
+      window->set_status(
+          slint::SharedString(text("Launch failed: ") + std::strerror(result)));
     else
-      window->set_status(slint::SharedString(text("Package transaction opened in the configured terminal.")));
+      window->set_status(slint::SharedString(
+          text("Package transaction opened in the configured terminal.")));
     pendingTransaction.clear();
     window->set_confirmation_visible(false);
   });

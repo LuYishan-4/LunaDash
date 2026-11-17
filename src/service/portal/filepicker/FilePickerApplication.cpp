@@ -1,8 +1,9 @@
 #include "service/portal/filepicker/FilePickerApplication.hpp"
 #include "desktop/theme/InterfaceFont.hpp"
 
-#include "core/process/ProcessRunner.hpp"
 #include "FilePicker.h"
+#include "core/process/ExecutableLookup.hpp"
+#include "core/process/ProcessRunner.hpp"
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gio/gio.h>
@@ -12,8 +13,8 @@
 
 #include <algorithm>
 #include <array>
-#include <cerrno>
 #include <cctype>
+#include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstdint>
@@ -30,8 +31,6 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -49,7 +48,8 @@ void requestTermination(int) { terminateRequested = 1; }
 class TemporaryDirectory final {
 public:
   TemporaryDirectory() {
-    auto pattern = (fs::temp_directory_path() / "lunadash-filepicker-XXXXXX").string();
+    auto pattern =
+        (fs::temp_directory_path() / "lunadash-filepicker-XXXXXX").string();
     std::vector<char> writable(pattern.begin(), pattern.end());
     writable.push_back('\0');
     if (char *created = ::mkdtemp(writable.data()))
@@ -100,38 +100,18 @@ ProcessResult runProcess(wl_event_loop *eventLoop, const std::string &program,
   return result;
 }
 
-std::string findExecutable(const std::string &name) {
+std::string findBundledOrPathExecutable(const std::string &name) {
   std::error_code error;
   const auto executablePath = fs::read_symlink("/proc/self/exe", error);
   if (!error) {
     const auto sibling = executablePath.parent_path() / name;
-    struct stat status {};
-    if (::stat(sibling.c_str(), &status) == 0 && S_ISREG(status.st_mode) &&
-        ::access(sibling.c_str(), X_OK) == 0)
+    if (fileIsExecutable(sibling.string()))
       return sibling.string();
   }
   const char *pathValue = std::getenv("PATH");
-  const std::string_view path = pathValue && *pathValue
-                                    ? pathValue
-                                    : "/usr/local/bin:/usr/bin:/bin";
-  std::size_t start = 0;
-  while (start <= path.size()) {
-    const auto separator = path.find(':', start);
-    const auto directory = path.substr(
-        start, separator == std::string_view::npos ? path.size() - start
-                                                   : separator - start);
-    if (!directory.empty()) {
-      const auto candidate = fs::path(directory) / name;
-      struct stat status {};
-      if (::stat(candidate.c_str(), &status) == 0 && S_ISREG(status.st_mode) &&
-          ::access(candidate.c_str(), X_OK) == 0)
-        return candidate.string();
-    }
-    if (separator == std::string_view::npos)
-      break;
-    start = separator + 1;
-  }
-  return {};
+  return pathValue && *pathValue
+             ? LunaDash::findExecutable(name, pathValue)
+             : LunaDash::findExecutable(name, "/usr/local/bin:/usr/bin:/bin");
 }
 
 std::string base64(std::string_view value) {
@@ -155,8 +135,8 @@ std::optional<std::string> decodeBase64(std::string_view value) {
 std::string fileNameToUtf8(const std::string &value) {
   GError *error = nullptr;
   gsize written = 0;
-  gchar *converted = g_filename_to_utf8(value.data(), value.size(), nullptr,
-                                          &written, &error);
+  gchar *converted =
+      g_filename_to_utf8(value.data(), value.size(), nullptr, &written, &error);
   if (converted) {
     std::string result(converted, written);
     g_free(converted);
@@ -174,7 +154,7 @@ std::string fileNameFromUtf8(std::string_view value) {
   GError *error = nullptr;
   gsize written = 0;
   gchar *converted = g_filename_from_utf8(value.data(), value.size(), nullptr,
-                                           &written, &error);
+                                          &written, &error);
   if (!converted) {
     if (error)
       g_error_free(error);
@@ -290,8 +270,8 @@ bool readableDirectory(const fs::path &path) {
 
 std::optional<fs::path> decodeFileUrl(std::string_view value) {
   std::string_view path = value;
-  if (path.size() < 7 || lowerAscii(std::string(path.substr(0, 7))) !=
-                              "file://")
+  if (path.size() < 7 ||
+      lowerAscii(std::string(path.substr(0, 7))) != "file://")
     return std::nullopt;
   path.remove_prefix(7);
   if (!path.starts_with('/')) {
@@ -346,10 +326,10 @@ struct Entry {
 class PickerState final {
 public:
   PickerState(slint::ComponentHandle<FilePickerWindow> &window,
-              const Json &request, Json translations,
-              Json palette, const fs::path &temporaryPath)
-      : window_(window), request_(request), translations_(std::move(translations)),
-        temporaryPath_(temporaryPath) {
+              const Json &request, Json translations, Json palette,
+              const fs::path &temporaryPath)
+      : window_(window), request_(request),
+        translations_(std::move(translations)), temporaryPath_(temporaryPath) {
     mode_ = request_.value("mode", "open");
     multiple_ = mode_ != "save" && request_.value("multiple", false);
     locale_ = request_.value("locale", "en_US");
@@ -371,9 +351,8 @@ public:
       for (const auto &mime : filter.value("mime-types", Json::array()))
         if (mime.is_string())
           mimeTypes.push_back(mime.get<std::string>());
-      filters_.push_back(
-          {filter.value("label", std::string{}), std::move(patterns),
-           std::move(mimeTypes)});
+      filters_.push_back({filter.value("label", std::string{}),
+                          std::move(patterns), std::move(mimeTypes)});
     }
     filterIndex_ = filters_.empty()
                        ? -1
@@ -420,10 +399,12 @@ public:
   }
 
   void connect() {
-    window_->on_location_accepted(
-        [this](const slint::SharedString &value) { locationAccepted(text(value)); });
-    window_->on_manual_path_accepted(
-        [this](const slint::SharedString &value) { manualPathAccepted(text(value)); });
+    window_->on_location_accepted([this](const slint::SharedString &value) {
+      locationAccepted(text(value));
+    });
+    window_->on_manual_path_accepted([this](const slint::SharedString &value) {
+      manualPathAccepted(text(value));
+    });
     window_->on_manual_path_changed([this](const slint::SharedString &) {
       selectedPaths_.clear();
       selectedIndex_ = -1;
@@ -509,7 +490,8 @@ private:
   void configureStrings() {
     const auto title = request_.value("title", tr("Open file"));
     window_->set_window_title(slintText(title));
-    window_->set_caption(slintText(tr("Browse, preview and choose your files")));
+    window_->set_caption(
+        slintText(tr("Browse, preview and choose your files")));
     window_->set_location_placeholder(
         slintText(tr("Paste an absolute path or file:// URL")));
     window_->set_search_placeholder(slintText(tr("Search this folder")));
@@ -519,20 +501,22 @@ private:
     window_->set_grid_label(slintText(tr("Grid view")));
     window_->set_list_label(slintText(tr("List view")));
     window_->set_preview_label(slintText(tr("Preview")));
-    window_->set_manual_path_label(slintText(
-        tr(mode_ == "directory" ? "Folder" : "File name")));
+    window_->set_manual_path_label(
+        slintText(tr(mode_ == "directory" ? "Folder" : "File name")));
     window_->set_footer_hint(
         slintText(tr("Ctrl+L · Location    Ctrl+F · Search")));
     window_->set_maximize_label(slintText(tr("Maximize or restore")));
-    window_->set_preview_hint(slintText(
-        tr("Double-click a folder to open it. Select a file, then confirm below.")));
-    window_->set_empty_label(slintText(tr("No matching files in this folder.")));
+    window_->set_preview_hint(
+        slintText(tr("Double-click a folder to open it. Select a file, then "
+                     "confirm below.")));
+    window_->set_empty_label(
+        slintText(tr("No matching files in this folder.")));
     window_->set_cancel_label(slintText(tr("Cancel")));
     std::string acceptLabel = request_.value("accept-label", ""s);
     if (acceptLabel.empty())
-      acceptLabel = tr(mode_ == "save" ? "Save"
+      acceptLabel = tr(mode_ == "save"        ? "Save"
                        : mode_ == "directory" ? "Choose folder"
-                                               : "Open file");
+                                              : "Open file");
     window_->set_accept_label(slintText(acceptLabel));
     window_->set_back_label(slintText(tr("Back")));
     window_->set_forward_label(slintText(tr("Forward")));
@@ -590,20 +574,20 @@ private:
     std::error_code error;
     for (fs::directory_iterator entry(mediaRoot, error), end;
          !error && entry != end && places.size() < 18; entry.increment(error))
-      appendPlace(entry->path(), fileNameToUtf8(entry->path().filename().string()),
-                  "usb");
+      appendPlace(entry->path(),
+                  fileNameToUtf8(entry->path().filename().string()), "usb");
     error.clear();
-    for (const auto &root : {fs::path("/mnt"),
-                             fs::path("/run/media") / fileNameToUtf8(
-                                                          home_.filename().string())}) {
+    for (const auto &root :
+         {fs::path("/mnt"),
+          fs::path("/run/media") / fileNameToUtf8(home_.filename().string())}) {
       for (fs::directory_iterator entry(root, error), end;
            !error && entry != end && places.size() < 18; entry.increment(error))
         appendPlace(entry->path(),
                     fileNameToUtf8(entry->path().filename().string()), "usb");
       error.clear();
     }
-    window_->set_places(
-        std::make_shared<slint::VectorModel<FilePickerPlace>>(std::move(places)));
+    window_->set_places(std::make_shared<slint::VectorModel<FilePickerPlace>>(
+        std::move(places)));
   }
 
   void configureFilters() {
@@ -614,8 +598,8 @@ private:
       row.label = slintText(filter.label);
       model.push_back(std::move(row));
     }
-    window_->set_filters(
-        std::make_shared<slint::VectorModel<FilePickerFilter>>(std::move(model)));
+    window_->set_filters(std::make_shared<slint::VectorModel<FilePickerFilter>>(
+        std::move(model)));
     if (!filters_.empty())
       window_->set_filter_index(filterIndex_);
   }
@@ -627,13 +611,14 @@ private:
       FilePickerChoice row;
       row.id = slintText(choice.id);
       row.label = slintText(choice.label);
-      row.selected_label = choice.options.empty()
-                               ? slintText("")
-                               : slintText(choice.options[choice.selected].second);
+      row.selected_label =
+          choice.options.empty()
+              ? slintText("")
+              : slintText(choice.options[choice.selected].second);
       model.push_back(std::move(row));
     }
-    window_->set_choices(
-        std::make_shared<slint::VectorModel<FilePickerChoice>>(std::move(model)));
+    window_->set_choices(std::make_shared<slint::VectorModel<FilePickerChoice>>(
+        std::move(model)));
   }
 
   fs::path decodeRequestPath(std::string_view key) const {
@@ -682,7 +667,8 @@ private:
   }
 
   void initializeHistory(const fs::path &path) {
-    if (historyIndex_ >= 0 && history_[static_cast<std::size_t>(historyIndex_)] == path)
+    if (historyIndex_ >= 0 &&
+        history_[static_cast<std::size_t>(historyIndex_)] == path)
       return;
     history_.resize(static_cast<std::size_t>(historyIndex_ + 1));
     history_.push_back(path);
@@ -706,7 +692,8 @@ private:
       window_->set_manual_path(slintText(""));
     window_->set_selected_index(-1);
     setError("");
-    window_->set_preview_name(slintText(fileNameToUtf8(folder_.filename().string())));
+    window_->set_preview_name(
+        slintText(fileNameToUtf8(folder_.filename().string())));
     window_->set_preview_detail(slintText(tr("Folder")));
     window_->set_preview_icon(slintText("folder"));
     window_->set_preview_image(slint::Image{});
@@ -731,9 +718,11 @@ private:
     if (filter.patterns.empty() && filter.mimeTypes.empty())
       return true;
     const auto name = fileNameToUtf8(path.filename().string());
-    if (std::any_of(filter.patterns.begin(), filter.patterns.end(), [&](const auto &pattern) {
-      return ::fnmatch(pattern.c_str(), name.c_str(), FNM_CASEFOLD) == 0;
-    }))
+    if (std::any_of(filter.patterns.begin(), filter.patterns.end(),
+                    [&](const auto &pattern) {
+                      return ::fnmatch(pattern.c_str(), name.c_str(),
+                                       FNM_CASEFOLD) == 0;
+                    }))
       return true;
     if (filter.mimeTypes.empty())
       return false;
@@ -745,19 +734,21 @@ private:
       return false;
     gchar *mime = g_content_type_get_mime_type(contentType);
     const std::string_view detected = mime ? mime : "";
-    const bool matches = std::any_of(
-        filter.mimeTypes.begin(), filter.mimeTypes.end(), [&](const auto &type) {
-          if (type.ends_with("/*"))
-            return detected.starts_with(
-                std::string_view(type).substr(0, type.size() - 1));
-          return detected == type;
-        });
+    const bool matches =
+        std::any_of(filter.mimeTypes.begin(), filter.mimeTypes.end(),
+                    [&](const auto &type) {
+                      if (type.ends_with("/*"))
+                        return detected.starts_with(
+                            std::string_view(type).substr(0, type.size() - 1));
+                      return detected == type;
+                    });
     g_free(mime);
     g_free(contentType);
     return matches;
   }
 
-  std::string fileDetails(const fs::directory_entry &entry, bool directory) const {
+  std::string fileDetails(const fs::directory_entry &entry,
+                          bool directory) const {
     if (directory)
       return tr("Folder");
     std::error_code error;
@@ -797,7 +788,8 @@ private:
     for (fs::directory_iterator item(
              folder_, fs::directory_options::skip_permission_denied, error),
          end;
-         !error && item != end && entries_.size() < 5000; item.increment(error)) {
+         !error && item != end && entries_.size() < 5000;
+         item.increment(error)) {
       const auto name = item->path().filename().string();
       if (!showHidden_ && !name.empty() && name.front() == '.')
         continue;
@@ -812,18 +804,19 @@ private:
         continue;
       const auto displayName = fileNameToUtf8(name);
       if (!searchText_.empty() &&
-          lowerAscii(displayName).find(lowerAscii(searchText_)) == std::string::npos)
+          lowerAscii(displayName).find(lowerAscii(searchText_)) ==
+              std::string::npos)
         continue;
       entries_.push_back({item->path(), displayName,
                           fileDetails(*item, directory),
                           directory ? "folder" : "file", directory});
     }
-    std::sort(entries_.begin(), entries_.end(), [](const Entry &left,
-                                                   const Entry &right) {
-      if (left.directory != right.directory)
-        return left.directory;
-      return lowerAscii(left.name) < lowerAscii(right.name);
-    });
+    std::sort(entries_.begin(), entries_.end(),
+              [](const Entry &left, const Entry &right) {
+                if (left.directory != right.directory)
+                  return left.directory;
+                return lowerAscii(left.name) < lowerAscii(right.name);
+              });
     updateItemsModel();
     updateStatus();
   }
@@ -860,9 +853,8 @@ private:
   void updatePreview(const fs::path &path) {
     std::error_code error;
     const bool directory = fs::is_directory(path, error) && !error;
-    window_->set_preview_name(
-        slintText(fileNameToUtf8(path.filename().empty() ? path.string()
-                                                         : path.filename().string())));
+    window_->set_preview_name(slintText(fileNameToUtf8(
+        path.filename().empty() ? path.string() : path.filename().string())));
     window_->set_preview_icon(slintText(directory ? "folder" : "file"));
     if (directory) {
       window_->set_preview_detail(slintText(tr("Folder")));
@@ -913,11 +905,11 @@ private:
       window_->set_preview_image(slint::Image{});
   }
 
-  std::string fileDetailsForPath(const fs::path &path, std::uintmax_t size) const {
-    const auto found = std::find_if(entries_.begin(), entries_.end(),
-                                    [&path](const Entry &entry) {
-                                      return entry.path == path;
-                                    });
+  std::string fileDetailsForPath(const fs::path &path,
+                                 std::uintmax_t size) const {
+    const auto found = std::find_if(
+        entries_.begin(), entries_.end(),
+        [&path](const Entry &entry) { return entry.path == path; });
     if (found != entries_.end())
       return found->detail;
     std::ostringstream formatted;
@@ -938,8 +930,8 @@ private:
     const auto &entry = entries_[static_cast<std::size_t>(index)];
     selectedIndex_ = index;
     window_->set_selected_index(index);
-    const auto found = std::find(selectedPaths_.begin(), selectedPaths_.end(),
-                                 entry.path);
+    const auto found =
+        std::find(selectedPaths_.begin(), selectedPaths_.end(), entry.path);
     if (multiple_) {
       if (found == selectedPaths_.end())
         selectedPaths_.push_back(entry.path);
@@ -993,7 +985,8 @@ private:
     }
     if ((fs::is_regular_file(*path, error) && !error) || mode_ == "save") {
       navigate(path->parent_path());
-      window_->set_manual_path(slintText(fileNameToUtf8(path->filename().string())));
+      window_->set_manual_path(
+          slintText(fileNameToUtf8(path->filename().string())));
       updatePreview(*path);
       return;
     }
@@ -1018,7 +1011,8 @@ private:
     confirm(*path);
   }
 
-  std::vector<fs::path> candidatePaths(const std::optional<fs::path> &overridePath = {}) {
+  std::vector<fs::path>
+  candidatePaths(const std::optional<fs::path> &overridePath = {}) {
     if (overridePath)
       return {*overridePath};
     if (!selectedPaths_.empty() && mode_ != "save")
@@ -1060,7 +1054,8 @@ private:
           return;
         }
       } else {
-        const auto parent = path.parent_path().empty() ? folder_ : path.parent_path();
+        const auto parent =
+            path.parent_path().empty() ? folder_ : path.parent_path();
         if (!readableDirectory(parent) || ::access(parent.c_str(), W_OK) != 0) {
           setError(tr("This location cannot be written to."));
           return;
@@ -1136,7 +1131,7 @@ std::optional<Json> compositorState(wl_event_loop *eventLoop) {
   const char *legacyControl = std::getenv("LUDASH_CONTROL");
   if ((!control || !*control) && (!legacyControl || !*legacyControl))
     return std::nullopt;
-  const auto executable = findExecutable("lunadashctl");
+  const auto executable = findBundledOrPathExecutable("lunadashctl");
   if (executable.empty())
     return std::nullopt;
   const auto result = runProcess(eventLoop, executable, {"status"}, 1800);
@@ -1166,7 +1161,7 @@ int FilePickerApplication::run(int argc, char **argv) {
 
   if (const char *hold = std::getenv("LUNADASH_FILE_PICKER_TEST_HOLD");
       hold && std::string_view(hold) == "1") {
-    struct sigaction action {};
+    struct sigaction action{};
     action.sa_handler = requestTermination;
     ::sigemptyset(&action.sa_mask);
     ::sigaction(SIGTERM, &action, nullptr);
@@ -1176,8 +1171,9 @@ int FilePickerApplication::run(int argc, char **argv) {
     return 0;
   }
 
-  auto eventLoop = std::unique_ptr<wl_event_loop, decltype(&wl_event_loop_destroy)>(
-      wl_event_loop_create(), wl_event_loop_destroy);
+  auto eventLoop =
+      std::unique_ptr<wl_event_loop, decltype(&wl_event_loop_destroy)>(
+          wl_event_loop_create(), wl_event_loop_destroy);
   if (!eventLoop) {
     std::cerr << "LunaDash FileChooser could not create its process loop.\n";
     return 2;
@@ -1187,7 +1183,8 @@ int FilePickerApplication::run(int argc, char **argv) {
       "language", std::getenv("LUDASH_LANGUAGE")
                       ? std::getenv("LUDASH_LANGUAGE")
                       : (std::getenv("LANG") ? std::getenv("LANG") : "en_US"));
-  Json translations = loadTranslationDictionary(canonicalLocale(translationLocale));
+  Json translations =
+      loadTranslationDictionary(canonicalLocale(translationLocale));
   if (state.contains("translations") && state["translations"].is_object())
     translations = state["translations"];
   Json palette = state.value("palette", Json::object());
@@ -1199,10 +1196,10 @@ int FilePickerApplication::run(int argc, char **argv) {
   }
   auto window = FilePickerWindow::create();
   window->set_font_family(slint::SharedString(desktopFontFamily()));
-  PickerState picker(window, request, std::move(translations), std::move(palette),
-                     temporary.path());
+  PickerState picker(window, request, std::move(translations),
+                     std::move(palette), temporary.path());
   picker.connect();
-  struct sigaction action {};
+  struct sigaction action{};
   action.sa_handler = requestTermination;
   ::sigemptyset(&action.sa_mask);
   ::sigaction(SIGTERM, &action, nullptr);
@@ -1215,7 +1212,8 @@ int FilePickerApplication::run(int argc, char **argv) {
   try {
     window->run();
   } catch (const std::exception &error) {
-    std::cerr << "LunaDash FileChooser could not start: " << error.what() << '\n';
+    std::cerr << "LunaDash FileChooser could not start: " << error.what()
+              << '\n';
     return 2;
   }
   const auto result = picker.result();

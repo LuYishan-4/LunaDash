@@ -1,8 +1,8 @@
 #include "compositor/session/SessionServices.hpp"
+#include "core/process/ExecutableLookup.hpp"
 
 #include <algorithm>
 #include <cstdlib>
-#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <string_view>
@@ -44,43 +44,19 @@ constexpr const char *kActivationVariables[] = {"WAYLAND_DISPLAY",
                                                 "no_proxy",
                                                 "NO_PROXY"};
 
-bool executableFile(const std::filesystem::path &path) {
-  struct stat status{};
-  return ::stat(path.c_str(), &status) == 0 && S_ISREG(status.st_mode) &&
-         ::access(path.c_str(), X_OK) == 0;
-}
-
-std::string findExecutable(std::string_view name) {
-  const std::filesystem::path requested(name);
-  if (requested.has_parent_path())
-    return executableFile(requested) ? requested.string() : std::string{};
-
+std::string findSessionExecutable(std::string_view name) {
   const char *pathValue = std::getenv("PATH");
-  const std::string_view path =
-      pathValue && *pathValue ? pathValue : "/usr/local/bin:/usr/bin:/bin";
-  std::size_t start = 0;
-  while (start <= path.size()) {
-    const auto separator = path.find(':', start);
-    const auto directory = path.substr(
-        start, separator == std::string_view::npos ? path.size() - start
-                                                   : separator - start);
-    if (!directory.empty()) {
-      const auto candidate = std::filesystem::path(directory) / requested;
-      if (executableFile(candidate))
-        return candidate.string();
-    }
-    if (separator == std::string_view::npos)
-      break;
-    start = separator + 1;
-  }
-  return {};
+  return pathValue && *pathValue
+             ? findExecutable(name, pathValue)
+             : findExecutable(name, "/usr/local/bin:/usr/bin:/bin");
 }
 
 std::string findXdpw() {
-  // LUDASH_XDPW names the executable; set but empty, no private instance is started (tests).
+  // LUDASH_XDPW names the executable; set but empty, no private instance is
+  // started (tests).
   if (const char *configured = std::getenv("LUDASH_XDPW"))
     return configured;
-  auto executable = findExecutable("xdg-desktop-portal-wlr");
+  auto executable = findSessionExecutable("xdg-desktop-portal-wlr");
   if (!executable.empty())
     return executable;
   for (const auto *candidate : {"/usr/lib/xdg-desktop-portal-wlr",
@@ -117,7 +93,7 @@ void SessionServices::publishActivationEnvironment(
     *callback = {};
     completion(success, message);
   };
-  const auto tool = findExecutable("dbus-update-activation-environment");
+  const auto tool = findSessionExecutable("dbus-update-activation-environment");
   if (tool.empty()) {
     finish(false, "dbus-update-activation-environment is not installed.");
     return;
@@ -178,7 +154,7 @@ bool SessionServices::startSystemctl(const ProcessEnvironment &environment,
     *callback = {};
     completion();
   };
-  const auto systemctl = findExecutable("systemctl");
+  const auto systemctl = findSessionExecutable("systemctl");
   if (systemctl.empty()) {
     finish();
     return false;
