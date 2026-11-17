@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# The `lunadash` command that install.sh links into ~/.local/bin. It works on the
+# installer's source cache (~/.cache/lunadash/source by default).
+set -Eeuo pipefail
+
+self=$(readlink -f -- "${BASH_SOURCE[0]}")
+root=$(cd -- "$(dirname -- "$self")/.." && pwd)
+
+usage() {
+    cat <<'USAGE'
+Usage: lunadash <command> [options]
+
+  update [--ref REF]   fetch the newest source of the installed branch (or REF),
+                       upgrade the system and rebuild/reinstall LunaDash
+  install [options]    run the guided installation again (see install.sh --help)
+  status               show the cached source, its branch and commit
+  help                 show this help
+
+Desktop control (windows, workspaces, wallpaper) is lunadashctl.
+USAGE
+}
+
+command=${1:-help}
+(($#)) && shift
+case "$command" in
+    update) exec bash "$root/install.sh" --update "$@" ;;
+    install) exec bash "$root/install.sh" "$@" ;;
+    status)
+        printf 'Source:   %s\n' "$root"
+        printf 'Branch:   %s\n' "$(git -C "$root" config lunadash.ref || echo unknown)"
+        printf 'Commit:   %s\n' "$(git -C "$root" rev-parse HEAD 2>/dev/null || echo unknown)"
+        if command -v pacman >/dev/null 2>&1; then
+            printf 'Package:  %s\n' "$(pacman -Q ludash 2>/dev/null || echo 'not installed')"
+        fi
+        ;;
+    help|-h|--help) usage ;;
+    *) usage >&2; exit 2 ;;
+esac

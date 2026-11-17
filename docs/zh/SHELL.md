@@ -58,7 +58,8 @@ session.json 選擇 LunaDash 殼層而找不到 SlintLu 時，`lunadash-session`
 LunaDash 殼層並在 log 中說明原因。`lunadashctl status` 的 `session` 欄位會顯示目前的設定與錯誤。
 
 安裝程式會寫入這個檔案：`install.sh --shell custom --shell-command waybar` 或
-`scripts/install-session.sh --shell none`，引導安裝時兩者也都會詢問。安裝程式只會替換 `shell`
+`scripts/install-session.sh --shell none`；`install-session.sh` 在引導安裝時會詢問，`install.sh`
+則在沒有指定 `--shell` 時保留既有選擇。安裝程式只會替換 `shell`
 （以及 `shellCommand`），其他 key 會保留。選擇 `custom` 或 `none` 時，`install-session.sh` 會以
 `-DLUDASH_INSTALL_SHELL=OFF` 建置：不建置也不安裝殼層檔案與 SlintLu，且
 `/etc/xdg/LunaDash/session.json` 預設為 `none`。Arch 套件一律包含 LunaDash 殼層。

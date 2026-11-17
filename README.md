@@ -57,9 +57,11 @@ Built with **C++20 · C11 · wlroots · OpenGL · Slint** (the shell runs on [Sl
 
 **NixOS:** use the [flake and NixOS module](docs/en/NIXOS.md), with `programs.lunadash.enable = true`. Installation, updates and rollback use NixOS generations.
 
-On Arch Linux, the guided installer offers Traditional Chinese / English,
-optional applications and a separate system-locale choice. Review the script
-before executing downloaded code. See the [English guide](docs/en/GUIDED_INSTALL.md)
+On Arch Linux, the guided installer fetches the source into `~/.cache/lunadash`
+(falling back to a GitHub mirror), follows your locale for Traditional Chinese /
+English and only asks for optional applications, the system locale and, without
+a login manager, SDDM. Afterwards `lunadash update` rebuilds from the newest
+source. Review the script before executing downloaded code. See the [English guide](docs/en/GUIDED_INSTALL.md)
 or the [Traditional Chinese guide](docs/zh/GUIDED_INSTALL.md).
 
 ```bash

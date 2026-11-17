@@ -63,7 +63,8 @@ as a whole: the session falls back to the LunaDash shell and logs why. `lunadash
 shows the active configuration and any error under `session`.
 
 The installers write this file: `install.sh --shell custom --shell-command waybar`, or
-`scripts/install-session.sh --shell none`, and both ask during a guided installation. They
+`scripts/install-session.sh --shell none`; `install-session.sh` also asks during a guided
+installation, while `install.sh` keeps the existing choice unless `--shell` is given. They
 replace only `shell` (and `shellCommand`) and keep your other keys. With `custom` or `none`,
 `install-session.sh` builds LunaDash with `-DLUDASH_INSTALL_SHELL=OFF`: no shell files and no
 SlintLu are built or installed, and `/etc/xdg/LunaDash/session.json` defaults to `none`. The

@@ -58,7 +58,16 @@
 
 ## 安裝
 
-取得開發分支後，執行工作階段安裝程式：
+Arch Linux 可直接使用引導安裝程式。它會把原始碼下載到 `~/.cache/lunadash`（連不上
+GitHub 時改用鏡像），依系統語系顯示繁體中文或英文，只詢問常用軟體、系統語系，以及沒有
+登入管理器時是否啟用 SDDM。之後執行 `lunadash update` 即可從最新原始碼重新建置。執行下載
+的程式碼前請先檢查腳本，詳見[引導安裝](../zh/GUIDED_INSTALL.md)。
+
+```bash
+curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/LuYishan-4/LunaDash/dev/install.sh | bash
+```
+
+開發、測試或其他發行版請取得開發分支後，執行工作階段安裝程式：
 
 ```sh
 git clone --branch dev https://github.com/LuYishan-4/LunaDash.git

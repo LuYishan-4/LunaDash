@@ -4,16 +4,28 @@
 
 適用於**已安裝的 Arch Linux x86_64**，需要網路、Bash、curl，以及具備 sudo
 權限的一般帳號。這不是磁碟分割或空白硬碟安裝程式。請先檢查下載的程式碼；
-LunaDash 1.0.1a 仍是開發中的桌面環境。
+LunaDash 1.0.2a 仍是開發中的桌面環境。
 
 ```bash
 curl -fsSL --connect-timeout 10 https://raw.githubusercontent.com/LuYishan-4/LunaDash/dev/install.sh | bash
 ```
 
-第一次執行不需要先 git clone。問題與子程序的互動輸入都從 `/dev/tty` 讀取，
-不會把承載腳本的管線當成回答。正式安裝拒絕 root／sudo bash，不以 root 建置
-AUR。若缺少 sudo，可經由 su 的 root 驗證安裝，但不會擅自修改 sudoers；沒有
-授權的帳號仍須先取得系統管理員授權。
+不需要先 git clone。透過管線執行的腳本是一個引導程式：缺少 Git 時先安裝 Git，
+把 LunaDash 原始碼下載到 `~/.cache/lunadash/source`（有設定 `$XDG_CACHE_HOME`
+時改用它），在 `~/.local/bin` 建立 `lunadash` 指令的連結，再交給該副本裡的
+`install.sh` 繼續安裝。分支（預設 `dev`，或以 `--ref` 指定）會先在 GitHub 解析成
+確切的提交，下載的內容必須與該提交相符。
+
+連不上 GitHub 時，改經由 `https://gh-proxy.org/` 鏡像下載。LunaDash-Shell 與
+SlintLu 一律依 `packaging/*-revision` 固定的提交下載，鏡像無法替換內容。至於
+LunaDash 分支本身，只有在 GitHub 完全沒有回應時才採用鏡像提供的提交編號，
+安裝程式會明確提示。`LUNADASH_REPO=URL` 只使用指定的儲存庫（fork 或本地鏡像）；
+`LUNADASH_GIT_MIRRORS` 可替換固定元件使用的鏡像清單（以空白分隔的 URL 前綴，
+留空表示只用 GitHub）。
+
+問題與子程序的互動輸入都從 `/dev/tty` 讀取，不會把承載腳本的管線當成回答。
+安裝程式拒絕以 root 執行，也不以 root 建置 AUR。若缺少 sudo，可經由 su 的 root
+驗證安裝，但不會授予 sudo 權限或修改 sudoers。
 
 也可以先下載、閱讀，再預覽不寫入系統的安裝計畫：
 
@@ -23,44 +35,56 @@ less install.sh
 bash install.sh --dry-run
 ```
 
-起始的繁體中文／英文選擇**只控制安裝程式的語言**，不會改變系統語系、鍵盤
-或時區。套件管理器的輸出仍依系統語系顯示。後面的獨立步驟才選擇系統 UTF-8
-語系，也可保留原設定。中、日、韓會補上 CJK 字型與對應 Fcitx 輸入法；其他
-文字系統補上額外 Noto 字型。純 Linux 虛擬主控台仍需要能顯示該文字的終端。
+安裝程式的語言依 `LANG` 決定：任何中文語系都顯示繁體中文，其他顯示英文；
+`--language en|zh_TW` 可以覆寫。它不會改變系統語系、鍵盤或時區。後面的獨立步驟
+才選擇系統 UTF-8 語系，也可保留原設定。中、日、韓會補上 CJK 字型與對應 Fcitx
+輸入法；其他文字系統補上額外 Noto 字型。
+
+### 安裝之後
+
+```bash
+lunadash update     # 更新到已安裝分支的最新原始碼、更新系統並重新建置
+lunadash install    # 重新執行安裝導覽
+lunadash status     # 顯示快取原始碼、分支、提交與已安裝的套件
+```
+
+`lunadash update` 不會詢問安裝問題：它抓取安裝時記錄的分支（或 `--ref`），
+執行 `pacman -Syu`（pacman 仍會要求確認），再重新建置並安裝套件。若
+`~/.local/bin/lunadash` 已經是其他檔案，會保留不動。從其他 LunaDash 副本執行
+`install.sh` 時，會直接安裝該副本，不下載也不建立指令連結。
 
 ### 五個步驟
 
-1. 顯示並安裝超過 20 個基本工具，包含 glibc、Git、curl、憑證、壓縮工具、
-   編輯器、NetworkManager／nmcli、韌體、開發工具、字型與 D-Bus。使用完整
-   `pacman -Syu`，不進行不受支援的局部更新。若沒有 yay，會下載官方 AUR
-   原始碼、顯示建置配方，並在再次確認後以一般使用者建置。
-2. 詢問是否安裝常用軟體：Chrome、Discord、Zed、Microsoft Visual Studio Code、
-   OBS、Spotify、ProtonPlus、Kitty、Fish、Dolphin、FileZilla、htop、Nmap、Tor。
-   支援 `all` 全選、`none` 清空、數字切換，以及 `all -3 -5` 等排除方式，最後
-   輸入 `done`。已安裝的原生或已知 Flatpak 軟體會標記並略過；未選取的軟體
-   不會被移除。官方套件使用 pacman，AUR 使用 yay 並保留正常審查與確認。
-   安裝 Tor 不代表自動啟用其服務。
-3. 將 LunaDash 分支解析成確切提交 SHA，透過 HTTPS 下載該版本，檢查封存檔
-   路徑及大小，並以一般使用者建置套件，僅安裝套件時提權。沒有 `.git` 也能
-   打包；`.lunadash-revision` 記錄下載版本。`--ref SHA` 可固定桌面原始碼版本，
-   但這不代表對最初下載的安裝腳本另做獨立簽章驗證。建置前會詢問 LunaDash 工作
-   階段要啟動哪個桌面殼層：LunaDash 殼層、自訂指令（例如 `waybar`）或不啟動；
-   也可以用 `--shell` 與 `--shell-command` 事先指定。選擇會寫入
-   `~/.config/LunaDash/session.json`（見[桌面殼層](SHELL.md#選擇殼層)），之後可直接修改。
-4. 獨立選擇系統語言，安裝必要字型與輸入法。改動 `locale.gen` 前建立備份；
-   不根據國家猜測鍵盤配置或時區。尚無 LunaDash 介面翻譯的語言以英文顯示，
-   不影響您選擇的系統語系。
-5. 建立尚不存在的 Pictures/Wallpapers 桌布資料夾。保留既有登入管理器；可選擇
-   啟用 SDDM，於下次開機使用，不立即中斷桌面。沒有衝突的網路管理器時，才
-   在確認後啟用 NetworkManager。全部完成後詢問是否重開機，預設**不重開**。
+安裝程式只在需要選擇時詢問；pacman 與 yay 變更系統前仍會列出套件並要求確認。
 
-任何步驟失敗都會停止，不會繼續到重開機。私人日誌存於
-`$XDG_STATE_HOME/lunadash` 或 `~/.local/state/lunadash`，權限 0600；暫存原始碼與
-建置檔會清除。已安裝的系統套件不會被擅自回退，回報問題時請保留日誌。
+1. 安裝基本工具並同時執行完整 `pacman -Syu`（不做不受支援的局部更新）：超過
+   20 個工具，包含 glibc、Git、curl、憑證、壓縮工具、編輯器、NetworkManager／nmcli、
+   韌體、開發工具、字型與 D-Bus。
+2. 常用軟體選單：Chrome、Discord、Zed、Microsoft Visual Studio Code、OBS、Spotify、
+   ProtonPlus、Kitty、Fish、Dolphin、FileZilla、htop、Nmap、Tor。預設全不選；
+   輸入數字切換，支援 `all`、`none` 與 `all -3 -5` 等排除方式，直接按 Enter 繼續。
+   已安裝的原生或已知 Flatpak 軟體會標記並略過；未選取的軟體不會被移除。官方
+   套件使用 pacman，AUR 使用 yay。只有選了 AUR 軟體且缺少 yay 時，才會下載並顯示
+   yay 的官方 AUR 建置配方，確認一次後以一般使用者建置。安裝 Tor 不代表啟用其服務。
+3. 以一般使用者從快取原始碼建置套件，LunaDash 殼層與 SlintLu 使用固定版本，僅安裝
+   套件時提權。工作階段預設啟動 LunaDash 殼層；`--shell custom --shell-command waybar`
+   或 `--shell none` 會寫入 `~/.config/LunaDash/session.json`
+   （見[桌面殼層](SHELL.md#選擇殼層)）；沒有指定 `--shell` 時保留既有的選擇。
+4. 選擇系統語言（直接按 Enter 保留目前設定），安裝必要字型與輸入法。改動
+   `locale.gen` 前建立備份；不根據國家猜測鍵盤配置或時區。尚無 LunaDash 介面翻譯的
+   語言以英文顯示，不影響您選擇的系統語系。
+5. 建立尚不存在的 Pictures/Wallpapers 桌布資料夾。保留既有登入管理器；沒有登入管理器
+   時詢問一次是否啟用 SDDM，於下次開機使用，不中斷目前的桌面。沒有設定其他網路服務
+   （systemd-networkd、ConnMan、iwd、dhcpcd）時，自動在下次開機啟用 NetworkManager，
+   不更動目前的連線。安裝程式不會自行重開機，只會提示要登出還是重開機。
 
-新的 `install.sh` 是引導式入口；**`scripts/install-session.sh` 保持原樣**，
-仍供既有開發與測試流程使用。其他發行版維持原始碼／依賴安裝流程；此引導式
-常用軟體清單不宣稱跨發行版通用。
+任何步驟失敗都會停止。私人日誌存於 `$XDG_STATE_HOME/lunadash` 或
+`~/.local/state/lunadash`，權限 0600；暫存建置檔會清除，原始碼快取保留給
+`lunadash update` 使用。已安裝的系統套件不會被擅自回退，回報問題時請保留日誌。
+
+`install.sh` 是引導式入口；**`scripts/install-session.sh` 保持原樣**，仍供既有開發與
+測試流程使用。其他發行版維持原始碼／依賴安裝流程；此引導式常用軟體清單不宣稱跨
+發行版通用。
 
 ## 桌布選單
 
