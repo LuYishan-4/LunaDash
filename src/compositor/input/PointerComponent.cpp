@@ -100,8 +100,22 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
     if (auto *client = impl->clientForSurface(surface))
       desktop->focus(client);
   }
+  if (pressed && seat->pointer_state.button_count == 0) {
+    // The first button down starts the implicit grab on the focused surface.
+    auto *surface = impl->surfaceAt(impl->cursor->x, impl->cursor->y, &sx, &sy);
+    impl->pressedSurface =
+        surface && surface == seat->pointer_state.focused_surface ? surface
+                                                                   : nullptr;
+    impl->pressedSurfaceOrigin =
+        PointF(impl->cursor->x - sx, impl->cursor->y - sy);
+  }
   wlr_seat_pointer_notify_button(seat, event->time_msec, event->button,
                                  event->state);
+  if (!pressed && seat->pointer_state.button_count == 0 && impl->pressedSurface) {
+    // The grab ends: hand the pointer to whatever is under it now.
+    impl->pressedSurface = nullptr;
+    impl->schedulePointerRebase();
+  }
 }
 
 void WaylandCompositor::Impl::PointerComponent::dismissShellPopups() {

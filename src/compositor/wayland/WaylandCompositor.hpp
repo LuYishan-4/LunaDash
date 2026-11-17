@@ -145,6 +145,8 @@ private:
     double pressX = 0.0;
     double pressY = 0.0;
     bool dragging = false;
+    // A press that went to the shell: its motion and release go there too.
+    bool shellPress = false;
     double scroll = 0.0;
   };
 

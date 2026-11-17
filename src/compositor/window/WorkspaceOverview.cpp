@@ -292,7 +292,7 @@ bool WaylandCompositor::pointerOverShell() const {
 }
 
 bool WaylandCompositor::overviewPointerMotion() {
-  if (!overview_.open || pointerOverShell())
+  if (!overview_.open || overview_.shellPress || pointerOverShell())
     return false;
   wlr_seat_pointer_notify_clear_focus(d->seat);
   if (overview_.pressed && !overview_.dragging &&
@@ -315,8 +315,20 @@ void WaylandCompositor::moveClientToWorkspace(ClientWindow *client, int workspac
 }
 
 bool WaylandCompositor::overviewPointerButton(std::uint32_t button, bool pressed) {
-  if (!overview_.open || (pressed && pointerOverShell()))
+  if (!overview_.open) {
+    overview_.shellPress = false;
     return false;
+  }
+  // The shell (bar, launcher) above the overview gets its press and the
+  // matching release, wherever the pointer is released.
+  if (pressed && pointerOverShell()) {
+    overview_.shellPress = true;
+    return false;
+  }
+  if (!pressed && overview_.shellPress) {
+    overview_.shellPress = false;
+    return false;
+  }
   const double x = d->cursor->x;
   const double y = d->cursor->y;
   if (button == BTN_MIDDLE) {

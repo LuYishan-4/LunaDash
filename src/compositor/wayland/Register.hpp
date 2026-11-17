@@ -461,6 +461,11 @@ public:
   uint32_t pointerResizeEdges = 0;
   uint32_t pointerButton = 0;
   bool orbitPointerConsumed = false;
+  // Implicit grab: while a button is held, the pressed surface keeps the
+  // pointer, so its release always reaches it. Compared, never dereferenced:
+  // wlroots clears pointer_state.focused_surface when the surface goes away.
+  wlr_surface *pressedSurface = nullptr;
+  PointF pressedSurfaceOrigin;
   PointF pointerLast;
   Rect pointerStartGeometry;
   std::chrono::steady_clock::time_point pointerPublishTime{};

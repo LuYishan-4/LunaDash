@@ -111,7 +111,20 @@ bool copyKeyboardLocks(wlr_keyboard *target, const wlr_keyboard *source) {
 
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
-  if (updateWindowPointer() || q->overviewPointerMotion())
+  if (updateWindowPointer())
+    return;
+  // A held button keeps the surface it was pressed on, even outside it, as
+  // wl_pointer requires; otherwise the release would go to another surface and
+  // the pressed button would never see it.
+  if (pressedSurface && seat->pointer_state.button_count > 0 &&
+      seat->pointer_state.focused_surface == pressedSurface) {
+    wlr_seat_pointer_notify_motion(seat, time,
+                                   cursor->x - pressedSurfaceOrigin.x(),
+                                   cursor->y - pressedSurfaceOrigin.y());
+    return;
+  }
+  pressedSurface = nullptr;
+  if (q->overviewPointerMotion())
     return;
   double sx = 0;
   double sy = 0;
