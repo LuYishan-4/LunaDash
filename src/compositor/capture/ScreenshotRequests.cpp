@@ -39,21 +39,15 @@ std::string captureTimestamp() {
 
 } // namespace
 
-bool WaylandCompositor::saveScreenshot(
-    const std::string &path, const std::function<void(bool)> &finished) {
+bool WaylandCompositor::saveScreenshot(const std::string &path) {
   if (!d || !d->primaryOutput || !std::filesystem::path(path).is_absolute() ||
       fileExists(path) || screenCapture_->busy())
     return false;
 
   capture_.error.clear();
-  capture_.destination = finished ? path : std::string{};
-  capture_.completion = finished;
-
   wlr_output_schedule_frame(d->primaryOutput);
   std::string error;
   if (!screenCapture_->captureOutput(clientEnvironment_, path, &error)) {
-    capture_.destination.clear();
-    capture_.completion = {};
     capture_.error = error;
     return false;
   }
@@ -103,24 +97,13 @@ void WaylandCompositor::onScreenCaptureFinished(const std::string &path,
   }
   capture_.error = error;
   // Tell the user how it went: the selection ends without any other feedback.
-  // Test captures (saveScreenshot) report through their completion instead.
-  if (!capture_.completion) {
-    if (!path.empty())
-      sendDesktopNotification("Screenshot saved", path, "image-x-generic");
-    else if (!error.empty())
-      sendDesktopNotification("Screenshot failed", error, "dialog-error");
-  }
+  if (!path.empty())
+    sendDesktopNotification("Screenshot saved", path, "image-x-generic");
+  else if (!error.empty())
+    sendDesktopNotification("Screenshot failed", error, "dialog-error");
   // The selector's surface (and its cursor) are gone: show a cursor again.
   if (d)
     d->schedulePointerRebase();
-  if (capture_.completion) {
-    auto completion = std::move(capture_.completion);
-    capture_.completion = {};
-    const bool saved = error.empty() && path == capture_.destination &&
-                       fileExists(capture_.destination);
-    capture_.destination.clear();
-    completion(saved);
-  }
 }
 
 } // namespace LunaDash

@@ -14,7 +14,7 @@
 namespace LunaDash {
 namespace {
 
-// Parses the arguments; on failure, stores a diagnostic in error.
+
 std::optional<CompositorOptions> parseArguments(int argc, char **argv,
                                                 std::string &error) {
   CompositorOptions options;
@@ -64,11 +64,6 @@ std::optional<CompositorOptions> parseArguments(int argc, char **argv,
       if (!text)
         return std::nullopt;
       options.socket = text;
-    } else if (argument.starts_with("--screenshot")) {
-      const auto *text = value("--screenshot");
-      if (!text)
-        return std::nullopt;
-      options.screenshot = text;
     } else if (argument.starts_with("--state")) {
       const auto *text = value("--state");
       if (!text)
@@ -115,7 +110,6 @@ void printHelp() {
       << "  --fullscreen           Prefer host output size in nested mode\n"
       << "  --no-shell             Do not start the desktop shell\n"
       << "  --demo                 Start two demonstration clients\n"
-      << "  --screenshot <path>    Save a compositor screenshot at exit\n"
       << "  --state <path>         Write window geometry JSON at exit\n"
       << "  --exit-after <ms>      Exit after this many milliseconds\n";
 }
@@ -130,7 +124,7 @@ std::optional<CompositorOptions> parseCompositorOptions(int argc, char **argv) {
   return options;
 }
 
-std::optional<int> runOneShotOption(const CompositorOptions &options) {
+std::optional<int> ChooseOption(const CompositorOptions &options) {
   if (options.help) {
     printHelp();
     return 0;

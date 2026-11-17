@@ -58,8 +58,7 @@ public:
       const std::vector<std::string> &arguments, const std::string &program = {},
       bool required = true,
       std::function<void(const ProcessResult &)> completion = {});
-  bool saveScreenshot(const std::string &path,
-                      const std::function<void(bool)> &finished = {});
+  bool saveScreenshot(const std::string &path);
   void saveState(const std::string &path);
   bool hasProcessFailure() const;
   int runEventLoop(bool profile = false);
@@ -94,12 +93,10 @@ private:
     std::string error;
   };
 
-  // Interactive (selection) and test (saveScreenshot) captures.
+  // Interactive (selection) and lunadashctl screenshot captures.
   struct CaptureState {
     std::string last;
     std::string error;
-    std::string destination;
-    std::function<void(bool)> completion;
   };
 
   // Compositor lifetime and the supervised session shell.

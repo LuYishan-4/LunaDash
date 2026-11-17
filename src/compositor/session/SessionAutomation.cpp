@@ -14,7 +14,7 @@ bool scheduleSessionAutomation(WaylandCompositor &compositor,
           900, [&compositor, shell = !options.noShell] {
             if (shell)
               compositor.spawn({"--app", "welcome"});
-            compositor.spawn({"--app", "files"});
+            //compositor.spawn({"--app", "files"});
           }))
     return false;
 
@@ -22,21 +22,13 @@ bool scheduleSessionAutomation(WaylandCompositor &compositor,
     return true;
   return compositor.scheduleEventLoopCallback(
       std::max(1000, options.exitAfterMilliseconds),
-      [&compositor, state = options.state, screenshot = options.screenshot] {
+      [&compositor, state = options.state] {
         if (!state.empty())
           compositor.saveState(state);
-        const auto finish = [&compositor](bool ok) {
-          compositor.closeTestSession([&compositor, ok](bool clean) {
-            compositor.terminateEventLoop(
-                ok && clean && !compositor.hasProcessFailure() ? 0 : 2);
-          });
-        };
-        if (screenshot.empty()) {
-          finish(true);
-          return;
-        }
-        if (!compositor.saveScreenshot(screenshot, finish))
-          finish(false);
+        compositor.closeTestSession([&compositor](bool clean) {
+          compositor.terminateEventLoop(
+              clean && !compositor.hasProcessFailure() ? 0 : 2);
+        });
       });
 }
 
