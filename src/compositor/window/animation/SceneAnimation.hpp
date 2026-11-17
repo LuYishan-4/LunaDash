@@ -83,6 +83,16 @@ public:
   // with `fade` false it stays opaque.
   void close(wlr_scene_tree *source, wlr_scene_tree *parent, int dx, int dy,
              bool fade = true);
+  // A workspace switch: moves the window itself from geometry by (dx, dy) and
+  // hides it (disables its node) once it settles. Unlike close() it takes no
+  // snapshot, so clients using explicit synchronization slide too. Returns false
+  // when nothing animates; the caller then hides the window itself.
+  bool slideOut(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry,
+                int dx, int dy);
+  // True while slideOut() is moving `tree` away.
+  bool slidingOut(wlr_scene_tree *tree) const;
+  // Turns a slide-out around: the window springs back to where it was.
+  void returnHome(wlr_scene_tree *tree);
   // Moves the destination of a running animation (a layer surface that was laid out again).
   void retarget(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry);
   int duration() const { return duration_; }

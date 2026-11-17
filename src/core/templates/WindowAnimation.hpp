@@ -24,6 +24,19 @@ public:
     return animation_.close(std::forward<Args>(args)...);
   }
 
+  // Workspace switches: the leaving window moves itself, then is hidden.
+  template <typename... Args> decltype(auto) slideOut(Args &&...args) {
+    return animation_.slideOut(std::forward<Args>(args)...);
+  }
+
+  template <typename Tree> bool slidingOut(Tree *tree) const {
+    return animation_.slidingOut(tree);
+  }
+
+  template <typename Tree> void returnHome(Tree *tree) {
+    animation_.returnHome(tree);
+  }
+
   template <typename... Args> decltype(auto) relayout(Args &&...args) {
     return animation_.relayout(std::forward<Args>(args)...);
   }

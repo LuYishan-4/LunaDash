@@ -323,6 +323,9 @@ struct SceneAnimation::LiveState : Templates::LunaClint<LiveState> {
   // The preview is the opening window's snapshot (scaled), not a relayout
   // preview (cropped).
   bool opening = false;
+  // slideOut(): the window leaves `home` and its node is disabled once settled.
+  bool hiding = false;
+  SceneAnimationRectangle home;
   SnapshotState *preview = nullptr;
 };
 
@@ -456,8 +459,9 @@ void SceneAnimation::finishLive(wlr_scene_tree *tree, LiveState *state,
   if (restore) {
     OpacityContext context{&state->opacity, 1.0};
     wlr_scene_node_for_each_buffer(&tree->node, applyOpacity, &context);
-    wlr_scene_node_set_position(&tree->node, state->motion.target.left,
-                                state->motion.target.top);
+    // A window that slid out returns to its place, hidden or about to be shown.
+    const auto &position = state->hiding ? state->home : state->motion.target;
+    wlr_scene_node_set_position(&tree->node, position.left, position.top);
   }
   if (state->preview)
     destroySnapshot(state->preview);
@@ -714,6 +718,37 @@ void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent,
                          snapshot->original.translated(dx, dy));
 }
 
+bool SceneAnimation::slideOut(wlr_scene_tree *tree,
+                              const SceneAnimationRectangle &geometry, int dx,
+                              int dy) {
+  if (!tree || duration_ <= 0 || (!dx && !dy))
+    return false;
+  const auto from = visualGeometry(tree, geometry);
+  cancel(tree);
+  auto *state = new LiveState;
+  state->tree = tree;
+  state->hiding = true;
+  state->home = geometry;
+  state->motion.start(workspaceSwitch_, from, from.translated(dx, dy));
+  startLive(state);
+  return true;
+}
+
+bool SceneAnimation::slidingOut(wlr_scene_tree *tree) const {
+  const auto found = live_.find(tree);
+  return found != live_.end() && found->second->hiding;
+}
+
+void SceneAnimation::returnHome(wlr_scene_tree *tree) {
+  const auto found = live_.find(tree);
+  if (found == live_.end() || !found->second->hiding)
+    return;
+  auto *state = found->second;
+  state->hiding = false;
+  state->motion.retarget(state->home);
+  applyLive(state, monotonicNow());
+}
+
 void SceneAnimation::retarget(wlr_scene_tree *tree,
                               const SceneAnimationRectangle &geometry) {
   const auto found = live_.find(tree);
@@ -743,9 +778,13 @@ void SceneAnimation::advance(std::uint64_t presentNs) {
                                 secondsBetween(state->lastStep, presentNs)));
     state->lastStep = std::max(state->lastStep, presentNs);
     if (state->motion.settled() &&
-        timeProgress(state->started, presentNs, state->fadeDuration) >= 1.0)
-      finishLive(state->tree, state);
-    else
+        timeProgress(state->started, presentNs, state->fadeDuration) >= 1.0) {
+      auto *tree = state->tree;
+      const bool hide = state->hiding;
+      finishLive(tree, state);
+      if (hide)
+        wlr_scene_node_set_enabled(&tree->node, false);
+    } else
       applyLive(state, presentNs);
   }
 

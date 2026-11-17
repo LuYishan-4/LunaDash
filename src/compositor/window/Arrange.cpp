@@ -235,10 +235,20 @@ void WaylandCompositor::arrange() {
       if (client->sceneTree->node.parent != targetLayer)
         wlr_scene_node_reparent(&client->sceneTree->node, targetLayer);
       const bool wasVisible = client->sceneTree->node.enabled;
-      if (!visible && wasVisible && client->mapped && windowAnimations_) {
+      // A window leaving with the previous workspace stays enabled until its
+      // slide settles; SceneAnimation hides it then. Arranging again meanwhile
+      // (focus changes do) must not cut the slide short.
+      const bool slidingOut =
+          windowAnimations_ && windowAnimations_->slidingOut(client->sceneTree);
+      bool keepSliding = !visible && slidingOut && client->mapped;
+      if (visible && slidingOut)
+        windowAnimations_->returnHome(client->sceneTree);
+      if (!visible && wasVisible && !slidingOut && client->mapped &&
+          windowAnimations_) {
         if (slide && client->workspace != workspace_)
-          windowAnimations_->close(client->sceneTree, d->animationLayer,
-                                   -slideDistance, 0, false);
+          keepSliding = windowAnimations_->slideOut(
+              client->sceneTree, animationRectangle(client->geometry),
+              -slideDistance, 0);
         else if (client->minimized)
           // Minimizing drops the window toward the dock.
           windowAnimations_->close(
@@ -250,9 +260,10 @@ void WaylandCompositor::arrange() {
       }
       if (visible && !wasVisible && client->geometry.isValid())
         revealed.push_back(client.get());
-      if (!visible && windowAnimations_)
+      if (!visible && windowAnimations_ && !keepSliding)
         windowAnimations_->cancel(client->sceneTree);
-      wlr_scene_node_set_enabled(&client->sceneTree->node, visible);
+      wlr_scene_node_set_enabled(&client->sceneTree->node,
+                                 visible || keepSliding);
     }
 
     if (!visible)
