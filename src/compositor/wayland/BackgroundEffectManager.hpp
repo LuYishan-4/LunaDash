@@ -14,6 +14,8 @@ struct wlr_surface;
 namespace LunaDash {
 
 // ext-background-effect-v1: clients ask for blur behind their own surfaces.
+// It needs wlroots 0.18 or newer (wlr_surface_synced); with older wlroots the
+// global is not created and valid() is false.
 // The blur region is double-buffered wl_surface state; how the blur looks is
 // compositor policy. The compositor only needs to know whether a surface's
 // committed region is non-empty: WindowGlass blurs the whole surface.
@@ -26,6 +28,8 @@ public:
   BackgroundEffectManager(const BackgroundEffectManager &) = delete;
   BackgroundEffectManager &operator=(const BackgroundEffectManager &) = delete;
 
+  // Whether this wlroots supports the protocol at all.
+  static bool supported();
   bool valid() const { return global_ != nullptr; }
   // Whether blur is available and the surface's committed blur region is non-empty.
   bool wantsBlur(wlr_surface *surface) const;

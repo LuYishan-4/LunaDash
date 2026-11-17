@@ -51,6 +51,23 @@ inline void notifyPointerAxis(wlr_seat *seat,
 #endif
 }
 
+// wlroots 0.18 switched pointer events from its own enums to the protocol's.
+inline bool buttonPressed(const wlr_pointer_button_event *event) {
+#if WLR_VERSION_MINOR < 18
+  return event->state == WLR_BUTTON_PRESSED;
+#else
+  return event->state == WL_POINTER_BUTTON_STATE_PRESSED;
+#endif
+}
+
+inline bool verticalAxis(const wlr_pointer_axis_event *event) {
+#if WLR_VERSION_MINOR < 18
+  return event->orientation == WLR_AXIS_ORIENTATION_VERTICAL;
+#else
+  return event->orientation == WL_POINTER_AXIS_VERTICAL_SCROLL;
+#endif
+}
+
 inline wl_signal *newInputMethodSignal(wlr_input_method_manager_v2 *manager) {
 #if WLR_VERSION_MINOR < 20
   return &manager->events.input_method;

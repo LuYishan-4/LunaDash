@@ -10,7 +10,11 @@
 
 #include "ext-background-effect-v1-protocol.h"
 
+#if WLR_VERSION_MINOR >= 18
+
 namespace LunaDash {
+
+bool BackgroundEffectManager::supported() { return true; }
 namespace {
 
 constexpr int kManagerVersion = 1;
@@ -226,3 +230,27 @@ void BackgroundEffectManager::setBlurAvailable(bool available) {
 }
 
 } // namespace LunaDash
+
+#else
+
+// wlroots before 0.18 has no wlr_surface_synced to keep the double-buffered
+// blur region in step with surface commits: the protocol is not offered.
+namespace LunaDash {
+
+bool BackgroundEffectManager::supported() { return false; }
+
+BackgroundEffectManager::BackgroundEffectManager(wl_display *,
+                                                 std::function<void()> changed)
+    : changed_(std::move(changed)) {}
+
+BackgroundEffectManager::~BackgroundEffectManager() = default;
+
+bool BackgroundEffectManager::wantsBlur(wlr_surface *) const { return false; }
+
+void BackgroundEffectManager::setBlurAvailable(bool available) {
+  blurAvailable_ = available;
+}
+
+} // namespace LunaDash
+
+#endif

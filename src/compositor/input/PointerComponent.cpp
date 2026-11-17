@@ -55,7 +55,7 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
     return;
   auto *desktop = impl->q;
   auto *seat = impl->seat;
-  const bool pressed = event->state == WL_POINTER_BUTTON_STATE_PRESSED;
+  const bool pressed = WlrootsCompat::buttonPressed(event);
   if (event->button == BTN_FORWARD) {
     auto *keyboard = impl->preferredKeyboard();
     if (pressed && keyboard &&
@@ -64,7 +64,7 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
       desktop->handleShortcut("launchOrbit");
       return;
     }
-    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
+    if (!pressed &&
         impl->orbitPointerConsumed) {
       impl->orbitPointerConsumed = false;
       return;
@@ -73,7 +73,7 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
   if (desktop->overviewPointerButton(event->button, pressed))
     return;
   if (impl->pointerWindow) {
-    if (event->state == WL_POINTER_BUTTON_STATE_RELEASED &&
+    if (!pressed &&
         event->button == impl->pointerButton) {
       if (impl->pointerClientGrab)
         wlr_seat_pointer_notify_button(seat, event->time_msec, event->button,
@@ -132,7 +132,7 @@ void WaylandCompositor::Impl::PointerComponent::onAxis(
     wlr_pointer_axis_event *event) {
   if (!event)
     return;
-  if (event->orientation == WL_POINTER_AXIS_VERTICAL_SCROLL &&
+  if (WlrootsCompat::verticalAxis(event) &&
       impl->q->overviewAxis(event->delta))
     return;
   auto *switcher = impl->q->windowSwitcher_.get();
