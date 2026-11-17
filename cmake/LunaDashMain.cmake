@@ -150,15 +150,11 @@ target_link_libraries(ludash-display-settings PUBLIC
 add_library(ludash-input-settings src/desktop/input/InputSettings.cpp)
 target_include_directories(ludash-input-settings PUBLIC src)
 target_link_libraries(ludash-input-settings PUBLIC PkgConfig::LUDASH_XKBCOMMON)
-add_library(ludash-theme-sync src/desktop/theme/ThemeSync.cpp
-    src/desktop/theme/FcitxTheme.cpp)
+add_library(ludash-theme-sync src/desktop/theme/ThemeSync.cpp)
 target_include_directories(ludash-theme-sync PUBLIC src)
 target_link_libraries(ludash-theme-sync
     PUBLIC nlohmann_json::nlohmann_json
     PRIVATE PkgConfig::LUDASH_GIO)
-target_compile_definitions(ludash-theme-sync PRIVATE
-    LUDASH_THEME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/themes"
-    LUDASH_THEME_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/lunadash/themes")
 add_library(ludash-weather src/desktop/weather/WeatherStatus.cpp)
 target_include_directories(ludash-weather PUBLIC src)
 target_link_libraries(ludash-weather PUBLIC

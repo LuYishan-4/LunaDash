@@ -355,7 +355,7 @@ bool validProxyText(const Json &value, bool url) {
 }
 
 bool validDesktopPreference(std::string_view key, const Json &value) {
-  if (key == "weatherEnabled" || key == "syncFcitxTheme")
+  if (key == "weatherEnabled")
     return value.is_boolean();
   if (key == "weatherLocation")
     return isString(value, 320) &&
@@ -578,7 +578,6 @@ Json defaultDesktopPreferenceValues() {
       {Preference::eyeCare.name, Preference::eyeCare.fallback},
       {Preference::eyeCareTemperature.name, Preference::eyeCareTemperature.fallback},
       {"syncApplicationThemes", false},
-      {"syncFcitxTheme", false},
       {Preference::weatherEnabled.name, Preference::weatherEnabled.fallback},
       {Preference::weatherLocation.name, std::string(Preference::weatherLocation.fallback)},
       {Preference::weatherLatitude.name, Preference::weatherLatitude.fallback},

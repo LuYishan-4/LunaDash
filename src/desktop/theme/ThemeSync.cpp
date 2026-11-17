@@ -1,7 +1,5 @@
 #include "desktop/theme/ThemeSync.hpp"
 
-#include "desktop/theme/FcitxTheme.hpp"
-
 #include <gio/gio.h>
 
 #include <algorithm>
@@ -294,9 +292,7 @@ Json synchronizeApplicationTheme(const Json &preferences,
   static std::string previous;
   static Json result;
   const bool enabled = preferences.value("syncApplicationThemes", false);
-  const bool fcitx = preferences.value("syncFcitxTheme", false);
-  const auto fingerprint = palette.dump() + (enabled ? "1" : "0") +
-                           (fcitx ? "1" : "0");
+  const auto fingerprint = palette.dump() + (enabled ? "1" : "0");
   if (fingerprint == previous)
     return result;
   previous = fingerprint;
@@ -306,9 +302,6 @@ Json synchronizeApplicationTheme(const Json &preferences,
   result = {{"enabled", enabled},
             {"directory", directory.string()},
             {"error", ""}};
-  std::string fcitxError;
-  if (fcitx && !synchronizeFcitxTheme(palette, &fcitxError))
-    result["error"] = fcitxError;
 
   // This system preference is independent of the optional GTK and Kitty
   // theme files, so publish it even when application theme sync is disabled.
@@ -378,7 +371,7 @@ Json synchronizeApplicationTheme(const Json &preferences,
   if (filesystemError && error.empty())
     error = "Could not inspect Kitty configuration: " +
             filesystemError.message();
-  result["error"] = error.empty() ? fcitxError : error;
+  result["error"] = error;
   return result;
 }
 

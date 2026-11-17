@@ -66,9 +66,9 @@ Super+T 和 Super+Return 保留啟動預設終端機的行為；新增快捷鍵�
 
 護眼模式讓 shell 表面不透明，並套用 2500–6500 K 輸出色溫。wlroots 0.20 使用 scene color transform；較舊支援版本在 backend 可用時使用 gamma ramp。不支援的輸出會回報錯誤，不冒充已生效。一般 Wayland 與 XWayland 視窗現在共用 compositor 背景模糊路徑；不透明度控制與驗證界線請參閱[視覺效果](EFFECTS.md)。外觀預設集儲存在 `lunadash/presets`，只保存經驗證的外觀設定，不包含應用程式資料、外部檔案或影片本身。
 
-Settings portal 提供配色、對比與減少動態效果提示。選擇啟用應用程式佈景同步後，會產生 LunaDash 管理的 GTK 3／4 CSS 與 Kitty 色彩檔、加入 include、設定 GTK 深色偏好，並在可用時要求 GNOME 配色提示。Kitty 在重新載入／啟動後讀取色彩，瀏覽器是否跟隨由其 portal 支援決定。Fcitx 同步需另外啟用，會將隨附 Mellow 模板套色並透過 classicui 選用。修改已存在的 CSS、Kitty 或 Fcitx 設定前會保留第一次的 `.lunadash-backup`。關閉同步只停止更新，不自動還原外部檔案；撤回整合時可移除 LunaDash include 或還原備份，再選回先前的 GTK／Fcitx 主題。個人設定建議維持獨立 include。
+Settings portal 提供配色、對比與減少動態效果提示。選擇啟用應用程式佈景同步後，會產生 LunaDash 管理的 GTK 3／4 CSS 與 Kitty 色彩檔、加入 include、設定 GTK 深色偏好，並在可用時要求 GNOME 配色提示。Kitty 在重新載入／啟動後讀取色彩，瀏覽器是否跟隨由其 portal 支援決定。修改已存在的 CSS 或 Kitty 設定前會保留第一次的 `.lunadash-backup`。關閉同步只停止更新，不自動還原外部檔案；撤回整合時可移除 LunaDash include 或還原備份，再選回先前的 GTK 主題。個人設定建議維持獨立 include。
 
-Mellow 模板改編自 NyxMellow，GPL-3.0 授權及來源標示位於 `data/themes/nyxmellow/`。其餘 UI 使用 LunaDash 共用元件，沒有重新散布上游桌布包。
+其餘 UI 使用 LunaDash 共用元件，沒有重新散布上游桌布包。
 
 ## 相依套件與驗證界線
 

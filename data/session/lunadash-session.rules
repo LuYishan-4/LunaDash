@@ -1,9 +1,2 @@
-# ananicy-cpp rules for a LunaDash session. They have no effect without ananicy-cpp.
-#
-# ananicy-cpp (enabled by default on CachyOS) gives display managers such as greetd
-# the "Launcher" type (nice 16, idle I/O), and a session started by one inherits it:
-# a compiler running at nice 0 then takes the CPU from the desktop. These rules raise
-# the compositor like ananicy's rules for niri, sway and kwin_wayland, and the shell
-# like plasmashell. Programs launched from the desktop start at nice 0 again.
 { "name": "lunadash-compositor", "type": "LowLatency_RT" }
 { "name": "slintlu", "nice": -6 }
