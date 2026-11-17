@@ -77,7 +77,7 @@ bool WaylandCompositor::Impl::OutputComponent::commitInitialState(
   }
   if (chosen)
     wlr_output_state_set_mode(&pending, chosen);
-  else if (!impl->fullscreen)
+  else if (!impl->options().fullscreen)
     wlr_output_state_set_custom_mode(
         &pending, impl->virtualOutputSize.width(),
         impl->virtualOutputSize.height(),

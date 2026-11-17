@@ -15,7 +15,8 @@ namespace LunaDash {
 //     "shellCommand": ["waybar"],              // required for "custom"
 //     "launcherCommand": ["fuzzel"],           // Super / launcher shortcut without the
 //                                              // LunaDash shell
-//     "autostart": [["mako"], ["swaybg", "-c", "#202020"]]
+//     "autostart": [["mako"], ["swaybg", "-c", "#202020"]],
+//     "inputMethodCommand": ["fcitx5", "--replace"]  // [] starts none
 //   }
 //
 // The user's $XDG_CONFIG_HOME/LunaDash/session.json wins over the first
@@ -28,6 +29,8 @@ struct SessionConfig {
   std::vector<std::string> shellCommand;
   std::vector<std::string> launcherCommand;
   std::vector<std::vector<std::string>> autostart;
+  // The input method the session starts before its shell; empty starts none.
+  std::vector<std::string> inputMethodCommand{"fcitx5", "--replace"};
   // The file that was read, empty when none exists.
   std::filesystem::path source;
   // Why the file was rejected; the defaults are used then.

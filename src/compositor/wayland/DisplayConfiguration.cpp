@@ -44,7 +44,7 @@ Json WaylandCompositor::Impl::displayModes() const {
                     {"label", modeLabel(mode->width, mode->height,
                                         mode->refresh)}}));
   }
-  if (result.empty() && nested && !fullscreen) {
+  if (result.empty() && nested && !options().fullscreen) {
     // A nested window has no modes of its own; offer the desktop preference
     // virtualOutputSizes.
     const int refresh = WlrootsCompat::nestedModeRefresh(
@@ -94,7 +94,7 @@ bool WaylandCompositor::Impl::configureDisplay(const Json &changes,
         break;
       }
     }
-    if (!found && nested && !fullscreen) {
+    if (!found && nested && !options().fullscreen) {
       for (const auto &entry : displayModes()) {
         if (jsonString(entry, "id") != id)
           continue;

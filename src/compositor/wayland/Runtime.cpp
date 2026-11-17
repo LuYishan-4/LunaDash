@@ -6,13 +6,9 @@
 
 namespace LunaDash {
 
-WaylandCompositor::Impl::Impl(WaylandCompositor *owner,
-                              const std::string &socket, bool wantsFullscreen,
-                              const std::string &renderer)
-    : q(owner), socketName(socket), fullscreen(wantsFullscreen),
-      nested(!environmentValue("WAYLAND_DISPLAY").empty() ||
-             !environmentValue("DISPLAY").empty()),
-      rendererPreference(renderer) {
+WaylandCompositor::Impl::Impl(WaylandCompositor *owner)
+    : q(owner), nested(!environmentValue("WAYLAND_DISPLAY").empty() ||
+                       !environmentValue("DISPLAY").empty()) {
   loadOutputSizePreferences();
   usableArea = Rect(0, 0, virtualOutputSize.width(), virtualOutputSize.height());
   display = wl_display_create();
@@ -29,7 +25,7 @@ bool WaylandCompositor::Impl::createRuntime() {
   backend = WlrootsCompat::createPlatform(display);
   if (!backend)
     return fail("wlroots could not create a backend.");
-  renderer = ludash_renderer_create(backend, rendererPreference.c_str());
+  renderer = ludash_renderer_create(backend, options().graphics.c_str());
   if (!renderer)
     return fail("wlroots could not create a renderer.");
 #if WLR_VERSION_MINOR >= 20
@@ -131,7 +127,7 @@ bool WaylandCompositor::Impl::createRuntime() {
 }
 
 bool WaylandCompositor::Impl::startRuntime() {
-  if (wl_display_add_socket(display, socketName.c_str()) != 0)
+  if (wl_display_add_socket(display, options().socket.c_str()) != 0)
     return fail("Could not create the requested Wayland socket.");
 
   // A few host-side Wayland helpers (notably GPU Screen Recorder's Flatpak
@@ -141,7 +137,7 @@ bool WaylandCompositor::Impl::startRuntime() {
   // same wl_display through the conventional socket in a real login session.
   // Never add this alias while nested: wayland-0 may belong to the host
   // compositor and must not be shadowed or treated as a startup failure.
-  if (!nested && socketName != "wayland-0") {
+  if (!nested && options().socket != "wayland-0") {
     if (wl_display_add_socket(display, "wayland-0") == 0) {
       logInfo("LunaDash Wayland compatibility socket: wayland-0");
     } else {
@@ -155,7 +151,7 @@ bool WaylandCompositor::Impl::startRuntime() {
 
   updateBackground();
   logInfo("LunaDash wlroots socket: %s seat protocol >= %d",
-          socketName.c_str(),
+          options().socket.c_str(),
           static_cast<int>(WlrootsCompat::expectedSeatProtocolVersion()));
   return true;
 }

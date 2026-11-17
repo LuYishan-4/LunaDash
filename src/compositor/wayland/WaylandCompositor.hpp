@@ -3,6 +3,7 @@
 #include "compositor/commands/CommandRegistry.hpp"
 #include "compositor/input/ShortcutRegistry.hpp"
 #include "compositor/layout/WindowLayout.hpp"
+#include "compositor/session/CompositorOptions.hpp"
 #include "compositor/session/SessionHelpers.hpp"
 #include "compositor/settings/SettingsPages.hpp"
 #include "compositor/window/WindowTemplate.hpp"
@@ -45,9 +46,13 @@ struct ShortcutActions;
 
 class WaylandCompositor final {
 public:
-  WaylandCompositor(const std::string &socket, bool fullscreen, bool startShell,
-                    const std::string &rendererPreference);
+  // Creates the registries and desktop services; does not start wlroots.
+  explicit WaylandCompositor(const CompositorOptions &options);
   ~WaylandCompositor();
+
+  // Starts the wlroots runtime, the control socket, XWayland and the session
+  // clients. False when the compositor cannot run; the reason is logged.
+  bool start();
 
   ProcessRunner *spawn(
       const std::vector<std::string> &arguments, const std::string &program = {},
@@ -156,6 +161,8 @@ private:
     int keypadKeyForwards = 0;
   };
 
+  // Declared before d: the runtime reads them through Impl::options().
+  const CompositorOptions options_;
   std::unique_ptr<Impl> d;
 
   CommandRegistry commands_;
@@ -209,10 +216,10 @@ private:
   KeyboardDiagnostics keyboardDiagnostics_;
   OverviewState overview_;
 
-  // Construction steps (WaylandCompositor.cpp).
+  // Construction and start steps (WaylandCompositor.cpp).
   void registerBuiltins();
   void createDesktopServices();
-  void startControlServer(const std::string &socket);
+  bool startControlServer();
   void startXWayland();
 
   // Session lifetime (compositor/session/SessionStartup.cpp).

@@ -98,10 +98,10 @@ export LUNADASH_PUBLISH_ACTIVATION_ENV=1
 # prevents ScreenCast from returning a PipeWire stream.
 if [ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
     exec env QT_QPA_PLATFORM=eglfs QT_QPA_EGLFS_INTEGRATION="$eglfs_integration" \
-        "$compositor" --fullscreen --graphics "${LUDASH_GRAPHICS:-gles}" "$@"
+        "$compositor" --graphics "${LUDASH_GRAPHICS:-gles}" "$@"
 fi
 
 # Minimal/manual launches without a PAM/systemd user bus still need a session
 # bus for portals and the rest of the desktop.
 exec dbus-run-session -- env QT_QPA_PLATFORM=eglfs QT_QPA_EGLFS_INTEGRATION="$eglfs_integration" \
-    "$compositor" --fullscreen --graphics "${LUDASH_GRAPHICS:-gles}" "$@"
+    "$compositor" --graphics "${LUDASH_GRAPHICS:-gles}" "$@"

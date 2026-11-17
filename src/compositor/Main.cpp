@@ -1,7 +1,18 @@
-#include "compositor/session/SessionApplication.hpp"
-#include "core/templates/Module.hpp"
+#include "compositor/session/CompositorCommandLine.hpp"
+#include "compositor/session/FatalSignalDiagnostics.hpp"
+#include "compositor/session/SessionAutomation.hpp"
+#include "compositor/wayland/WaylandCompositor.hpp"
 
 int main(int argc, char **argv) {
-  return LunaDash::Templates::runModule<LunaDash::SessionApplication>(argc,
-                                                                      argv);
+  LunaDash::installFatalSignalDiagnostics();
+  const auto options = LunaDash::parseCompositorOptions(argc, argv);
+  if (!options)
+    return 1;
+  if (const auto exitCode = LunaDash::runOneShotOption(*options))
+    return *exitCode;
+  LunaDash::WaylandCompositor compositor(*options);
+  if (!compositor.start() ||
+      !LunaDash::scheduleSessionAutomation(compositor, *options))
+    return 2;
+  return compositor.runEventLoop(options->profile);
 }

@@ -10,12 +10,11 @@
 namespace LunaDash {
 
 // A background program a desktop session starts before its shell (a polkit
-// agent, an input method). Started only when found on PATH.
+// agent, an input method). Started only when its program is found on PATH.
 struct SessionHelper {
-  std::string program;
-  std::vector<std::string> arguments;
-  // Whether this session wants the helper.
-  std::function<bool(const SessionConfig &)> wanted;
+  // The program and arguments this session starts, or an empty command when
+  // the session wants no such helper.
+  std::function<std::vector<std::string>(const SessionConfig &)> command;
 };
 
 using SessionHelperRegistry = Templates::NamedRegistry<SessionHelper>;

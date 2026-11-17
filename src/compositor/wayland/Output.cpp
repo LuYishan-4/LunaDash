@@ -118,7 +118,7 @@ Json WaylandCompositor::Impl::displaySnapshot() const {
                           : 0.0},
       {"output", primaryOutput ? safeUtf8(primaryOutput->name) : std::string()},
       {"nested", nested},
-      {"fullscreen", fullscreen}};
+      {"fullscreen", options().fullscreen}};
 }
 
 int WaylandCompositor::Impl::mappedLayerCount() const {
@@ -234,7 +234,7 @@ bool WaylandCompositor::Impl::resizePrimaryOutput(const std::string &preset,
   const bool offered =
       size && std::find(virtualOutputSizes.begin(), virtualOutputSizes.end(),
                         *size) != virtualOutputSizes.end();
-  if (!nested || fullscreen || !offered || !primaryOutput) {
+  if (!nested || options().fullscreen || !offered || !primaryOutput) {
     if (error)
       *error = "Choose a size from virtualOutputSizes in a windowed nested "
                "wlroots session.";

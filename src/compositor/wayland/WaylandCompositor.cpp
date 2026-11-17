@@ -20,6 +20,7 @@
 #include "compositor/window/animation/AnimationProfile.hpp"
 #include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/xwayland/XWaylandSupport.hpp"
+#include "config/BuildConfig.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/desktop/PreferenceKeys.hpp"
@@ -44,26 +45,35 @@
 #include <glib.h>
 
 #include <algorithm>
+#include <exception>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
 namespace LunaDash {
 
-WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
-                                     bool startShell,
-                                     const std::string &rendererPreference)
-    : d(std::make_unique<Impl>(this, socket, fullscreen, rendererPreference)) {
+WaylandCompositor::WaylandCompositor(const CompositorOptions &options)
+    : options_(options), d(std::make_unique<Impl>(this)) {
   registerBuiltins();
   windowTemplate_ = &defaultWindowTemplate();
   windowLayout_ = createWindowLayout(*windowTemplate_);
   createDesktopServices();
   installWindowPlacementFilter();
+}
+
+bool WaylandCompositor::start() {
+  std::error_code executablePathError;
+  const auto executablePath =
+      std::filesystem::read_symlink("/proc/self/exe", executablePathError);
+  logInfo("LunaDash version: %s (%s) executable: %s", BuildConfig::version,
+          BuildConfig::commit, executablePath.string().c_str());
 
   if (!d->initialize())
-    return;
+    return false;
   sessionServices_ = std::make_unique<SessionServices>(d->eventLoop);
 
   pluginManager_->setChangedCallback([this] {
@@ -76,11 +86,13 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
       windowAnimationProfile(*pluginManager_, desktopPreferences(), *windowTemplate_),
       windowTemplate_->motion));
 
-  startControlServer(socket);
+  if (!startControlServer())
+    return false;
 
   ensureLegacyDesktopSettingsImported();
   clientEnvironment_ = createClientEnvironment(
-      socket, controlPath_, executableDirectory(), loadDesktopPreferences());
+      options_.socket, controlPath_, executableDirectory(),
+      loadDesktopPreferences());
   publishClientEnvironment(clientEnvironment_);
 
   startXWayland();
@@ -89,11 +101,12 @@ WaylandCompositor::WaylandCompositor(const std::string &socket, bool fullscreen,
   // the user bus and systemd manager know LunaDash's Wayland/display identity
   // and the portal frontend has been refreshed with that environment.
   publishSessionActivationEnvironment(
-      [this, startShell] { startSessionClients(startShell); });
+      [this] { startSessionClients(!options_.noShell); });
 
   logInfo("LunaDash compositor backend: wlroots socket: %s input: "
           "libinput/xkbcommon",
-          socket.c_str());
+          options_.socket.c_str());
+  return true;
 }
 
 void WaylandCompositor::registerBuiltins() {
@@ -140,22 +153,32 @@ void WaylandCompositor::createDesktopServices() {
   pluginManager_->loadEnabled();
 }
 
-void WaylandCompositor::startControlServer(const std::string &socket) {
+bool WaylandCompositor::startControlServer() {
   controlPath_ = environmentValue("LUNADASH_CONTROL");
   if (controlPath_.empty())
     controlPath_ = environmentValue("LUDASH_CONTROL");
   if (controlPath_.empty())
     controlPath_ =
-        std::string(g_get_user_runtime_dir()) + "/" + socket + "-control";
+        std::string(g_get_user_runtime_dir()) + "/" + options_.socket + "-control";
   windowSwitcher_->setChannelPath(controlPath_ + "-interaction.json");
-  controlServer_ = std::make_unique<ControlServer>(
-      d->eventLoop, controlPath_, [this](std::string_view request) {
-        const auto document = parseJsonObject(request);
-        const auto response = document.is_object()
-                                  ? control(document)
-                                  : Json{{"error", "Invalid request"}};
-        return jsonCompact(response);
-      });
+  try {
+    controlServer_ = std::make_unique<ControlServer>(
+        d->eventLoop, controlPath_, [this](std::string_view request) {
+          const auto document = parseJsonObject(request);
+          const auto response = document.is_object()
+                                    ? control(document)
+                                    : Json{{"error", "Invalid request"}};
+          return jsonCompact(response);
+        });
+  } catch (const std::exception &error) {
+    // An unusable control path (too long, or held by a file that is not a
+    // stale socket) ends the session with a diagnostic instead of aborting.
+    logCritical("LunaDash control socket %s: %s", controlPath_.c_str(),
+                error.what());
+    lifecycle_.processFailure = true;
+    return false;
+  }
+  return true;
 }
 
 void WaylandCompositor::startXWayland() {

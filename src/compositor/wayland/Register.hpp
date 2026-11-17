@@ -354,10 +354,10 @@ public:
   };
 
   WaylandCompositor *q = nullptr;
-  std::string socketName;
-  bool fullscreen = false;
+  // True when another Wayland or X11 display hosts this compositor.
   bool nested = false;
-  std::string rendererPreference;
+  // The command-line options, owned by the compositor.
+  const CompositorOptions &options() const { return q->options_; }
 
   wl_display *display = nullptr;
   wl_event_loop *eventLoop = nullptr;
@@ -477,8 +477,7 @@ public:
   bool updateWindowPointer();
   void finishWindowPointer(bool apply);
 
-  explicit Impl(WaylandCompositor *owner, const std::string &socket,
-                bool wantsFullscreen, const std::string &renderer);
+  explicit Impl(WaylandCompositor *owner);
 
   ~Impl();
 

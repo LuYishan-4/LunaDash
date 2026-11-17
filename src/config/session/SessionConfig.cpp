@@ -60,6 +60,7 @@ Json SessionConfig::describe() const {
           {"shellCommand", shellCommand},
           {"launcherCommand", launcherCommand},
           {"autostart", autostart},
+          {"inputMethodCommand", inputMethodCommand},
           {"source", source.string()},
           {"error", error}};
 }
@@ -76,7 +77,7 @@ SessionConfig parseSessionConfig(const Json &document) {
   for (const auto &[key, value] : document.items()) {
     (void)value;
     if (key != "shell" && key != "shellCommand" && key != "launcherCommand" &&
-        key != "autostart")
+        key != "autostart" && key != "inputMethodCommand")
       return reject("Unknown session.json key: " + key);
   }
   if (const auto shell = document.find("shell"); shell != document.end()) {
@@ -111,6 +112,17 @@ SessionConfig parseSessionConfig(const Json &document) {
       if (!parsed)
         return reject("Every \"autostart\" entry must be a non-empty array of strings.");
       config.autostart.push_back(*parsed);
+    }
+  }
+  if (const auto value = document.find("inputMethodCommand");
+      value != document.end()) {
+    if (value->is_array() && value->empty()) {
+      config.inputMethodCommand.clear();
+    } else {
+      const auto parsed = command(*value);
+      if (!parsed)
+        return reject("\"inputMethodCommand\" must be an array of strings; [] starts none.");
+      config.inputMethodCommand = *parsed;
     }
   }
   return config;

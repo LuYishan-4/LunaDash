@@ -30,11 +30,13 @@ void WaylandCompositor::startSessionClients(bool startShell) {
   if (environmentInt("LUNADASH_PUBLISH_ACTIVATION_ENV") == 1)
     for (const auto &name : sessionHelpers_.names()) {
       const auto *helper = sessionHelpers_.find(name);
-      if (helper->wanted && !helper->wanted(session_))
+      const auto command =
+          helper->command ? helper->command(session_) : std::vector<std::string>{};
+      if (command.empty())
         continue;
-      const std::string program = findExecutable(helper->program);
+      const std::string program = findExecutable(command.front());
       if (!program.empty())
-        spawn(helper->arguments, program, false);
+        spawn({command.begin() + 1, command.end()}, program, false);
     }
   std::string error;
   switch (session_.shell) {
