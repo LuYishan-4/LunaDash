@@ -14,6 +14,7 @@
 #include <iterator>
 #include <string>
 #include <system_error>
+#include <unistd.h>
 
 namespace LunaDash {
 namespace {

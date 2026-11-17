@@ -63,7 +63,7 @@ std::string findXdpw() {
   for (const auto *candidate : {"/usr/lib/xdg-desktop-portal-wlr",
                                 "/usr/libexec/xdg-desktop-portal-wlr",
                                 "/usr/local/libexec/xdg-desktop-portal-wlr"})
-    if (executableFile(candidate))
+    if (fileIsExecutable(candidate))
       return candidate;
   return {};
 }
