@@ -367,9 +367,6 @@ bool validDesktopPreference(std::string_view key, const Json &value) {
     const double limit = key == "weatherLatitude" ? 90.0 : 180.0;
     return std::isfinite(number) && number >= -limit && number <= limit;
   }
-  if (key == "language")
-    return value == "en_US" || value == "zh_TW" || value == "zh_CN" ||
-           value == "ja_JP";
   if (key == "themeMode")
     return value.is_string() &&
            (value == "dark" || value == "light" || value == "auto");

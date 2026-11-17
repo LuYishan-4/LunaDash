@@ -19,9 +19,6 @@ bool WaylandCompositor::Impl::PointerComponent::start() {
                                              requestCursor);
   listen<&PointerComponent::onFocusChange>(
       &seat->pointer_state.events.focus_change, focusChange);
-
-  // Lets clients name a cursor ("text", "pointer" …) instead of attaching a surface;
-  // SlintLu shells rely on it.
   impl->cursorShapeManager =
       wlr_cursor_shape_manager_v1_create(impl->display, 1);
   if (!impl->cursorShapeManager)
@@ -94,8 +91,6 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
   if (!grabbed && pressed && impl->beginWindowPointer(event->button))
     return;
   if (pressed && !grabbed) {
-    // Deliver focus before the press which may open a grabbed popup. Do not
-    // send a redundant toplevel configure after every context-menu click.
     auto *surface = impl->surfaceAt(impl->cursor->x, impl->cursor->y, &sx, &sy);
     if (auto *client = impl->clientForSurface(surface))
       desktop->focus(client);
@@ -164,7 +159,6 @@ void WaylandCompositor::Impl::PointerComponent::onFrame() {
 
 void WaylandCompositor::Impl::PointerComponent::onRequestCursor(
     wlr_seat_pointer_request_set_cursor_event *event) {
-  // During an interactive move or resize the compositor's cursor wins.
   if (!event || impl->pointerWindow)
     return;
   if (impl->seat->pointer_state.focused_client == event->seat_client)
@@ -182,8 +176,7 @@ void WaylandCompositor::Impl::PointerComponent::onRequestCursorShape(
 
 void WaylandCompositor::Impl::PointerComponent::onFocusChange(
     wlr_seat_pointer_focus_change_event *event) {
-  // Losing focus without pointer motion (the focused surface was destroyed): find what
-  // is under the cursor now, so it gets a cursor without the user moving the mouse.
+
   if (event && !event->new_surface)
     impl->schedulePointerRebase();
 }

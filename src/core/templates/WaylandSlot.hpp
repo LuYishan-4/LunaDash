@@ -6,10 +6,6 @@ extern "C" {
 
 namespace LunaDash::Templates {
 
-// A wl_listener that remembers its owner. The listener is the first member, so
-// the wl_listener pointer a signal hands out is also the slot's address.
-// A connected slot disconnects itself when it is destroyed: owners only have to
-// outlive the signals they listen to, never remember to detach.
 template <typename Owner> struct WaylandSlot {
   wl_listener listener{};
   Owner *owner = nullptr;
@@ -71,9 +67,7 @@ template <typename OwnerType> struct SlotMethod<void (OwnerType::*)()> {
 template <auto Method>
 using SlotOwner = typename SlotMethod<decltype(Method)>::Owner;
 
-// Connects `slot` so that the signal calls `(owner->*Method)(event)`. The
-// trampoline is generated per method: handlers never cast the listener or the
-// signal data themselves.
+
 template <auto Method>
 void connect(wl_signal *signal, WaylandSlot<SlotOwner<Method>> &slot,
              SlotOwner<Method> *owner) {
@@ -89,8 +83,6 @@ void connect(wl_signal *signal, WaylandSlot<SlotOwner<Method>> &slot,
   });
 }
 
-// Like connect(), but runs before every listener added earlier. Use it only
-// when a handler must observe the emitter before its other listeners do.
 template <auto Method>
 void connectFirst(wl_signal *signal, WaylandSlot<SlotOwner<Method>> &slot,
                   SlotOwner<Method> *owner) {
@@ -101,7 +93,6 @@ void connectFirst(wl_signal *signal, WaylandSlot<SlotOwner<Method>> &slot,
   wl_list_insert(&signal->listener_list, &slot.listener.link);
 }
 
-// An event-loop timer that calls `(owner->*Method)()` when it fires.
 template <auto Method>
 wl_event_source *addTimer(wl_event_loop *loop, SlotOwner<Method> *owner) {
   static_assert(!SlotMethod<decltype(Method)>::takesEvent,

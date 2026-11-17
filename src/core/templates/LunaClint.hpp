@@ -6,18 +6,7 @@
 
 namespace LunaDash::Templates {
 
-// Base for every LunaDash type that reacts to wlroots signals.
-//
-//   struct OutputState : LunaClint<OutputState> {
-//     void onFrame();
-//     WaylandSlot<OutputState> frame;
-//     ...
-//     listen<&OutputState::onFrame>(&output->events.frame, frame);
-//   };
-//
-// Handlers are ordinary member functions named onXxx. The owner is always
-// `this`, the event argument already has its real type, and a slot disconnects
-// itself when its owner is destroyed.
+
 template <typename Derived> class LunaClint {
 protected:
   template <auto Method>

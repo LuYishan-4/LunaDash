@@ -4,7 +4,6 @@
 #include "PackageManager.h"
 #include "config/appearance/AppearancePalette.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
-#include "config/localization/Localization.hpp"
 #include "core/process/ExecutableLookup.hpp"
 #include "desktop/app/DefaultApplications.hpp"
 #include "desktop/package/PackageManager.hpp"
@@ -91,13 +90,6 @@ GKeyFile *loadLegacySettings() {
       g_error_free(error);
   }
   return file;
-}
-
-std::string translated(const Json &catalog, std::string_view source) {
-  const auto found = catalog.find(std::string(source));
-  return found != catalog.end() && found->is_string()
-             ? found->get<std::string>()
-             : std::string(source);
 }
 
 slint::Color paletteColor(const Json &palette, std::string_view key,
@@ -290,34 +282,29 @@ int PackageManagerApplication::run(int argc, char **argv) {
   auto window = PackageManagerWindow::create();
   window->set_font_family(slint::SharedString(desktopFontFamily()));
   auto *legacySettings = loadLegacySettings();
-  const auto locale = LunaDash::selectedLanguage();
-  const auto catalog = languageDictionary(locale);
-  auto text = [&catalog](std::string_view source) {
-    return translated(catalog, source);
-  };
   auto set = [&window](auto setter, const std::string &value) {
     (window.operator->()->*setter)(slint::SharedString(value));
   };
 
   set(&PackageManagerWindow::set_window_title,
-      "LunaDash · " + text("Package manager"));
-  set(&PackageManagerWindow::set_heading, text("Package manager"));
+      "LunaDash · Package manager");
+  set(&PackageManagerWindow::set_heading, "Package manager");
   set(&PackageManagerWindow::set_description,
-      text("pacman: queries run without administrator privileges. Confirm "
-           "installation and removal in a terminal."));
+      "pacman: queries run without administrator privileges. Confirm "
+      "installation and removal in a terminal.");
   set(&PackageManagerWindow::set_package_placeholder,
-      text("Package name, for example fcitx5"));
-  set(&PackageManagerWindow::set_installed_label, text("Installed"));
-  set(&PackageManagerWindow::set_search_label, text("Search"));
-  set(&PackageManagerWindow::set_install_label, text("Install"));
-  set(&PackageManagerWindow::set_remove_label, text("Remove"));
-  set(&PackageManagerWindow::set_upgrade_label, text("Full upgrade"));
-  set(&PackageManagerWindow::set_output_label, text("Output"));
-  set(&PackageManagerWindow::set_confirm_title, text("Confirm in terminal"));
-  set(&PackageManagerWindow::set_confirm_copy, text("The terminal will run:"));
-  set(&PackageManagerWindow::set_confirm_label, text("Open terminal"));
-  set(&PackageManagerWindow::set_cancel_label, text("Cancel"));
-  set(&PackageManagerWindow::set_close_label, text("Close"));
+      "Package name, for example fcitx5");
+  set(&PackageManagerWindow::set_installed_label, "Installed");
+  set(&PackageManagerWindow::set_search_label, "Search");
+  set(&PackageManagerWindow::set_install_label, "Install");
+  set(&PackageManagerWindow::set_remove_label, "Remove");
+  set(&PackageManagerWindow::set_upgrade_label, "Full upgrade");
+  set(&PackageManagerWindow::set_output_label, "Output");
+  set(&PackageManagerWindow::set_confirm_title, "Confirm in terminal");
+  set(&PackageManagerWindow::set_confirm_copy, "The terminal will run:");
+  set(&PackageManagerWindow::set_confirm_label, "Open terminal");
+  set(&PackageManagerWindow::set_cancel_label, "Cancel");
+  set(&PackageManagerWindow::set_close_label, "Close");
 
   Json preferences = loadDesktopPreferences();
   const auto legacyMode = keyFileString(legacySettings, "desktop", "themeMode");
@@ -341,8 +328,8 @@ int PackageManagerApplication::run(int argc, char **argv) {
   window->set_pacman_available(!pacman.empty());
   if (pacman.empty())
     set(&PackageManagerWindow::set_output,
-        text("pacman is not available on this system. Other desktop features "
-             "remain available."));
+        "pacman is not available on this system. Other desktop features "
+        "remain available.");
 
   slint::ComponentWeakHandle<PackageManagerWindow> weakWindow(window);
   std::atomic<bool> busy{false};
@@ -365,7 +352,7 @@ int PackageManagerApplication::run(int argc, char **argv) {
       return;
     if (busy.exchange(true)) {
       window->set_status(
-          slint::SharedString(text("A package query is already running.")));
+          slint::SharedString("A package query is already running."));
       return;
     }
     if (queryThread.joinable())
@@ -383,7 +370,7 @@ int PackageManagerApplication::run(int argc, char **argv) {
         busy.store(false);
         postState(error.empty() ? std::string{} : error,
                   error.empty() ? std::string{}
-                                : text("Could not start pacman: ") + error,
+                                : "Could not start pacman: " + error,
                   false);
         return;
       }
@@ -480,7 +467,7 @@ int PackageManagerApplication::run(int argc, char **argv) {
     const auto package = packageName();
     if (package.empty()) {
       window->set_status(
-          slint::SharedString(text("Enter a package name to search.")));
+          slint::SharedString("Enter a package name to search."));
       return;
     }
     startQuery({"-Ss", "--", package});
@@ -490,25 +477,25 @@ int PackageManagerApplication::run(int argc, char **argv) {
   const auto requestTransaction = [&](std::vector<std::string> arguments) {
     if (arguments.empty()) {
       window->set_status(
-          slint::SharedString(text("Enter one valid package name.")));
+          slint::SharedString("Enter one valid package name."));
       return;
     }
     const auto sudo = findExecutable("sudo");
     if (sudo.empty()) {
       window->set_status(slint::SharedString(
-          text("Ask your system administrator to manage packages.")));
+          "Ask your system administrator to manage packages."));
       return;
     }
     std::string terminalError;
     auto terminal = defaultApplicationCommand("terminal", &terminalError);
     if (terminal.empty() || findExecutable(terminal.front()).empty()) {
-      window->set_status(slint::SharedString(text(
-          "Install or configure a supported terminal to manage packages.")));
+      window->set_status(slint::SharedString(
+          "Install or configure a supported terminal to manage packages."));
       return;
     }
     if (!appendTerminalExecuteOption(terminal)) {
-      window->set_status(slint::SharedString(text(
-          "The configured terminal is not supported for package actions.")));
+      window->set_status(slint::SharedString(
+          "The configured terminal is not supported for package actions."));
       return;
     }
     pendingTransaction = terminal;
@@ -541,10 +528,11 @@ int PackageManagerApplication::run(int argc, char **argv) {
     const auto result = runDetached(pendingTransaction);
     if (result != 0)
       window->set_status(
-          slint::SharedString(text("Launch failed: ") + std::strerror(result)));
+          slint::SharedString("Launch failed: " +
+                              std::string(std::strerror(result))));
     else
       window->set_status(slint::SharedString(
-          text("Package transaction opened in the configured terminal.")));
+          "Package transaction opened in the configured terminal."));
     pendingTransaction.clear();
     window->set_confirmation_visible(false);
   });

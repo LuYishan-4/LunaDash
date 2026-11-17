@@ -18,7 +18,6 @@
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/desktop/PreferenceKeys.hpp"
-#include "config/localization/Localization.hpp"
 #include "core/json/JsonAccess.hpp"
 #include "core/settings/SettingsTarget.hpp"
 #include "core/text/Url.hpp"
@@ -274,7 +273,7 @@ Json WaylandCompositor::describeWallpaperState() const {
                        {"wallpaperVideoError", videoWallpaper_->error()}});
 }
 
-Json WaylandCompositor::state(bool includeTranslations) const {
+Json WaylandCompositor::state() const {
   const auto wallpaper = describeWallpaperState();
   Json xwaylandUtilities = Json::array();
   const auto clients = describeClients(xwaylandUtilities);
@@ -287,7 +286,6 @@ Json WaylandCompositor::state(bool includeTranslations) const {
   const auto layoutTarget = Settings::target(
       "layout:" + windowTemplate_->key, "Window layout", "layout", "Windows",
       windowTemplate_->layoutSettingsSchema, layoutSettings);
-  const auto language = selectedLanguage();
   const auto area = workArea();
   auto *glass = d ? d->windowGlass.get() : nullptr;
 
@@ -382,7 +380,6 @@ Json WaylandCompositor::state(bool includeTranslations) const {
       {"layerSurfaces", d ? d->mappedLayerCount() : 0},
       {"xdgPopupCount",
        d ? static_cast<std::int64_t>(d->xdgPopups.size()) : std::int64_t{0}},
-      {"language", language},
       {"wallpaper", loadWallpaperSettings().value("shader", 0)},
       {"shutdown", lifecycle_.testStopping},
       {"graphicsApi", "wlroots"},
@@ -393,8 +390,6 @@ Json WaylandCompositor::state(bool includeTranslations) const {
       {"graphicsMajor", 0},
       {"graphicsMinor", 0}};
   result.update(wallpaper);
-  if (includeTranslations)
-    result["translations"] = languageDictionary(language);
   return result;
 }
 

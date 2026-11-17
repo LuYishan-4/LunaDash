@@ -5,9 +5,7 @@ namespace LunaDash {
 bool WaylandCompositor::Impl::ClipboardComponent::start() {
   wlr_data_device_manager_create(impl->display);
 #if LUDASH_WLR_HAS_DATA_CONTROL
-  // Clipboard managers such as wl-paste --watch need the privileged
-  // wlr-data-control protocol; wl_data_device alone is focus-bound and cannot
-  // provide global clipboard history.
+
   impl->dataControl = wlr_data_control_manager_v1_create(impl->display);
   if (!impl->dataControl)
     return impl->fail("wlroots could not create the data-control manager.");

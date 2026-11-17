@@ -88,14 +88,6 @@ add_library(ludash-desktop-preferences
 target_include_directories(ludash-desktop-preferences PUBLIC src)
 target_link_libraries(ludash-desktop-preferences
     PUBLIC nlohmann_json::nlohmann_json)
-add_library(ludash-localization src/config/localization/Localization.cpp)
-target_include_directories(ludash-localization PUBLIC src)
-target_link_libraries(ludash-localization
-    PUBLIC ludash-desktop-preferences nlohmann_json::nlohmann_json
-    PRIVATE PkgConfig::LUDASH_GIO)
-target_compile_definitions(ludash-localization PRIVATE
-    LUDASH_TRANSLATIONS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/translations"
-    LUDASH_TRANSLATIONS_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ludash/translations")
 add_library(ludash-appearance-presets
     src/config/appearance/AppearancePresets.cpp)
 target_include_directories(ludash-appearance-presets PUBLIC src)
@@ -192,7 +184,7 @@ target_link_libraries(ludash-session-config PUBLIC nlohmann_json::nlohmann_json)
 add_library(ludash-desktop-notification src/compositor/session/DesktopNotification.cpp)
 target_include_directories(ludash-desktop-notification PUBLIC src)
 target_link_libraries(ludash-desktop-notification
-    PRIVATE ludash-localization PkgConfig::LUDASH_GIO)
+    PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-session-actions src/compositor/session/SessionActions.cpp)
 target_include_directories(ludash-session-actions PUBLIC src)
 target_link_libraries(ludash-session-actions PRIVATE PkgConfig::LUDASH_GIO)
@@ -282,7 +274,7 @@ target_link_libraries(ludash-packages PRIVATE
     Slint::Slint ludash-interface-font ludash-package-policy ludash-default-applications
     ludash-executable-lookup
     ludash-desktop-preferences ludash-appearance-palette
-    ludash-localization PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
+    PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
 slint_target_sources(ludash-packages
     src/desktop/package/PackageManager.slint)
 set_target_properties(ludash-packages PROPERTIES
@@ -524,7 +516,6 @@ target_link_libraries(ludash-wayland
         ludash-night-color
         ludash-theme-sync
         ludash-weather
-        ludash-localization
         ludash-plugins
         ludash-crypto
         ludash-json
@@ -593,4 +584,3 @@ install(FILES data/session/lunadash-session.rules
         DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/ananicy.d)
 install(FILES data/session/launch-capabilities.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/session)
-install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)

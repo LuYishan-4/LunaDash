@@ -4,8 +4,7 @@
 
 namespace LunaDash::Templates {
 
-// Composition boundary for application-window animations. The compositor
-// speaks lifecycle events; an animation owns renderer-specific implementation.
+
 template <typename Animation> class WindowAnimationTemplate final {
 public:
   WindowAnimationTemplate() = default;

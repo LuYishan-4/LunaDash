@@ -28,13 +28,7 @@ bool containsNullByte(const std::string &value) {
   return value.find('\0') != std::string::npos;
 }
 
-// The compositor may run at a raised priority (LunaDash ships an ananicy-cpp
-// rule that gives it nice -12). Launched programs start at the normal priority
-// instead of inheriting it, or a build started from a terminal would compete
-// with the desktop again. Raising the nice value needs no privilege.
-// posix_spawn cannot set it in the child, so the parent resets the new main
-// thread right after the spawn; threads the program creates in that instant
-// keep the raised value.
+
 void resetInheritedPriority(pid_t child) {
   errno = 0;
   const int current = ::getpriority(PRIO_PROCESS, 0);

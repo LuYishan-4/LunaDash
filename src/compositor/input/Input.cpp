@@ -155,12 +155,11 @@ void WaylandCompositor::Impl::setClientCursor(wlr_surface *surface,
   if (!cursor)
     return;
   wlr_cursor_set_surface(cursor, surface, hotspotX, hotspotY);
-  // A client may hide the cursor on purpose (a null surface, e.g. a video player).
+
   cursorImage = surface ? "client" : "hidden by client";
 }
 
 void WaylandCompositor::Impl::rebasePointer() {
-  // Interactive moves and resizes own the pointer until they finish.
   if (!seat || !cursor || pointerWindow)
     return;
   const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -196,10 +195,7 @@ bool WaylandCompositor::Impl::inputMethodVirtualKeyboard(
 void WaylandCompositor::Impl::focusSurface(wlr_surface *surface) {
   if (!surface)
     return;
-  // Keep a non-IME virtual keyboard as the active seat source while it owns
-  // the hardware stream (GPU Screen Recorder, remote-control tools, key
-  // remappers, etc.). Falling back to the physical keyboard here reintroduces
-  // stale Ctrl/Caps/Num state whenever such a client changes focus.
+
   wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
   if (!keyboard)
     keyboard = preferredKeyboard();

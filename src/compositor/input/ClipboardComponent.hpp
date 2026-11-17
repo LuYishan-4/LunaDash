@@ -4,8 +4,7 @@
 
 namespace LunaDash {
 
-// The seat's selection: wl_data_device for focused clients and
-// wlr-data-control for clipboard managers.
+
 class WaylandCompositor::Impl::ClipboardComponent final
     : public Component,
       public LunaClint<ClipboardComponent> {

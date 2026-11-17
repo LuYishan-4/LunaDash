@@ -9,7 +9,7 @@ void registerBuiltinSettingsPages(SettingsPageRegistry &registry) {
         "network", "bluetooth", "power", "applications", "privacy", "system",
         "devices", "about", "modules", "plugins", "dashboard", "input-method"})
     registry.add(page, {"settings"});
-  for (const char *page : {"wallpaper", "panel", "notifications", "language"})
+  for (const char *page : {"wallpaper", "panel", "notifications"})
     registry.add(page, {"shell"});
 }
 

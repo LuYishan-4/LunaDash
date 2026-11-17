@@ -1,7 +1,6 @@
 #include "config/plugins/PluginCatalog.hpp"
 #include "config/plugins/ExtensionConfiguration.hpp"
 #include "config/plugins/ExtensionRegistry.hpp"
-#include "config/desktop/DesktopPreferences.hpp"
 #include "core/crypto/Sha256.hpp"
 #include "core/filesystem/FileIo.hpp"
 #include "core/text/Url.hpp"
@@ -148,9 +147,7 @@ readPluginMetadataTargets(const std::string &path, bool applyConfiguration) {
     return {errorDescriptor(path, "Invalid JSON metadata")};
 
   const int schemaVersion = jsonInt(metadata, "schemaVersion", 1);
-  const auto preferences = desktopPreferences();
-  const auto locale =
-      jsonString(preferences, "language", systemLocaleName());
+  const auto locale = systemLocaleName();
   const auto directory = std::filesystem::absolute(path).parent_path();
 
   PluginDescriptor base;

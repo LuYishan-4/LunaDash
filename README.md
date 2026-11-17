@@ -77,7 +77,7 @@ cd LunaDash
 ./scripts/install-session.sh
 ```
 
-The installer handles distribution dependencies, fetches and installs the pinned LunaDash-Shell, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to choose your language and personalize the desktop.
+The installer handles distribution dependencies, fetches and installs the pinned LunaDash-Shell, builds LunaDash and installs the login session. Log out and choose **LunaDash** in your display manager. The first launch opens the 1.0.1a Welcome experience with system cards and quick actions. Use the resizable Settings center to personalize the desktop. Built-in desktop UI is currently English-only.
 
 Use `./scripts/install-session.sh --dry-run` to preview the steps. The shell runs on SlintLu, which the installer builds from the revision pinned in `packaging/slintlu-revision` (Rust 1.92+ is required, as for Slint). See the [installation guide](docs/en/LOGIN_SESSION.md) for options and recovery, or [build and source map](docs/en/TESTING_AND_FILES.md) for manual builds.
 

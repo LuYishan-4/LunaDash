@@ -257,7 +257,7 @@ private:
   bool performLayoutAction(const std::string &action, const Json &payload);
 
   // Status for the shell and tools (compositor/ipc/StateSnapshot.cpp).
-  Json state(bool includeTranslations = true) const;
+  Json state() const;
   Json describeClients(Json &xwaylandUtilities) const;
   Json describeTiling() const;
   Json describeXWayland(Json utilitySurfaces) const;

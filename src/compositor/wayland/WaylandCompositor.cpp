@@ -97,9 +97,6 @@ bool WaylandCompositor::start() {
 
   startXWayland();
 
-  // Portal backends are D-Bus activated. Do not start the shell/IME/apps until
-  // the user bus and systemd manager know LunaDash's Wayland/display identity
-  // and the portal frontend has been refreshed with that environment.
   publishSessionActivationEnvironment(
       [this] { startSessionClients(!options_.noShell); });
 
@@ -156,8 +153,6 @@ void WaylandCompositor::createDesktopServices() {
 bool WaylandCompositor::startControlServer() {
   controlPath_ = environmentValue("LUNADASH_CONTROL");
   if (controlPath_.empty())
-    controlPath_ = environmentValue("LUDASH_CONTROL");
-  if (controlPath_.empty())
     controlPath_ =
         std::string(g_get_user_runtime_dir()) + "/" + options_.socket + "-control";
   windowSwitcher_->setChannelPath(controlPath_ + "-interaction.json");
@@ -171,8 +166,6 @@ bool WaylandCompositor::startControlServer() {
           return jsonCompact(response);
         });
   } catch (const std::exception &error) {
-    // An unusable control path (too long, or held by a file that is not a
-    // stale socket) ends the session with a diagnostic instead of aborting.
     logCritical("LunaDash control socket %s: %s", controlPath_.c_str(),
                 error.what());
     lifecycle_.processFailure = true;

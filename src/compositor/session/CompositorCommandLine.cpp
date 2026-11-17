@@ -2,7 +2,6 @@
 
 #include "compositor/renderer/selection/RenderSelection.h"
 #include "config/BuildConfig.hpp"
-#include "config/localization/Localization.hpp"
 #include "config/session/SessionConfig.hpp"
 #include "core/text/Text.hpp"
 
@@ -53,11 +52,6 @@ std::optional<CompositorOptions> parseArguments(int argc, char **argv,
       if (!text)
         return std::nullopt;
       options.graphics = text;
-    } else if (argument.starts_with("--set-language")) {
-      const auto *text = value("--set-language");
-      if (!text)
-        return std::nullopt;
-      options.setLanguage = text;
     } else if (argument.starts_with("--socket")) {
       const auto *text = value("--socket");
       if (!text)
@@ -102,7 +96,6 @@ void printHelp() {
       << "  --help                 Show this help\n"
       << "  --version              Show version\n"
       << "  --session-shell        Print the shell session.json selects (lunadash, custom, none)\n"
-      << "  --set-language LOCALE  Store the desktop language (e.g. zh_TW) and exit\n"
       << "  --graphics <api>       Renderer: auto, opengl, gles, or vulkan\n"
       << "  --socket <name>        Wayland socket name\n"
       << "  --profile              Log event-loop stalls longer than 25 ms\n"
@@ -130,14 +123,6 @@ std::optional<int> chooseOption(const CompositorOptions &options) {
   }
   if (options.version) {
     std::cout << BuildConfig::version << " (" << BuildConfig::commit << ")\n";
-    return 0;
-  }
-  if (!options.setLanguage.empty()) {
-    std::string error;
-    if (!setSelectedLanguage(options.setLanguage, &error)) {
-      std::cerr << error << '\n';
-      return 1;
-    }
     return 0;
   }
   if (options.sessionShell) {

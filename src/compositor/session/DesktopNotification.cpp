@@ -1,17 +1,9 @@
 #include "compositor/session/DesktopNotification.hpp"
 
-#include "config/localization/Localization.hpp"
-
 #include <gio/gio.h>
 
 namespace LunaDash {
 namespace {
-std::string tr(const std::string &text) {
-  const auto dictionary = languageDictionary(selectedLanguage());
-  const auto entry = dictionary.find(text);
-  return entry != dictionary.end() && entry->is_string() ? entry->get<std::string>() : text;
-}
-
 struct PendingNotification {
   std::string summary;
   std::string body;
@@ -44,7 +36,7 @@ void busReady(GObject *, GAsyncResult *result, gpointer data) {
 
 void sendDesktopNotification(const std::string &summary, const std::string &body,
                              const std::string &icon) {
-  auto *notification = new PendingNotification{tr(summary), body, icon};
+  auto *notification = new PendingNotification{summary, body, icon};
   g_bus_get(G_BUS_TYPE_SESSION, nullptr, busReady, notification);
 }
 

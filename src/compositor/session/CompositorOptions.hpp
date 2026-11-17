@@ -8,7 +8,6 @@ struct CompositorOptions {
   std::string graphics = "auto";
   std::string socket = "lunadash-0";
   std::string state;
-  std::string setLanguage;
   int exitAfterMilliseconds = 0;
   bool exitAfterSet = false;
   bool profile = false;

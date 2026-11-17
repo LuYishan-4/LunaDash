@@ -222,8 +222,7 @@ int bundle(ControlClient &client, int argc, char **argv) {
   };
   const auto debug = query(client, "debug");
   write("debug.json", debug ? debug->dump(2) + "\n" : "{\"error\":\"no answer\"}\n");
-  // The language value suppresses the translation table in the answer.
-  const auto status = query(client, "status", "en_US");
+  const auto status = query(client, "status");
   write("status.json", status ? status->dump(2) + "\n" : "{\"error\":\"no answer\"}\n");
   if (const auto log = newestSessionLog()) {
     std::ostringstream lines;

@@ -1,6 +1,3 @@
-// Registration only: which components make up the wlroots runtime, in which
-// order they start, and how the runtime is taken apart again. Handlers live in
-// the components and per-object states; see Register.hpp.
 #include "compositor/wayland/Register.hpp"
 #include "compositor/input/ClipboardComponent.hpp"
 #include "compositor/input/InputDeviceComponent.hpp"
@@ -60,23 +57,15 @@ void WaylandCompositor::Impl::releaseRuntime() {
   if (!display || runtimeReleased)
     return;
   runtimeReleased = true;
-
-  // Underlays retain renderer buffers and listeners on client scene nodes.
-  // Release them while both the scene and renderer are still alive.
   windowGlass.reset();
   windowCorners.reset();
-  // Windows and popups destroy their own states here.
   wl_display_destroy_clients(display);
-  // Client resources reach back into the manager while they are destroyed.
   backgroundEffects.reset();
 
-  // Components stop listening newest first.
+
   while (!components.empty())
     components.pop_back();
 
-  // States of wlroots-owned objects (outputs, X11 windows, layers, devices)
-  // disconnect before the scene and backend go, so late destruction cannot
-  // call back into already-freed scene nodes.
   primaryOutput = nullptr;
   activeTextInput = nullptr;
   destroyStates(outputs);

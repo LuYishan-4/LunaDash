@@ -15,7 +15,7 @@
 - Finish the intended code, packaging, and documentation changes before building. Do not build after each intermediate edit.
 - Target Arch Linux first, with portable CMake support and documented dependencies for other Linux distributions. Distinguish configured CI from actually verified platforms.
 - Do not describe this development version as a production-ready KDE replacement. Document missing protocol and session features accurately.
-- Change shell behavior in LunaDash-Shell and missing shell runtime features in SlintLu, then update the pinned revisions. Shell, C, C++ and Slint source text stays English. Traditional Chinese belongs only in the external language pack under `data/translations/`.
+- Change shell behavior in LunaDash-Shell and missing shell runtime features in SlintLu, then update the pinned revisions. Shell, C, C++ and Slint source text stays English. Do not add application UI translation catalogs to this repository.
 - Keep native plugins disabled by default. Plugin metadata is not a sandbox and does not make native code safe.
 
 

@@ -9,7 +9,6 @@
 #include "config/desktop/DesktopPreferenceStore.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/desktop/PreferenceKeys.hpp"
-#include "config/localization/Localization.hpp"
 #include "core/settings/SettingsTarget.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
 #include "desktop/theme/ThemeSync.hpp"
@@ -42,14 +41,6 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
   using C = WaylandCompositor;
   using R = CommandRequest;
 
-  registry.add("language", [](C &, const R &r) -> CommandResult {
-    if (!isSupportedLanguage(r.value))
-      return invalidCommand();
-    std::string error;
-    if (!setSelectedLanguage(r.value, &error))
-      return commandError(error);
-    return {};
-  });
   // While the shortcut editor records a key, shortcuts are not executed.
   registry.add("shortcut-capture", [](C &c, const R &r) -> CommandResult {
     if (r.value != "true" && r.value != "false")

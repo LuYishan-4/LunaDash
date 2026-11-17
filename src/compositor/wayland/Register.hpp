@@ -1,6 +1,5 @@
 #pragma once
 
-// Private wlroots runtime state. Public callers use WaylandCompositor.hpp.
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/wayland/BackgroundEffectManager.hpp"
 #include "compositor/renderer/blur/WindowGlass.hpp"
@@ -22,7 +21,7 @@
 #include <vector>
 #include <wayland-server-core.h>
 
-// Signal payloads of optional wlroots features; complete only when enabled.
+
 struct wlr_xwayland_surface_configure_event;
 struct wlr_xwayland_minimize_event;
 
@@ -31,24 +30,16 @@ using Templates::LunaClint;
 using Templates::WaylandSlot;
 inline constexpr int kDefaultOutputRefreshMilliHz = 60000;
 
-// The wlroots runtime of one compositor session.
-//
-// Global wlroots signals (a new output, a new window, pointer motion) go to the
-// domain components that Register.cpp registers. Signals of one object (a
-// frame of one output, a commit of one window) go to that object's state below.
-// Every handler is an onXxx member function; slots disconnect themselves.
 class WaylandCompositor::Impl {
 public:
   template <typename Owner> using Slot = WaylandSlot<Owner>;
 
-  // One domain's protocol globals and the global signals they emit.
   class Component {
   public:
     explicit Component(Impl *owner) : impl(owner) {}
     virtual ~Component() = default;
     Component(const Component &) = delete;
     Component &operator=(const Component &) = delete;
-    // Creates the domain's globals and listens to their signals.
     virtual bool start() = 0;
 
   protected:
@@ -77,8 +68,6 @@ public:
     Impl *const impl;
     wlr_output *const output;
     wlr_scene_output *sceneOutput = nullptr;
-    // Keep a short frame tail after a screencopy request is consumed so
-    // portal clients have time to queue their next streaming frame.
     int screencopyKeepalive = 0;
     wl_event_source *screencopyTimer = nullptr;
     bool screencopyTimerScheduled = false;
@@ -99,7 +88,6 @@ public:
   private:
     bool updateCaptureCursor();
     void advanceAnimations(std::uint64_t nowNs);
-    // Time from building a frame to its presentation, one refresh period.
     std::uint64_t refreshPeriodNs() const;
     void commitScene();
     void sendFrameDone(timespec *now);
@@ -149,8 +137,6 @@ public:
     wlr_ext_image_capture_source_v1 *imageCaptureSource = nullptr;
 #endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-    // Compatibility global used by native Wayland utilities such as
-    // GPU Screen Recorder UI to discover the active/focused toplevel.
     wlr_foreign_toplevel_handle_v1 *legacyForeignHandle = nullptr;
 #endif
     bool hasSurfaceGeometry = false;
@@ -277,7 +263,6 @@ public:
                   wl_client *owningClient);
     KeyboardState(const KeyboardState &) = delete;
     KeyboardState &operator=(const KeyboardState &) = delete;
-    // Runs after the seat's own keymap listener, see Impl::addKeyboard().
     void listenForKeymap();
 
     void onKey(wlr_keyboard_key_event *event);
@@ -299,7 +284,6 @@ public:
     Slot<KeyboardState> destroy;
 
   private:
-    // True when the input method's keyboard grab owns the hardware stream.
     bool inputMethodBridgeActive() const;
   };
 
@@ -546,12 +530,8 @@ public:
   wlr_surface *surfaceAt(double lx, double ly, double *sx, double *sy) const;
 
   void processPointerMotion(uint32_t time);
-  // Re-reads which surface is under the cursor without pointer motion: after surfaces
-  // appear, disappear or move, and after the focused one is destroyed.
+
   void rebasePointer();
-  // Every cursor change goes through these, so `cursorImage` always says what is shown
-  // (an xcursor name, or "client" for a client's cursor surface); lunadashctl debug
-  // reports it.
   void setCursorImage(const char *name);
   void setClientCursor(wlr_surface *surface, int32_t hotspotX, int32_t hotspotY);
   std::string cursorImage = "default";

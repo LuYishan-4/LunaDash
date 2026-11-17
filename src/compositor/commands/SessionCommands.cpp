@@ -3,7 +3,6 @@
 #include "compositor/session/SessionActions.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
-#include "config/localization/Localization.hpp"
 #include "core/log/Log.hpp"
 #include "desktop/system/UpdateChecker.hpp"
 
@@ -13,9 +12,8 @@ void CompositorCommands::registerSessionCommands(CommandRegistry &registry) {
   using C = WaylandCompositor;
   using R = CommandRequest;
 
-  // Translations are only sent when the caller's language differs.
-  registry.add("status", [](C &c, const R &r) -> CommandResult {
-    return c.state(r.value != selectedLanguage());
+  registry.add("status", [](C &c, const R &) -> CommandResult {
+    return c.state();
   });
   registry.add("debug", [](C &c, const R &) -> CommandResult {
     return c.debugSnapshot();

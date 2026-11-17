@@ -44,9 +44,6 @@ bool WaylandCompositor::Impl::OutputComponent::commitInitialState(
   wlr_output_state pending;
   wlr_output_state_init(&pending);
   wlr_output_state_set_enabled(&pending, true);
-
-  // The preferred size at its highest refresh rate, unless the user saved a
-  // mode this output still offers.
   auto *chosen = wlr_output_preferred_mode(output);
   std::string settingsError;
   const auto settings = loadDisplayConfiguration(output->name, &settingsError);

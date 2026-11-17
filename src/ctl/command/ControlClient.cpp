@@ -185,7 +185,7 @@ int ControlClient::run(int argc, char **argv) {
     std::cerr
         << "Usage: lunadashctl "
            "status|debug|workspace|focus|group-window|expel-window|minimize|close|"
-           "language|shortcut-capture|shortcuts|reset-shortcuts|check-update|"
+           "shortcut-capture|shortcuts|reset-shortcuts|check-update|"
            "capture|screenshot|brightness|ddc-brightness|ddc-refresh|display-configure|display-confirm|"
            "display-revert|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"

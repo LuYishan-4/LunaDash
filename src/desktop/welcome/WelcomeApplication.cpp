@@ -157,10 +157,6 @@ std::string text(const Json &object, std::string_view key,
                                                     : std::move(fallback);
 }
 
-std::string translated(const Json &translations, std::string_view source) {
-  return text(translations, source, std::string(source));
-}
-
 slint::Color color(const Json &palette, std::string_view key,
                    std::uint32_t fallback) {
   const auto value = text(palette, key);
@@ -176,49 +172,42 @@ slint::Color color(const Json &palette, std::string_view key,
 
 void applyState(slint::ComponentHandle<WelcomeWindow> &window,
                 const Json &state) {
-  const auto translations = state.value("translations", Json::object());
   const auto appearance = state.value("appearance", Json::object());
   const auto palette = state.value("palette", Json::object());
   const auto shortcuts = state.value("shortcuts", Json::object());
-  const auto tr = [&translations](std::string_view key) {
-    return translated(translations, key);
-  };
   const auto set = [&window](auto setter, const std::string &value) {
     (window.operator->()->*setter)(slint::SharedString(value));
   };
 
-  const auto locale = text(state, "language", "en_US");
-  set(&WelcomeWindow::set_selected_locale, locale);
-  set(&WelcomeWindow::set_window_title, "LunaDash · " + tr("Welcome"));
-  set(&WelcomeWindow::set_welcome_title, tr("Welcome to LunaDash"));
-  set(&WelcomeWindow::set_introduction, tr("Make yourself at home. Choose a comfortable appearance and learn your way around."));
-  set(&WelcomeWindow::set_language_heading, tr("Interface language"));
-  set(&WelcomeWindow::set_motion_heading, tr("Reduced motion"));
+  set(&WelcomeWindow::set_window_title, "LunaDash · Welcome");
+  set(&WelcomeWindow::set_welcome_title, "Welcome to LunaDash");
+  set(&WelcomeWindow::set_introduction, "Make yourself at home. Choose a comfortable appearance and learn your way around.");
+  set(&WelcomeWindow::set_motion_heading, "Reduced motion");
   set(&WelcomeWindow::set_motion_value,
-      tr(appearance.value("animations", true) ? "Off" : "On"));
-  set(&WelcomeWindow::set_setup_heading, tr("Make this space yours"));
-  set(&WelcomeWindow::set_steps_heading, tr("Your first steps"));
+      appearance.value("animations", true) ? "Off" : "On");
+  set(&WelcomeWindow::set_setup_heading, "Make this space yours");
+  set(&WelcomeWindow::set_steps_heading, "Your first steps");
   set(&WelcomeWindow::set_settings_note,
-      tr("Settings stay available from the panel whenever you need them."));
-  set(&WelcomeWindow::set_shortcuts_heading, tr("Find your rhythm"));
-  set(&WelcomeWindow::set_files_label, tr("Files"));
-  set(&WelcomeWindow::set_terminal_label, tr("Your configured terminal"));
-  set(&WelcomeWindow::set_control_center_label, tr("Control center"));
+      "Settings stay available from the panel whenever you need them.");
+  set(&WelcomeWindow::set_shortcuts_heading, "Find your rhythm");
+  set(&WelcomeWindow::set_files_label, "Files");
+  set(&WelcomeWindow::set_terminal_label, "Your configured terminal");
+  set(&WelcomeWindow::set_control_center_label, "Control center");
   set(&WelcomeWindow::set_development_note,
-      tr("Development preview. Some session and protocol features are still being improved."));
-  set(&WelcomeWindow::set_documentation_label, tr("Documentation"));
-  set(&WelcomeWindow::set_start_label, tr("Start desktop"));
-  set(&WelcomeWindow::set_close_label, tr("Close"));
+      "Development preview. Some session and protocol features are still being improved.");
+  set(&WelcomeWindow::set_documentation_label, "Documentation");
+  set(&WelcomeWindow::set_start_label, "Start desktop");
+  set(&WelcomeWindow::set_close_label, "Close");
   set(&WelcomeWindow::set_error_message,
       text(state, "error").empty()
           ? text(state, "welcomeError")
-          : tr("Could not contact the desktop."));
+          : "Could not contact the desktop.");
   set(&WelcomeWindow::set_files_shortcut,
-      text(shortcuts, "launchFiles", tr("Disabled")));
+      text(shortcuts, "launchFiles", "Disabled"));
   set(&WelcomeWindow::set_terminal_shortcut,
-      text(shortcuts, "launchTerminal", tr("Disabled")));
+      text(shortcuts, "launchTerminal", "Disabled"));
   set(&WelcomeWindow::set_control_center_shortcut,
-      text(shortcuts, "openControlCenter", tr("Disabled")));
+      text(shortcuts, "openControlCenter", "Disabled"));
 
   const bool animations = appearance.value("animations", true);
   window->set_reduced_motion(!animations);
@@ -232,10 +221,10 @@ void applyState(slint::ComponentHandle<WelcomeWindow> &window,
   window->set_border_color(color(palette, "border", 0xff4c5060));
   window->set_accent_color(color(palette, "accent", 0xff9ccbfb));
   window->set_accent_ink_color(color(palette, "accentInk", 0xff171922));
-  set(&WelcomeWindow::set_appearance_label, tr("Appearance"));
-  set(&WelcomeWindow::set_applications_label, tr("Default applications"));
-  set(&WelcomeWindow::set_plugins_label, tr("Plugins"));
-  set(&WelcomeWindow::set_keyboard_label, tr("Keyboard shortcuts"));
+  set(&WelcomeWindow::set_appearance_label, "Appearance");
+  set(&WelcomeWindow::set_applications_label, "Default applications");
+  set(&WelcomeWindow::set_plugins_label, "Plugins");
+  set(&WelcomeWindow::set_keyboard_label, "Keyboard shortcuts");
 }
 } // namespace
 
@@ -247,10 +236,6 @@ int WelcomeApplication::run(int argc, char **argv) {
   auto state = request("status");
   applyState(window, state);
 
-  window->on_language_selected([&](const slint::SharedString &locale) {
-    state = request("language", std::string(locale.data(), locale.size()));
-    applyState(window, state);
-  });
   window->on_reduced_motion_toggled([&] {
     const bool currentlyAnimated =
         state.value("appearance", Json::object()).value("animations", true);
