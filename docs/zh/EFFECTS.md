@@ -26,7 +26,7 @@ export LUDASH_CONTROL="$XDG_RUNTIME_DIR/ludash-test-control"
 
 ## Layer-shell 背景模糊
 
-Layer-shell 程式透過 staging 協定 `ext-background-effect-v1` 主動要求相同的場景模糊背景：程式在自己的表面設定非空的模糊區域後，就會得到模糊底層；合成器不再依 layer-shell namespace 辨識 LunaDash-Shell 的表面。LunaDash-Shell 的全螢幕覆蓋層、面板彈出視窗、視窗切換器與 polkit 對話框透過 SlintLu 的 `PanelWindow.background-blur` 提出要求；面板、Dock、桌布、通知與 OSD 不會。其他實作此協定的程式也以相同方式處理。
+Layer-shell 程式透過 staging 協定 `ext-background-effect-v1` 主動要求相同的場景模糊背景：程式在自己的表面設定非空的模糊區域後，就會得到模糊底層；合成器不再依 layer-shell namespace 辨識 LunaDash-Shell 的表面。LunaDash-Shell 的全螢幕覆蓋層、面板彈出視窗、視窗切換器與 polkit 對話框透過 SlintLu 的 `PanelWindow.background-blur` 提出要求；面板、Dock、桌布、通知與 OSD 不會。其他實作此協定的程式也以相同方式處理。此協定需要 wlroots 0.18 以上；以 wlroots 0.17（Ubuntu 24.04）建置時 LunaDash 不提供此協定，這些表面不會有模糊背景。
 
 模糊區域目前只作為開關：模糊範圍是整個表面，而不是精確的區域。四邊都貼齊輸出且沒有邊距的表面使用直角，確保螢幕角落也被覆蓋；其他 layer 表面使用共用的 24 像素表面圓角。模糊區域是雙緩衝狀態，移除效果會在表面下一次 commit 時生效。關閉「背景模糊」或開啟護眼模式時，合成器會撤回 `blur` 能力。未實作此協定的 layer-shell 程式維持原樣繪製。
 
