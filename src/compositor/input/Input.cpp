@@ -425,10 +425,17 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
     }
   }
 
-  if (!handled && shortcutPress && desktop->overviewShown()) {
+  if (!handled && shortcutPress && desktop->overviewOpen()) {
     const auto modifiers = wlr_keyboard_get_modifiers(keyboard);
-    for (int i = 0; i < count && !handled; ++i)
-      handled = desktop->overviewKey(symbols[i], modifiers);
+    const uint32_t shortcutMods = shortcutModifiers(modifiers);
+    for (int i = 0; i < count && !handled; ++i) {
+      const std::string action = desktop->shortcutSettings_->actionFor(
+          symbols[i], shortcutMods, true);
+      if (!action.empty()) {
+        desktop->handleShortcut(action);
+        handled = true;
+      }
+    }
   }
 
   if (!handled && !virtualKeyboard)

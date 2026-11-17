@@ -25,7 +25,7 @@ Json areaJson(const Rect &area) {
                        {"height", area.height()}});
 }
 
-// N in <prefix>N, or 0.
+
 int actionNumber(std::string_view action, std::string_view prefix) {
   int number = 0;
   const auto suffix = action.substr(prefix.size());
@@ -69,8 +69,7 @@ void ShortcutActions::toggleLauncher(WaylandCompositor &c) {
       logWarning("The launcher could not start: %s", error.c_str());
     return;
   }
-  // The interaction channel is owner-only and publishes within one frame,
-  // avoiding the shell status poll latency for an input shortcut.
+
   c.setLauncherVisible(!c.shellRequests_.launcherVisible);
 }
 
@@ -143,6 +142,18 @@ void ShortcutActions::registerBuiltins(ShortcutRegistry &registry) {
   add("launchLauncher", ShortcutNoRelayout, [](C &c, auto) { toggleLauncher(c); });
   // The workspace overview; Super tap and Super+Tab by default.
   add("toggleOverview", ShortcutNoRelayout, [](C &c, auto) { c.toggleOverview(); });
+  for (const char *name :
+       {"overviewClose", "overviewAccept", "overviewAcceptKeypad",
+        "overviewFocusLeft", "overviewFocusLeftVim", "overviewFocusRight",
+        "overviewFocusRightVim", "overviewWorkspacePrevious",
+        "overviewWorkspacePreviousVim", "overviewWorkspaceNext",
+        "overviewWorkspaceNextVim", "overviewReorderLeft",
+        "overviewReorderLeftVim", "overviewReorderRight",
+        "overviewReorderRightVim", "overviewMoveToPreviousWorkspace",
+        "overviewMoveToPreviousWorkspaceVim", "overviewMoveToNextWorkspace",
+        "overviewMoveToNextWorkspaceVim"})
+    add(name, ShortcutNoRelayout,
+        [](C &c, std::string_view action) { c.handleOverviewShortcut(action); });
   // A repeated shortcut must leave keyboard focus on the active selector so
   // Escape can still cancel it.
   add("screenshot", ShortcutNoRelayout, [](C &c, auto) { c.captureScreen(); });

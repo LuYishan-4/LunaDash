@@ -22,7 +22,8 @@ public:
   explicit ShortcutSettings(nlohmann::json legacyBindings);
 
   nlohmann::json snapshot() const;
-  std::string actionFor(xkb_keysym_t keysym, uint32_t modifiers) const;
+  std::string actionFor(xkb_keysym_t keysym, uint32_t modifiers,
+                        bool overviewContext = false) const;
   bool apply(const nlohmann::json &changes, std::string *error);
   bool reset(std::string *error);
 

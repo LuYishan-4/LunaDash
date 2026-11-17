@@ -296,13 +296,14 @@ private:
   void toggleOverview();
   void closeOverview();
   bool overviewShown() const;
+  bool overviewOpen() const;
+  void handleOverviewShortcut(std::string_view action);
   // Steps the zoom to `presentNs` and redraws the previews; called every frame.
   void advanceOverview(std::uint64_t presentNs);
   // Pointer and key handling while the overview is shown; true when consumed.
   bool overviewPointerMotion();
   bool overviewPointerButton(std::uint32_t button, bool pressed);
   bool overviewAxis(double delta);
-  bool overviewKey(std::uint32_t symbol, std::uint32_t modifiers);
   void rebuildOverviewPreviews();
   Rect overviewRect(const Rect &rectangle, int workspace) const;
   const OverviewState::Preview *overviewPreviewAt(double x, double y,

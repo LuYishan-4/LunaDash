@@ -26,7 +26,21 @@ nlohmann::json defaults() {
       {"toggleEyeCare", "Meta+N"},     {"toggleScratchpad", "Meta+grave"},
       {"openControlCenter", "Meta+I"}, {"openClipboard", "Meta+V"},
       {"openPowerMenu", "Meta+X"},     {"toggleFullscreen", "Meta+Shift+F"},
-      {"toggleTilingMode", "Meta+Shift+Space"}, {"toggleOverview", "Meta+Tab"}};
+      {"toggleTilingMode", "Meta+Shift+Space"}, {"toggleOverview", "Meta+Tab"},
+      {"overviewClose", "Escape"}, {"overviewAccept", "Return"},
+      {"overviewAcceptKeypad", "KP_Enter"}, {"overviewFocusLeft", "Left"},
+      {"overviewFocusLeftVim", "H"}, {"overviewFocusRight", "Right"},
+      {"overviewFocusRightVim", "L"}, {"overviewWorkspacePrevious", "Up"},
+      {"overviewWorkspacePreviousVim", "K"},
+      {"overviewWorkspaceNext", "Down"}, {"overviewWorkspaceNextVim", "J"},
+      {"overviewReorderLeft", "Ctrl+Left"},
+      {"overviewReorderLeftVim", "Ctrl+H"},
+      {"overviewReorderRight", "Ctrl+Right"},
+      {"overviewReorderRightVim", "Ctrl+L"},
+      {"overviewMoveToPreviousWorkspace", "Ctrl+Up"},
+      {"overviewMoveToPreviousWorkspaceVim", "Ctrl+K"},
+      {"overviewMoveToNextWorkspace", "Ctrl+Down"},
+      {"overviewMoveToNextWorkspaceVim", "Ctrl+J"}};
   for (int workspace = 1; workspace <= 10; ++workspace) {
     const auto number = std::to_string(workspace % 10);
     result["workspace" + std::to_string(workspace)] = "Meta+" + number;
@@ -87,7 +101,7 @@ ParsedShortcut parseShortcut(std::string_view text) {
     start = separator + 1;
   }
 
-  if (key.empty() || !(modifiers & (ShortcutMeta | ShortcutAlt)))
+  if (key.empty())
     return {};
 
   const xkb_keysym_t symbol = keySym(key);
@@ -129,6 +143,10 @@ bool reservedWindowSwitchKey(const ParsedShortcut &shortcut) {
           shortcut.symbol == XKB_KEY_ISO_Left_Tab) &&
          (shortcut.modifiers == ShortcutAlt ||
           shortcut.modifiers == (ShortcutAlt | ShortcutShift));
+}
+
+bool overviewShortcut(std::string_view action) {
+  return action.starts_with("overview");
 }
 
 } // namespace
@@ -220,8 +238,11 @@ ShortcutSettings::ShortcutSettings(nlohmann::json legacyBindings)
 nlohmann::json ShortcutSettings::snapshot() const { return bindings_; }
 
 std::string ShortcutSettings::actionFor(xkb_keysym_t keysym,
-                                        uint32_t modifiers) const {
+                                        uint32_t modifiers,
+                                        bool overviewContext) const {
   for (const auto &[action, value] : bindings_.items()) {
+    if (overviewShortcut(action) != overviewContext)
+      continue;
     if (!value.is_string())
       continue;
     const ParsedShortcut shortcut =
@@ -253,7 +274,16 @@ bool ShortcutSettings::apply(const nlohmann::json &changes,
         parseShortcut(value.get_ref<const std::string &>());
     if (parsed.canonical.empty()) {
       if (error)
-        *error = "Shortcut must be one Meta or Alt key combination.";
+        *error = "Shortcut must contain one valid key.";
+      return false;
+    }
+    if (parsed.canonical != "Disabled" &&
+        !(parsed.modifiers & (ShortcutMeta | ShortcutAlt)) &&
+        !overviewShortcut(action)) {
+      if (error)
+        *error =
+            "Global shortcuts must use Meta or Alt; overview shortcuts are "
+            "active only in the overview.";
       return false;
     }
     if (reservedWindowSwitchKey(parsed)) {

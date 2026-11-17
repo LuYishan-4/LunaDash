@@ -16,7 +16,9 @@ moving it to that workspace first when needed, or onto a free spot of another wo
 move it there; the overview stays open. Middle-click closes a window. Scroll switches
 workspaces. Arrow keys or H/J/K/L move the focus (left/right between columns, up/down between
 workspaces); with Ctrl they move the focused column, or the focused window to the workspace
-above/below. Esc, Enter or Super closes it, and the compositor's other shortcuts keep working.
+above/below. These overview keys are registered actions and can be customized alongside other
+shortcuts; their unmodified bindings are active only while the overview is open. Esc, Enter or
+Super closes it, and the compositor's other shortcuts keep working.
 `lunadashctl overview toggle|open|close` drives it from scripts or a shell button. The
 previews have square corners and no shadows yet.
 

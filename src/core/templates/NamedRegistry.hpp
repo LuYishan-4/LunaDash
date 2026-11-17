@@ -9,9 +9,6 @@
 
 namespace LunaDash::Templates {
 
-// Entries registered by name. Code that executes an entry only looks it up;
-// the entries themselves come from their owning domain (or a plugin) through
-// add(). A name is registered once: the first registration wins.
 template <typename Entry> class NamedRegistry {
 public:
   bool add(std::string name, Entry entry) {

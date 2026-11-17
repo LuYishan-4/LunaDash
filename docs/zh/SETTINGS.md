@@ -19,7 +19,7 @@ Plugin 與 Shell module 都在同一個 Settings surface 中；Plugins 頁負責
 | General | 語言、Shell font、12/24 小時、welcome、偏好重設 | 外部 app theme 不跟著改 |
 | Appearance | 桌布、accent、gap、panel 高度、dashboard、blur、opacity、動畫 | 桌布 picker 在 Shell 內 |
 | Windows and workspaces | 動態工作區、bounded tiles、最多 8-member group | 一般視窗預設 tiled |
-| Keyboard shortcuts | launch/focus/group/resize/workspace/capture 等 | 重複或非法 binding 會拒絕 |
+| Keyboard shortcuts | launch/focus/group/resize/工作區/總覽/capture 等 | 全域快捷鍵使用 Meta 或 Alt；不帶修飾鍵的綁定僅限總覽操作。重複或非法 binding 會拒絕 |
 | Plugins | native / Quickshell / OpenGL extension | SDK 2、hot reload、原生預設關閉 |
 | Shell modules | JSON layout、尺寸、位置、顏色 | custom QML 是可信任程式碼 |
 | Display | backlight、DDC/CI、primary mode、100–300% scale | 尚無完整 multi-monitor/HDR/night-light |

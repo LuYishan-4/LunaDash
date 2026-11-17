@@ -126,7 +126,6 @@ bool ScreenCapture::createTemporary(std::string *error) {
     return false;
   }
   temporaryPath_ = path.data();
-  // mkstemp creates owner-only files; a saved screenshot gets the usual permissions.
   const mode_t mask = ::umask(0);
   ::umask(mask);
   const bool permissions = ::fchmod(descriptor, 0666 & ~mask) == 0;
@@ -190,7 +189,6 @@ bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
   environment_ = environment;
   destination_ = path;
   phase_ = "selecting";
-  // No deadline: choosing a region takes as long as the user needs (Escape cancels).
   if (!process_.runDetailed(
           selector, {"-f", "%x,%y %wx%h"},
           [this](const ProcessResult &result) { processFinished(result); },

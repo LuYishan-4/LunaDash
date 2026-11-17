@@ -1,8 +1,3 @@
-// The workspace overview, like niri's: the screen zooms out, every workspace is
-// stacked vertically around the current one, and each window is drawn live where
-// the layout places it. The real windows are hidden meanwhile; their previews are
-// copies of their current scene buffers, rebuilt every frame.
-
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
@@ -99,6 +94,8 @@ void addFrame(wlr_scene_tree *parent, const Rect &rect, int width, const float c
 bool WaylandCompositor::overviewShown() const {
   return overview_.open || overview_.progress > 0.0 || overview_.tree;
 }
+
+bool WaylandCompositor::overviewOpen() const { return overview_.open; }
 
 void WaylandCompositor::toggleOverview() {
   if (overview_.open) {
@@ -394,38 +391,46 @@ bool WaylandCompositor::overviewAxis(double delta) {
   return true;
 }
 
-bool WaylandCompositor::overviewKey(std::uint32_t symbol, std::uint32_t modifiers) {
+void WaylandCompositor::handleOverviewShortcut(std::string_view action) {
   if (!overview_.open)
-    return false;
-  const bool control = modifiers & WLR_MODIFIER_CTRL;
-  switch (symbol) {
-  case XKB_KEY_Escape:
-  case XKB_KEY_Return:
-  case XKB_KEY_KP_Enter:
+    return;
+  if (action == "overviewClose" || action == "overviewAccept" ||
+      action == "overviewAcceptKeypad") {
     closeOverview();
-    return true;
-  case XKB_KEY_Left:
-  case XKB_KEY_h:
-    handleShortcut(control ? "reorderLeft" : "focusLeft");
-    return true;
-  case XKB_KEY_Right:
-  case XKB_KEY_l:
-    handleShortcut(control ? "reorderRight" : "focusRight");
-    return true;
-  case XKB_KEY_Up:
-  case XKB_KEY_k:
-  case XKB_KEY_Down:
-  case XKB_KEY_j: {
-    const int step = symbol == XKB_KEY_Up || symbol == XKB_KEY_k ? -1 : 1;
-    const int workspace =
-        std::clamp(workspace_ + step, 0, std::max(0, workspaceCount() - 1));
-    if (control && focused_)
+    return;
+  }
+
+  if (action == "overviewFocusLeft" || action == "overviewFocusLeftVim") {
+    handleShortcut("focusLeft");
+  } else if (action == "overviewFocusRight" ||
+             action == "overviewFocusRightVim") {
+    handleShortcut("focusRight");
+  } else if (action == "overviewReorderLeft" ||
+             action == "overviewReorderLeftVim") {
+    handleShortcut("reorderLeft");
+  } else if (action == "overviewReorderRight" ||
+             action == "overviewReorderRightVim") {
+    handleShortcut("reorderRight");
+  } else if (action == "overviewWorkspacePrevious" ||
+             action == "overviewWorkspacePreviousVim") {
+    selectWorkspace(
+        std::clamp(workspace_ - 1, 0, std::max(0, workspaceCount() - 1)));
+  } else if (action == "overviewWorkspaceNext" ||
+             action == "overviewWorkspaceNextVim") {
+    selectWorkspace(
+        std::clamp(workspace_ + 1, 0, std::max(0, workspaceCount() - 1)));
+  } else if (action == "overviewMoveToPreviousWorkspace" ||
+             action == "overviewMoveToPreviousWorkspaceVim" ||
+             action == "overviewMoveToNextWorkspace" ||
+             action == "overviewMoveToNextWorkspaceVim") {
+    const bool previous =
+        action == "overviewMoveToPreviousWorkspace" ||
+        action == "overviewMoveToPreviousWorkspaceVim";
+    const int workspace = std::clamp(workspace_ + (previous ? -1 : 1), 0,
+                                      std::max(0, workspaceCount() - 1));
+    if (focused_)
       moveClientToWorkspace(focused_, workspace);
     selectWorkspace(workspace);
-    return true;
-  }
-  default:
-    return false;
   }
 }
 
