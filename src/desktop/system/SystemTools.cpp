@@ -2,6 +2,7 @@
 #include "core/process/ExecutableLookup.hpp"
 
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <string_view>

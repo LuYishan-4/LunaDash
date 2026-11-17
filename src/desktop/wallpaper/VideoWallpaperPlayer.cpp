@@ -1,22 +1,14 @@
 #include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
 
+#include "core/process/ExecutableLookup.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
-
-#include <glib.h>
 
 namespace LunaDash {
 namespace {
 constexpr int kMaximumFailures = 3;
 
-std::string mpvpaperExecutable() {
-  gchar *program = g_find_program_in_path("mpvpaper");
-  if (!program)
-    return {};
-  std::string result(program);
-  g_free(program);
-  return result;
-}
+std::string mpvpaperExecutable() { return findExecutable("mpvpaper"); }
 } // namespace
 
 VideoWallpaperPlayer::VideoWallpaperPlayer(wl_event_loop *eventLoop)
@@ -82,7 +74,8 @@ void VideoWallpaperPlayer::start(const ProcessEnvironment &environment) {
   const bool started = process_->runDetailed(
       program,
       {"--auto-pause", "--layer", "background", "-o",
-       "no-audio loop-file=inf panscan=1.0 hwdec=auto no-input-default-bindings",
+       "no-audio loop-file=inf panscan=1.0 hwdec=auto "
+       "no-input-default-bindings",
        "ALL", playback.string()},
       [this, generation = generation_](const ProcessResult &) {
         // Stopped on purpose, or replaced by another wallpaper.

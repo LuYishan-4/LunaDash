@@ -156,7 +156,7 @@ target_link_libraries(ludash-input-settings PUBLIC PkgConfig::LUDASH_XKBCOMMON)
 add_library(ludash-theme-sync src/desktop/theme/ThemeSync.cpp)
 target_include_directories(ludash-theme-sync PUBLIC src)
 target_link_libraries(ludash-theme-sync
-    PUBLIC nlohmann_json::nlohmann_json
+    PUBLIC ludash-executable-lookup nlohmann_json::nlohmann_json
     PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-weather src/desktop/weather/WeatherStatus.cpp)
 target_include_directories(ludash-weather PUBLIC src)

@@ -5,7 +5,7 @@
 
 namespace LunaDash {
 
-// Absolute path of an executable found on PATH, or an empty string.
+// Path of an executable found on PATH, or an empty string.
 std::string findExecutable(std::string_view program);
 std::string findExecutable(std::string_view program,
                            std::string_view searchPath);

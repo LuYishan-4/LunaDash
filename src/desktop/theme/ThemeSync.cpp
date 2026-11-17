@@ -1,15 +1,16 @@
 #include "desktop/theme/ThemeSync.hpp"
+#include "core/process/ExecutableLookup.hpp"
 
 #include <gio/gio.h>
 
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
-#include <filesystem>
+#include <csignal>
 #include <fcntl.h>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <csignal>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -38,8 +39,7 @@ bool writeFile(const fs::path &path, std::string_view contents,
   fs::create_directories(path.parent_path(), filesystemError);
   if (filesystemError) {
     if (error)
-      *error = "Could not create theme directory: " +
-               filesystemError.message();
+      *error = "Could not create theme directory: " + filesystemError.message();
     return false;
   }
 
@@ -57,7 +57,8 @@ bool writeFile(const fs::path &path, std::string_view contents,
   std::string_view remaining = contents;
   bool success = true;
   while (!remaining.empty()) {
-    const auto written = ::write(descriptor, remaining.data(), remaining.size());
+    const auto written =
+        ::write(descriptor, remaining.data(), remaining.size());
     if (written < 0) {
       if (errno == EINTR)
         continue;
@@ -85,8 +86,7 @@ bool writeFile(const fs::path &path, std::string_view contents,
   return true;
 }
 
-bool readFile(const fs::path &path, std::string &contents,
-              std::string *error) {
+bool readFile(const fs::path &path, std::string &contents, std::string *error) {
   std::error_code filesystemError;
   const auto size = fs::file_size(path, filesystemError);
   if (filesystemError) {
@@ -129,8 +129,7 @@ bool backupOnce(const fs::path &path, std::string *error) {
     return true;
   if (filesystemError) {
     if (error)
-      *error = "Could not inspect backup path: " +
-               filesystemError.message();
+      *error = "Could not inspect backup path: " + filesystemError.message();
     return false;
   }
   fs::copy_file(path, backup, fs::copy_options::none, filesystemError);
@@ -150,8 +149,7 @@ bool includeOnce(const fs::path &path, const std::string &line,
   const bool exists = fs::exists(path, filesystemError);
   if (filesystemError) {
     if (error)
-      *error = "Could not inspect configuration: " +
-               filesystemError.message();
+      *error = "Could not inspect configuration: " + filesystemError.message();
     return false;
   }
   if (exists) {
@@ -257,11 +255,11 @@ void reapChild(GPid pid, gint, gpointer data) {
 }
 
 void setColorScheme(bool dark) {
-  gchar *program = g_find_program_in_path("gsettings");
-  if (!program)
+  const std::string program = findExecutable("gsettings");
+  if (program.empty())
     return;
   gchar *arguments[] = {
-      program,
+      const_cast<gchar *>(program.c_str()),
       const_cast<gchar *>("set"),
       const_cast<gchar *>("org.gnome.desktop.interface"),
       const_cast<gchar *>("color-scheme"),
@@ -275,7 +273,6 @@ void setColorScheme(bool dark) {
       G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL);
   const gboolean started = g_spawn_async(nullptr, arguments, nullptr, flags,
                                          nullptr, nullptr, &pid, &error);
-  g_free(program);
   if (!started) {
     g_clear_error(&error);
     return;
@@ -287,8 +284,7 @@ void setColorScheme(bool dark) {
 
 } // namespace
 
-Json synchronizeApplicationTheme(const Json &preferences,
-                                 const Json &palette) {
+Json synchronizeApplicationTheme(const Json &preferences, const Json &palette) {
   static std::string previous;
   static Json result;
   const bool enabled = preferences.value("syncApplicationThemes", false);
@@ -299,9 +295,8 @@ Json synchronizeApplicationTheme(const Json &preferences,
 
   const fs::path config = g_get_user_config_dir();
   const auto directory = config / "lunadash/theme";
-  result = {{"enabled", enabled},
-            {"directory", directory.string()},
-            {"error", ""}};
+  result = {
+      {"enabled", enabled}, {"directory", directory.string()}, {"error", ""}};
 
   // This system preference is independent of the optional GTK and Kitty
   // theme files, so publish it even when application theme sync is disabled.
@@ -340,11 +335,11 @@ Json synchronizeApplicationTheme(const Json &preferences,
   }
 
   GError *uriError = nullptr;
-  gchar *gtkUri = g_filename_to_uri((directory / "gtk.css").c_str(), nullptr,
-                                    &uriError);
+  gchar *gtkUri =
+      g_filename_to_uri((directory / "gtk.css").c_str(), nullptr, &uriError);
   if (!gtkUri) {
-    result["error"] = uriError ? uriError->message
-                               : "Could not create GTK theme URI.";
+    result["error"] =
+        uriError ? uriError->message : "Could not create GTK theme URI.";
     g_clear_error(&uriError);
     return result;
   }
@@ -363,14 +358,14 @@ Json synchronizeApplicationTheme(const Json &preferences,
   const auto kittyConfig = config / "kitty/kitty.conf";
   std::error_code filesystemError;
   if (error.empty() && fs::exists(kittyConfig, filesystemError) &&
-      !includeOnce(kittyConfig,
-                   "include ../lunadash/theme/kitty.conf", &error)) {
+      !includeOnce(kittyConfig, "include ../lunadash/theme/kitty.conf",
+                   &error)) {
     // The existing terminal configuration stays usable if the optional include
     // cannot be added; return the failure for the settings UI to display.
   }
   if (filesystemError && error.empty())
-    error = "Could not inspect Kitty configuration: " +
-            filesystemError.message();
+    error =
+        "Could not inspect Kitty configuration: " + filesystemError.message();
   result["error"] = error;
   return result;
 }

@@ -6,6 +6,7 @@
 #include <cctype>
 #include <charconv>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <pwd.h>
@@ -14,6 +15,7 @@
 #include <string_view>
 #include <sys/statvfs.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 namespace LunaDash {
 namespace {
