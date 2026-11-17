@@ -68,7 +68,6 @@ stdenv.mkDerivation {
     fileset = lib.fileset.unions [
       ../CMakeLists.txt ../cmake ../src ../data
       ../protocols ../scripts ../LICENSE
-      ../docs/PLUGIN_TARGETS.md ../docs/PLUGINS.md
     ];
   };
 

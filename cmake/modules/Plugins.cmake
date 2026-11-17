@@ -21,4 +21,5 @@ install(FILES "${CMAKE_BINARY_DIR}/sdk/LunaDashPluginConfig.cmake"
 install(FILES src/core/plugins/PluginApi.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LunaDash/core/plugins")
 install(FILES src/core/plugins/PluginApi.c DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")
 install(PROGRAMS scripts/create-plugin.py DESTINATION "${CMAKE_INSTALL_BINDIR}" RENAME lunadash-create-plugin)
-install(FILES data/plugins/targets.json docs/PLUGIN_TARGETS.md docs/PLUGINS.md DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")
+# targets.json describes every target and its request/result contract.
+install(FILES data/plugins/targets.json DESTINATION "${CMAKE_INSTALL_DATADIR}/lunadash/plugin-sdk")

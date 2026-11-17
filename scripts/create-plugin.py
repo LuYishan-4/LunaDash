@@ -3,7 +3,7 @@
 
 The scaffolds are written by this script; there is no template directory. Every native plugin
 is an `effect`: a shared library whose `ludash_plugin_process` receives the feature's JSON
-request and returns its result (see PLUGIN_TARGETS.md).
+request and returns its result (see the SDK's targets.json).
 """
 import argparse
 import json
@@ -49,7 +49,7 @@ CPP_SOURCE = """#include "core/plugins/PluginApi.h"
 namespace LunaDash {{
 // Receives the feature request as JSON and returns the feature result. In "augment" mode the
 // result starts from "current" (what earlier plugins produced); in "replace" mode from
-// "builtin". See PLUGIN_TARGETS.md for the {target} contract.
+// "builtin". The SDK's targets.json describes the {target} contract.
 extern "C" int ludash_plugin_process(const char *request, char *response, size_t capacity) {{
   using Json = nlohmann::json;
   const auto input = request ? Json::parse(request, nullptr, false) : Json{{}};

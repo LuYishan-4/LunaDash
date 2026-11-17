@@ -62,9 +62,4 @@ package() {
   DESTDIR="$pkgdir" cmake --install build
   cd "LunaDash-$_commit"
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
-  local doc
-  for doc in LOGIN_SESSION ARCHITECTURE GRAPHICS FILES DISPLAY_AND_STARTUP SCREEN_CAPTURE NYXNIRI_DESKTOP SHELL; do
-    install -Dm644 "docs/en/$doc.md" "$pkgdir/usr/share/doc/$pkgname/$doc.md"
-    install -Dm644 "docs/zh/$doc.md" "$pkgdir/usr/share/doc/$pkgname/zh/$doc.md"
-  done
 }
