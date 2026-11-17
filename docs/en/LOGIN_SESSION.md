@@ -128,6 +128,25 @@ Arch is the primary development environment. `install-session.sh` creates the lo
 sudo pacman -R ludash
 ```
 
+#### CPU priority with ananicy-cpp (CachyOS)
+
+ananicy-cpp, enabled by default on CachyOS and available from the AUR, gives display
+managers such as greetd the `Launcher` type: nice 16 and idle I/O. A session started by
+one inherits that priority, so a build (rustc at nice 0) takes the CPU from the desktop
+and the compositor stalls. LunaDash installs `/etc/ananicy.d/lunadash-session.rules`,
+which raises `lunadash-compositor` to `LowLatency_RT` (nice -12, as ananicy does for niri,
+sway and kwin_wayland) and `slintlu` to nice -6 (as for plasmashell). Programs started
+from the desktop are reset to nice 0, so builds do not inherit the raised priority. Check
+the levels with:
+
+```sh
+ps -o pid,ni,comm -C lunadash-compos,slintlu
+```
+
+The file does nothing without ananicy-cpp, and pacman keeps your edits on upgrade
+(`backup`). It lies in `/etc/ananicy.d` only for the `/usr` prefix: ananicy-cpp reads no
+other directory. Without ananicy-cpp the session keeps the display manager's priority.
+
 ### Debian / Ubuntu
 
 The helper installs the Qt 6, Wayland, libinput, libxkbcommon, GL, udev/glib and build packages through apt. Ubuntu 24.04 is continuously compiled by the repository's main build workflow. A successful CI/source build does not imply physical GPU/login coverage on every Ubuntu or Debian release.

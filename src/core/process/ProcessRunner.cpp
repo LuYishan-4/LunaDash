@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <spawn.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -25,6 +26,21 @@ constexpr int kReapIntervalMilliseconds = 10;
 
 bool containsNullByte(const std::string &value) {
   return value.find('\0') != std::string::npos;
+}
+
+// The compositor may run at a raised priority (LunaDash ships an ananicy-cpp
+// rule that gives it nice -12). Launched programs start at the normal priority
+// instead of inheriting it, or a build started from a terminal would compete
+// with the desktop again. Raising the nice value needs no privilege.
+// posix_spawn cannot set it in the child, so the parent resets the new main
+// thread right after the spawn; threads the program creates in that instant
+// keep the raised value.
+void resetInheritedPriority(pid_t child) {
+  errno = 0;
+  const int current = ::getpriority(PRIO_PROCESS, 0);
+  if (errno != 0 || current >= 0)
+    return;
+  ::setpriority(PRIO_PROCESS, static_cast<id_t>(child), 0);
 }
 
 void closeDescriptor(int &fd) {
@@ -204,6 +220,7 @@ bool ProcessRunner::runWithEnvironment(
     return false;
   }
 
+  resetInheritedPriority(child);
   childPid_ = child;
   outputFd_ = pipeFds[0];
   output_.clear();

@@ -29,7 +29,10 @@ optdepends=('kitty: Optional default terminal'
             'mesa: Mesa OpenGL drivers'
             'mpvpaper: Video wallpapers (AUR)'
             'vulkan-icd-loader: Vulkan loader for Vulkan rendering'
-            'vulkan-driver: GPU-specific Vulkan driver')
+            'vulkan-driver: GPU-specific Vulkan driver'
+            'ananicy-cpp: Keeps the desktop responsive under CPU load (rules installed)')
+# Users may tune the scheduling rule; upgrades keep their edits.
+backup=('etc/ananicy.d/lunadash-session.rules')
 source=("$pkgname-$_commit.tar.gz::$url/archive/$_commit.tar.gz"
         "slint-$_slintver.tar.gz::https://github.com/slint-ui/slint/archive/refs/tags/v$_slintver.tar.gz")
 sha256sums=('f898b17cfbdb06c50a9c8cae71aca0249dd5f2c941d16df68df2cf27cf5f3523'

@@ -13,8 +13,11 @@ optdepends=('kitty: Optional default terminal'
             'noto-fonts-cjk: CJK interface fonts'
             'mesa: Mesa OpenGL drivers')
 optdepends+=('mpvpaper: Video wallpapers (AUR)')
+optdepends+=('ananicy-cpp: Keeps the desktop responsive under CPU load (rules installed)')
 optdepends+=('vulkan-icd-loader: Vulkan loader for Vulkan rendering'
              'vulkan-driver: GPU-specific Vulkan driver')
+# Users may tune the scheduling rule; upgrades keep their edits.
+backup=('etc/ananicy.d/lunadash-session.rules')
 source=("ludash-${pkgver}.tar.gz" "ludash-shell.tar.gz" "ludash-slintlu.tar.gz")
 sha256sums=('SKIP' 'SKIP' 'SKIP') # Locally generated sources, not downloaded releases.
 

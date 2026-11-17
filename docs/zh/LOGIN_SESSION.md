@@ -118,6 +118,24 @@ Arch 是主要開發環境，安裝後可用：
 sudo pacman -R ludash
 ```
 
+### ananicy-cpp 與 CPU 優先權（CachyOS）
+
+CachyOS 預設啟用 ananicy-cpp（其他 Arch 可從 AUR 安裝）。它把 greetd 等登入管理器歸類為
+`Launcher`：nice 16、I/O 為 idle。由登入管理器啟動的工作階段會繼承這個優先權，因此編譯程式
+（rustc 為 nice 0）會搶走桌面的 CPU，使 compositor 卡頓。LunaDash 會安裝
+`/etc/ananicy.d/lunadash-session.rules`，把 `lunadash-compositor` 提升為 `LowLatency_RT`
+（nice -12，與 ananicy 對 niri、sway、kwin_wayland 的規則相同），`slintlu` 提升為 nice -6
+（與 plasmashell 相同）。從桌面啟動的程式會重設回 nice 0，編譯不會繼承提高後的優先權。
+可用以下指令確認：
+
+```sh
+ps -o pid,ni,comm -C lunadash-compos,slintlu
+```
+
+沒有安裝 ananicy-cpp 時，這個檔案不會有任何作用；升級套件時 pacman 會保留您的修改（`backup`）。
+只有 prefix 為 `/usr` 時檔案才會位於 `/etc/ananicy.d`，因為 ananicy-cpp 不讀其他目錄。沒有
+ananicy-cpp 時，工作階段沿用登入管理器的優先權。
+
 Debian/Ubuntu、Fedora、openSUSE、Alpine 由 dependency helper 選對應 Qt 6、Wayland、wlroots/input/GL 等套件再走 CMake install。Void/Gentoo 也有安裝路徑，但 CI breadth 比前述平台小。其他 Linux 可先依 [建置與原始碼地圖](TESTING_AND_FILES.md) 準備 toolchain，再：
 
 ```sh

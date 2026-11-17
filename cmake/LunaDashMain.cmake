@@ -617,6 +617,10 @@ endif()
 install(DIRECTORY data/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/data/assets)
 install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps)
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)
+# ananicy-cpp reads its rules only from /etc/ananicy.d; see the file for why the
+# session needs them. Without ananicy-cpp the file is inert.
+install(FILES data/session/lunadash-session.rules
+        DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/ananicy.d)
 install(FILES data/session/launch-capabilities.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/session)
 install(DIRECTORY data/translations/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/translations)
