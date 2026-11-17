@@ -54,12 +54,10 @@ SceneAnimationOptions sceneAnimationOptions(const nlohmann::json &profile,
       jsonInt(motion, "closeDuration", options.closeDuration) * timeScale));
   options.windowOpen =
       springFrom(motion, "windowOpen", options.windowOpen, stiffnessScale);
+  // One spring for every displacement, so layout changes, resizes and
+  // workspace switches move alike.
   options.windowMovement =
       springFrom(motion, "windowMovement", options.windowMovement, stiffnessScale);
-  options.windowResize =
-      springFrom(motion, "windowResize", options.windowResize, stiffnessScale);
-  options.workspaceSwitch = springFrom(motion, "workspaceSwitch",
-                                       options.workspaceSwitch, stiffnessScale);
   return options;
 }
 

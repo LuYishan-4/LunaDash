@@ -27,7 +27,7 @@ struct WindowTemplate {
   Json animation = Json::object();
   // Springs and timings of the scene animation, not exposed to plugins:
   // openScale, closeDuration and {stiffness, dampingRatio} objects for
-  // windowOpen, windowMovement, windowResize and workspaceSwitch.
+  // windowOpen and windowMovement (every displacement of a window).
   Json motion = Json::object();
   // Layout mode reported to the shell (state().layoutMode).
   std::string layoutMode;

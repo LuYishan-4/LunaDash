@@ -382,8 +382,6 @@ void SceneAnimation::configure(const SceneAnimationOptions &options) {
   curve_ = options.curve;
   windowOpen_ = sanitized(options.windowOpen);
   windowMovement_ = sanitized(options.windowMovement);
-  windowResize_ = sanitized(options.windowResize);
-  workspaceSwitch_ = sanitized(options.workspaceSwitch);
 }
 
 int SceneAnimation::activeCount() const {
@@ -510,7 +508,7 @@ void SceneAnimation::open(wlr_scene_tree *tree,
     return;
   auto *state = new LiveState;
   state->tree = tree;
-  state->motion.start(fade ? windowOpen_ : workspaceSwitch_,
+  state->motion.start(fade ? windowOpen_ : windowMovement_,
                       geometry.translated(dx, dy), geometry);
   state->initialOpacity = fade ? 0.0 : 1.0;
   state->fadeDuration = fade ? duration_ : 0;
@@ -565,7 +563,7 @@ void SceneAnimation::relayout(wlr_scene_tree *tree,
       }
     }
     if (!old->opening)
-      old->motion.spring = resize ? windowResize_ : windowMovement_;
+      old->motion.spring = windowMovement_;
     old->motion.retarget(geometry);
     applyLive(old, monotonicNow());
     return;
@@ -579,7 +577,7 @@ void SceneAnimation::relayout(wlr_scene_tree *tree,
   }
   auto *state = new LiveState;
   state->tree = tree;
-  state->motion.start(resize ? windowResize_ : windowMovement_, from, geometry);
+  state->motion.start(windowMovement_, from, geometry);
   state->preview = preview;
   if (preview)
     preview->live = state;
@@ -713,7 +711,7 @@ void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent,
     return;
   snapshot->moving = true;
   snapshot->fade = fade;
-  snapshot->motion.start(fade ? windowOpen_ : workspaceSwitch_,
+  snapshot->motion.start(fade ? windowOpen_ : windowMovement_,
                          snapshot->original,
                          snapshot->original.translated(dx, dy));
 }
@@ -729,7 +727,7 @@ bool SceneAnimation::slideOut(wlr_scene_tree *tree,
   state->tree = tree;
   state->hiding = true;
   state->home = geometry;
-  state->motion.start(workspaceSwitch_, from, from.translated(dx, dy));
+  state->motion.start(windowMovement_, from, from.translated(dx, dy));
   startLive(state);
   return true;
 }

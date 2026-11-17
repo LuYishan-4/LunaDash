@@ -55,9 +55,8 @@ struct SceneAnimationOptions {
   double openScale = 0.92;
   SceneAnimationCurve curve = SceneAnimationCurve::OutCubic;
   SceneSpring windowOpen;
+  // Every displacement of a window: layout moves and resizes, workspace slides.
   SceneSpring windowMovement;
-  SceneSpring windowResize;
-  SceneSpring workspaceSwitch{1000.0, 1.0};
 };
 
 // wlroots scene implementation for the generic window-animation template.
@@ -158,8 +157,6 @@ private:
   SceneAnimationCurve curve_ = SceneAnimationCurve::OutCubic;
   SceneSpring windowOpen_;
   SceneSpring windowMovement_;
-  SceneSpring windowResize_;
-  SceneSpring workspaceSwitch_{1000.0, 1.0};
 };
 
 } // namespace LunaDash

@@ -30,7 +30,8 @@ Json defaultWindowAnimation() {
 }
 
 // Critically damped springs: no overshoot, and interrupted motions continue
-// with their velocity. Workspaces switch slightly faster than windows move.
+// with their velocity. windowMovement is every displacement: layout moves and
+// resizes and workspace switches share it.
 Json defaultWindowMotion() {
   const auto spring = [](double stiffness) {
     return Json{{"stiffness", stiffness}, {"dampingRatio", 1.0}};
@@ -38,9 +39,7 @@ Json defaultWindowMotion() {
   return {{"openScale", 0.92},
           {"closeDuration", 150},
           {"windowOpen", spring(800)},
-          {"windowMovement", spring(800)},
-          {"windowResize", spring(800)},
-          {"workspaceSwitch", spring(1000)}};
+          {"windowMovement", spring(800)}};
 }
 
 Json commonActions() {
