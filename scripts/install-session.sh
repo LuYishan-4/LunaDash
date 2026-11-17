@@ -337,6 +337,8 @@ else
     report_progress 58 build "Building LunaDash."
     run cmake --build "$build_dir" --parallel
     install_system "Installing LunaDash system files." cmake --install "$build_dir"
+    install_system "Removing the obsolete compatibility session entry." \
+        rm -f /usr/share/wayland-sessions/ludash.desktop
 fi
 
 report_progress 96 finalize "Finalizing the LunaDash installation."
@@ -379,11 +381,11 @@ fi
 
 if [[ -n $autologin ]]; then
     if $dry_run; then
-        printf 'Would create /etc/sddm.conf.d/90-ludash-autologin.conf for %s, session ludash.desktop (Relogin=false).\n' "$autologin"
+        printf 'Would create /etc/sddm.conf.d/90-ludash-autologin.conf for %s, session lunadash.desktop (Relogin=false).\n' "$autologin"
     else
         config=$(mktemp)
         trap 'rm -f -- "$config"' EXIT
-        printf '[Autologin]\nUser=%s\nSession=ludash.desktop\nRelogin=false\n' "$autologin" > "$config"
+        printf '[Autologin]\nUser=%s\nSession=lunadash.desktop\nRelogin=false\n' "$autologin" > "$config"
         run "${elevate[@]}" install -d -m 755 /etc/sddm.conf.d
         run "${elevate[@]}" sh -c 'set -C; umask 022; cat "$1" > /etc/sddm.conf.d/90-ludash-autologin.conf' sh "$config"
     fi

@@ -206,7 +206,7 @@ If you intentionally want console-only boot again on systemd, use `sudo systemct
 
 `LUDASH_SHELL_RENDERER` selects the shell's renderer independently of the compositor's GL/GLES effects. See [Shell rendering](SHELL_RENDERING.md) for overrides, resource testing and limitations.
 
-Legacy `ludash-compositor`, `ludash-desktop`, `ludashctl`, `ludash-session`, and `ludash.desktop` names remain compatibility aliases. New integrations should use the LunaDash names. Installed shell QML lives under `/usr/share/lunadash/shell/`.
+Legacy `ludash-compositor`, `ludash-desktop`, `ludashctl`, and `ludash-session` command names remain compatibility aliases. New integrations should use the LunaDash names. Installed shell QML lives under `/usr/share/lunadash/shell/`.
 
 References: [Qt embedded Linux/EGLFS](https://doc.qt.io/qt-6/embedded-linux.html), [SDDM configuration](https://github.com/sddm/sddm/blob/develop/data/man/sddm.conf.rst.in).
 

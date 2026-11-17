@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=LunaDash (Wayland, compatibility)
-Comment=Scrollable Wayland desktop
-Exec=@CMAKE_INSTALL_FULL_BINDIR@/ludash-session
-TryExec=@CMAKE_INSTALL_FULL_BINDIR@/ludash-session
-Type=Application
-DesktopNames=LunaDash

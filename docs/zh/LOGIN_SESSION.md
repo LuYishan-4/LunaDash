@@ -187,6 +187,6 @@ journalctl -b -u sddm.service
 
 不要用 root 啟動桌面，也不要把 GPU/input device node 改成所有人可寫。
 
-舊 `ludash-compositor`、`ludash-desktop`、`ludashctl`、`ludash-session` 與 `ludash.desktop` 仍保留相容 alias；新整合請使用 `lunadash-*` 名稱。
+舊 `ludash-compositor`、`ludash-desktop`、`ludashctl` 與 `ludash-session` 指令仍保留相容 alias；新整合請使用 `lunadash-*` 名稱。
 
 Dolphin 是主體執行相依套件，即使未選擇任何選用軟體群組仍會安裝，取代已移除的內建檔案管理器。
