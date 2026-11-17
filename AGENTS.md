@@ -25,7 +25,7 @@
 - Dashboard, Settings, Welcome, portal pickers and desktop-visible plugin UI must share the LunaDash design system: strong/glass surfaces, hairline borders, shared radii and bounded layouts.
 - LunaDash-owned Slint dashboard content must use layouts, bounded card sizes, clipping and text elision. The Slint shell follows the same bounds and overflow requirements.
 - Settings must remain usable at its default size and when maximized. Search belongs in the header; page implementations must not invent separate window chrome.
-- Portal FileChooser UI must keep the LunaDash-owned frameless wrapper, dark header and manual local-path field. Never evaluate a selected path through a shell.
+- FileChooser and ScreenCast portals use the GNOME backend by default; do not reintroduce LunaDash-owned portal chooser UI. Never evaluate a selected path through a shell.
 - Plugins are native compositor effects (`type: effect`). The visual Quickshell/OpenGL plugin types and their targets were removed with the QML shell.
 - The removed Command Console must not return to built-ins, startup settings, tests, docs or launcher entries. Use the configured terminal role.
 - “Motion” is not a standalone settings feature. Use “Visual effects” for appearance controls and “Reduced motion” only for accessibility.

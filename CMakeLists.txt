@@ -147,7 +147,7 @@ endforeach()
 
 foreach(LUDASH_RUNTIME_TARGET IN ITEMS
         ludash-desktop ludash-welcome ludash-packages ludash-compositor
-        ludashctl ludash-screencast-chooser ludash-filepicker
+        ludashctl
         lunadash-portal)
     if(TARGET ${LUDASH_RUNTIME_TARGET})
         set_property(TARGET ${LUDASH_RUNTIME_TARGET} PROPERTY INSTALL_RPATH

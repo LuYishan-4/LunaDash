@@ -177,8 +177,6 @@ add_library(ludash-session-services
     src/compositor/session/SessionServices.cpp)
 target_include_directories(ludash-session-services PUBLIC src)
 target_link_libraries(ludash-session-services PUBLIC ludash-process-runner)
-target_compile_definitions(ludash-session-services PRIVATE
-    LUDASH_XDPW_CONFIG_PATH="${CMAKE_INSTALL_FULL_SYSCONFDIR}/xdg/xdg-desktop-portal-wlr/LunaDash")
 add_library(ludash-launch-policy src/compositor/session/LaunchPolicy.cpp)
 target_include_directories(ludash-launch-policy PUBLIC src)
 target_link_libraries(ludash-launch-policy PRIVATE nlohmann_json::nlohmann_json)
@@ -293,41 +291,10 @@ add_custom_command(TARGET ludash-packages POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink
         $<TARGET_FILE_NAME:ludash-packages>
         ${CMAKE_CURRENT_BINARY_DIR}/ludash-packages)
-add_executable(ludash-screencast-chooser
-    src/service/portal/screencast/Main.cpp
-    src/service/portal/screencast/ScreenCastChooserApplication.hpp
-    src/service/portal/screencast/ScreenCastChooserApplication.cpp)
-target_include_directories(ludash-screencast-chooser PRIVATE src)
-target_compile_definitions(ludash-screencast-chooser PRIVATE
-    LUDASH_TRANSLATIONS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/translations"
-    LUDASH_TRANSLATIONS_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ludash/translations")
-target_link_libraries(ludash-screencast-chooser PRIVATE
-    Slint::Slint ludash-interface-font ludash-process-runner nlohmann_json::nlohmann_json)
-slint_target_sources(ludash-screencast-chooser
-    src/service/portal/screencast/ScreenCastChooser.slint)
-set_target_properties(ludash-screencast-chooser PROPERTIES
-    OUTPUT_NAME lunadash-screencast-chooser)
-install(TARGETS ludash-screencast-chooser RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR})
-add_executable(ludash-filepicker
-    src/service/portal/filepicker/Main.cpp
-    src/service/portal/filepicker/FilePickerApplication.hpp
-    src/service/portal/filepicker/FilePickerApplication.cpp)
-target_include_directories(ludash-filepicker PRIVATE src)
-target_compile_definitions(ludash-filepicker PRIVATE
-    LUDASH_TRANSLATIONS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/translations"
-    LUDASH_TRANSLATIONS_INSTALL_DIR="${CMAKE_INSTALL_FULL_DATADIR}/ludash/translations")
-target_link_libraries(ludash-filepicker PRIVATE
-    Slint::Slint ludash-interface-font ludash-process-runner PkgConfig::LUDASH_GDK_PIXBUF
-    PkgConfig::LUDASH_GIO
-    nlohmann_json::nlohmann_json)
-slint_target_sources(ludash-filepicker
-    src/service/portal/filepicker/FilePicker.slint)
-set_target_properties(ludash-filepicker PROPERTIES OUTPUT_NAME lunadash-filepicker)
-install(TARGETS ludash-filepicker RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR})
 # LunaDash's Slint windows compile their icons (data/icons) into the executable, so an
 # installation never refers back to the source tree.
-set_target_properties(ludash-welcome ludash-packages ludash-screencast-chooser
-    ludash-filepicker PROPERTIES SLINT_EMBED_RESOURCES embed-files)
+set_target_properties(ludash-welcome ludash-packages
+    PROPERTIES SLINT_EMBED_RESOURCES embed-files)
 # wlroots public layer-shell headers include the scanner-generated
 # protocol declaration. Some distributions do not install that generated
 # header with libwlroots-dev, so generate declarations locally without

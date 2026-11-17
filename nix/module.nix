@@ -16,7 +16,10 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ cfg.package pkgs.kdePackages.polkit-kde-agent-1 ]
+    environment.systemPackages = [
+      cfg.package
+      pkgs.kdePackages.polkit-kde-agent-1
+    ]
       ++ lib.optionals cfg.enableDefaultApps [ pkgs.kitty pkgs.kdePackages.dolphin ];
     services.displayManager.sessionPackages = [ cfg.package ];
     services.graphical-desktop.enable = true;
@@ -27,17 +30,20 @@ in {
 
     xdg.portal = {
       enable = true;
-      extraPortals = [ cfg.package pkgs.xdg-desktop-portal-gtk pkgs.xdg-desktop-portal-wlr ];
+      extraPortals = [
+        cfg.package
+        pkgs.xdg-desktop-portal-gnome
+        pkgs.xdg-desktop-portal-gtk
+        pkgs.xdg-desktop-portal-wlr
+      ];
       config.lunadash = {
         default = [ "gtk" ];
-        "org.freedesktop.impl.portal.FileChooser" = [ "lunadash" ];
+        "org.freedesktop.impl.portal.FileChooser" = [ "gnome" ];
         "org.freedesktop.impl.portal.Settings" = [ "lunadash" ];
-        "org.freedesktop.impl.portal.ScreenCast" = [ "wlr" ];
+        "org.freedesktop.impl.portal.ScreenCast" = [ "gnome" ];
         "org.freedesktop.impl.portal.Screenshot" = [ "wlr" ];
       };
     };
-    environment.etc."xdg/xdg-desktop-portal-wlr/LunaDash".source =
-      "${cfg.package}/etc/xdg/xdg-desktop-portal-wlr/LunaDash";
     # The portal module registers package D-Bus and systemd user services.
     # Keep PipeWire, network management, input methods and the display manager
     # under the host configuration's control.

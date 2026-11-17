@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <string_view>
@@ -52,22 +51,6 @@ std::string findSessionExecutable(std::string_view name) {
              : findExecutable(name, "/usr/local/bin:/usr/bin:/bin");
 }
 
-std::string findXdpw() {
-  // LUDASH_XDPW names the executable; set but empty, no private instance is
-  // started (tests).
-  if (const char *configured = std::getenv("LUDASH_XDPW"))
-    return configured;
-  auto executable = findSessionExecutable("xdg-desktop-portal-wlr");
-  if (!executable.empty())
-    return executable;
-  for (const auto *candidate : {"/usr/lib/xdg-desktop-portal-wlr",
-                                "/usr/libexec/xdg-desktop-portal-wlr",
-                                "/usr/local/libexec/xdg-desktop-portal-wlr"})
-    if (fileIsExecutable(candidate))
-      return candidate;
-  return {};
-}
-
 std::string diagnostic(const std::string &output) {
   constexpr std::size_t kMaximumDiagnostic = 1024;
   const auto first = output.find_first_not_of(" \t\r\n");
@@ -80,8 +63,7 @@ std::string diagnostic(const std::string &output) {
 } // namespace
 
 SessionServices::SessionServices(wl_event_loop *eventLoop)
-    : activationProcess_(eventLoop), portalProcess_(eventLoop, false),
-      systemctlProcess_(eventLoop) {}
+    : activationProcess_(eventLoop), systemctlProcess_(eventLoop) {}
 
 void SessionServices::publishActivationEnvironment(
     const ProcessEnvironment &environment, ActivationCompletion completion) {
@@ -181,47 +163,11 @@ bool SessionServices::startSystemctl(const ProcessEnvironment &environment,
 
 void SessionServices::refreshScreencastPortalServices(
     const ProcessEnvironment &environment, Completion completion) {
-  const std::filesystem::path config(LUDASH_XDPW_CONFIG_PATH);
-  std::error_code filesystemError;
-  const bool hasConfig =
-      std::filesystem::is_regular_file(config, filesystemError) &&
-      !filesystemError;
-  const auto frontendServices = std::vector<std::string>{
-      "xdg-desktop-portal-lunadash.service", "xdg-desktop-portal-gtk.service",
-      "xdg-desktop-portal.service"};
-
-  const auto xdpw = findXdpw();
-  if (!xdpw.empty() && hasConfig) {
-    if (portalProcess_.busy()) {
-      startSystemctl(environment, frontendServices, std::move(completion));
-      return;
-    }
-
-    const std::vector<std::string> arguments{
-        "--replace", "--config", config.string(), "--loglevel", "INFO"};
-    const bool started = portalProcess_.run(
-        xdpw, arguments,
-        [](bool success, const std::string &output) {
-          if (!success) {
-            const auto message = diagnostic(output);
-            std::cerr << "LunaDash xdg-desktop-portal-wlr exited"
-                      << (message.empty() ? "." : ": " + message) << '\n';
-          }
-        },
-        0, environment);
-    if (started) {
-      startSystemctl(environment, frontendServices, std::move(completion));
-      return;
-    }
-    std::cerr << "LunaDash could not start xdg-desktop-portal-wlr.\n";
-    startSystemctl(environment, frontendServices, std::move(completion));
-    return;
-  }
-
   startSystemctl(
       environment,
-      {"xdg-desktop-portal-wlr.service", "xdg-desktop-portal-lunadash.service",
-       "xdg-desktop-portal-gtk.service", "xdg-desktop-portal.service"},
+      {"xdg-desktop-portal-wlr.service", "xdg-desktop-portal-gnome.service",
+       "xdg-desktop-portal-lunadash.service", "xdg-desktop-portal-gtk.service",
+       "xdg-desktop-portal.service"},
       std::move(completion));
 }
 

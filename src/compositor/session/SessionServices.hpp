@@ -29,7 +29,6 @@ private:
                       Completion completion);
 
   ProcessRunner activationProcess_;
-  ProcessRunner portalProcess_;
   ProcessRunner systemctlProcess_;
 };
 

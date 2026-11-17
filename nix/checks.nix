@@ -17,13 +17,17 @@ let
     assert builtins.elem package config.services.displayManager.sessionPackages;
     assert builtins.elem package config.services.dbus.packages;
     assert builtins.elem package config.systemd.packages;
-    assert config.xdg.portal.config.lunadash."org.freedesktop.impl.portal.FileChooser" == "lunadash";
+    assert config.xdg.portal.config.lunadash."org.freedesktop.impl.portal.FileChooser" == "gnome";
+    assert config.xdg.portal.config.lunadash."org.freedesktop.impl.portal.Settings" == "lunadash";
+    assert config.xdg.portal.config.lunadash."org.freedesktop.impl.portal.ScreenCast" == "gnome";
+    assert config.xdg.portal.config.lunadash."org.freedesktop.impl.portal.Screenshot" == "wlr";
+    assert builtins.elem pkgs.xdg-desktop-portal-gnome config.xdg.portal.extraPortals;
+    assert builtins.elem pkgs.xdg-desktop-portal-wlr config.xdg.portal.extraPortals;
     assert config.security.polkit.enable && config.hardware.graphics.enable;
     pkgs.writeText "lunadash-module.json" (builtins.toJSON {
       sessions = package.providedSessions;
       portals = config.xdg.portal.config.lunadash;
       sessionData = "${config.services.displayManager.sessionData.desktops}";
-      portalConfig = config.environment.etc."xdg/xdg-desktop-portal-wlr/LunaDash".source;
     });
 in {
   inherit package;

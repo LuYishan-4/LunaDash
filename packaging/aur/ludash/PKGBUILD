@@ -14,8 +14,9 @@ provides=('lunadash')
 conflicts=('lunadash')
 depends=('lunadash-shell' 'slintlu'
          'ffmpeg' 'wayland' 'pam' 'wlroots0.20' 'libglvnd' 'fontconfig' 'freetype2' 'dbus' 'xorg-xwayland'
-         'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gtk'
-         'xdg-desktop-portal-wlr>=0.8.4' 'pipewire' 'libpulse' 'polkit' 'polkit-kde-agent' 'git' 'python'
+         'libinput' 'libxkbcommon' 'systemd-libs' 'xdg-desktop-portal' 'xdg-desktop-portal-gnome'
+         'xdg-desktop-portal-gtk' 'xdg-desktop-portal-wlr>=0.8.4'
+         'pipewire' 'libpulse' 'polkit' 'polkit-kde-agent' 'git' 'python'
          'cmake' 'ninja' 'glib2' 'gdk-pixbuf2' 'curl' 'shared-mime-info' 'fcitx5' 'fcitx5-qt'
          'fcitx5-configtool' 'brightnessctl' 'ddcutil' 'grim' 'slurp' 'wl-clipboard' 'networkmanager'
          'network-manager-applet' 'wireplumber' 'pavucontrol' 'bluez' 'bluez-utils' 'blueman'

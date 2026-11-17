@@ -21,8 +21,6 @@ MAINS = {
     "desktop/welcome/Main.cpp",
     "ctl/Main.cpp",
     "service/portal/Main.cpp",
-    "service/portal/screencast/Main.cpp",
-    "service/portal/filepicker/Main.cpp",
 }
 
 
