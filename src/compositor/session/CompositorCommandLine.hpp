@@ -6,10 +6,8 @@
 
 namespace LunaDash {
 
-
 std::optional<CompositorOptions> parseCompositorOptions(int argc, char **argv);
 
-
-std::optional<int> ChooseOption(const CompositorOptions &options);
+std::optional<int> chooseOption(const CompositorOptions &options);
 
 } // namespace LunaDash

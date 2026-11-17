@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
   const auto options = LunaDash::parseCompositorOptions(argc, argv);
   if (!options)
     return 1;
-  if (const auto exitCode = LunaDash::ChooseOption(*options))
+  if (const auto exitCode = LunaDash::chooseOption(*options))
     return *exitCode;
   LunaDash::WaylandCompositor compositor(*options);
   if (!compositor.start() ||

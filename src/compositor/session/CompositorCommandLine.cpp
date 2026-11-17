@@ -14,7 +14,6 @@
 namespace LunaDash {
 namespace {
 
-
 std::optional<CompositorOptions> parseArguments(int argc, char **argv,
                                                 std::string &error) {
   CompositorOptions options;
@@ -109,7 +108,7 @@ void printHelp() {
       << "  --profile              Log event-loop stalls longer than 25 ms\n"
       << "  --fullscreen           Prefer host output size in nested mode\n"
       << "  --no-shell             Do not start the desktop shell\n"
-      << "  --demo                 Start two demonstration clients\n"
+      << "  --demo                 Open the Welcome app (needs the shell)\n"
       << "  --state <path>         Write window geometry JSON at exit\n"
       << "  --exit-after <ms>      Exit after this many milliseconds\n";
 }
@@ -124,7 +123,7 @@ std::optional<CompositorOptions> parseCompositorOptions(int argc, char **argv) {
   return options;
 }
 
-std::optional<int> ChooseOption(const CompositorOptions &options) {
+std::optional<int> chooseOption(const CompositorOptions &options) {
   if (options.help) {
     printHelp();
     return 0;
