@@ -1,6 +1,7 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
 #include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/renderer/capture/ThumbnailReadback.h"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/window/WindowRules.hpp"
@@ -121,10 +122,7 @@ void WaylandCompositor::activateTask(int window) {
                          client->workspace == workspace_ && client->maximized;
     selectWorkspace(client->workspace);
     client->minimized = false;
-#if LUDASH_WLR_HAS_XWAYLAND
-    if (client->x11 && client->xwayland)
-      wlr_xwayland_surface_set_minimized(client->xwayland, false);
-#endif
+    setClientMinimizedHint(client.get(), false);
     windowLayout_->setMinimized(window, false);
     if (windowTemplate_ &&
         windowActivationTogglesMaximize(*windowTemplate_, *client))
@@ -358,10 +356,7 @@ void WaylandCompositor::finishWindowSwitch(bool accept) {
     if (client->workspace != workspace_)
       selectWorkspace(client->workspace);
     client->minimized = false;
-#if LUDASH_WLR_HAS_XWAYLAND
-    if (client->x11 && client->xwayland)
-      wlr_xwayland_surface_set_minimized(client->xwayland, false);
-#endif
+    setClientMinimizedHint(client.get(), false);
     windowLayout_->setMinimized(target, false);
     windowLayout_->focus(target);
     arrange();

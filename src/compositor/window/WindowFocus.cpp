@@ -1,9 +1,7 @@
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
-#include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
-#include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
@@ -24,34 +22,8 @@ ClientWindow *WaylandCompositor::clientById(int id) const {
 }
 
 void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
-  if (!client)
+  if (!readClientProtocolMetadata(client))
     return;
-#if LUDASH_WLR_HAS_XWAYLAND
-  if (client->x11 && client->xwayland) {
-    client->title = safeUtf8(client->xwayland->title);
-    client->appId =
-        safeUtf8(client->xwayland->class_ ? client->xwayland->class_
-                                          : client->xwayland->instance);
-    client->processId = client->xwayland->pid;
-    client->utility = client->xwayland->override_redirect;
-    if (!client->initialRuleApplied)
-      client->floating = client->utility || client->xwayland->parent ||
-                         client->xwayland->modal;
-    else if (client->xwayland->parent || client->xwayland->modal)
-      client->floating = true;
-  } else
-#endif
-  {
-    if (!client->toplevel)
-      return;
-    client->title = safeUtf8(client->toplevel->title);
-    client->appId = safeUtf8(client->toplevel->app_id);
-    client->utility = isUtilityWindow(client->appId);
-    if (!client->initialRuleApplied)
-      client->floating = client->toplevel->parent != nullptr;
-    else if (client->toplevel->parent)
-      client->floating = true;
-  }
   adoptScratchpad(client);
   client->iconName = client->utility
                          ? std::string()
@@ -117,10 +89,8 @@ void WaylandCompositor::focus(ClientWindow *client) {
     setClientActivated(client, true);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (changed) {
-    if (previous && !previous->x11 && previous->nativeState)
-      d->updateClientLegacyForeignToplevel(previous);
-    if (!client->x11 && client->nativeState)
-      d->updateClientLegacyForeignToplevel(client);
+    d->updateClientLegacyForeignToplevel(previous);
+    d->updateClientLegacyForeignToplevel(client);
   }
 #else
   (void)previous;
@@ -166,28 +136,15 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
             other->floating || !other->maximized)
           continue;
         other->maximized = false;
-#if LUDASH_WLR_HAS_XWAYLAND
-        if (other->x11 && other->xwayland)
-          WlrootsCompat::setXWaylandMaximized(other->xwayland, false);
-        else
-#endif
-            if (other->toplevel && other->surface &&
-                other->surface->initialized)
-          wlr_xdg_toplevel_set_maximized(other->toplevel, false);
+        setClientMaximizedHint(other.get(), false);
       }
     }
     windowLayout_->setMaximized(client->id, maximized);
   }
   client->maximized = maximized;
-#if LUDASH_WLR_HAS_XWAYLAND
-  if (client->x11 && client->xwayland)
-    WlrootsCompat::setXWaylandMaximized(client->xwayland, maximized);
-  else
-#endif
-      if (client->toplevel)
-    wlr_xdg_toplevel_set_maximized(client->toplevel, maximized);
+  setClientMaximizedHint(client, maximized);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-  if (d && !client->x11 && client->nativeState)
+  if (d)
     d->updateClientLegacyForeignToplevel(client);
 #endif
 }
@@ -202,31 +159,17 @@ void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
           !other->fullscreen)
         continue;
       other->fullscreen = false;
-#if LUDASH_WLR_HAS_XWAYLAND
-      if (other->x11 && other->xwayland)
-        wlr_xwayland_surface_set_fullscreen(other->xwayland, false);
-      else
-#endif
-          if (other->toplevel)
-        wlr_xdg_toplevel_set_fullscreen(other->toplevel, false);
+      setClientFullscreenHint(other.get(), false);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-      if (!other->x11 && other->nativeState)
-        d->updateClientLegacyForeignToplevel(other.get());
+      d->updateClientLegacyForeignToplevel(other.get());
 #endif
     }
   }
 
   client->fullscreen = fullscreen;
-#if LUDASH_WLR_HAS_XWAYLAND
-  if (client->x11 && client->xwayland)
-    wlr_xwayland_surface_set_fullscreen(client->xwayland, fullscreen);
-  else
-#endif
-      if (client->toplevel)
-    wlr_xdg_toplevel_set_fullscreen(client->toplevel, fullscreen);
+  setClientFullscreenHint(client, fullscreen);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-  if (!client->x11 && client->nativeState)
-    d->updateClientLegacyForeignToplevel(client);
+  d->updateClientLegacyForeignToplevel(client);
 #endif
 
   arrange();

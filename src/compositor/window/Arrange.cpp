@@ -4,7 +4,6 @@
 #include "compositor/plugins/PluginManager.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
-#include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowTemplate.hpp"
@@ -16,30 +15,12 @@
 #include "core/json/JsonAccess.hpp"
 
 #include <algorithm>
-#include <cstdint>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 namespace LunaDash {
 namespace {
-
-// The size a client asked for in its first commit, used as its floating size.
-Size committedClientSize(const ClientWindow &client) {
-#if LUDASH_WLR_HAS_XWAYLAND
-  if (client.x11 && client.xwayland)
-    return Size(client.xwayland->width, client.xwayland->height);
-#endif
-  if (!client.surface)
-    return Size();
-  wlr_box geometry{};
-#if WLR_VERSION_MINOR >= 19
-  geometry = client.surface->geometry;
-#else
-  wlr_xdg_surface_get_geometry(client.surface, &geometry);
-#endif
-  return Size(geometry.width, geometry.height);
-}
 
 // True when `client` is `owner` or one of its (transient) dialogs.
 template <typename Clients>
@@ -155,58 +136,7 @@ void WaylandCompositor::configure(ClientWindow *client,
     wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
                                 rectangle.y());
   client->geometry = rectangle;
-  const Size size(std::max(1, rectangle.width()),
-                  std::max(1, rectangle.height()));
-
-#if LUDASH_WLR_HAS_XWAYLAND
-  if (client->x11 && client->xwayland) {
-    const auto x =
-        static_cast<int16_t>(std::clamp(rectangle.x(), -32768, 32767));
-    const auto y =
-        static_cast<int16_t>(std::clamp(rectangle.y(), -32768, 32767));
-    const auto width =
-        static_cast<uint16_t>(std::clamp(size.width(), 1, 65535));
-    const auto height =
-        static_cast<uint16_t>(std::clamp(size.height(), 1, 65535));
-    const auto *surface = client->xwayland;
-    if (surface->x != x || surface->y != y || surface->width != width ||
-        surface->height != height)
-      wlr_xwayland_surface_configure(client->xwayland, x, y, width, height);
-    if (surface->maximized_horz != client->maximized ||
-        surface->maximized_vert != client->maximized)
-      WlrootsCompat::setXWaylandMaximized(client->xwayland, client->maximized);
-    if (surface->fullscreen != client->fullscreen)
-      wlr_xwayland_surface_set_fullscreen(client->xwayland, client->fullscreen);
-    client->lastSize = size;
-    return;
-  }
-#endif
-
-  wlr_box geometry{};
-#if WLR_VERSION_MINOR >= 19
-  geometry = client->surface->geometry;
-#else
-  wlr_xdg_surface_get_geometry(client->surface, &geometry);
-#endif
-  wlr_box clip{geometry.x, geometry.y, rectangle.width(), rectangle.height()};
-  if (client->sceneContent)
-    wlr_scene_subsurface_tree_set_clip(&client->sceneContent->node,
-                                       client->floating ? nullptr : &clip);
-  if (client->lastSize != size) {
-    client->lastSize = size;
-    wlr_xdg_toplevel_set_size(client->toplevel, size.width(), size.height());
-  }
-  wlr_xdg_toplevel_set_maximized(client->toplevel, client->maximized);
-  wlr_xdg_toplevel_set_fullscreen(client->toplevel, client->fullscreen);
-  // Tell tiled clients that the size is not a suggestion. Without the tiled state a
-  // toolkit may replace it with its own preferred size (winit does, so Slint windows
-  // drew at their preferred size inside a larger tile).
-  const std::uint32_t tiled =
-      client->floating || client->maximized || client->fullscreen
-          ? 0
-          : WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT;
-  if (client->toplevel->scheduled.tiled != tiled)
-    wlr_xdg_toplevel_set_tiled(client->toplevel, tiled);
+  configureClientSurface(client, rectangle);
 }
 
 void WaylandCompositor::arrange() {
@@ -247,7 +177,7 @@ void WaylandCompositor::arrange() {
   for (const auto &client : clients_) {
     client->workspace = std::min(client->workspace, count - 1);
     if (client->mapped && !client->preferredFloatingSize.isValid()) {
-      const Size committed = committedClientSize(*client);
+      const Size committed = clientCommittedSize(*client);
       if (committed.width() > 0 && committed.height() > 0)
         client->preferredFloatingSize = committed;
     }
