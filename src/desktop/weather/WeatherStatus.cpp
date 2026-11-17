@@ -2,7 +2,6 @@
 
 #include <curl/curl.h>
 
-#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <chrono>
@@ -16,7 +15,6 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 #include <utility>
-#include <vector>
 
 namespace LunaDash {
 namespace {

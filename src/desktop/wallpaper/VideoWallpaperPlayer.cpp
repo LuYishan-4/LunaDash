@@ -9,7 +9,7 @@ namespace {
 constexpr int kMaximumFailures = 3;
 
 std::string mpvpaperExecutable() { return findExecutable("mpvpaper"); }
-} // namespace
+}
 
 VideoWallpaperPlayer::VideoWallpaperPlayer(wl_event_loop *eventLoop)
     : process_(std::make_unique<ProcessRunner>(eventLoop, false, true)) {}
@@ -50,8 +50,6 @@ void VideoWallpaperPlayer::sync(const std::filesystem::path &wallpaper,
   }
   if (process_->busy() || failures_ >= kMaximumFailures)
     return;
-  // A cancelled player is reaped shortly; the next sync starts the new one.
-  // A crashed player is restarted, but not faster than every few seconds.
   if (failures_ > 0 &&
       std::chrono::steady_clock::now() - lastStart_ < std::chrono::seconds(3))
     return;
@@ -65,7 +63,6 @@ void VideoWallpaperPlayer::start(const ProcessEnvironment &environment) {
     failures_ = kMaximumFailures;
     return;
   }
-  // The 1080p proxy LunaDash prepares with ffmpeg decodes more cheaply.
   auto playback = wallpaperPlaybackPath(source_);
   if (playback.empty())
     playback = source_;

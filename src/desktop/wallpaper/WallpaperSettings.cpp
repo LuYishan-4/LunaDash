@@ -32,12 +32,6 @@ std::filesystem::path bundledWallpaperPath() {
   for (const auto *const *directory = g_get_system_data_dirs(); *directory;
        ++directory)
     roots.emplace_back(*directory);
-  for (const auto &root : roots) {
-    const auto candidate = root / "ludash/wallpapers/florist.png";
-    std::error_code error;
-    if (std::filesystem::is_regular_file(candidate, error))
-      return std::filesystem::canonical(candidate, error);
-  }
   const auto fallback =
       std::filesystem::path(LUDASH_WALLPAPER_SOURCE_DIR) / "florist.png";
   std::error_code error;

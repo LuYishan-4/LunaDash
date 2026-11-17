@@ -189,22 +189,6 @@ ShortcutSettings::ShortcutSettings(nlohmann::json legacyBindings)
         return true;
     return false;
   };
-  const auto configuredValue = [&configured](std::string_view key) {
-    const auto it = configured.find(std::string(key));
-    return it != configured.end() && it->is_string() ? it->get<std::string>()
-                                                     : std::string{};
-  };
-  if (configuredValue("launchTerminal") == "Meta+Return" &&
-      !uses("Meta+T", "launchTerminal"))
-    configured["launchTerminal"] = "Meta+T";
-  if (!configured.contains("launchTerminal") &&
-      uses("Meta+T", "launchTerminal"))
-    bindings_["launchTerminal"] = "Disabled";
-  if (!configured.contains("workspace10") && uses("Meta+0", "workspace10"))
-    bindings_["workspace10"] = "Disabled";
-  if (!configured.contains("moveToWorkspace10") &&
-      uses("Meta+Ctrl+0", "moveToWorkspace10"))
-    bindings_["moveToWorkspace10"] = "Disabled";
   for (auto &[key, value] : configured.items()) {
     (void)key;
     if (!value.is_string())
@@ -214,17 +198,6 @@ ShortcutSettings::ShortcutSettings(nlohmann::json legacyBindings)
       value = "Disabled";
   }
 
-  // Migrate the previous shipped default without replacing custom bindings
-  // or stealing Meta+Shift+S from another explicitly assigned action.
-  if (configuredValue("screenshot") == "Alt+Shift+F5") {
-    bool used = false;
-    for (const auto &[key, value] : configured.items())
-      used |= key != "screenshot" && value.is_string() &&
-              value.get_ref<const std::string &>() == "Meta+Shift+S";
-    if (!used)
-      configured["screenshot"] = "Meta+Shift+S";
-  }
-  // New defaults never invalidate a user's existing custom bindings.
   for (const auto &[key, value] : bindings_.items())
     if (!configured.contains(key) && value.is_string() &&
         uses(value.get_ref<const std::string &>(), key))
