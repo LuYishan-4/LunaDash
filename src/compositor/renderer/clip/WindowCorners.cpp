@@ -1,17 +1,67 @@
 #include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/clip/CornerGeometry.h"
+
+// C++ library headers must be parsed before the wlroots compatibility macros.
+#include <algorithm>
+#include <cstdint>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/LunaClint.hpp"
 
-#include <algorithm>
-#include <unordered_map>
-#include <unordered_set>
+#if __has_include(<wlr/render/drm_syncobj.h>)
+extern "C" {
+#include <wlr/render/drm_syncobj.h>
+}
+#define LUDASH_CORNERS_SYNCOBJ 1
+#else
+#define LUDASH_CORNERS_SYNCOBJ 0
+#endif
+
 
 namespace LunaDash {
 namespace {
 void initialOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
   wlr_scene_buffer_set_opacity(buffer, *static_cast<float *>(data));
 }
+
+#if LUDASH_CORNERS_SYNCOBJ
+// Timeline points known to be signaled during one settle pass.
+struct SettledPoints {
+  std::vector<std::pair<wlr_drm_syncobj_timeline *, std::uint64_t>> signaled;
+  std::vector<std::pair<wlr_drm_syncobj_timeline *, std::uint64_t>> pending;
+};
+
+// A band whose client buffer is already drawn needs no GPU wait: drop it. A
+// point not yet signaled keeps its wait, so nothing is read too early.
+void settleWait(wlr_scene_buffer *buffer, int, int, void *data) {
+  auto &state = buffer->WLR_PRIVATE;
+  if (!state.wait_timeline)
+    return;
+  auto &points = *static_cast<SettledPoints *>(data);
+  const std::pair key{state.wait_timeline, state.wait_point};
+  bool signaled = std::find(points.signaled.begin(), points.signaled.end(), key) !=
+                  points.signaled.end();
+  if (!signaled) {
+    if (std::find(points.pending.begin(), points.pending.end(), key) !=
+        points.pending.end())
+      return;
+    bool result = false;
+    signaled = wlr_drm_syncobj_timeline_check(state.wait_timeline,
+                                              state.wait_point, 0, &result) &&
+               result;
+    (signaled ? points.signaled : points.pending).push_back(key);
+  }
+  if (!signaled)
+    return;
+  wlr_drm_syncobj_timeline_unref(state.wait_timeline);
+  state.wait_timeline = nullptr;
+  state.wait_point = 0;
+}
+#endif
 } // namespace
 
 class WindowCorners::Impl {
@@ -156,6 +206,19 @@ void WindowCorners::update(const std::vector<Surface> &surfaces) {
     return !active.contains(item.first) || !item.second->tree ||
            !item.second->content || !item.second->surface;
   });
+}
+
+void WindowCorners::settleWaits() {
+#if LUDASH_CORNERS_SYNCOBJ
+  // Every band is a view of the same client buffer, and each view would make
+  // the renderer wait on the client's acquire point on its own: a sync file
+  // export and an EGL sync per band, per frame. Explicitly synchronized
+  // clients (most GL/Vulkan ones on NVIDIA) then cost milliseconds a frame.
+  SettledPoints points;
+  for (const auto &[tree, entry] : d->entries)
+    if (entry->views)
+      wlr_scene_node_for_each_buffer(&entry->views->node, settleWait, &points);
+#endif
 }
 
 int WindowCorners::radius(wlr_scene_tree *tree) const {

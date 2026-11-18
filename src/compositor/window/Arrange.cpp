@@ -158,8 +158,10 @@ void WaylandCompositor::arrange() {
   // just change workspace.
   const int slide = std::exchange(workspaceSlide_, 0);
   const bool overviewSwitch = slide && overview_.open;
+  // Workspaces stack vertically, as the overview shows them: the next one is
+  // below, so going there moves the old one up and the new one in from below.
   const int slideDistance =
-      slide * (std::max(1, d->outputSize().width()) + WindowTuning::workspaceSlideGap);
+      slide * (std::max(1, d->outputSize().height()) + WindowTuning::workspaceSlideGap);
   const auto preferences = desktopPreferences();
   applyVisualPreferences(preferences);
   const bool templateChanged = selectWindowTemplate();
@@ -272,7 +274,7 @@ void WaylandCompositor::arrange() {
         if (slide && client->workspace != workspace_)
           keepSliding = windowAnimations_->slideOut(
               client->sceneTree, animationRectangle(client->geometry),
-              -slideDistance, 0);
+              0, -slideDistance);
         else if (client->minimized)
           // Minimizing drops the window toward the dock.
           windowAnimations_->close(
@@ -340,7 +342,7 @@ void WaylandCompositor::arrange() {
       if (slide)
         windowAnimations_->open(client->sceneTree,
                                 animationRectangle(client->geometry),
-                                slideDistance, 0, false);
+                                0, slideDistance, false);
       else
         windowAnimations_->open(client->sceneTree,
                                 animationRectangle(client->geometry));

@@ -112,6 +112,8 @@ public:
     wlr_scene_tree *tree = nullptr;
     wlr_scene_tree *glass = nullptr;
     std::vector<wlr_scene_buffer *> parts;
+    // Each part's full band within the glass (parts may be trimmed to an output).
+    std::vector<ludash_corner_band> bands;
     wlr_buffer *backing = nullptr;
     Templates::WaylandSlot<Entry> treeDestroy;
     Templates::WaylandSlot<Entry> glassDestroy;
@@ -195,6 +197,7 @@ public:
       if (!count)
         return false;
       std::vector<wlr_scene_buffer *> next;
+      std::vector<ludash_corner_band> nextBands(bands, bands + count);
       for (std::size_t i = 0; i < count; ++i) {
         auto *part = wlr_scene_buffer_create(glass, nullptr);
         if (!part) {
@@ -213,6 +216,7 @@ public:
       for (auto *part : parts)
         wlr_scene_node_destroy(&part->node);
       parts = std::move(next);
+      this->bands = std::move(nextBands);
       clipSize = size;
       cornerRadius = radius;
       attempted = false;
@@ -221,6 +225,13 @@ public:
     }
 
     void setBuffer(wlr_buffer *buffer) {
+      // A capture covers the whole glass: every part shows its full band.
+      for (std::size_t i = 0; i < parts.size() && i < bands.size(); ++i) {
+        wlr_scene_node_set_position(&parts[i]->node, bands[i].x, bands[i].y);
+        wlr_scene_buffer_set_dest_size(parts[i], bands[i].width, bands[i].height);
+        if (!parts[i]->node.enabled)
+          wlr_scene_node_set_enabled(&parts[i]->node, true);
+      }
       for (auto *part : parts) {
         const wlr_fbox crop{
             double(part->node.x) * buffer->width / clipSize.width,
@@ -241,27 +252,30 @@ public:
       sharedRevision = revision;
       const double scaleX = double(buffer->width) / box.width;
       const double scaleY = double(buffer->height) / box.height;
-      for (auto *part : parts) {
-        const double left = std::clamp(
-            (x + part->node.x - box.x) * scaleX, 0.0, double(buffer->width));
-        const double top = std::clamp(
-            (y + part->node.y - box.y) * scaleY, 0.0, double(buffer->height));
-        const double right =
-            std::clamp((x + part->node.x + part->dst_width - box.x) * scaleX,
-                       0.0, double(buffer->width));
-        const double bottom =
-            std::clamp((y + part->node.y + part->dst_height - box.y) * scaleY,
-                       0.0, double(buffer->height));
-        // Off the output: nothing of this backdrop to show.
-        const bool visible = right - left > 0.01 && bottom - top > 0.01;
+      for (std::size_t i = 0; i < parts.size() && i < bands.size(); ++i) {
+        auto *part = parts[i];
+        const auto &band = bands[i];
+        // The part of the band on this output, in scene coordinates. A band
+        // reaching past the output is trimmed, never stretched: stretching
+        // changes with every pixel the window moves and makes the glass swim.
+        const int left = std::max(x + band.x, box.x);
+        const int top = std::max(y + band.y, box.y);
+        const int right = std::min(x + band.x + band.width, box.x + box.width);
+        const int bottom = std::min(y + band.y + band.height, box.y + box.height);
+        const bool visible = right > left && bottom > top;
+        // Parts off the output get the new backdrop too: they show it as soon
+        // as they come back on screen.
+        if (replaced)
+          wlr_scene_buffer_set_buffer(part, buffer);
         if (part->node.enabled != visible)
           wlr_scene_node_set_enabled(&part->node, visible);
         if (!visible)
           continue;
-        const wlr_fbox crop{left, top, right - left, bottom - top};
+        wlr_scene_node_set_position(&part->node, left - x, top - y);
+        wlr_scene_buffer_set_dest_size(part, right - left, bottom - top);
+        const wlr_fbox crop{(left - box.x) * scaleX, (top - box.y) * scaleY,
+                            (right - left) * scaleX, (bottom - top) * scaleY};
         wlr_scene_buffer_set_source_box(part, &crop);
-        if (replaced)
-          wlr_scene_buffer_set_buffer(part, buffer);
       }
     }
   };
@@ -409,6 +423,11 @@ public:
       if (buffer->dst_width > 0 && buffer->dst_height > 0 &&
           !sample.intersects(Rect{x, y, buffer->dst_width, buffer->dst_height}))
         return false;
+      // Slivers (a shell's 1 px exclusive-zone reservers) vanish in the blur:
+      // their commits must not capture everything again.
+      if ((buffer->dst_width > 0 && buffer->dst_width <= 2) ||
+          (buffer->dst_height > 0 && buffer->dst_height <= 2))
+        return false;
       hash.add(node);
       hash.add(x);
       hash.add(y);
@@ -548,6 +567,31 @@ public:
     }
   }
 
+  // What made the last backdrop capture: the layer surfaces (by namespace) that
+  // drew something new since the capture before it (lunadashctl status, blurCause).
+  std::unordered_map<wlr_surface *, std::uint64_t> capturedRevisions;
+  std::string cause;
+
+  void noteCause() {
+    std::string changed;
+    for (const auto &[surface, watch] : watches) {
+      if (!watch->surface)
+        continue;
+      auto &seen = capturedRevisions[surface];
+      if (seen == watch->revision)
+        continue;
+      seen = watch->revision;
+      auto *layer = wlr_layer_surface_v1_try_from_wlr_surface(surface);
+      const std::string name =
+          layer && layer->namespace_ ? layer->namespace_ : "surface";
+      if (changed.find(name) == std::string::npos)
+        changed += (changed.empty() ? "" : ", ") + name;
+    }
+    std::erase_if(capturedRevisions,
+                  [this](const auto &item) { return !watches.contains(item.first); });
+    cause = changed.empty() ? "layout" : changed;
+  }
+
   // Captures again what lies below the window layer on this output when it
   // changed, at most every 33 ms (a wallpaper crossfade, say).
   void refresh(Backdrop &backdrop) {
@@ -587,6 +631,7 @@ public:
     wlr_buffer_drop(buffer);
     backdrop.revision = ++backdropRevision;
     ++frames;
+    noteCause();
   }
 
   // The output under the middle of `area`, else the first one.
@@ -764,5 +809,6 @@ bool WindowGlass::ready() const { return d->ready; }
 bool WindowGlass::failed() const { return d->failed; }
 std::uint64_t WindowGlass::frames() const { return d->frames; }
 std::string WindowGlass::error() const { return d->error; }
+std::string WindowGlass::cause() const { return d->cause; }
 
 } // namespace LunaDash

@@ -41,6 +41,9 @@ public:
   WindowCorners &operator=(const WindowCorners &) = delete;
 
   void update(const std::vector<Surface> &surfaces);
+  // Before a frame is drawn: band views of a client buffer that is already
+  // drawn skip their GPU waits (one check per buffer instead of a wait per band).
+  void settleWaits();
   int radius(wlr_scene_tree *tree) const;
 
 private:

@@ -333,14 +333,34 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
   const std::uint64_t nowNs = nanoseconds(now);
 
   const bool capturePending = updateCaptureCursor();
+  std::uint64_t stageStart = nowNs;
+  const auto stage = [this, &stageStart](std::size_t index) {
+    timespec at{};
+    clock_gettime(CLOCK_MONOTONIC, &at);
+    const std::uint64_t ns = nanoseconds(at);
+    auto &entry = frameStages[index];
+    entry.lastUsec = static_cast<std::int64_t>((ns - stageStart) / 1000ULL);
+    entry.maxUsec = std::max(entry.maxUsec, entry.lastUsec);
+    if (entry.lastUsec >= 4000)
+      ++entry.slow;
+    stageStart = ns;
+  };
   advanceAnimations(nowNs);
+  stage(0);
   impl->q->advanceOverview(nowNs + refreshPeriodNs());
+  stage(1);
   impl->updateWindowGlass();
+  stage(2);
   // Commits since the last frame reset zoomed windows to their own size.
   for (const auto &client : impl->q->clients_)
     applyClientContentScale(*client);
+  if (impl->windowCorners)
+    impl->windowCorners->settleWaits();
+  stage(3);
   commitScene();
+  stage(4);
   sendFrameDone(&now);
+  stage(5);
   // Animations and the overview's live previews redraw every frame.
   if ((impl->q->windowAnimations_ &&
        impl->q->windowAnimations_->activeCount() > 0) ||

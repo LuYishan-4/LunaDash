@@ -77,6 +77,15 @@ Json WaylandCompositor::debugSnapshot() const {
         {"slowFrames", state->slowFrames},
         {"lastFrameWorkUsec", state->lastFrameWorkUsec},
         {"maxFrameWorkUsec", state->maxFrameWorkUsec},
+        {"stages", [state] {
+           Json stages = Json::object();
+           for (std::size_t i = 0; i < std::size(state->frameStageNames); ++i)
+             stages[state->frameStageNames[i]] = {
+                 {"lastUsec", state->frameStages[i].lastUsec},
+                 {"maxUsec", state->frameStages[i].maxUsec},
+                 {"over4ms", state->frameStages[i].slow}};
+           return stages;
+         }()},
         {"softwareCursor", state->forceSoftwareCursor || state->softwareCursorLocked},
     });
   }

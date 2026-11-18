@@ -345,6 +345,7 @@ Json WaylandCompositor::state() const {
       {"blurFailed", glass && glass->failed()},
       {"blurFrames", static_cast<std::int64_t>(glass ? glass->frames() : 0)},
       {"blurError", glass ? glass->error() : std::string()},
+      {"blurCause", glass ? glass->cause() : std::string()},
       {"session", session_.describe()},
       {"activeAnimations",
        windowAnimations_ ? windowAnimations_->activeCount() : 0},

@@ -66,6 +66,8 @@ public:
   bool failed() const;
   std::uint64_t frames() const;
   std::string error() const;
+  // What the last shared backdrop capture redrew for (layer namespaces).
+  std::string cause() const;
 
 private:
   class Impl;

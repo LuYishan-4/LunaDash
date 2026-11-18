@@ -82,6 +82,16 @@ public:
     std::uint64_t slowFrames = 0;
     std::int64_t lastFrameWorkUsec = 0;
     std::int64_t maxFrameWorkUsec = 0;
+    // Where a frame's work goes (lunadashctl debug outputs): animations,
+    // overview, glass, content scale, scene commit, frame done.
+    struct FrameStage {
+      std::int64_t lastUsec = 0;
+      std::int64_t maxUsec = 0;
+      std::uint64_t slow = 0;
+    };
+    static constexpr const char *frameStageNames[] = {
+        "animations", "overview", "glass", "contentScale", "commit", "frameDone"};
+    FrameStage frameStages[std::size(frameStageNames)];
     ludash_night_color *nightColor = nullptr;
     int nightTemperature = 6500;
     std::string nightError;
