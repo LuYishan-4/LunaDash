@@ -28,7 +28,6 @@ struct Column {
 struct Workspace {
   std::vector<Column> columns;
   LayoutWindowId focused = 0;
-  LayoutWindowId maximized = 0;
   // Left edge of the view within the strip of columns.
   int scroll = 0;
   bool centerRequested = false;
@@ -169,8 +168,6 @@ bool ScrollingLayout::remove(LayoutWindowId window) {
   auto [workspaceId, workspace] = d->locate(window);
   if (!workspace)
     return false;
-  if (workspace->maximized == window)
-    workspace->maximized = 0;
   const auto location = find(*workspace, window);
   auto &members = workspace->columns[location.column].members;
   members.erase(members.begin() +
@@ -194,8 +191,6 @@ bool ScrollingLayout::setMinimized(LayoutWindowId window, bool minimized) {
   if (member.minimized == minimized)
     return true;
   member.minimized = minimized;
-  if (minimized && workspace->maximized == window)
-    workspace->maximized = 0;
   if (!minimized)
     workspace->focused = window;
   repairFocus(*workspace);
@@ -205,15 +200,8 @@ bool ScrollingLayout::setMinimized(LayoutWindowId window, bool minimized) {
 bool ScrollingLayout::setMaximized(LayoutWindowId window, bool maximized) {
   auto [workspaceId, workspace] = d->locate(window);
   (void)workspaceId;
-  if (!workspace)
-    return false;
-  if (maximized) {
-    workspace->maximized = window;
-    workspace->focused = window;
-  } else if (workspace->maximized == window) {
-    workspace->maximized = 0;
-  }
-  return true;
+  (void)maximized;
+  return workspace != nullptr;
 }
 
 bool ScrollingLayout::moveToWorkspace(LayoutWindowId window,
@@ -223,8 +211,6 @@ bool ScrollingLayout::moveToWorkspace(LayoutWindowId window,
     return false;
   if (sourceId == destinationId)
     return true;
-  if (source->maximized == window)
-    source->maximized = 0;
   const auto location = find(*source, window);
   auto &members = source->columns[location.column].members;
   const Member member = members[location.member];
@@ -517,15 +503,7 @@ std::vector<WindowPlacement> ScrollingLayout::layout(LayoutWorkspaceId workspace
 
 std::vector<WindowPlacement>
 ScrollingLayout::presentation(LayoutWorkspaceId workspaceId, Rect area) {
-  auto placements = layout(workspaceId, area);
-  const auto maximized = snapshot(workspaceId).maximizedWindow;
-  if (maximized)
-    for (auto &placement : placements) {
-      placement.hiddenByMaximize = placement.window != maximized;
-      if (placement.window == maximized)
-        placement.geometry = area;
-    }
-  return placements;
+  return layout(workspaceId, area);
 }
 
 WorkspaceLayoutSnapshot
@@ -537,7 +515,6 @@ ScrollingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
     return result;
   const auto &workspace = found->second;
   result.focusedWindow = workspace.focused;
-  result.maximizedWindow = workspace.maximized;
   for (std::size_t c = 0; c < workspace.columns.size(); ++c) {
     const auto &column = workspace.columns[c];
     Json members = Json::array();

@@ -1,0 +1,6 @@
+# xdg-desktop-portal-wlr reads this file only when XDG_CURRENT_DESKTOP is
+# LunaDash: screen sharing asks which screen or window through the LunaDash
+# shell (scripts/lunadash-screencast-chooser).
+[screencast]
+chooser_type=dmenu
+chooser_cmd=lunadash-screencast-chooser

@@ -45,9 +45,6 @@ WaylandCompositor::Impl::layerRectangle(const LayerState *state) {
 }
 
 bool WaylandCompositor::Impl::animatesLayer(const LayerState *state) const {
-  // The wallpaper does not animate. Neither does anything while a screenshot is taken: the
-  // region selector (slurp, namespace "selection") must vanish before grim captures, and a
-  // fading copy of a closed surface would end up in the image.
   return q->windowAnimations_ && state && state->surface && state->sceneLayer &&
          state->surface->current.layer != ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND &&
          !(state->surface->namespace_ &&
@@ -160,10 +157,6 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
                           !client->floating && !client->utility &&
                           !client->fullscreen && !client->maximized;
   if (client->layoutPending) {
-    // Use the real template membership, including other pending windows, so
-    // mapping the first buffer cannot insert the window a second time. A 0x0
-    // configure followed by tiling at map time reflows startup terminal output
-    // and needlessly rebuilds other clients' freshly drawn layouts.
     for (const auto &peer : q->clients_)
       if (peer.get() != client && peer->workspace == client->workspace &&
           !peer->floating && peer->maximized)

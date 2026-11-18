@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Screen-sharing source picker for xdg-desktop-portal-wlr (chooser_type=dmenu).
+#
+# xdpw writes one source per line on stdin ("Monitor: NAME DESCRIPTION",
+# "Window: TITLE (IDENTIFIER)") and shares the line printed on stdout; nothing
+# printed declines. The LunaDash shell shows the picker: its labels go to
+# Shared lists over SlintLu's IPC, Shell.request opens it, and the shell answers
+# by running `lunadash-screencast-chooser --answer FIFO INDEX|cancel`.
+# Without a running shell, slurp picks a monitor.
+set -u
+
+if [[ ${1:-} == --answer ]]; then
+    fifo=${2:-}
+    answer=${3:-cancel}
+    [[ -p $fifo && $answer =~ ^([0-9]+|cancel)$ ]] || exit 2
+    # The chooser may have given up already: never block on the pipe.
+    timeout 2 sh -c 'printf "%s\n" "$1" > "$2"' sh "$answer" "$fifo"
+    exit 0
+fi
+
+mapfile -t sources
+((${#sources[@]})) || exit 0
+
+slintlu=$(command -v slintlu || true)
+for candidate in /usr/libexec/lunadash/slintlu /usr/local/libexec/lunadash/slintlu; do
+    [[ -z $slintlu && -x $candidate ]] && slintlu=$candidate
+done
+
+json_string() {
+    local value=${1//\\/\\\\}
+    value=${value//\"/\\\"}
+    printf '"%s"' "${value//$'\t'/ }"
+}
+
+# One label and kind per source, in xdpw's order.
+labels=() kinds=()
+for line in "${sources[@]}"; do
+    case $line in
+    "Monitor: "*)
+        kinds+=(monitor)
+        labels+=("${line#Monitor: }")
+        ;;
+    "Window: "*)
+        kinds+=(window)
+        label=${line#Window: }
+        labels+=("${label% (*)}")
+        ;;
+    *)
+        kinds+=(other)
+        labels+=("$line")
+        ;;
+    esac
+done
+
+pick_with_shell() {
+    [[ -n $slintlu ]] && "$slintlu" msg ping >/dev/null 2>&1 || return 1
+    local dir fifo list answer
+    dir=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/lunadash-screencast.XXXXXX") || return 1
+    fifo=$dir/answer
+    mkfifo -m 600 "$fifo" || { rm -rf "$dir"; return 1; }
+    list='['
+    for index in "${!labels[@]}"; do
+        ((index)) && list+=','
+        list+=$(json_string "${labels[index]}")
+    done
+    list+=']'
+    "$slintlu" msg call Shared.set-list screencast-labels "$list" >/dev/null
+    list='['
+    for index in "${!kinds[@]}"; do
+        ((index)) && list+=','
+        list+=$(json_string "${kinds[index]}")
+    done
+    list+=']'
+    "$slintlu" msg call Shared.set-list screencast-kinds "$list" >/dev/null
+    "$slintlu" msg call Shell.request screencast "$(json_string "$fifo")" >/dev/null || {
+        rm -rf "$dir"
+        return 1
+    }
+    # Two minutes to choose; no answer declines.
+    answer=$(timeout 120 head -n 1 "$fifo" || true)
+    rm -rf "$dir"
+    [[ $answer =~ ^[0-9]+$ ]] && ((answer < ${#sources[@]})) && printf '%s\n' "${sources[answer]}"
+    return 0
+}
+
+pick_with_slurp() {
+    command -v slurp >/dev/null 2>&1 || return 1
+    local output
+    output=$(slurp -f '%o' -or) || return 0
+    for line in "${sources[@]}"; do
+        if [[ $line == "Monitor: $output" || $line == "Monitor: $output "* ]]; then
+            printf '%s\n' "$line"
+            return 0
+        fi
+    done
+    return 0
+}
+
+pick_with_shell || pick_with_slurp || true

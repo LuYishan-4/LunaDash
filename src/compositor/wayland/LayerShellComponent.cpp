@@ -9,7 +9,6 @@ bool WaylandCompositor::Impl::LayerShellComponent::start() {
   listen<&LayerShellComponent::onNewSurface>(
       &impl->layerShell->events.new_surface, newSurface);
 
-  // Optional: shells opt their layer surfaces into the scene blur with it.
   if (!BackgroundEffectManager::supported()) {
     logInfo("ext-background-effect-v1 needs wlroots 0.18 or newer; not offered.");
     return true;

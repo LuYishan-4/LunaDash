@@ -31,6 +31,9 @@ configure_file(
 install(TARGETS lunadash-portal RUNTIME DESTINATION ${CMAKE_INSTALL_LIBEXECDIR})
 install(FILES data/portal/lunadash.portal DESTINATION ${CMAKE_INSTALL_DATADIR}/xdg-desktop-portal/portals)
 install(FILES data/portal/lunadash-portals.conf DESTINATION ${CMAKE_INSTALL_DATADIR}/xdg-desktop-portal)
+# Screen sharing picks its source through the LunaDash shell.
+install(FILES data/portal/xdg-desktop-portal-wlr/LunaDash
+        DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xdg/xdg-desktop-portal-wlr)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.freedesktop.impl.portal.desktop.lunadash.service
         DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/services)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/xdg-desktop-portal-lunadash.service

@@ -1,6 +1,5 @@
 #include "compositor/wayland/IdleNotify.hpp"
 
-// C++ library headers must be parsed before the wlroots compatibility macros.
 #include <cstddef>
 #include <cstdlib>
 
