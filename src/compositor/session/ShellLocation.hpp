@@ -15,7 +15,7 @@ std::string locateSessionShell();
 std::string findSlintLu();
 
 // A LunaDash executable next to the compositor, preferring the lunadash- spelling over
-// the legacy ludash- one (for example "desktop" or "welcome").
+// the legacy ludash- one (for example "desktop").
 std::string bundledExecutable(const std::string &name);
 
 // The clipboard helper that publishes screenshots, from PATH or the source tree.

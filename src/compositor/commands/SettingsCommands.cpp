@@ -167,7 +167,8 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     std::string error;
     if (!setSetupComplete(false, &error))
       return commandError(error);
-    c.spawn({"--app", "welcome"});
+    // The shell's Welcome finishes setup again when it is closed.
+    c.requestShellAction("welcome");
     return {};
   });
 }

@@ -27,8 +27,6 @@ endif()
 #                                      Fetch with: scripts/fetch-slintlu.sh <dir>
 #
 # ----- Dependencies / rendering -----------------------------------------------
-#   LUDASH_SYSTEM_SLINT=ON|OFF         Use an installed Slint C++ package (default: OFF).
-#                                      OFF builds Slint from source and needs rustc + cargo.
 #   LUDASH_ENABLE_VULKAN=ON|OFF        Enable the wlroots Vulkan renderer when available (default: ON).
 #
 # ----- Debug ------------------------------------------------------------------
@@ -67,54 +65,6 @@ elseif(NOT EXISTS "${LUDASH_SHELL_SOURCE_DIR}/shell.slint")
         "LunaDash-Shell source is required. Run scripts/fetch-shell.sh <directory> and configure with -DLUDASH_SHELL_SOURCE_DIR=<directory>.")
 endif()
 
-# LunaDash-owned Wayland UI clients use Slint. Compile it from its pinned
-# source so backend selection is explicit and never picks Qt because Qt is
-# present on the build host.
-# Packagers may build Slint once (with the SLINT_FEATURE values below) and pass -DLUDASH_SYSTEM_SLINT=ON;
-# the Nix package does, so its binary cache keeps Slint across LunaDash changes.
-option(LUDASH_SYSTEM_SLINT "Use an installed Slint C++ package instead of building Slint" OFF)
-if(NOT LUDASH_SYSTEM_SLINT)
-    find_program(LUDASH_RUSTC rustc REQUIRED)
-    find_program(LUDASH_CARGO cargo REQUIRED)
-    execute_process(COMMAND "${LUDASH_RUSTC}" --version
-        OUTPUT_VARIABLE LUDASH_RUST_VERSION_TEXT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE LUDASH_RUST_VERSION_RESULT)
-    if(NOT LUDASH_RUST_VERSION_RESULT EQUAL 0 OR
-       NOT LUDASH_RUST_VERSION_TEXT MATCHES "rustc ([0-9]+\\.[0-9]+)")
-        message(FATAL_ERROR "Could not determine the Rust compiler version required by Slint")
-    endif()
-    if(CMAKE_MATCH_1 VERSION_LESS "1.92")
-        message(FATAL_ERROR "Slint requires Rust 1.92 or newer; found ${LUDASH_RUST_VERSION_TEXT}")
-    endif()
-endif()
-set(SLINT_FEATURE_BACKEND_QT OFF CACHE BOOL "Do not include Slint's Qt backend" FORCE)
-set(SLINT_FEATURE_BACKEND_WINIT OFF CACHE BOOL "Use only Slint's Wayland Winit backend" FORCE)
-set(SLINT_FEATURE_BACKEND_WINIT_WAYLAND ON CACHE BOOL "Enable Slint's Wayland client backend" FORCE)
-set(SLINT_FEATURE_BACKEND_WINIT_X11 OFF CACHE BOOL "Do not include Slint's X11 backend" FORCE)
-set(SLINT_FEATURE_RENDERER_FEMTOVG ON CACHE BOOL "Use Slint's OpenGL renderer" FORCE)
-set(SLINT_FEATURE_RENDERER_SOFTWARE OFF CACHE BOOL "Avoid a renderer with limited CJK text support" FORCE)
-set(SLINT_FEATURE_INTERPRETER OFF CACHE BOOL "Use ahead-of-time compiled Welcome UI" FORCE)
-set(SLINT_FEATURE_SYSTEM_TRAY OFF CACHE BOOL "Welcome does not use system tray icons" FORCE)
-set(SLINT_FEATURE_TESTING OFF CACHE BOOL "Disable Slint's runtime testing API" FORCE)
-if(LUDASH_SYSTEM_SLINT)
-    find_package(Slint 1.18 CONFIG REQUIRED)
-else()
-    include(FetchContent)
-    FetchContent_Declare(Slint
-        URL https://github.com/slint-ui/slint/archive/refs/tags/v1.18.1.tar.gz
-        URL_HASH SHA256=fe485305ed303215e76c04918ee9aefbffbe229f18f979098ec36c7fa1dab28b
-        ${LUDASH_FETCHCONTENT_TIMESTAMP}
-        SOURCE_SUBDIR api/cpp)
-    FetchContent_MakeAvailable(Slint)
-endif()
-get_target_property(LUDASH_SLINT_FEATURES Slint::Slint SLINT_ENABLED_FEATURES)
-if("BACKEND_QT" IN_LIST LUDASH_SLINT_FEATURES OR
-   NOT "BACKEND_WINIT_WAYLAND" IN_LIST LUDASH_SLINT_FEATURES)
-    message(FATAL_ERROR
-        "Slint UI targets require Winit Wayland and forbid the Qt backend")
-endif()
-
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashMain.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LunaDashSlintLu.cmake)
 
@@ -146,7 +96,7 @@ foreach(LUDASH_TARGET IN LISTS LUDASH_DIRECTORY_TARGETS)
 endforeach()
 
 foreach(LUDASH_RUNTIME_TARGET IN ITEMS
-        ludash-desktop ludash-welcome ludash-packages ludash-compositor
+        ludash-desktop ludash-compositor
         ludashctl
         lunadash-portal)
     if(TARGET ${LUDASH_RUNTIME_TARGET})

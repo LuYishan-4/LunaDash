@@ -60,7 +60,6 @@ CI only builds. Dev CI selects builds from the complete diff, Main CI and full r
 python3 scripts/check-source-layout.py
 python3 scripts/ci/check_shell_actions.py
 python3 scripts/security/check_repository_hygiene.py workflows   # also: secrets, paths
-python3 scripts/gen-ui-icons.py --check
 cmake -S . -B build -G Ninja && cmake --build build --parallel
 ```
 

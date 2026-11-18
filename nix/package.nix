@@ -1,44 +1,13 @@
 { lib, stdenv, runCommand, cmake, ninja, pkg-config, python3, makeWrapper
-, rustc, cargo, rustPlatform, corrosion
+, rustPlatform
 , nlohmann_json
 , wayland, wayland-protocols, wayland-scanner, wlroots_0_20
 , libxkbcommon, libGL, libglvnd, vulkan-headers, vulkan-loader, glib, libinput, pixman, libdrm, libxcb, libxcb-wm, systemd, dbus, pam
 , coreutils, bash, gnused, curl, gdk-pixbuf, xwayland, xdg-utils, wl-clipboard, grim, slurp
 , brightnessctl, ddcutil, wireplumber, pulseaudio, kdePackages, fontconfig, freetype
-, xdg-desktop-portal-wlr, revision ? "unknown", shellSource, slintSource, slintluSource
+, xdg-desktop-portal-wlr, revision ? "unknown", shellSource, slintluSource
 }:
 let
-  slintCargoDeps = rustPlatform.importCargoLock {
-    lockFile = "${slintSource}/Cargo.lock";
-  };
-  # Slint's C++ API with the features CMakeLists.txt requires. As its own derivation it is
-  # built once per Slint revision and then comes from the Nix store (and the CI cache).
-  slintCpp = stdenv.mkDerivation {
-    pname = "slint-cpp";
-    version = "1.18.1";
-    src = slintSource;
-    cmakeDir = "../api/cpp";
-    nativeBuildInputs = [ cmake ninja pkg-config rustc cargo rustPlatform.cargoSetupHook corrosion ];
-    cargoDeps = slintCargoDeps;
-    buildInputs = [ wayland libxkbcommon fontconfig freetype libGL ];
-    cmakeFlags = [
-      # Slint's CMake package joins its install prefix with these directories (to find
-      # slint-compiler and libslint_cpp.so); the absolute ones the Nix hook passes would
-      # repeat the prefix.
-      "-DCMAKE_INSTALL_BINDIR=bin"
-      "-DCMAKE_INSTALL_LIBDIR=lib"
-      "-DCMAKE_INSTALL_INCLUDEDIR=include"
-      "-DSLINT_FEATURE_BACKEND_QT=OFF"
-      "-DSLINT_FEATURE_BACKEND_WINIT=OFF"
-      "-DSLINT_FEATURE_BACKEND_WINIT_WAYLAND=ON"
-      "-DSLINT_FEATURE_BACKEND_WINIT_X11=OFF"
-      "-DSLINT_FEATURE_RENDERER_FEMTOVG=ON"
-      "-DSLINT_FEATURE_RENDERER_SOFTWARE=OFF"
-      "-DSLINT_FEATURE_INTERPRETER=OFF"
-      "-DSLINT_FEATURE_SYSTEM_TRAY=OFF"
-      "-DSLINT_FEATURE_TESTING=OFF"
-    ];
-  };
   # SlintLu, the shell runtime, at the revision in packaging/slintlu-revision. EGL and Vulkan
   # are loaded at runtime, so their loaders go on the library path.
   slintlu = rustPlatform.buildRustPackage {
@@ -72,7 +41,7 @@ stdenv.mkDerivation {
   };
 
   nativeBuildInputs = [ cmake ninja pkg-config python3 makeWrapper wayland-scanner ];
-  buildInputs = [ slintCpp
+  buildInputs = [
     fontconfig freetype
     vulkan-headers vulkan-loader wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
     # wlroots' xwayland.h includes xcb_ewmh.h (Qt used to bring it in).
@@ -82,7 +51,6 @@ stdenv.mkDerivation {
     "-DCMAKE_INSTALL_SYSCONFDIR=etc"
     "-DCMAKE_INSTALL_LIBEXECDIR=libexec"
     "-DLUDASH_SHELL_SOURCE_DIR=${shellSource}"
-    "-DLUDASH_SYSTEM_SLINT=ON"
   ];
   postPatch = ''
     printf '%s\n' '${revision}' > .lunadash-revision
@@ -109,7 +77,7 @@ stdenv.mkDerivation {
 
   passthru = {
     providedSessions = [ "lunadash" "ludash" ];
-    inherit slintlu slintCpp;
+    inherit slintlu;
   };
   meta = {
     description = "Development preview of the LunaDash Wayland desktop";

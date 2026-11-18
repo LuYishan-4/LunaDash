@@ -62,6 +62,9 @@ public:
   bool scheduleEventLoopCallback(int delayMilliseconds,
                                  std::function<void()> callback);
   void closeTestSession(const std::function<void(bool)> &finished);
+  // Asks the shell to open `action` (an overlay such as "welcome"); the shell
+  // sees it at its next status poll (compositor/session/ShellRequests.cpp).
+  void requestShellAction(std::string_view action);
 
   // Registration points. The compositor registers its built-ins at
   // construction; code built with the compositor adds its own entries here,
@@ -228,7 +231,6 @@ private:
 
   // Shell requests (compositor/session/ShellRequests.cpp).
   void setLauncherVisible(bool visible, bool publish = true);
-  void requestShellAction(std::string_view action);
   bool openSettingsPage(const std::string &page, std::string *error);
   bool openWallpaperPicker(std::string *error);
 

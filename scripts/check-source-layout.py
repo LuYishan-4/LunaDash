@@ -17,8 +17,6 @@ SHADER_SUFFIXES = {".vert", ".frag", ".geom", ".comp", ".tesc", ".tese", ".glsl"
 MAINS = {
     "compositor/Main.cpp",
     "desktop/Main.cpp",
-    "desktop/package/Main.cpp",
-    "desktop/welcome/Main.cpp",
     "ctl/Main.cpp",
     "service/portal/Main.cpp",
 }

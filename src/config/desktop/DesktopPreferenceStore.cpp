@@ -451,6 +451,8 @@ bool validDesktopPreference(std::string_view key, const Json &value) {
       if (!isString(app, 32))
         return false;
       const auto name = app.get<std::string>();
+      // "packages" and "welcome" (retired apps) stay valid so stored lists
+      // keep their other entries; session startup skips them.
       if ((name != "files" && name != "packages" && name != "welcome") ||
           std::find(seen.begin(), seen.end(), name) != seen.end())
         return false;

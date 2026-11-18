@@ -219,8 +219,6 @@ ProcessRunner *WaylandCompositor::spawn(
       program.empty() &&
       std::find(arguments.cbegin(), arguments.cend(), "--session") !=
           arguments.cend();
-  const bool welcome = arguments.size() >= 2 && arguments[0] == "--app" &&
-                       arguments[1] == "welcome";
   std::vector<std::string> nativeArguments;
   std::string executable = program;
   if (sessionShell) {
@@ -260,9 +258,8 @@ ProcessRunner *WaylandCompositor::spawn(
     nativeArguments = {"--config", shell};
   } else {
     if (executable.empty())
-      executable = bundledExecutable(welcome ? "welcome" : "desktop");
-    if (!welcome)
-      nativeArguments = arguments;
+      executable = bundledExecutable("desktop");
+    nativeArguments = arguments;
   }
 
   if (executable.empty()) {

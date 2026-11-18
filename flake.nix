@@ -16,13 +16,9 @@
         url = "https://github.com/LunaDashWM/SlintLu.git";
         rev = builtins.substring 0 40 (builtins.readFile ./packaging/slintlu-revision);
       };
-      slintSource = builtins.fetchGit {
-        url = "https://github.com/slint-ui/slint.git";
-        rev = "372cf0ee5577c3dfec309a45e7b778ba4e81b734";
-      };
       packageFor = pkgs: pkgs.callPackage ./nix/package.nix {
         revision = self.rev or self.dirtyRev or "unknown";
-        inherit shellSource slintSource slintluSource;
+        inherit shellSource slintluSource;
       };
     in {
       overlays.default = final: prev: { lunadash = packageFor final; };

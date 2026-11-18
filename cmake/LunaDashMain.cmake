@@ -224,47 +224,6 @@ add_library(ludash-default-applications src/desktop/app/DefaultApplications.cpp 
 target_include_directories(ludash-default-applications PUBLIC src)
 target_link_libraries(ludash-default-applications
     PUBLIC ludash-executable-lookup nlohmann_json::nlohmann_json)
-# The desktop's font for LunaDash's own Slint windows.
-add_library(ludash-interface-font src/desktop/theme/InterfaceFont.cpp)
-target_include_directories(ludash-interface-font PUBLIC src)
-target_link_libraries(ludash-interface-font
-    PUBLIC ludash-desktop-preferences PRIVATE PkgConfig::LUDASH_GIO)
-add_library(ludash-package-policy src/desktop/package/PackageManager.cpp)
-target_include_directories(ludash-package-policy PUBLIC src)
-add_executable(ludash-welcome
-    src/desktop/welcome/Main.cpp
-    src/desktop/welcome/WelcomeApplication.hpp
-    src/desktop/welcome/WelcomeApplication.cpp)
-target_include_directories(ludash-welcome PRIVATE src)
-target_link_libraries(ludash-welcome PRIVATE Slint::Slint ludash-interface-font nlohmann_json::nlohmann_json)
-slint_target_sources(ludash-welcome src/desktop/welcome/Welcome.slint)
-set_target_properties(ludash-welcome PROPERTIES OUTPUT_NAME lunadash-welcome)
-add_custom_command(TARGET ludash-welcome POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E create_symlink
-        $<TARGET_FILE_NAME:ludash-welcome>
-        ${CMAKE_CURRENT_BINARY_DIR}/ludash-welcome)
-add_executable(ludash-packages
-    src/desktop/package/Main.cpp
-    src/desktop/package/PackageManagerApplication.hpp
-    src/desktop/package/PackageManagerApplication.cpp)
-target_include_directories(ludash-packages PRIVATE src)
-target_link_libraries(ludash-packages PRIVATE
-    Slint::Slint ludash-interface-font ludash-package-policy ludash-default-applications
-    ludash-executable-lookup
-    ludash-desktop-preferences ludash-appearance-palette
-    PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
-slint_target_sources(ludash-packages
-    src/desktop/package/PackageManager.slint)
-set_target_properties(ludash-packages PROPERTIES
-    OUTPUT_NAME lunadash-packages)
-add_custom_command(TARGET ludash-packages POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E create_symlink
-        $<TARGET_FILE_NAME:ludash-packages>
-        ${CMAKE_CURRENT_BINARY_DIR}/ludash-packages)
-# LunaDash's Slint windows compile their icons (data/icons) into the executable, so an
-# installation never refers back to the source tree.
-set_target_properties(ludash-welcome ludash-packages
-    PROPERTIES SLINT_EMBED_RESOURCES embed-files)
 # wlroots public layer-shell headers include the scanner-generated
 # protocol declaration. Some distributions do not install that generated
 # header with libwlroots-dev, so generate declarations locally without
@@ -505,7 +464,6 @@ target_compile_options(ludash-wayland PRIVATE -Wall -Wextra -Wpedantic)
 add_executable(ludash-desktop src/desktop/Main.cpp src/desktop/app/DesktopApplication.cpp)
 target_include_directories(ludash-desktop PRIVATE src)
 target_link_libraries(ludash-desktop PRIVATE ludash-default-applications)
-add_dependencies(ludash-desktop ludash-welcome ludash-packages)
 set_target_properties(ludash-desktop PROPERTIES
     OUTPUT_NAME lunadash-desktop)
 add_custom_command(TARGET ludash-desktop POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-desktop> ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop)
@@ -525,8 +483,8 @@ add_custom_command(TARGET ludashctl POST_BUILD COMMAND ${CMAKE_COMMAND} -E creat
 include(${CMAKE_CURRENT_LIST_DIR}/modules/Plugins.cmake)
 configure_file(data/lunadash.desktop.in lunadash.desktop @ONLY)
 configure_file(data/lunadash-app.desktop.in lunadash-app.desktop @ONLY)
-install(TARGETS ludash-desktop ludash-welcome ludash-packages ludash-compositor ludashctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop ${CMAKE_CURRENT_BINARY_DIR}/ludash-welcome ${CMAKE_CURRENT_BINARY_DIR}/ludash-packages ${CMAKE_CURRENT_BINARY_DIR}/ludash-compositor ${CMAKE_CURRENT_BINARY_DIR}/ludashctl DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS ludash-desktop ludash-compositor ludashctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop ${CMAKE_CURRENT_BINARY_DIR}/ludash-compositor ${CMAKE_CURRENT_BINARY_DIR}/ludashctl DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(PROGRAMS scripts/lunadash-session scripts/ludash-session scripts/lunadash-clipboard-history DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash-app.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)

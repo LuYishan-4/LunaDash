@@ -9,6 +9,18 @@ if(LUDASH_SLINTLU_SOURCE_DIR)
         message(FATAL_ERROR "LUDASH_SLINTLU_SOURCE_DIR does not contain Cargo.toml: ${LUDASH_SLINTLU_SOURCE_DIR}")
     endif()
     find_program(LUDASH_CARGO cargo REQUIRED)
+    find_program(LUDASH_RUSTC rustc REQUIRED)
+    execute_process(COMMAND "${LUDASH_RUSTC}" --version
+        OUTPUT_VARIABLE LUDASH_RUST_VERSION_TEXT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE LUDASH_RUST_VERSION_RESULT)
+    if(NOT LUDASH_RUST_VERSION_RESULT EQUAL 0 OR
+       NOT LUDASH_RUST_VERSION_TEXT MATCHES "rustc ([0-9]+\\.[0-9]+)")
+        message(FATAL_ERROR "Could not determine the Rust compiler version required by SlintLu")
+    endif()
+    if(CMAKE_MATCH_1 VERSION_LESS "1.92")
+        message(FATAL_ERROR "SlintLu (Slint) requires Rust 1.92 or newer; found ${LUDASH_RUST_VERSION_TEXT}")
+    endif()
     set(LUDASH_SLINTLU_TARGET_DIR "${CMAKE_CURRENT_BINARY_DIR}/slintlu")
     set(LUDASH_SLINTLU_BINARY "${LUDASH_SLINTLU_TARGET_DIR}/release/slintlu")
     # Cargo tracks its own inputs; always ask it, it returns quickly when nothing changed.

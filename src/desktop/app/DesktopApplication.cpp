@@ -69,7 +69,7 @@ int execSibling(const std::filesystem::path &directory,
 }
 
 void printUsage() {
-  std::puts("Usage: lunadash-desktop [--app welcome|settings|plugins|files|packages] [--path folder]");
+  std::puts("Usage: lunadash-desktop [--app settings|plugins|files] [--path folder]");
   std::puts("Without --app, start the LunaDash Wayland compositor.");
 }
 
@@ -125,10 +125,6 @@ int DesktopApplication::run(int argc, char **argv) {
       return execSibling(directory, "lunadash-compositor");
     return execSibling(directory, "ludash-compositor");
   }
-  if (app == "welcome")
-    return execSibling(directory, "lunadash-welcome", forwarded);
-  if (app == "packages")
-    return execSibling(directory, "lunadash-packages", forwarded);
   if (app == "settings" || app == "plugins") {
     std::vector<std::string> command{
         (directory / "lunadashctl").string(), "open-settings",
