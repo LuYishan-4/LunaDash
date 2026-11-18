@@ -3,7 +3,9 @@
 
 #include <algorithm>
 #include <array>
+#include <mutex>
 #include <string_view>
+#include <unordered_map>
 
 #if LUDASH_HAS_XKBREGISTRY
 #include <xkbcommon/xkbregistry.h>
@@ -47,8 +49,17 @@ std::string validatedLayout(std::string_view requested) {
 } // namespace
 
 std::string keyboardLayoutPreference(const std::string &requested) {
-  return validatedLayout(requested.empty() ? std::string_view("us")
-                                           : std::string_view(requested));
+  // Validating parses the whole XKB rules registry (~10 ms) and every status
+  // reply asks: remember each answer. The installed layouts do not change
+  // while the session runs.
+  static std::mutex mutex;
+  static std::unordered_map<std::string, std::string> known;
+  const std::string key = requested.empty() ? std::string("us") : requested;
+  std::lock_guard lock(mutex);
+  const auto found = known.find(key);
+  if (found != known.end())
+    return found->second;
+  return known.emplace(key, validatedLayout(key)).first->second;
 }
 
 int keyboardRepeatRate() { return 25; }

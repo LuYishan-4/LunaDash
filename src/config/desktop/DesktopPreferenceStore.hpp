@@ -23,6 +23,9 @@ Size virtualOutputSize(const nlohmann::json &preferences);
 // The sizes desktop-size and the nested Settings → Display modes offer.
 std::vector<Size> virtualOutputSizes(const nlohmann::json &preferences);
 nlohmann::json loadDesktopPreferences();
+// Changes whenever the stored preferences file does (written by any process),
+// so results derived from it can be cached; 0 while there is no usable file.
+std::uint64_t desktopPreferenceStoreGeneration();
 bool saveDesktopPreferences(const nlohmann::json &changes, std::string *error);
 bool resetDesktopPreferences(std::string *error);
 bool hasStoredDesktopPreferences();

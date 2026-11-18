@@ -21,9 +21,6 @@ int WaylandCompositor::Impl::runEventLoop(bool profile) {
   const int eventLoopFd = wl_event_loop_get_fd(eventLoop);
   if (eventLoopFd < 0)
     return 2;
-  // Desktop services use GIO (file monitors, D-Bus and async I/O). Drive the
-  // default GLib context from the same poll so those sources run on the
-  // compositor thread without a second event loop or toolkit dispatcher.
   GMainContext *context = g_main_context_default();
   const bool ownsContext = g_main_context_acquire(context);
   std::vector<GPollFD> glibDescriptors(16);
@@ -151,7 +148,6 @@ bool WaylandCompositor::Impl::scheduleCallback(
   entry->source =
       Templates::addTimer<&ScheduledCallback::onTimer>(eventLoop, entry);
   if (!entry->source ||
-      // A zero delay disarms a wl_event_loop timer; dispatch "now" as 1 ms.
       wl_event_source_timer_update(entry->source,
                                    std::max(1, delayMilliseconds)) < 0) {
     if (entry->source)
@@ -183,7 +179,7 @@ void WaylandCompositor::Impl::ScheduledCallback::onTimer() {
   if (self != pending.end()) {
     if (source)
       wl_event_source_remove(source);
-    pending.erase(self); // `this` is gone from here on.
+    pending.erase(self);
   }
   if (run)
     run();

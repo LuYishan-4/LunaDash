@@ -9,7 +9,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <span>
 #include <string>
@@ -508,18 +510,39 @@ Json loadWindowLayoutSettings(std::string_view templateKey,
 }
 
 void ensureLegacyDesktopSettingsImported() {
-  const auto settings = readLegacySettings();
-  importLegacySettings(settings.get());
+  // Once both parts are stored there is nothing left to import; the legacy
+  // file is then never read again.
+  static std::atomic_bool imported{false};
+  if (imported.load(std::memory_order_acquire))
+    return;
+  if (!hasStoredDesktopPreferences() || !hasStoredWallpaperSettings()) {
+    const auto settings = readLegacySettings();
+    importLegacySettings(settings.get());
+  }
+  if (hasStoredDesktopPreferences() && hasStoredWallpaperSettings())
+    imported.store(true, std::memory_order_release);
 }
 
 Json desktopPreferences() {
   ensureLegacyDesktopSettingsImported();
+  // Validating and merging the store is redone only when the file changed.
+  static std::mutex mutex;
+  static std::uint64_t cachedGeneration = 0;
+  static Json cached;
+  const auto generation = desktopPreferenceStoreGeneration();
+  std::lock_guard lock(mutex);
+  if (generation != 0 && generation == cachedGeneration)
+    return cached;
   auto result = loadDesktopPreferences();
   const auto wallpaper = loadWallpaperSettings();
   result["wallpaperHistory"] =
       wallpaper.value("history", Json::array());
   result["wallpaperRevision"] =
       wallpaper.value("revision", std::uint64_t{0});
+  // Built from a store at least as new as `generation`; a newer one only
+  // makes the next call rebuild.
+  cached = result;
+  cachedGeneration = generation;
   return result;
 }
 

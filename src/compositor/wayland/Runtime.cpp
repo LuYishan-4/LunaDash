@@ -29,9 +29,6 @@ bool WaylandCompositor::Impl::createRuntime() {
   if (!renderer)
     return fail("wlroots could not create a renderer.");
 #if WLR_VERSION_MINOR >= 20
-  // Keep ownership of linux-dmabuf so the scene graph can publish
-  // per-surface feedback. Modern Chromium/Electron clients use that feedback
-  // to choose importable modifiers instead of guessing from a global list.
   if (!wlr_renderer_init_wl_shm(renderer, display))
     return fail("wlroots could not initialize shared-memory formats.");
 #else

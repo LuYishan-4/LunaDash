@@ -15,8 +15,10 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <mutex>
 #include <string_view>
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
 #include <vector>
@@ -138,15 +140,10 @@ Json emptyStore() {
           {"displays", Json::object()}};
 }
 
-Json readStore() {
+constexpr off_t kMaximumStoreBytes = 1024 * 1024;
+
+Json parseStoreFile(const fs::path &path) {
   auto result = emptyStore();
-  const auto path = preferencesFilePath();
-  if (path.empty())
-    return result;
-  std::error_code error;
-  const auto size = fs::file_size(path, error);
-  if (error || size > 1024 * 1024)
-    return result;
   std::ifstream input(path, std::ios::binary);
   if (!input)
     return result;
@@ -184,6 +181,73 @@ Json readStore() {
   } catch (const Json::exception &) {
   }
   return result;
+}
+
+// The parsed store, reused while the file stays the same. The compositor reads
+// preferences many times per layout pass; parsing the file each time cost
+// ~0.4 ms a call. writeStore replaces the file by rename, so a write from any
+// process gives it a new inode; an in-place edit changes its size or mtime.
+struct StoreCache {
+  std::mutex mutex;
+  bool valid = false;
+  dev_t device = 0;
+  ino_t inode = 0;
+  off_t size = 0;
+  timespec modified{};
+  // Bumped whenever the file is parsed again (desktopPreferenceStoreGeneration).
+  std::uint64_t generation = 0;
+  Json store;
+};
+
+StoreCache &storeCache() {
+  static StoreCache cache;
+  return cache;
+}
+
+// The store file's identity, or false when there is no usable file.
+bool statStore(const fs::path &path, struct stat *status) {
+  return !path.empty() && ::stat(path.c_str(), status) == 0 &&
+         S_ISREG(status->st_mode) && status->st_size <= kMaximumStoreBytes;
+}
+
+bool cacheMatches(const StoreCache &cache, const struct stat &status) {
+  return cache.valid && cache.device == status.st_dev &&
+         cache.inode == status.st_ino && cache.size == status.st_size &&
+         cache.modified.tv_sec == status.st_mtim.tv_sec &&
+         cache.modified.tv_nsec == status.st_mtim.tv_nsec;
+}
+
+// Parses the file again unless the cache matches it. Requires cache.mutex.
+// A file replaced between stat and parse is tagged with the older identity,
+// so the next call parses it again: the cache never keeps stale contents.
+void refreshStoreCache(StoreCache &cache, const fs::path &path,
+                       const struct stat &status) {
+  if (cacheMatches(cache, status))
+    return;
+  cache.store = parseStoreFile(path);
+  cache.device = status.st_dev;
+  cache.inode = status.st_ino;
+  cache.size = status.st_size;
+  cache.modified = status.st_mtim;
+  cache.valid = true;
+  ++cache.generation;
+}
+
+Json readStore() {
+  const auto path = preferencesFilePath();
+  struct stat status{};
+  if (!statStore(path, &status))
+    return emptyStore();
+  auto &cache = storeCache();
+  std::lock_guard lock(cache.mutex);
+  refreshStoreCache(cache, path, status);
+  return cache.store;
+}
+
+void invalidateStoreCache() {
+  auto &cache = storeCache();
+  std::lock_guard lock(cache.mutex);
+  cache.valid = false;
 }
 
 void setError(std::string *error, std::string message) {
@@ -235,6 +299,8 @@ bool writeStore(const Json &store, std::string *error) {
   success = success && closeResult == 0;
   if (success)
     success = ::rename(temporary.c_str(), path.c_str()) == 0;
+  // Even a write that failed may have replaced the file.
+  invalidateStoreCache();
   if (!success) {
     ::unlink(temporary.c_str());
     setError(error, "Could not atomically save desktop preferences.");
@@ -550,6 +616,17 @@ bool integerWithin(const Json &value, std::int64_t minimum,
 }
 
 } // namespace
+
+std::uint64_t desktopPreferenceStoreGeneration() {
+  const auto path = preferencesFilePath();
+  struct stat status{};
+  if (!statStore(path, &status))
+    return 0;
+  auto &cache = storeCache();
+  std::lock_guard lock(cache.mutex);
+  refreshStoreCache(cache, path, status);
+  return cache.generation;
+}
 
 Json defaultDesktopPreferenceValues() {
   return {
