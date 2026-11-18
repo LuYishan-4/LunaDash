@@ -8,3 +8,4 @@
 /build-*/
 /codeql-results/
 __pycache__/
+.AGENTS.md
