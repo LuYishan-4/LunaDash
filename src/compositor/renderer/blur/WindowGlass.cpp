@@ -317,7 +317,6 @@ public:
   Templates::WaylandSlot<Impl> rootDestroy;
   std::unordered_map<wlr_scene_tree *, std::unique_ptr<Entry>> entries;
   std::unordered_map<wlr_surface *, std::unique_ptr<SurfaceWatch>> watches;
-  std::unordered_map<wlr_scene_tree *, float> steadyOpacity;
   bool enabled = true;
   std::uint64_t sceneRevision = 1;
   int radius = 18;
@@ -338,7 +337,6 @@ public:
     entries.clear();
     backdrops.clear();
     watches.clear();
-    steadyOpacity.clear();
     root = nullptr;
     windowLayer = nullptr;
   }
@@ -349,7 +347,6 @@ public:
     entries.clear();
     backdrops.clear();
     watches.clear();
-    steadyOpacity.clear();
     ludash_scene_backdrop_finish();
   }
 
@@ -682,29 +679,21 @@ void WindowGlass::update(const std::vector<Surface> &surfaces,
   if (!d->root)
     return;
   std::unordered_set<wlr_scene_tree *> active;
-  std::unordered_set<wlr_scene_tree *> opacityActive;
   for (const auto &surface : surfaces) {
     auto *tree = surface.tree;
     if (!tree)
       continue;
-    opacityActive.insert(tree);
-    // Animation owns temporary alpha. Cache the steady-state value so a
-    // 100/144 Hz output does not traverse every browser/Electron subsurface
-    // on every frame when opacity has not changed.
-    if (animationsActive) {
-      d->steadyOpacity.erase(tree);
-    } else {
-      const float opacity = surface.enabled
-                                ? (surface.opacity >= 0.0f
-                                       ? std::clamp(surface.opacity, 0.0f, 1.0f)
-                                       : d->opacity)
-                                : 1.0f;
-      const auto applied = d->steadyOpacity.find(tree);
-      if (applied == d->steadyOpacity.end() || applied->second != opacity) {
-        float value = opacity;
-        wlr_scene_node_for_each_buffer(&tree->node, setWindowOpacity, &value);
-        d->steadyOpacity[tree] = opacity;
-      }
+    // Animation owns temporary alpha. Otherwise every buffer of the window
+    // gets the window opacity on every frame: rounded corners recreate their
+    // views and clients add subsurfaces at any time, and a value applied once
+    // would leave those new buffers opaque. An unchanged value costs nothing.
+    if (!animationsActive) {
+      float value = surface.enabled
+                        ? (surface.opacity >= 0.0f
+                               ? std::clamp(surface.opacity, 0.0f, 1.0f)
+                               : d->opacity)
+                        : 1.0f;
+      wlr_scene_node_for_each_buffer(&tree->node, setWindowOpacity, &value);
     }
     int x = 0, y = 0;
     if (!d->enabled || d->radius == 0 || !surface.enabled ||
@@ -754,9 +743,6 @@ void WindowGlass::update(const std::vector<Surface> &surfaces,
   }
   std::erase_if(d->entries, [&active](const auto &item) {
     return !active.contains(item.first) || !item.second->tree;
-  });
-  std::erase_if(d->steadyOpacity, [&opacityActive](const auto &item) {
-    return !opacityActive.contains(item.first);
   });
   std::erase_if(d->watches,
                 [](const auto &item) { return !item.second->surface; });
