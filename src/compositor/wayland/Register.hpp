@@ -364,6 +364,7 @@ public:
   wlr_scene_tree *fullscreenLayer = nullptr;
   wlr_scene_tree *overlayLayer = nullptr;
   wlr_scene_rect *background = nullptr;
+  static constexpr float backgroundColor[4] = {0.043f, 0.067f, 0.078f, 1.0f};
   wlr_output *primaryOutput = nullptr;
   wlr_output *pendingDisplay = nullptr;
   wlr_output_state previousDisplay{};

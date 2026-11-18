@@ -30,11 +30,9 @@ bool screencopyPendingForOutput(wlr_screencopy_manager_v1 *manager,
   return false;
 }
 
-// LunaDash-Shell's surface cards share one radius (its Style.radius).
 constexpr int kShellSurfaceRadius = 24;
 
-// A layer stretched over its whole output gets square corners: a rounded blur
-// would leave the screen corners sharp. Anything smaller is a surface card.
+
 int layerBlurRadius(const wlr_layer_surface_v1 &layer) {
   constexpr std::uint32_t edges =
       ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
@@ -121,7 +119,7 @@ Json WaylandCompositor::Impl::displaySnapshot() const {
       {"nested", nested},
       {"fullscreen", options().fullscreen}};
 }
-
+//debug info
 int WaylandCompositor::Impl::mappedLayerCount() const {
   int count = 0;
   for (const auto *layer : layers)
@@ -133,11 +131,12 @@ int WaylandCompositor::Impl::mappedLayerCount() const {
 void WaylandCompositor::Impl::updateBackground() {
   if (!background)
     return;
-  const Size size = outputSize();
-  wlr_scene_rect_set_size(background, size.width(), size.height());
-  // Neutral fallback while the shell's startup surface and wallpaper map.
-  const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
-  wlr_scene_rect_set_color(background, color);
+  wlr_box box{};
+  wlr_output_layout_get_box(outputLayout, nullptr, &box);
+  if (wlr_box_empty(&box))
+    box = {0, 0, virtualOutputSize.width(), virtualOutputSize.height()};
+  wlr_scene_node_set_position(&background->node, box.x, box.y);
+  wlr_scene_rect_set_size(background, box.width, box.height);
 }
 
 void WaylandCompositor::Impl::updateWindowCorners() {
@@ -156,8 +155,6 @@ void WaylandCompositor::Impl::updateWindowCorners() {
       wlr_xdg_surface_get_geometry(client->surface, &geometry);
 #endif
     }
-    // In surface coordinates: a zoomed window's bands are scaled with its
-    // buffers afterwards.
     const Size logical = clientLogicalSize(*client, client->geometry.size());
     surfaces.push_back({client->sceneTree, client->sceneContent, client->wlSurface,
                      {logical.width(), logical.height()},

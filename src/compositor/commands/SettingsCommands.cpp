@@ -119,7 +119,6 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     }
     if (c.d) {
       c.d->loadOutputSizePreferences();
-      c.d->updateBackground();
       c.d->updateNightLight();
     }
     c.arrange();

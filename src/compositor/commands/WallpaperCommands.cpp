@@ -94,8 +94,6 @@ void CompositorCommands::registerWallpaperCommands(CommandRegistry &registry) {
     std::string error;
     if (!saveWallpaperSettings({{"shader", *shader}, {"mode", "shader"}}, &error))
       return commandError(error);
-    if (c.d)
-      c.d->updateBackground();
     return {};
   });
 }

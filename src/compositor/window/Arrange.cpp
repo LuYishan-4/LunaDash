@@ -323,7 +323,6 @@ void WaylandCompositor::arrange() {
       !focused_->minimized && focused_->workspace == workspace_)
     raiseWithDialogs(focused_);
 
-  d->updateBackground();
   d->updateWindowCorners();
   publishWindowLayout();
 }

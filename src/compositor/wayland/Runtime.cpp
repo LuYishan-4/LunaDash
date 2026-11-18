@@ -105,9 +105,8 @@ bool WaylandCompositor::Impl::createRuntime() {
   // OVERLAY stays above it for OSD/recorder overlays and selectors.
   fullscreenLayer = wlr_scene_tree_create(&scene->tree);
   overlayLayer = wlr_scene_tree_create(&scene->tree);
-  const float color[4] = {0.043f, 0.067f, 0.078f, 1.0f};
   background = wlr_scene_rect_create(backgroundLayer, virtualOutputSize.width(),
-                                     virtualOutputSize.height(), color);
+                                     virtualOutputSize.height(), backgroundColor);
   windowGlass =
       std::make_unique<WindowGlass>(renderer, allocator, &scene->tree.node);
   windowCorners = std::make_unique<WindowCorners>();
