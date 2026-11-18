@@ -20,18 +20,6 @@ Use `[Source]`, `[Script]` and `[Other]`, in that order, for every change type t
 
 The summary must describe the final change for someone who has not read the discussion. Titles such as `Dev`, `Update`, `Fix bugs` or `[Source] Fix` are not accepted. If later commits change what the PR does or which types it touches, update the title.
 
-## Change type
-
-Every PR must check the change types that its diff contains, across all commits. Check every type that applies, and only those. The type is decided by the path of each changed file:
-
-| Type | Paths |
-| --- | --- |
-| **Source** | `src/` (C++, C, Slint and shaders), `protocols/`, `CMakeLists.txt` and `cmake/` |
-| **Script** | `scripts/` (including `scripts/ci/`, `scripts/security/`, `scripts/site/` and session helpers such as `lunadash-session`) and `install.sh` |
-| **Other** | Everything else: `docs/`, `README.md`, `AGENTS.md`, `data/` (themes, icons, wallpapers, session and portal files), `packaging/` (including `shell-revision` and `slintlu-revision`), `nix/`, `flake.nix`, `flake.lock`, `.github/`, and tool configuration such as `.clang-format`. List the changed files in the PR description. |
-
-Reviewers compare the checked types and the title tags with the full diff. If they do not match, for example a type is checked that the diff does not touch, or the diff touches a type that is not checked, the reviewer will ask you to correct the checkboxes and the title. Review continues, and the PR can be merged, only after they match. When you push commits that change the scope, update the checkboxes and the title yourself.
-
 ## AI assistance disclosure
 
 Every PR must state honestly whether AI tools helped produce it. This covers chat assistants, coding agents that edit files, run commands or open pull requests, and AI code completion, whenever they generated or changed any part of the PR: code, scripts, tests, documentation, translations, commit messages, or the PR description itself. Conventional spell checkers, formatters and linters that do not generate content do not need to be listed.
@@ -92,32 +80,5 @@ The `PR policy gate` (`.github/workflows/pr-gate.yml`, `scripts/ci/check_pr_poli
 
 `main` is the release branch, and contributors never target it. Maintainers promote `dev` to `main` and handle release integration; before promoting, they run the checks above and a full build on the promotion commit. See [pull requests and releases](docs/en/RELEASE_PROCESS.md).
 
-## Documentation and website
-
-Documentation and website updates are **not mandatory for every pull request**. Add them when the change alters public behavior, user-facing configuration, installation steps, compatibility requirements, APIs, plugin contracts, or other information users need to understand.
-
-Technical documentation belongs in `docs/en/` and its Traditional Chinese translation in `docs/zh/`. Keep matching filenames in both language directories when those documents are updated. Root `docs/*.md` files stay small English forwarding pages. `docs/en/`, root documentation and the PR template must stay English. Shared screenshots/branding stay under `docs/image/` and `docs/brand/`. Public-facing summaries, guides, API changes, screenshots, navigation, or release-facing copy belong in LunaDash-docs. Commit website changes there; the website is not checked out inside LunaDash and has no root revision pointer.
-
-README translations live in `docs/readme/`: Traditional Chinese (`README.zh-TW.md`), Simplified Chinese (`README.zh-CN.md`) and Japanese (`README.ja.md`). When README content is changed, use the Traditional Chinese README as the content reference and synchronize the root English README, Simplified Chinese and Japanese editions with it.
-
-Do not make empty, unrelated, or mechanical documentation/website edits just to satisfy CI.
-
-## Release notes
-
-GitHub Release Markdown is the source of truth for release notes. Describe release impact in the PR body; do not edit the generated website release Markdown or index. The Pages deployment workflow (`.github/workflows/site-pages.yml`) runs `scripts/site/sync-releases.py`, writes each published release body as `LunaDash-docs/src/pages/releases/<tag>.md` and regenerates `LunaDash-docs/src/data/releases.json` in its deployment workspace. Release events trigger this workflow, but deployment must also satisfy the `github-pages` environment rules. If a release tag is blocked, maintainers can run the workflow from the permitted `main` branch. Verify the deployment and the live release page before reporting that the website is updated; do not bypass environment protections or hand-edit generated release files.
-
-See [pull requests and releases](docs/en/RELEASE_PROCESS.md) for the release-note format and automation details.
-
-## Native architecture
-
-Follow [the source architecture](docs/en/ARCHITECTURE.md) and [`AGENTS.md`](AGENTS.md):
-
-- C++20 with a C11 rendering core. C core functions use the `ludash_` prefix, and all project C++ types and functions live in the `LunaDash` namespace (except `main`).
-- Lowercase source domains, PascalCase `.hpp`/`.cpp` files, source-root project includes, small domain-local `Main.cpp` entry points, and every source listed explicitly in CMake.
-- The compositor and built-in desktop services use wlroots and standard Wayland protocols and do not link Qt. LunaDash-owned built-in UI uses Slint.
-- Raw OpenGL code and built-in shaders stay under `src/compositor/renderer/opengl/`; shaders are embedded through CMake.
-- Shell behavior changes belong in LunaDash-Shell and missing shell runtime features in SlintLu; then update the pinned revision. The former Quickshell/QML shell is no longer supported.
-- Source text stays English; application UI translation catalogs are not shipped in this repository.
-- Native plugins stay disabled by default. Plugin metadata is validation, not a sandbox.
 
 Run `python3 scripts/check-source-layout.py` after changing native source layout or build lists. Preserve remote `dev` behavior when resolving a structural move.
