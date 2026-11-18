@@ -327,6 +327,18 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     }
     return true;
   }
+  // Tiled: the window follows the pointer above the others; dropped, it
+  // springs into its (possibly new) slot.
+  if (client->sceneTree) {
+    if (!pointerFollowing) {
+      if (q->windowAnimations_)
+        q->windowAnimations_->cancel(client->sceneTree);
+      q->raiseWithDialogs(client);
+      pointerFollowing = true;
+    }
+    auto &node = client->sceneTree->node;
+    wlr_scene_node_set_position(&node, node.x + delta.x(), node.y + delta.y());
+  }
   updateSwapTarget();
   return true;
 }
@@ -373,7 +385,7 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
       performWindowLayoutAction(*q->windowLayout_, *q->windowTemplate_, "swap",
                                 {{"window", moving}, {"target", target}});
   }
-  pointerResize = pointerClientGrab = false;
+  pointerResize = pointerClientGrab = pointerFollowing = false;
   pointerButton = pointerResizeEdges = 0;
   pointerStartGeometry = {};
   pointerPublishTimeValid = false;

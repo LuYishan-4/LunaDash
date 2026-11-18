@@ -65,10 +65,15 @@ int scaled(int value, double scale) {
   return static_cast<int>(std::lround(value * scale));
 }
 
+struct Scale {
+  double x = 1.0;
+  double y = 1.0;
+};
+
 // Scales every surface buffer under `node` about the window's origin. Trees
 // keep their own (client-given) offsets; `x`, `y` is the tree's offset from
 // the window. Compositor-owned buffers (snapshots) are left alone.
-void scaleSurfaceBuffers(wlr_scene_node *node, int x, int y, double scale) {
+void scaleSurfaceBuffers(wlr_scene_node *node, int x, int y, Scale scale) {
   if (node->type == WLR_SCENE_NODE_TREE) {
     auto *tree = wlr_scene_tree_from_node(node);
     wlr_scene_node *child = nullptr;
@@ -95,11 +100,11 @@ void scaleSurfaceBuffers(wlr_scene_node *node, int x, int y, double scale) {
   const int left = x + natural.x;
   const int top = y + natural.y;
   // Edges are rounded, not sizes, so neighbouring clip bands stay seamless.
-  wlr_scene_node_set_position(node, scaled(left, scale) - x, scaled(top, scale) - y);
+  wlr_scene_node_set_position(node, scaled(left, scale.x) - x, scaled(top, scale.y) - y);
   wlr_scene_buffer_set_dest_size(
       buffer,
-      std::max(1, scaled(left + natural.width, scale) - scaled(left, scale)),
-      std::max(1, scaled(top + natural.height, scale) - scaled(top, scale)));
+      std::max(1, scaled(left + natural.width, scale.x) - scaled(left, scale.x)),
+      std::max(1, scaled(top + natural.height, scale.y) - scaled(top, scale.y)));
 }
 
 wlr_box xdgGeometry(wlr_xdg_surface *surface) {
@@ -265,12 +270,23 @@ Size clientLogicalSize(const ClientWindow &client, const Size &visual) {
 }
 
 void applyClientContentScale(ClientWindow &client) {
-  const double scale = clientContentScale(client);
-  if (scale == 1.0 && client.appliedContentScale == 1.0)
+  const double content = clientContentScale(client);
+  Scale scale{content, content};
+  // A resize animation stretches whatever the client last drew to the
+  // animated size; it reaches 1:1 as the client's new size arrives.
+  if (client.animatedSize.width() > 0 && client.animatedSize.height() > 0) {
+    const Size committed = clientCommittedSize(client);
+    if (committed.width() > 0 && committed.height() > 0)
+      scale = {static_cast<double>(client.animatedSize.width()) / committed.width(),
+               static_cast<double>(client.animatedSize.height()) / committed.height()};
+  }
+  if (scale.x == 1.0 && scale.y == 1.0 && client.appliedScaleX == 1.0 &&
+      client.appliedScaleY == 1.0)
     return;
   if (client.sceneTree)
     scaleSurfaceBuffers(&client.sceneTree->node, 0, 0, scale);
-  client.appliedContentScale = scale;
+  client.appliedScaleX = scale.x;
+  client.appliedScaleY = scale.y;
 }
 
 void configureClientSurface(ClientWindow *client, const Rect &rectangle) {

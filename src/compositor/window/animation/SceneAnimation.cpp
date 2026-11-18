@@ -50,6 +50,9 @@ struct SnapshotBuildContext {
   int originX;
   int originY;
   std::vector<SnapshotBuffer> *buffers;
+  // A closing window's last frame: drawn and shown already, and never drawn
+  // into again, so even explicitly synchronized buffers may be kept.
+  bool finalFrame = false;
   bool synchronizedSource = false;
 };
 
@@ -113,7 +116,7 @@ void cloneBuffer(wlr_scene_buffer *buffer, int sx, int sy, void *data) {
   if (auto *surface = wlr_scene_surface_try_from_buffer(buffer)) {
     const auto *sync =
         wlr_linux_drm_syncobj_v1_get_surface_state(surface->surface);
-    if (sync && sync->acquire_timeline) {
+    if (sync && sync->acquire_timeline && !context->finalFrame) {
       // A detached preview outlives the surface commit. Copying only its
       // acquire wait would not hold the client's release point pending.
       // Keep live scene animation, but decline the optional snapshot until
@@ -440,6 +443,9 @@ void SceneAnimation::applyLive(LiveState *state, std::uint64_t nowNs) {
         state->initialOpacity + (1.0 - state->initialOpacity) * faded;
     wlr_scene_node_set_position(&state->tree->node, state->current.left,
                                 state->current.top);
+    // No previous frame to show: the live buffers follow the size instead.
+    if (resizeHook_ && !state->hiding)
+      resizeHook_(state->tree, &state->current);
   }
   if (state->preview || state->initialOpacity != 1.0) {
     OpacityContext context{&state->opacity, state->currentOpacity};
@@ -454,6 +460,8 @@ void SceneAnimation::finishLive(wlr_scene_tree *tree, LiveState *state,
     return;
   Templates::detachListener(state->destroy);
   live_.erase(found);
+  if (resizeHook_ && !state->preview)
+    resizeHook_(tree, nullptr);
   if (restore) {
     OpacityContext context{&state->opacity, 1.0};
     wlr_scene_node_for_each_buffer(&tree->node, applyOpacity, &context);
@@ -542,9 +550,10 @@ void SceneAnimation::relayout(wlr_scene_tree *tree,
   }
   const auto found = live_.find(tree);
   auto *old = found == live_.end() ? nullptr : found->second;
-  if ((old && old->motion.target == geometry) || (!old && previous == geometry))
-    return;
+  // Where the window is drawn, which a drag may have moved off its slot.
   const auto from = visualGeometry(tree, previous);
+  if ((old && old->motion.target == geometry) || (!old && from == geometry))
+    return;
   const bool resize = !from.sameSize(geometry);
 
   if (old) {
@@ -586,7 +595,8 @@ void SceneAnimation::relayout(wlr_scene_tree *tree,
 
 SceneAnimation::SnapshotState *
 SceneAnimation::createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
-                               const SceneAnimationRectangle &geometry) {
+                               const SceneAnimationRectangle &geometry,
+                               bool finalFrame) {
   if (!source || !parent)
     return nullptr;
   int sourceX = 0;
@@ -604,7 +614,7 @@ SceneAnimation::createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
   wlr_scene_node_coords(&parent->node, &parentX, &parentY);
   state->parentOriginX = parentX;
   state->parentOriginY = parentY;
-  SnapshotBuildContext context{tree, sourceX, sourceY, &state->buffers};
+  SnapshotBuildContext context{tree, sourceX, sourceY, &state->buffers, finalFrame};
   wlr_scene_node_for_each_buffer(&source->node, cloneBuffer, &context);
   if (context.synchronizedSource || state->buffers.empty()) {
     wlr_scene_node_destroy(&tree->node);
@@ -703,10 +713,12 @@ void SceneAnimation::close(wlr_scene_tree *source, wlr_scene_tree *parent,
   auto *live = found == live_.end() ? nullptr : found->second;
   if (live && live->preview)
     source = live->preview->tree;
+  // The window is going away: its last frame can be kept whatever its sync.
   auto *snapshot =
       createSnapshot(source, parent,
                      live ? visualGeometry(live->tree, live->current)
-                          : SceneAnimationRectangle{});
+                          : SceneAnimationRectangle{},
+                     true);
   if (!snapshot || (!dx && !dy))
     return;
   snapshot->moving = true;

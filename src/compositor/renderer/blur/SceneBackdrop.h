@@ -5,6 +5,7 @@ struct wlr_allocator;
 struct wlr_scene_node;
 struct wlr_buffer;
 struct wlr_box;
+struct wl_event_loop;
 
 #ifdef __cplusplus
 namespace LunaDash {
@@ -16,15 +17,16 @@ extern "C" {
  * producer-owned buffer covers area at a bounded, reduced resolution; callers
  * set its scene destination size to area and eventually wlr_buffer_drop it.
  * Invalid geometry, missing stop, unsupported imports and renderer failures
- * return NULL. On wlroots >= 0.19 an intersecting lower source using explicit
- * sync also returns NULL: this helper does not own asynchronous commit-release
- * completion. An explicit-sync target may still blur implicit-sync content
- * below it because the target is never sampled. No scene state or client
- * buffer is modified. */
+ * return NULL. Explicitly synchronized sources are read after their acquire
+ * point and stay locked until the GPU is done with them (a timeline waiter on
+ * `loop`), so their release waits for this read; without timeline support
+ * they make the call return NULL. No scene state or client buffer is
+ * modified. */
 struct wlr_buffer *ludash_scene_backdrop_render(
     struct wlr_renderer *renderer, struct wlr_allocator *allocator,
-    struct wlr_scene_node *root, struct wlr_scene_node *stop,
-    struct wlr_scene_node *skip, const struct wlr_box *area, int radius);
+    struct wl_event_loop *loop, struct wlr_scene_node *root,
+    struct wlr_scene_node *stop, struct wlr_scene_node *skip,
+    const struct wlr_box *area, int radius);
 
 /* Conservative scene-space bounds sampled by the reduced-resolution blur,
  * including its filter padding. Used for cache invalidation. */

@@ -126,12 +126,17 @@ void WaylandCompositor::configure(ClientWindow *client,
                                   const Rect &rectangle) {
   if (!clientReady(client) || !client->sceneTree)
     return;
-  if (windowAnimations_)
+  // Only the window under the pointer follows it directly; everything else,
+  // the windows it pushes aside included, moves on the shared spring.
+  const bool dragged = d->pointerWindow == client->id;
+  if (dragged && d->pointerFollowing) {
+    // The pointer places it until it is dropped (finishWindowPointer).
+  } else if (windowAnimations_)
     windowAnimations_->relayout(
         client->sceneTree, animationRectangle(client->geometry),
         animationRectangle(rectangle), d->animationLayer,
         client->mapped && client->sceneTree->node.enabled &&
-            !client->manualResize && !d->pointerWindow);
+            !client->manualResize && !dragged);
   else
     wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
                                 rectangle.y());

@@ -228,6 +228,8 @@ public:
 
   wlr_renderer *renderer;
   wlr_allocator *allocator;
+  // Where held explicit-sync client buffers are released (SceneBackdrop).
+  wl_event_loop *loop = nullptr;
   wlr_scene_node *root;
   Templates::WaylandSlot<Impl> rootDestroy;
   std::unordered_map<wlr_scene_tree *, std::unique_ptr<Entry>> entries;
@@ -410,7 +412,7 @@ public:
       entry.attempted = true;
       entry.fingerprint = hash.value;
       auto *buffer = ludash_scene_backdrop_render(
-          renderer, allocator, root, &entry.tree->node, &entry.glass->node,
+          renderer, allocator, loop, root, &entry.tree->node, &entry.glass->node,
           &area, radius);
       if (buffer) {
         entry.setBuffer(buffer);
@@ -446,8 +448,10 @@ public:
 };
 
 WindowGlass::WindowGlass(wlr_renderer *renderer, wlr_allocator *allocator,
-                         wlr_scene_node *root)
-    : d(std::make_unique<Impl>(renderer, allocator, root)) {}
+                         wlr_scene_node *root, wl_event_loop *loop)
+    : d(std::make_unique<Impl>(renderer, allocator, root)) {
+  d->loop = loop;
+}
 WindowGlass::~WindowGlass() = default;
 
 bool WindowGlass::configure(bool blurEnabled, int radius, float opacity) {

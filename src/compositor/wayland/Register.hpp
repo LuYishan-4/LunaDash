@@ -474,6 +474,8 @@ public:
   PointF pointerOrigin;
   double pointerStartScale = 1.0;
   Rect pointerStartGeometry;
+  // A tiled window being dragged follows the pointer itself, outside its slot.
+  bool pointerFollowing = false;
   std::chrono::steady_clock::time_point pointerPublishTime{};
   bool pointerPublishTimeValid = false;
   bool runtimeReleased = false;

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+struct wl_event_loop;
 struct wlr_allocator;
 struct wlr_renderer;
 struct wlr_scene_node;
@@ -34,8 +35,9 @@ public:
     float opacity = -1.0f;
   };
 
+  // `loop` releases explicitly synchronized buffers once their blur is done.
   WindowGlass(wlr_renderer *renderer, wlr_allocator *allocator,
-              wlr_scene_node *root);
+              wlr_scene_node *root, wl_event_loop *loop);
   ~WindowGlass();
   WindowGlass(const WindowGlass &) = delete;
   WindowGlass &operator=(const WindowGlass &) = delete;

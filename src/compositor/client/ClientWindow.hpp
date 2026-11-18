@@ -42,8 +42,12 @@ struct ClientWindow {
   // out at its own size and is drawn this many times as large
   // (clientContentScale, applyClientContentScale).
   double contentScale = 1.0;
-  // The scale the scene currently draws the window at.
-  double appliedContentScale = 1.0;
+  // The size a resize animation draws the window at right now (empty when
+  // none runs); its live buffers are stretched to it (applyClientContentScale).
+  Size animatedSize;
+  // The scale the scene currently draws the window at, per axis.
+  double appliedScaleX = 1.0;
+  double appliedScaleY = 1.0;
   bool initialRuleApplied = false;
   Size preferredFloatingSize;
   bool utility = false;

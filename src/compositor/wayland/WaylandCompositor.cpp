@@ -93,6 +93,17 @@ bool WaylandCompositor::start() {
   });
   windowAnimations_ = std::make_unique<SceneWindowAnimationTemplate>();
   windowAnimations_->animation().setSnapshotLayer(d->animationLayer);
+  // Explicitly synchronized clients cannot be snapshotted: their live buffers
+  // are stretched through a resize instead (applyClientContentScale).
+  windowAnimations_->animation().setResizeHook(
+      [this](wlr_scene_tree *tree, const SceneAnimationRectangle *current) {
+        for (const auto &client : clients_)
+          if (client->sceneTree == tree) {
+            client->animatedSize =
+                current ? Size(current->width, current->height) : Size();
+            return;
+          }
+      });
   windowAnimations_->configure(sceneAnimationOptions(
       windowAnimationProfile(*pluginManager_, desktopPreferences(), *windowTemplate_),
       windowTemplate_->motion));

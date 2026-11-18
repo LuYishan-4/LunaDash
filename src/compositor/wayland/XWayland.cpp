@@ -144,6 +144,13 @@ void WaylandCompositor::Impl::XWaylandState::onUnmap() {
   auto *desktop = impl->q;
   if (impl->foreignToplevels)
     impl->foreignToplevels->remove(client->id);
+  // Closing X11 windows shrink and fade out like Wayland ones (menus and
+  // tooltips just vanish).
+  if (desktop->windowAnimations_ && client->sceneTree && client->mapped &&
+      !client->utility && client->sceneTree->node.enabled) {
+    desktop->windowAnimations_->close(client->sceneTree, impl->animationLayer);
+    desktop->windowAnimations_->cancel(client->sceneTree);
+  }
   if (impl->seat->keyboard_state.focused_surface == client->wlSurface)
     wlr_seat_keyboard_notify_clear_focus(impl->seat);
   client->mapped = false;

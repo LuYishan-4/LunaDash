@@ -18,10 +18,25 @@
 #endif
 #include <wlr/version.h>
 #if WLR_VERSION_MINOR >= 19
+#include <wlr/render/drm_syncobj.h>
 #include <wlr/types/wlr_linux_drm_syncobj_v1.h>
+#define LUDASH_BACKDROP_TIMELINES 1
+#else
+#define LUDASH_BACKDROP_TIMELINES 0
 #endif
 
 enum { LUDASH_BACKDROP_LIMIT = 8192, LUDASH_BACKDROP_SIZE = 1024 };
+
+// Explicitly synchronized client buffers a capture read: held until the GPU
+// has finished with them, so the client's release point waits for us too.
+struct ludash_backdrop_hold {
+#if LUDASH_BACKDROP_TIMELINES
+  struct wlr_drm_syncobj_timeline_waiter waiter;  // first: the callback casts
+  struct wlr_drm_syncobj_timeline *timeline;
+#endif
+  struct wlr_buffer **buffers;
+  size_t count;
+};
 
 struct ludash_backdrop_capture {
   struct wlr_renderer *renderer;
@@ -30,11 +45,33 @@ struct ludash_backdrop_capture {
   struct wlr_scene_node *skip;
   struct wlr_texture **imports;
   size_t import_count;
+  // Explicit-sync sources may be read only when the renderer can signal a
+  // timeline (holds is then non-NULL).
+  struct ludash_backdrop_hold *hold;
   size_t visited;
   double x, y, scale_x, scale_y;
   int width, height;
   bool found, failed;
 };
+
+static void ludash_backdrop_release(struct ludash_backdrop_hold *hold) {
+  for (size_t index = 0; index < hold->count; ++index)
+    wlr_buffer_unlock(hold->buffers[index]);
+#if LUDASH_BACKDROP_TIMELINES
+  if (hold->timeline)
+    wlr_drm_syncobj_timeline_unref(hold->timeline);
+#endif
+  free(hold->buffers);
+  free(hold);
+}
+
+#if LUDASH_BACKDROP_TIMELINES
+static void ludash_backdrop_done(struct wlr_drm_syncobj_timeline_waiter *waiter) {
+  struct ludash_backdrop_hold *hold = (struct ludash_backdrop_hold *)waiter;
+  wlr_drm_syncobj_timeline_waiter_finish(&hold->waiter);
+  ludash_backdrop_release(hold);
+}
+#endif
 
 static struct wlr_buffer *ludash_backdrop_buffer(
     struct wlr_renderer *renderer, struct wlr_allocator *allocator,
@@ -162,18 +199,25 @@ static void ludash_backdrop_visit(struct ludash_backdrop_capture *capture,
         .alpha = &buffer->opacity,
         .transform = wlr_output_transform_invert(buffer->transform),
         .filter_mode = WLR_SCALE_FILTER_BILINEAR};
-#if WLR_VERSION_MINOR >= 19
+#if LUDASH_BACKDROP_TIMELINES
     if (surface) {
       struct wlr_linux_drm_syncobj_surface_v1_state *sync =
           wlr_linux_drm_syncobj_v1_get_surface_state(surface->surface);
       if (sync && sync->acquire_timeline) {
-        // Capturing a source adds a new use beyond the scene output pass.
-        // An acquire wait does not keep the client's release point pending.
-        // This synchronous helper cannot retain a failed GPU submission and
-        // its release merger, so refuse the optional effect before queuing
-        // an explicit-sync read. The target itself is excluded above and may
-        // still use a backdrop made entirely from implicit-sync sources.
-        capture->failed = true;
+        // Read only once the client finished drawing (acquire), and keep its
+        // buffer locked until our pass completes: wlroots signals the
+        // client's release point only when every lock is gone.
+        if (!capture->hold || !buffer->buffer ||
+            capture->hold->count >= LUDASH_BACKDROP_LIMIT) {
+          capture->failed = true;
+          return;
+        }
+        capture->hold->buffers[capture->hold->count++] =
+            wlr_buffer_lock(buffer->buffer);
+        struct wlr_render_texture_options synced = options;
+        synced.wait_timeline = sync->acquire_timeline;
+        synced.wait_point = sync->acquire_point;
+        wlr_render_pass_add_texture(capture->pass, &synced);
         return;
       }
     }
@@ -182,10 +226,13 @@ static void ludash_backdrop_visit(struct ludash_backdrop_capture *capture,
   }
 }
 
+// One separable pass of a 9-tap Gaussian whose taps are `spacing` pixels
+// apart, from source to destination (same size). The weighted average uses the
+// renderer's premultiplied blending, so it works with any wlroots renderer.
 static bool ludash_backdrop_blur(struct wlr_renderer *renderer,
                                  struct wlr_buffer *source,
                                  struct wlr_buffer *destination,
-                                 double radius, int padding, bool horizontal) {
+                                 double spacing, bool horizontal) {
   struct wlr_texture *texture = wlr_texture_from_buffer(renderer, source);
   if (!texture)
     return false;
@@ -199,22 +246,36 @@ static bool ludash_backdrop_blur(struct wlr_renderer *renderer,
       0.0162162162f, 0.0540540541f, 0.1216216216f, 0.1945945946f,
       0.2270270270f, 0.1945945946f, 0.1216216216f, 0.0540540541f,
       0.0162162162f};
+  // The centre tap first: it covers every pixel, replacing what was there.
+  static const int order[9] = {4, 3, 5, 2, 6, 1, 7, 0, 8};
+  const int size = horizontal ? destination->width : destination->height;
   float total = 0;
-  for (int tap = 0; tap < 9; ++tap) {
+  for (int index = 0; index < 9; ++index) {
+    const int tap = order[index];
     total += weights[tap];
-    // Running weighted average of an opaque capture. This uses the renderer's
-    // existing premultiplied blend operation, with no GL context substitution.
     const float alpha = weights[tap] / total;
-    const double offset = padding + (tap - 4) * radius / 4.0;
-    const struct wlr_render_texture_options options = {
+    const double offset = (tap - 4) * spacing;
+    // Only the part of the shifted source that lies inside the texture
+    // (wlroots requires it): edge pixels miss a few taps, inside the padding.
+    const int shift = (int)ceil(fabs(offset));
+    if (shift >= size)
+      continue;
+    const double start = offset > 0 ? offset : shift + offset;
+    const int target = offset > 0 ? 0 : shift;
+    const int length = size - shift;
+    struct wlr_render_texture_options options = {
         .texture = texture,
-        .src_box = {horizontal ? offset : 0, horizontal ? 0 : offset,
-                    destination->width, destination->height},
-        .dst_box = {0, 0, destination->width, destination->height},
         .alpha = &alpha,
         .filter_mode = WLR_SCALE_FILTER_BILINEAR,
-        .blend_mode = tap == 0 ? WLR_RENDER_BLEND_MODE_NONE
-                              : WLR_RENDER_BLEND_MODE_PREMULTIPLIED};
+        .blend_mode = index == 0 ? WLR_RENDER_BLEND_MODE_NONE
+                                 : WLR_RENDER_BLEND_MODE_PREMULTIPLIED};
+    if (horizontal) {
+      options.src_box = (struct wlr_fbox){start, 0, length, destination->height};
+      options.dst_box = (struct wlr_box){target, 0, length, destination->height};
+    } else {
+      options.src_box = (struct wlr_fbox){0, start, destination->width, length};
+      options.dst_box = (struct wlr_box){0, target, destination->width, length};
+    }
     wlr_render_pass_add_texture(pass, &options);
   }
   const bool ok = wlr_render_pass_submit(pass);
@@ -222,16 +283,53 @@ static bool ludash_backdrop_blur(struct wlr_renderer *renderer,
   return ok;
 }
 
+// Copies `box` of source scaled to all of destination (bilinear).
+static bool ludash_backdrop_copy(struct wlr_renderer *renderer,
+                                 struct wlr_buffer *source,
+                                 struct wlr_buffer *destination,
+                                 struct wlr_fbox box) {
+  struct wlr_texture *texture = wlr_texture_from_buffer(renderer, source);
+  if (!texture)
+    return false;
+  struct wlr_render_pass *pass =
+      wlr_renderer_begin_buffer_pass(renderer, destination, NULL);
+  if (!pass) {
+    wlr_texture_destroy(texture);
+    return false;
+  }
+  const struct wlr_render_texture_options options = {
+      .texture = texture,
+      .src_box = box,
+      .dst_box = {0, 0, destination->width, destination->height},
+      .filter_mode = WLR_SCALE_FILTER_BILINEAR,
+      .blend_mode = WLR_RENDER_BLEND_MODE_NONE};
+  wlr_render_pass_add_texture(pass, &options);
+  const bool ok = wlr_render_pass_submit(pass);
+  wlr_texture_destroy(texture);
+  return ok;
+}
+
+// The blur's Gaussian sigma in scene pixels per unit of the radius setting:
+// radius 18 (the default) is a clearly frosted sigma of 18 px.
+#define LUDASH_BLUR_SIGMA 1.0
+// The 9-tap kernel's own sigma, in taps.
+#define LUDASH_KERNEL_SIGMA 1.69
+#define LUDASH_BLUR_MAX_ITERATIONS 8
+
+// Scene pixels per working pixel: the blur runs at a reduced resolution.
+static double ludash_backdrop_scale(const struct wlr_box *area) {
+  return fmax(4.0, fmax((double)area->width / (LUDASH_BACKDROP_SIZE - 20),
+                        (double)area->height / (LUDASH_BACKDROP_SIZE - 20)));
+}
+
 void ludash_scene_backdrop_sample_box(const struct wlr_box *area, int radius,
                                      struct wlr_box *sample) {
   *sample = *area;
   if (area->width < 1 || area->height < 1)
     return;
-  const double scale = fmax(4.0, fmax((double)area->width / (LUDASH_BACKDROP_SIZE - 20),
-                                    (double)area->height / (LUDASH_BACKDROP_SIZE - 20)));
-  // Rounding the capture dimensions only increases its scale factors, so
-  // radius + three reduced pixels safely bounds ceil(radius * scale) + 2.
-  const int padding = (int)ceil(radius + 3.0 * scale);
+  const double scale = ludash_backdrop_scale(area);
+  // Three sigmas of blur plus the rounding of the reduced capture.
+  const int padding = (int)ceil(3.0 * radius * LUDASH_BLUR_SIGMA + 3.0 * scale);
   sample->x -= padding;
   sample->y -= padding;
   sample->width += 2 * padding;
@@ -240,33 +338,64 @@ void ludash_scene_backdrop_sample_box(const struct wlr_box *area, int radius,
 
 struct wlr_buffer *ludash_scene_backdrop_render(
     struct wlr_renderer *renderer, struct wlr_allocator *allocator,
-    struct wlr_scene_node *root, struct wlr_scene_node *stop,
-    struct wlr_scene_node *skip, const struct wlr_box *area, int radius) {
+    struct wl_event_loop *loop, struct wlr_scene_node *root,
+    struct wlr_scene_node *stop, struct wlr_scene_node *skip,
+    const struct wlr_box *area, int radius) {
   if (!renderer || !allocator || !root || !stop || !area ||
       radius < 1 || radius > 32 || area->width < 1 || area->height < 1 ||
       area->width > 16384 || area->height > 16384 ||
       area->x < -65536 || area->x > 65536 ||
       area->y < -65536 || area->y > 65536 || root == stop || skip == stop)
     return NULL;
-  const double scale = fmax(4.0, fmax((double)area->width / (LUDASH_BACKDROP_SIZE - 20),
-                                    (double)area->height / (LUDASH_BACKDROP_SIZE - 20)));
+  const double scale = ludash_backdrop_scale(area);
   const int width = (int)ceil(area->width / scale);
   const int height = (int)ceil(area->height / scale);
   const double scale_x = (double)width / area->width;
   const double scale_y = (double)height / area->height;
-  const int padding_x = (int)ceil(radius * scale_x) + 2;
-  const int padding_y = (int)ceil(radius * scale_y) + 2;
+  const double sigma_x = radius * LUDASH_BLUR_SIGMA * scale_x;
+  const double sigma_y = radius * LUDASH_BLUR_SIGMA * scale_y;
+  const int padding_x = (int)ceil(3.0 * sigma_x) + 2;
+  const int padding_y = (int)ceil(3.0 * sigma_y) + 2;
+  const int work_width = width + 2 * padding_x;
+  const int work_height = height + 2 * padding_y;
+
+  // Captured at twice the working size, then halved: every working pixel
+  // averages four, instead of the capture skipping most of the scene.
   struct wlr_buffer *capture_buffer = ludash_backdrop_buffer(
-      renderer, allocator, width + 2 * padding_x, height + 2 * padding_y);
-  struct wlr_buffer *horizontal = ludash_backdrop_buffer(
-      renderer, allocator, width, height + 2 * padding_y);
+      renderer, allocator, 2 * work_width, 2 * work_height);
+  struct wlr_buffer *work[2] = {
+      ludash_backdrop_buffer(renderer, allocator, work_width, work_height),
+      ludash_backdrop_buffer(renderer, allocator, work_width, work_height)};
   struct wlr_buffer *result = ludash_backdrop_buffer(renderer, allocator, width, height);
   struct wlr_texture **imports = calloc(LUDASH_BACKDROP_LIMIT, sizeof(*imports));
+  struct ludash_backdrop_hold *hold = NULL;
   bool ok = false;
-  if (!capture_buffer || !horizontal || !result || !imports)
+  if (!capture_buffer || !work[0] || !work[1] || !result || !imports)
     goto cleanup;
+
+  struct wlr_buffer_pass_options pass_options = {0};
+#if LUDASH_BACKDROP_TIMELINES
+  // Explicit-sync sources need our completion signalled (see the hold).
+  if (loop && renderer->features.timeline) {
+    hold = calloc(1, sizeof(*hold));
+    if (hold)
+      hold->buffers = calloc(LUDASH_BACKDROP_LIMIT, sizeof(*hold->buffers));
+    if (hold && hold->buffers)
+      hold->timeline =
+          wlr_drm_syncobj_timeline_create(wlr_renderer_get_drm_fd(renderer));
+    if (hold && hold->timeline) {
+      pass_options.signal_timeline = hold->timeline;
+      pass_options.signal_point = 1;
+    } else if (hold) {
+      ludash_backdrop_release(hold);
+      hold = NULL;
+    }
+  }
+#else
+  (void)loop;
+#endif
   struct wlr_render_pass *pass =
-      wlr_renderer_begin_buffer_pass(renderer, capture_buffer, NULL);
+      wlr_renderer_begin_buffer_pass(renderer, capture_buffer, &pass_options);
   if (!pass)
     goto cleanup;
   const struct wlr_render_rect_options clear = {
@@ -276,25 +405,52 @@ struct wlr_buffer *ludash_scene_backdrop_render(
   wlr_render_pass_add_rect(pass, &clear);
   struct ludash_backdrop_capture capture = {
       .renderer = renderer, .pass = pass, .stop = stop, .skip = skip,
-      .imports = imports, .x = area->x - padding_x / scale_x,
-      .y = area->y - padding_y / scale_y, .scale_x = scale_x, .scale_y = scale_y,
+      .imports = imports, .hold = hold,
+      .x = area->x - padding_x / scale_x, .y = area->y - padding_y / scale_y,
+      .scale_x = 2.0 * scale_x, .scale_y = 2.0 * scale_y,
       .width = capture_buffer->width, .height = capture_buffer->height};
   ludash_backdrop_visit(&capture, root, 0, 0, 0);
   const bool submitted = wlr_render_pass_submit(pass);
   for (size_t index = 0; index < capture.import_count; ++index)
     wlr_texture_destroy(imports[index]);
+#if LUDASH_BACKDROP_TIMELINES
+  // Held client buffers go back once the GPU has read them.
+  if (hold && hold->count > 0 && submitted &&
+      wlr_drm_syncobj_timeline_waiter_init(&hold->waiter, hold->timeline, 1, 0,
+                                           loop, ludash_backdrop_done))
+    hold = NULL;
+#endif
   if (!submitted || !capture.found || capture.failed)
     goto cleanup;
-  ok = ludash_backdrop_blur(renderer, capture_buffer, horizontal,
-                            radius * scale_x, padding_x, true) &&
-       ludash_backdrop_blur(renderer, horizontal, result,
-                            radius * scale_y, padding_y, false);
+
+  ok = ludash_backdrop_copy(renderer, capture_buffer, work[0],
+                            (struct wlr_fbox){0, 0, capture_buffer->width,
+                                              capture_buffer->height});
+  // Repeated small-kernel passes add up to the wanted sigma (variances add)
+  // without taps far enough apart to show copies of the scene.
+  const double sigma = fmax(sigma_x, sigma_y);
+  const double spacing = fmin(1.5, fmax(0.5, sigma / LUDASH_KERNEL_SIGMA));
+  const double pass_sigma = LUDASH_KERNEL_SIGMA * spacing;
+  int iterations = (int)ceil((sigma * sigma) / (pass_sigma * pass_sigma));
+  if (iterations < 1)
+    iterations = 1;
+  if (iterations > LUDASH_BLUR_MAX_ITERATIONS)
+    iterations = LUDASH_BLUR_MAX_ITERATIONS;
+  for (int i = 0; ok && i < iterations; ++i)
+    ok = ludash_backdrop_blur(renderer, work[0], work[1], spacing, true) &&
+         ludash_backdrop_blur(renderer, work[1], work[0], spacing, false);
+  if (ok)
+    ok = ludash_backdrop_copy(renderer, work[0], result,
+                              (struct wlr_fbox){padding_x, padding_y, width, height});
 cleanup:
+  if (hold)
+    ludash_backdrop_release(hold);
   free(imports);
   if (capture_buffer)
     wlr_buffer_drop(capture_buffer);
-  if (horizontal)
-    wlr_buffer_drop(horizontal);
+  for (int i = 0; i < 2; ++i)
+    if (work[i])
+      wlr_buffer_drop(work[i]);
   if (!ok && result) {
     wlr_buffer_drop(result);
     result = NULL;

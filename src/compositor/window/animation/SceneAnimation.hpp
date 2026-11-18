@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include <array>
 #include <cstdint>
 #include <unordered_map>
@@ -70,6 +72,13 @@ public:
   void configure(const SceneAnimationOptions &options);
   // Snapshots of opening windows are drawn in this tree.
   void setSnapshotLayer(wlr_scene_tree *layer) { snapshotLayer_ = layer; }
+  // A live animation that changes the window's size without a snapshot (the
+  // client's buffers are explicitly synchronized) reports its rectangle each
+  // frame, so the caller can stretch the live buffers to it; nullptr when the
+  // animation ends.
+  using ResizeHook =
+      std::function<void(wlr_scene_tree *, const SceneAnimationRectangle *)>;
+  void setResizeHook(ResizeHook hook) { resizeHook_ = std::move(hook); }
   // A new window: grows from openScale while it fades in, or moves in by
   // enterOffset when no snapshot of it can be taken.
   void open(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry);
@@ -139,8 +148,10 @@ private:
   void finishLive(wlr_scene_tree *tree, LiveState *state, bool restore = true);
   void startLive(LiveState *state);
   bool openWithSnapshot(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry);
+  // `finalFrame`: the source is closing, see SnapshotBuildContext.
   SnapshotState *createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
-                                const SceneAnimationRectangle &geometry);
+                                const SceneAnimationRectangle &geometry,
+                                bool finalFrame = false);
   void destroySnapshot(SnapshotState *state);
   void applySnapshot(SnapshotState *state,
                      const SceneAnimationRectangle &geometry, double opacity);
@@ -148,6 +159,7 @@ private:
   std::unordered_map<wlr_scene_tree *, LiveState *> live_;
   std::vector<SnapshotState *> snapshots_;
   wlr_scene_tree *snapshotLayer_ = nullptr;
+  ResizeHook resizeHook_;
   int duration_ = 220;
   int closeDuration_ = 150;
   int enterOffset_ = 12;
