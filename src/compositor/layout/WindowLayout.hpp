@@ -21,6 +21,9 @@ struct WindowPlacement {
   Json metadata = Json::object();
   bool hiddenByMaximize = false;
   bool newWindow = false;
+  // Maximized inside the layout, beside windows that stay where they are
+  // (maximizedWindow instead covers the whole workspace).
+  bool maximized = false;
 };
 
 struct WorkspaceLayoutSnapshot {

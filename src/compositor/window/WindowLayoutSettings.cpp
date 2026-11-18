@@ -13,11 +13,8 @@
 namespace LunaDash {
 
 std::string WaylandCompositor::selectedWindowTemplateKey() const {
-  // A window-layout plugin wins over the default template; a template with
-  // variants follows the variant its preference selects.
-  return resolveWindowTemplate(pluginManager_->windowTemplateKey(),
-                               desktopPreferences())
-      .key;
+  // A window-layout plugin wins over the default template.
+  return windowTemplateForKey(pluginManager_->windowTemplateKey()).key;
 }
 
 Json WaylandCompositor::currentWindowLayoutSettings() const {
@@ -43,9 +40,11 @@ Json WaylandCompositor::currentWindowLayoutSettings() const {
   if (!storageError.empty())
     logWarning("Could not load window layout settings: %s",
                storageError.c_str());
+  // Settings a former layout of this template stored are left out.
   const auto storedValues = jsonAsObject(stored);
   for (auto it = storedValues.begin(); it != storedValues.end(); ++it)
-    values[it.key()] = it.value();
+    if (windowTemplate_->layoutSettingsSchema.contains(it.key()))
+      values[it.key()] = it.value();
 
   if (!validateWindowLayoutSettings(*windowTemplate_, values, nullptr))
     return windowTemplate_->layoutSettingsDefaults;

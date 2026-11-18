@@ -74,29 +74,6 @@ const WindowTemplate &windowTemplateForKey(std::string_view key) {
   return defaultWindowTemplate();
 }
 
-const WindowTemplate &resolveWindowTemplate(std::string_view key,
-                                            const Json &preferences) {
-  const auto &requested = windowTemplateForKey(key);
-  if (requested.variantPreference.empty())
-    return requested;
-  const auto variant =
-      preferences.value(requested.variantPreference, requested.variant);
-  for (const auto &candidate : registry().templates)
-    if (candidate.variantPreference == requested.variantPreference &&
-        candidate.variant == variant)
-      return candidate;
-  return requested;
-}
-
-std::vector<std::string> windowTemplateVariants(std::string_view variantPreference) {
-  std::vector<std::string> variants;
-  for (const auto &candidate : registry().templates)
-    if (!variantPreference.empty() &&
-        candidate.variantPreference == variantPreference)
-      variants.push_back(candidate.variant);
-  return variants;
-}
-
 Json windowLayoutIntegerParameter(int minimum, int maximum, int value) {
   return {{"type", "integer"}, {"minimum", minimum}, {"maximum", maximum},
           {"default", value}};

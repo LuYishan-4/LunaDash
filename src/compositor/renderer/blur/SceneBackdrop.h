@@ -28,6 +28,9 @@ struct wlr_buffer *ludash_scene_backdrop_render(
     struct wlr_scene_node *stop, struct wlr_scene_node *skip,
     const struct wlr_box *area, int radius);
 
+/* Drops the scratch buffers kept between captures (before the allocator goes). */
+void ludash_scene_backdrop_finish(void);
+
 /* Conservative scene-space bounds sampled by the reduced-resolution blur,
  * including its filter padding. Used for cache invalidation. */
 void ludash_scene_backdrop_sample_box(const struct wlr_box *area, int radius,

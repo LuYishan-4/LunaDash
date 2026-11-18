@@ -124,7 +124,6 @@ void ShortcutActions::registerBuiltins(ShortcutRegistry &registry) {
   });
   add("launchTerminal", ShortcutNone, request("launch-default", DefaultApplicationRole::terminal.data()));
   add("launchFiles", ShortcutNone, request("launch-default", DefaultApplicationRole::files.data()));
-  add("toggleTilingMode", ShortcutNoRelayout, request("tiling-mode", "toggle"));
   add("toggleScratchpad", ShortcutNoRelayout, [](C &c, auto) {
     std::string error;
     c.toggleScratchpad(&error);

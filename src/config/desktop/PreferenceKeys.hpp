@@ -23,10 +23,10 @@ inline constexpr PreferenceKey<int> windowOpacity{"windowOpacity", 90};
 inline constexpr PreferenceKey<bool> animations{"animations", true};
 inline constexpr PreferenceKey<int> animationDuration{"animationDuration", 220};
 inline constexpr PreferenceKey<int> gap{"gap", 12};
-// Scrolling columns (niri-like) by default; "fill" splits the screen.
-inline constexpr PreferenceKey<std::string_view> tilingMode{"tilingMode", "scroll"};
 inline constexpr PreferenceKey<int> cursorSize{"cursorSize", 24};
 inline constexpr PreferenceKey<std::string_view> keyboardLayout{"keyboardLayout", "us"};
+// NumLock is on when a keyboard starts (at login, or plugged in later).
+inline constexpr PreferenceKey<bool> numLock{"numLock", false};
 } // namespace Preference
 
 template <typename T>

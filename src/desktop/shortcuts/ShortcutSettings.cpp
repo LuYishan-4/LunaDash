@@ -26,7 +26,7 @@ nlohmann::json defaults() {
       {"toggleEyeCare", "Meta+N"},     {"toggleScratchpad", "Meta+grave"},
       {"openControlCenter", "Meta+I"}, {"openClipboard", "Meta+V"},
       {"openPowerMenu", "Meta+X"},     {"toggleFullscreen", "Meta+Shift+F"},
-      {"toggleTilingMode", "Meta+Shift+Space"}, {"toggleOverview", "Meta+Tab"},
+      {"toggleOverview", "Meta+Tab"},
       {"overviewClose", "Escape"}, {"overviewAccept", "Return"},
       {"overviewAcceptKeypad", "KP_Enter"}, {"overviewFocusLeft", "Left"},
       {"overviewFocusLeftVim", "H"}, {"overviewFocusRight", "Right"},

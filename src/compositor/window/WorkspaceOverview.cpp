@@ -14,6 +14,8 @@
 #include <ctime>
 #include <linux/input-event-codes.h>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace LunaDash {
 namespace {
@@ -216,9 +218,27 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     overview_.previews.push_back({client->id, client->workspace, rect});
   };
 
+  // Other workspaces are laid out afresh: what the layout kept from their last
+  // pass is stale (a window moved in keeps the place it had), and stale
+  // places overlap, so one preview covers another and cannot be picked.
+  std::unordered_map<int, std::vector<WindowPlacement>> laidOut;
+  const Rect area = workArea();
+  const auto placementOf = [&](const ClientWindow &client) -> const WindowPlacement * {
+    auto found = laidOut.find(client.workspace);
+    if (found == laidOut.end())
+      found = laidOut
+                  .emplace(client.workspace,
+                           windowLayout_->presentation(client.workspace, area))
+                  .first;
+    for (const auto &placement : found->second)
+      if (static_cast<int>(placement.window) == client.id)
+        return &placement;
+    return nullptr;
+  };
+
   // Where each window is laid out: the current workspace as shown, the others
-  // as they were last laid out.
-  const auto layoutRect = [this](const ClientWindow &client) {
+  // as their layout places them now.
+  const auto layoutRect = [&](const ClientWindow &client) {
     if (client.workspace == workspace_ || client.floating) {
       // Where the window is drawn right now, so a focus move that scrolls
       // the columns animates in the preview too.
@@ -228,16 +248,19 @@ void WaylandCompositor::rebuildOverviewPreviews() {
           client.sceneTree, animationRectangle(client.geometry));
       return Rect(frame.left, frame.top, frame.width, frame.height);
     }
-    for (const auto &column : windowLayout_->snapshot(client.workspace).columns)
-      if (static_cast<int>(column.window) == client.id && column.geometry.isValid())
-        return column.geometry;
+    if (const auto *placement = placementOf(client);
+        placement && placement->geometry.isValid())
+      return placement->geometry;
     return client.geometry;
   };
 
   ClientWindow *dragged = nullptr;
   for (const auto &client : clients_) {
+    // A window a maximized one hides is not shown either: drawn underneath,
+    // it could never be picked.
     if (!client->mapped || client->minimized || client->utility ||
-        !client->sceneTree || !client->geometry.isValid())
+        client->hiddenByMaximize || !client->sceneTree ||
+        !client->geometry.isValid())
       continue;
     if (overview_.dragging && client->id == overview_.pressed) {
       dragged = client.get();

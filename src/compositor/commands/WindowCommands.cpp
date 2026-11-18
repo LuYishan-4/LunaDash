@@ -5,12 +5,9 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
-#include "config/desktop/DesktopPreferences.hpp"
-#include "config/desktop/PreferenceKeys.hpp"
 #include "core/text/Text.hpp"
 
 #include <algorithm>
-#include <iterator>
 #include <string>
 #include <vector>
 
@@ -22,17 +19,6 @@ Json areaJson(const Rect &area) {
                        {"y", area.y()},
                        {"width", area.width()},
                        {"height", area.height()}});
-}
-
-// "a", "a or b", "a, b or c".
-std::string alternatives(const std::vector<std::string> &values) {
-  std::string text;
-  for (std::size_t index = 0; index < values.size(); ++index) {
-    if (index > 0)
-      text += index + 1 == values.size() ? " or " : ", ";
-    text += values[index];
-  }
-  return text;
 }
 
 } // namespace
@@ -58,31 +44,6 @@ void CompositorCommands::registerWindowCommands(CommandRegistry &registry) {
     std::string error;
     if (!c.toggleScratchpad(&error))
       return commandError(error);
-    return {};
-  });
-  // Picks a variant of the tiling layout; the registered templates name them.
-  registry.add("tiling-mode", [](C &c, const R &r) -> CommandResult {
-    const auto variants = windowTemplateVariants(Preference::tilingMode.name);
-    const bool toggle = r.value == "toggle";
-    if (variants.empty() ||
-        (!toggle && std::find(variants.begin(), variants.end(), r.value) ==
-                        variants.end()))
-      return commandError("Tiling mode expects toggle, " +
-                          alternatives(variants) + ".");
-    std::string next = r.value;
-    if (toggle) {
-      const auto current =
-          preferenceValue(desktopPreferences(), Preference::tilingMode);
-      const auto found = std::find(variants.begin(), variants.end(), current);
-      next = found == variants.end() || std::next(found) == variants.end()
-                 ? variants.front()
-                 : *std::next(found);
-    }
-    std::string error;
-    if (!updateDesktopPreferences({{Preference::tilingMode.name, next}}, &error))
-      return commandError(error);
-    c.arrange();
-    c.synchronizeWindowFocus();
     return {};
   });
   registry.add("window-layout-action", [](C &c, const R &r) -> CommandResult {

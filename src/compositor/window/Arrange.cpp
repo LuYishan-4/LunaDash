@@ -163,7 +163,7 @@ void WaylandCompositor::arrange() {
   const auto preferences = desktopPreferences();
   applyVisualPreferences(preferences);
   const bool templateChanged = selectWindowTemplate();
-  // Only stacking zooms windows; elsewhere they fill their slot at their own size.
+  // Stacking zooms windows by hand; tiling zooms narrow columns (below).
   if (!windowTemplate_->allowOverlap || !windowTemplate_->clientMoveResize)
     for (const auto &client : clients_)
       client->contentScale = 1.0;
@@ -215,18 +215,27 @@ void WaylandCompositor::arrange() {
 
   // Visibility, scene layers and floating geometry.
   std::vector<ClientWindow *> revealed;
-  std::unordered_map<int, LayoutWindowId> maximizedWindows;
+  std::unordered_map<int, WorkspaceLayoutSnapshot> snapshots;
   for (const auto &client : clients_) {
-    auto maximizedIt = maximizedWindows.find(client->workspace);
-    if (maximizedIt == maximizedWindows.end())
-      maximizedIt = maximizedWindows
-                        .emplace(client->workspace,
-                                 windowLayout_->snapshot(client->workspace)
-                                     .maximizedWindow)
-                        .first;
-    const auto maximized = maximizedIt->second;
-    if (!client->floating && (client->mapped || client->layoutPending))
-      client->maximized = maximized == static_cast<LayoutWindowId>(client->id);
+    auto snapshotIt = snapshots.find(client->workspace);
+    if (snapshotIt == snapshots.end())
+      snapshotIt = snapshots
+                       .emplace(client->workspace,
+                                windowLayout_->snapshot(client->workspace))
+                       .first;
+    const auto maximized = snapshotIt->second.maximizedWindow;
+    if (!client->floating && (client->mapped || client->layoutPending)) {
+      // The layout says which windows are maximized: the one covering the
+      // workspace, or columns maximized beside the others.
+      bool next = maximized == static_cast<LayoutWindowId>(client->id);
+      for (const auto &placement : snapshotIt->second.columns)
+        if (placement.window == static_cast<LayoutWindowId>(client->id))
+          next = next || placement.maximized;
+      if (client->maximized != next) {
+        client->maximized = next;
+        setClientMaximizedHint(client.get(), next);
+      }
+    }
     const bool inMaximizedFamily =
         belongsToWindow(*client, clientById(static_cast<int>(maximized)), clients_);
     client->hiddenByMaximize = windowHiddenByMaximize(
@@ -307,12 +316,22 @@ void WaylandCompositor::arrange() {
     arrange();
     return;
   }
+  // A tiled window is never laid out narrower than this: a narrower column
+  // shows it scaled down as a whole (contentScale), contents unsqueezed.
+  const int narrowest =
+      windowTemplate_->allowOverlap
+          ? 0
+          : jsonInt(currentWindowLayoutSettings(), "minimumWindowWidth", 0);
   for (const auto &placement : placements) {
     auto *client = clientById(static_cast<int>(placement.window));
     if (!client || client->minimized || placement.hiddenByMaximize ||
         (!client->layoutPending &&
          (fullscreenClient || client->workspace != workspace_)))
       continue;
+    if (narrowest > 0 && !client->floating)
+      client->contentScale =
+          std::min(1.0, static_cast<double>(placement.geometry.width()) /
+                            narrowest);
     configure(client, placement.geometry);
   }
 

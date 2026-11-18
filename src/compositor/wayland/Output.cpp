@@ -169,13 +169,16 @@ void WaylandCompositor::Impl::updateWindowGlass() {
   if (!windowGlass)
     return;
   std::vector<WindowGlass::Surface> surfaces;
+  // Windows blur the wallpaper beneath them (one shared capture per output),
+  // not the windows: moving, animating or typing never captures again.
   for (const auto &client : q->clients_)
     if (client->sceneTree)
       surfaces.push_back({client->sceneTree,
                        {client->geometry.width(), client->geometry.height()},
                        client->mapped && !client->fullscreen &&
                            !client->desktop && !client->utility,
-                       windowCorners ? windowCorners->radius(client->sceneTree) : 0});
+                       windowCorners ? windowCorners->radius(client->sceneTree) : 0,
+                       -1.0f, true});
   // Layer-shell surfaces (the shell's overlays and popups) opt in through
   // ext-background-effect-v1 and get the same producer-owned,
   // input-transparent blur underlays; never sample the panel's own text or
@@ -189,9 +192,18 @@ void WaylandCompositor::Impl::updateWindowGlass() {
     surfaces.push_back({layer->sceneLayer->tree, {state.width, state.height},
                      true, layerBlurRadius(*layer->surface), 1.0f});
   }
+  std::vector<WindowGlass::Output> boxes;
+  for (const auto *state : outputs) {
+    if (!state || !state->output)
+      continue;
+    wlr_box box{};
+    wlr_output_layout_get_box(outputLayout, state->output, &box);
+    if (!wlr_box_empty(&box))
+      boxes.push_back({box.x, box.y, box.width, box.height});
+  }
   const bool animating = q->windowAnimations_ &&
                          q->windowAnimations_->activeCount() > 0;
-  windowGlass->update(surfaces, animating);
+  windowGlass->update(surfaces, boxes, animating);
 }
 
 void WaylandCompositor::Impl::arrangeLayers() {

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -124,6 +125,9 @@ public:
     bool rapidBackdrop = false;
     Stopwatch captureClock;
     std::string error;
+    // The shared backdrop shown, by its revision (see setSharedBuffer).
+    std::uint64_t sharedRevision = 0;
+    bool shared = false;
 
     explicit Entry(wlr_scene_tree *value) : tree(value) {
       listen<&Entry::onTreeDestroy>(&tree->node.events.destroy, treeDestroy);
@@ -150,6 +154,7 @@ public:
       sceneRevision = 0;
       rapidBackdrop = false;
       captureClock.invalidate();
+      sharedRevision = 0;
     }
     void clearGlass() {
       Templates::detachListener(glassDestroy);
@@ -166,6 +171,7 @@ public:
       sceneRevision = 0;
       rapidBackdrop = false;
       captureClock.invalidate();
+      sharedRevision = 0;
     }
     bool createGlass() {
       if (glass)
@@ -210,6 +216,7 @@ public:
       clipSize = size;
       cornerRadius = radius;
       attempted = false;
+      sharedRevision = 0;
       return true;
     }
 
@@ -224,6 +231,57 @@ public:
         wlr_scene_buffer_set_buffer(part, buffer);
       }
     }
+
+    // Shows the part of an output's backdrop (covering `box`) that lies under
+    // the glass at scene position x, y. Only changes reach the scene: an
+    // unchanged crop or buffer adds no damage.
+    void setSharedBuffer(wlr_buffer *buffer, std::uint64_t revision,
+                         const Rect &box, int x, int y) {
+      const bool replaced = sharedRevision != revision;
+      sharedRevision = revision;
+      const double scaleX = double(buffer->width) / box.width;
+      const double scaleY = double(buffer->height) / box.height;
+      for (auto *part : parts) {
+        const double left = std::clamp(
+            (x + part->node.x - box.x) * scaleX, 0.0, double(buffer->width));
+        const double top = std::clamp(
+            (y + part->node.y - box.y) * scaleY, 0.0, double(buffer->height));
+        const double right =
+            std::clamp((x + part->node.x + part->dst_width - box.x) * scaleX,
+                       0.0, double(buffer->width));
+        const double bottom =
+            std::clamp((y + part->node.y + part->dst_height - box.y) * scaleY,
+                       0.0, double(buffer->height));
+        // Off the output: nothing of this backdrop to show.
+        const bool visible = right - left > 0.01 && bottom - top > 0.01;
+        if (part->node.enabled != visible)
+          wlr_scene_node_set_enabled(&part->node, visible);
+        if (!visible)
+          continue;
+        const wlr_fbox crop{left, top, right - left, bottom - top};
+        wlr_scene_buffer_set_source_box(part, &crop);
+        if (replaced)
+          wlr_scene_buffer_set_buffer(part, buffer);
+      }
+    }
+  };
+
+  // The blurred content below the window layer on one output.
+  struct Backdrop {
+    Rect box;
+    wlr_buffer *buffer = nullptr;
+    std::uint64_t fingerprint = 0;
+    std::uint64_t revision = 0;
+    bool attempted = false;
+    Stopwatch clock;
+
+    Backdrop() = default;
+    Backdrop(const Backdrop &) = delete;
+    Backdrop &operator=(const Backdrop &) = delete;
+    ~Backdrop() {
+      if (buffer)
+        wlr_buffer_unlock(buffer);
+    }
   };
 
   wlr_renderer *renderer;
@@ -231,6 +289,16 @@ public:
   // Where held explicit-sync client buffers are released (SceneBackdrop).
   wl_event_loop *loop = nullptr;
   wlr_scene_node *root;
+  // Shared backdrops capture everything painted before this node.
+  wlr_scene_node *windowLayer = nullptr;
+  std::vector<std::unique_ptr<Backdrop>> backdrops;
+  std::uint64_t backdropRevision = 0;
+  // A capture put off by throttling asks for a frame when it is due: frames
+  // stop once nothing moves, and the glass would keep the stale capture.
+  wl_event_source *timer = nullptr;
+  Clock::time_point timerDue{};
+  bool timerArmed = false;
+  std::function<void()> requestFrame;
   Templates::WaylandSlot<Impl> rootDestroy;
   std::unordered_map<wlr_scene_tree *, std::unique_ptr<Entry>> entries;
   std::unordered_map<wlr_surface *, std::unique_ptr<SurfaceWatch>> watches;
@@ -253,15 +321,46 @@ public:
   void onRootDestroy() {
     Templates::detachListener(rootDestroy);
     entries.clear();
+    backdrops.clear();
     watches.clear();
     steadyOpacity.clear();
     root = nullptr;
+    windowLayer = nullptr;
   }
   ~Impl() {
     Templates::detachListener(rootDestroy);
+    if (timer)
+      wl_event_source_remove(timer);
     entries.clear();
+    backdrops.clear();
     watches.clear();
     steadyOpacity.clear();
+    ludash_scene_backdrop_finish();
+  }
+
+  static int onTimer(void *data) {
+    auto *self = static_cast<Impl *>(data);
+    self->timerArmed = false;
+    if (self->requestFrame)
+      self->requestFrame();
+    return 0;
+  }
+
+  // Asks for a frame in `milliseconds` (the earliest of pending requests).
+  void defer(std::int64_t milliseconds) {
+    if (!loop)
+      return;
+    milliseconds = std::max<std::int64_t>(1, milliseconds);
+    const auto due = Clock::now() + std::chrono::milliseconds(milliseconds);
+    if (timerArmed && timerDue <= due)
+      return;
+    if (!timer)
+      timer = wl_event_loop_add_timer(loop, &Impl::onTimer, this);
+    if (!timer)
+      return;
+    timerDue = due;
+    timerArmed = true;
+    wl_event_source_timer_update(timer, static_cast<int>(milliseconds));
   }
 
   SurfaceWatch *surfaceWatch(wlr_surface *surface) {
@@ -271,14 +370,14 @@ public:
     return watch.get();
   }
 
-  // Return true at the target window: only earlier painter-order nodes belong
-  // in its backdrop. Our own sibling underlay is excluded from the cache key.
-  bool fingerprint(wlr_scene_node *node, const Entry &entry, Fingerprint &hash,
-                   const Rect &sample, bool &rapidSource, int x = 0, int y = 0,
-                   int depth = 0) {
-    if (node == &entry.tree->node)
+  // Return true at `stop` (the target window): only earlier painter-order
+  // nodes belong in its backdrop. `skip` (its own underlay) is left out.
+  bool fingerprint(wlr_scene_node *node, wlr_scene_node *stop,
+                   wlr_scene_node *skip, Fingerprint &hash, const Rect &sample,
+                   bool &rapidSource, int x = 0, int y = 0, int depth = 0) {
+    if (node == stop)
       return true;
-    if (!node || !node->enabled || node == &entry.glass->node || depth > 128)
+    if (!node || !node->enabled || node == skip || depth > 128)
       return false;
     x += node->x;
     y += node->y;
@@ -286,7 +385,7 @@ public:
       auto *tree = wlr_scene_tree_from_node(node);
       wlr_scene_node *child = nullptr;
       wl_list_for_each(child, &tree->children,
-                       link) if (fingerprint(child, entry, hash, sample,
+                       link) if (fingerprint(child, stop, skip, hash, sample,
                                              rapidSource, x, y,
                                              depth + 1)) return true;
     } else if (node->type == WLR_SCENE_NODE_RECT) {
@@ -376,6 +475,8 @@ public:
         (animationsActive ||
          (entry.rapidBackdrop && entry.captureClock.isValid() &&
           entry.captureClock.elapsed() < rapidIntervalMs))) {
+      if (!animationsActive)
+        defer(rapidIntervalMs - entry.captureClock.elapsed());
       if (!entry.glass->node.enabled)
         wlr_scene_node_set_enabled(&entry.glass->node, true);
       ready = true;
@@ -395,7 +496,7 @@ public:
     ludash_scene_backdrop_sample_box(&area, radius, &sample);
     bool rapidSource = false;
     const bool found = fingerprint(
-        root, entry, hash,
+        root, &entry.tree->node, &entry.glass->node, hash,
         Rect{sample.x, sample.y, sample.width, sample.height}, rapidSource);
     if (!found)
       return;
@@ -403,6 +504,7 @@ public:
     if (available && rapidSource && entry.captureClock.isValid() &&
         entry.captureClock.elapsed() < rapidIntervalMs) {
       entry.rapidBackdrop = true;
+      defer(rapidIntervalMs - entry.captureClock.elapsed());
       if (!entry.glass->node.enabled)
         wlr_scene_node_set_enabled(&entry.glass->node, true);
       ready = true;
@@ -445,12 +547,70 @@ public:
       error = entry.error;
     }
   }
+
+  // Captures again what lies below the window layer on this output when it
+  // changed, at most every 33 ms (a wallpaper crossfade, say).
+  void refresh(Backdrop &backdrop) {
+    constexpr std::int64_t intervalMs = 33;
+    Fingerprint hash;
+    hash.add(backdrop.box.x);
+    hash.add(backdrop.box.y);
+    hash.add(backdrop.box.width);
+    hash.add(backdrop.box.height);
+    hash.add(radius);
+    bool rapidSource = false;
+    if (!fingerprint(root, windowLayer, nullptr, hash, backdrop.box,
+                     rapidSource))
+      return;
+    if (backdrop.attempted && backdrop.fingerprint == hash.value)
+      return;
+    if (backdrop.buffer && backdrop.clock.isValid() &&
+        backdrop.clock.elapsed() < intervalMs) {
+      defer(intervalMs - backdrop.clock.elapsed());
+      return;
+    }
+    backdrop.attempted = true;
+    backdrop.fingerprint = hash.value;
+    backdrop.clock.restart();
+    const wlr_box area{backdrop.box.x, backdrop.box.y, backdrop.box.width,
+                       backdrop.box.height};
+    auto *buffer = ludash_scene_backdrop_render(
+        renderer, allocator, loop, root, windowLayer, nullptr, &area, radius);
+    if (!buffer) {
+      failed = true;
+      error = "The renderer could not create the window backdrop.";
+      return;
+    }
+    if (backdrop.buffer)
+      wlr_buffer_unlock(backdrop.buffer);
+    backdrop.buffer = wlr_buffer_lock(buffer);
+    wlr_buffer_drop(buffer);
+    backdrop.revision = ++backdropRevision;
+    ++frames;
+  }
+
+  // The output under the middle of `area`, else the first one.
+  Backdrop *backdropFor(const Rect &area) {
+    const int x = area.x + area.width / 2;
+    const int y = area.y + area.height / 2;
+    for (auto &backdrop : backdrops)
+      if (x >= backdrop->box.x && x < backdrop->box.x + backdrop->box.width &&
+          y >= backdrop->box.y && y < backdrop->box.y + backdrop->box.height)
+        return backdrop.get();
+    return backdrops.empty() ? nullptr : backdrops.front().get();
+  }
 };
 
 WindowGlass::WindowGlass(wlr_renderer *renderer, wlr_allocator *allocator,
-                         wlr_scene_node *root, wl_event_loop *loop)
+                         wlr_scene_node *root, wlr_scene_node *windowLayer,
+                         wl_event_loop *loop)
     : d(std::make_unique<Impl>(renderer, allocator, root)) {
   d->loop = loop;
+  d->windowLayer = windowLayer;
+}
+
+void WindowGlass::setFrameRequest(std::function<void()> request) {
+  d->requestFrame = std::move(request);
 }
 WindowGlass::~WindowGlass() = default;
 
@@ -466,6 +626,7 @@ bool WindowGlass::configure(bool blurEnabled, int radius, float opacity) {
 }
 
 void WindowGlass::update(const std::vector<Surface> &surfaces,
+                         const std::vector<Output> &outputs,
                          bool animationsActive) {
   d->ready = false;
   d->failed = false;
@@ -529,10 +690,16 @@ void WindowGlass::update(const std::vector<Surface> &surfaces,
       sceneChanged = true;
     }
     const Rect nextArea{x, y, surface.size.width, surface.size.height};
+    if (entry->shared != surface.shared) {
+      entry->shared = surface.shared;
+      entry->attempted = false;
+      entry->sharedRevision = 0;
+    }
     if (entry->area != nextArea) {
       entry->area = nextArea;
       entry->attempted = false;
-      sceneChanged = true;
+      // A moving shared glass only crops differently: nothing to capture.
+      sceneChanged = sceneChanged || !entry->shared;
     }
     if (sceneChanged)
       ++d->sceneRevision;
@@ -547,13 +714,50 @@ void WindowGlass::update(const std::vector<Surface> &surfaces,
                 [](const auto &item) { return !item.second->surface; });
   if (d->entries.empty()) {
     d->watches.clear();
+    d->backdrops.clear();
     return;
   }
+
+  // One backdrop per output, for every shared glass on it.
+  const bool anyShared =
+      d->windowLayer &&
+      std::any_of(d->entries.begin(), d->entries.end(),
+                  [](const auto &item) { return item.second->shared; });
+  if (!anyShared)
+    d->backdrops.clear();
+  else {
+    d->backdrops.resize(outputs.size());
+    for (std::size_t i = 0; i < outputs.size(); ++i) {
+      auto &backdrop = d->backdrops[i];
+      const Rect box{outputs[i].x, outputs[i].y, outputs[i].width,
+                     outputs[i].height};
+      if (!backdrop || backdrop->box != box) {
+        backdrop = std::make_unique<Impl::Backdrop>();
+        backdrop->box = box;
+      }
+      if (box.width > 0 && box.height > 0)
+        d->refresh(*backdrop);
+    }
+  }
+
   std::vector<Impl::Entry *> ordered;
   d->collect(d->root, ordered);
-  for (auto *entry : ordered)
-    if (entry->glass)
+  for (auto *entry : ordered) {
+    if (!entry->glass)
+      continue;
+    if (!entry->shared) {
       d->capture(*entry, animationsActive);
+      continue;
+    }
+    auto *backdrop = d->backdropFor(entry->area);
+    const bool available = backdrop && backdrop->buffer;
+    if (available)
+      entry->setSharedBuffer(backdrop->buffer, backdrop->revision,
+                             backdrop->box, entry->area.x, entry->area.y);
+    if (entry->glass->node.enabled != available)
+      wlr_scene_node_set_enabled(&entry->glass->node, available);
+    d->ready = d->ready || available;
+  }
 }
 
 bool WindowGlass::ready() const { return d->ready; }

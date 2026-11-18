@@ -183,17 +183,14 @@ target_include_directories(ludash-shortcut-settings PUBLIC src)
 target_link_libraries(ludash-shortcut-settings
     PUBLIC nlohmann_json::nlohmann_json PkgConfig::LUDASH_XKBCOMMON
     PRIVATE ludash-desktop-preferences)
-add_library(ludash-tiling-core src/compositor/tiling/TilingGeometry.c)
-target_include_directories(ludash-tiling-core PUBLIC src)
 add_library(ludash-tiling
     src/compositor/layout/WindowLayout.cpp
     src/compositor/window/WindowTemplate.cpp
     src/compositor/window/BuiltinWindowTemplates.cpp
     src/compositor/layout/FreeformLayout.cpp
-    src/compositor/layout/ScrollingLayout.cpp
-    src/compositor/tiling/TilingLayout.cpp)
+    src/compositor/layout/ScrollingLayout.cpp)
 target_include_directories(ludash-tiling PUBLIC src)
-target_link_libraries(ludash-tiling PUBLIC ludash-tiling-core ludash-json ludash-text)
+target_link_libraries(ludash-tiling PUBLIC ludash-json ludash-text)
 add_library(ludash-window-rules src/compositor/window/WindowRules.cpp src/compositor/window/WindowSwitcher.cpp)
 target_include_directories(ludash-window-rules PUBLIC src)
 target_link_libraries(ludash-window-rules PUBLIC

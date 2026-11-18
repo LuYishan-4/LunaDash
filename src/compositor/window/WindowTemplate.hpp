@@ -31,10 +31,6 @@ struct WindowTemplate {
   Json motion = Json::object();
   // Layout mode reported to the shell (state().layoutMode).
   std::string layoutMode;
-  // Templates sharing a variant preference are alternatives of one layout: the
-  // desktop preference named here holds the chosen `variant`.
-  std::string variantPreference;
-  std::string variant;
   // Uses the desktop's gap preference as its default gap.
   bool sharesDesktopGap = false;
 };
@@ -47,12 +43,6 @@ std::vector<WindowTemplate> windowTemplates();
 const WindowTemplate &defaultWindowTemplate();
 // The template with this key, or the default template for an unknown/empty key.
 const WindowTemplate &windowTemplateForKey(std::string_view key);
-// The requested template, replaced by the variant `preferences` selects when it
-// belongs to a variant group.
-const WindowTemplate &resolveWindowTemplate(std::string_view key,
-                                            const Json &preferences);
-// Variants registered for a variant preference, in registration order.
-std::vector<std::string> windowTemplateVariants(std::string_view variantPreference);
 
 // Authoring helpers for template definitions.
 Json windowLayoutIntegerParameter(int minimum, int maximum, int value = 0);
@@ -72,7 +62,7 @@ bool performWindowLayoutAction(WindowLayout &layout,
                                const std::string &action,
                                const Json &payload = {});
 
-// Registers tiling, stacking and scrolling (BuiltinWindowTemplates.cpp).
+// Registers tiling and stacking (BuiltinWindowTemplates.cpp).
 void registerBuiltinWindowTemplates();
 
 } // namespace LunaDash

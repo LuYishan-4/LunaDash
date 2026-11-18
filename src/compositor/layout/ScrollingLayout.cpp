@@ -21,6 +21,8 @@ struct Column {
   std::vector<Member> members;
   // Share of the screen width; resizing sets it from pixels.
   double proportion = 0.5;
+  // Fills the screen; the other columns keep their place beside it.
+  bool maximized = false;
   int x = 0;
   int width = 0;
 };
@@ -57,6 +59,12 @@ std::size_t activeCount(const Column &column) {
   return static_cast<std::size_t>(
       std::count_if(column.members.begin(), column.members.end(),
                     [](const Member &member) { return !member.minimized; }));
+}
+
+// A maximized column fills the screen while it holds one visible window; a
+// window grouped into it later makes it an ordinary column again.
+bool fills(const Column &column) {
+  return column.maximized && activeCount(column) == 1;
 }
 
 // The first visible window of a column, preferring row `row`.
@@ -200,8 +208,33 @@ bool ScrollingLayout::setMinimized(LayoutWindowId window, bool minimized) {
 bool ScrollingLayout::setMaximized(LayoutWindowId window, bool maximized) {
   auto [workspaceId, workspace] = d->locate(window);
   (void)workspaceId;
-  (void)maximized;
-  return workspace != nullptr;
+  if (!workspace)
+    return false;
+  auto location = find(*workspace, window);
+  if (workspace->columns[location.column].maximized == maximized)
+    return true;
+  if (maximized) {
+    // A window sharing a column leaves it: the maximized column holds it alone.
+    auto &members = workspace->columns[location.column].members;
+    if (members.size() > 1) {
+      Column column;
+      column.proportion = workspace->columns[location.column].proportion;
+      column.members.push_back(members[location.member]);
+      members.erase(members.begin() +
+                    static_cast<std::ptrdiff_t>(location.member));
+      workspace->columns.insert(workspace->columns.begin() +
+                                    static_cast<std::ptrdiff_t>(
+                                        location.column + 1),
+                                std::move(column));
+      location = find(*workspace, window);
+    }
+    // One maximized column per workspace, as the compositor keeps it.
+    for (auto &column : workspace->columns)
+      column.maximized = false;
+    workspace->focused = window;
+  }
+  workspace->columns[location.column].maximized = maximized;
+  return true;
 }
 
 bool ScrollingLayout::moveToWorkspace(LayoutWindowId window,
@@ -214,6 +247,7 @@ bool ScrollingLayout::moveToWorkspace(LayoutWindowId window,
   const auto location = find(*source, window);
   auto &members = source->columns[location.column].members;
   const Member member = members[location.member];
+  const bool maximized = source->columns[location.column].maximized;
   members.erase(members.begin() +
                 static_cast<std::ptrdiff_t>(location.member));
   d->eraseEmpty(*source);
@@ -221,7 +255,12 @@ bool ScrollingLayout::moveToWorkspace(LayoutWindowId window,
   if (source->columns.empty())
     d->workspaces.erase(sourceId);
   auto &destination = d->workspaces[destinationId];
+  if (maximized)
+    for (auto &column : destination.columns)
+      column.maximized = false;
   d->addColumn(destination, member);
+  if (const auto added = find(destination, window); added.found)
+    destination.columns[added.column].maximized = maximized;
   if (!member.minimized)
     destination.focused = window;
   repairFocus(destination);
@@ -381,6 +420,8 @@ bool ScrollingLayout::performAction(const std::string &action,
   }
   if (action == "resize-width") {
     const int width = std::max(1, workspace->area.width());
+    // Resizing a maximized column gives it that width instead.
+    workspace->columns[location.column].maximized = false;
     workspace->columns[location.column].proportion =
         std::clamp(static_cast<double>(jsonInt(payload, "width")) / width,
                    0.1, 1.0);
@@ -430,9 +471,14 @@ std::vector<WindowPlacement> ScrollingLayout::layout(LayoutWorkspaceId workspace
       member.geometry = {};
     if (!active(column))
       continue;
-    column.width = std::clamp(
-        static_cast<int>(std::lround(column.proportion * (area.width() - 2 * gap))),
-        1, std::max(1, area.width() - 2 * gap));
+    // A maximized column takes the work area plus a gap on either side of
+    // the strip, so in view its neighbours sit a gap beyond the screen edges.
+    column.width =
+        fills(column)
+            ? area.width() + 2 * gap
+            : std::clamp(static_cast<int>(std::lround(
+                             column.proportion * (area.width() - 2 * gap))),
+                         1, std::max(1, area.width() - 2 * gap));
     column.x = x;
     x += column.width + gap;
     visible.push_back(&column);
@@ -450,7 +496,9 @@ std::vector<WindowPlacement> ScrollingLayout::layout(LayoutWorkspaceId workspace
         location.found ? &workspace.columns[location.column] : nullptr;
     int scroll = workspace.scroll;
     if (focused && active(*focused)) {
-      if (d->alwaysCenter || workspace.centerRequested)
+      if (fills(*focused))
+        scroll = focused->x + 2 * gap;
+      else if (d->alwaysCenter || workspace.centerRequested)
         scroll = focused->x + focused->width / 2 - viewport / 2;
       else if (focused->x < scroll)
         scroll = focused->x;
@@ -486,6 +534,10 @@ std::vector<WindowPlacement> ScrollingLayout::layout(LayoutWorkspaceId workspace
                                std::max(1, member.weight) / total));
       member.geometry = Rect(area.x() + gap + column->x - offset, y,
                              column->width, std::max(1, rowHeight));
+      // Scrolled into view, a maximized window covers the work area exactly.
+      if (fills(*column))
+        member.geometry = Rect(area.x() + 2 * gap + column->x - offset,
+                               area.y(), area.width(), area.height());
       y += rowHeight + gap;
       used += rowHeight;
     }
@@ -527,6 +579,7 @@ ScrollingLayout::snapshot(LayoutWorkspaceId workspaceId) const {
       placement.width = column.width;
       placement.minimized = member.minimized;
       placement.focused = member.window == workspace.focused;
+      placement.maximized = fills(column) && !member.minimized;
       placement.geometry = member.geometry;
       placement.metadata = {{"group", static_cast<int>(c)},
                             {"row", member.minimized ? -1 : row++},

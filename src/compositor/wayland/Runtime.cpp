@@ -104,8 +104,13 @@ bool WaylandCompositor::Impl::createRuntime() {
   overlayLayer = wlr_scene_tree_create(&scene->tree);
   background = wlr_scene_rect_create(backgroundLayer, virtualOutputSize.width(),
                                      virtualOutputSize.height(), backgroundColor);
-  windowGlass =
-      std::make_unique<WindowGlass>(renderer, allocator, &scene->tree.node, eventLoop);
+  windowGlass = std::make_unique<WindowGlass>(
+      renderer, allocator, &scene->tree.node, &normalLayer->node, eventLoop);
+  windowGlass->setFrameRequest([this] {
+    for (const auto *state : outputs)
+      if (state && state->output)
+        wlr_output_schedule_frame(state->output);
+  });
   windowCorners = std::make_unique<WindowCorners>();
 
   seat = wlr_seat_create(display, "seat0");

@@ -101,6 +101,65 @@ static struct wlr_buffer *ludash_backdrop_buffer(
   return buffer;
 }
 
+// Scratch targets (the capture and the two blur buffers) are kept between
+// captures: allocating GPU buffers costs far more than the passes themselves.
+// The least recently used free one makes room for a new size.
+enum { LUDASH_SCRATCH_SLOTS = 9 };
+static struct ludash_scratch {
+  struct wlr_allocator *allocator;
+  struct wlr_buffer *buffer;
+  unsigned long used;
+  bool busy;
+} ludash_scratch[LUDASH_SCRATCH_SLOTS];
+static unsigned long ludash_scratch_clock;
+
+static struct wlr_buffer *ludash_scratch_take(struct wlr_renderer *renderer,
+                                              struct wlr_allocator *allocator,
+                                              int width, int height) {
+  struct ludash_scratch *free_slot = NULL;
+  for (int i = 0; i < LUDASH_SCRATCH_SLOTS; ++i) {
+    struct ludash_scratch *slot = &ludash_scratch[i];
+    if (slot->busy)
+      continue;
+    if (slot->buffer && slot->allocator == allocator &&
+        slot->buffer->width == width && slot->buffer->height == height) {
+      slot->busy = true;
+      slot->used = ++ludash_scratch_clock;
+      return slot->buffer;
+    }
+    if (!free_slot || !slot->buffer ||
+        (free_slot->buffer && slot->used < free_slot->used))
+      free_slot = slot;
+  }
+  struct wlr_buffer *buffer =
+      ludash_backdrop_buffer(renderer, allocator, width, height);
+  if (!buffer || !free_slot)
+    return buffer;
+  if (free_slot->buffer)
+    wlr_buffer_drop(free_slot->buffer);
+  *free_slot = (struct ludash_scratch){allocator, buffer, ++ludash_scratch_clock, true};
+  return buffer;
+}
+
+static void ludash_scratch_give(struct wlr_buffer *buffer) {
+  if (!buffer)
+    return;
+  for (int i = 0; i < LUDASH_SCRATCH_SLOTS; ++i)
+    if (ludash_scratch[i].buffer == buffer) {
+      ludash_scratch[i].busy = false;
+      return;
+    }
+  wlr_buffer_drop(buffer);
+}
+
+void ludash_scene_backdrop_finish(void) {
+  for (int i = 0; i < LUDASH_SCRATCH_SLOTS; ++i) {
+    if (ludash_scratch[i].buffer)
+      wlr_buffer_drop(ludash_scratch[i].buffer);
+    ludash_scratch[i] = (struct ludash_scratch){0};
+  }
+}
+
 static struct wlr_box ludash_backdrop_box(
     const struct ludash_backdrop_capture *capture,
     double x, double y, double width, double height) {
@@ -361,11 +420,11 @@ struct wlr_buffer *ludash_scene_backdrop_render(
 
   // Captured at twice the working size, then halved: every working pixel
   // averages four, instead of the capture skipping most of the scene.
-  struct wlr_buffer *capture_buffer = ludash_backdrop_buffer(
+  struct wlr_buffer *capture_buffer = ludash_scratch_take(
       renderer, allocator, 2 * work_width, 2 * work_height);
   struct wlr_buffer *work[2] = {
-      ludash_backdrop_buffer(renderer, allocator, work_width, work_height),
-      ludash_backdrop_buffer(renderer, allocator, work_width, work_height)};
+      ludash_scratch_take(renderer, allocator, work_width, work_height),
+      ludash_scratch_take(renderer, allocator, work_width, work_height)};
   struct wlr_buffer *result = ludash_backdrop_buffer(renderer, allocator, width, height);
   struct wlr_texture **imports = calloc(LUDASH_BACKDROP_LIMIT, sizeof(*imports));
   struct ludash_backdrop_hold *hold = NULL;
@@ -446,11 +505,9 @@ cleanup:
   if (hold)
     ludash_backdrop_release(hold);
   free(imports);
-  if (capture_buffer)
-    wlr_buffer_drop(capture_buffer);
+  ludash_scratch_give(capture_buffer);
   for (int i = 0; i < 2; ++i)
-    if (work[i])
-      wlr_buffer_drop(work[i]);
+    ludash_scratch_give(work[i]);
   if (!ok && result) {
     wlr_buffer_drop(result);
     result = NULL;

@@ -3,6 +3,13 @@
 #include "config/desktop/PreferenceKeys.hpp"
 #include "desktop/input/InputSettings.hpp"
 
+// wlroots 0.18 moved the keyboard's own modifier update to its interfaces.
+#if __has_include(<wlr/interfaces/wlr_keyboard.h>)
+extern "C" {
+#include <wlr/interfaces/wlr_keyboard.h>
+}
+#endif
+
 #include <chrono>
 #include <cstdint>
 #include <string_view>
@@ -42,6 +49,19 @@ bool applyKeyboardPreferences(wlr_keyboard *keyboard,
     return false;
   }
 
+  // A new keymap starts with no locks. A keyboard's first keymap takes
+  // NumLock from the numLock preference; a later one (a layout change)
+  // keeps what the user had.
+  const auto numLockMask = [](xkb_keymap *map) -> xkb_mod_mask_t {
+    const xkb_mod_index_t index =
+        map ? xkb_keymap_mod_get_index(map, XKB_MOD_NAME_NUM) : XKB_MOD_INVALID;
+    return index == XKB_MOD_INVALID ? 0 : xkb_mod_mask_t{1} << index;
+  };
+  const bool numLock =
+      keyboard->keymap
+          ? (keyboard->modifiers.locked & numLockMask(keyboard->keymap)) != 0
+          : preferenceValue(preferences, Preference::numLock);
+
   const bool ok = wlr_keyboard_set_keymap(keyboard, keymap);
   xkb_keymap_unref(keymap);
   xkb_context_unref(context);
@@ -50,6 +70,10 @@ bool applyKeyboardPreferences(wlr_keyboard *keyboard,
       *error = "wlroots rejected the XKB keymap.";
     return false;
   }
+  if (const auto mask = numLockMask(keyboard->keymap); numLock && mask)
+    // Also lights the keyboard's NumLock LED.
+    wlr_keyboard_notify_modifiers(keyboard, 0, 0, mask,
+                                  keyboard->modifiers.group);
 
   wlr_keyboard_set_repeat_info(keyboard, keyboardRepeatRate(),
                                keyboardRepeatDelay());

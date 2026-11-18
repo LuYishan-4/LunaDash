@@ -316,12 +316,6 @@ Json WaylandCompositor::state() const {
        Json::object({{"version", 1},
                      {"targets", settingsApiTargets(extensions, layoutTarget)}})},
       {"layoutMode", windowTemplate_ ? windowTemplate_->layoutMode : std::string()},
-      // The active variant, or the configured one while another template is in use.
-      {"tilingMode",
-       windowTemplate_ &&
-               windowTemplate_->variantPreference == Preference::tilingMode.name
-           ? windowTemplate_->variant
-           : preferenceValue(preferences, Preference::tilingMode)},
       {"windowLayout",
        Json::object({
            {"template", windowTemplate_ ? windowTemplate_->key : std::string()},

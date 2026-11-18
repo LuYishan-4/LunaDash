@@ -192,7 +192,7 @@ int ControlClient::run(int argc, char **argv) {
            "appearance|setup|finish-setup|configure-network|launch-x11|"
            "launch-command|launch-with-x11|"
            "open-settings|system-tool|audio|power-profile|desktop-size|"
-           "reset-preferences|default-apps|launch-default|tiling-mode|"
+           "reset-preferences|default-apps|launch-default|"
            "extension-save|extension-error|settings-describe|settings-update|"
            "window-layout-settings|window-layout-action|quit [value]\n"
            "  debug [help|json|TOPIC|watch|log|bundle]  diagnostics, see `lunadashctl debug help`\n"

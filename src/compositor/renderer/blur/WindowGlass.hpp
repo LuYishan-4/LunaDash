@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -33,17 +34,34 @@ public:
     // A shell surface owns its alpha in its client buffer. Negative uses the
     // application-window preference; explicit values never dim shell text.
     float opacity = -1.0f;
+    // Blurs only what lies below the window layer (wallpaper, bottom layers):
+    // one capture per output, which every such surface crops. Moving or
+    // animating windows then never capture again.
+    bool shared = false;
   };
 
-  // `loop` releases explicitly synchronized buffers once their blur is done.
+  // An output's box in scene coordinates.
+  struct Output {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+  };
+
+  // `loop` releases explicitly synchronized buffers once their blur is done
+  // and times deferred captures; `windowLayer` is where shared backdrops stop.
   WindowGlass(wlr_renderer *renderer, wlr_allocator *allocator,
-              wlr_scene_node *root, wl_event_loop *loop);
+              wlr_scene_node *root, wlr_scene_node *windowLayer,
+              wl_event_loop *loop);
   ~WindowGlass();
   WindowGlass(const WindowGlass &) = delete;
   WindowGlass &operator=(const WindowGlass &) = delete;
 
   bool configure(bool blurEnabled, int radius, float opacity);
-  void update(const std::vector<Surface> &surfaces, bool animationsActive);
+  void update(const std::vector<Surface> &surfaces,
+              const std::vector<Output> &outputs, bool animationsActive);
+  // Called when a capture put off by throttling is due: schedule a frame.
+  void setFrameRequest(std::function<void()> request);
   bool ready() const;
   bool failed() const;
   std::uint64_t frames() const;
