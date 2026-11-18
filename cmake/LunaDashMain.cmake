@@ -390,6 +390,10 @@ add_library(ludash-wayland
     src/compositor/wayland/Output.cpp
     src/compositor/wayland/OutputComponent.cpp
     src/compositor/wayland/BackgroundEffectManager.cpp
+    src/compositor/wayland/WorkspaceProtocol.cpp
+    src/compositor/wayland/IdleNotify.cpp
+    src/compositor/wayland/SessionLock.cpp
+    src/compositor/wayland/ForeignToplevels.cpp
     src/compositor/wayland/DisplayConfiguration.cpp
     src/compositor/wayland/Surface.cpp
     src/compositor/wayland/XdgShellComponent.cpp

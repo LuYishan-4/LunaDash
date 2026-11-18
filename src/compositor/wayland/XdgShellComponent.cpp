@@ -1,4 +1,5 @@
 #include "compositor/wayland/XdgShellComponent.hpp"
+#include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/client/ClientWindow.hpp"
 
 namespace LunaDash {
@@ -36,6 +37,37 @@ bool WaylandCompositor::Impl::XdgShellComponent::start() {
       wlr_foreign_toplevel_manager_v1_create(impl->display);
   if (!impl->foreignToplevelManager)
     return impl->fail("wlroots could not create foreign-toplevel management.");
+  // Taskbars and docks (the shell's included) focus, close and minimize windows here.
+  auto *q = impl->q;
+  const auto withClient = [q](int id, auto &&action) {
+    if (auto *client = q->clientById(id))
+      action(client);
+  };
+  impl->foreignToplevels = std::make_unique<ForeignToplevels>(
+      impl->foreignToplevelManager,
+      ForeignToplevels::Requests{
+          [q](int id) { q->activateTask(id); },
+          [withClient](int id) {
+            withClient(id, [](ClientWindow *client) { closeClient(client); });
+          },
+          [q, withClient](int id, bool minimized) {
+            if (!minimized) {
+              q->activateTask(id);
+              return;
+            }
+            withClient(id, [q](ClientWindow *client) { q->minimizeClient(client); });
+          },
+          [q, withClient](int id, bool maximized) {
+            withClient(id, [q, maximized](ClientWindow *client) {
+              q->setMaximized(client, maximized);
+              q->arrange();
+            });
+          },
+          [q, withClient](int id, bool fullscreen) {
+            withClient(id, [q, fullscreen](ClientWindow *client) {
+              q->setFullscreen(client, fullscreen);
+            });
+          }});
 #endif
   return true;
 }

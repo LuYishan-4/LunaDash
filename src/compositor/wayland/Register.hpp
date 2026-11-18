@@ -2,6 +2,10 @@
 
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/wayland/BackgroundEffectManager.hpp"
+#include "compositor/wayland/ForeignToplevels.hpp"
+#include "compositor/wayland/IdleNotify.hpp"
+#include "compositor/wayland/SessionLock.hpp"
+#include "compositor/wayland/WorkspaceProtocol.hpp"
 #include "compositor/renderer/blur/WindowGlass.hpp"
 #include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/color/NightColor.h"
@@ -137,7 +141,6 @@ public:
     wlr_ext_image_capture_source_v1 *imageCaptureSource = nullptr;
 #endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-    wlr_foreign_toplevel_handle_v1 *legacyForeignHandle = nullptr;
 #endif
     bool hasSurfaceGeometry = false;
     wlr_box lastSurfaceGeometry{};
@@ -400,6 +403,17 @@ public:
   wlr_xcursor_manager *cursorManager = nullptr;
   wlr_cursor_shape_manager_v1 *cursorShapeManager = nullptr;
   std::unique_ptr<BackgroundEffectManager> backgroundEffects;
+  // ext-workspace-v1 (updated by WaylandCompositor::arrange).
+  std::unique_ptr<WorkspaceProtocol> workspaceProtocol;
+  // ext-idle-notify-v1; input reports activity to it.
+  std::unique_ptr<IdleNotify> idleNotify;
+  // wlr-foreign-toplevel handles for every window, with their requests.
+  std::unique_ptr<ForeignToplevels> foreignToplevels;
+  // ext-session-lock-v1. While locked, input goes only to lock surfaces.
+  std::unique_ptr<SessionLock> sessionLock;
+  bool sessionLocked() const { return sessionLock && sessionLock->locked(); }
+  void updateSessionLockOutputs();
+  void sessionLockChanged(bool locked);
   wlr_fractional_scale_manager_v1 *fractionalScale = nullptr;
   wlr_screencopy_manager_v1 *screencopy = nullptr;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
@@ -579,7 +593,7 @@ public:
 
   void deferClientRemoval(ClientWindow *client);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-  static void updateClientLegacyForeignToplevel(ClientWindow *client);
+  void updateClientLegacyForeignToplevel(ClientWindow *client);
 #endif
 };
 

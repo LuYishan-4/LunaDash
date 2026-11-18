@@ -174,13 +174,6 @@ void WindowSwitcher::setLayout(const Json &clients, int workspace,
   dragging_ = dragging;
   publish();
 }
-void WindowSwitcher::setLauncherState(int serial, bool open) {
-  if (launcherSerial_ == serial && launcherOpen_ == open)
-    return;
-  launcherSerial_ = serial;
-  launcherOpen_ = open;
-  publish();
-}
 void WindowSwitcher::setDrag(const Json &drag) {
   drag_ = drag;
   publish();
@@ -198,9 +191,7 @@ Json WindowSwitcher::snapshot() const {
           {"drag", drag_},
           {"clients", clients_},
           {"workspace", workspace_},
-          {"dragging", dragging_},
-          {"launcherSerial", launcherSerial_},
-          {"launcherOpen", launcherOpen_}};
+          {"dragging", dragging_}};
 }
 void WindowSwitcher::publish() {
   if (!feedbackTimer_) {

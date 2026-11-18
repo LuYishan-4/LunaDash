@@ -56,6 +56,12 @@ extern "C" {
 #else
 #define LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE 0
 #endif
+#if __has_include(<wlr/types/wlr_ext_workspace_v1.h>)
+#include <wlr/types/wlr_ext_workspace_v1.h>
+#define LUDASH_WLR_HAS_EXT_WORKSPACE 1
+#else
+#define LUDASH_WLR_HAS_EXT_WORKSPACE 0
+#endif
 #if __has_include(<wlr/types/wlr_data_control_v1.h>)
 #include <wlr/types/wlr_data_control_v1.h>
 #define LUDASH_WLR_HAS_DATA_CONTROL 1
@@ -66,6 +72,8 @@ extern "C" {
 #include <wlr/types/wlr_drm.h>
 #endif
 #include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_idle_notify_v1.h>
+#include <wlr/types/wlr_session_lock_v1.h>
 #if __has_include(<wlr/types/wlr_linux_dmabuf_v1.h>)
 #include <wlr/types/wlr_linux_dmabuf_v1.h>
 #endif

@@ -1,5 +1,6 @@
+#include "compositor/session/ShellLocation.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
-#include "compositor/window/WindowSwitcher.hpp"
+#include "core/log/Log.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
 
 #include <string>
@@ -8,29 +9,47 @@
 namespace LunaDash {
 namespace {
 
-// Serials the shell compares with the last value it handled; 0 means "none yet".
-constexpr int maximumShellSerial = 999999; //:D
-
-int nextShellSerial(int serial) {
-  return serial >= maximumShellSerial ? 1 : serial + 1;
+// Compositor shortcut actions and the shell request each one stands for.
+std::string_view shellRequestFor(std::string_view action) {
+  if (action == "launchOrbit")
+    return "orbit-launcher";
+  if (action == "openControlCenter")
+    return "control-center";
+  if (action == "openClipboard")
+    return "clipboard";
+  if (action == "openPowerMenu")
+    return "power-menu";
+  return action;
 }
 
 } // namespace
 
-void WaylandCompositor::setLauncherVisible(bool visible, bool publish) {
-  if (shellRequests_.launcherVisible == visible)
+void WaylandCompositor::sendShellRequest(std::string_view action,
+                                         std::string_view argument) {
+  // Only the LunaDash shell (SlintLu) takes these; another shell binds its own keys.
+  if (session_.shell != SessionConfig::Shell::LunaDash)
     return;
-  shellRequests_.launcherVisible = visible;
-  if (!publish)
+  // Exactly what any compositor's shortcut can do: SlintLu's IPC, with no state kept here.
+  const std::string slintlu = findSlintLu();
+  if (slintlu.empty()) {
+    logWarning("Shell request %.*s: SlintLu was not found.",
+               static_cast<int>(action.size()), action.data());
     return;
-  shellRequests_.launcherSerial = nextShellSerial(shellRequests_.launcherSerial);
-  windowSwitcher_->setLauncherState(shellRequests_.launcherSerial,
-                                    shellRequests_.launcherVisible);
+  }
+  spawn({"msg", "call", "Shell.request", std::string(action), std::string(argument)},
+        slintlu, false);
 }
 
 void WaylandCompositor::requestShellAction(std::string_view action) {
-  shellRequests_.action = std::string(action);
-  shellRequests_.actionSerial = nextShellSerial(shellRequests_.actionSerial);
+  sendShellRequest(shellRequestFor(action));
+}
+
+void WaylandCompositor::setLauncherVisible(bool visible, bool publish) {
+  if (launcherVisible_ == visible)
+    return;
+  launcherVisible_ = visible;
+  if (publish)
+    sendShellRequest("launcher", visible ? "true" : "false");
 }
 
 bool WaylandCompositor::openSettingsPage(const std::string &page,
@@ -40,9 +59,8 @@ bool WaylandCompositor::openSettingsPage(const std::string &page,
       *error = "Unknown settings page.";
     return false;
   }
-  shellRequests_.settingsPage =
-      page.empty() ? defaultSettingsPage(settingsPages_) : page;
-  shellRequests_.settingsSerial = nextShellSerial(shellRequests_.settingsSerial);
+  sendShellRequest("settings",
+                   page.empty() ? defaultSettingsPage(settingsPages_) : page);
   return true;
 }
 
@@ -52,7 +70,7 @@ bool WaylandCompositor::openWallpaperPicker(std::string *error) {
   // and never rescan a large Pictures/Wallpapers tree on a timer.
   if (!refreshWallpaperLibrary(error))
     return false;
-  shellRequests_.pickerSerial = nextShellSerial(shellRequests_.pickerSerial);
+  sendShellRequest("wallpaper-picker");
   return true;
 }
 

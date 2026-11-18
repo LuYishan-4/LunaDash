@@ -33,6 +33,8 @@ void WaylandCompositor::Impl::PointerComponent::onMotion(
     wlr_pointer_motion_event *event) {
   if (!event)
     return;
+  if (impl->idleNotify)
+    impl->idleNotify->activity();
   wlr_cursor_move(impl->cursor, &event->pointer->base, event->delta_x,
                   event->delta_y);
   impl->processPointerMotion(event->time_msec);
@@ -42,6 +44,8 @@ void WaylandCompositor::Impl::PointerComponent::onMotionAbsolute(
     wlr_pointer_motion_absolute_event *event) {
   if (!event)
     return;
+  if (impl->idleNotify)
+    impl->idleNotify->activity();
   wlr_cursor_warp_absolute(impl->cursor, &event->pointer->base, event->x,
                            event->y);
   impl->processPointerMotion(event->time_msec);
@@ -51,6 +55,14 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
     wlr_pointer_button_event *event) {
   if (!event)
     return;
+  if (impl->idleNotify)
+    impl->idleNotify->activity();
+  if (impl->sessionLocked()) {
+    // Only to the lock surface under the pointer (processPointerMotion).
+    wlr_seat_pointer_notify_button(impl->seat, event->time_msec, event->button,
+                                   event->state);
+    return;
+  }
   auto *desktop = impl->q;
   auto *seat = impl->seat;
   const bool pressed = WlrootsCompat::buttonPressed(event);
@@ -146,6 +158,12 @@ void WaylandCompositor::Impl::PointerComponent::onAxis(
     wlr_pointer_axis_event *event) {
   if (!event)
     return;
+  if (impl->idleNotify)
+    impl->idleNotify->activity();
+  if (impl->sessionLocked()) {
+    WlrootsCompat::notifyPointerAxis(impl->seat, event);
+    return;
+  }
   // In the overview a horizontal wheel, or Shift with the vertical one, moves
   // between the windows of a workspace.
   auto *keyboard = impl->preferredKeyboard();

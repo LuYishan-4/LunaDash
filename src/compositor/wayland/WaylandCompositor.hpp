@@ -62,9 +62,14 @@ public:
   bool scheduleEventLoopCallback(int delayMilliseconds,
                                  std::function<void()> callback);
   void closeTestSession(const std::function<void(bool)> &finished);
-  // Asks the shell to open `action` (an overlay such as "welcome"); the shell
-  // sees it at its next status poll (compositor/session/ShellRequests.cpp).
+  // Asks the shell to open something, by compositor action name ("welcome",
+  // "openControlCenter"); see sendShellRequest (compositor/session/ShellRequests.cpp).
   void requestShellAction(std::string_view action);
+  // Runs `slintlu msg call Shell.request <action> <argument>`: the shell's own
+  // IPC, the same any compositor's shortcut can use.
+  void sendShellRequest(std::string_view action, std::string_view argument = {});
+  // Publishes the workspaces over ext-workspace-v1; arrange() calls it.
+  void publishWorkspaces();
 
   // Registration points. The compositor registers its built-ins at
   // construction; code built with the compositor adds its own entries here,
@@ -109,16 +114,6 @@ private:
   };
 
   // Requests the shell picks up from state(): each serial changes once per request.
-  struct ShellRequestState {
-    int settingsSerial = 0;
-    std::string settingsPage;
-    int pickerSerial = 0;
-    int launcherSerial = 0;
-    bool launcherVisible = false;
-    int actionSerial = 0;
-    std::string action;
-  };
-
   struct ActivationEnvironmentState {
     bool published = false;
     std::string error;
@@ -186,6 +181,9 @@ private:
   std::unique_ptr<XWaylandSupport> xwayland_;
   std::unique_ptr<PluginManager> pluginManager_;
   std::unique_ptr<ControlServer> controlServer_;
+  // The last shellState() line sent to subscribers.
+  std::string lastShellState_;
+  bool shellStatePushScheduled_ = false;
 
   std::string controlPath_;
   ProcessEnvironment clientEnvironment_;
@@ -209,7 +207,8 @@ private:
   ScratchpadState scratchpad_;
   CaptureState capture_;
   LifecycleState lifecycle_;
-  ShellRequestState shellRequests_;
+  // The shell reported its launcher open (launcher-visible), for toggling it.
+  bool launcherVisible_ = false;
   ActivationEnvironmentState activationEnvironment_;
   KeyboardDiagnostics keyboardDiagnostics_;
   OverviewState overview_;
@@ -258,6 +257,13 @@ private:
 
   // Status for the shell and tools (compositor/ipc/StateSnapshot.cpp).
   Json state() const;
+  // What a shell shows (workspaces' windows, wallpaper, preferences,
+  // shortcuts), pushed to `subscribe` connections when it changes.
+  Json shellState() const;
+  // Pushes shellState() to subscribers if it changed; runs once per event-loop
+  // pass however often it is asked for.
+  void scheduleShellStatePush();
+  void watchShellState();
   Json describeClients(Json &xwaylandUtilities) const;
   Json describeTiling() const;
   Json describeXWayland(Json utilitySurfaces) const;

@@ -142,6 +142,8 @@ void WaylandCompositor::Impl::XWaylandState::onMap() {
 
 void WaylandCompositor::Impl::XWaylandState::onUnmap() {
   auto *desktop = impl->q;
+  if (impl->foreignToplevels)
+    impl->foreignToplevels->remove(client->id);
   if (impl->seat->keyboard_state.focused_surface == client->wlSurface)
     wlr_seat_keyboard_notify_clear_focus(impl->seat);
   client->mapped = false;
@@ -169,6 +171,8 @@ void WaylandCompositor::Impl::XWaylandState::onSceneDestroy() {
 void WaylandCompositor::Impl::XWaylandState::onDestroy() {
   Impl *owner = impl;
   ClientWindow *window = client;
+  if (owner->foreignToplevels)
+    owner->foreignToplevels->remove(window->id);
 
   // Scene lifetime is independent of XWM lifetime. The destroy listener clears
   // sceneTree when wlroots goes first; otherwise dispose of the live tree now

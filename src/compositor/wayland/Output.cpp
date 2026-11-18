@@ -259,8 +259,24 @@ bool WaylandCompositor::Impl::resizePrimaryOutput(const std::string &preset,
   return true;
 }
 
+void WaylandCompositor::Impl::updateSessionLockOutputs() {
+  if (!sessionLock)
+    return;
+  std::vector<SessionLock::Output> boxes;
+  for (const auto *state : outputs) {
+    if (!state || !state->output)
+      continue;
+    wlr_box box{};
+    wlr_output_layout_get_box(outputLayout, state->output, &box);
+    if (!wlr_box_empty(&box))
+      boxes.push_back({state->output, box.x, box.y, box.width, box.height});
+  }
+  sessionLock->setOutputs(boxes);
+}
+
 void WaylandCompositor::Impl::relayoutOutputs() {
   updateBackground();
+  updateSessionLockOutputs();
   arrangeLayers();
   q->arrange();
 }

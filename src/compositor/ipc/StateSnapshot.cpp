@@ -269,6 +269,31 @@ Json WaylandCompositor::describeWallpaperState() const {
                        {"wallpaperVideoError", videoWallpaper_->error()}});
 }
 
+Json WaylandCompositor::shellState() const {
+  Json clients = Json::array();
+  for (const auto &client : clients_)
+    if (!client->utility)
+      clients.push_back(Json::object({{"id", client->id},
+                                      {"title", client->title},
+                                      {"appId", client->appId},
+                                      {"workspace", client->workspace},
+                                      {"focused", client.get() == focused_},
+                                      {"mapped", client->mapped},
+                                      {"minimized", client->minimized}}));
+  auto preferences = desktopPreferences();
+  preferences["plugins"] = jsonArray(pluginManager_->snapshot(), "installed");
+  Json result{{"workspace", workspace_},
+              {"workspaceCount", workspaceCount()},
+              {"clients", std::move(clients)},
+              {"appearance", std::move(preferences)},
+              {"wallpapers", wallpaperSnapshot()},
+              {"shortcuts", shortcutSettings_->snapshot()},
+              {"launcherOpen", launcherVisible_},
+              {"shutdown", lifecycle_.testStopping}};
+  result.update(describeWallpaperState());
+  return result;
+}
+
 Json WaylandCompositor::state() const {
   const auto wallpaper = describeWallpaperState();
   Json xwaylandUtilities = Json::array();
@@ -320,11 +345,7 @@ Json WaylandCompositor::state() const {
       {"shortcuts", shortcutSettings_->snapshot()},
       {"settingsTools", settingsToolsJson()},
       {"display", d ? d->displaySnapshot() : Json::object()},
-      {"settingsSerial", shellRequests_.settingsSerial},
-      {"settingsPage", shellRequests_.settingsPage},
-      {"pickerSerial", shellRequests_.pickerSerial},
-      {"launcherSerial", shellRequests_.launcherSerial},
-      {"launcherOpen", shellRequests_.launcherVisible},
+      {"launcherOpen", launcherVisible_},
       {"input", describeInput(preferences)},
       {"blurReady", glass && glass->ready()},
       {"blurFailed", glass && glass->failed()},
@@ -355,8 +376,6 @@ Json WaylandCompositor::state() const {
       {"applicationTheme", synchronizeApplicationTheme(preferences, palette)},
       {"appearancePresets", appearancePresets()},
       {"wallpapers", wallpaperSnapshot()},
-      {"shellAction", shellRequests_.action},
-      {"shellActionSerial", shellRequests_.actionSerial},
       {"scratchpad", Json::object({{"window", scratchpad_.window},
                                    {"pending", scratchpad_.pending},
                                    {"error", scratchpad_.error}})},

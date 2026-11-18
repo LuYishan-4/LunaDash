@@ -33,7 +33,6 @@ public:
   std::string thumbnailPath(int window) const;
   void setThumbnail(int serial, int window, const std::string &path);
   void setLayout(const Json &clients, int workspace, bool dragging);
-  void setLauncherState(int serial, bool open);
 
 private:
   std::string channelPath_;
@@ -45,8 +44,6 @@ private:
   Json clients_ = Json::array();
   int workspace_ = 0;
   bool dragging_ = false;
-  int launcherSerial_ = 0;
-  bool launcherOpen_ = false;
   wl_event_source *feedbackTimer_ = nullptr;
   bool feedbackPending_ = false;
   int index_ = 0;

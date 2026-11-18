@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -15,6 +16,8 @@ namespace LunaDash {
 namespace {
 constexpr std::size_t kMaximumRequestBytes = 65536;
 constexpr int kClientTimeoutMs = 3000;
+// A subscriber further behind than this is not reading: drop it.
+constexpr std::size_t kMaximumQueuedBytes = 4 * 1024 * 1024;
 
 [[noreturn]] void throwSystemError(const char *operation) {
   throw std::system_error(errno, std::generic_category(), operation);
@@ -72,12 +75,14 @@ struct ControlServer::Client {
   std::string request;
   std::string response;
   std::size_t responseOffset = 0;
+  // Stays open for broadcast(); `response` then queues the lines not yet sent.
+  bool subscriber = false;
 };
 
 ControlServer::ControlServer(wl_event_loop *eventLoop, std::string socketPath,
-                             RequestHandler handler)
+                             RequestHandler handler, SubscribeHandler subscribe)
     : eventLoop_(eventLoop), socketPath_(std::move(socketPath)),
-      handler_(std::move(handler)) {
+      handler_(std::move(handler)), subscribe_(std::move(subscribe)) {
   if (!eventLoop_ || !handler_ || socketPath_.empty())
     throw std::invalid_argument(
         "ControlServer requires an event loop, path, and handler");
@@ -170,7 +175,8 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
     return 0;
   }
 
-  if ((mask & WL_EVENT_READABLE) != 0 && client->response.empty()) {
+  if ((mask & WL_EVENT_READABLE) != 0 &&
+      (client->response.empty() || client->subscriber)) {
     char bytes[4096];
     for (;;) {
       const ssize_t count = ::recv(client->fd, bytes, sizeof(bytes), 0);
@@ -181,6 +187,30 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
           return 0;
         }
         const auto newline = client->request.find('\n');
+        if (newline != std::string::npos && client->subscriber) {
+          // A subscriber only listens; ignore anything it sends.
+          client->request.clear();
+          continue;
+        }
+        if (newline != std::string::npos && client->owner->subscribe_) {
+          std::optional<std::string> first;
+          try {
+            first = client->owner->subscribe_(
+                std::string_view(client->request.data(), newline));
+          } catch (...) {
+          }
+          if (first) {
+            client->subscriber = true;
+            client->request.clear();
+            // Subscribers live as long as they like.
+            wl_event_source_timer_update(client->timeoutSource, 0);
+            client->response = std::move(*first);
+            client->response.push_back('\n');
+            if (!client->owner->flushClient(client))
+              return 0;
+            continue;
+          }
+        }
         if (newline != std::string::npos) {
           try {
             client->response = client->owner->handler_(
@@ -209,6 +239,16 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
       client->owner->closeClient(client);
       return 0;
     }
+  }
+
+  if (client->subscriber) {
+    if ((mask & WL_EVENT_HANGUP) != 0) {
+      client->owner->closeClient(client);
+      return 0;
+    }
+    if ((mask & WL_EVENT_WRITABLE) != 0)
+      client->owner->flushClient(client);
+    return 0;
   }
 
   if ((mask & WL_EVENT_HANGUP) != 0 && client->response.empty()) {
@@ -274,6 +314,56 @@ void ControlServer::acceptPendingConnections() {
     wl_event_source_timer_update(client->timeoutSource, kClientTimeoutMs);
     clients_.emplace(fd, std::move(client));
   }
+}
+
+bool ControlServer::flushClient(Client *client) {
+  while (client->responseOffset < client->response.size()) {
+    const ssize_t count = ::send(
+        client->fd, client->response.data() + client->responseOffset,
+        client->response.size() - client->responseOffset, MSG_NOSIGNAL);
+    if (count > 0) {
+      client->responseOffset += static_cast<std::size_t>(count);
+      continue;
+    }
+    if (count < 0 && errno == EINTR)
+      continue;
+    if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+      // The rest goes out when the socket can take it.
+      wl_event_source_fd_update(client->socketSource,
+                                WL_EVENT_READABLE | WL_EVENT_WRITABLE);
+      return true;
+    }
+    closeClient(client);
+    return false;
+  }
+  client->response.clear();
+  client->responseOffset = 0;
+  wl_event_source_fd_update(client->socketSource, WL_EVENT_READABLE);
+  return true;
+}
+
+void ControlServer::broadcast(const std::string &line) {
+  std::vector<Client *> subscribers;
+  for (const auto &[fd, client] : clients_)
+    if (client->subscriber)
+      subscribers.push_back(client.get());
+  for (auto *client : subscribers) {
+    if (client->response.size() - client->responseOffset + line.size() >
+        kMaximumQueuedBytes) {
+      closeClient(client);
+      continue;
+    }
+    client->response += line;
+    client->response.push_back('\n');
+    flushClient(client);
+  }
+}
+
+std::size_t ControlServer::subscribers() const {
+  std::size_t count = 0;
+  for (const auto &[fd, client] : clients_)
+    count += client->subscriber ? 1 : 0;
+  return count;
 }
 
 void ControlServer::closeClient(Client *client) {

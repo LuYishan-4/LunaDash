@@ -71,6 +71,21 @@ bool WaylandCompositor::start() {
   if (!d->initialize())
     return false;
   sessionServices_ = std::make_unique<SessionServices>(d->eventLoop);
+  if (WorkspaceProtocol::supported())
+    d->workspaceProtocol = std::make_unique<WorkspaceProtocol>(
+        d->display, [this](int index) { selectWorkspace(index); });
+  d->idleNotify = std::make_unique<IdleNotify>(d->display, d->idleInhibit, d->seat);
+  d->sessionLock = std::make_unique<SessionLock>(
+      d->display, &d->scene->tree,
+      SessionLock::Callbacks{
+          [this](wlr_surface *surface) {
+            if (surface)
+              d->focusSurface(surface);
+            else
+              wlr_seat_keyboard_notify_clear_focus(d->seat);
+          },
+          [this](bool locked) { d->sessionLockChanged(locked); }});
+  d->updateSessionLockOutputs();
 
   pluginManager_->setChangedCallback([this] {
     if (!d->scheduleCallback(0, [this] { arrange(); }))
@@ -84,6 +99,7 @@ bool WaylandCompositor::start() {
 
   if (!startControlServer())
     return false;
+  watchShellState();
 
   ensureLegacyDesktopSettingsImported();
   clientEnvironment_ = createClientEnvironment(
@@ -107,7 +123,6 @@ void WaylandCompositor::registerBuiltins() {
   ShortcutActions::registerBuiltins(shortcuts_);
   registerBuiltinSettingsPages(settingsPages_);
   registerBuiltinSessionHelpers(sessionHelpers_);
-  shellRequests_.settingsPage = defaultSettingsPage(settingsPages_);
 }
 
 void WaylandCompositor::createDesktopServices() {
@@ -141,12 +156,24 @@ bool WaylandCompositor::startControlServer() {
   windowSwitcher_->setChannelPath(controlPath_ + "-interaction.json");
   try {
     controlServer_ = std::make_unique<ControlServer>(
-        d->eventLoop, controlPath_, [this](std::string_view request) {
+        d->eventLoop, controlPath_,
+        [this](std::string_view request) {
           const auto document = parseJsonObject(request);
           const auto response = document.is_object()
                                     ? control(document)
                                     : Json{{"error", "Invalid request"}};
+          // A command may have changed what the shell shows.
+          scheduleShellStatePush();
           return jsonCompact(response);
+        },
+        // {"method": "subscribe"}: shellState() now and whenever it changes,
+        // instead of polling the full status.
+        [this](std::string_view request) -> std::optional<std::string> {
+          const auto document = parseJsonObject(request);
+          if (!document.is_object() || jsonString(document, "method") != "subscribe")
+            return std::nullopt;
+          lastShellState_ = jsonCompact(shellState());
+          return lastShellState_;
         });
   } catch (const std::exception &error) {
     logCritical("LunaDash control socket %s: %s", controlPath_.c_str(),
@@ -155,6 +182,36 @@ bool WaylandCompositor::startControlServer() {
     return false;
   }
   return true;
+}
+
+// Changes that pass neither arrange() nor a command (a palette finished in the
+// background, a preferences file edited by hand) are found by a slow check.
+void WaylandCompositor::watchShellState() {
+  if (!d)
+    return;
+  d->scheduleCallback(2000, [this] {
+    if (lifecycle_.shuttingDown)
+      return;
+    scheduleShellStatePush();
+    watchShellState();
+  });
+}
+
+void WaylandCompositor::scheduleShellStatePush() {
+  if (shellStatePushScheduled_ || !controlServer_ || !d ||
+      controlServer_->subscribers() == 0)
+    return;
+  shellStatePushScheduled_ = true;
+  d->scheduleCallback(0, [this] {
+    shellStatePushScheduled_ = false;
+    if (!controlServer_ || controlServer_->subscribers() == 0)
+      return;
+    auto line = jsonCompact(shellState());
+    if (line == lastShellState_)
+      return;
+    lastShellState_ = std::move(line);
+    controlServer_->broadcast(lastShellState_);
+  });
 }
 
 void WaylandCompositor::startXWayland() {
@@ -175,6 +232,9 @@ void WaylandCompositor::startXWayland() {
 
 WaylandCompositor::~WaylandCompositor() {
   lifecycle_.shuttingDown = true;
+  // The handles belong to the manager, which goes with the display.
+  if (d)
+    d->foreignToplevels.reset();
   cancelWallpaperPalette();
   videoWallpaper_->stop();
   sessionServices_.reset();

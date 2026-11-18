@@ -180,6 +180,11 @@ Json WaylandCompositor::debugSnapshot() const {
            {"textInput", d->textInputManager != nullptr},
            {"virtualKeyboard", d->virtualKeyboardManager != nullptr},
            {"idleInhibit", d->idleInhibit != nullptr},
+           {"idleNotify", d->idleNotify && d->idleNotify->valid()},
+           {"idleInhibitors", d->idleNotify ? d->idleNotify->inhibitors() : 0},
+           {"sessionLock", d->sessionLock && d->sessionLock->valid()},
+           {"sessionLocked", d->sessionLocked()},
+           {"extWorkspace", d->workspaceProtocol && d->workspaceProtocol->valid()},
            {"screencopy", d->screencopy != nullptr},
 #if LUDASH_WLR_HAS_DATA_CONTROL
            {"dataControl", d->dataControl != nullptr},

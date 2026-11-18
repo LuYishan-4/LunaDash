@@ -70,7 +70,7 @@ void ShortcutActions::toggleLauncher(WaylandCompositor &c) {
     return;
   }
 
-  c.setLauncherVisible(!c.shellRequests_.launcherVisible);
+  c.setLauncherVisible(!c.launcherVisible_);
 }
 
 void ShortcutActions::registerBuiltins(ShortcutRegistry &registry) {

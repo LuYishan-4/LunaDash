@@ -101,49 +101,22 @@ void WaylandCompositor::Impl::ToplevelState::destroyForeignToplevel() {
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
 void WaylandCompositor::Impl::updateClientLegacyForeignToplevel(
     ClientWindow *client) {
-  // nativeState holds XWaylandState for X11 clients. Its listener pointers
-  // must never be interpreted as ToplevelState's foreign protocol handles.
-  if (!client || client->x11 || !client->nativeState)
-    return;
-  static_cast<ToplevelState *>(client->nativeState)
-      ->updateLegacyForeignToplevel();
+  // Every window, Wayland or X11 (ForeignToplevels).
+  if (client && foreignToplevels)
+    foreignToplevels->update(*client, q->focused_ == client);
 }
 
 void WaylandCompositor::Impl::ToplevelState::updateLegacyForeignToplevel() {
-  if (!legacyForeignHandle)
-    return;
-  const std::string title = client->title;
-  const std::string appId = client->appId;
-  wlr_foreign_toplevel_handle_v1_set_title(legacyForeignHandle, title.c_str());
-  wlr_foreign_toplevel_handle_v1_set_app_id(legacyForeignHandle, appId.c_str());
-  wlr_foreign_toplevel_handle_v1_set_activated(
-      legacyForeignHandle,
-      client->mapped && !client->minimized && impl->q->focused_ == client);
-  wlr_foreign_toplevel_handle_v1_set_minimized(legacyForeignHandle,
-                                                client->minimized);
-  wlr_foreign_toplevel_handle_v1_set_maximized(legacyForeignHandle,
-                                                client->maximized);
-  wlr_foreign_toplevel_handle_v1_set_fullscreen(legacyForeignHandle,
-                                                 client->fullscreen);
+  impl->updateClientLegacyForeignToplevel(client);
 }
 
 void WaylandCompositor::Impl::ToplevelState::createLegacyForeignToplevel() {
-  if (legacyForeignHandle || !client->mapped || !impl->foreignToplevelManager)
-    return;
-  legacyForeignHandle =
-      wlr_foreign_toplevel_handle_v1_create(impl->foreignToplevelManager);
-  if (!legacyForeignHandle)
-    return;
-  legacyForeignHandle->data = this;
-  updateLegacyForeignToplevel();
+  impl->updateClientLegacyForeignToplevel(client);
 }
 
 void WaylandCompositor::Impl::ToplevelState::destroyLegacyForeignToplevel() {
-  if (!legacyForeignHandle)
-    return;
-  legacyForeignHandle->data = nullptr;
-  wlr_foreign_toplevel_handle_v1_destroy(legacyForeignHandle);
-  legacyForeignHandle = nullptr;
+  if (impl->foreignToplevels)
+    impl->foreignToplevels->remove(client->id);
 }
 #endif
 

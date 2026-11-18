@@ -325,6 +325,19 @@ void WaylandCompositor::arrange() {
 
   d->updateWindowCorners();
   publishWindowLayout();
+  publishWorkspaces();
+  scheduleShellStatePush();
+}
+
+void WaylandCompositor::publishWorkspaces() {
+  if (!d || !d->workspaceProtocol)
+    return;
+  std::vector<wlr_output *> outputs;
+  outputs.reserve(d->outputs.size());
+  for (const auto *output : d->outputs)
+    if (output && output->output)
+      outputs.push_back(output->output);
+  d->workspaceProtocol->update(workspaceCount(), workspace_, outputs);
 }
 
 } // namespace LunaDash

@@ -111,6 +111,17 @@ bool copyKeyboardLocks(wlr_keyboard *target, const wlr_keyboard *source) {
 
 } // namespace
 void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
+  if (sessionLocked()) {
+    double sx = 0, sy = 0;
+    if (auto *surface = sessionLock->surfaceAt(cursor->x, cursor->y, &sx, &sy)) {
+      wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
+      wlr_seat_pointer_notify_motion(seat, time, sx, sy);
+    } else {
+      wlr_seat_pointer_notify_clear_focus(seat);
+      setCursorImage("default");
+    }
+    return;
+  }
   if (updateWindowPointer())
     return;
   // A held button keeps the surface it was pressed on, even outside it, as
@@ -192,8 +203,28 @@ bool WaylandCompositor::Impl::inputMethodVirtualKeyboard(
          wl_resource_get_client(inputMethod->method->resource);
 }
 
+void WaylandCompositor::Impl::sessionLockChanged(bool locked) {
+  if (locked) {
+    // Nothing interactive may stay open underneath.
+    if (pointerWindow)
+      finishWindowPointer(false);
+    if (q->windowSwitcher_->active())
+      q->finishWindowSwitch(false);
+    if (q->overviewOpen())
+      q->closeOverview();
+    pressedSurface = nullptr;
+    wlr_seat_pointer_notify_clear_focus(seat);
+  } else {
+    q->synchronizeWindowFocus();
+  }
+  schedulePointerRebase();
+}
+
 void WaylandCompositor::Impl::focusSurface(wlr_surface *surface) {
   if (!surface)
+    return;
+  // Nothing but the lock screen may take the keyboard while locked.
+  if (sessionLocked() && !sessionLock->isLockSurface(surface))
     return;
 
   wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
@@ -277,6 +308,8 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
     wlr_keyboard_key_event *event) {
   if (!event)
     return;
+  if (impl->idleNotify)
+    impl->idleNotify->activity();
   auto *desktop = impl->q;
   if (!virtualKeyboard)
     impl->activePhysicalKeyboard = keyboard;
@@ -309,6 +342,15 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
     // grabs the evdev keyboard and re-emits it through virtual-keyboard-v1;
     // forcing the stale physical keyboard here loses Ctrl and lock state.
     wlr_seat_set_keyboard(impl->seat, keyboard);
+  }
+
+  // Locked: no compositor shortcuts and no input method, only the lock screen.
+  if (impl->sessionLocked()) {
+    wlr_seat_keyboard_notify_key(impl->seat, event->time_msec, event->keycode,
+                                 event->state);
+    if (inputMethodVirtual)
+      impl->restorePreferredKeyboard();
+    return;
   }
 
   const uint32_t keycode = event->keycode + 8;

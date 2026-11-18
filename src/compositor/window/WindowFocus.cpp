@@ -28,6 +28,11 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
   client->iconName = client->utility
                          ? std::string()
                          : windowIconName(client->appId, client->title);
+  // Taskbars see new titles, and X11 windows as they map.
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+  if (d)
+    d->updateClientLegacyForeignToplevel(client);
+#endif
 }
 
 void WaylandCompositor::raiseWithDialogs(ClientWindow *client) {
@@ -202,6 +207,8 @@ void WaylandCompositor::removeClient(ClientWindow *client) {
     return;
   if (scratchpad_.window == client->id)
     scratchpad_.window = 0;
+  if (d && d->foreignToplevels)
+    d->foreignToplevels->remove(client->id);
   if (focused_ == client)
     focused_ = nullptr;
   windowSwitcher_->remove(client->id);
