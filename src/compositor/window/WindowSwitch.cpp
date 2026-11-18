@@ -70,12 +70,15 @@ void WaylandCompositor::publishWindowLayout() {
 int WaylandCompositor::workspaceCount() const {
   // A bound for the numbers, not a limit anyone reaches.
   constexpr int kMaximumWorkspaces = 100;
+  // There is always somewhere to switch to, also before any window is open.
+  constexpr int kMinimumWorkspaces = 2;
   int last = -1;
   for (const auto &client : clients_)
     if (!client->utility && !client->desktop &&
         (client->mapped || client->layoutPending))
       last = std::max(last, client->workspace);
-  return std::clamp(std::max(last + 2, workspace_ + 1), 1, kMaximumWorkspaces);
+  return std::clamp(std::max({last + 2, workspace_ + 1, kMinimumWorkspaces}), 1,
+                    kMaximumWorkspaces);
 }
 void WaylandCompositor::compactWorkspaces() {
   std::vector<bool> occupied;
@@ -98,8 +101,9 @@ void WaylandCompositor::compactWorkspaces() {
     if (workspace_ > workspace)
       --workspace_;
   }
-  // An empty current workspace far past the others moves next to them.
-  workspace_ = std::min(workspace_, span);
+  // An empty current workspace far past the others moves next to them. With no
+  // windows at all the second workspace stays reachable (workspaceCount()).
+  workspace_ = std::min(workspace_, std::max(span, 1));
 }
 void WaylandCompositor::selectWorkspace(int workspace) {
   if (workspace < 0)
