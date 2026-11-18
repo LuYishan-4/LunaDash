@@ -21,6 +21,8 @@ inline constexpr int columnMinimumWidth = 120;
 inline constexpr double overviewZoom = 0.5;
 inline constexpr int overviewWorkspaceGap = 96;
 inline constexpr SceneSpring overviewSpring{800.0, 0.92, 0.001, 0.01};
+// Sliding between workspaces in the overview (logical pixels).
+inline constexpr SceneSpring overviewViewSpring{500.0, 1.0, 0.5, 5.0};
 // A press that moves further than this drags the window instead of clicking it.
 inline constexpr double overviewDragThreshold = 6.0;
 // Scroll distance (wheel units) per workspace step.

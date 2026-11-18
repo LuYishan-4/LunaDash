@@ -146,7 +146,10 @@ void WaylandCompositor::arrange() {
   d->schedulePointerRebase();
   compactWorkspaces();
   // A workspace change slides the whole old workspace out and the new one in.
+  // In the overview the column of workspaces slides instead, and the windows
+  // just change workspace.
   const int slide = std::exchange(workspaceSlide_, 0);
+  const bool overviewSwitch = slide && overview_.open;
   const int slideDistance =
       slide * (std::max(1, d->outputSize().width()) + WindowTuning::workspaceSlideGap);
   const auto preferences = desktopPreferences();
@@ -244,7 +247,7 @@ void WaylandCompositor::arrange() {
       if (visible && slidingOut)
         windowAnimations_->returnHome(client->sceneTree);
       if (!visible && wasVisible && !slidingOut && client->mapped &&
-          windowAnimations_) {
+          windowAnimations_ && !overviewSwitch) {
         if (slide && client->workspace != workspace_)
           keepSliding = windowAnimations_->slideOut(
               client->sceneTree, animationRectangle(client->geometry),
@@ -301,7 +304,7 @@ void WaylandCompositor::arrange() {
     configure(client, placement.geometry);
   }
 
-  if (windowAnimations_)
+  if (windowAnimations_ && !overviewSwitch)
     for (auto *client : revealed) {
       if (slide)
         windowAnimations_->open(client->sceneTree,

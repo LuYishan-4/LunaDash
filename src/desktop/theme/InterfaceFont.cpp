@@ -15,7 +15,7 @@ namespace LunaDash {
 namespace {
 
 constexpr const char *interfaceSchema = "org.gnome.desktop.interface";
-// Portal calls must not hold up a window that is about to open.
+
 constexpr int portalTimeoutMs = 500;
 
 std::string lower(std::string text) {
@@ -33,7 +33,6 @@ bool isSize(std::string_view word) {
          result.ptr == word.data() + word.size();
 }
 
-// The setting through the portal, which works under any desktop that has one.
 std::string portalSetting(const char *key) {
   GError *error = nullptr;
   GDBusConnection *bus = g_bus_get_sync(G_BUS_TYPE_SESSION, nullptr, &error);

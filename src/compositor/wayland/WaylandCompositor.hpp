@@ -145,7 +145,13 @@ private:
     bool dragging = false;
     // A press that went to the shell: its motion and release go there too.
     bool shellPress = false;
+    // Wheel distance not yet turned into a step, vertical and horizontal.
     double scroll = 0.0;
+    double scrollHorizontal = 0.0;
+    // The workspace shown in the middle: follows workspace_ on a spring, so
+    // switching workspaces in the overview slides the column of workspaces.
+    double view = 0.0;
+    double viewVelocity = 0.0;
   };
 
   // Counters reported by state() for input diagnostics.
@@ -299,7 +305,9 @@ private:
   // Pointer and key handling while the overview is shown; true when consumed.
   bool overviewPointerMotion();
   bool overviewPointerButton(std::uint32_t button, bool pressed);
-  bool overviewAxis(double delta);
+  // A wheel step: vertical switches workspaces, horizontal (or Shift)
+  // focuses the window beside the focused one.
+  bool overviewAxis(double delta, bool horizontal);
   void rebuildOverviewPreviews();
   Rect overviewRect(const Rect &rectangle, int workspace) const;
   const OverviewState::Preview *overviewPreviewAt(double x, double y,

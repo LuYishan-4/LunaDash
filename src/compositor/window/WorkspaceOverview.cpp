@@ -3,6 +3,7 @@
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
+#include "compositor/window/animation/AnimationProfile.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTuning.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
@@ -112,6 +113,8 @@ void WaylandCompositor::toggleOverview() {
   parseHexColor(jsonString(preferences, "accent"), overview_.accent);
   overview_.open = true;
   overview_.lastStep = monotonicNow();
+  overview_.view = workspace_;
+  overview_.viewVelocity = 0.0;
   for (const auto *output : d->outputs)
     wlr_output_schedule_frame(output->output);
 }
@@ -122,6 +125,7 @@ void WaylandCompositor::closeOverview() {
   overview_.dragging = false;
   overview_.hovered = 0;
   overview_.scroll = 0.0;
+  overview_.scrollHorizontal = 0.0;
   if (d)
     for (const auto *output : d->outputs)
       wlr_output_schedule_frame(output->output);
@@ -132,7 +136,7 @@ Rect WaylandCompositor::overviewRect(const Rect &rectangle, int workspace) const
   const double scale = 1.0 + (WindowTuning::overviewZoom - 1.0) * overview_.progress;
   const double centerX = output.width() / 2.0;
   const double centerY = output.height() / 2.0;
-  const double offset = static_cast<double>(workspace - workspace_) *
+  const double offset = (static_cast<double>(workspace) - overview_.view) *
                         (output.height() + WindowTuning::overviewWorkspaceGap);
   const double left = centerX + (rectangle.x() - centerX) * scale;
   const double top = centerY + (rectangle.y() + offset - centerY) * scale;
@@ -157,8 +161,10 @@ int WaylandCompositor::overviewWorkspaceAt(double y) const {
   const double centerY = output.height() / 2.0;
   const double unscaled = centerY + (y - centerY) / std::max(0.01, scale);
   const double band = output.height() + WindowTuning::overviewWorkspaceGap;
+  // Measured from the workspace drawn in the middle, which may be sliding.
+  const double origin = (overview_.view - workspace_) * band;
   const int workspace =
-      workspace_ + static_cast<int>(std::floor(unscaled / band));
+      workspace_ + static_cast<int>(std::floor((unscaled + origin) / band));
   return std::clamp(workspace, 0, std::max(0, workspaceCount() - 1));
 }
 
@@ -213,8 +219,15 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   // Where each window is laid out: the current workspace as shown, the others
   // as they were last laid out.
   const auto layoutRect = [this](const ClientWindow &client) {
-    if (client.workspace == workspace_ || client.floating)
-      return client.geometry;
+    if (client.workspace == workspace_ || client.floating) {
+      // Where the window is drawn right now, so a focus move that scrolls
+      // the columns animates in the preview too.
+      if (!windowAnimations_ || !client.sceneTree)
+        return client.geometry;
+      const auto frame = windowAnimations_->animation().visualGeometry(
+          client.sceneTree, animationRectangle(client.geometry));
+      return Rect(frame.left, frame.top, frame.width, frame.height);
+    }
     for (const auto &column : windowLayout_->snapshot(client.workspace).columns)
       if (static_cast<int>(column.window) == client.id && column.geometry.isValid())
         return column.geometry;
@@ -249,10 +262,24 @@ void WaylandCompositor::advanceOverview(std::uint64_t presentNs) {
   if (!windowAnimations_ || windowAnimations_->animation().duration() <= 0) {
     overview_.progress = target;
     overview_.velocity = 0.0;
+    overview_.view = workspace_;
+    overview_.viewVelocity = 0.0;
   } else {
     double offset = overview_.progress - target;
     stepSceneSpring(offset, overview_.velocity, WindowTuning::overviewSpring, seconds);
     overview_.progress = target + offset;
+    // The view moves in workspaces; the spring settles in pixels.
+    const double band = d->outputSize().height() + WindowTuning::overviewWorkspaceGap;
+    double viewOffset = (overview_.view - workspace_) * band;
+    double viewSpeed = overview_.viewVelocity * band;
+    stepSceneSpring(viewOffset, viewSpeed, WindowTuning::overviewViewSpring, seconds);
+    overview_.view = workspace_ + viewOffset / band;
+    overview_.viewVelocity = viewSpeed / band;
+    if (std::abs(viewOffset) < WindowTuning::overviewViewSpring.restDistance &&
+        std::abs(viewSpeed) < WindowTuning::overviewViewSpring.restSpeed) {
+      overview_.view = workspace_;
+      overview_.viewVelocity = 0.0;
+    }
   }
   const auto &spring = WindowTuning::overviewSpring;
   const bool settled = std::abs(overview_.progress - target) < spring.restDistance &&
@@ -379,15 +406,21 @@ bool WaylandCompositor::overviewPointerButton(std::uint32_t button, bool pressed
   return true;
 }
 
-bool WaylandCompositor::overviewAxis(double delta) {
+bool WaylandCompositor::overviewAxis(double delta, bool horizontal) {
   if (!overview_.open || pointerOverShell())
     return false;
-  overview_.scroll += delta;
-  if (std::abs(overview_.scroll) >= WindowTuning::overviewScrollStep) {
-    const int step = overview_.scroll > 0 ? 1 : -1;
-    overview_.scroll = 0.0;
+  auto &scroll = horizontal ? overview_.scrollHorizontal : overview_.scroll;
+  (horizontal ? overview_.scroll : overview_.scrollHorizontal) = 0.0;
+  scroll += delta;
+  if (std::abs(scroll) < WindowTuning::overviewScrollStep)
+    return true;
+  const int step = scroll > 0 ? 1 : -1;
+  scroll = 0.0;
+  if (horizontal)
+    // The layout scrolls its columns to the new focus; the previews follow.
+    handleShortcut(step > 0 ? "focusRight" : "focusLeft");
+  else
     selectWorkspace(std::clamp(workspace_ + step, 0, std::max(0, workspaceCount() - 1)));
-  }
   return true;
 }
 

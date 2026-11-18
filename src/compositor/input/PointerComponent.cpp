@@ -141,8 +141,13 @@ void WaylandCompositor::Impl::PointerComponent::onAxis(
     wlr_pointer_axis_event *event) {
   if (!event)
     return;
-  if (WlrootsCompat::verticalAxis(event) &&
-      impl->q->overviewAxis(event->delta))
+  // In the overview a horizontal wheel, or Shift with the vertical one, moves
+  // between the windows of a workspace.
+  auto *keyboard = impl->preferredKeyboard();
+  const bool shift =
+      keyboard && (wlr_keyboard_get_modifiers(keyboard) & WLR_MODIFIER_SHIFT);
+  if (impl->q->overviewAxis(event->delta,
+                            !WlrootsCompat::verticalAxis(event) || shift))
     return;
   auto *switcher = impl->q->windowSwitcher_.get();
   if (switcher->active()) {
