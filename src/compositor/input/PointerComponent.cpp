@@ -1,5 +1,6 @@
 #include "compositor/input/PointerComponent.hpp"
 #include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include <linux/input-event-codes.h>
@@ -101,8 +102,12 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
     impl->pressedSurface =
         surface && surface == seat->pointer_state.focused_surface ? surface
                                                                    : nullptr;
+    // sx, sy are surface coordinates; a zoomed window draws them scaled.
+    const auto *owner = impl->clientForSurface(surface);
+    impl->pressedSurfaceScale = owner ? clientContentScale(*owner) : 1.0;
     impl->pressedSurfaceOrigin =
-        PointF(impl->cursor->x - sx, impl->cursor->y - sy);
+        PointF(impl->cursor->x - sx * impl->pressedSurfaceScale,
+               impl->cursor->y - sy * impl->pressedSurfaceScale);
   }
   wlr_seat_pointer_notify_button(seat, event->time_msec, event->button,
                                  event->state);

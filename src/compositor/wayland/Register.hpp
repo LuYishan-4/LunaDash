@@ -450,7 +450,14 @@ public:
   // wlroots clears pointer_state.focused_surface when the surface goes away.
   wlr_surface *pressedSurface = nullptr;
   PointF pressedSurfaceOrigin;
+  // The pressed surface's content scale: surface coordinates are layout
+  // distances divided by it.
+  double pressedSurfaceScale = 1.0;
   PointF pointerLast;
+  // Where the drag began and the window's content scale then: zooming is
+  // measured from the start, so the edge stays under the pointer.
+  PointF pointerOrigin;
+  double pointerStartScale = 1.0;
   Rect pointerStartGeometry;
   std::chrono::steady_clock::time_point pointerPublishTime{};
   bool pointerPublishTimeValid = false;

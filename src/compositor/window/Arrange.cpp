@@ -155,6 +155,10 @@ void WaylandCompositor::arrange() {
   const auto preferences = desktopPreferences();
   applyVisualPreferences(preferences);
   const bool templateChanged = selectWindowTemplate();
+  // Only stacking zooms windows; elsewhere they fill their slot at their own size.
+  if (!windowTemplate_->allowOverlap || !windowTemplate_->clientMoveResize)
+    for (const auto &client : clients_)
+      client->contentScale = 1.0;
   if (windowAnimations_)
     windowAnimations_->configure(sceneAnimationOptions(
         windowAnimationProfile(*pluginManager_, preferences, *windowTemplate_),

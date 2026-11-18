@@ -118,9 +118,9 @@ void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
   // the pressed button would never see it.
   if (pressedSurface && seat->pointer_state.button_count > 0 &&
       seat->pointer_state.focused_surface == pressedSurface) {
-    wlr_seat_pointer_notify_motion(seat, time,
-                                   cursor->x - pressedSurfaceOrigin.x(),
-                                   cursor->y - pressedSurfaceOrigin.y());
+    wlr_seat_pointer_notify_motion(
+        seat, time, (cursor->x - pressedSurfaceOrigin.x()) / pressedSurfaceScale,
+        (cursor->y - pressedSurfaceOrigin.y()) / pressedSurfaceScale);
     return;
   }
   pressedSurface = nullptr;

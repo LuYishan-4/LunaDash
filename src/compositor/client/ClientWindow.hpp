@@ -38,6 +38,12 @@ struct ClientWindow {
   bool fullscreen = false;
   bool hiddenByMaximize = false;
   bool manualResize = false;
+  // Stacking windows zoom instead of resizing: the client keeps laying itself
+  // out at its own size and is drawn this many times as large
+  // (clientContentScale, applyClientContentScale).
+  double contentScale = 1.0;
+  // The scale the scene currently draws the window at.
+  double appliedContentScale = 1.0;
   bool initialRuleApplied = false;
   Size preferredFloatingSize;
   bool utility = false;

@@ -6,6 +6,7 @@
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace LunaDash {
@@ -22,6 +23,83 @@ bool isXWaylandClient(const ClientWindow *client) {
 bool xdgToplevelConfigurable(const ClientWindow *client) {
   return client && client->toplevel && client->surface &&
          client->surface->initialized;
+}
+
+// wlroots' own input test for surface buffers, kept when it is wrapped.
+wlr_scene_buffer_point_accepts_input_func_t surfaceAcceptsInput = nullptr;
+
+// Where and how large wlroots draws a surface's buffer within its tree: the
+// whole surface, or the part inside the tree's clip (window corners).
+bool naturalBufferBox(const wlr_scene_surface *scene, wlr_box *box) {
+  const auto &state = scene->surface->current;
+  // Mirrors wlroots' set_buffer_with_surface_state (types/scene/surface.c).
+#if WLR_VERSION_MINOR >= 19
+  const wlr_box &clip = scene->WLR_PRIVATE.clip;
+#else
+  const wlr_box &clip = scene->clip;
+#endif
+  *box = {0, 0, state.width, state.height};
+  if (!wlr_box_empty(&clip)) {
+    box->x = clip.x;
+    box->y = clip.y;
+    box->width = std::min(clip.width, state.width - clip.x);
+    box->height = std::min(clip.height, state.height - clip.y);
+  }
+  return box->width > 0 && box->height > 0;
+}
+
+// Pointer positions arrive in the drawn (scaled) buffer; the surface expects
+// its own coordinates. The ratio is 1 for an unscaled window.
+bool scaledSurfaceAcceptsInput(wlr_scene_buffer *buffer, double *sx, double *sy) {
+  wlr_box natural{};
+  auto *scene = wlr_scene_surface_try_from_buffer(buffer);
+  if (scene && naturalBufferBox(scene, &natural) && buffer->dst_width > 0 &&
+      buffer->dst_height > 0) {
+    *sx = *sx * natural.width / buffer->dst_width;
+    *sy = *sy * natural.height / buffer->dst_height;
+  }
+  return surfaceAcceptsInput ? surfaceAcceptsInput(buffer, sx, sy) : true;
+}
+
+int scaled(int value, double scale) {
+  return static_cast<int>(std::lround(value * scale));
+}
+
+// Scales every surface buffer under `node` about the window's origin. Trees
+// keep their own (client-given) offsets; `x`, `y` is the tree's offset from
+// the window. Compositor-owned buffers (snapshots) are left alone.
+void scaleSurfaceBuffers(wlr_scene_node *node, int x, int y, double scale) {
+  if (node->type == WLR_SCENE_NODE_TREE) {
+    auto *tree = wlr_scene_tree_from_node(node);
+    wlr_scene_node *child = nullptr;
+    wl_list_for_each(child, &tree->children, link) {
+      if (child->type == WLR_SCENE_NODE_TREE)
+        scaleSurfaceBuffers(child, x + child->x, y + child->y, scale);
+      else
+        scaleSurfaceBuffers(child, x, y, scale);
+    }
+    return;
+  }
+  if (node->type != WLR_SCENE_NODE_BUFFER)
+    return;
+  auto *buffer = wlr_scene_buffer_from_node(node);
+  auto *scene = wlr_scene_surface_try_from_buffer(buffer);
+  wlr_box natural{};
+  if (!scene || !buffer->buffer || !naturalBufferBox(scene, &natural))
+    return;
+  if (buffer->point_accepts_input != scaledSurfaceAcceptsInput) {
+    if (!surfaceAcceptsInput)
+      surfaceAcceptsInput = buffer->point_accepts_input;
+    buffer->point_accepts_input = scaledSurfaceAcceptsInput;
+  }
+  const int left = x + natural.x;
+  const int top = y + natural.y;
+  // Edges are rounded, not sizes, so neighbouring clip bands stay seamless.
+  wlr_scene_node_set_position(node, scaled(left, scale) - x, scaled(top, scale) - y);
+  wlr_scene_buffer_set_dest_size(
+      buffer,
+      std::max(1, scaled(left + natural.width, scale) - scaled(left, scale)),
+      std::max(1, scaled(top + natural.height, scale) - scaled(top, scale)));
 }
 
 wlr_box xdgGeometry(wlr_xdg_surface *surface) {
@@ -169,18 +247,47 @@ void setClientFullscreenHint(ClientWindow *client, bool fullscreen) {
     wlr_xdg_toplevel_set_fullscreen(client->toplevel, fullscreen);
 }
 
+double clientContentScale(const ClientWindow &client) {
+  return client.fullscreen || client.maximized ? 1.0 : client.contentScale;
+}
+
+Size clientLogicalSize(const ClientWindow &client, const Size &visual) {
+  const double scale = clientContentScale(client);
+  Size size(std::max(1, static_cast<int>(std::lround(visual.width() / scale))),
+            std::max(1, static_cast<int>(std::lround(visual.height() / scale))));
+  // A zoomed window's drawn size is rounded: keep the client's size rather
+  // than send it a pixel of difference on every step of a zoom.
+  if (scale != 1.0 && client.lastSize.width() > 0 && client.lastSize.height() > 0 &&
+      std::abs(size.width() - client.lastSize.width()) <= 1 &&
+      std::abs(size.height() - client.lastSize.height()) <= 1)
+    return client.lastSize;
+  return size;
+}
+
+void applyClientContentScale(ClientWindow &client) {
+  const double scale = clientContentScale(client);
+  if (scale == 1.0 && client.appliedContentScale == 1.0)
+    return;
+  if (client.sceneTree)
+    scaleSurfaceBuffers(&client.sceneTree->node, 0, 0, scale);
+  client.appliedContentScale = scale;
+}
+
 void configureClientSurface(ClientWindow *client, const Rect &rectangle) {
   if (!clientReady(client))
     return;
-  const Size size(std::max(1, rectangle.width()),
-                  std::max(1, rectangle.height()));
+  // The client lays itself out at its logical size; a zoomed window is then
+  // drawn larger or smaller (applyClientContentScale).
+  const Size size = clientLogicalSize(
+      *client, Size(std::max(1, rectangle.width()), std::max(1, rectangle.height())));
+  const Rect logical(rectangle.x(), rectangle.y(), size.width(), size.height());
 #if LUDASH_WLR_HAS_XWAYLAND
   if (isXWaylandClient(client)) {
-    configureXWaylandSurface(client, rectangle, size);
+    configureXWaylandSurface(client, logical, size);
     return;
   }
 #endif
-  configureXdgToplevel(client, rectangle, size);
+  configureXdgToplevel(client, logical, size);
 }
 
 Size clientCommittedSize(const ClientWindow &client) {

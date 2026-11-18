@@ -1,12 +1,60 @@
 #include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <linux/input-event-codes.h>
 
 namespace LunaDash {
+namespace {
+
+// How far a stacking window can be zoomed out and in.
+constexpr double kMinimumZoom = 0.25;
+constexpr double kMaximumZoom = 3.0;
+
+// Stacking resizes zoom: the whole window, text and all, grows or shrinks in
+// proportion instead of the client laying itself out again. `start` is the
+// window when the drag began, drawn at `startScale`; `moved` is the pointer's
+// travel since then; xdg `edges` are top 1, bottom 2, left 4, right 8. The
+// edges opposite the dragged ones stay where they are.
+Rect zoomedGeometry(const Rect &start, double startScale, std::uint32_t edges,
+                    Point moved, const Rect &area, double *scale) {
+  const double logicalWidth = std::max(1.0, start.width() / startScale);
+  const double logicalHeight = std::max(1.0, start.height() / startScale);
+  const bool left = edges & 4u, right = edges & 8u;
+  const bool top = edges & 1u, bottom = edges & 2u;
+  const double horizontal =
+      (start.width() + (left ? -moved.x() : moved.x())) / logicalWidth;
+  const double vertical =
+      (start.height() + (top ? -moved.y() : moved.y())) / logicalHeight;
+  // A corner follows whichever direction was dragged further.
+  double factor = (left || right) && (top || bottom) ? std::max(horizontal, vertical)
+                  : left || right                    ? horizontal
+                  : top || bottom                    ? vertical
+                                                     : startScale;
+  const double availableWidth =
+      left ? start.right() - area.left() + 1 : area.right() - start.left() + 1;
+  const double availableHeight =
+      top ? start.bottom() - area.top() + 1 : area.bottom() - start.top() + 1;
+  const double smallest =
+      std::max({kMinimumZoom, 120.0 / logicalWidth, 80.0 / logicalHeight});
+  const double largest =
+      std::max(smallest, std::min({kMaximumZoom, availableWidth / logicalWidth,
+                                   availableHeight / logicalHeight}));
+  factor = std::clamp(factor, smallest, largest);
+  const int width = static_cast<int>(std::lround(logicalWidth * factor));
+  const int height = static_cast<int>(std::lround(logicalHeight * factor));
+  *scale = factor;
+  return Rect(left ? start.right() + 1 - width : start.left(),
+              top ? start.bottom() + 1 - height : start.top(), width, height);
+}
+
+} // namespace
+
 bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
   auto *keyboard = preferredKeyboard();
   if (!keyboard || button != BTN_LEFT ||
@@ -28,6 +76,8 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
     q->arrange();
   }
   pointerLast = PointF(cursor->x, cursor->y);
+  pointerOrigin = pointerLast;
+  pointerStartScale = clientContentScale(*client);
   pointerStartGeometry = client->geometry;
   pointerPublishTimeValid = false;
   pointerTarget = 0;
@@ -73,12 +123,17 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   pointerResizeEdges = edges;
   pointerResize = edges != 0;
   pointerLast = PointF(cursor->x, cursor->y);
+  pointerOrigin = pointerLast;
+  pointerStartScale = clientContentScale(*client);
   pointerStartGeometry = client->geometry;
   pointerPublishTimeValid = false;
   pointerTarget = pointerEdge = 0;
   client->manualResize = true;
+  // A stacking window is zoomed, not resized: the client keeps its size.
+  const bool zooms = q->windowTemplate_->allowOverlap &&
+                     q->windowTemplate_->clientMoveResize;
   if (client->toplevel)
-    wlr_xdg_toplevel_set_resizing(client->toplevel, pointerResize);
+    wlr_xdg_toplevel_set_resizing(client->toplevel, pointerResize && !zooms);
   setCursorImage(pointerResize ? "se-resize" : "grabbing");
   return true;
 }
@@ -124,10 +179,18 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   const PointF current(cursor->x, cursor->y);
   const Point delta = (current - pointerLast).toPoint();
   pointerLast = current;
+  const bool freeform =
+      q->windowTemplate_ && q->windowTemplate_->allowOverlap &&
+      q->windowTemplate_->clientMoveResize;
   if (client->floating) {
     auto geometry = client->geometry;
     const auto area = q->workArea();
-    if (pointerResize) {
+    if (pointerResize && freeform) {
+      geometry = zoomedGeometry(pointerStartGeometry, pointerStartScale,
+                                pointerResizeEdges,
+                                (current - pointerOrigin).toPoint(), area,
+                                &client->contentScale);
+    } else if (pointerResize) {
       if (pointerResizeEdges & 4u) geometry.setLeft(std::min(geometry.right() - 119, geometry.left() + delta.x()));
       if (pointerResizeEdges & 8u) geometry.setRight(std::max(geometry.left() + 119, geometry.right() + delta.x()));
       if (pointerResizeEdges & 1u) geometry.setTop(std::min(geometry.bottom() - 79, geometry.top() + delta.y()));
@@ -174,32 +237,17 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     }
     q->windowSwitcher_->setDrag(hint);
   };
-  const bool freeform =
-      q->windowTemplate_ && q->windowTemplate_->allowOverlap &&
-      q->windowTemplate_->clientMoveResize;
   if (pointerResize && freeform) {
     const auto geometry = client->geometry;
     const auto area = q->workArea();
-    const bool left = pointerResizeEdges & 4u, right = pointerResizeEdges & 8u;
-    const bool top = pointerResizeEdges & 1u, bottom = pointerResizeEdges & 2u;
-    const int availableWidth =
-        std::max(1, left ? geometry.right() - area.left() + 1
-                         : area.right() - geometry.left() + 1);
-    const int availableHeight =
-        std::max(1, top ? geometry.bottom() - area.top() + 1
-                        : area.bottom() - geometry.top() + 1);
-    const int width = std::clamp(geometry.width() + (left    ? -delta.x()
-                                                     : right ? delta.x()
-                                                             : 0),
-                                 std::min(120, availableWidth), availableWidth);
-    const int height =
-        std::clamp(geometry.height() + (top      ? -delta.y()
-                                        : bottom ? delta.y()
-                                                 : 0),
-                   std::min(80, availableHeight), availableHeight);
+    const auto target = zoomedGeometry(pointerStartGeometry, pointerStartScale,
+                                       pointerResizeEdges,
+                                       (current - pointerOrigin).toPoint(), area,
+                                       &client->contentScale);
+    const int width = target.width();
+    const int height = target.height();
     // Move first when growing a top/left edge, resize first when shrinking.
-    const Point shift(left ? geometry.width() - width : 0,
-                       top ? geometry.height() - height : 0);
+    const Point shift(target.x() - geometry.x(), target.y() - geometry.y());
     const Json areaJson{{"x", area.x()},
                                {"y", area.y()},
                                {"width", area.width()},

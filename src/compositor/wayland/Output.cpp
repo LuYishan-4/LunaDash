@@ -1,5 +1,6 @@
 #include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
@@ -155,8 +156,11 @@ void WaylandCompositor::Impl::updateWindowCorners() {
       wlr_xdg_surface_get_geometry(client->surface, &geometry);
 #endif
     }
+    // In surface coordinates: a zoomed window's bands are scaled with its
+    // buffers afterwards.
+    const Size logical = clientLogicalSize(*client, client->geometry.size());
     surfaces.push_back({client->sceneTree, client->sceneContent, client->wlSurface,
-                     {client->geometry.width(), client->geometry.height()},
+                     {logical.width(), logical.height()},
                      {geometry.x, geometry.y},
                      client->mapped && !client->fullscreen &&
                          !client->desktop && !client->utility, opacity});
@@ -307,6 +311,9 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
   advanceAnimations(nowNs);
   impl->q->advanceOverview(nowNs + refreshPeriodNs());
   impl->updateWindowGlass();
+  // Commits since the last frame reset zoomed windows to their own size.
+  for (const auto &client : impl->q->clients_)
+    applyClientContentScale(*client);
   commitScene();
   sendFrameDone(&now);
   // Animations and the overview's live previews redraw every frame.
