@@ -17,11 +17,21 @@ bool ludash_thumbnail_read(struct wlr_renderer *renderer,
       height < 1 || width > 480 || height > 300 || transform < 0 ||
       transform > 7)
     return false;
-  struct wlr_drm_format_set formats = {0};
-  wlr_drm_format_set_add(&formats, DRM_FORMAT_ARGB8888, DRM_FORMAT_MOD_LINEAR);
-  wlr_drm_format_set_add(&formats, DRM_FORMAT_ARGB8888, DRM_FORMAT_MOD_INVALID);
+  // A format the renderer can also sample from: the result is read back
+  // through a texture, and on NVIDIA a LINEAR ARGB dmabuf is external-only
+  // (it cannot), so every capture would fail.
+  const struct wlr_drm_format_set *textures = NULL;
+#if WLR_VERSION_MINOR >= 20
+  textures = wlr_renderer_get_texture_formats(renderer, allocator->buffer_caps);
+#endif
   const struct wlr_drm_format *format =
-      wlr_drm_format_set_get(&formats, DRM_FORMAT_ARGB8888);
+      textures ? wlr_drm_format_set_get(textures, DRM_FORMAT_ARGB8888) : NULL;
+  struct wlr_drm_format_set formats = {0};
+  if (!format) {
+    wlr_drm_format_set_add(&formats, DRM_FORMAT_ARGB8888, DRM_FORMAT_MOD_LINEAR);
+    wlr_drm_format_set_add(&formats, DRM_FORMAT_ARGB8888, DRM_FORMAT_MOD_INVALID);
+    format = wlr_drm_format_set_get(&formats, DRM_FORMAT_ARGB8888);
+  }
   struct wlr_buffer *buffer =
       format ? wlr_allocator_create_buffer(allocator, width, height, format)
              : NULL;

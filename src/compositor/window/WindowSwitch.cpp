@@ -157,11 +157,15 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
     choices = WindowSwitcher::windowsForWorkspace(clients, workspace_);
     for (const auto &choice : choices)
       capture.push_back(jsonInt(choice, "id"));
+    // Pictures of every window, those on the current workspace first: a
+    // window elsewhere still has its last buffer.
     for (int workspace = 0; workspace < workspaceCount(); ++workspace)
       if (workspace != workspace_)
         for (const auto &choice :
-             WindowSwitcher::windowsForWorkspace(clients, workspace))
+             WindowSwitcher::windowsForWorkspace(clients, workspace)) {
           choices.push_back(choice);
+          capture.push_back(jsonInt(choice, "id"));
+        }
     if (windowSwitcher_->begin(choices, focused_ ? focused_->id : 0,
                                 direction, clientEnvironment_, scope)) {
       const int serial = windowSwitcher_->serial();
@@ -246,7 +250,7 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
     const auto sourceWidth = std::max(1, surface->current.width);
     const auto sourceHeight = std::max(1, surface->current.height);
     const double scale =
-        std::min({1.0, 320.0 / sourceWidth, 200.0 / sourceHeight});
+        std::min({1.0, 480.0 / sourceWidth, 300.0 / sourceHeight});
     width = std::max(1, static_cast<int>(sourceWidth * scale));
     height = std::max(1, static_cast<int>(sourceHeight * scale));
     pixels.resize(static_cast<std::size_t>(width) * height * 4);

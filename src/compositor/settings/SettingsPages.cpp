@@ -5,7 +5,7 @@ namespace LunaDash {
 void registerBuiltinSettingsPages(SettingsPageRegistry &registry) {
   registry.add("general", {"settings", true});
   for (const char *page :
-       {"appearance", "windows", "shortcuts", "display", "input", "sound",
+       {"account", "appearance", "windows", "shortcuts", "display", "input", "sound",
         "network", "bluetooth", "power", "applications", "privacy", "system",
         "devices", "about", "modules", "plugins", "dashboard", "input-method"})
     registry.add(page, {"settings"});
