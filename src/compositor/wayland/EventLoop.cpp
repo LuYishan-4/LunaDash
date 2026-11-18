@@ -1,5 +1,6 @@
 #include "compositor/wayland/Register.hpp"
 #include "core/log/Log.hpp"
+#include "core/log/StallTrace.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <glib.h>
@@ -27,7 +28,10 @@ int WaylandCompositor::Impl::runEventLoop(bool profile) {
   std::vector<pollfd> descriptors;
   while (eventLoopRunning) {
     const auto started = std::chrono::steady_clock::now();
-    if (wl_event_loop_dispatch(eventLoop, 0) < 0) {
+    StallTrace::beginDispatch();
+    const int dispatched = wl_event_loop_dispatch(eventLoop, 0);
+    StallTrace::endDispatch("wayland");
+    if (dispatched < 0) {
       logCritical("LunaDash wlroots event dispatch failed.");
       q->lifecycle_.processFailure = true;
       exitCode = 2;
@@ -84,8 +88,11 @@ int WaylandCompositor::Impl::runEventLoop(bool profile) {
             static_cast<gushort>(
                 descriptors[static_cast<std::size_t>(index) + 1].revents);
       if (g_main_context_check(context, maxPriority, glibDescriptors.data(),
-                               glibCount))
+                               glibCount)) {
+        StallTrace::beginDispatch();
         g_main_context_dispatch(context);
+        StallTrace::endDispatch("GLib");
+      }
     }
   }
   if (ownsContext)

@@ -112,7 +112,7 @@ target_link_libraries(ludash-text PRIVATE PkgConfig::LUDASH_GIO)
 add_library(ludash-file-io src/core/filesystem/FileIo.cpp
     src/core/filesystem/TemporaryDirectory.cpp)
 target_include_directories(ludash-file-io PUBLIC src)
-add_library(ludash-log src/core/log/Log.cpp)
+add_library(ludash-log src/core/log/Log.cpp src/core/log/StallTrace.cpp)
 target_include_directories(ludash-log PUBLIC src)
 add_library(ludash-executable-lookup src/core/process/ExecutableLookup.cpp)
 target_include_directories(ludash-executable-lookup PUBLIC src)
@@ -351,7 +351,8 @@ add_dependencies(ludash-scene-window-effects ludash-wlroots-protocol-headers)
 target_compile_definitions(ludash-scene-window-effects PRIVATE WLR_USE_UNSTABLE=1)
 target_link_libraries(ludash-scene-window-effects
     PUBLIC ludash-scene-backdrop ludash-corner-geometry
-           PkgConfig::WAYLAND_SERVER PkgConfig::WLROOTS)
+           PkgConfig::WAYLAND_SERVER PkgConfig::WLROOTS
+    PRIVATE ludash-log)
 add_library(ludash-wayland
     src/compositor/wayland/NightLight.cpp
     src/compositor/window/Scratchpad.cpp

@@ -2,6 +2,7 @@
 #include "compositor/renderer/blur/SceneBackdrop.h"
 #include "compositor/renderer/clip/CornerGeometry.h"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
+#include "core/log/StallTrace.hpp"
 #include "core/templates/LunaClint.hpp"
 
 #include <algorithm>
@@ -532,6 +533,7 @@ public:
     if (!entry.attempted || entry.fingerprint != hash.value) {
       entry.attempted = true;
       entry.fingerprint = hash.value;
+      StallTrace::Section trace("glass capture", "surface");
       auto *buffer = ludash_scene_backdrop_render(
           renderer, allocator, loop, root, &entry.tree->node, &entry.glass->node,
           &area, radius);
@@ -618,6 +620,7 @@ public:
     backdrop.clock.restart();
     const wlr_box area{backdrop.box.x, backdrop.box.y, backdrop.box.width,
                        backdrop.box.height};
+    StallTrace::Section trace("glass capture", "backdrop");
     auto *buffer = ludash_scene_backdrop_render(
         renderer, allocator, loop, root, windowLayer, nullptr, &area, radius);
     if (!buffer) {

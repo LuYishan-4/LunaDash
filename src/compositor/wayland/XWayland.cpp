@@ -1,4 +1,5 @@
 #include "compositor/wayland/Register.hpp"
+#include "core/log/StallTrace.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
@@ -99,6 +100,7 @@ void WaylandCompositor::Impl::XWaylandState::onDissociate() {
 void WaylandCompositor::Impl::XWaylandState::onMap() {
   if (!surface || !surface->surface)
     return;
+  StallTrace::Section trace("x11 map", surface->class_ ? surface->class_ : "");
   if (!client->wlSurface)
     client->wlSurface = surface->surface;
   if (!client->wlSurface)
@@ -141,6 +143,7 @@ void WaylandCompositor::Impl::XWaylandState::onMap() {
 }
 
 void WaylandCompositor::Impl::XWaylandState::onUnmap() {
+  StallTrace::Section trace("x11 unmap");
   auto *desktop = impl->q;
   if (impl->foreignToplevels)
     impl->foreignToplevels->remove(client->id);
@@ -176,6 +179,7 @@ void WaylandCompositor::Impl::XWaylandState::onSceneDestroy() {
 }
 
 void WaylandCompositor::Impl::XWaylandState::onDestroy() {
+  StallTrace::Section trace("x11 destroy");
   Impl *owner = impl;
   ClientWindow *window = client;
   if (owner->foreignToplevels)

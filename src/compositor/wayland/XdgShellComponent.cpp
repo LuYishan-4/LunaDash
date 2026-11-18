@@ -1,4 +1,5 @@
 #include "compositor/wayland/XdgShellComponent.hpp"
+#include "core/log/StallTrace.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/client/ClientWindow.hpp"
 
@@ -85,6 +86,7 @@ void WaylandCompositor::Impl::XdgShellComponent::onNewSurface(
 #else
 void WaylandCompositor::Impl::XdgShellComponent::onNewToplevel(
     wlr_xdg_toplevel *toplevel) {
+  StallTrace::Section trace("new window");
   if (toplevel && toplevel->base)
     impl->addXdgToplevel(toplevel->base, toplevel);
 }

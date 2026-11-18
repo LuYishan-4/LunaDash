@@ -1,4 +1,5 @@
 #include "compositor/window/animation/SceneAnimation.hpp"
+#include "core/log/StallTrace.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -597,6 +598,7 @@ SceneAnimation::SnapshotState *
 SceneAnimation::createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
                                const SceneAnimationRectangle &geometry,
                                bool finalFrame) {
+  StallTrace::Section trace("snapshot");
   if (!source || !parent)
     return nullptr;
   int sourceX = 0;

@@ -1,4 +1,5 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "core/log/StallTrace.hpp"
 
 #include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/commands/CompositorCommands.hpp"
@@ -170,6 +171,7 @@ bool WaylandCompositor::startControlServer() {
         d->eventLoop, controlPath_,
         [this](std::string_view request) {
           const auto document = parseJsonObject(request);
+          StallTrace::Section trace("command", jsonString(document, "method"));
           const auto response = document.is_object()
                                     ? control(document)
                                     : Json{{"error", "Invalid request"}};

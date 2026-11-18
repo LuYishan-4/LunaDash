@@ -1,4 +1,5 @@
 #include "compositor/window/animation/WindowAnimation.hpp"
+#include "core/log/StallTrace.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
@@ -325,6 +326,7 @@ WaylandCompositor::Impl::OutputState::~OutputState() {
 }
 
 void WaylandCompositor::Impl::OutputState::onFrame() {
+  StallTrace::Section trace("frame", output && output->name ? output->name : "");
   if (!sceneOutput)
     return;
   ++frameCallbacks;

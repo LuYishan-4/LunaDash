@@ -1,4 +1,5 @@
 #include "compositor/client/ClientWindow.hpp"
+#include "core/log/StallTrace.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/plugins/PluginManager.hpp"
@@ -150,6 +151,7 @@ void WaylandCompositor::configure(ClientWindow *client,
 void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
+  StallTrace::Section trace("arrange");
   // Windows and layers move or change here: the surface under the cursor may differ.
   d->schedulePointerRebase();
   compactWorkspaces();
@@ -165,7 +167,7 @@ void WaylandCompositor::arrange() {
   const auto preferences = desktopPreferences();
   applyVisualPreferences(preferences);
   const bool templateChanged = selectWindowTemplate();
-  // Stacking zooms windows by hand; tiling zooms narrow columns (below).
+  // Only stacking zooms windows; elsewhere they fill their slot at their own size.
   if (!windowTemplate_->allowOverlap || !windowTemplate_->clientMoveResize)
     for (const auto &client : clients_)
       client->contentScale = 1.0;
@@ -318,22 +320,12 @@ void WaylandCompositor::arrange() {
     arrange();
     return;
   }
-  // A tiled window is never laid out narrower than this: a narrower column
-  // shows it scaled down as a whole (contentScale), contents unsqueezed.
-  const int narrowest =
-      windowTemplate_->allowOverlap
-          ? 0
-          : jsonInt(currentWindowLayoutSettings(), "minimumWindowWidth", 0);
   for (const auto &placement : placements) {
     auto *client = clientById(static_cast<int>(placement.window));
     if (!client || client->minimized || placement.hiddenByMaximize ||
         (!client->layoutPending &&
          (fullscreenClient || client->workspace != workspace_)))
       continue;
-    if (narrowest > 0 && !client->floating)
-      client->contentScale =
-          std::min(1.0, static_cast<double>(placement.geometry.width()) /
-                            narrowest);
     configure(client, placement.geometry);
   }
 

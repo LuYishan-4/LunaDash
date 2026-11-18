@@ -1,4 +1,5 @@
 #include "compositor/window/animation/WindowAnimation.hpp"
+#include "core/log/StallTrace.hpp"
 #include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
@@ -271,6 +272,7 @@ void WaylandCompositor::Impl::ToplevelState::listenTo(
 }
 
 void WaylandCompositor::Impl::ToplevelState::onMap() {
+  StallTrace::Section trace("window map", client ? client->appId : std::string());
   auto *desktop = impl->q;
   client->mapped = true;
   client->layoutPending = false;
@@ -301,6 +303,7 @@ void WaylandCompositor::Impl::ToplevelState::onMap() {
 }
 
 void WaylandCompositor::Impl::ToplevelState::onUnmap() {
+  StallTrace::Section trace("window unmap");
   auto *desktop = impl->q;
   if (desktop->windowAnimations_ && client->sceneTree) {
     desktop->windowAnimations_->close(client->sceneTree, impl->animationLayer);
@@ -331,6 +334,7 @@ void WaylandCompositor::Impl::ToplevelState::onUnmap() {
 void WaylandCompositor::Impl::ToplevelState::onCommit() {
   if (!client->surface || !client->toplevel)
     return;
+  StallTrace::Section trace("window commit", client->appId);
   wlr_box geometry{};
 #if WLR_VERSION_MINOR >= 19
   geometry = client->surface->geometry;
@@ -428,6 +432,7 @@ void WaylandCompositor::Impl::ToplevelState::onSceneContentDestroy() {
 }
 
 void WaylandCompositor::Impl::ToplevelState::onDestroy() {
+  StallTrace::Section trace("window destroy");
   Impl *owner = impl;
   ClientWindow *window = client;
   window->nativeState = nullptr;
@@ -467,6 +472,7 @@ WaylandCompositor::Impl::LayerState::LayerState(
 }
 
 void WaylandCompositor::Impl::LayerState::onMap() {
+  StallTrace::Section trace("layer map", surface && surface->namespace_ ? surface->namespace_ : "");
   mapped = true;
   impl->arrangeLayers();
   impl->q->arrange();
@@ -481,6 +487,7 @@ void WaylandCompositor::Impl::LayerState::onMap() {
 }
 
 void WaylandCompositor::Impl::LayerState::onUnmap() {
+  StallTrace::Section trace("layer unmap");
   if (impl->animatesLayer(this)) {
     // wlroots disables the layer's tree before this listener runs; the snapshot needs its
     // buffers, which stay attached until the surface commit completes.
@@ -502,6 +509,7 @@ void WaylandCompositor::Impl::LayerState::onUnmap() {
 void WaylandCompositor::Impl::LayerState::onCommit() {
   if (!surface->initialized)
     return;
+  StallTrace::Section trace("layer commit", surface->namespace_ ? surface->namespace_ : "");
   const auto &current = surface->current;
   // Buffer-only commits (including every animated shell frame) do not change
   // the work area. Reconfiguring all windows here caused continuous relayout.
@@ -542,6 +550,7 @@ void WaylandCompositor::Impl::LayerState::onCommit() {
 }
 
 void WaylandCompositor::Impl::LayerState::onDestroy() {
+  StallTrace::Section trace("layer destroy");
   Impl *owner = impl;
   std::erase(owner->layers, this);
   delete this;
