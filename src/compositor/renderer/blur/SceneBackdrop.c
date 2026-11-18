@@ -25,7 +25,7 @@
 #define LUDASH_BACKDROP_TIMELINES 0
 #endif
 
-enum { LUDASH_BACKDROP_LIMIT = 8192, LUDASH_BACKDROP_SIZE = 1024 };
+enum { LUDASH_BACKDROP_LIMIT = 8192, LUDASH_BACKDROP_SIZE = 768 };
 
 // Explicitly synchronized client buffers a capture read: held until the GPU
 // has finished with them, so the client's release point waits for us too.

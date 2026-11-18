@@ -43,12 +43,15 @@ bool belongsToWindow(const ClientWindow &client, const ClientWindow *owner,
 
 void WaylandCompositor::applyVisualPreferences(const Json &preferences) {
   d->eyeCareActive = preferenceValue(preferences, Preference::eyeCare);
+  const bool blur =
+      preferenceValue(preferences, Preference::blur) && !d->eyeCareActive;
   d->steadyWindowOpacity =
       d->eyeCareActive
           ? 1.0f
           : preferenceValue(preferences, Preference::windowOpacity) / 100.0f;
-  const bool blur =
-      preferenceValue(preferences, Preference::blur) && !d->eyeCareActive;
+  // Keep the backdrop visible through clients that render fully opaque buffers.
+  if (blur)
+    d->steadyWindowOpacity = std::min(d->steadyWindowOpacity, 0.84f);
   // Tell ext-background-effect-v1 clients whether the blur they ask for is applied.
   if (d->backgroundEffects)
     d->backgroundEffects->setBlurAvailable(blur);
