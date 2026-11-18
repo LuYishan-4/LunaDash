@@ -32,15 +32,11 @@
 #include "desktop/audio/AudioSettings.hpp"
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/display/DdcBrightnessSettings.hpp"
-#include "desktop/network/NetworkStatus.hpp"
 #include "desktop/power/PowerSettings.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
-#include "desktop/system/SystemStatus.hpp"
-#include "desktop/system/UpdateChecker.hpp"
 #include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
-#include "desktop/weather/WeatherStatus.hpp"
 
 #include <glib.h>
 
@@ -124,15 +120,6 @@ void WaylandCompositor::createDesktopServices() {
       });
   brightnessSettings_ = std::make_unique<BrightnessSettings>(d->eventLoop);
   ddcBrightnessSettings_ = std::make_unique<DdcBrightnessSettings>(d->eventLoop);
-  systemStatus_ = std::make_unique<SystemStatus>(d->eventLoop);
-  weatherStatus_ = std::make_unique<WeatherStatus>(d->eventLoop, [] {
-    const auto preferences = desktopPreferences();
-    return WeatherPreferences{
-        preferenceValue(preferences, Preference::weatherEnabled),
-        preferenceValue(preferences, Preference::weatherLatitude),
-        preferenceValue(preferences, Preference::weatherLongitude),
-        preferenceValue(preferences, Preference::weatherLocation)};
-  });
   d->scheduleCallback(0, [this] {
     const auto path = wallpaperImagePath();
     if (!path.empty())
@@ -142,10 +129,6 @@ void WaylandCompositor::createDesktopServices() {
   powerSettings_ = std::make_unique<PowerSettings>(d->eventLoop);
   sessionActions_ = std::make_unique<SessionActions>();
   shortcutSettings_ = std::make_unique<ShortcutSettings>();
-  updateChecker_ = std::make_unique<UpdateChecker>(d->eventLoop, [] {
-    return preferenceValue(desktopPreferences(), Preference::updateChannel);
-  });
-  networkStatus_ = std::make_unique<NetworkStatus>(d->eventLoop);
   pluginManager_ = std::make_unique<PluginManager>(d->eventLoop);
   pluginManager_->loadEnabled();
 }
@@ -198,12 +181,8 @@ WaylandCompositor::~WaylandCompositor() {
   screenCapture_.reset();
   audioSettings_.reset();
   powerSettings_.reset();
-  updateChecker_.reset();
   brightnessSettings_.reset();
   ddcBrightnessSettings_.reset();
-  networkStatus_.reset();
-  systemStatus_.reset();
-  weatherStatus_.reset();
   if (windowAnimations_)
     windowAnimations_->clear();
   if (xwayland_) {

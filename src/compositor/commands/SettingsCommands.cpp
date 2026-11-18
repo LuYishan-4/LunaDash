@@ -14,7 +14,6 @@
 #include "desktop/theme/ThemeSync.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
-#include "desktop/weather/WeatherStatus.hpp"
 
 #include <cstddef>
 #include <string>
@@ -24,11 +23,6 @@ namespace LunaDash {
 namespace {
 
 constexpr std::size_t maximumSettingsRequestBytes = 24 * 1024;
-
-// Preferences the weather service reads; changing one refreshes it.
-constexpr const char *weatherPreferences[] = {
-    Preference::weatherEnabled.name, Preference::weatherLatitude.name,
-    Preference::weatherLongitude.name, Preference::weatherLocation.name};
 
 void synchronizeThemeWithPreferences() {
   const auto preferences = desktopPreferences();
@@ -99,7 +93,6 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     std::string error;
     if (!resetDesktopPreferences(&error))
       return commandError(error);
-    c.weatherStatus_->refresh();
     if (c.d) {
       c.d->loadOutputSizePreferences();
       c.d->updateNightLight();
@@ -120,11 +113,6 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     // without waiting for the next shell status poll.
     synchronizeThemeWithPreferences();
     c.applyKeyboardConfiguration();
-    for (const auto *key : weatherPreferences)
-      if (changes.contains(key)) {
-        c.weatherStatus_->refresh();
-        break;
-      }
     if (jsonBool(changes, "wallpaperColors")) {
       const auto path = wallpaperImagePath();
       refreshWallpaperPalette(c.d->eventLoop, path, wallpaperIsVideo(path));

@@ -6,7 +6,6 @@
 #include "desktop/audio/AudioSettings.hpp"
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/display/DdcBrightnessSettings.hpp"
-#include "desktop/network/NetworkStatus.hpp"
 #include "desktop/power/PowerSettings.hpp"
 
 #include <string>
@@ -22,13 +21,6 @@ void CompositorCommands::registerDeviceCommands(CommandRegistry &registry) {
     std::string error;
     if (!request.is_object() || !c.audioSettings_->apply(request, &error))
       return commandError(error.empty() ? "Invalid audio setting." : error);
-    return {};
-  });
-  registry.add("network", [](C &c, const R &r) -> CommandResult {
-    const auto request = parseJsonObject(r.value);
-    std::string error;
-    if (!request.is_object() || !c.networkStatus_->execute(request, &error))
-      return commandError(error.empty() ? "Invalid network request." : error);
     return {};
   });
   registry.add("power-profile", [](C &c, const R &r) -> CommandResult {

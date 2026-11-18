@@ -36,7 +36,6 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LUDASH_GIO REQUIRED IMPORTED_TARGET gio-2.0)
 pkg_check_modules(LUDASH_GDK_PIXBUF REQUIRED IMPORTED_TARGET gdk-pixbuf-2.0)
-pkg_check_modules(LUDASH_CURL REQUIRED IMPORTED_TARGET libcurl>=7.85)
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_check_modules(LUDASH_XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
@@ -150,15 +149,6 @@ target_include_directories(ludash-theme-sync PUBLIC src)
 target_link_libraries(ludash-theme-sync
     PUBLIC ludash-executable-lookup nlohmann_json::nlohmann_json
     PRIVATE PkgConfig::LUDASH_GIO)
-add_library(ludash-weather src/desktop/weather/WeatherStatus.cpp)
-target_include_directories(ludash-weather PUBLIC src)
-target_link_libraries(ludash-weather PUBLIC
-    nlohmann_json::nlohmann_json PkgConfig::LUDASH_CURL
-    PkgConfig::WAYLAND_SERVER)
-add_library(ludash-network src/desktop/network/NetworkStatus.cpp)
-target_include_directories(ludash-network PUBLIC src)
-target_link_libraries(ludash-network PUBLIC
-    ludash-process-runner PkgConfig::LUDASH_GIO nlohmann_json::nlohmann_json)
 add_library(ludash-session-environment src/compositor/session/SessionEnvironment.cpp)
 target_include_directories(ludash-session-environment PUBLIC src)
 target_compile_definitions(ludash-session-environment PRIVATE
@@ -193,20 +183,8 @@ target_include_directories(ludash-shortcut-settings PUBLIC src)
 target_link_libraries(ludash-shortcut-settings
     PUBLIC nlohmann_json::nlohmann_json PkgConfig::LUDASH_XKBCOMMON
     PRIVATE ludash-desktop-preferences)
-add_library(ludash-update-check src/desktop/system/UpdateChecker.hpp src/desktop/system/UpdateChecker.cpp)
-target_include_directories(ludash-update-check PUBLIC src)
-target_link_libraries(ludash-update-check PUBLIC
-    nlohmann_json::nlohmann_json PkgConfig::LUDASH_CURL
-    PkgConfig::WAYLAND_SERVER)
 add_library(ludash-tiling-core src/compositor/tiling/TilingGeometry.c)
 target_include_directories(ludash-tiling-core PUBLIC src)
-add_library(ludash-system-metrics src/desktop/system/SystemMetrics.c)
-target_include_directories(ludash-system-metrics PUBLIC src)
-add_library(ludash-system-status src/desktop/system/SystemStatus.cpp)
-target_include_directories(ludash-system-status PUBLIC src)
-target_link_libraries(ludash-system-status
-    PUBLIC ludash-system-metrics ludash-process-runner nlohmann_json::nlohmann_json
-    PkgConfig::WAYLAND_SERVER)
 add_library(ludash-tiling
     src/compositor/layout/WindowLayout.cpp
     src/compositor/window/WindowTemplate.cpp
@@ -496,18 +474,15 @@ target_link_libraries(ludash-wayland
         ludash-session-actions
         ludash-desktop-notification
         ludash-shortcut-settings
-        ludash-update-check
         ludash-default-applications
         ludash-audio-settings
         ludash-power-settings
         ludash-system-tools
         ludash-input-settings
         ludash-display-settings
-        ludash-system-status
         ludash-xwayland
         ludash-animation
         ludash-configuration
-        ludash-network
         ludash-wallpaper
         ludash-tiling
         ludash-window-rules
@@ -515,7 +490,6 @@ target_link_libraries(ludash-wayland
         ludash-scene-window-effects
         ludash-night-color
         ludash-theme-sync
-        ludash-weather
         ludash-plugins
         ludash-crypto
         ludash-json

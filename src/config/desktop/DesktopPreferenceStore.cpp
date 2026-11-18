@@ -355,18 +355,6 @@ bool validProxyText(const Json &value, bool url) {
 }
 
 bool validDesktopPreference(std::string_view key, const Json &value) {
-  if (key == "weatherEnabled")
-    return value.is_boolean();
-  if (key == "weatherLocation")
-    return isString(value, 320) &&
-           withinUtf16Length(value.get_ref<const std::string &>(), 80);
-  if (key == "weatherLatitude" || key == "weatherLongitude") {
-    if (!value.is_number())
-      return false;
-    const double number = value.get<double>();
-    const double limit = key == "weatherLatitude" ? 90.0 : 180.0;
-    return std::isfinite(number) && number >= -limit && number <= limit;
-  }
   if (key == "themeMode")
     return value.is_string() &&
            (value == "dark" || value == "light" || value == "auto");
@@ -385,8 +373,6 @@ bool validDesktopPreference(std::string_view key, const Json &value) {
   if (key == "fontFamily")
     return value.is_string() &&
            (value == "sans-serif" || value == "serif" || value == "monospace");
-  if (key == "updateChannel")
-    return value == "stable" || value == "dev";
   if (key == "proxyHttp" || key == "proxyHttps" || key == "proxySocks")
     return validProxyText(value, true);
   if (key == "proxyBypass")
@@ -575,10 +561,6 @@ Json defaultDesktopPreferenceValues() {
       {Preference::eyeCare.name, Preference::eyeCare.fallback},
       {Preference::eyeCareTemperature.name, Preference::eyeCareTemperature.fallback},
       {"syncApplicationThemes", false},
-      {Preference::weatherEnabled.name, Preference::weatherEnabled.fallback},
-      {Preference::weatherLocation.name, std::string(Preference::weatherLocation.fallback)},
-      {Preference::weatherLatitude.name, Preference::weatherLatitude.fallback},
-      {Preference::weatherLongitude.name, Preference::weatherLongitude.fallback},
       {"dockEnabled", false},
       {"dockAutoHide", true},
       {"colorPins", {"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
@@ -603,7 +585,6 @@ Json defaultDesktopPreferenceValues() {
       {"proxyBypass", ""},
       {"overview", false},
       {"showHostDetails", false},
-      {Preference::updateChannel.name, std::string(Preference::updateChannel.fallback)},
       {"virtualOutputSize", "1440x900"},
       {"virtualOutputSizes", {"800x600", "1280x720", "1440x900", "1920x1080"}}};
 }

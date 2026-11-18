@@ -112,7 +112,7 @@ case "$manager" in
         run "${elevate[@]}" env DEBIAN_FRONTEND=noninteractive apt-get install -y \
             build-essential cmake ninja-build git python3 pkg-config rustc cargo \
             libgl-dev libegl-dev libvulkan-dev libwayland-dev wayland-protocols libinput-dev libgdk-pixbuf-2.0-dev \
-            libxkbcommon-dev libudev-dev libglib2.0-dev libcurl4-openssl-dev libfontconfig1-dev \
+            libxkbcommon-dev libudev-dev libglib2.0-dev curl libfontconfig1-dev \
             "$wlroots_package" qt6-wayland \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard wtype brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
@@ -122,7 +122,7 @@ case "$manager" in
         run "${elevate[@]}" dnf install -y \
             gcc gcc-c++ cmake ninja-build git python3 pkgconf-pkg-config rust cargo gdk-pixbuf2-devel \
             mesa-libGL-devel mesa-libEGL-devel vulkan-headers vulkan-loader-devel wayland-devel wayland-protocols-devel libinput-devel \
-            libxkbcommon-devel systemd-devel glib2-devel libcurl-devel fontconfig-devel \
+            libxkbcommon-devel systemd-devel glib2-devel curl fontconfig-devel \
             wlroots-devel qt6-qtwayland \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
@@ -142,7 +142,7 @@ case "$manager" in
         run "${elevate[@]}" zypper --non-interactive install \
             gcc gcc-c++ cmake ninja git python3 pkg-config rust cargo \
             Mesa-libGL-devel Mesa-libEGL-devel vulkan-devel wayland-devel wayland-protocols-devel libinput-devel \
-            libxkbcommon-devel systemd-devel glib2-devel libcurl-devel fontconfig-devel \
+            libxkbcommon-devel systemd-devel glib2-devel curl fontconfig-devel \
             wlroots-devel qt6-wayland gdk-pixbuf-devel \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
@@ -151,7 +151,7 @@ case "$manager" in
     apk)
         run "${elevate[@]}" apk add \
             build-base cmake ninja git python3 pkgconf rust cargo mesa-dev vulkan-headers vulkan-loader-dev \
-            wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev curl-dev fontconfig-dev \
+            wayland-dev wayland-protocols libinput-dev libxkbcommon-dev eudev-dev curl fontconfig-dev \
             glib-dev wlroots-dev qt6-qtwayland gdk-pixbuf-dev \
             shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
@@ -163,7 +163,7 @@ case "$manager" in
         run "${elevate[@]}" xbps-install -Sy \
             base-devel cmake ninja git python3 pkg-config rust cargo MesaLib-devel \
             wayland-devel wayland-protocols libinput-devel libxkbcommon-devel \
-            eudev-libudev-devel glib-devel curl-devel fontconfig-devel wlroots-devel \
+            eudev-libudev-devel glib-devel curl fontconfig-devel wlroots-devel \
             qt6-wayland gdk-pixbuf-devel shared-mime-info dolphin kitty fish grim slurp wl-clipboard brightnessctl ddcutil \
             xdg-desktop-portal xdg-desktop-portal-gtk xdg-desktop-portal-wlr pipewire \
             pulseaudio-utils fcitx5 fcitx5-qt fcitx5-configtool
@@ -183,7 +183,6 @@ case "$manager" in
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
         done
         pkg-config --exists egl || missing+=("EGL development files (egl.pc)")
-        pkg-config --exists libcurl || missing+=("libcurl development files (libcurl.pc)")
         pkg-config --exists fontconfig || missing+=("Fontconfig development files (fontconfig.pc)")
         pkg-config --exists gdk-pixbuf-2.0 || missing+=("GdkPixbuf development files (gdk-pixbuf-2.0.pc)")
         if ((${#missing[@]})); then
@@ -192,7 +191,7 @@ case "$manager" in
 Install a C++20 compiler, CMake >= 3.21, Ninja, Python 3, pkg-config, Rust/Cargo >= 1.92, wlroots >= 0.17,
 GdkPixbuf, Fontconfig, EGL and GL
 development headers, Wayland development headers, libinput, libxkbcommon, udev
-development headers, GLib, libcurl,
+development headers, GLib, curl,
 shared-mime-info, Dolphin, Kitty and Fish; then rerun the installer.
 EOF
             exit 1

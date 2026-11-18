@@ -27,11 +27,6 @@ inline constexpr PreferenceKey<int> gap{"gap", 12};
 inline constexpr PreferenceKey<std::string_view> tilingMode{"tilingMode", "scroll"};
 inline constexpr PreferenceKey<int> cursorSize{"cursorSize", 24};
 inline constexpr PreferenceKey<std::string_view> keyboardLayout{"keyboardLayout", "us"};
-inline constexpr PreferenceKey<std::string_view> updateChannel{"updateChannel", "stable"};
-inline constexpr PreferenceKey<bool> weatherEnabled{"weatherEnabled", false};
-inline constexpr PreferenceKey<double> weatherLatitude{"weatherLatitude", 0.0};
-inline constexpr PreferenceKey<double> weatherLongitude{"weatherLongitude", 0.0};
-inline constexpr PreferenceKey<std::string_view> weatherLocation{"weatherLocation", ""};
 } // namespace Preference
 
 template <typename T>

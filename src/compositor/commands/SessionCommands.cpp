@@ -4,7 +4,6 @@
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "core/log/Log.hpp"
-#include "desktop/system/UpdateChecker.hpp"
 
 namespace LunaDash {
 
@@ -29,10 +28,6 @@ void CompositorCommands::registerSessionCommands(CommandRegistry &registry) {
       return commandError("Logout requires explicit confirmation.");
     logInfo("LunaDash logout requested through the control channel.");
     c.d->scheduleCallback(0, [&c] { c.requestShutdown(); });
-    return {};
-  });
-  registry.add("check-update", [](C &c, const R &) -> CommandResult {
-    c.updateChecker_->check();
     return {};
   });
   // Editing shortcuts (copy, paste, cut, selectAll) for the focused application.

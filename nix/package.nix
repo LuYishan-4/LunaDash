@@ -76,7 +76,7 @@ stdenv.mkDerivation {
     fontconfig freetype
     vulkan-headers vulkan-loader wayland wayland-protocols wlroots_0_20 libxkbcommon libGL glib libinput
     # wlroots' xwayland.h includes xcb_ewmh.h (Qt used to bring it in).
-    pixman libdrm libxcb libxcb-wm systemd nlohmann_json libglvnd gdk-pixbuf curl
+    pixman libdrm libxcb libxcb-wm systemd nlohmann_json libglvnd gdk-pixbuf
   ];
   cmakeFlags = [
     "-DCMAKE_INSTALL_SYSCONFDIR=etc"

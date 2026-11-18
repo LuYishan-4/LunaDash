@@ -26,17 +26,13 @@
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/display/DdcBrightnessSettings.hpp"
 #include "desktop/input/InputSettings.hpp"
-#include "desktop/network/NetworkStatus.hpp"
 #include "desktop/power/PowerSettings.hpp"
 #include "desktop/shortcuts/ShortcutSettings.hpp"
-#include "desktop/system/SystemStatus.hpp"
 #include "desktop/system/SystemTools.hpp"
-#include "desktop/system/UpdateChecker.hpp"
 #include "desktop/theme/ThemeSync.hpp"
 #include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
-#include "desktop/weather/WeatherStatus.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -322,7 +318,6 @@ Json WaylandCompositor::state() const {
       {"power", powerSettings_->snapshot()},
       {"sessionActions", sessionActionsJson(*sessionActions_)},
       {"shortcuts", shortcutSettings_->snapshot()},
-      {"update", updateChecker_->snapshot()},
       {"settingsTools", settingsToolsJson()},
       {"display", d ? d->displaySnapshot() : Json::object()},
       {"settingsSerial", shellRequests_.settingsSerial},
@@ -366,9 +361,6 @@ Json WaylandCompositor::state() const {
                                    {"pending", scratchpad_.pending},
                                    {"error", scratchpad_.error}})},
       {"setupComplete", setupComplete()},
-      {"network", networkStatus_->snapshot()},
-      {"system", systemStatus_->snapshot()},
-      {"weather", weatherStatus_->snapshot()},
       {"workspace", workspace_},
       {"workspaceCount", workspaceCount()},
       {"processFailure", lifecycle_.processFailure},
