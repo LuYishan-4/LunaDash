@@ -37,10 +37,7 @@ void moveBlurState(void *dst, void *src) {
 
 } // namespace
 
-// Lives as long as its wl_surface. The client's effect object may be destroyed
-// earlier: removing the effect is double-buffered, so the attachment keeps
-// applying commits (with an empty region) until the surface goes away, and a
-// later get_background_effect for the same surface reuses it.
+
 struct BackgroundEffectManager::Attachment {
   BackgroundEffectManager *manager = nullptr;
   wlr_surface *surface = nullptr;
@@ -102,7 +99,6 @@ struct BackgroundEffectManager::Callbacks {
     auto *attachment = attachmentFrom(resource);
     if (!attachment)
       return;
-    // Applied with the surface's next commit, as the protocol requires.
     attachment->resource = nullptr;
     pixman_region32_clear(&attachment->pending.region);
   }

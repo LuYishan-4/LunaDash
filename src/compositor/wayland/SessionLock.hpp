@@ -11,10 +11,6 @@ struct wlr_surface;
 
 namespace LunaDash {
 
-// ext-session-lock-v1: a screen locker (the shell's lock screen, swaylock)
-// covers every output, and until it unlocks nothing else is shown or receives
-// input. A locker that dies without unlocking leaves the session locked and
-// blank until a new locker takes over.
 class SessionLock final {
 public:
   struct Output {
