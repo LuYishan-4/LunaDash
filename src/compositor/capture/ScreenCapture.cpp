@@ -72,10 +72,9 @@ void ScreenCapture::setCompletion(Completion completion) {
 }
 
 bool ScreenCapture::busy() const {
-  return process_.busy() || phase_ == "selecting" || phase_ == "capturing";
+  return process_.busy() ||
+         (phase_ & (PhaseSelecting | PhaseCapturing)) != 0;
 }
-
-const std::string &ScreenCapture::phase() const { return phase_; }
 
 bool ScreenCapture::prepareDestination(const std::string &path,
                                        std::string *error) {
@@ -130,12 +129,12 @@ bool ScreenCapture::captureOutput(const ProcessEnvironment &environment,
   if (!createTemporary(error))
     return false;
   environment_ = environment;
-  phase_ = "capturing";
+  phase_ = PhaseCapturing;
   if (!process_.runDetailed(
           grim_, {temporaryPath_},
           [this](const ProcessResult &result) { processFinished(result); },
           15000, environment_)) {
-    phase_ = "idle";
+    phase_ = PhaseIdle;
     removeTemporary();
     destination_.clear();
     *error = "Could not start the screenshot helper.";
@@ -161,12 +160,12 @@ bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
 
   environment_ = environment;
   destination_ = path;
-  phase_ = "selecting";
+  phase_ = PhaseSelecting;
   if (!process_.runDetailed(
           selector, {"-f", "%x,%y %wx%h"},
           [this](const ProcessResult &result) { processFinished(result); }, 0,
           environment_)) {
-    phase_ = "idle";
+    phase_ = PhaseIdle;
     destination_.clear();
     *error = "Could not start the screenshot selector.";
     return false;
@@ -175,7 +174,9 @@ bool ScreenCapture::selectRegion(const ProcessEnvironment &environment,
 }
 
 void ScreenCapture::finish(std::string path, std::string error) {
-  phase_ = !error.empty() ? "failed" : path.empty() ? "cancelled" : "saved";
+  phase_ = !error.empty() ? PhaseFailed
+           : path.empty() ? PhaseCancelled
+                          : PhaseSaved;
   if (path.empty())
     removeTemporary();
   else
@@ -187,7 +188,7 @@ void ScreenCapture::finish(std::string path, std::string error) {
 
 void ScreenCapture::processFinished(const ProcessResult &result) {
   const auto output = trim(result.output);
-  if (phase_ == "selecting") {
+  if (phase_ & PhaseSelecting) {
     if (!result.success && result.exited && result.exitCode == 1 &&
         (output.empty() || output == "selection cancelled")) {
       finish({}, {});
@@ -205,7 +206,7 @@ void ScreenCapture::processFinished(const ProcessResult &result) {
       finish({}, error);
       return;
     }
-    phase_ = "capturing";
+    phase_ = PhaseCapturing;
     if (!process_.runDetailed(
             grim_, {"-g", output, temporaryPath_},
             [this](const ProcessResult &captureResult) {

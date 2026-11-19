@@ -4,6 +4,7 @@
 
 #include <functional>
 #include <string>
+#include <string_view>
 
 namespace LunaDash {
 
@@ -28,16 +29,37 @@ public:
   bool captureOutput(const ProcessEnvironment &environment,
                      const std::string &path, std::string *error);
   bool busy() const;
-  const std::string &phase() const;
+  constexpr std::string_view phase() const noexcept {
+    if (phase_ & PhaseFailed)
+      return "failed";
+    if (phase_ & PhaseCancelled)
+      return "cancelled";
+    if (phase_ & PhaseSaved)
+      return "saved";
+    if (phase_ & PhaseCapturing)
+      return "capturing";
+    if (phase_ & PhaseSelecting)
+      return "selecting";
+    return "idle";
+  }
 
 private:
+  enum PhaseFlags : unsigned {
+    PhaseIdle = 0,
+    PhaseSelecting = 1u << 0,
+    PhaseCapturing = 1u << 1,
+    PhaseSaved = 1u << 2,
+    PhaseCancelled = 1u << 3,
+    PhaseFailed = 1u << 4,
+  };
+
   ProcessRunner process_;
   ProcessEnvironment environment_;
   Completion completion_;
   std::string destination_;
   std::string temporaryPath_;
   std::string grim_;
-  std::string phase_ = "idle";
+  unsigned phase_ = PhaseIdle;
 
   bool prepareDestination(const std::string &path, std::string *error);
   bool createTemporary(std::string *error);
