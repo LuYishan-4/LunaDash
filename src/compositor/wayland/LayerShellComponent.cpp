@@ -1,4 +1,5 @@
 #include "compositor/wayland/LayerShellComponent.hpp"
+#include "core/log/Log.hpp"
 
 namespace LunaDash {
 

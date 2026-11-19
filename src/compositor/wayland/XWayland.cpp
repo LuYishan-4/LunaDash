@@ -6,6 +6,7 @@
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include "core/log/Log.hpp"
 #include <algorithm>
 
 namespace LunaDash {

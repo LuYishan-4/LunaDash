@@ -4,6 +4,7 @@
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
+#include "core/log/Log.hpp"
 #include "desktop/shortcuts/KeyBindings.hpp"
 #include <chrono>
 #include <algorithm>
