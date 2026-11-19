@@ -7,8 +7,7 @@
 
 namespace LunaDash {
 
-// A desktop preference name and the value used when it is unset. The store's
-// defaults (DesktopPreferenceStore.cpp) are built from the same keys.
+
 template <typename T> struct PreferenceKey {
   const char *name;
   T fallback;
@@ -25,8 +24,6 @@ inline constexpr PreferenceKey<int> animationDuration{"animationDuration", 220};
 inline constexpr PreferenceKey<int> gap{"gap", 12};
 inline constexpr PreferenceKey<int> cursorSize{"cursorSize", 24};
 inline constexpr PreferenceKey<std::string_view> keyboardLayout{"keyboardLayout", "us"};
-// NumLock is on when a keyboard starts (at login, or plugged in later).
-inline constexpr PreferenceKey<bool> numLock{"numLock", false};
 } // namespace Preference
 
 template <typename T>

@@ -58,7 +58,7 @@ bool applyKeyboardPreferences(wlr_keyboard *keyboard,
   const bool numLock =
       keyboard->keymap
           ? (keyboard->modifiers.locked & numLockMask(keyboard->keymap)) != 0
-          : preferenceValue(preferences, Preference::numLock);
+          : true;
 
   const bool ok = wlr_keyboard_set_keymap(keyboard, keymap);
   xkb_keymap_unref(keymap);

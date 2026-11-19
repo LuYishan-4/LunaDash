@@ -515,7 +515,6 @@ bool validDesktopPreference(std::string_view key, const Json &value) {
   if (key == "accent" || key == "secondaryAccent")
     return validColor(value);
   if (key == "overview" || key == "showHostDetails" || key == "blur" ||
-      key == Preference::numLock.name ||
       key == "animations" || key == "clock24Hour" || key == "proxyEnabled")
     return value.is_boolean();
   if (key == "gap" || key == "panelHeight" || key == "blurRadius" ||
