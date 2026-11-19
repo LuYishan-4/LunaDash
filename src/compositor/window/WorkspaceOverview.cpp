@@ -15,6 +15,7 @@
 #include <linux/input-event-codes.h>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace LunaDash {
@@ -43,7 +44,9 @@ bool parseHexColor(const std::string &text, float rgba[4]) {
 // may be disabled (other workspaces, or the hidden real windows); the nodes
 // inside it keep their enabled state.
 void clonePreview(wlr_scene_node *node, wlr_scene_tree *parent, double x, double y,
-                  double scale, bool root) {
+                  double scale, bool root,
+                  std::unordered_map<wlr_scene_buffer *, wlr_scene_buffer *> &copies,
+                  std::unordered_set<wlr_scene_buffer *> &seen) {
   if (!root && !node->enabled)
     return;
   if (!root) {
@@ -54,7 +57,7 @@ void clonePreview(wlr_scene_node *node, wlr_scene_tree *parent, double x, double
     auto *tree = wlr_scene_tree_from_node(node);
     wlr_scene_node *child = nullptr;
     wl_list_for_each(child, &tree->children, link)
-        clonePreview(child, parent, x, y, scale, false);
+        clonePreview(child, parent, x, y, scale, false, copies, seen);
     return;
   }
   if (node->type != WLR_SCENE_NODE_BUFFER)
@@ -70,14 +73,21 @@ void clonePreview(wlr_scene_node *node, wlr_scene_tree *parent, double x, double
     if (buffer->transform % 2)
       std::swap(width, height);
   }
-  auto *copy = wlr_scene_buffer_create(parent, buffer->buffer);
-  if (!copy)
-    return;
-  copy->point_accepts_input = [](wlr_scene_buffer *, double *, double *) {
-    return false;
-  };
+  auto existing = copies.find(buffer);
+  wlr_scene_buffer *copy = existing == copies.end() ? nullptr : existing->second;
+  if (!copy) {
+    copy = wlr_scene_buffer_create(parent, buffer->buffer);
+    if (!copy)
+      return;
+    copy->point_accepts_input = [](wlr_scene_buffer *, double *, double *) {
+      return false;
+    };
+    copies.emplace(buffer, copy);
+  }
+  seen.insert(buffer);
   wlr_scene_buffer_set_source_box(copy, &buffer->src_box);
   wlr_scene_buffer_set_transform(copy, buffer->transform);
+  wlr_scene_buffer_set_buffer(copy, buffer->buffer);
   wlr_scene_buffer_set_dest_size(
       copy, std::max(1, static_cast<int>(std::lround(width * scale))),
       std::max(1, static_cast<int>(std::lround(height * scale))));
@@ -172,20 +182,39 @@ int WaylandCompositor::overviewWorkspaceAt(double y) const {
 
 void WaylandCompositor::rebuildOverviewPreviews() {
   if (overview_.tree) {
+    // Preserve preview nodes during a frame; update their geometry and buffers
+    // instead of destroying and recreating every scene texture.
+  } else if (!overviewShown() || !d || !d->overviewLayer) {
+    overview_.previews.clear();
+    return;
+  } else {
+    overview_.tree = wlr_scene_tree_create(d->overviewLayer);
+    if (!overview_.tree)
+      return;
+  }
+  if (!overviewShown()) {
     wlr_scene_node_destroy(&overview_.tree->node);
     overview_.tree = nullptr;
+    overview_.dim = nullptr;
+    overview_.previews.clear();
+    overview_.previewTrees.clear();
+    overview_.previewBuffers.clear();
+    return;
   }
-  overview_.previews.clear();
-  if (!overviewShown() || !d->overviewLayer)
-    return;
-  overview_.tree = wlr_scene_tree_create(d->overviewLayer);
-  if (!overview_.tree)
-    return;
+
   const Size output = d->outputSize();
   // Dim the wallpaper so the windows stand out.
   const float dim[4] = {0.0f, 0.0f, 0.0f,
                         static_cast<float>(0.35 * std::clamp(overview_.progress, 0.0, 1.0))};
-  wlr_scene_rect_create(overview_.tree, output.width(), output.height(), dim);
+  if (!overview_.dim)
+    overview_.dim = wlr_scene_rect_create(overview_.tree, output.width(),
+                                          output.height(), dim);
+  else {
+    wlr_scene_rect_set_size(overview_.dim, output.width(), output.height());
+    wlr_scene_rect_set_color(overview_.dim, dim);
+  }
+
+  overview_.previews.clear();
 
   const double scale = 1.0 + (WindowTuning::overviewZoom - 1.0) * overview_.progress;
   const double dragX = overview_.dragging ? d->cursor->x - overview_.pressX : 0.0;
@@ -196,6 +225,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
           : nullptr;
   const int dropWindow = dropTarget ? dropTarget->window : 0;
   const Rect screen(0, 0, output.width(), output.height());
+  std::unordered_set<int> visibleWindows;
 
   const auto draw = [&](ClientWindow *client, const Rect &layout, bool dragged) {
     Rect rect = overviewRect(layout, client->workspace);
@@ -210,11 +240,30 @@ void WaylandCompositor::rebuildOverviewPreviews() {
       const float hover[4] = {1.0f, 1.0f, 1.0f, 0.35f};
       addFrame(overview_.tree, rect, 2, hover);
     }
-    auto *preview = wlr_scene_tree_create(overview_.tree);
-    if (!preview)
-      return;
-    wlr_scene_node_set_position(&preview->node, rect.x(), rect.y());
-    clonePreview(&client->sceneTree->node, preview, 0.0, 0.0, scale, true);
+    auto previewTree = overview_.previewTrees.find(client->id);
+    wlr_scene_tree *previewTreeNode = nullptr;
+    if (previewTree != overview_.previewTrees.end()) {
+      previewTreeNode = previewTree->second;
+    } else {
+      previewTreeNode = wlr_scene_tree_create(overview_.tree);
+      if (!previewTreeNode)
+        return;
+      overview_.previewTrees.emplace(client->id, previewTreeNode);
+    }
+    wlr_scene_node_set_position(&previewTreeNode->node, rect.x(), rect.y());
+    visibleWindows.insert(client->id);
+    auto &copies = overview_.previewBuffers[client->id];
+    std::unordered_set<wlr_scene_buffer *> seen;
+    clonePreview(&client->sceneTree->node, previewTreeNode, 0.0, 0.0, scale, true,
+                 copies, seen);
+    for (auto it = copies.begin(); it != copies.end();) {
+      if (!seen.contains(it->first)) {
+        wlr_scene_node_destroy(&it->second->node);
+        it = copies.erase(it);
+      } else {
+        ++it;
+      }
+    }
     overview_.previews.push_back({client->id, client->workspace, rect});
   };
 
@@ -271,6 +320,17 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   // The dragged window follows the pointer above the others.
   if (dragged)
     draw(dragged, layoutRect(*dragged), true);
+
+  for (auto it = overview_.previewTrees.begin();
+       it != overview_.previewTrees.end();) {
+    if (!visibleWindows.contains(it->first)) {
+      wlr_scene_node_destroy(&it->second->node);
+      overview_.previewBuffers.erase(it->first);
+      it = overview_.previewTrees.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 void WaylandCompositor::advanceOverview(std::uint64_t presentNs) {
@@ -311,7 +371,14 @@ void WaylandCompositor::advanceOverview(std::uint64_t presentNs) {
   if (!overview_.open && (settled || overview_.progress <= 0.0)) {
     overview_.progress = 0.0;
     overview_.velocity = 0.0;
-    rebuildOverviewPreviews();
+    if (overview_.tree) {
+      wlr_scene_node_destroy(&overview_.tree->node);
+      overview_.tree = nullptr;
+      overview_.dim = nullptr;
+    }
+    overview_.previews.clear();
+    overview_.previewTrees.clear();
+    overview_.previewBuffers.clear();
     for (auto *layer : {d->normalLayer, d->fullscreenLayer, d->animationLayer})
       if (layer)
         wlr_scene_node_set_enabled(&layer->node, true);
@@ -440,7 +507,6 @@ bool WaylandCompositor::overviewAxis(double delta, bool horizontal) {
   const int step = scroll > 0 ? 1 : -1;
   scroll = 0.0;
   if (horizontal)
-    // The layout scrolls its columns to the new focus; the previews follow.
     runAction(step > 0 ? "focus-column-right" : "focus-column-left");
   else
     selectWorkspace(std::clamp(workspace_ + step, 0, std::max(0, workspaceCount() - 1)));

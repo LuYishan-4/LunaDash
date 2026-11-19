@@ -15,9 +15,12 @@
 #include <string>
 #include <memory>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 struct wlr_layer_surface_v1;
+struct wlr_scene_buffer;
+struct wlr_scene_rect;
 struct wlr_scene_tree;
 
 namespace LunaDash {
@@ -122,6 +125,10 @@ private:
     double velocity = 0.0;
     std::uint64_t lastStep = 0;
     wlr_scene_tree *tree = nullptr;
+    wlr_scene_rect *dim = nullptr;
+    std::unordered_map<int, wlr_scene_tree *> previewTrees;
+    std::unordered_map<int, std::unordered_map<wlr_scene_buffer *, wlr_scene_buffer *>>
+        previewBuffers;
     std::vector<Preview> previews;
     // RGBA of the focus ring, read when the overview opens.
     float accent[4] = {0.61f, 0.80f, 0.98f, 1.0f};
