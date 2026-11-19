@@ -1,0 +1,77 @@
+name: Update component revisions
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+concurrency:
+  group: update-component-revisions
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out dev
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+          persist-credentials: true
+      - name: Update pins to upstream main
+        shell: bash
+        run: |
+          set -euo pipefail
+          shell_revision=$(git ls-remote https://github.com/LunaDashWM/LunaDash-Shell.git refs/heads/main | cut -f1)
+          slintlu_revision=$(git ls-remote https://github.com/LunaDashWM/SlintLu.git refs/heads/main | cut -f1)
+          test "${#shell_revision}" -eq 40
+          test "${#slintlu_revision}" -eq 40
+          printf '%s\n' "$shell_revision" > packaging/shell-revision
+          printf '%s\n' "$slintlu_revision" > packaging/slintlu-revision
+      - name: Create or update revision PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: dev
+          branch: bot/update-component-revisions
+          delete-branch: true
+          add-paths: |
+            packaging/shell-revision
+            packaging/slintlu-revision
+          commit-message: "[Other] Update component repository revisions"
+          title: "[Other] Update component repository revisions"
+          body: |
+            #### What does this PR change? Check every type the diff contains, across all commits. (If the boxes or the title tags don't match the actual commits, you will be asked to correct them before review continues.)
+
+            - [ ] Source: `src/` (C++, C, Slint, shaders), `protocols/`, `CMakeLists.txt`, `cmake/`
+            - [ ] Script: `scripts/`, `install.sh`
+            - [x] Other: `docs/`, `README.md`, `AGENTS.md`, `data/`, `packaging/`, `nix/`, `flake.nix`, `flake.lock`, `.github/` or tool configuration. Files: `packaging/shell-revision`, `packaging/slintlu-revision`
+
+            #### Describe your PR, what does it fix/add? (What triggers the problem, what happened before, what happens after, and how it affects the defaults or optional settings, if relevant.)
+
+            Update the pinned LunaDash-Shell and SlintLu revisions to match their respective `main` branches.
+
+            #### How did you test it? (CI only builds. List the commands you actually ran with their results, and the platforms or hardware covered. Report failed or skipped checks. For visible UI changes, attach before/after screenshots from a real session.)
+
+            The component revision update workflow dispatches Dev CI for this branch. No local checks are run by this automation.
+
+            #### Is there anything you want to mention? (unverified behavior, new dependencies, configuration changes, updated `shell-revision` or `slintlu-revision` pins, whether users must log in again or restart, security or wlroots/Wayland lifetime concerns, etc.)
+
+            This updates `shell-revision` and/or `slintlu-revision`; review the upstream commits and build results before merging.
+
+            #### Did you use AI in any way, shape or form in the making of this PR? Check one. If yes, name the tools, what they generated or changed, and how you checked it. (Undisclosed or inaccurate AI use must be corrected, and deliberate misreporting can get the PR closed. See "AI assistance disclosure" in CONTRIBUTING.md.)
+
+            - [x] No
+            - [ ] Yes:
+
+            #### Is it ready for merging, or does it need work?
+
+            Needs review.
+      - name: Run Dev CI for the updated PR branch
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ steps.cpr.outputs.pull-request-branch }}
+        run: gh workflow run dev-ci.yml --ref "$PR_BRANCH"
