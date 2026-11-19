@@ -18,21 +18,16 @@ bool isXWaylandClient(const ClientWindow *client) {
 }
 #endif
 
-// xdg-shell state requests before the initial commit would configure an
-// uninitialized surface.
 bool xdgToplevelConfigurable(const ClientWindow *client) {
   return client && client->toplevel && client->surface &&
          client->surface->initialized;
 }
 
-// wlroots' own input test for surface buffers, kept when it is wrapped.
 wlr_scene_buffer_point_accepts_input_func_t surfaceAcceptsInput = nullptr;
 
-// Where and how large wlroots draws a surface's buffer within its tree: the
-// whole surface, or the part inside the tree's clip (window corners).
+
 bool naturalBufferBox(const wlr_scene_surface *scene, wlr_box *box) {
   const auto &state = scene->surface->current;
-  // Mirrors wlroots' set_buffer_with_surface_state (types/scene/surface.c).
 #if WLR_VERSION_MINOR >= 19
   const wlr_box &clip = scene->WLR_PRIVATE.clip;
 #else
@@ -48,8 +43,6 @@ bool naturalBufferBox(const wlr_scene_surface *scene, wlr_box *box) {
   return box->width > 0 && box->height > 0;
 }
 
-// Pointer positions arrive in the drawn (scaled) buffer; the surface expects
-// its own coordinates. The ratio is 1 for an unscaled window.
 bool scaledSurfaceAcceptsInput(wlr_scene_buffer *buffer, double *sx, double *sy) {
   wlr_box natural{};
   auto *scene = wlr_scene_surface_try_from_buffer(buffer);
@@ -70,9 +63,6 @@ struct Scale {
   double y = 1.0;
 };
 
-// Scales every surface buffer under `node` about the window's origin. Trees
-// keep their own (client-given) offsets; `x`, `y` is the tree's offset from
-// the window. Compositor-owned buffers (snapshots) are left alone.
 void scaleSurfaceBuffers(wlr_scene_node *node, int x, int y, Scale scale) {
   if (node->type == WLR_SCENE_NODE_TREE) {
     auto *tree = wlr_scene_tree_from_node(node);
@@ -164,9 +154,7 @@ void configureXdgToplevel(ClientWindow *client, const Rect &rectangle,
   }
   wlr_xdg_toplevel_set_maximized(client->toplevel, client->maximized);
   wlr_xdg_toplevel_set_fullscreen(client->toplevel, client->fullscreen);
-  // Tell tiled clients that the size is not a suggestion. Without the tiled
-  // state a toolkit may replace it with its own preferred size (winit does, so
-  // Slint windows drew at their preferred size inside a larger tile).
+
   const std::uint32_t tiled =
       client->floating || client->maximized || client->fullscreen
           ? 0

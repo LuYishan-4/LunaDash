@@ -228,9 +228,6 @@ bool ScrollingLayout::setMaximized(LayoutWindowId window, bool maximized) {
                                 std::move(column));
       location = find(*workspace, window);
     }
-    // One maximized column per workspace, as the compositor keeps it.
-    for (auto &column : workspace->columns)
-      column.maximized = false;
     workspace->focused = window;
   }
   workspace->columns[location.column].maximized = maximized;

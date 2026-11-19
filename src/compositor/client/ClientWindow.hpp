@@ -28,13 +28,9 @@ struct ClientWindow {
   bool x11 = false;
   bool desktop = false;
   bool mapped = false;
-  // Reserve a tiled slot after the initial commit, before the first buffer.
-  // Visibility and input focus still require mapped to be true.
   bool layoutPending = false;
   bool minimized = false;
   bool maximized = false;
-  // True fullscreen occupies the entire output. It is separate from maximized,
-  // which remains constrained to the normal panel/gap work area.
   bool fullscreen = false;
   bool hiddenByMaximize = false;
   // Opened while a shell overlay held the keyboard (settings opening a file

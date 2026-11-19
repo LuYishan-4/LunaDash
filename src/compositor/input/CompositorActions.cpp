@@ -4,7 +4,6 @@
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
-#include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "compositor/window/WindowTuning.hpp"
 #include "core/json/JsonAccess.hpp"
 #include "core/log/Log.hpp"
@@ -37,8 +36,7 @@ std::optional<int> number(std::string_view text) {
   return value;
 }
 
-// "+10%", "-10%", "50%": a share of the work area; "+80", "-80", "800":
-// pixels. A sign changes the width, no sign sets it.
+
 struct WidthChange {
   bool relative = false;
   bool percent = false;

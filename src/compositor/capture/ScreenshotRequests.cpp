@@ -20,8 +20,6 @@
 
 namespace LunaDash {
 namespace {
-
-// Local time with milliseconds, e.g. 20261116-142501-042.
 std::string captureTimestamp() {
   const auto now = std::chrono::system_clock::now();
   const auto milliseconds =
@@ -96,12 +94,10 @@ void WaylandCompositor::onScreenCaptureFinished(const std::string &path,
     }
   }
   capture_.error = error;
-  // Tell the user how it went: the selection ends without any other feedback.
   if (!path.empty())
     sendDesktopNotification("Screenshot saved", path, "image-x-generic");
   else if (!error.empty())
     sendDesktopNotification("Screenshot failed", error, "dialog-error");
-  // The selector's surface (and its cursor) are gone: show a cursor again.
   if (d)
     d->schedulePointerRebase();
 }

@@ -286,7 +286,7 @@ void WaylandCompositor::Impl::ToplevelState::onMap() {
 #endif
   // A new ordinary window joins the visible layout instead of inheriting zoom.
   if (desktop->windowTemplate_ && !desktop->windowTemplate_->allowOverlap &&
-      !client->floating && !client->utility)
+      !client->floating && !client->utility && !client->maximized)
     for (const auto &peer : desktop->clients_)
       if (peer.get() != client && peer->workspace == client->workspace &&
           !peer->floating && peer->maximized)

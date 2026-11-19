@@ -12,9 +12,7 @@ namespace LunaDash {
 
 class WaylandCompositor;
 
-// What an action takes after its name: nothing, a number ("focus-workspace
-// 3"), one word ("spawn-default terminal", "set-column-width +10%") or a
-// command line ("spawn kitty -e htop").
+
 enum class ActionArgument { None, Number, Word, Command };
 
 enum ActionFlags : unsigned {

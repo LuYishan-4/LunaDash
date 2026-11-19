@@ -93,8 +93,6 @@ public:
           WLR_SURFACE_STATE_BUFFER_DAMAGE | WLR_SURFACE_STATE_TRANSFORM |
           WLR_SURFACE_STATE_SCALE | WLR_SURFACE_STATE_VIEWPORT |
           WLR_SURFACE_STATE_OFFSET;
-      // Callback-only commits do not change pixels. Counting them would
-      // let our own scene damage sustain an idle frame/blur loop.
       if (!(surface->current.committed & content))
         return;
       rapid = commitClock.isValid() && commitClock.elapsed() < 40;
@@ -113,7 +111,6 @@ public:
     wlr_scene_tree *tree = nullptr;
     wlr_scene_tree *glass = nullptr;
     std::vector<wlr_scene_buffer *> parts;
-    // Each part's full band within the glass (parts may be trimmed to an output).
     std::vector<ludash_corner_band> bands;
     wlr_buffer *backing = nullptr;
     Templates::WaylandSlot<Entry> treeDestroy;
@@ -128,7 +125,6 @@ public:
     bool rapidBackdrop = false;
     Stopwatch captureClock;
     std::string error;
-    // The shared backdrop shown, by its revision (see setSharedBuffer).
     std::uint64_t sharedRevision = 0;
     bool shared = false;
 
@@ -244,9 +240,6 @@ public:
       }
     }
 
-    // Shows the part of an output's backdrop (covering `box`) that lies under
-    // the glass at scene position x, y. Only changes reach the scene: an
-    // unchanged crop or buffer adds no damage.
     void setSharedBuffer(wlr_buffer *buffer, std::uint64_t revision,
                          const Rect &box, int x, int y) {
       const bool replaced = sharedRevision != revision;
@@ -256,9 +249,6 @@ public:
       for (std::size_t i = 0; i < parts.size() && i < bands.size(); ++i) {
         auto *part = parts[i];
         const auto &band = bands[i];
-        // The part of the band on this output, in scene coordinates. A band
-        // reaching past the output is trimmed, never stretched: stretching
-        // changes with every pixel the window moves and makes the glass swim.
         const int left = std::max(x + band.x, box.x);
         const int top = std::max(y + band.y, box.y);
         const int right = std::min(x + band.x + band.width, box.x + box.width);

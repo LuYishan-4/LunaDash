@@ -6,12 +6,7 @@
 
 namespace LunaDash {
 
-// Scrollable columns in the spirit of niri: every window keeps its column
-// width, new windows open as a column to the right of the focused one, and the
-// view scrolls to keep the focused column on screen. A column can stack
-// several windows vertically. Nothing is stretched to fill the screen; a strip
-// narrower than the screen is centred. A maximized window gets a column of
-// its own as wide as the screen, and pushes its neighbours aside.
+
 class ScrollingLayout final : public WindowLayout {
 public:
   ScrollingLayout();

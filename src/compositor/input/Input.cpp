@@ -124,9 +124,7 @@ void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
   }
   if (updateWindowPointer())
     return;
-  // A held button keeps the surface it was pressed on, even outside it, as
-  // wl_pointer requires; otherwise the release would go to another surface and
-  // the pressed button would never see it.
+
   if (pressedSurface && seat->pointer_state.button_count > 0 &&
       seat->pointer_state.focused_surface == pressedSurface) {
     wlr_seat_pointer_notify_motion(
@@ -141,9 +139,6 @@ void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
   double sy = 0;
   wlr_surface *surface = surfaceAt(cursor->x, cursor->y, &sx, &sy);
   if (surface) {
-    // A client sets its cursor after the enter event. Until it does, show the default
-    // cursor, never the previous client's cursor surface, which may already be gone
-    // (a region selector exiting left no cursor at all).
     if (surface != seat->pointer_state.focused_surface)
       setCursorImage("default");
     wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
@@ -205,7 +200,6 @@ bool WaylandCompositor::Impl::inputMethodVirtualKeyboard(
 
 void WaylandCompositor::Impl::sessionLockChanged(bool locked) {
   if (locked) {
-    // Nothing interactive may stay open underneath.
     if (pointerWindow)
       finishWindowPointer(false);
     if (q->windowSwitcher_->active())

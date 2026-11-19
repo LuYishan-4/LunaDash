@@ -27,11 +27,9 @@
 
 enum { LUDASH_BACKDROP_LIMIT = 8192, LUDASH_BACKDROP_SIZE = 768 };
 
-// Explicitly synchronized client buffers a capture read: held until the GPU
-// has finished with them, so the client's release point waits for us too.
 struct ludash_backdrop_hold {
 #if LUDASH_BACKDROP_TIMELINES
-  struct wlr_drm_syncobj_timeline_waiter waiter;  // first: the callback casts
+  struct wlr_drm_syncobj_timeline_waiter waiter; // first: the callback casts
   struct wlr_drm_syncobj_timeline *timeline;
 #endif
   struct wlr_buffer **buffers;
@@ -45,8 +43,6 @@ struct ludash_backdrop_capture {
   struct wlr_scene_node *skip;
   struct wlr_texture **imports;
   size_t import_count;
-  // Explicit-sync sources may be read only when the renderer can signal a
-  // timeline (holds is then non-NULL).
   struct ludash_backdrop_hold *hold;
   size_t visited;
   double x, y, scale_x, scale_y;
@@ -66,24 +62,25 @@ static void ludash_backdrop_release(struct ludash_backdrop_hold *hold) {
 }
 
 #if LUDASH_BACKDROP_TIMELINES
-static void ludash_backdrop_done(struct wlr_drm_syncobj_timeline_waiter *waiter) {
+static void
+ludash_backdrop_done(struct wlr_drm_syncobj_timeline_waiter *waiter) {
   struct ludash_backdrop_hold *hold = (struct ludash_backdrop_hold *)waiter;
   wlr_drm_syncobj_timeline_waiter_finish(&hold->waiter);
   ludash_backdrop_release(hold);
 }
 #endif
 
-static struct wlr_buffer *ludash_backdrop_buffer(
-    struct wlr_renderer *renderer, struct wlr_allocator *allocator,
-    int width, int height) {
+static struct wlr_buffer *
+ludash_backdrop_buffer(struct wlr_renderer *renderer,
+                       struct wlr_allocator *allocator, int width, int height) {
   const struct wlr_drm_format_set *formats = NULL;
 #if WLR_VERSION_MINOR >= 20
   formats = wlr_renderer_get_texture_formats(renderer, allocator->buffer_caps);
 #else
   (void)renderer;
 #endif
-  const struct wlr_drm_format *format = formats
-      ? wlr_drm_format_set_get(formats, DRM_FORMAT_ARGB8888) : NULL;
+  const struct wlr_drm_format *format =
+      formats ? wlr_drm_format_set_get(formats, DRM_FORMAT_ARGB8888) : NULL;
   struct wlr_drm_format_set fallback = {0};
   // Older renderer APIs and data-pointer allocators use the same portable
   // ARGB target as the existing thumbnail renderer. Allocation failure is
@@ -95,8 +92,9 @@ static struct wlr_buffer *ludash_backdrop_buffer(
                            DRM_FORMAT_MOD_INVALID);
     format = wlr_drm_format_set_get(&fallback, DRM_FORMAT_ARGB8888);
   }
-  struct wlr_buffer *buffer = format
-      ? wlr_allocator_create_buffer(allocator, width, height, format) : NULL;
+  struct wlr_buffer *buffer =
+      format ? wlr_allocator_create_buffer(allocator, width, height, format)
+             : NULL;
   wlr_drm_format_set_finish(&fallback);
   return buffer;
 }
@@ -137,7 +135,8 @@ static struct wlr_buffer *ludash_scratch_take(struct wlr_renderer *renderer,
     return buffer;
   if (free_slot->buffer)
     wlr_buffer_drop(free_slot->buffer);
-  *free_slot = (struct ludash_scratch){allocator, buffer, ++ludash_scratch_clock, true};
+  *free_slot =
+      (struct ludash_scratch){allocator, buffer, ++ludash_scratch_clock, true};
   return buffer;
 }
 
@@ -160,9 +159,9 @@ void ludash_scene_backdrop_finish(void) {
   }
 }
 
-static struct wlr_box ludash_backdrop_box(
-    const struct ludash_backdrop_capture *capture,
-    double x, double y, double width, double height) {
+static struct wlr_box
+ludash_backdrop_box(const struct ludash_backdrop_capture *capture, double x,
+                    double y, double width, double height) {
   const int left = (int)floor((x - capture->x) * capture->scale_x);
   const int top = (int)floor((y - capture->y) * capture->scale_y);
   const int right = (int)ceil((x + width - capture->x) * capture->scale_x);
@@ -170,16 +169,17 @@ static struct wlr_box ludash_backdrop_box(
   return (struct wlr_box){left, top, right - left, bottom - top};
 }
 
-static bool ludash_backdrop_intersects(
-    const struct ludash_backdrop_capture *capture, struct wlr_box box) {
+static bool
+ludash_backdrop_intersects(const struct ludash_backdrop_capture *capture,
+                           struct wlr_box box) {
   return box.width > 0 && box.height > 0 && box.x < capture->width &&
          box.y < capture->height && box.x + box.width > 0 &&
          box.y + box.height > 0;
 }
 
 static void ludash_backdrop_visit(struct ludash_backdrop_capture *capture,
-                                  struct wlr_scene_node *node,
-                                  double x, double y, unsigned depth) {
+                                  struct wlr_scene_node *node, double x,
+                                  double y, unsigned depth) {
   if (capture->found || capture->failed)
     return;
   if (node == capture->stop) {
@@ -198,16 +198,17 @@ static void ludash_backdrop_visit(struct ludash_backdrop_capture *capture,
     struct wlr_scene_tree *tree = wlr_scene_tree_from_node(node);
     struct wlr_scene_node *child;
     wl_list_for_each(child, &tree->children, link)
-      ludash_backdrop_visit(capture, child, x, y, depth + 1);
+        ludash_backdrop_visit(capture, child, x, y, depth + 1);
   } else if (node->type == WLR_SCENE_NODE_RECT) {
     struct wlr_scene_rect *rect = wlr_scene_rect_from_node(node);
-    const struct wlr_box box = ludash_backdrop_box(
-        capture, x, y, rect->width, rect->height);
+    const struct wlr_box box =
+        ludash_backdrop_box(capture, x, y, rect->width, rect->height);
     if (!ludash_backdrop_intersects(capture, box))
       return;
     const struct wlr_render_rect_options options = {
         .box = box,
-        .color = {rect->color[0], rect->color[1], rect->color[2], rect->color[3]}};
+        .color = {rect->color[0], rect->color[1], rect->color[2],
+                  rect->color[3]}};
     wlr_render_pass_add_rect(capture->pass, &options);
   } else if (node->type == WLR_SCENE_NODE_BUFFER) {
     struct wlr_scene_buffer *buffer = wlr_scene_buffer_from_node(node);
@@ -223,8 +224,8 @@ static void ludash_backdrop_visit(struct ludash_backdrop_capture *capture,
     }
     struct wlr_scene_surface *surface =
         wlr_scene_surface_try_from_buffer(buffer);
-    struct wlr_texture *texture = surface
-        ? wlr_surface_get_texture(surface->surface) : NULL;
+    struct wlr_texture *texture =
+        surface ? wlr_surface_get_texture(surface->surface) : NULL;
     bool imported = false;
     if (!texture && buffer->buffer) {
       texture = wlr_texture_from_buffer(capture->renderer, buffer->buffer);
@@ -248,7 +249,8 @@ static void ludash_backdrop_visit(struct ludash_backdrop_capture *capture,
         height = swapped;
       }
     }
-    const struct wlr_box box = ludash_backdrop_box(capture, x, y, width, height);
+    const struct wlr_box box =
+        ludash_backdrop_box(capture, x, y, width, height);
     if (!ludash_backdrop_intersects(capture, box))
       return;
     const struct wlr_render_texture_options options = {
@@ -290,8 +292,8 @@ static void ludash_backdrop_visit(struct ludash_backdrop_capture *capture,
 // renderer's premultiplied blending, so it works with any wlroots renderer.
 static bool ludash_backdrop_blur(struct wlr_renderer *renderer,
                                  struct wlr_buffer *source,
-                                 struct wlr_buffer *destination,
-                                 double spacing, bool horizontal) {
+                                 struct wlr_buffer *destination, double spacing,
+                                 bool horizontal) {
   struct wlr_texture *texture = wlr_texture_from_buffer(renderer, source);
   if (!texture)
     return false;
@@ -301,10 +303,9 @@ static bool ludash_backdrop_blur(struct wlr_renderer *renderer,
     wlr_texture_destroy(texture);
     return false;
   }
-  static const float weights[9] = {
-      0.0162162162f, 0.0540540541f, 0.1216216216f, 0.1945945946f,
-      0.2270270270f, 0.1945945946f, 0.1216216216f, 0.0540540541f,
-      0.0162162162f};
+  static const float weights[9] = {0.0162162162f, 0.0540540541f, 0.1216216216f,
+                                   0.1945945946f, 0.2270270270f, 0.1945945946f,
+                                   0.1216216216f, 0.0540540541f, 0.0162162162f};
   // The centre tap first: it covers every pixel, replacing what was there.
   static const int order[9] = {4, 3, 5, 2, 6, 1, 7, 0, 8};
   const int size = horizontal ? destination->width : destination->height;
@@ -329,8 +330,10 @@ static bool ludash_backdrop_blur(struct wlr_renderer *renderer,
         .blend_mode = index == 0 ? WLR_RENDER_BLEND_MODE_NONE
                                  : WLR_RENDER_BLEND_MODE_PREMULTIPLIED};
     if (horizontal) {
-      options.src_box = (struct wlr_fbox){start, 0, length, destination->height};
-      options.dst_box = (struct wlr_box){target, 0, length, destination->height};
+      options.src_box =
+          (struct wlr_fbox){start, 0, length, destination->height};
+      options.dst_box =
+          (struct wlr_box){target, 0, length, destination->height};
     } else {
       options.src_box = (struct wlr_fbox){0, start, destination->width, length};
       options.dst_box = (struct wlr_box){0, target, destination->width, length};
@@ -382,7 +385,7 @@ static double ludash_backdrop_scale(const struct wlr_box *area) {
 }
 
 void ludash_scene_backdrop_sample_box(const struct wlr_box *area, int radius,
-                                     struct wlr_box *sample) {
+                                      struct wlr_box *sample) {
   *sample = *area;
   if (area->width < 1 || area->height < 1)
     return;
@@ -400,11 +403,11 @@ struct wlr_buffer *ludash_scene_backdrop_render(
     struct wl_event_loop *loop, struct wlr_scene_node *root,
     struct wlr_scene_node *stop, struct wlr_scene_node *skip,
     const struct wlr_box *area, int radius) {
-  if (!renderer || !allocator || !root || !stop || !area ||
-      radius < 1 || radius > 32 || area->width < 1 || area->height < 1 ||
-      area->width > 16384 || area->height > 16384 ||
-      area->x < -65536 || area->x > 65536 ||
-      area->y < -65536 || area->y > 65536 || root == stop || skip == stop)
+  if (!renderer || !allocator || !root || !stop || !area || radius < 1 ||
+      radius > 32 || area->width < 1 || area->height < 1 ||
+      area->width > 16384 || area->height > 16384 || area->x < -65536 ||
+      area->x > 65536 || area->y < -65536 || area->y > 65536 || root == stop ||
+      skip == stop)
     return NULL;
   const double scale = ludash_backdrop_scale(area);
   const int width = (int)ceil(area->width / scale);
@@ -420,13 +423,15 @@ struct wlr_buffer *ludash_scene_backdrop_render(
 
   // Captured at twice the working size, then halved: every working pixel
   // averages four, instead of the capture skipping most of the scene.
-  struct wlr_buffer *capture_buffer = ludash_scratch_take(
-      renderer, allocator, 2 * work_width, 2 * work_height);
+  struct wlr_buffer *capture_buffer =
+      ludash_scratch_take(renderer, allocator, 2 * work_width, 2 * work_height);
   struct wlr_buffer *work[2] = {
       ludash_scratch_take(renderer, allocator, work_width, work_height),
       ludash_scratch_take(renderer, allocator, work_width, work_height)};
-  struct wlr_buffer *result = ludash_backdrop_buffer(renderer, allocator, width, height);
-  struct wlr_texture **imports = calloc(LUDASH_BACKDROP_LIMIT, sizeof(*imports));
+  struct wlr_buffer *result =
+      ludash_backdrop_buffer(renderer, allocator, width, height);
+  struct wlr_texture **imports =
+      calloc(LUDASH_BACKDROP_LIMIT, sizeof(*imports));
   struct ludash_backdrop_hold *hold = NULL;
   bool ok = false;
   if (!capture_buffer || !work[0] || !work[1] || !result || !imports)
@@ -462,12 +467,18 @@ struct wlr_buffer *ludash_scene_backdrop_render(
       .color = {0.043f, 0.067f, 0.078f, 1.0f},
       .blend_mode = WLR_RENDER_BLEND_MODE_NONE};
   wlr_render_pass_add_rect(pass, &clear);
-  struct ludash_backdrop_capture capture = {
-      .renderer = renderer, .pass = pass, .stop = stop, .skip = skip,
-      .imports = imports, .hold = hold,
-      .x = area->x - padding_x / scale_x, .y = area->y - padding_y / scale_y,
-      .scale_x = 2.0 * scale_x, .scale_y = 2.0 * scale_y,
-      .width = capture_buffer->width, .height = capture_buffer->height};
+  struct ludash_backdrop_capture capture = {.renderer = renderer,
+                                            .pass = pass,
+                                            .stop = stop,
+                                            .skip = skip,
+                                            .imports = imports,
+                                            .hold = hold,
+                                            .x = area->x - padding_x / scale_x,
+                                            .y = area->y - padding_y / scale_y,
+                                            .scale_x = 2.0 * scale_x,
+                                            .scale_y = 2.0 * scale_y,
+                                            .width = capture_buffer->width,
+                                            .height = capture_buffer->height};
   ludash_backdrop_visit(&capture, root, 0, 0, 0);
   const bool submitted = wlr_render_pass_submit(pass);
   for (size_t index = 0; index < capture.import_count; ++index)
@@ -482,9 +493,9 @@ struct wlr_buffer *ludash_scene_backdrop_render(
   if (!submitted || !capture.found || capture.failed)
     goto cleanup;
 
-  ok = ludash_backdrop_copy(renderer, capture_buffer, work[0],
-                            (struct wlr_fbox){0, 0, capture_buffer->width,
-                                              capture_buffer->height});
+  ok = ludash_backdrop_copy(
+      renderer, capture_buffer, work[0],
+      (struct wlr_fbox){0, 0, capture_buffer->width, capture_buffer->height});
   // Repeated small-kernel passes add up to the wanted sigma (variances add)
   // without taps far enough apart to show copies of the scene.
   const double sigma = fmax(sigma_x, sigma_y);
@@ -499,8 +510,9 @@ struct wlr_buffer *ludash_scene_backdrop_render(
     ok = ludash_backdrop_blur(renderer, work[0], work[1], spacing, true) &&
          ludash_backdrop_blur(renderer, work[1], work[0], spacing, false);
   if (ok)
-    ok = ludash_backdrop_copy(renderer, work[0], result,
-                              (struct wlr_fbox){padding_x, padding_y, width, height});
+    ok = ludash_backdrop_copy(
+        renderer, work[0], result,
+        (struct wlr_fbox){padding_x, padding_y, width, height});
 cleanup:
   if (hold)
     ludash_backdrop_release(hold);

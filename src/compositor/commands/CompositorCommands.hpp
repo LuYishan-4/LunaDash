@@ -4,8 +4,7 @@
 
 namespace LunaDash {
 
-// The compositor's built-in control methods, registered by domain. Each
-// register function lives in the file of its domain.
+
 struct CompositorCommands {
   static void registerBuiltins(CommandRegistry &registry);
 

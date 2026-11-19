@@ -16,8 +16,7 @@
 namespace LunaDash {
 namespace {
 
-// wallpaper-favorite values: "add:<path>" or "remove:<path>", plain text so
-// shells need no JSON escaping.
+
 constexpr std::string_view addFavoritePrefix = "add:";
 constexpr std::string_view removeFavoritePrefix = "remove:";
 

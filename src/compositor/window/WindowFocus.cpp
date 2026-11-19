@@ -135,15 +135,6 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
   if (!client || client->maximized == maximized)
     return;
   if (!client->floating) {
-    if (maximized) {
-      for (const auto &other : clients_) {
-        if (other.get() == client || other->workspace != client->workspace ||
-            other->floating || !other->maximized)
-          continue;
-        other->maximized = false;
-        setClientMaximizedHint(other.get(), false);
-      }
-    }
     windowLayout_->setMaximized(client->id, maximized);
   }
   client->maximized = maximized;
