@@ -127,6 +127,8 @@ private:
     wlr_scene_tree *tree = nullptr;
     wlr_scene_rect *dim = nullptr;
     std::unordered_map<int, wlr_scene_tree *> previewTrees;
+    // The focus or hover ring of each preview, kept just below it.
+    std::unordered_map<int, wlr_scene_rect *> previewFrames;
     std::unordered_map<int, std::unordered_map<wlr_scene_buffer *, wlr_scene_buffer *>>
         previewBuffers;
     std::vector<Preview> previews;

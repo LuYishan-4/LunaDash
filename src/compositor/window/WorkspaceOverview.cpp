@@ -96,10 +96,20 @@ void clonePreview(wlr_scene_node *node, wlr_scene_tree *parent, double x, double
                               static_cast<int>(std::lround(y * scale)));
 }
 
-void addFrame(wlr_scene_tree *parent, const Rect &rect, int width, const float color[4]) {
-  if (auto *frame = wlr_scene_rect_create(parent, rect.width() + 2 * width,
-                                          rect.height() + 2 * width, color))
-    wlr_scene_node_set_position(&frame->node, rect.x() - width, rect.y() - width);
+// The ring around a preview: `width` wide in `color`, or hidden for a width of 0.
+// It lives as long as the preview, so it is updated, never created again.
+void updateFrame(wlr_scene_tree *parent, wlr_scene_rect *&frame, const Rect &rect,
+                 int width, const float color[4]) {
+  if (!frame && width > 0)
+    frame = wlr_scene_rect_create(parent, 1, 1, color);
+  if (!frame)
+    return;
+  wlr_scene_node_set_enabled(&frame->node, width > 0);
+  if (width <= 0)
+    return;
+  wlr_scene_rect_set_size(frame, rect.width() + 2 * width, rect.height() + 2 * width);
+  wlr_scene_rect_set_color(frame, color);
+  wlr_scene_node_set_position(&frame->node, rect.x() - width, rect.y() - width);
 }
 
 } // namespace
@@ -198,6 +208,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     overview_.dim = nullptr;
     overview_.previews.clear();
     overview_.previewTrees.clear();
+    overview_.previewFrames.clear();
     overview_.previewBuffers.clear();
     return;
   }
@@ -234,12 +245,6 @@ void WaylandCompositor::rebuildOverviewPreviews() {
                      static_cast<int>(std::lround(dragY)));
     if (!rect.intersects(screen))
       return;
-    if (client == focused_)
-      addFrame(overview_.tree, rect, 3, overview_.accent);
-    else if (client->id == overview_.hovered || client->id == dropWindow) {
-      const float hover[4] = {1.0f, 1.0f, 1.0f, 0.35f};
-      addFrame(overview_.tree, rect, 2, hover);
-    }
     auto previewTree = overview_.previewTrees.find(client->id);
     wlr_scene_tree *previewTreeNode = nullptr;
     if (previewTree != overview_.previewTrees.end()) {
@@ -251,6 +256,16 @@ void WaylandCompositor::rebuildOverviewPreviews() {
       overview_.previewTrees.emplace(client->id, previewTreeNode);
     }
     wlr_scene_node_set_position(&previewTreeNode->node, rect.x(), rect.y());
+    // The dragged window is drawn above the others.
+    if (dragged)
+      wlr_scene_node_raise_to_top(&previewTreeNode->node);
+    static const float hover[4] = {1.0f, 1.0f, 1.0f, 0.35f};
+    const bool ringed = client->id == overview_.hovered || client->id == dropWindow;
+    auto &frame = overview_.previewFrames[client->id];
+    updateFrame(overview_.tree, frame, rect, client == focused_ ? 3 : ringed ? 2 : 0,
+                client == focused_ ? overview_.accent : hover);
+    if (frame)
+      wlr_scene_node_place_below(&frame->node, &previewTreeNode->node);
     visibleWindows.insert(client->id);
     auto &copies = overview_.previewBuffers[client->id];
     std::unordered_set<wlr_scene_buffer *> seen;
@@ -326,6 +341,12 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     if (!visibleWindows.contains(it->first)) {
       wlr_scene_node_destroy(&it->second->node);
       overview_.previewBuffers.erase(it->first);
+      if (const auto frame = overview_.previewFrames.find(it->first);
+          frame != overview_.previewFrames.end()) {
+        if (frame->second)
+          wlr_scene_node_destroy(&frame->second->node);
+        overview_.previewFrames.erase(frame);
+      }
       it = overview_.previewTrees.erase(it);
     } else {
       ++it;
@@ -378,6 +399,7 @@ void WaylandCompositor::advanceOverview(std::uint64_t presentNs) {
     }
     overview_.previews.clear();
     overview_.previewTrees.clear();
+    overview_.previewFrames.clear();
     overview_.previewBuffers.clear();
     for (auto *layer : {d->normalLayer, d->fullscreenLayer, d->animationLayer})
       if (layer)
