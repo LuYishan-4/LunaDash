@@ -10,9 +10,7 @@ namespace LunaDash {
 
 struct ClientWindow;
 
-// wlr-foreign-toplevel-management-v1 for every window, Wayland and X11: what
-// taskbars and docks list, and their requests to focus, close, minimize,
-// maximize or fullscreen a window.
+
 class ForeignToplevels final {
 public:
   struct Requests {

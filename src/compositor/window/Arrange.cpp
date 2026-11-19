@@ -29,15 +29,8 @@ bool belongsToWindow(const ClientWindow &client, const ClientWindow *owner,
                      const Clients &clients) {
   if (!owner)
     return false;
-  if (&client == owner)
-    return true;
-  auto *parent = client.toplevel ? client.toplevel->parent : nullptr;
-  for (std::size_t depth = 0; parent && depth < clients.size(); ++depth) {
-    if (owner->toplevel && parent == owner->toplevel)
-      return true;
-    parent = parent->parent;
-  }
-  return false;
+  return &client == owner ||
+         clientIsTransientOf(&client, owner, clients.size());
 }
 
 } // namespace

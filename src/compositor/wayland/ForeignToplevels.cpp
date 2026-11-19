@@ -20,7 +20,6 @@ struct ForeignToplevels::Entry {
   WaylandHook onActivate, onClose, onMinimize, onMaximize, onFullscreen;
 
   ~Entry() {
-    // wlroots requires every listener gone before the handle goes.
     for (auto *hook : {&onActivate, &onClose, &onMinimize, &onMaximize, &onFullscreen})
       hook->detach();
     if (handle)

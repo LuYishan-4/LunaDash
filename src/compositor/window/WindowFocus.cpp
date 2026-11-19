@@ -41,16 +41,11 @@ void WaylandCompositor::raiseWithDialogs(ClientWindow *client) {
   wlr_scene_node_raise_to_top(&client->sceneTree->node);
   for (const auto &dialog : clients_) {
     if (!dialog->floating || !dialog->sceneTree ||
-        !dialog->sceneTree->node.enabled || !dialog->toplevel)
+        !dialog->sceneTree->node.enabled ||
+        (!dialog->toplevel && !dialog->xwayland))
       continue;
-    auto *parent = dialog->toplevel->parent;
-    for (std::size_t depth = 0; parent && depth < clients_.size(); ++depth) {
-      if (parent == client->toplevel) {
-        wlr_scene_node_raise_to_top(&dialog->sceneTree->node);
-        break;
-      }
-      parent = parent->parent;
-    }
+    if (clientIsTransientOf(dialog.get(), client, clients_.size()))
+      wlr_scene_node_raise_to_top(&dialog->sceneTree->node);
   }
 }
 

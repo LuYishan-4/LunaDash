@@ -184,6 +184,33 @@ bool clientReady(const ClientWindow *client) {
          client->toplevel != nullptr;
 }
 
+bool clientIsTransientOf(const ClientWindow *client,
+                         const ClientWindow *ancestor,
+                         std::size_t maxDepth) {
+  if (!client || !ancestor || client == ancestor)
+    return false;
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (client->xwayland && ancestor->xwayland) {
+    auto *parent = client->xwayland->parent;
+    for (std::size_t depth = 0; parent && depth < maxDepth; ++depth) {
+      if (parent == ancestor->xwayland)
+        return true;
+      parent = parent->parent;
+    }
+    return false;
+  }
+#endif
+  if (client->toplevel && ancestor->toplevel) {
+    auto *parent = client->toplevel->parent;
+    for (std::size_t depth = 0; parent && depth < maxDepth; ++depth) {
+      if (parent == ancestor->toplevel)
+        return true;
+      parent = parent->parent;
+    }
+  }
+  return false;
+}
+
 void setClientActivated(ClientWindow *client, bool active) {
   if (!client)
     return;

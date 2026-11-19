@@ -2,6 +2,7 @@
 
 #include "core/geometry/Geometry.hpp"
 
+#include <cstddef>
 #include <string>
 
 namespace LunaDash {
@@ -9,6 +10,8 @@ namespace LunaDash {
 struct ClientWindow;
 
 bool clientReady(const ClientWindow *client);
+bool clientIsTransientOf(const ClientWindow *client,
+                         const ClientWindow *ancestor, std::size_t maxDepth);
 void setClientActivated(ClientWindow *client, bool active);
 void closeClient(ClientWindow *client);
 void setClientMinimizedHint(ClientWindow *client, bool minimized);
