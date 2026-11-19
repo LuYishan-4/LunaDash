@@ -5,7 +5,6 @@
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/session/CompositorOptions.hpp"
 #include "compositor/session/SessionHelpers.hpp"
-#include "compositor/settings/SettingsPages.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "compositor/window/animation/WindowAnimation.hpp"
 #include "config/session/SessionConfig.hpp"
@@ -76,7 +75,6 @@ public:
   // and only these registries decide what a name runs.
   CommandRegistry &commandRegistry() { return commands_; }
   ShortcutRegistry &shortcutRegistry() { return shortcuts_; }
-  SettingsPageRegistry &settingsPageRegistry() { return settingsPages_; }
   SessionHelperRegistry &sessionHelperRegistry() { return sessionHelpers_; }
 
 private:
@@ -164,7 +162,6 @@ private:
 
   CommandRegistry commands_;
   ShortcutRegistry shortcuts_;
-  SettingsPageRegistry settingsPages_;
   SessionHelperRegistry sessionHelpers_;
 
   std::unique_ptr<WindowSwitcher> windowSwitcher_;
@@ -230,7 +227,8 @@ private:
 
   // Shell requests (compositor/session/ShellRequests.cpp).
   void setLauncherVisible(bool visible, bool publish = true);
-  bool openSettingsPage(const std::string &page, std::string *error);
+  // The shell shows the page; it opens its first page for a name it does not know.
+  void openSettingsPage(const std::string &page);
   bool openWallpaperPicker(std::string *error);
 
   // Screenshots (compositor/capture/ScreenshotRequests.cpp).

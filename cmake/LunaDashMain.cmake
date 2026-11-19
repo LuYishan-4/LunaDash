@@ -379,7 +379,6 @@ add_library(ludash-wayland
     src/compositor/commands/WallpaperCommands.cpp
     src/compositor/commands/WindowCommands.cpp
     src/compositor/ipc/StateSnapshot.cpp
-    src/compositor/settings/SettingsPages.cpp
     src/compositor/input/ShortcutActions.cpp
     src/compositor/wayland/DebugSnapshot.cpp
     src/compositor/wayland/Register.cpp

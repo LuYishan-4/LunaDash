@@ -133,7 +133,6 @@ bool WaylandCompositor::start() {
 void WaylandCompositor::registerBuiltins() {
   CompositorCommands::registerBuiltins(commands_);
   ShortcutActions::registerBuiltins(shortcuts_);
-  registerBuiltinSettingsPages(settingsPages_);
   registerBuiltinSessionHelpers(sessionHelpers_);
 }
 

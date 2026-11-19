@@ -56,9 +56,7 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     return {};
   });
   registry.add("open-settings", [](C &c, const R &r) -> CommandResult {
-    std::string error;
-    if (!c.openSettingsPage(r.value, &error))
-      return commandError(error);
+    c.openSettingsPage(r.value);
     return {};
   });
   registry.add("settings-describe", [](C &c, const R &) -> CommandResult {

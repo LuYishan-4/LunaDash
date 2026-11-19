@@ -52,16 +52,8 @@ void WaylandCompositor::setLauncherVisible(bool visible, bool publish) {
     sendShellRequest("launcher", visible ? "true" : "false");
 }
 
-bool WaylandCompositor::openSettingsPage(const std::string &page,
-                                         std::string *error) {
-  if (!page.empty() && !settingsPages_.contains(page)) {
-    if (error)
-      *error = "Unknown settings page.";
-    return false;
-  }
-  sendShellRequest("settings",
-                   page.empty() ? defaultSettingsPage(settingsPages_) : page);
-  return true;
+void WaylandCompositor::openSettingsPage(const std::string &page) {
+  sendShellRequest("settings", page);
 }
 
 bool WaylandCompositor::openWallpaperPicker(std::string *error) {
