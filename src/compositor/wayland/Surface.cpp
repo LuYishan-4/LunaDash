@@ -158,10 +158,6 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
                           !client->floating && !client->utility &&
                           !client->fullscreen && !client->maximized;
   if (client->layoutPending) {
-    for (const auto &peer : q->clients_)
-      if (peer.get() != client && peer->workspace == client->workspace &&
-          !peer->floating && peer->maximized)
-        q->setMaximized(peer.get(), false);
     q->arrange();
     if (client->lastSize.isValid())
       return;
@@ -284,13 +280,7 @@ void WaylandCompositor::Impl::ToplevelState::onMap() {
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   createLegacyForeignToplevel();
 #endif
-  // A new ordinary window joins the visible layout instead of inheriting zoom.
-  if (desktop->windowTemplate_ && !desktop->windowTemplate_->allowOverlap &&
-      !client->floating && !client->utility && !client->maximized)
-    for (const auto &peer : desktop->clients_)
-      if (peer.get() != client && peer->workspace == client->workspace &&
-          !peer->floating && peer->maximized)
-        desktop->setMaximized(peer.get(), false);
+  // A new ordinary window joins the visible layout without inheriting zoom.
   desktop->arrange();
   if (!client->utility)
     desktop->focus(client);
