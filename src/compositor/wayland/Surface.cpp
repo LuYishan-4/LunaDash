@@ -277,8 +277,8 @@ void WaylandCompositor::Impl::ToplevelState::onMap() {
   client->mapped = true;
   client->layoutPending = false;
   desktop->updateClientMetadata(client);
+  impl->adoptShellDialog(client);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
-  // Only mapped windows belong in the portal's selectable toplevel list.
   createForeignToplevel();
 #endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
@@ -294,6 +294,17 @@ void WaylandCompositor::Impl::ToplevelState::onMap() {
   desktop->arrange();
   if (!client->utility)
     desktop->focus(client);
+  // The window fades in to its steady opacity (what the glass gives it every
+  // frame), not to opaque and then a sudden step down when the fade ends.
+  if (client->sceneTree && !client->fullscreen && !client->desktop && !client->utility) {
+    float opacity = impl->eyeCareActive ? 1.0f : impl->steadyWindowOpacity;
+    wlr_scene_node_for_each_buffer(
+        &client->sceneTree->node,
+        [](wlr_scene_buffer *buffer, int, int, void *data) {
+          wlr_scene_buffer_set_opacity(buffer, *static_cast<float *>(data));
+        },
+        &opacity);
+  }
   if (desktop->windowAnimations_ && client->sceneTree && !client->utility)
     desktop->windowAnimations_->open(
         client->sceneTree,
@@ -501,6 +512,7 @@ void WaylandCompositor::Impl::LayerState::onUnmap() {
   }
   mapped = false;
   configured = false;
+  impl->releaseShellDialogs();
   impl->arrangeLayers();
   impl->q->arrange();
   impl->restoreLayerFocus();
@@ -559,9 +571,40 @@ void WaylandCompositor::Impl::LayerState::onDestroy() {
   owner->restoreLayerFocus();
 }
 
+bool WaylandCompositor::Impl::shellOverlayHasKeyboard() const {
+  return std::any_of(layers.begin(), layers.end(), [](const LayerState *layer) {
+    return layer->mapped && layer->surface &&
+           layer->surface->current.keyboard_interactive ==
+               ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE;
+  });
+}
+
+void WaylandCompositor::Impl::adoptShellDialog(ClientWindow *client) {
+  if (!client || client->utility || !shellOverlayHasKeyboard())
+    return;
+  client->shellDialog = true;
+  client->floating = true;
+}
+
+void WaylandCompositor::Impl::releaseShellDialogs() {
+  if (shellOverlayHasKeyboard())
+    return;
+  for (const auto &client : q->clients_)
+    if (client->shellDialog) {
+      client->shellDialog = false;
+      client->floating = false;
+    }
+}
+
 void WaylandCompositor::Impl::restoreLayerFocus() {
   if (q->lifecycle_.shuttingDown || q->lifecycle_.testStopping)
     return;
+  // A dialog the shell opened keeps the keyboard over the overlay that opened it.
+  for (auto it = q->clients_.rbegin(); it != q->clients_.rend(); ++it)
+    if ((*it)->shellDialog && (*it)->mapped && (*it)->wlSurface) {
+      focusSurface((*it)->wlSurface);
+      return;
+    }
   LayerState *target = nullptr;
   for (auto *layer : layers) {
     if (!layer->mapped || !layer->surface ||

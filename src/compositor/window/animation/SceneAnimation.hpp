@@ -99,6 +99,9 @@ public:
                 int dx, int dy);
   // True while slideOut() is moving `tree` away.
   bool slidingOut(wlr_scene_tree *tree) const;
+  // True while an animation sets the opacity of `tree`'s buffers (a fade, or a
+  // snapshot shown in its place): others must leave it alone meanwhile.
+  bool ownsOpacity(wlr_scene_tree *tree) const;
   // Turns a slide-out around: the window springs back to where it was.
   void returnHome(wlr_scene_tree *tree);
   // Moves the destination of a running animation (a layer surface that was laid out again).

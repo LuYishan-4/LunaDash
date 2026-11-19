@@ -746,6 +746,12 @@ bool SceneAnimation::slideOut(wlr_scene_tree *tree,
   return true;
 }
 
+bool SceneAnimation::ownsOpacity(wlr_scene_tree *tree) const {
+  const auto found = live_.find(tree);
+  return found != live_.end() &&
+         (found->second->preview || found->second->initialOpacity != 1.0);
+}
+
 bool SceneAnimation::slidingOut(wlr_scene_tree *tree) const {
   const auto found = live_.find(tree);
   return found != live_.end() && found->second->hiding;

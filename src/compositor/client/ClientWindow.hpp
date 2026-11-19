@@ -37,6 +37,9 @@ struct ClientWindow {
   // which remains constrained to the normal panel/gap work area.
   bool fullscreen = false;
   bool hiddenByMaximize = false;
+  // Opened while a shell overlay held the keyboard (settings opening a file
+  // chooser): it floats above the shell until no overlay is left.
+  bool shellDialog = false;
   bool manualResize = false;
   // Stacking windows zoom instead of resizing: the client keeps laying itself
   // out at its own size and is drawn this many times as large

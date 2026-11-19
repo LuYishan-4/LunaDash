@@ -255,8 +255,10 @@ void WaylandCompositor::arrange() {
          (!client->utility &&
           (fullscreenClient ? inFullscreenFamily : !client->hiddenByMaximize)));
     if (client->sceneTree) {
+      // Shell dialogs go above the shell's overlay, which takes the top of
+      // the layers below.
       auto *targetLayer =
-          unmanagedX11 && d->overlayLayer ? d->overlayLayer
+          (unmanagedX11 || client->shellDialog) && d->overlayLayer ? d->overlayLayer
           : fullscreenClient && inFullscreenFamily && d->fullscreenLayer
               ? d->fullscreenLayer
               : d->normalLayer;

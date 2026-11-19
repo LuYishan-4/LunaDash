@@ -179,7 +179,10 @@ void WaylandCompositor::Impl::updateWindowGlass() {
                        client->mapped && !client->fullscreen &&
                            !client->desktop && !client->utility,
                        windowCorners ? windowCorners->radius(client->sceneTree) : 0,
-                       -1.0f, true});
+                       -1.0f,
+                       q->windowAnimations_ &&
+                           q->windowAnimations_->animation().ownsOpacity(client->sceneTree),
+                       true});
   // Layer-shell surfaces (the shell's overlays and popups) opt in through
   // ext-background-effect-v1 and get the same producer-owned,
   // input-transparent blur underlays; never sample the panel's own text or
@@ -191,7 +194,9 @@ void WaylandCompositor::Impl::updateWindowGlass() {
       continue;
     const auto &state = layer->surface->surface->current;
     surfaces.push_back({layer->sceneLayer->tree, {state.width, state.height},
-                     true, layerBlurRadius(*layer->surface), 1.0f});
+                     true, layerBlurRadius(*layer->surface), 1.0f,
+                     q->windowAnimations_ &&
+                         q->windowAnimations_->animation().ownsOpacity(layer->sceneLayer->tree)});
   }
   std::vector<WindowGlass::Output> boxes;
   for (const auto *state : outputs) {

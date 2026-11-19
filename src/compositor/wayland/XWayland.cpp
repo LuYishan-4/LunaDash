@@ -137,6 +137,7 @@ void WaylandCompositor::Impl::XWaylandState::onMap() {
     client->maximized = jsonBool(rule, "maximized");
   }
   client->initialRuleApplied = true;
+  impl->adoptShellDialog(client);
   desktop->arrange();
   if (!client->utility)
     desktop->focus(client);

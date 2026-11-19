@@ -547,6 +547,12 @@ public:
 
   void arrangeLayers();
   void restoreLayerFocus();
+  // A shell overlay (a layer surface taking the keyboard) is up.
+  bool shellOverlayHasKeyboard() const;
+  // A window mapping now: it is a dialog for the shell's overlay when one is up.
+  void adoptShellDialog(ClientWindow *client);
+  // No overlay is left: shell dialogs become ordinary windows.
+  void releaseShellDialogs();
   static SceneAnimationRectangle layerRectangle(const LayerState *state);
   bool animatesLayer(const LayerState *state) const;
   void addXdgPopup(wlr_xdg_popup *popup);
