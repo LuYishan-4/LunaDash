@@ -37,6 +37,7 @@ void WaylandCompositor::Impl::PointerComponent::onMotion(
     impl->idleNotify->activity();
   wlr_cursor_move(impl->cursor, &event->pointer->base, event->delta_x,
                   event->delta_y);
+  impl->pointerCursor->moved();
   impl->processPointerMotion(event->time_msec);
 }
 
@@ -48,6 +49,7 @@ void WaylandCompositor::Impl::PointerComponent::onMotionAbsolute(
     impl->idleNotify->activity();
   wlr_cursor_warp_absolute(impl->cursor, &event->pointer->base, event->x,
                            event->y);
+  impl->pointerCursor->moved();
   impl->processPointerMotion(event->time_msec);
 }
 

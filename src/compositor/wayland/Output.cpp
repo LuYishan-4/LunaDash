@@ -368,10 +368,12 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
   stage(4);
   sendFrameDone(&now);
   stage(5);
-  // Animations and the overview's live previews redraw every frame.
+  // Animations, the overview's live previews and a shaken cursor's growth
+  // step every frame.
+  const bool cursorGrowing = impl->pointerCursor->advance();
   if ((impl->q->windowAnimations_ &&
        impl->q->windowAnimations_->activeCount() > 0) ||
-      impl->q->overviewShown())
+      impl->q->overviewShown() || cursorGrowing)
     wlr_output_schedule_frame(output);
   scheduleCaptureTail(capturePending);
   recordFrameWork(nowNs);

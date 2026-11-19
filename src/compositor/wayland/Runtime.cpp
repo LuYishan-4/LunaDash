@@ -115,12 +115,19 @@ bool WaylandCompositor::Impl::createRuntime() {
 
   seat = wlr_seat_create(display, "seat0");
   cursor = wlr_cursor_create();
-  cursorManager = wlr_xcursor_manager_create(
-      nullptr, environmentInt("XCURSOR_SIZE") > 0
-                   ? static_cast<uint32_t>(environmentInt("XCURSOR_SIZE"))
-                   : 24);
+  const uint32_t cursorSize =
+      environmentInt("XCURSOR_SIZE") > 0
+          ? static_cast<uint32_t>(environmentInt("XCURSOR_SIZE"))
+          : 24;
+  cursorManager = wlr_xcursor_manager_create(nullptr, cursorSize);
   if (!seat || !cursor || !cursorManager)
     return fail("wlroots could not create the seat/cursor stack.");
+  pointerCursor = std::make_unique<PointerCursor>(
+      cursor, cursorManager, cursorSize, [this] {
+        for (const auto *state : outputs)
+          if (state && state->output)
+            wlr_output_schedule_frame(state->output);
+      });
   wlr_cursor_attach_output_layout(cursor, outputLayout);
   wlr_seat_set_capabilities(seat, WL_SEAT_CAPABILITY_POINTER |
                                       WL_SEAT_CAPABILITY_KEYBOARD);
@@ -173,6 +180,7 @@ void WaylandCompositor::Impl::destroyRuntime() {
   overlayLayer = nullptr;
   background = nullptr;
 
+  pointerCursor.reset();
   if (cursorManager) {
     wlr_xcursor_manager_destroy(cursorManager);
     cursorManager = nullptr;

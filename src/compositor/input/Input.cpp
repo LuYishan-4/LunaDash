@@ -150,17 +150,17 @@ void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
 }
 
 void WaylandCompositor::Impl::setCursorImage(const char *name) {
-  if (!cursor || !cursorManager)
+  if (!pointerCursor)
     return;
-  wlr_cursor_set_xcursor(cursor, cursorManager, name);
+  pointerCursor->showXcursor(name);
   cursorImage = name;
 }
 
 void WaylandCompositor::Impl::setClientCursor(wlr_surface *surface,
                                               int32_t hotspotX, int32_t hotspotY) {
-  if (!cursor)
+  if (!pointerCursor)
     return;
-  wlr_cursor_set_surface(cursor, surface, hotspotX, hotspotY);
+  pointerCursor->showSurface(surface, hotspotX, hotspotY);
 
   cursorImage = surface ? "client" : "hidden by client";
 }

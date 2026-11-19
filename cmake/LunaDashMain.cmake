@@ -401,6 +401,7 @@ add_library(ludash-wayland
     src/compositor/input/Input.cpp
     src/compositor/input/InputDeviceComponent.cpp
     src/compositor/input/PointerComponent.cpp
+    src/compositor/input/PointerCursor.cpp
     src/compositor/input/TextInputComponent.cpp
     src/compositor/input/ClipboardComponent.cpp
     src/compositor/settings/SettingsApi.cpp

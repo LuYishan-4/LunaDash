@@ -1,6 +1,7 @@
 #pragma once
 
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/input/PointerCursor.hpp"
 #include "compositor/wayland/BackgroundEffectManager.hpp"
 #include "compositor/wayland/ForeignToplevels.hpp"
 #include "compositor/wayland/IdleNotify.hpp"
@@ -411,6 +412,8 @@ public:
   wlr_seat *seat = nullptr;
   wlr_cursor *cursor = nullptr;
   wlr_xcursor_manager *cursorManager = nullptr;
+  // The image on `cursor`, grown while the pointer is shaken.
+  std::unique_ptr<PointerCursor> pointerCursor;
   wlr_cursor_shape_manager_v1 *cursorShapeManager = nullptr;
   std::unique_ptr<BackgroundEffectManager> backgroundEffects;
   // ext-workspace-v1 (updated by WaylandCompositor::arrange).
