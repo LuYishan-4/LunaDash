@@ -158,11 +158,14 @@ void PointerCursor::apply() {
     auto *base = firstImage(manager_, name);
     if (large && base) {
       // The buffer's scale makes it `growth_` times the theme's own size.
-      const float scale = static_cast<float>(
-          large->width / (base->width * growth_));
-      wlr_cursor_set_buffer(cursor_, wlr_xcursor_image_get_buffer(large),
-                            static_cast<int32_t>(large->hotspot_x),
-                            static_cast<int32_t>(large->hotspot_y), scale);
+      const double scale = large->width / (base->width * growth_);
+      // wlroots scales the image by the buffer's scale but takes the hotspot
+      // as it is, in logical pixels: it is scaled here to stay on the pointer.
+      wlr_cursor_set_buffer(
+          cursor_, wlr_xcursor_image_get_buffer(large),
+          static_cast<int32_t>(std::lround(large->hotspot_x / scale)),
+          static_cast<int32_t>(std::lround(large->hotspot_y / scale)),
+          static_cast<float>(scale));
       grown_ = true;
       return;
     }
