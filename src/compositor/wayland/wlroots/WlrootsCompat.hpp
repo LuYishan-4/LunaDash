@@ -12,9 +12,6 @@ inline wlr_backend *createPlatform(wl_display *display) {
 #endif
 }
 
-// Refresh rate for a custom nested mode. The X11 and Wayland backends reject
-// explicit custom refresh rates (the host paces frames), while headless outputs
-// report the rate they were given.
 inline int nestedModeRefresh(wlr_output *output, int fallbackMilliHz) {
   if (!output)
     return fallbackMilliHz;
@@ -51,7 +48,6 @@ inline void notifyPointerAxis(wlr_seat *seat,
 #endif
 }
 
-// wlroots 0.18 switched pointer events from its own enums to the protocol's.
 inline bool buttonPressed(const wlr_pointer_button_event *event) {
 #if WLR_VERSION_MINOR < 18
   return event->state == WLR_BUTTON_PRESSED;
@@ -113,21 +109,27 @@ inline void destroyRuntimeObjects(wlr_cursor *cursor, wlr_allocator *allocator,
                                   wlr_renderer *renderer,
                                   wlr_backend *backend) {
 #if WLR_VERSION_MINOR < 18
-  // wlroots 0.17 ties these objects into display/backend destruction. Its
-  // reference compositor does not destroy them individually at shutdown.
   (void)cursor;
   (void)allocator;
   (void)renderer;
   (void)backend;
 #else
-  if (cursor)
+  if (cursor){
     wlr_cursor_destroy(cursor);
-  if (allocator)
+    cursor = nullptr;
+  }
+  if (allocator){
     wlr_allocator_destroy(allocator);
-  if (renderer)
+    allocator = nullptr;
+  }
+  if (renderer){
     wlr_renderer_destroy(renderer);
-  if (backend)
+    renderer = nullptr;
+  }
+  if (backend){
     wlr_backend_destroy(backend);
+    backend = nullptr;
+  }
 #endif
 }
 
@@ -139,7 +141,6 @@ inline int expectedSeatProtocolVersion() {
 #endif
 }
 
-// wl_data_device_manager version that wlr_data_device_manager_create() advertises.
 inline constexpr int dataDeviceProtocolVersion = 3;
 
 } // namespace LunaDash::WlrootsCompat

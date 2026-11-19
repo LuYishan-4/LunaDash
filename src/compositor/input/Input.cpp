@@ -317,20 +317,13 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
   const bool inputMethodVirtual = impl->inputMethodVirtualKeyboard(this);
 
   if (virtualKeyboard && !inputMethodVirtual) {
-    // Generic virtual keyboards such as GPU Screen Recorder may be recreated
-    // repeatedly and begin with an empty locked mask. The physical keyboard is
-    // the persistent lock-state owner: inherit CapsLock/NumLock before wlroots
-    // processes this virtual key, then the modifiers callback writes the
-    // resulting state back after the key has toggled it.
     if (auto *physical = impl->preferredKeyboard();
         physical && physical != keyboard)
       copyKeyboardLocks(keyboard, physical);
   }
 
   if (inputMethodVirtual) {
-    // The IME's own virtual keyboard is the return path from its hardware
-    // keyboard grab. Keep the seat on the physical keymap and preserve the
-    // physical lock/modifier state which Fcitx expects.
+
     impl->restorePreferredKeyboard();
     if (bridgeActive) {
       if (auto *physical = impl->preferredKeyboard();

@@ -49,9 +49,7 @@ bool applyKeyboardPreferences(wlr_keyboard *keyboard,
     return false;
   }
 
-  // A new keymap starts with no locks. A keyboard's first keymap takes
-  // NumLock from the numLock preference; a later one (a layout change)
-  // keeps what the user had.
+
   const auto numLockMask = [](xkb_keymap *map) -> xkb_mod_mask_t {
     const xkb_mod_index_t index =
         map ? xkb_keymap_mod_get_index(map, XKB_MOD_NAME_NUM) : XKB_MOD_INVALID;

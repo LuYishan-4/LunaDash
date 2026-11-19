@@ -1,13 +1,8 @@
 #pragma once
 
-// wlroots is a C API. Some supported releases expose C99-only declarations
-// such as array[static N] and struct members named delete/namespace.
-// Keep those lexical incompatibilities inside this one compatibility boundary;
-// the macros are undefined immediately after the C headers are parsed.
+
 #ifdef __cplusplus
-// wayland-util.h includes <math.h>; libstdc++'s C++ math declarations must be
-// parsed before the C keyword compatibility macros below are active. glibc's
-// pthread.h also contains a C++ cleanup helper that must be parsed first.
+
 #include <cmath>
 #include <pthread.h>
 #define static

@@ -1,7 +1,6 @@
 #include "compositor/wayland/BackgroundEffectManager.hpp"
 
-// C++ library headers must be parsed before the wlroots compatibility macros
-// (xcb_ewmh.h, reached through wlr/xwayland.h, includes <stdlib.h>).
+
 #include <algorithm>
 #include <cstdlib>
 #include <utility>
@@ -31,8 +30,6 @@ void finishBlurState(void *state) {
   pixman_region32_fini(&static_cast<BlurState *>(state)->region);
 }
 
-// The blur region keeps its value until the client sets a new one, so a
-// commit copies it instead of resetting the pending state.
 void moveBlurState(void *dst, void *src) {
   pixman_region32_copy(&static_cast<BlurState *>(dst)->region,
                        &static_cast<BlurState *>(src)->region);

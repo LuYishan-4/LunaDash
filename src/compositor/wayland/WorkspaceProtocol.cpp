@@ -58,7 +58,6 @@ WorkspaceProtocol::WorkspaceProtocol(wl_display *display,
   manager_ = wlr_ext_workspace_manager_v1_create(display, kManagerVersion);
   if (!manager_)
     return;
-  // Workspaces are created by opening windows, not by clients: no capabilities.
   group_ = wlr_ext_workspace_group_handle_v1_create(manager_, 0);
   listeners_ = new Listeners();
   listeners_->owner = this;
@@ -68,14 +67,12 @@ WorkspaceProtocol::WorkspaceProtocol(wl_display *display,
   wl_signal_add(&manager_->events.destroy, &listeners_->destroy);
 }
 
-// The manager and its handles belong to the display; they go with it.
 WorkspaceProtocol::~WorkspaceProtocol() { detach(); }
 
 void WorkspaceProtocol::update(int count, int active,
                                const std::vector<wlr_output *> &outputs) {
   if (!manager_ || !group_)
     return;
-  // wlroots drops destroyed outputs from the group by itself.
   for (auto *output : outputs)
     if (std::find(outputs_.begin(), outputs_.end(), output) == outputs_.end())
       wlr_ext_workspace_group_handle_v1_output_enter(group_, output);
