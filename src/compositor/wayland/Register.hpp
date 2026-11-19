@@ -12,12 +12,8 @@
 #include "compositor/renderer/color/NightColor.h"
 #include "compositor/window/animation/SceneAnimation.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
-#include "core/filesystem/FileIo.hpp"
-#include "core/log/Log.hpp"
 #include "core/templates/LunaClint.hpp"
 #include "core/templates/WaylandSlot.hpp"
-#include "core/text/Text.hpp"
-#include <algorithm>
 #include <chrono>
 #include <ctime>
 #include <functional>

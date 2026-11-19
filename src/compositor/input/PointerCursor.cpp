@@ -10,15 +10,13 @@ namespace {
 
 using namespace std::chrono_literals;
 
-// Motion older than this no longer counts toward a shake.
+
 constexpr auto kShakeWindow = 800ms;
-// The path the pointer travelled over the diagonal of the box it stayed in:
-// from this ratio on, it is being shaken back and forth.
+
 constexpr double kShakeRatio = 3.5;
-// Shakes smaller than this (logical pixels) are jitter.
+
 constexpr double kMinimumSpan = 50.0;
-// The cursor grows up to this many times its size, and stays grown this long
-// after the shaking stops.
+
 constexpr double kMaximumGrowth = 4.0;
 constexpr auto kHold = 400ms;
 // The growth moves on this spring (in units of the growth).
@@ -81,7 +79,7 @@ void PointerCursor::showSurface(wlr_surface *surface, int32_t hotspotX,
 void PointerCursor::onSurfaceDestroy() {
   Templates::detachListener(surfaceDestroy_);
   surface_ = nullptr;
-  // The grown arrow stands in for the surface; it goes with it.
+
   if (grown_)
     apply();
 }

@@ -18,7 +18,6 @@ struct IdleNotify::Listeners {
   static void onNewInhibitor(wl_listener *listener, void *data) {
     from(listener, offsetof(Listeners, newInhibitor))->owner->inhibitorAdded(data);
   }
-  // The manager goes with the display: stop listening to it.
   static void onInhibitDestroy(wl_listener *listener, void *) {
     auto *self = from(listener, offsetof(Listeners, inhibitDestroy));
     wl_list_remove(&self->newInhibitor.link);
@@ -30,7 +29,6 @@ struct IdleNotify::Listeners {
 
 namespace {
 
-// One per live inhibitor; frees itself when the inhibitor goes.
 struct InhibitorWatch {
   wl_listener destroy{};
   IdleNotify *owner = nullptr;
