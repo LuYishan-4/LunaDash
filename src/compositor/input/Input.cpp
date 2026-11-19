@@ -4,7 +4,7 @@
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
-#include "desktop/shortcuts/ShortcutSettings.hpp"
+#include "desktop/shortcuts/KeyBindings.hpp"
 #include <chrono>
 #include <algorithm>
 #include <linux/input-event-codes.h>
@@ -14,16 +14,16 @@
 namespace LunaDash {
 
 namespace {
-uint32_t shortcutModifiers(uint32_t wlrModifiers) {
+uint32_t bindingModifiers(uint32_t wlrModifiers) {
   uint32_t result = 0;
   if (wlrModifiers & WLR_MODIFIER_LOGO)
-    result |= ShortcutMeta;
+    result |= KeyMeta;
   if (wlrModifiers & WLR_MODIFIER_CTRL)
-    result |= ShortcutControl;
+    result |= KeyControl;
   if (wlrModifiers & WLR_MODIFIER_ALT)
-    result |= ShortcutAlt;
+    result |= KeyAlt;
   if (wlrModifiers & WLR_MODIFIER_SHIFT)
-    result |= ShortcutShift;
+    result |= KeyShift;
   return result;
 }
 
@@ -391,7 +391,7 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
       metaTapPending = false;
       metaTapKeycode = -1;
       if (tapped)
-        desktop->handleShortcut("toggleOverview");
+        desktop->runAction("toggle-overview");
       return;
     }
   }
@@ -399,23 +399,6 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
   if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED &&
       consumedKeys.erase(event->keycode))
     return;
-
-  // F12 is a fixed compositor shortcut for true fullscreen. Keep it outside
-  // the configurable shortcut table, whose policy intentionally requires
-  // Meta or Alt combinations.
-  if (!virtualKeyboard && event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
-      !desktop->shortcutCapture_) {
-    const uint32_t rawModifiers = wlr_keyboard_get_modifiers(keyboard);
-    for (int i = 0; i < count; ++i) {
-      if (symbols[i] == XKB_KEY_F12 &&
-          !(rawModifiers & (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT |
-                            WLR_MODIFIER_SHIFT | WLR_MODIFIER_LOGO))) {
-        desktop->handleShortcut("toggleFullscreen");
-        consumedKeys.insert(event->keycode);
-        return;
-      }
-    }
-  }
 
   const bool shortcutPress = !virtualKeyboard &&
                              event->state == WL_KEYBOARD_KEY_STATE_PRESSED &&
@@ -450,30 +433,23 @@ void WaylandCompositor::Impl::KeyboardState::onKey(
       }
     }
   }
+  // The overview's own bindings first while it is open, then the normal ones.
   if (!handled && shortcutPress) {
     const uint32_t modifiers =
-        shortcutModifiers(wlr_keyboard_get_modifiers(keyboard));
-    for (int i = 0; i < count && !handled; ++i) {
-      const std::string action =
-          desktop->shortcutSettings_->actionFor(symbols[i], modifiers);
-      if (!action.empty()) {
-        desktop->handleShortcut(action);
-        handled = true;
+        bindingModifiers(wlr_keyboard_get_modifiers(keyboard));
+    std::vector<const char *> modes;
+    if (desktop->overviewOpen())
+      modes.push_back("overview");
+    modes.push_back("normal");
+    for (const char *mode : modes)
+      for (int i = 0; i < count && !handled; ++i) {
+        const std::string action =
+            desktop->keyBindings_->actionFor(mode, symbols[i], modifiers);
+        if (!action.empty()) {
+          desktop->runAction(action);
+          handled = true;
+        }
       }
-    }
-  }
-
-  if (!handled && shortcutPress && desktop->overviewOpen()) {
-    const auto modifiers = wlr_keyboard_get_modifiers(keyboard);
-    const uint32_t shortcutMods = shortcutModifiers(modifiers);
-    for (int i = 0; i < count && !handled; ++i) {
-      const std::string action = desktop->shortcutSettings_->actionFor(
-          symbols[i], shortcutMods, true);
-      if (!action.empty()) {
-        desktop->handleShortcut(action);
-        handled = true;
-      }
-    }
   }
 
   if (!handled && !virtualKeyboard)
@@ -607,6 +583,20 @@ void WaylandCompositor::Impl::KeyboardState::onDestroy() {
   owner->updateSeatCapabilities();
 }
 
+
+void WaylandCompositor::applyKeyboardConfiguration() {
+  if (d)
+    d->applyKeyboardConfig();
+}
+
+void WaylandCompositor::resendKeyboardModifiers() {
+  if (!d || !d->seat)
+    return;
+  if (auto *keyboard = wlr_seat_get_keyboard(d->seat)) {
+    wlr_seat_keyboard_notify_modifiers(d->seat, &keyboard->modifiers);
+    ++keyboardDiagnostics_.modifierResends;
+  }
+}
 
 void WaylandCompositor::Impl::applyKeyboardConfig() {
   for (auto *state : keyboards) {

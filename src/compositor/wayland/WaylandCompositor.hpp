@@ -1,7 +1,7 @@
 #pragma once
 
 #include "compositor/commands/CommandRegistry.hpp"
-#include "compositor/input/ShortcutRegistry.hpp"
+#include "compositor/input/CompositorActions.hpp"
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/session/CompositorOptions.hpp"
 #include "compositor/session/SessionHelpers.hpp"
@@ -33,11 +33,11 @@ class PluginManager;
 class ControlServer;
 class SessionActions;
 class SessionServices;
-class ShortcutSettings;
+class KeyBindings;
 class VideoWallpaperPlayer;
 struct ClientWindow;
 struct CompositorCommands;
-struct ShortcutActions;
+struct CompositorActions;
 
 class WaylandCompositor final {
 public:
@@ -61,27 +61,18 @@ public:
   bool scheduleEventLoopCallback(int delayMilliseconds,
                                  std::function<void()> callback);
   void closeTestSession(const std::function<void(bool)> &finished);
-  // Asks the shell to open something, by compositor action name ("welcome",
-  // "openControlCenter"); see sendShellRequest (compositor/session/ShellRequests.cpp).
-  void requestShellAction(std::string_view action);
   // Runs `slintlu msg call Shell.request <action> <argument>`: the shell's own
   // IPC, the same any compositor's shortcut can use.
   void sendShellRequest(std::string_view action, std::string_view argument = {});
   // Publishes the workspaces over ext-workspace-v1; arrange() calls it.
   void publishWorkspaces();
 
-  // Registration points. The compositor registers its built-ins at
-  // construction; code built with the compositor adds its own entries here,
-  // and only these registries decide what a name runs.
-  CommandRegistry &commandRegistry() { return commands_; }
-  ShortcutRegistry &shortcutRegistry() { return shortcuts_; }
-  SessionHelperRegistry &sessionHelperRegistry() { return sessionHelpers_; }
 
 private:
-  // IPC commands (compositor/commands) and keyboard shortcuts
-  // (compositor/input/ShortcutActions.cpp) operate on the compositor state.
+  // IPC commands (compositor/commands) and actions (compositor/input/
+  // CompositorActions.cpp, what keys are bound to) operate on the compositor state.
   friend struct CompositorCommands;
-  friend struct ShortcutActions;
+  friend struct CompositorActions;
 
   class Impl;
   struct ThumbnailWriteState;
@@ -161,7 +152,7 @@ private:
   std::unique_ptr<Impl> d;
 
   CommandRegistry commands_;
-  ShortcutRegistry shortcuts_;
+  ActionRegistry actions_;
   SessionHelperRegistry sessionHelpers_;
 
   std::unique_ptr<WindowSwitcher> windowSwitcher_;
@@ -173,7 +164,7 @@ private:
   std::unique_ptr<PowerSettings> powerSettings_;
   std::unique_ptr<SessionActions> sessionActions_;
   std::unique_ptr<SessionServices> sessionServices_;
-  std::unique_ptr<ShortcutSettings> shortcutSettings_;
+  std::unique_ptr<KeyBindings> keyBindings_;
   std::unique_ptr<SceneWindowAnimationTemplate> windowAnimations_;
   std::unique_ptr<XWaylandSupport> xwayland_;
   std::unique_ptr<PluginManager> pluginManager_;
@@ -305,7 +296,6 @@ private:
   void closeOverview();
   bool overviewShown() const;
   bool overviewOpen() const;
-  void handleOverviewShortcut(std::string_view action);
   // Steps the zoom to `presentNs` and redraws the previews; called every frame.
   void advanceOverview(std::uint64_t presentNs);
   // Pointer and key handling while the overview is shown; true when consumed.
@@ -322,8 +312,10 @@ private:
   bool pointerOverShell() const;
   void moveClientToWorkspace(ClientWindow *client, int workspace);
 
-  // Input (compositor/input/ShortcutActions.cpp).
-  void handleShortcut(std::string_view action);
+  // Runs an action with its arguments ("focus-workspace 2", "spawn kitty"),
+  // as a key binding or `lunadashctl action` does (compositor/input/CompositorActions.cpp).
+  bool runAction(std::string_view action, std::string *error = nullptr);
+  // Keyboard (compositor/input/Input.cpp).
   void resendKeyboardModifiers();
   void applyKeyboardConfiguration();
 

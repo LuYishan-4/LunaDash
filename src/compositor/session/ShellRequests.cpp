@@ -7,22 +7,6 @@
 #include <string_view>
 
 namespace LunaDash {
-namespace {
-
-// Compositor shortcut actions and the shell request each one stands for.
-std::string_view shellRequestFor(std::string_view action) {
-  if (action == "launchOrbit")
-    return "orbit-launcher";
-  if (action == "openControlCenter")
-    return "control-center";
-  if (action == "openClipboard")
-    return "clipboard";
-  if (action == "openPowerMenu")
-    return "power-menu";
-  return action;
-}
-
-} // namespace
 
 void WaylandCompositor::sendShellRequest(std::string_view action,
                                          std::string_view argument) {
@@ -38,10 +22,6 @@ void WaylandCompositor::sendShellRequest(std::string_view action,
   }
   spawn({"msg", "call", "Shell.request", std::string(action), std::string(argument)},
         slintlu, false);
-}
-
-void WaylandCompositor::requestShellAction(std::string_view action) {
-  sendShellRequest(shellRequestFor(action));
 }
 
 void WaylandCompositor::setLauncherVisible(bool visible, bool publish) {

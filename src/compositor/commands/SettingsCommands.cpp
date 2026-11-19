@@ -10,7 +10,7 @@
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/desktop/PreferenceKeys.hpp"
 #include "core/settings/SettingsTarget.hpp"
-#include "desktop/shortcuts/ShortcutSettings.hpp"
+#include "desktop/shortcuts/KeyBindings.hpp"
 #include "desktop/theme/ThemeSync.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
@@ -42,16 +42,40 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     c.shortcutCapture_ = r.value == "true";
     return {};
   });
-  registry.add("shortcuts", [](C &c, const R &r) -> CommandResult {
-    const auto changes = nlohmann::json::parse(r.value, nullptr, false);
+  // {"mode": "normal", "keys": "Meta+T", "action": "spawn kitty"}, with
+  // "replace": the keys the binding had before, when it moves.
+  registry.add("bind", [](C &c, const R &r) -> CommandResult {
+    const auto binding = nlohmann::json::parse(r.value, nullptr, false);
+    if (!binding.is_object())
+      return commandError("Expected {\"mode\", \"keys\", \"action\"}.");
     std::string error;
-    if (changes.is_discarded() || !c.shortcutSettings_->apply(changes, &error))
-      return commandError(error.empty() ? "Expected shortcut JSON." : error);
+    if (!c.keyBindings_->bind(jsonString(binding, "mode", "normal"),
+                              jsonString(binding, "keys"),
+                              jsonString(binding, "action"),
+                              jsonString(binding, "replace"), &error))
+      return commandError(error);
     return {};
   });
-  registry.add("reset-shortcuts", [](C &c, const R &) -> CommandResult {
+  // {"mode": "normal", "keys": "Meta+T"}
+  registry.add("unbind", [](C &c, const R &r) -> CommandResult {
+    const auto binding = nlohmann::json::parse(r.value, nullptr, false);
     std::string error;
-    if (!c.shortcutSettings_->reset(&error))
+    if (!binding.is_object() ||
+        !c.keyBindings_->unbind(jsonString(binding, "mode", "normal"),
+                                jsonString(binding, "keys"), &error))
+      return commandError(error.empty() ? "Expected {\"mode\", \"keys\"}." : error);
+    return {};
+  });
+  registry.add("reset-keybindings", [](C &c, const R &) -> CommandResult {
+    std::string error;
+    if (!c.keyBindings_->reset(&error))
+      return commandError(error);
+    return {};
+  });
+  // An action with its arguments, as a key would run it: "focus-workspace 2".
+  registry.add("action", [](C &c, const R &r) -> CommandResult {
+    std::string error;
+    if (!c.runAction(r.value, &error))
       return commandError(error);
     return {};
   });
@@ -166,7 +190,7 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     if (!setSetupComplete(false, &error))
       return commandError(error);
     // The shell's Welcome finishes setup again when it is closed.
-    c.requestShellAction("welcome");
+    c.sendShellRequest("welcome");
     return {};
   });
 }

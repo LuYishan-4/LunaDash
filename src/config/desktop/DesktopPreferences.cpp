@@ -480,11 +480,9 @@ void importLegacySettings(GKeyFile *file) {
     importLegacyWallpaperSettings(legacy, &error);
   }
 
-  if (!hasStoredShortcutBindings()) {
-    if (const auto bindings = legacyShortcutBindings(file)) {
-      std::string error;
-      importLegacyShortcutBindings(*bindings, &error);
-    }
+  if (const auto bindings = legacyShortcutBindings(file)) {
+    std::string error;
+    importActionShortcuts(*bindings, &error);
   }
 }
 

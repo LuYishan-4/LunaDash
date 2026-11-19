@@ -441,53 +441,10 @@ bool WaylandCompositor::overviewAxis(double delta, bool horizontal) {
   scroll = 0.0;
   if (horizontal)
     // The layout scrolls its columns to the new focus; the previews follow.
-    handleShortcut(step > 0 ? "focusRight" : "focusLeft");
+    runAction(step > 0 ? "focus-column-right" : "focus-column-left");
   else
     selectWorkspace(std::clamp(workspace_ + step, 0, std::max(0, workspaceCount() - 1)));
   return true;
-}
-
-void WaylandCompositor::handleOverviewShortcut(std::string_view action) {
-  if (!overview_.open)
-    return;
-  if (action == "overviewClose" || action == "overviewAccept" ||
-      action == "overviewAcceptKeypad") {
-    closeOverview();
-    return;
-  }
-
-  if (action == "overviewFocusLeft" || action == "overviewFocusLeftVim") {
-    handleShortcut("focusLeft");
-  } else if (action == "overviewFocusRight" ||
-             action == "overviewFocusRightVim") {
-    handleShortcut("focusRight");
-  } else if (action == "overviewReorderLeft" ||
-             action == "overviewReorderLeftVim") {
-    handleShortcut("reorderLeft");
-  } else if (action == "overviewReorderRight" ||
-             action == "overviewReorderRightVim") {
-    handleShortcut("reorderRight");
-  } else if (action == "overviewWorkspacePrevious" ||
-             action == "overviewWorkspacePreviousVim") {
-    selectWorkspace(
-        std::clamp(workspace_ - 1, 0, std::max(0, workspaceCount() - 1)));
-  } else if (action == "overviewWorkspaceNext" ||
-             action == "overviewWorkspaceNextVim") {
-    selectWorkspace(
-        std::clamp(workspace_ + 1, 0, std::max(0, workspaceCount() - 1)));
-  } else if (action == "overviewMoveToPreviousWorkspace" ||
-             action == "overviewMoveToPreviousWorkspaceVim" ||
-             action == "overviewMoveToNextWorkspace" ||
-             action == "overviewMoveToNextWorkspaceVim") {
-    const bool previous =
-        action == "overviewMoveToPreviousWorkspace" ||
-        action == "overviewMoveToPreviousWorkspaceVim";
-    const int workspace = std::clamp(workspace_ + (previous ? -1 : 1), 0,
-                                      std::max(0, workspaceCount() - 1));
-    if (focused_)
-      moveClientToWorkspace(focused_, workspace);
-    selectWorkspace(workspace);
-  }
 }
 
 } // namespace LunaDash

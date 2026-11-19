@@ -71,7 +71,7 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
     if (pressed && keyboard &&
         (wlr_keyboard_get_modifiers(keyboard) & WLR_MODIFIER_LOGO)) {
       impl->orbitPointerConsumed = true;
-      desktop->handleShortcut("launchOrbit");
+      desktop->runAction("open-orbit");
       return;
     }
     if (!pressed &&

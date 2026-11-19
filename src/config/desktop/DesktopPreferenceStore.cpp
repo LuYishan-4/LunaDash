@@ -169,6 +169,10 @@ Json parseStoreFile(const fs::path &path) {
     const auto wallpaper = parsed.find("wallpaper");
     if (wallpaper != parsed.end() && wallpaper->is_object())
       result["wallpaper"] = *wallpaper;
+    const auto keybindings = parsed.find("keybindings");
+    if (keybindings != parsed.end() && keybindings->is_object())
+      result["keybindings"] = *keybindings;
+    // The former bindings, until KeyBindings migrates them.
     const auto shortcuts = parsed.find("shortcuts");
     if (shortcuts != parsed.end() && shortcuts->is_object())
       result["shortcuts"] = *shortcuts;
@@ -869,58 +873,79 @@ bool importLegacyWallpaperSettings(const Json &values, std::string *error) {
   return writeStore(store, error);
 }
 
-Json loadShortcutBindings() {
+Json loadKeyBindings() {
   const auto store = readStore();
-  const auto bindings = store.find("shortcuts");
-  if (bindings == store.end() || !bindings->is_object())
-    return Json::object();
-  return *bindings;
+  const auto bindings = store.find("keybindings");
+  return bindings != store.end() && bindings->is_object() ? *bindings
+                                                          : Json::object();
 }
 
-bool saveShortcutBindings(const Json &bindings, std::string *error) {
+Json loadActionShortcuts() {
+  const auto store = readStore();
+  const auto shortcuts = store.find("shortcuts");
+  return shortcuts != store.end() && shortcuts->is_object() ? *shortcuts
+                                                            : Json::object();
+}
+
+bool saveKeyBindings(const Json &bindings, std::string *error) {
   if (error)
     error->clear();
+  const auto validText = [](const std::string &text, std::size_t maximum) {
+    return !text.empty() && text.size() <= maximum &&
+           text.find('\0') == std::string::npos;
+  };
   if (!bindings.is_object()) {
-    setError(error, "Shortcut bindings must be a JSON object.");
+    setError(error, "Key bindings must be a JSON object.");
     return false;
   }
-  for (auto it = bindings.begin(); it != bindings.end(); ++it) {
-    if (!isString(it.value(), 80) || it.key().empty() || it.key().size() > 80 ||
-        it.key().find('\0') != std::string::npos) {
-      setError(error, "Invalid shortcut binding: " + it.key());
+  for (auto mode = bindings.begin(); mode != bindings.end(); ++mode) {
+    if (!mode.value().is_object()) {
+      setError(error, "Key bindings of " + mode.key() + " must be an object.");
       return false;
     }
+    for (auto it = mode.value().begin(); it != mode.value().end(); ++it)
+      if (!validText(it.key(), 80) || !isString(it.value(), 1024) ||
+          !validText(it.value().get<std::string>(), 1024)) {
+        setError(error, "Invalid key binding: " + it.key());
+        return false;
+      }
   }
   StoreLock lock(error);
   if (!lock)
     return false;
   auto store = readStore();
-  store["shortcuts"] = bindings;
+  store["keybindings"] = bindings;
+  store.erase("shortcuts");
   return writeStore(store, error);
 }
 
-bool hasStoredShortcutBindings() {
-  const auto store = readStore();
-  return store.contains("shortcuts") && store.at("shortcuts").is_object();
-}
-
-bool importLegacyShortcutBindings(const Json &bindings, std::string *error) {
+bool importActionShortcuts(const Json &shortcuts, std::string *error) {
   if (error)
     error->clear();
   StoreLock lock(error);
   if (!lock)
     return false;
-  if (hasStoredShortcutBindings())
+  auto store = readStore();
+  if (store.contains("keybindings") || store.contains("shortcuts"))
     return true;
   Json imported = Json::object();
-  if (bindings.is_object()) {
-    for (auto it = bindings.begin(); it != bindings.end(); ++it)
-      if (!it.key().empty() && it.key().size() <= 80 &&
-          it.key().find('\0') == std::string::npos && isString(it.value(), 80))
+  if (shortcuts.is_object())
+    for (auto it = shortcuts.begin(); it != shortcuts.end(); ++it)
+      if (!it.key().empty() && it.key().size() <= 80 && isString(it.value(), 80))
         imported[it.key()] = it.value();
-  }
-  auto store = readStore();
   store["shortcuts"] = std::move(imported);
+  return writeStore(store, error);
+}
+
+bool clearKeyBindings(std::string *error) {
+  if (error)
+    error->clear();
+  StoreLock lock(error);
+  if (!lock)
+    return false;
+  auto store = readStore();
+  store.erase("keybindings");
+  store.erase("shortcuts");
   return writeStore(store, error);
 }
 

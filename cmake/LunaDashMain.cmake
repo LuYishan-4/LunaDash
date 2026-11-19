@@ -178,11 +178,11 @@ target_link_libraries(ludash-desktop-notification
 add_library(ludash-session-actions src/compositor/session/SessionActions.cpp)
 target_include_directories(ludash-session-actions PUBLIC src)
 target_link_libraries(ludash-session-actions PRIVATE PkgConfig::LUDASH_GIO)
-add_library(ludash-shortcut-settings src/desktop/shortcuts/ShortcutSettings.cpp)
-target_include_directories(ludash-shortcut-settings PUBLIC src)
-target_link_libraries(ludash-shortcut-settings
+add_library(ludash-key-bindings src/desktop/shortcuts/KeyBindings.cpp)
+target_include_directories(ludash-key-bindings PUBLIC src)
+target_link_libraries(ludash-key-bindings
     PUBLIC nlohmann_json::nlohmann_json PkgConfig::LUDASH_XKBCOMMON
-    PRIVATE ludash-desktop-preferences)
+    PRIVATE ludash-desktop-preferences ludash-log)
 add_library(ludash-tiling
     src/compositor/layout/WindowLayout.cpp
     src/compositor/window/WindowTemplate.cpp
@@ -379,7 +379,7 @@ add_library(ludash-wayland
     src/compositor/commands/WallpaperCommands.cpp
     src/compositor/commands/WindowCommands.cpp
     src/compositor/ipc/StateSnapshot.cpp
-    src/compositor/input/ShortcutActions.cpp
+    src/compositor/input/CompositorActions.cpp
     src/compositor/wayland/DebugSnapshot.cpp
     src/compositor/wayland/Register.cpp
     src/compositor/wayland/Runtime.cpp
@@ -433,7 +433,7 @@ target_link_libraries(ludash-wayland
         ludash-launch-policy
         ludash-session-actions
         ludash-desktop-notification
-        ludash-shortcut-settings
+        ludash-key-bindings
         ludash-default-applications
         ludash-audio-settings
         ludash-power-settings

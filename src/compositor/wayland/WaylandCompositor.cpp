@@ -3,7 +3,7 @@
 
 #include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/commands/CompositorCommands.hpp"
-#include "compositor/input/ShortcutActions.hpp"
+#include "compositor/input/CompositorActions.hpp"
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/ipc/ControlServer.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
@@ -34,7 +34,7 @@
 #include "desktop/display/BrightnessSettings.hpp"
 #include "desktop/display/DdcBrightnessSettings.hpp"
 #include "desktop/power/PowerSettings.hpp"
-#include "desktop/shortcuts/ShortcutSettings.hpp"
+#include "desktop/shortcuts/KeyBindings.hpp"
 #include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
 #include "desktop/wallpaper/WallpaperPalette.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
@@ -132,7 +132,7 @@ bool WaylandCompositor::start() {
 
 void WaylandCompositor::registerBuiltins() {
   CompositorCommands::registerBuiltins(commands_);
-  ShortcutActions::registerBuiltins(shortcuts_);
+  CompositorActions::registerBuiltins(actions_);
   registerBuiltinSessionHelpers(sessionHelpers_);
 }
 
@@ -154,7 +154,12 @@ void WaylandCompositor::createDesktopServices() {
   audioSettings_ = std::make_unique<AudioSettings>(d->eventLoop);
   powerSettings_ = std::make_unique<PowerSettings>(d->eventLoop);
   sessionActions_ = std::make_unique<SessionActions>();
-  shortcutSettings_ = std::make_unique<ShortcutSettings>();
+  // Bindings name actions with their arguments; only registered ones bind.
+  keyBindings_ = std::make_unique<KeyBindings>(
+      [this](std::string_view action, std::string *error) {
+        const auto call = parseActionCall(action, error);
+        return call && checkActionCall(actions_, *call, error);
+      });
   pluginManager_ = std::make_unique<PluginManager>(d->eventLoop);
   pluginManager_->loadEnabled();
 }
@@ -268,7 +273,7 @@ WaylandCompositor::~WaylandCompositor() {
       continue;
     process->cancel();
   }
-  shortcutSettings_.reset();
+  keyBindings_.reset();
   // Everything below owns sources on the compositor event loop. Release the
   // wlroots runtime first, then remove those sources while the loop is still
   // alive; destroying the display frees the loop.

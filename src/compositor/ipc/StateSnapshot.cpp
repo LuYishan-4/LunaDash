@@ -27,7 +27,7 @@
 #include "desktop/display/DdcBrightnessSettings.hpp"
 #include "desktop/input/InputSettings.hpp"
 #include "desktop/power/PowerSettings.hpp"
-#include "desktop/shortcuts/ShortcutSettings.hpp"
+#include "desktop/shortcuts/KeyBindings.hpp"
 #include "desktop/system/SystemTools.hpp"
 #include "desktop/theme/ThemeSync.hpp"
 #include "desktop/wallpaper/VideoWallpaperPlayer.hpp"
@@ -287,7 +287,7 @@ Json WaylandCompositor::shellState() const {
               {"clients", std::move(clients)},
               {"appearance", std::move(preferences)},
               {"wallpapers", wallpaperSnapshot()},
-              {"shortcuts", shortcutSettings_->snapshot()},
+              {"keybindings", keyBindings_->snapshot()},
               {"launcherOpen", launcherVisible_},
               {"shutdown", lifecycle_.testStopping}};
   result.update(describeWallpaperState());
@@ -336,7 +336,7 @@ Json WaylandCompositor::state() const {
       {"audio", audioSettings_->snapshot()},
       {"power", powerSettings_->snapshot()},
       {"sessionActions", sessionActionsJson(*sessionActions_)},
-      {"shortcuts", shortcutSettings_->snapshot()},
+      {"keybindings", keyBindings_->snapshot()},
       {"settingsTools", settingsToolsJson()},
       {"display", d ? d->displaySnapshot() : Json::object()},
       {"launcherOpen", launcherVisible_},

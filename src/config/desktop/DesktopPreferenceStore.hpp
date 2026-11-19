@@ -37,11 +37,18 @@ bool saveWallpaperSettings(const nlohmann::json &changes, std::string *error);
 bool hasStoredWallpaperSettings();
 bool importLegacyWallpaperSettings(const nlohmann::json &values,
                                    std::string *error);
-nlohmann::json loadShortcutBindings();
-bool saveShortcutBindings(const nlohmann::json &bindings, std::string *error);
-bool hasStoredShortcutBindings();
-bool importLegacyShortcutBindings(const nlohmann::json &bindings,
-                                  std::string *error);
+// Key bindings by mode: {"normal": {"Meta+Q": "close-window", …}, "overview": {…}};
+// an empty object when none are stored.
+nlohmann::json loadKeyBindings();
+// Bindings of the former format ({"closeWindow": "Meta+Q", …}), still to be migrated.
+nlohmann::json loadActionShortcuts();
+// Stores the bindings and drops the former format.
+bool saveKeyBindings(const nlohmann::json &bindings, std::string *error);
+// Forgets the stored bindings, of both formats.
+bool clearKeyBindings(std::string *error);
+// Keeps bindings of the former format read from the legacy settings file,
+// unless bindings are stored already; KeyBindings migrates them.
+bool importActionShortcuts(const nlohmann::json &shortcuts, std::string *error);
 nlohmann::json loadWindowLayoutSettings(std::string_view templateKey);
 bool hasStoredWindowLayoutSettings(std::string_view templateKey);
 bool saveWindowLayoutSettings(std::string_view templateKey,

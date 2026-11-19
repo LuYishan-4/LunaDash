@@ -11,11 +11,9 @@ bool scheduleSessionAutomation(WaylandCompositor &compositor,
                                const CompositorOptions &options) {
   if (options.demo &&
       !compositor.scheduleEventLoopCallback(
-          // Late enough for the shell's first status poll: requests made
-          // before it are not replayed.
           3000, [&compositor, shell = !options.noShell] {
             if (shell)
-              compositor.requestShellAction("welcome");
+              compositor.sendShellRequest("welcome");
           }))
     return false;
 
