@@ -643,7 +643,6 @@ Json defaultDesktopPreferenceValues() {
       {"dockAutoHide", true},
       {"colorPins", {"#9ccbfb", "#c4b5fd", "#7dcccf", "#e7b899", "#41576b"}},
       {Preference::gap.name, Preference::gap.fallback},
-      {Preference::numLock.name, Preference::numLock.fallback},
       {"panelHeight", 40},
       {Preference::blur.name, Preference::blur.fallback},
       {Preference::blurRadius.name, Preference::blurRadius.fallback},
