@@ -75,6 +75,9 @@ public:
     bool softwareCursorLocked = false;
     bool forceSoftwareCursor = false;
     std::uint64_t lastAnimationPublishNs = 0;
+    // Windows on no output get a frame callback this often, not every frame.
+    static constexpr std::uint64_t kHiddenFrameIntervalNs = 1000000000ULL;
+    std::uint64_t lastHiddenFrameDoneNs = 0;
     std::uint64_t frameCallbacks = 0;
     std::uint64_t slowFrames = 0;
     std::int64_t lastFrameWorkUsec = 0;

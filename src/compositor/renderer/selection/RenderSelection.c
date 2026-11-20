@@ -9,6 +9,7 @@
 #include <wlr/util/log.h>
 
 #if WLR_HAS_GLES2_RENDERER
+#include <wlr/render/egl.h>
 #include <wlr/render/gles2.h>
 #endif
 #if LUDASH_HAS_VULKAN_RENDERER
@@ -16,10 +17,9 @@
 #endif
 
 bool ludash_renderer_preference_valid(const char *preference) {
-  return preference && (!strcmp(preference, "auto") ||
-                        !strcmp(preference, "opengl") ||
-                        !strcmp(preference, "gles") ||
-                        !strcmp(preference, "vulkan"));
+  return preference &&
+         (!strcmp(preference, "auto") || !strcmp(preference, "opengl") ||
+          !strcmp(preference, "gles") || !strcmp(preference, "vulkan"));
 }
 
 bool ludash_renderer_vulkan_available(void) {
@@ -41,14 +41,16 @@ const char *ludash_renderer_name(struct wlr_renderer *renderer) {
 }
 
 struct wlr_renderer *ludash_renderer_create(struct wlr_backend *backend,
-                                          const char *preference) {
+                                            const char *preference) {
   if (!ludash_renderer_preference_valid(preference))
     return NULL;
   const char *environment = getenv("WLR_RENDERER");
   const bool explicit_environment = environment && *environment;
   const char *requested = explicit_environment ? environment : preference;
   if (!strcmp(requested, "vulkan") && !ludash_renderer_vulkan_available()) {
-    wlr_log(WLR_ERROR, "Vulkan renderer is unavailable in this build of wlroots/LunaDash.");
+    wlr_log(
+        WLR_ERROR,
+        "Vulkan renderer is unavailable in this build of wlroots/LunaDash.");
     return NULL;
   }
   if (!explicit_environment && strcmp(preference, "auto")) {
@@ -62,10 +64,25 @@ struct wlr_renderer *ludash_renderer_create(struct wlr_backend *backend,
       strcmp(ludash_renderer_name(renderer), "vulkan")) {
     if (renderer)
       wlr_renderer_destroy(renderer);
-    wlr_log(WLR_ERROR, "Vulkan initialization failed; check the DRM render node, "
-                       "Vulkan ICD and external-memory support, or select --graphics auto.");
+    wlr_log(
+        WLR_ERROR,
+        "Vulkan initialization failed; check the DRM render node, "
+        "Vulkan ICD and external-memory support, or select --graphics auto.");
     return NULL;
   }
+#if WLR_HAS_GLES2_RENDERER
+  // wlroots makes its context current around each render pass and texture
+  // import, then restores the one before. With none current, every restore
+  // unbinds the context, which NVIDIA's driver does by spinning until the GPU
+  // is idle, several times a frame. Kept current, each restore rebinds the
+  // same context, which costs nothing.
+  if (renderer && wlr_renderer_is_gles2(renderer)) {
+    struct wlr_egl *egl = wlr_gles2_renderer_get_egl(renderer);
+    if (!eglMakeCurrent(wlr_egl_get_display(egl), EGL_NO_SURFACE,
+                        EGL_NO_SURFACE, wlr_egl_get_context(egl)))
+      wlr_log(WLR_ERROR, "Could not keep the renderer's EGL context current.");
+  }
+#endif
   if (renderer)
     wlr_log(WLR_INFO, "LunaDash renderer: %s", ludash_renderer_name(renderer));
   return renderer;

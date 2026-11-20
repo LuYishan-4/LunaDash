@@ -380,9 +380,6 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
 }
 
 bool WaylandCompositor::Impl::OutputState::updateCaptureCursor() {
-  // Sample before commit: a screencopy frame is removed when this output
-  // commit satisfies it. The tail bridges the small gap before xdpw queues
-  // the next PipeWire frame and prevents a one-frame/frozen stream.
   const bool capturePending =
       screencopyPendingForOutput(impl->screencopy, output);
   if (capturePending)
@@ -443,16 +440,41 @@ void WaylandCompositor::Impl::OutputState::commitScene() {
 
 void WaylandCompositor::Impl::OutputState::sendFrameDone(timespec *now) {
   wlr_scene_output_send_frame_done(sceneOutput, now);
-  for (const auto &client : impl->q->clients_)
+
+  const std::uint64_t nowNs = nanoseconds(*now);
+  const bool hiddenDue = nowNs - lastHiddenFrameDoneNs >= kHiddenFrameIntervalNs;
+  if (hiddenDue)
+    lastHiddenFrameDoneNs = nowNs;
+  const auto layoutBox = [this](wlr_output *of) {
+    wlr_box box{};
+    wlr_output_layout_get_box(impl->outputLayout, of, &box);
+    return Rect(box.x, box.y, box.width, box.height);
+  };
+  const Rect screen = layoutBox(output);
+  std::vector<Rect> screens;
+  for (const auto *state : impl->outputs)
+    if (state && state->output)
+      screens.push_back(layoutBox(state->output));
+  const bool overview = impl->q->overviewShown();
+  for (const auto &client : impl->q->clients_) {
+    if (!client->mapped || !client->wlSurface ||
+        (client->workspace != impl->q->workspace_ && !overview))
+      continue;
     // The overview shows every workspace's windows live.
-    if (client->mapped && client->wlSurface &&
-        (client->workspace == impl->q->workspace_ || impl->q->overviewShown()))
-      wlr_surface_for_each_surface(
-          client->wlSurface,
-          [](wlr_surface *surface, int, int, void *data) {
-            wlr_surface_send_frame_done(surface, static_cast<timespec *>(data));
-          },
-          now);
+    const bool here = overview || client->geometry.intersects(screen);
+    const bool elsewhere =
+        !here && std::any_of(screens.begin(), screens.end(), [&](const Rect &other) {
+          return client->geometry.intersects(other);
+        });
+    if (!here && (elsewhere || !hiddenDue))
+      continue;
+    wlr_surface_for_each_surface(
+        client->wlSurface,
+        [](wlr_surface *surface, int, int, void *data) {
+          wlr_surface_send_frame_done(surface, static_cast<timespec *>(data));
+        },
+        now);
+  }
 }
 
 void WaylandCompositor::Impl::OutputState::scheduleCaptureTail(
