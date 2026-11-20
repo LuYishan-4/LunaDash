@@ -63,6 +63,8 @@ bool WaylandCompositor::Impl::createRuntime() {
   scene = wlr_scene_create();
   if (!scene)
     return fail("wlroots could not create the scene graph.");
+  if (!WlrootsCompat::createPresentation(display, backend, scene))
+    return fail("wlroots could not create the presentation-time global.");
 #if WLR_VERSION_MINOR >= 20
   if (wlr_renderer_get_drm_fd(renderer) >= 0 &&
       wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF)) {

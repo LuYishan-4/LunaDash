@@ -93,6 +93,7 @@ extern "C" {
 #endif
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_text_input_v3.h>
+#include <wlr/types/wlr_presentation_time.h>
 #include <wlr/types/wlr_viewporter.h>
 #include <wlr/types/wlr_cursor_shape_v1.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>

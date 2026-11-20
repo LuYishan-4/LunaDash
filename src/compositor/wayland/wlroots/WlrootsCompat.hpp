@@ -133,6 +133,26 @@ inline void destroyRuntimeObjects(wlr_cursor *cursor, wlr_allocator *allocator,
 #endif
 }
 
+// wp_presentation: clients learn when each frame reached the screen. From
+// wlroots 0.18 on, scene surfaces send the feedback themselves once the
+// global exists; 0.17 needs the scene told about it.
+inline bool createPresentation(wl_display *display, wlr_backend *backend,
+                               wlr_scene *scene) {
+#if WLR_VERSION_MINOR < 18
+  auto *presentation = wlr_presentation_create(display, backend);
+  if (!presentation)
+    return false;
+  wlr_scene_set_presentation(scene, presentation);
+  return true;
+#elif WLR_VERSION_MINOR < 19
+  (void)scene;
+  return wlr_presentation_create(display, backend) != nullptr;
+#else
+  (void)scene;
+  return wlr_presentation_create(display, backend, 2) != nullptr;
+#endif
+}
+
 inline int expectedSeatProtocolVersion() {
 #if WLR_VERSION_MINOR < 20
   return 8;
