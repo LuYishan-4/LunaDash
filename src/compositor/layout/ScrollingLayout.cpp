@@ -90,7 +90,6 @@ int rowOf(const Column &column, LayoutWindowId window) {
   return 0;
 }
 
-// Keeps focus on a visible window after something disappeared.
 void repairFocus(Workspace &workspace) {
   const auto location = find(workspace, workspace.focused);
   if (location.found &&
@@ -177,9 +176,27 @@ bool ScrollingLayout::remove(LayoutWindowId window) {
   if (!workspace)
     return false;
   const auto location = find(*workspace, window);
+  const auto previous = [&] {
+    if (workspace->focused != window)
+      return LayoutWindowId{0};
+    for (std::size_t column = location.column + 1; column > 0;) {
+      --column;
+      std::size_t member = column == location.column
+                               ? location.member
+                               : workspace->columns[column].members.size();
+      while (member > 0) {
+        const auto &candidate = workspace->columns[column].members[--member];
+        if (!candidate.minimized)
+          return candidate.window;
+      }
+    }
+    return LayoutWindowId{0};
+  }();
   auto &members = workspace->columns[location.column].members;
   members.erase(members.begin() +
                 static_cast<std::ptrdiff_t>(location.member));
+  if (workspace->focused == window)
+    workspace->focused = previous;
   d->eraseEmpty(*workspace);
   repairFocus(*workspace);
   if (workspace->columns.empty())
