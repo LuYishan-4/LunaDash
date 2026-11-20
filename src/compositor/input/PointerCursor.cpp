@@ -20,7 +20,7 @@ constexpr double kMinimumSpan = 50.0;
 
 constexpr double kMaximumGrowth = 4.0;
 constexpr auto kHold = 400ms;
-// The growth moves on this spring (in units of the growth).
+
 constexpr SceneSpring kGrowthSpring{350.0, 0.85, 0.005, 0.05};
 
 int sign(double value) { return (value > 0) - (value < 0); }
@@ -34,8 +34,6 @@ wlr_xcursor_image *firstImage(wlr_xcursor_manager *manager, const char *name) {
              : nullptr;
 }
 
-// An xcursor image's pixels as a buffer. wlroots 0.19 and later have
-// wlr_xcursor_image_get_buffer(); this works on every supported version.
 struct ImageBuffer {
   wlr_buffer base;
   const wlr_xcursor_image *image;
@@ -204,8 +202,8 @@ void PointerCursor::apply() {
         largeBuffer_ = &buffer->base;
         largeBufferImage_ = large;
       }
-      // wlroots scales the image by the buffer's scale but takes the hotspot
-      // as it is, in logical pixels: it is scaled here to stay on the pointer.
+
+
       wlr_cursor_set_buffer(
           cursor_, largeBuffer_,
           static_cast<int32_t>(std::lround(large->hotspot_x / scale)),

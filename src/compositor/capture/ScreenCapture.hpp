@@ -10,7 +10,6 @@ namespace LunaDash {
 
 class ScreenCapture final {
 public:
-  // grim captures outputs through this wlroots protocol.
   static constexpr const char *protocol = "zwlr_screencopy_manager_v1";
   static constexpr int protocolVersion = 3;
 
