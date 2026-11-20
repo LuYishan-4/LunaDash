@@ -211,8 +211,6 @@ bool ScrollingLayout::setMinimized(LayoutWindowId window, bool minimized) {
     return false;
   const auto location = find(*workspace, window);
   auto &member = workspace->columns[location.column].members[location.member];
-  // arrange() reports every window's state on each pass: only a real change
-  // may move the focus, or the last window reported would always take it.
   if (member.minimized == minimized)
     return true;
   member.minimized = minimized;

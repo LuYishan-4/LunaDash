@@ -470,9 +470,7 @@ set_target_properties(ludash-desktop PROPERTIES
     OUTPUT_NAME lunadash-desktop)
 add_custom_command(TARGET ludash-desktop POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-desktop> ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop)
 add_executable(ludash-compositor src/compositor/Main.cpp
-    src/compositor/session/CompositorCommandLine.cpp
-    src/compositor/session/FatalSignalDiagnostics.cpp
-    src/compositor/session/SessionAutomation.cpp)
+    src/compositor/session/CompositorCommandLine.cpp)
 target_link_libraries(ludash-compositor PRIVATE ludash-wayland)
 set_target_properties(ludash-compositor PROPERTIES OUTPUT_NAME lunadash-compositor)
 add_custom_command(TARGET ludash-compositor POST_BUILD COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:ludash-compositor> ${CMAKE_CURRENT_BINARY_DIR}/ludash-compositor)
