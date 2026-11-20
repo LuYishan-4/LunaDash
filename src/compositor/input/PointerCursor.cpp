@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <drm_fourcc.h>
 
 namespace LunaDash {
 namespace {
@@ -33,6 +34,35 @@ wlr_xcursor_image *firstImage(wlr_xcursor_manager *manager, const char *name) {
              : nullptr;
 }
 
+// An xcursor image's pixels as a buffer. wlroots 0.19 and later have
+// wlr_xcursor_image_get_buffer(); this works on every supported version.
+struct ImageBuffer {
+  wlr_buffer base;
+  const wlr_xcursor_image *image;
+};
+
+ImageBuffer *imageBuffer(wlr_buffer *buffer) {
+  return reinterpret_cast<ImageBuffer *>(buffer);
+}
+
+const wlr_buffer_impl imageBufferImpl = {
+    .destroy = [](wlr_buffer *buffer) { delete imageBuffer(buffer); },
+    .get_dmabuf = nullptr,
+    .get_shm = nullptr,
+    .begin_data_ptr_access =
+        [](wlr_buffer *buffer, uint32_t flags, void **data, uint32_t *format,
+           size_t *stride) {
+          if (flags & WLR_BUFFER_DATA_PTR_ACCESS_WRITE)
+            return false;
+          const auto *image = imageBuffer(buffer)->image;
+          *data = image->buffer;
+          *format = DRM_FORMAT_ARGB8888;
+          *stride = static_cast<size_t>(image->width) * 4;
+          return true;
+        },
+    .end_data_ptr_access = [](wlr_buffer *) {},
+};
+
 } // namespace
 
 PointerCursor::PointerCursor(wlr_cursor *cursor, wlr_xcursor_manager *manager,
@@ -51,6 +81,11 @@ PointerCursor::PointerCursor(wlr_cursor *cursor, wlr_xcursor_manager *manager,
 }
 
 PointerCursor::~PointerCursor() {
+  // The cursor lets go of the large image before its pixels go.
+  if (grown_)
+    wlr_cursor_set_xcursor(cursor_, manager_, name_.c_str());
+  if (largeBuffer_)
+    wlr_buffer_drop(largeBuffer_);
   if (large_)
     wlr_xcursor_manager_destroy(large_);
 }
@@ -159,10 +194,20 @@ void PointerCursor::apply() {
     if (large && base) {
       // The buffer's scale makes it `growth_` times the theme's own size.
       const double scale = large->width / (base->width * growth_);
+      if (large != largeBufferImage_) {
+        if (largeBuffer_)
+          wlr_buffer_drop(largeBuffer_);
+        auto *buffer = new ImageBuffer{{}, large};
+        wlr_buffer_init(&buffer->base, &imageBufferImpl,
+                        static_cast<int>(large->width),
+                        static_cast<int>(large->height));
+        largeBuffer_ = &buffer->base;
+        largeBufferImage_ = large;
+      }
       // wlroots scales the image by the buffer's scale but takes the hotspot
       // as it is, in logical pixels: it is scaled here to stay on the pointer.
       wlr_cursor_set_buffer(
-          cursor_, wlr_xcursor_image_get_buffer(large),
+          cursor_, largeBuffer_,
           static_cast<int32_t>(std::lround(large->hotspot_x / scale)),
           static_cast<int32_t>(std::lround(large->hotspot_y / scale)),
           static_cast<float>(scale));

@@ -97,6 +97,7 @@ extern "C" {
 #include <wlr/types/wlr_cursor_shape_v1.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
 #include <wlr/types/wlr_virtual_keyboard_v1.h>
+#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #if __has_include(<wlr/types/wlr_xdg_activation_v1.h>)

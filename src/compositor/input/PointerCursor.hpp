@@ -54,6 +54,9 @@ private:
   wlr_xcursor_manager *manager_;
   // The same theme at the largest growth, so the grown cursor stays sharp.
   wlr_xcursor_manager *large_ = nullptr;
+  // The large image on show, as a buffer the cursor can hold.
+  wlr_buffer *largeBuffer_ = nullptr;
+  wlr_xcursor_image *largeBufferImage_ = nullptr;
   std::function<void()> requestFrame_;
   const bool enabled_;
 
