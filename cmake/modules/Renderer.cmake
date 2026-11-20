@@ -1,8 +1,7 @@
-# Toolkit-independent wlroots renderer selection. Vulkan is optional so that
-# distributions building wlroots without it retain GLES/pixman support.
 option(LUDASH_ENABLE_VULKAN "Enable the wlroots Vulkan renderer when available" ON)
 include(CheckCSourceCompiles)
 pkg_check_modules(LUDASH_VULKAN QUIET IMPORTED_TARGET vulkan)
+pkg_check_modules(LUDASH_EGL REQUIRED IMPORTED_TARGET egl)
 set(CMAKE_REQUIRED_LIBRARIES PkgConfig::WLROOTS)
 if(LUDASH_VULKAN_FOUND)
     list(APPEND CMAKE_REQUIRED_LIBRARIES PkgConfig::LUDASH_VULKAN)
@@ -24,6 +23,7 @@ target_include_directories(ludash-render-selection PUBLIC src)
 target_compile_definitions(ludash-render-selection PRIVATE WLR_USE_UNSTABLE=1
     LUDASH_HAS_VULKAN_RENDERER=$<AND:$<BOOL:${LUDASH_ENABLE_VULKAN}>,$<BOOL:${LUDASH_WLROOTS_VULKAN}>>)
 target_link_libraries(ludash-render-selection PUBLIC PkgConfig::WLROOTS)
+target_link_libraries(ludash-render-selection PUBLIC PkgConfig::LUDASH_EGL)
 if(LUDASH_VULKAN_FOUND)
     target_link_libraries(ludash-render-selection PRIVATE PkgConfig::LUDASH_VULKAN)
 endif()
@@ -32,7 +32,6 @@ message(STATUS "LunaDash Vulkan: enabled=${LUDASH_ENABLE_VULKAN}, wlroots=${LUDA
 # Toolkit-neutral OpenGL utilities used by LunaDash-owned render elements.
 # The compositor's client scene remains owned by wlroots; this API only runs
 # when an EGL OpenGL context is current in the calling process.
-pkg_check_modules(LUDASH_EGL REQUIRED IMPORTED_TARGET egl)
 
 set(LUDASH_RENDER_SHADER_FILES
     src/compositor/renderer/opengl/shaders/Fullscreen.vert

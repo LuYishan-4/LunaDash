@@ -71,11 +71,6 @@ struct wlr_renderer *ludash_renderer_create(struct wlr_backend *backend,
     return NULL;
   }
 #if WLR_HAS_GLES2_RENDERER
-  // wlroots makes its context current around each render pass and texture
-  // import, then restores the one before. With none current, every restore
-  // unbinds the context, which NVIDIA's driver does by spinning until the GPU
-  // is idle, several times a frame. Kept current, each restore rebinds the
-  // same context, which costs nothing.
   if (renderer && wlr_renderer_is_gles2(renderer)) {
     struct wlr_egl *egl = wlr_gles2_renderer_get_egl(renderer);
     if (!eglMakeCurrent(wlr_egl_get_display(egl), EGL_NO_SURFACE,
