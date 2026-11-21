@@ -42,6 +42,7 @@ struct WidthChange {
   bool percent = false;
   int value = 0;
 };
+//Meta+equal
 std::optional<WidthChange> widthChange(std::string_view text) {
   WidthChange change;
   if (!text.empty() && (text.front() == '+' || text.front() == '-')) {

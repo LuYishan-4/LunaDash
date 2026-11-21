@@ -1,6 +1,5 @@
 #include "compositor/wayland/IdleNotify.hpp"
 
-#include <cstddef>
 #include <cstdlib>
 
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
@@ -12,14 +11,13 @@ struct IdleNotify::Listeners {
   wl_listener inhibitDestroy{};
   IdleNotify *owner = nullptr;
 
-  static Listeners *from(wl_listener *listener, std::size_t offset) {
-    return reinterpret_cast<Listeners *>(reinterpret_cast<char *>(listener) - offset);
-  }
   static void onNewInhibitor(wl_listener *listener, void *data) {
-    from(listener, offsetof(Listeners, newInhibitor))->owner->inhibitorAdded(data);
+    Listeners *self = wl_container_of(listener, self, newInhibitor);
+    self->owner->inhibitorAdded(data);
   }
   static void onInhibitDestroy(wl_listener *listener, void *) {
-    auto *self = from(listener, offsetof(Listeners, inhibitDestroy));
+    Listeners *self = wl_container_of(listener, self, inhibitDestroy);
+    // wlr_idle_inhibit_manager_v1 init list :47
     wl_list_remove(&self->newInhibitor.link);
     wl_list_remove(&self->inhibitDestroy.link);
     wl_list_init(&self->newInhibitor.link);
@@ -28,15 +26,13 @@ struct IdleNotify::Listeners {
 };
 
 namespace {
-
 struct InhibitorWatch {
   wl_listener destroy{};
   IdleNotify *owner = nullptr;
   void (*removed)(IdleNotify *) = nullptr;
 
   static void onDestroy(wl_listener *listener, void *) {
-    auto *self = reinterpret_cast<InhibitorWatch *>(
-        reinterpret_cast<char *>(listener) - offsetof(InhibitorWatch, destroy));
+    InhibitorWatch *self = wl_container_of(listener, self, destroy);
     wl_list_remove(&self->destroy.link);
     self->removed(self->owner);
     delete self;
@@ -45,8 +41,8 @@ struct InhibitorWatch {
 
 } // namespace
 
-IdleNotify::IdleNotify(wl_display *display, wlr_idle_inhibit_manager_v1 *inhibit,
-                       wlr_seat *seat)
+IdleNotify::IdleNotify(wl_display *display,
+                       wlr_idle_inhibit_manager_v1 *inhibit, wlr_seat *seat)
     : seat_(seat) {
   notifier_ = wlr_idle_notifier_v1_create(display);
   if (!notifier_ || !inhibit)
@@ -55,6 +51,7 @@ IdleNotify::IdleNotify(wl_display *display, wlr_idle_inhibit_manager_v1 *inhibit
   listeners_->owner = this;
   listeners_->newInhibitor.notify = &Listeners::onNewInhibitor;
   listeners_->inhibitDestroy.notify = &Listeners::onInhibitDestroy;
+  // wlroots initializes these signal heads when creating the manager.
   wl_signal_add(&inhibit->events.new_inhibitor, &listeners_->newInhibitor);
   wl_signal_add(&inhibit->events.destroy, &listeners_->inhibitDestroy);
 }

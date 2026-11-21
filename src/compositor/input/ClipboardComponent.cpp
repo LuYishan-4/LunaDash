@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <wayland-server-core.h>
 
 namespace LunaDash {
 namespace {
@@ -39,7 +40,7 @@ void closeFd(int &fd) {
 }
 
 
-
+//init
 ssize_t writeWithoutSigpipe(int fd, const void *data, std::size_t size) {
   sigset_t signalSet;
   sigset_t oldMask;
@@ -104,6 +105,11 @@ struct WaylandCompositor::Impl::ClipboardComponent::WriteTransfer {
 WaylandCompositor::Impl::ClipboardComponent::ClipboardComponent(Impl *owner)
     : Component(owner) {}
 
+// Copy: request_set_selection -> onRequestSelection -> set_selection
+//     -> onSelection -> wlr_data_source_send -> onCaptureReadable
+//     -> finishCapture
+// Paste: MIME request -> sourceSend -> sendStoredSelection
+//      -> onWriteReady -> finishWrite || ciallo (∠·ω )⌒★
 void WaylandCompositor::Impl::ClipboardComponent::sourceSend(
     wlr_data_source *source, const char *mimeType, int fd) {
   auto *owned = reinterpret_cast<OwnedDataSource *>(source);
