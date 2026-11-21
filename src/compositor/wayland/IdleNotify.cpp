@@ -1,6 +1,7 @@
 #include "compositor/wayland/IdleNotify.hpp"
 
 #include <cstdlib>
+#include <functional>
 
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 
@@ -9,11 +10,11 @@ namespace LunaDash {
 struct IdleNotify::Listeners {
   wl_listener newInhibitor{};
   wl_listener inhibitDestroy{};
-  IdleNotify *owner = nullptr;
+  std::function<void(void *)> newInhibitorCallback;
 
   static void onNewInhibitor(wl_listener *listener, void *data) {
     Listeners *self = wl_container_of(listener, self, newInhibitor);
-    self->owner->inhibitorAdded(data);
+    self->newInhibitorCallback(data);
   }
   static void onInhibitDestroy(wl_listener *listener, void *) {
     Listeners *self = wl_container_of(listener, self, inhibitDestroy);
@@ -28,13 +29,12 @@ struct IdleNotify::Listeners {
 namespace {
 struct InhibitorWatch {
   wl_listener destroy{};
-  IdleNotify *owner = nullptr;
-  void (*removed)(IdleNotify *) = nullptr;
+  std::function<void()> removed;
 
   static void onDestroy(wl_listener *listener, void *) {
     InhibitorWatch *self = wl_container_of(listener, self, destroy);
     wl_list_remove(&self->destroy.link);
-    self->removed(self->owner);
+    self->removed();
     delete self;
   }
 };
@@ -48,7 +48,9 @@ IdleNotify::IdleNotify(wl_display *display,
   if (!notifier_ || !inhibit)
     return;
   listeners_ = new Listeners();
-  listeners_->owner = this;
+  listeners_->newInhibitorCallback = [this](void *data) {
+    inhibitorAdded(data);
+  };
   listeners_->newInhibitor.notify = &Listeners::onNewInhibitor;
   listeners_->inhibitDestroy.notify = &Listeners::onInhibitDestroy;
   // wlroots initializes these signal heads when creating the manager.
@@ -74,10 +76,11 @@ void IdleNotify::inhibitorAdded(void *data) {
   if (!inhibitor)
     return;
   auto *watch = new InhibitorWatch();
-  watch->owner = this;
-  watch->removed = [](IdleNotify *owner) { owner->inhibitorRemoved(); };
+  watch->removed = [this] { inhibitorRemoved(); };
   watch->destroy.notify = &InhibitorWatch::onDestroy;
   wl_signal_add(&inhibitor->events.destroy, &watch->destroy);
+
+  //stop idle
   if (++inhibitors_ == 1 && notifier_)
     wlr_idle_notifier_v1_set_inhibited(notifier_, true);
 }
