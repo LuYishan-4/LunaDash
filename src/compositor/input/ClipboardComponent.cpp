@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <memory>
+#include <pthread.h>
 #include <signal.h>
 #include <string>
 #include <time.h>
@@ -37,25 +38,35 @@ void closeFd(int &fd) {
   fd = -1;
 }
 
+
+
 ssize_t writeWithoutSigpipe(int fd, const void *data, std::size_t size) {
   sigset_t signalSet;
-  sigset_t previousMask;
+  sigset_t oldMask;
   sigset_t pending;
   sigemptyset(&signalSet);
   sigaddset(&signalSet, SIGPIPE);
-  if (::sigprocmask(SIG_BLOCK, &signalSet, &previousMask) < 0)
-    return ::write(fd, data, size);
-  const bool alreadyPending =
+  const int blockError =
+      ::pthread_sigmask(SIG_BLOCK, &signalSet, &oldMask);
+  if (blockError != 0) {
+    errno = blockError;
+    return -1;
+  }
+  const bool Pending =
       ::sigpending(&pending) == 0 && sigismember(&pending, SIGPIPE);
   const auto result = ::write(fd, data, size);
   const int error = errno;
-  if (result < 0 && error == EPIPE && !alreadyPending) {
+  if (result < 0 && error == EPIPE && !Pending) {
     timespec timeout{};
     while (::sigtimedwait(&signalSet, nullptr, &timeout) < 0 &&
            errno == EINTR) {
     }
   }
-  ::sigprocmask(SIG_SETMASK, &previousMask, nullptr);
+  const int info =
+      ::pthread_sigmask(SIG_SETMASK, &oldMask, nullptr);
+  if (info != 0)
+    logWarning("Could not restore SIGPIPE signal mask: %s.",
+               std::strerror(info));
   errno = error;
   return result;
 }

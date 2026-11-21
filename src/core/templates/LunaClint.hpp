@@ -6,7 +6,6 @@
 
 namespace LunaDash::Templates {
 
-
 template <typename Derived> class LunaClint {
 protected:
   template <auto Method>
