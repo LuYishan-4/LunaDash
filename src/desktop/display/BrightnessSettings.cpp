@@ -9,7 +9,6 @@
 
 namespace LunaDash {
 namespace {
-constexpr int kRefreshIntervalMilliseconds = 5000;
 
 std::string_view trim(std::string_view text) {
   const auto first = text.find_first_not_of(" \t\r\n");
@@ -68,26 +67,10 @@ nlohmann::json parseBacklight(std::string_view text) {
 BrightnessSettings::BrightnessSettings(wl_event_loop *eventLoop)
     : query_(eventLoop), action_(eventLoop) {
   executable_ = findExecutable("brightnessctl");
-  refreshTimer_ = wl_event_loop_add_timer(eventLoop, handleRefresh, this);
-  if (refreshTimer_)
-    wl_event_source_timer_update(refreshTimer_, kRefreshIntervalMilliseconds);
   refresh();
 }
 
-BrightnessSettings::~BrightnessSettings() {
-  if (refreshTimer_)
-    wl_event_source_remove(refreshTimer_);
-  refreshTimer_ = nullptr;
-}
 
-int BrightnessSettings::handleRefresh(void *data) {
-  auto *settings = static_cast<BrightnessSettings *>(data);
-  settings->refresh();
-  if (settings->refreshTimer_)
-    wl_event_source_timer_update(settings->refreshTimer_,
-                                 kRefreshIntervalMilliseconds);
-  return 0;
-}
 
 nlohmann::json BrightnessSettings::snapshot() const {
   auto result = data_;

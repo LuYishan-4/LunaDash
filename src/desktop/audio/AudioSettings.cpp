@@ -9,7 +9,6 @@
 
 namespace LunaDash {
 namespace {
-constexpr int kRefreshIntervalMilliseconds = 2500;
 
 std::string trim(std::string_view text) {
   const auto first = text.find_first_not_of(" \t\r\n");
@@ -138,26 +137,10 @@ AudioSettings::AudioSettings(wl_event_loop *eventLoop)
     : outputProbe_(eventLoop), inputProbe_(eventLoop), action_(eventLoop),
       devicesProbe_(eventLoop) {
   executable_ = findExecutable("wpctl");
-  refreshTimer_ = wl_event_loop_add_timer(eventLoop, handleRefresh, this);
-  if (refreshTimer_)
-    wl_event_source_timer_update(refreshTimer_, kRefreshIntervalMilliseconds);
   refresh();
 }
 
-AudioSettings::~AudioSettings() {
-  if (refreshTimer_)
-    wl_event_source_remove(refreshTimer_);
-  refreshTimer_ = nullptr;
-}
 
-int AudioSettings::handleRefresh(void *data) {
-  auto *settings = static_cast<AudioSettings *>(data);
-  settings->refresh();
-  if (settings->refreshTimer_)
-    wl_event_source_timer_update(settings->refreshTimer_,
-                                 kRefreshIntervalMilliseconds);
-  return 0;
-}
 
 void AudioSettings::refresh() {
   if (executable_.empty())

@@ -15,7 +15,6 @@ nlohmann::json parsePowerProfiles(std::string_view text);
 class PowerSettings final {
 public:
   explicit PowerSettings(wl_event_loop *eventLoop);
-  ~PowerSettings();
 
   PowerSettings(const PowerSettings &) = delete;
   PowerSettings &operator=(const PowerSettings &) = delete;
@@ -23,13 +22,13 @@ public:
   nlohmann::json snapshot() const;
   bool apply(std::string_view profile, std::string *error);
 
-private:
-  static int handleRefresh(void *data);
+  // Reads the current values again (they arrive when the probe ends). Nothing
+  // polls: the status command asks, as do changes made here.
   void refresh();
 
+private:
   ProcessRunner probe_;
   ProcessRunner action_;
-  wl_event_source *refreshTimer_ = nullptr;
   std::string executable_;
   std::string error_;
   nlohmann::json data_;

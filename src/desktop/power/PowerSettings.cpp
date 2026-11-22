@@ -6,7 +6,6 @@
 
 namespace LunaDash {
 namespace {
-constexpr int kRefreshIntervalMilliseconds = 10000;
 
 std::string trim(std::string value) {
   const auto first = value.find_first_not_of(" \t\r\n");
@@ -53,26 +52,10 @@ nlohmann::json parsePowerProfiles(std::string_view text) {
 PowerSettings::PowerSettings(wl_event_loop *eventLoop)
     : probe_(eventLoop), action_(eventLoop) {
   executable_ = findExecutable("powerprofilesctl");
-  refreshTimer_ = wl_event_loop_add_timer(eventLoop, handleRefresh, this);
-  if (refreshTimer_)
-    wl_event_source_timer_update(refreshTimer_, kRefreshIntervalMilliseconds);
   refresh();
 }
 
-PowerSettings::~PowerSettings() {
-  if (refreshTimer_)
-    wl_event_source_remove(refreshTimer_);
-  refreshTimer_ = nullptr;
-}
 
-int PowerSettings::handleRefresh(void *data) {
-  auto *settings = static_cast<PowerSettings *>(data);
-  settings->refresh();
-  if (settings->refreshTimer_)
-    wl_event_source_timer_update(settings->refreshTimer_,
-                                 kRefreshIntervalMilliseconds);
-  return 0;
-}
 
 void PowerSettings::refresh() {
   if (executable_.empty() || probe_.busy())

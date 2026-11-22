@@ -4,6 +4,9 @@
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "core/log/Log.hpp"
+#include "desktop/audio/AudioSettings.hpp"
+#include "desktop/display/BrightnessSettings.hpp"
+#include "desktop/power/PowerSettings.hpp"
 
 namespace LunaDash {
 
@@ -12,6 +15,11 @@ void CompositorCommands::registerSessionCommands(CommandRegistry &registry) {
   using R = CommandRequest;
 
   registry.add("status", [](C &c, const R &) -> CommandResult {
+    // Audio, brightness and power are read on request rather than polled: this
+    // reply has the values as last read, and the next one the values read now.
+    c.audioSettings_->refresh();
+    c.brightnessSettings_->refresh();
+    c.powerSettings_->refresh();
     return c.state();
   });
   registry.add("debug", [](C &c, const R &) -> CommandResult {

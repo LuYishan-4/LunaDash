@@ -18,7 +18,6 @@ std::vector<std::string> audioCommand(const nlohmann::json &change);
 class AudioSettings final {
 public:
   explicit AudioSettings(wl_event_loop *eventLoop);
-  ~AudioSettings();
 
   AudioSettings(const AudioSettings &) = delete;
   AudioSettings &operator=(const AudioSettings &) = delete;
@@ -26,15 +25,15 @@ public:
   nlohmann::json snapshot() const;
   bool apply(const nlohmann::json &change, std::string *error);
 
-private:
-  static int handleRefresh(void *data);
+  // Reads the current values again (they arrive when the probe ends). Nothing
+  // polls: the status command asks, as do changes made here.
   void refresh();
 
+private:
   ProcessRunner outputProbe_;
   ProcessRunner inputProbe_;
   ProcessRunner action_;
   ProcessRunner devicesProbe_;
-  wl_event_source *refreshTimer_ = nullptr;
   std::string executable_;
   std::string error_;
   int refreshCount_ = 0;
