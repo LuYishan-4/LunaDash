@@ -35,10 +35,9 @@ private:
   struct Client;
 
   static int acceptConnections(int fd, uint32_t mask, void *data);
-  static int handleClient(int fd, uint32_t mask, void *data);
-  static int expireClient(void *data);
 
   void acceptPendingConnections();
+  void serveClient(Client *client, uint32_t mask);
   void closeClient(Client *client);
   // Writes what a client has queued; false when it had to be closed.
   bool flushClient(Client *client);

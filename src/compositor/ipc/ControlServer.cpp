@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <cstring>
+#include <functional>
 #include <stdexcept>
 #include <system_error>
 #include <utility>
@@ -16,7 +17,6 @@ namespace LunaDash {
 namespace {
 constexpr std::size_t kMaximumRequestBytes = 65536;
 constexpr int kClientTimeoutMs = 3000;
-// A subscriber further behind than this is not reading: drop it.
 constexpr std::size_t kMaximumQueuedBytes = 4 * 1024 * 1024;
 
 [[noreturn]] void throwSystemError(const char *operation) {
@@ -68,7 +68,6 @@ void removeOwnedSocket(const std::string &path, unsigned long long device,
 } // namespace
 
 struct ControlServer::Client {
-  ControlServer *owner = nullptr;
   int fd = -1;
   wl_event_source *socketSource = nullptr;
   wl_event_source *timeoutSource = nullptr;
@@ -77,6 +76,20 @@ struct ControlServer::Client {
   std::size_t responseOffset = 0;
   // Stays open for broadcast(); `response` then queues the lines not yet sent.
   bool subscriber = false;
+  std::function<void(uint32_t mask)> ready;
+  std::function<void()> expired;
+
+  // Both may close, and so destroy, this client.
+  static int onReady(int, uint32_t mask, void *data) {
+    auto ready = static_cast<Client *>(data)->ready;
+    ready(mask);
+    return 0;
+  }
+  static int onExpired(void *data) {
+    auto expired = static_cast<Client *>(data)->expired;
+    expired();
+    return 0;
+  }
 };
 
 ControlServer::ControlServer(wl_event_loop *eventLoop, std::string socketPath,
@@ -165,14 +178,11 @@ int ControlServer::acceptConnections(int, uint32_t mask, void *data) {
   return 0;
 }
 
-int ControlServer::handleClient(int, uint32_t mask, void *data) {
-  auto *client = static_cast<Client *>(data);
-  if (!client || !client->owner)
-    return 0;
+void ControlServer::serveClient(Client *client, uint32_t mask) {
   if ((mask & WL_EVENT_ERROR) != 0 ||
       ((mask & WL_EVENT_HANGUP) != 0 && (mask & WL_EVENT_READABLE) == 0)) {
-    client->owner->closeClient(client);
-    return 0;
+    closeClient(client);
+    return;
   }
 
   if ((mask & WL_EVENT_READABLE) != 0 &&
@@ -183,8 +193,8 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
       if (count > 0) {
         client->request.append(bytes, static_cast<std::size_t>(count));
         if (client->request.size() > kMaximumRequestBytes) {
-          client->owner->closeClient(client);
-          return 0;
+          closeClient(client);
+          return;
         }
         const auto newline = client->request.find('\n');
         if (newline != std::string::npos && client->subscriber) {
@@ -192,11 +202,11 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
           client->request.clear();
           continue;
         }
-        if (newline != std::string::npos && client->owner->subscribe_) {
+        if (newline != std::string::npos && subscribe_) {
           std::optional<std::string> first;
           try {
-            first = client->owner->subscribe_(
-                std::string_view(client->request.data(), newline));
+            first =
+                subscribe_(std::string_view(client->request.data(), newline));
           } catch (...) {
           }
           if (first) {
@@ -206,15 +216,15 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
             wl_event_source_timer_update(client->timeoutSource, 0);
             client->response = std::move(*first);
             client->response.push_back('\n');
-            if (!client->owner->flushClient(client))
-              return 0;
+            if (!flushClient(client))
+              return;
             continue;
           }
         }
         if (newline != std::string::npos) {
           try {
-            client->response = client->owner->handler_(
-                std::string_view(client->request.data(), newline));
+            client->response =
+                handler_(std::string_view(client->request.data(), newline));
           } catch (const std::exception &) {
             client->response = "{\"error\":\"Control handler failed\"}";
           } catch (...) {
@@ -229,31 +239,31 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
         continue;
       }
       if (count == 0) {
-        client->owner->closeClient(client);
-        return 0;
+        closeClient(client);
+        return;
       }
       if (errno == EINTR)
         continue;
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         break;
-      client->owner->closeClient(client);
-      return 0;
+      closeClient(client);
+      return;
     }
   }
 
   if (client->subscriber) {
     if ((mask & WL_EVENT_HANGUP) != 0) {
-      client->owner->closeClient(client);
-      return 0;
+      closeClient(client);
+      return;
     }
     if ((mask & WL_EVENT_WRITABLE) != 0)
-      client->owner->flushClient(client);
-    return 0;
+      flushClient(client);
+    return;
   }
 
   if ((mask & WL_EVENT_HANGUP) != 0 && client->response.empty()) {
-    client->owner->closeClient(client);
-    return 0;
+    closeClient(client);
+    return;
   }
 
   if ((mask & WL_EVENT_WRITABLE) != 0 && !client->response.empty()) {
@@ -268,20 +278,12 @@ int ControlServer::handleClient(int, uint32_t mask, void *data) {
       if (count < 0 && errno == EINTR)
         continue;
       if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-        return 0;
-      client->owner->closeClient(client);
-      return 0;
+        return;
+      closeClient(client);
+      return;
     }
-    client->owner->closeClient(client);
+    closeClient(client);
   }
-  return 0;
-}
-
-int ControlServer::expireClient(void *data) {
-  auto *client = static_cast<Client *>(data);
-  if (client && client->owner)
-    client->owner->closeClient(client);
-  return 0;
 }
 
 void ControlServer::acceptPendingConnections() {
@@ -297,12 +299,16 @@ void ControlServer::acceptPendingConnections() {
     }
 
     auto client = std::make_unique<Client>();
-    client->owner = this;
+    auto *connection = client.get();
     client->fd = fd;
+    client->ready = [this, connection](uint32_t mask) {
+      serveClient(connection, mask);
+    };
+    client->expired = [this, connection] { closeClient(connection); };
     client->socketSource = wl_event_loop_add_fd(
-        eventLoop_, fd, WL_EVENT_READABLE, handleClient, client.get());
+        eventLoop_, fd, WL_EVENT_READABLE, Client::onReady, connection);
     client->timeoutSource =
-        wl_event_loop_add_timer(eventLoop_, expireClient, client.get());
+        wl_event_loop_add_timer(eventLoop_, Client::onExpired, connection);
     if (!client->socketSource || !client->timeoutSource) {
       if (client->socketSource)
         wl_event_source_remove(client->socketSource);
@@ -379,12 +385,10 @@ void ControlServer::closeClient(Client *client) {
     if (fd >= 0)
       ::close(fd);
     client->fd = -1;
-    client->owner = nullptr;
     return;
   }
   auto owned = std::move(found->second);
   clients_.erase(found);
-  owned->owner = nullptr;
   if (owned->socketSource)
     wl_event_source_remove(owned->socketSource);
   if (owned->timeoutSource)

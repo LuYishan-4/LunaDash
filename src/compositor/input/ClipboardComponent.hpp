@@ -20,9 +20,6 @@ private:
   struct ReadTransfer;
   struct WriteTransfer;
 
-  static void sourceSend(wlr_data_source *source, const char *mimeType, int fd);
-  static void sourceDestroy(wlr_data_source *source);
-  static const wlr_data_source_impl *sourceImplementation();
   void onRequestSelection(wlr_seat_request_set_selection_event *event);
   void onSelection();
   void onSourceDestroy();

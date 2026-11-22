@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <functional>
 #include <memory>
 #include <pthread.h>
 #include <signal.h>
@@ -25,13 +26,6 @@ constexpr std::size_t kMaximumMimeTypes = 128;
 constexpr std::size_t kMaximumSelectionBytes = 64 * 1024 * 1024;
 constexpr int kCaptureTimeoutMs = 10000;
 
-struct OwnedDataSource {
-  wlr_data_source base{};
-  void *owner = nullptr;
-  std::unordered_map<std::string, std::shared_ptr<const std::vector<char>>>
-      mimeTypes;
-};
-
 void closeFd(int &fd) {
   if (fd < 0)
     return;
@@ -39,6 +33,44 @@ void closeFd(int &fd) {
   fd = -1;
 }
 
+// The selection LunaDash keeps after its client is gone.
+struct OwnedDataSource {
+  wlr_data_source base{};
+  std::function<void(const char *mimeType, int fd)> send;
+  std::function<void()> destroyed;
+  std::unordered_map<std::string, std::shared_ptr<const std::vector<char>>>
+      mimeTypes;
+
+  static OwnedDataSource *from(wlr_data_source *source) {
+    OwnedDataSource *self = wl_container_of(source, self, base);
+    return self;
+  }
+  static void onSend(wlr_data_source *source, const char *mimeType, int fd) {
+    auto *self = from(source);
+    if (!self->send || !mimeType) {
+      closeFd(fd);
+      return;
+    }
+    self->send(mimeType, fd);
+  }
+  static void onDestroy(wlr_data_source *source) {
+    auto *self = from(source);
+    if (self->destroyed)
+      self->destroyed();
+    delete self;
+  }
+  static const wlr_data_source_impl *implementation() {
+    static const wlr_data_source_impl implementation = {
+        .send = onSend,
+        .accept = nullptr,
+        .destroy = onDestroy,
+        .dnd_drop = nullptr,
+        .dnd_finish = nullptr,
+        .dnd_action = nullptr,
+    };
+    return &implementation;
+  }
+};
 
 //init
 ssize_t writeWithoutSigpipe(int fd, const void *data, std::size_t size) {
@@ -76,30 +108,50 @@ ssize_t writeWithoutSigpipe(int fd, const void *data, std::size_t size) {
 
 struct WaylandCompositor::Impl::ClipboardComponent::Capture {
   wl_listener sourceDestroy{};
-  ClipboardComponent *owner = nullptr;
+  std::function<void()> sourceDestroyed;
   wlr_data_source *source = nullptr;
   wl_event_source *timeout = nullptr;
   std::vector<std::unique_ptr<ReadTransfer>> transfers;
   std::unordered_map<std::string, std::vector<char>> payloads;
   std::size_t pending = 0;
   std::size_t totalBytes = 0;
+
+  static void onSourceDestroy(wl_listener *listener, void *) {
+    Capture *self = wl_container_of(listener, self, sourceDestroy);
+    auto destroyed = self->sourceDestroyed; // it deletes this capture
+    destroyed();
+  }
 };
 
 struct WaylandCompositor::Impl::ClipboardComponent::ReadTransfer {
-  ClipboardComponent *owner = nullptr;
+  std::function<void(uint32_t mask)> readable;
   Capture *capture = nullptr;
   wl_event_source *source = nullptr;
   int fd = -1;
   std::string mimeType;
   std::vector<char> bytes;
+
+  static int onReadable(int, uint32_t mask, void *data) {
+    // It may finish, and so delete, this transfer.
+    auto readable = static_cast<ReadTransfer *>(data)->readable;
+    readable(mask);
+    return 0;
+  }
 };
 
 struct WaylandCompositor::Impl::ClipboardComponent::WriteTransfer {
-  ClipboardComponent *owner = nullptr;
+  std::function<void(uint32_t mask)> writable;
   wl_event_source *source = nullptr;
   int fd = -1;
   std::shared_ptr<const std::vector<char>> bytes;
   std::size_t offset = 0;
+
+  static int onWritable(int, uint32_t mask, void *data) {
+    // It may finish, and so delete, this transfer.
+    auto writable = static_cast<WriteTransfer *>(data)->writable;
+    writable(mask);
+    return 0;
+  }
 };
 
 WaylandCompositor::Impl::ClipboardComponent::ClipboardComponent(Impl *owner)
@@ -110,39 +162,6 @@ WaylandCompositor::Impl::ClipboardComponent::ClipboardComponent(Impl *owner)
 //     -> finishCapture
 // Paste: MIME request -> sourceSend -> sendStoredSelection
 //      -> onWriteReady -> finishWrite || ciallo (∠·ω )⌒★
-void WaylandCompositor::Impl::ClipboardComponent::sourceSend(
-    wlr_data_source *source, const char *mimeType, int fd) {
-  auto *owned = reinterpret_cast<OwnedDataSource *>(source);
-  if (!owned->owner || !mimeType) {
-    closeFd(fd);
-    return;
-  }
-  static_cast<WaylandCompositor::Impl::ClipboardComponent *>(owned->owner)
-      ->sendStoredSelection(mimeType, fd);
-}
-
-void WaylandCompositor::Impl::ClipboardComponent::sourceDestroy(
-    wlr_data_source *source) {
-  auto *owned = reinterpret_cast<OwnedDataSource *>(source);
-  if (owned->owner)
-    static_cast<WaylandCompositor::Impl::ClipboardComponent *>(owned->owner)
-        ->onSourceDestroy();
-  delete owned;
-}
-
-const wlr_data_source_impl *
-WaylandCompositor::Impl::ClipboardComponent::sourceImplementation() {
-  static const wlr_data_source_impl implementation = {
-      .send = sourceSend,
-      .accept = nullptr,
-      .destroy = sourceDestroy,
-      .dnd_drop = nullptr,
-      .dnd_finish = nullptr,
-      .dnd_action = nullptr,
-  };
-  return &implementation;
-}
-
 WaylandCompositor::Impl::ClipboardComponent::~ClipboardComponent() {
   cancelCapture();
   for (const auto &write : writes_) {
@@ -154,8 +173,9 @@ WaylandCompositor::Impl::ClipboardComponent::~ClipboardComponent() {
 
   if (!ownedSource_)
     return;
-  auto *owned = reinterpret_cast<OwnedDataSource *>(ownedSource_);
-  owned->owner = nullptr;
+  auto *owned = OwnedDataSource::from(ownedSource_);
+  owned->send = nullptr;
+  owned->destroyed = nullptr;
   auto *source = std::exchange(ownedSource_, nullptr);
   if (impl->seat && impl->seat->selection_source == source)
     wlr_seat_set_selection(impl->seat, nullptr,
@@ -203,12 +223,9 @@ void WaylandCompositor::Impl::ClipboardComponent::onSelection() {
   }
 
   auto capture = std::make_unique<Capture>();
-  capture->owner = this;
+  capture->sourceDestroyed = [this] { onSourceDestroy(); };
   capture->source = source;
-  capture->sourceDestroy.notify = [](wl_listener *listener, void *) {
-    auto *capture = reinterpret_cast<Capture *>(listener);
-    capture->owner->onSourceDestroy();
-  };
+  capture->sourceDestroy.notify = &Capture::onSourceDestroy;
   wl_signal_add(&source->events.destroy, &capture->sourceDestroy);
   capture_ = std::move(capture);
 
@@ -253,18 +270,15 @@ void WaylandCompositor::Impl::ClipboardComponent::onSelection() {
     }
 
     auto transfer = std::make_unique<ReadTransfer>();
-    transfer->owner = this;
+    transfer->readable = [this, incoming = transfer.get()](uint32_t mask) {
+      onCaptureReadable(incoming, mask);
+    };
     transfer->capture = capture_.get();
     transfer->fd = pipeFds[0];
     transfer->mimeType = std::move(mimeType);
     transfer->source = wl_event_loop_add_fd(
         impl->eventLoop, transfer->fd, WL_EVENT_READABLE | WL_EVENT_HANGUP,
-        [](int, uint32_t mask, void *data) {
-          auto *transfer = static_cast<ReadTransfer *>(data);
-          transfer->owner->onCaptureReadable(transfer, mask);
-          return 0;
-        },
-        transfer.get());
+        &ReadTransfer::onReadable, transfer.get());
     if (!transfer->source) {
       closeFd(transfer->fd);
       closeFd(pipeFds[1]);
@@ -358,8 +372,11 @@ void WaylandCompositor::Impl::ClipboardComponent::finishCapture() {
     return;
 
   auto *owned = new OwnedDataSource;
-  owned->owner = this;
-  wlr_data_source_init(&owned->base, sourceImplementation());
+  owned->send = [this](const char *mimeType, int fd) {
+    sendStoredSelection(mimeType, fd);
+  };
+  owned->destroyed = [this] { onSourceDestroy(); };
+  wlr_data_source_init(&owned->base, OwnedDataSource::implementation());
   for (auto &[mimeType, bytes] : capture->payloads) {
     auto *name = static_cast<char *>(std::malloc(mimeType.size() + 1));
     if (!name) {
@@ -406,7 +423,7 @@ void WaylandCompositor::Impl::ClipboardComponent::sendStoredSelection(
     closeFd(fd);
     return;
   }
-  auto *owned = reinterpret_cast<OwnedDataSource *>(ownedSource_);
+  auto *owned = OwnedDataSource::from(ownedSource_);
   const auto found = owned->mimeTypes.find(mimeType);
   if (found == owned->mimeTypes.end()) {
     closeFd(fd);
@@ -419,17 +436,14 @@ void WaylandCompositor::Impl::ClipboardComponent::sendStoredSelection(
     return;
   }
   auto transfer = std::make_unique<WriteTransfer>();
-  transfer->owner = this;
+  transfer->writable = [this, outgoing = transfer.get()](uint32_t mask) {
+    onWriteReady(outgoing, mask);
+  };
   transfer->fd = fd;
   transfer->bytes = found->second;
   transfer->source = wl_event_loop_add_fd(
       impl->eventLoop, fd, WL_EVENT_WRITABLE | WL_EVENT_HANGUP,
-      [](int, uint32_t mask, void *data) {
-        auto *transfer = static_cast<WriteTransfer *>(data);
-        transfer->owner->onWriteReady(transfer, mask);
-        return 0;
-      },
-      transfer.get());
+      &WriteTransfer::onWritable, transfer.get());
   if (!transfer->source) {
     closeFd(transfer->fd);
     return;

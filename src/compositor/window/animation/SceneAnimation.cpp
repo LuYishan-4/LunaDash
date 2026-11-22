@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <functional>
 #include <unordered_map>
 #include <utility>
 
@@ -309,9 +310,12 @@ struct SceneAnimation::LiveState : Templates::LunaClint<LiveState> {
     listen<&LiveState::onTreeDestroy, &LiveState::destroy>(
         &tree->node.events.destroy);
   }
-  void onTreeDestroy() { owner->finishLive(tree, this, false); }
+  void onTreeDestroy() {
+    auto destroyed = treeDestroyed; // it deletes this state
+    destroyed();
+  }
 
-  SceneAnimation *owner = nullptr;
+  std::function<void()> treeDestroyed;
   wlr_scene_tree *tree = nullptr;
   Templates::WaylandSlot destroy;
   Motion motion;
@@ -340,13 +344,13 @@ struct SceneAnimation::SnapshotState : Templates::LunaClint<SnapshotState> {
         &tree->node.events.destroy);
   }
   void onTreeDestroy() {
-    std::erase(owner->snapshots_, this);
+    treeDestroyed();
     if (live)
       live->preview = nullptr;
     delete this;
   }
 
-  SceneAnimation *owner = nullptr;
+  std::function<void()> treeDestroyed;
   LiveState *live = nullptr;
   wlr_scene_tree *tree = nullptr;
   Templates::WaylandSlot destroy;
@@ -412,7 +416,9 @@ SceneAnimation::visualGeometry(wlr_scene_tree *tree,
 }
 
 void SceneAnimation::startLive(LiveState *state) {
-  state->owner = this;
+  state->treeDestroyed = [this, state] {
+    finishLive(state->tree, state, false);
+  };
   state->started = monotonicNow();
   state->lastStep = state->started;
   live_.insert_or_assign(state->tree, state);
@@ -611,7 +617,7 @@ SceneAnimation::createSnapshot(wlr_scene_tree *source, wlr_scene_tree *parent,
   if (!tree)
     return nullptr;
   auto *state = new SnapshotState;
-  state->owner = this;
+  state->treeDestroyed = [this, state] { std::erase(snapshots_, state); };
   state->tree = tree;
   int parentX = 0;
   int parentY = 0;

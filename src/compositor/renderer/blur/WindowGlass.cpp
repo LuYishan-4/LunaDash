@@ -9,9 +9,11 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace LunaDash {
@@ -73,7 +75,7 @@ void setWindowOpacity(wlr_scene_buffer *buffer, int, int, void *data) {
 class WindowGlass::Impl : public Templates::LunaClint<WindowGlass::Impl> {
 public:
   struct SurfaceWatch : Templates::LunaClint<SurfaceWatch> {
-    Impl *owner = nullptr;
+    std::function<void()> contentChanged;
     wlr_surface *surface = nullptr;
     std::uint64_t revision = 0;
     bool rapid = false;
@@ -81,8 +83,8 @@ public:
     Templates::WaylandSlot commit;
     Templates::WaylandSlot destroy;
 
-    SurfaceWatch(Impl *ownerValue, wlr_surface *value)
-        : owner(ownerValue), surface(value) {
+    SurfaceWatch(wlr_surface *value, std::function<void()> changed)
+        : contentChanged(std::move(changed)), surface(value) {
       listen<&SurfaceWatch::onCommit, &SurfaceWatch::commit>(
           &surface->events.commit);
       listen<&SurfaceWatch::onDestroy, &SurfaceWatch::destroy>(
@@ -100,7 +102,7 @@ public:
       rapid = commitClock.isValid() && commitClock.elapsed() < 40;
       commitClock.restart();
       ++revision;
-      ++owner->sceneRevision;
+      contentChanged();
     }
 
     void onDestroy() {
@@ -372,7 +374,8 @@ public:
   SurfaceWatch *surfaceWatch(wlr_surface *surface) {
     auto &watch = watches[surface];
     if (!watch || watch->surface != surface)
-      watch = std::make_unique<SurfaceWatch>(this, surface);
+      watch =
+          std::make_unique<SurfaceWatch>(surface, [this] { ++sceneRevision; });
     return watch.get();
   }
 
