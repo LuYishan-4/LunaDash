@@ -16,6 +16,8 @@ struct CompositorCommands {
   static void registerWallpaperCommands(CommandRegistry &registry);  // WallpaperCommands.cpp
   static void registerDeviceCommands(CommandRegistry &registry);     // DeviceCommands.cpp
   static void registerExtensionCommands(CommandRegistry &registry);  // ExtensionCommands.cpp
+  static void
+  registerQueryCommands(CommandRegistry &registry); // QueryCommands.cpp
 };
 
 } // namespace LunaDash

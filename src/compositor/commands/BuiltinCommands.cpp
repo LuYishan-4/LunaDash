@@ -12,6 +12,7 @@ void CompositorCommands::registerBuiltins(CommandRegistry &registry) {
   registerWallpaperCommands(registry);
   registerDeviceCommands(registry);
   registerExtensionCommands(registry);
+  registerQueryCommands(registry);
 }
 
 Json WaylandCompositor::control(const Json &request) {
@@ -21,7 +22,7 @@ Json WaylandCompositor::control(const Json &request) {
   if (!handler)
     return *invalidCommand();
   auto result = (*handler)(*this, CommandRequest{method, value, request});
-  return result ? std::move(*result) : state();
+  return result ? std::move(*result) : Json{{"success", true}};
 }
 
 } // namespace LunaDash

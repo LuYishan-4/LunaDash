@@ -222,8 +222,16 @@ int bundle(ControlClient &client, int argc, char **argv) {
   };
   const auto debug = query(client, "debug");
   write("debug.json", debug ? debug->dump(2) + "\n" : "{\"error\":\"no answer\"}\n");
-  const auto status = query(client, "status");
-  write("status.json", status ? status->dump(2) + "\n" : "{\"error\":\"no answer\"}\n");
+  // Every get-* topic, as one file each (get-workspaces.json, …).
+  for (const char *topic :
+       {"get-version", "get-workspaces", "get-clients", "get-layout",
+        "get-outputs", "get-inputs", "get-keybindings", "get-appearance",
+        "get-wallpaper", "get-devices", "get-session", "get-renderer",
+        "get-extensions"}) {
+    const auto reply = query(client, topic);
+    write((std::string(topic) + ".json").c_str(),
+          reply ? reply->dump(2) + "\n" : "{\"error\":\"no answer\"}\n");
+  }
   if (const auto log = newestSessionLog()) {
     std::ostringstream lines;
     for (const auto &line : tail(*log, 2000))

@@ -75,6 +75,21 @@ Json settingsToolsJson() {
 
 } // namespace
 
+Json WaylandCompositor::describeClient(const ClientWindow &client) const {
+  return Json::object({{"id", client.id},
+                       {"title", client.title},
+                       {"appId", client.appId},
+                       {"icon", client.iconName},
+                       {"x11", clientIsX11(client)},
+                       {"workspace", client.state.workspace},
+                       {"focused", &client == focused_},
+                       {"mapped", client.state.mapped},
+                       {"minimized", client.state.minimized},
+                       {"maximized", client.state.maximized},
+                       {"fullscreen", client.state.fullscreen},
+                       {"floating", client.state.floating}});
+}
+
 Json WaylandCompositor::describeClients(Json &xwaylandUtilities) const {
   Json entries = Json::array();
   for (const auto &client : clients_) {
@@ -86,66 +101,48 @@ Json WaylandCompositor::describeClients(Json &xwaylandUtilities) const {
             {{"id", client->id}, {"mapped", client->state.mapped}}));
       continue;
     }
-    int bufferWidth = 0;
-    int bufferHeight = 0;
-    if (clientSurface(*client)) {
-      bufferWidth = clientSurface(*client)->current.width;
-      bufferHeight = clientSurface(*client)->current.height;
-    }
+    auto *surface = clientSurface(*client);
+    const int bufferWidth = surface ? surface->current.width : 0;
+    const int bufferHeight = surface ? surface->current.height : 0;
     wlr_box contentGeometry{};
-    if (clientXdg(*client)) {
+    if (auto *xdg = clientXdg(*client)) {
 #if WLR_VERSION_MINOR >= 19
-      contentGeometry = clientXdg(*client)->geometry;
+      contentGeometry = xdg->geometry;
 #else
-      wlr_xdg_surface_get_geometry(clientXdg(*client), &contentGeometry);
+      wlr_xdg_surface_get_geometry(xdg, &contentGeometry);
 #endif
+    } else {
+      contentGeometry.width = bufferWidth;
+      contentGeometry.height = bufferHeight;
     }
     const auto fallback = animationRectangle(client->layout.geometry);
     const auto frame = windowAnimations_
                            ? windowAnimations_->animation().visualGeometry(
                                  client->scene.tree, fallback)
                            : fallback;
-    const bool sceneVisible =
-        client->scene.tree ? client->scene.tree->node.enabled : false;
-    entries.push_back(Json::object(
-        {{"contentX", contentGeometry.x},
-         {"contentY", contentGeometry.y},
-         {"contentGeometryWidth",
-          clientXdg(*client) ? contentGeometry.width : bufferWidth},
-         {"contentGeometryHeight",
-          clientXdg(*client) ? contentGeometry.height : bufferHeight},
+    auto entry = describeClient(*client);
+    entry.update(Json::object(
+        {{"x", client->layout.geometry.x()},
+         {"y", client->layout.geometry.y()},
+         {"width", client->layout.geometry.width()},
+         {"height", client->layout.geometry.height()},
          {"frameX", frame.left},
          {"frameY", frame.top},
          {"frameWidth", frame.width},
          {"frameHeight", frame.height},
+         {"contentX", contentGeometry.x},
+         {"contentY", contentGeometry.y},
+         {"contentGeometryWidth", contentGeometry.width},
+         {"contentGeometryHeight", contentGeometry.height},
+         {"bufferWidth", bufferWidth},
+         {"bufferHeight", bufferHeight},
          {"cornerRadius", d && d->windowCorners
                               ? d->windowCorners->radius(client->scene.tree)
                               : 0},
-         {"floating", client->state.floating},
-         {"contentWidth", bufferWidth},
-         {"contentHeight", bufferHeight},
-         {"contentVisible", sceneVisible},
-         {"contentPaintEnabled", true},
-         {"bufferWidth", bufferWidth},
-         {"bufferHeight", bufferHeight},
-         {"id", client->id},
-         {"title", client->title},
-         {"appId", client->appId},
-         {"icon", client->iconName},
-         {"x11", clientIsX11(*client)},
-         {"workspace", client->state.workspace},
-         {"visible", sceneVisible},
-         {"focused", client.get() == focused_},
-         {"x", client->layout.geometry.x()},
-         {"y", client->layout.geometry.y()},
-         {"width", client->layout.geometry.width()},
-         {"height", client->layout.geometry.height()},
-         {"minimized", client->state.minimized},
-         {"maximized", client->state.maximized},
-         {"fullscreen", client->state.fullscreen},
+         {"visible", client->scene.tree && client->scene.tree->node.enabled},
          {"hiddenByMaximize", client->layout.hiddenByMaximize},
-         {"manualResize", client->layout.manualResize},
-         {"mapped", client->state.mapped}}));
+         {"manualResize", client->layout.manualResize}}));
+    entries.push_back(std::move(entry));
   }
   return entries;
 }
@@ -268,134 +265,140 @@ Json WaylandCompositor::describeWallpaperState() const {
                        {"wallpaperVideoError", videoWallpaper_->error()}});
 }
 
-Json WaylandCompositor::shellState() const {
-  Json clients = Json::array();
-  for (const auto &client : clients_)
-    if (!client->utility)
-      clients.push_back(Json::object({{"id", client->id},
-                                      {"title", client->title},
-                                      {"appId", client->appId},
-                                      {"workspace", client->state.workspace},
-                                      {"focused", client.get() == focused_},
-                                      {"mapped", client->state.mapped},
-                                      {"minimized", client->state.minimized}}));
+Json WaylandCompositor::describeVersion() const {
+  return Json::object(
+      {{"version", std::string(BuildConfig::version)},
+       {"graphicsApi", "wlroots"},
+       {"renderer",
+        std::string(ludash_renderer_name(d ? d->renderer : nullptr))},
+       {"vulkanAvailable", ludash_renderer_vulkan_available()}});
+}
+
+Json WaylandCompositor::describeWorkspaces() const {
+  return Json::object(
+      {{"workspace", workspace_}, {"workspaceCount", workspaceCount()}});
+}
+
+Json WaylandCompositor::describeLayout() const {
+  return Json::object(
+      {{"layoutMode",
+        windowTemplate_ ? windowTemplate_->layoutMode : std::string()},
+       {"windowLayout",
+        Json::object(
+            {{"template",
+              windowTemplate_ ? windowTemplate_->key : std::string()},
+             {"allowOverlap",
+              windowTemplate_ ? windowTemplate_->allowOverlap : false},
+             {"schema", windowTemplate_ ? windowTemplate_->layoutSettingsSchema
+                                        : Json::object()},
+             {"values", currentWindowLayoutSettings()},
+             {"actions", windowTemplate_ ? windowTemplate_->layoutActions
+                                         : Json::object()}})},
+       {"workArea", rectJson(workArea())},
+       {"tiling", describeTiling()},
+       {"activeAnimations",
+        windowAnimations_ ? windowAnimations_->activeCount() : 0},
+       {"overview",
+        Json::object({{"open", overview_.open},
+                      {"progress", overview_.progress},
+                      {"previews",
+                       static_cast<std::int64_t>(overview_.previews.size())}})},
+       {"scratchpad", Json::object({{"window", scratchpad_.window},
+                                    {"pending", scratchpad_.pending},
+                                    {"error", scratchpad_.error}})},
+       {"pointerDrag", Json::object({{"window", d ? d->pointerWindow : 0},
+                                     {"target", d ? d->pointerTarget : 0},
+                                     {"edge", d ? d->pointerEdge : 0}})}});
+}
+
+Json WaylandCompositor::describePreferences() const {
   auto preferences = desktopPreferences();
   preferences["plugins"] = jsonArray(pluginManager_->snapshot(), "installed");
-  Json result{{"workspace", workspace_},
-              {"workspaceCount", workspaceCount()},
-              {"clients", std::move(clients)},
-              {"appearance", std::move(preferences)},
-              {"wallpapers", wallpaperSnapshot()},
-              {"keybindings", keyBindings_->snapshot()},
-              {"launcherOpen", launcherVisible_},
-              {"shutdown", lifecycle_.testStopping}};
-  result.update(describeWallpaperState());
+  return preferences;
+}
+
+Json WaylandCompositor::describeAppearance() const {
+  const auto preferences = describePreferences();
+  const auto palette = appearancePalette(preferences);
+  return Json::object(
+      {{"appearance", preferences},
+       {"palette", palette},
+       {"applicationTheme", synchronizeApplicationTheme(preferences, palette)},
+       {"appearancePresets", appearancePresets()}});
+}
+
+Json WaylandCompositor::describeWallpaper() const {
+  auto result = describeWallpaperState();
+  result["wallpapers"] = wallpaperSnapshot();
+  result["shader"] = loadWallpaperSettings().value("shader", 0);
   return result;
 }
 
-Json WaylandCompositor::state() const {
-  const auto wallpaper = describeWallpaperState();
-  Json xwaylandUtilities = Json::array();
-  const auto clients = describeClients(xwaylandUtilities);
+Json WaylandCompositor::describeDevices() const {
+  return Json::object({{"audio", audioSettings_->snapshot()},
+                       {"power", powerSettings_->snapshot()},
+                       {"brightness", brightnessSettings_->snapshot()},
+                       {"ddcBrightness", ddcBrightnessSettings_->snapshot()}});
+}
 
-  auto preferences = desktopPreferences();
-  const auto palette = appearancePalette(preferences);
-  const auto extensions = pluginManager_->snapshot();
-  preferences["plugins"] = jsonArray(extensions, "installed");
-  const auto layoutSettings = currentWindowLayoutSettings();
+Json WaylandCompositor::describeSession() const {
+  Json xwaylandUtilities = Json::array();
+  describeClients(xwaylandUtilities);
+  return Json::object(
+      {{"session", session_.describe()},
+       {"sessionActions", sessionActionsJson(*sessionActions_)},
+       {"setupComplete", setupComplete()},
+       {"shutdown", lifecycle_.testStopping},
+       {"processFailure", lifecycle_.processFailure},
+       {"activationEnvironment",
+        Json::object({{"published", activationEnvironment_.published},
+                      {"error", activationEnvironment_.error}})},
+       {"launcherOpen", launcherVisible_},
+       {"defaultApps", defaultApplications()},
+       {"settingsTools", settingsToolsJson()},
+       {"screenCapture",
+        Json::object({{"protocol", ScreenCapture::protocol},
+                      {"version", ScreenCapture::protocolVersion},
+                      {"lastCapture", capture_.last},
+                      {"error", capture_.error},
+                      {"busy", screenCapture_->busy()},
+                      {"phase", screenCapture_->phase()}})},
+       {"xwayland", describeXWayland(std::move(xwaylandUtilities))}});
+}
+
+Json WaylandCompositor::describeRenderer() const {
+  auto *glass = d ? d->windowGlass.get() : nullptr;
+  return Json::object(
+      {{"shaderReady", d && d->renderer},
+       {"blur",
+        Json::object(
+            {{"ready", glass && glass->ready()},
+             {"failed", glass && glass->failed()},
+             {"frames", static_cast<std::int64_t>(glass ? glass->frames() : 0)},
+             {"error", glass ? glass->error() : std::string()},
+             {"cause", glass ? glass->cause() : std::string()}})},
+       {"layerSurfaces", d ? d->mappedLayerCount() : 0},
+       {"xdgPopupCount",
+        d ? static_cast<std::int64_t>(d->xdgPopups.size()) : std::int64_t{0}}});
+}
+
+Json WaylandCompositor::describeExtensions() const {
+  return Json::object(
+      {{"extensions", pluginManager_->snapshot()},
+       {"shellAnimationDuration",
+        shellAnimationDuration(
+            *pluginManager_, preferenceValue(desktopPreferences(),
+                                             Preference::animationDuration))}});
+}
+
+Json WaylandCompositor::describeSettings() const {
   const auto layoutTarget = Settings::target(
       "layout:" + windowTemplate_->key, "Window layout", "layout", "Windows",
-      windowTemplate_->layoutSettingsSchema, layoutSettings);
-  const auto area = workArea();
-  auto *glass = d ? d->windowGlass.get() : nullptr;
-
-  Json result{
-      {"version", std::string(BuildConfig::version)},
-      {"settingsApi",
-       Json::object({{"version", 1},
-                     {"targets", settingsApiTargets(extensions, layoutTarget)}})},
-      {"layoutMode", windowTemplate_ ? windowTemplate_->layoutMode : std::string()},
-      {"windowLayout",
-       Json::object({
-           {"template", windowTemplate_ ? windowTemplate_->key : std::string()},
-           {"allowOverlap",
-            windowTemplate_ ? windowTemplate_->allowOverlap : false},
-           {"schema", windowTemplate_ ? windowTemplate_->layoutSettingsSchema
-                                      : Json::object()},
-           {"values", layoutSettings},
-           {"actions",
-            windowTemplate_ ? windowTemplate_->layoutActions : Json::object()}})},
-      {"defaultApps", defaultApplications()},
-      {"extensions", extensions},
-      {"shellAnimationDuration",
-       shellAnimationDuration(*pluginManager_,
-                              preferenceValue(preferences,
-                                              Preference::animationDuration))},
-      {"workArea", rectJson(area)},
-      {"audio", audioSettings_->snapshot()},
-      {"power", powerSettings_->snapshot()},
-      {"sessionActions", sessionActionsJson(*sessionActions_)},
-      {"keybindings", keyBindings_->snapshot()},
-      {"settingsTools", settingsToolsJson()},
-      {"display", d ? d->displaySnapshot() : Json::object()},
-      {"launcherOpen", launcherVisible_},
-      {"input", describeInput(preferences)},
-      {"blurReady", glass && glass->ready()},
-      {"blurFailed", glass && glass->failed()},
-      {"blurFrames", static_cast<std::int64_t>(glass ? glass->frames() : 0)},
-      {"blurError", glass ? glass->error() : std::string()},
-      {"blurCause", glass ? glass->cause() : std::string()},
-      {"session", session_.describe()},
-      {"activeAnimations",
-       windowAnimations_ ? windowAnimations_->activeCount() : 0},
-      {"overview", Json::object({{"open", overview_.open},
-                                 {"progress", overview_.progress},
-                                 {"previews", static_cast<std::int64_t>(
-                                                  overview_.previews.size())}})},
-      {"xwayland", describeXWayland(xwaylandUtilities)},
-      {"screenCapture", Json::object({{"protocol", ScreenCapture::protocol},
-                                      {"version", ScreenCapture::protocolVersion},
-                                      {"frames", 0},
-                                      {"lastCapture", capture_.last},
-                                      {"error", capture_.error},
-                                      {"busy", screenCapture_->busy()},
-                                      {"phase", screenCapture_->phase()}})},
-      {"activationEnvironment",
-       Json::object({{"published", activationEnvironment_.published},
-                     {"error", activationEnvironment_.error}})},
-      {"brightness", brightnessSettings_->snapshot()},
-      {"ddcBrightness", ddcBrightnessSettings_->snapshot()},
-      {"appearance", preferences},
-      {"palette", palette},
-      {"applicationTheme", synchronizeApplicationTheme(preferences, palette)},
-      {"appearancePresets", appearancePresets()},
-      {"wallpapers", wallpaperSnapshot()},
-      {"scratchpad", Json::object({{"window", scratchpad_.window},
-                                   {"pending", scratchpad_.pending},
-                                   {"error", scratchpad_.error}})},
-      {"setupComplete", setupComplete()},
-      {"workspace", workspace_},
-      {"workspaceCount", workspaceCount()},
-      {"processFailure", lifecycle_.processFailure},
-      {"clients", clients},
-      {"pointerDrag", Json::object({{"window", d ? d->pointerWindow : 0},
-                                    {"target", d ? d->pointerTarget : 0},
-                                    {"edge", d ? d->pointerEdge : 0}})},
-      {"tiling", describeTiling()},
-      {"layerSurfaces", d ? d->mappedLayerCount() : 0},
-      {"xdgPopupCount",
-       d ? static_cast<std::int64_t>(d->xdgPopups.size()) : std::int64_t{0}},
-      {"wallpaper", loadWallpaperSettings().value("shader", 0)},
-      {"shutdown", lifecycle_.testStopping},
-      {"graphicsApi", "wlroots"},
-      {"renderer", std::string(ludash_renderer_name(d ? d->renderer : nullptr))},
-      {"vulkanAvailable", ludash_renderer_vulkan_available()},
-      {"shaderReady", d && d->renderer},
-      {"graphicsFailed", lifecycle_.processFailure},
-      {"graphicsMajor", 0},
-      {"graphicsMinor", 0}};
-  result.update(wallpaper);
-  return result;
+      windowTemplate_->layoutSettingsSchema, currentWindowLayoutSettings());
+  return Json::object(
+      {{"version", 1},
+       {"targets",
+        settingsApiTargets(pluginManager_->snapshot(), layoutTarget)}});
 }
 
 } // namespace LunaDash

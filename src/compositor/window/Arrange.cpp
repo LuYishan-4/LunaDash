@@ -350,7 +350,7 @@ void WaylandCompositor::arrange() {
   d->updateWindowCorners();
   publishWindowLayout();
   publishWorkspaces();
-  scheduleShellStatePush();
+  scheduleEvents();
 }
 
 void WaylandCompositor::publishWorkspaces() {

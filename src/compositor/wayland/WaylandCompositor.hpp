@@ -2,18 +2,21 @@
 
 #include "compositor/commands/CommandRegistry.hpp"
 #include "compositor/input/CompositorActions.hpp"
+#include "compositor/ipc/ControlServer.hpp"
 #include "compositor/layout/WindowLayout.hpp"
 #include "compositor/session/CompositorOptions.hpp"
 #include "compositor/session/SessionHelpers.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "compositor/window/animation/WindowAnimation.hpp"
 #include "config/session/SessionConfig.hpp"
-#include "core/process/ProcessRunner.hpp"
 #include "core/process/ProcessEnvironment.hpp"
+#include "core/process/ProcessRunner.hpp"
 #include <cstdint>
 #include <functional>
-#include <string>
+#include <map>
 #include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -33,7 +36,6 @@ class AudioSettings;
 class PowerSettings;
 class XWaylandSupport;
 class PluginManager;
-class ControlServer;
 class SessionActions;
 class SessionServices;
 class KeyBindings;
@@ -178,9 +180,9 @@ private:
   std::unique_ptr<XWaylandSupport> xwayland_;
   std::unique_ptr<PluginManager> pluginManager_;
   std::unique_ptr<ControlServer> controlServer_;
-  // The last shellState() line sent to subscribers.
-  std::string lastShellState_;
-  bool shellStatePushScheduled_ = false;
+  // What `subscribe` connections were last told, by event (ipc/Events.cpp).
+  std::map<std::string, Json, std::less<>> publishedEvents_;
+  bool eventsScheduled_ = false;
 
   std::string controlPath_;
   ProcessEnvironment clientEnvironment_;
@@ -253,15 +255,30 @@ private:
   bool updateWindowLayoutSettings(const Json &changes, std::string *error);
   bool performLayoutAction(const std::string &action, const Json &payload);
 
-  // Status for the shell and tools (compositor/ipc/StateSnapshot.cpp).
-  Json state() const;
-  // What a shell shows (workspaces' windows, wallpaper, preferences,
-  // shortcuts), pushed to `subscribe` connections when it changes.
-  Json shellState() const;
-  // Pushes shellState() to subscribers if it changed; runs once per event-loop
-  // pass however often it is asked for.
-  void scheduleShellStatePush();
-  void watchShellState();
+  // What the get-* requests answer, one topic each, as sway's get_* requests
+  // (compositor/ipc/StateSnapshot.cpp).
+  Json describeVersion() const;
+  Json describeClient(const ClientWindow &client) const;
+  Json describeWorkspaces() const;
+  Json describeLayout() const;
+  Json describePreferences() const;
+  Json describeAppearance() const;
+  Json describeWallpaper() const;
+  Json describeDevices() const;
+  Json describeSession() const;
+  Json describeRenderer() const;
+  Json describeExtensions() const;
+  Json describeSettings() const;
+  // sway-style event subscriptions (compositor/ipc/Events.cpp).
+  std::optional<ControlServer::Subscription>
+  subscribe(std::string_view request);
+  Json eventSnapshot(std::string_view event) const;
+  bool hasSubscribers() const;
+  // Sends each subscribed event what changed since it was last told.
+  void publishEvents();
+  // publishEvents() once per event-loop pass, however often it is asked for.
+  void scheduleEvents();
+  void watchEvents();
   Json describeClients(Json &xwaylandUtilities) const;
   Json describeTiling() const;
   Json describeXWayland(Json utilitySurfaces) const;

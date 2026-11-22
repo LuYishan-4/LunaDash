@@ -83,9 +83,6 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
     c.openSettingsPage(r.value);
     return {};
   });
-  registry.add("settings-describe", [](C &c, const R &) -> CommandResult {
-    return jsonObject(c.state(), "settingsApi");
-  });
   registry.add("settings-update", [](C &c, const R &r) -> CommandResult {
     c.pluginManager_->refresh();
     c.arrange();
@@ -104,11 +101,12 @@ void CompositorCommands::registerSettingsCommands(CommandRegistry &registry) {
               return c.updateWindowLayoutSettings(changes, message);
             },
             &error))
-      return Json{{"error", error}, {"settingsTarget", jsonValue(document, "target")}};
+      return Json{{"success", false},
+                  {"error", error},
+                  {"settingsTarget", jsonValue(document, "target")}};
     c.arrange();
-    auto result = c.state();
-    result["settingsTarget"] = jsonValue(document, "target");
-    return result;
+    return Json{{"success", true},
+                {"settingsTarget", jsonValue(document, "target")}};
   });
   registry.add("reset-preferences", [](C &c, const R &) -> CommandResult {
     ensureLegacyDesktopSettingsImported();

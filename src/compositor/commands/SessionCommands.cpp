@@ -14,14 +14,6 @@ void CompositorCommands::registerSessionCommands(CommandRegistry &registry) {
   using C = WaylandCompositor;
   using R = CommandRequest;
 
-  registry.add("status", [](C &c, const R &) -> CommandResult {
-    // Audio, brightness and power are read on request rather than polled: this
-    // reply has the values as last read, and the next one the values read now.
-    c.audioSettings_->refresh();
-    c.brightnessSettings_->refresh();
-    c.powerSettings_->refresh();
-    return c.state();
-  });
   registry.add("debug", [](C &c, const R &) -> CommandResult {
     return c.debugSnapshot();
   });

@@ -109,7 +109,7 @@ bool WaylandCompositor::start() {
 
   if (!startControlServer())
     return false;
-  watchShellState();
+  watchEvents();
 
   ensureLegacyDesktopSettingsImported();
   clientEnvironment_ = createClientEnvironment(
@@ -174,22 +174,13 @@ bool WaylandCompositor::startControlServer() {
         [this](std::string_view request) {
           const auto document = parseJsonObject(request);
           StallTrace::Section trace("command", jsonString(document, "method"));
-          const auto response = document.is_object()
-                                    ? control(document)
-                                    : Json{{"error", "Invalid request"}};
-          // A command may have changed what the shell shows.
-          scheduleShellStatePush();
+          const auto response =
+              document.is_object() ? control(document) : *invalidCommand();
+          // A command may have changed what subscribers follow.
+          scheduleEvents();
           return jsonCompact(response);
         },
-        // {"method": "subscribe"}: shellState() now and whenever it changes,
-        // instead of polling the full status.
-        [this](std::string_view request) -> std::optional<std::string> {
-          const auto document = parseJsonObject(request);
-          if (!document.is_object() || jsonString(document, "method") != "subscribe")
-            return std::nullopt;
-          lastShellState_ = jsonCompact(shellState());
-          return lastShellState_;
-        });
+        [this](std::string_view request) { return subscribe(request); });
   } catch (const std::exception &error) {
     logCritical("LunaDash control socket %s: %s", controlPath_.c_str(),
                 error.what());
@@ -197,36 +188,6 @@ bool WaylandCompositor::startControlServer() {
     return false;
   }
   return true;
-}
-
-// Changes that pass neither arrange() nor a command (a palette finished in the
-// background, a preferences file edited by hand) are found by a slow check.
-void WaylandCompositor::watchShellState() {
-  if (!d)
-    return;
-  d->scheduleCallback(2000, [this] {
-    if (lifecycle_.shuttingDown)
-      return;
-    scheduleShellStatePush();
-    watchShellState();
-  });
-}
-
-void WaylandCompositor::scheduleShellStatePush() {
-  if (shellStatePushScheduled_ || !controlServer_ || !d ||
-      controlServer_->subscribers() == 0)
-    return;
-  shellStatePushScheduled_ = true;
-  d->scheduleCallback(0, [this] {
-    shellStatePushScheduled_ = false;
-    if (!controlServer_ || controlServer_->subscribers() == 0)
-      return;
-    auto line = jsonCompact(shellState());
-    if (line == lastShellState_)
-      return;
-    lastShellState_ = std::move(line);
-    controlServer_->broadcast(lastShellState_);
-  });
 }
 
 void WaylandCompositor::startXWayland() {
@@ -394,7 +355,10 @@ void WaylandCompositor::saveState(const std::string &path) {
   std::ofstream file(std::filesystem::path(path), std::ios::binary | std::ios::trunc);
   if (!file)
     return;
-  const auto bytes = jsonIndented(state());
+  Json xwaylandUtilities = Json::array();
+  auto snapshot = describeWorkspaces();
+  snapshot["clients"] = describeClients(xwaylandUtilities);
+  const auto bytes = jsonIndented(snapshot);
   file.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
 }
 

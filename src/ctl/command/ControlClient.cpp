@@ -184,18 +184,24 @@ int ControlClient::run(int argc, char **argv) {
   if (argc < 2) {
     std::cerr
         << "Usage: lunadashctl "
-           "status|debug|workspace|focus|group-window|expel-window|minimize|close|"
+           "get-version|get-workspaces|get-clients|get-layout|get-outputs|"
+           "get-inputs|get-keybindings|get-appearance|get-wallpaper|get-"
+           "devices|"
+           "get-session|get-renderer|get-extensions|get-settings|"
+           "debug|workspace|focus|group-window|expel-window|minimize|close|"
            "action|bind|unbind|reset-keybindings|shortcut-capture|"
-           "capture|screenshot|brightness|ddc-brightness|ddc-refresh|display-configure|display-confirm|"
+           "capture|screenshot|brightness|ddc-brightness|ddc-refresh|display-"
+           "configure|display-confirm|"
            "display-revert|"
            "wallpaper|choose-wallpaper|wallpaper-image|wallpaper-default|"
            "appearance|setup|finish-setup|configure-network|launch-x11|"
            "launch-command|launch-with-x11|"
            "open-settings|system-tool|audio|power-profile|desktop-size|"
            "reset-preferences|default-apps|launch-default|"
-           "extension-save|extension-error|settings-describe|settings-update|"
+           "extension-save|extension-error|settings-update|"
            "window-layout-settings|window-layout-action|quit [value]\n"
-           "  debug [help|json|TOPIC|watch|log|bundle]  diagnostics, see `lunadashctl debug help`\n"
+           "  debug [help|json|TOPIC|watch|log|bundle]  diagnostics, see "
+           "`lunadashctl debug help`\n"
            "  group-window value: {\"window\":ID,\"target\":ID}\n"
            "  launch-with-x11 -- program [argument ...]\n";
     return 2;

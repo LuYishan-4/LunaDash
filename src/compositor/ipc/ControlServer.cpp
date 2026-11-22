@@ -1,5 +1,6 @@
 #include "compositor/ipc/ControlServer.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <functional>
@@ -74,8 +75,9 @@ struct ControlServer::Client {
   std::string request;
   std::string response;
   std::size_t responseOffset = 0;
-  // Stays open for broadcast(); `response` then queues the lines not yet sent.
-  bool subscriber = false;
+  // Stays open for broadcast() of these events; `response` then queues the
+  // lines not yet sent.
+  std::vector<std::string> events;
   std::function<void(uint32_t mask)> ready;
   std::function<void()> expired;
 
@@ -186,7 +188,7 @@ void ControlServer::serveClient(Client *client, uint32_t mask) {
   }
 
   if ((mask & WL_EVENT_READABLE) != 0 &&
-      (client->response.empty() || client->subscriber)) {
+      (client->response.empty() || !client->events.empty())) {
     char bytes[4096];
     for (;;) {
       const ssize_t count = ::recv(client->fd, bytes, sizeof(bytes), 0);
@@ -197,24 +199,30 @@ void ControlServer::serveClient(Client *client, uint32_t mask) {
           return;
         }
         const auto newline = client->request.find('\n');
-        if (newline != std::string::npos && client->subscriber) {
+        if (newline != std::string::npos && !client->events.empty()) {
           // A subscriber only listens; ignore anything it sends.
           client->request.clear();
           continue;
         }
         if (newline != std::string::npos && subscribe_) {
-          std::optional<std::string> first;
+          std::optional<Subscription> subscription;
           try {
-            first =
+            subscription =
                 subscribe_(std::string_view(client->request.data(), newline));
           } catch (...) {
           }
-          if (first) {
-            client->subscriber = true;
+          if (subscription && subscription->events.empty()) {
+            client->response = std::move(subscription->reply);
+            client->response.push_back('\n');
+            wl_event_source_fd_update(client->socketSource, WL_EVENT_WRITABLE);
+            break;
+          }
+          if (subscription) {
+            client->events = std::move(subscription->events);
             client->request.clear();
             // Subscribers live as long as they like.
             wl_event_source_timer_update(client->timeoutSource, 0);
-            client->response = std::move(*first);
+            client->response = std::move(subscription->reply);
             client->response.push_back('\n');
             if (!flushClient(client))
               return;
@@ -251,7 +259,7 @@ void ControlServer::serveClient(Client *client, uint32_t mask) {
     }
   }
 
-  if (client->subscriber) {
+  if (!client->events.empty()) {
     if ((mask & WL_EVENT_HANGUP) != 0) {
       closeClient(client);
       return;
@@ -348,10 +356,10 @@ bool ControlServer::flushClient(Client *client) {
   return true;
 }
 
-void ControlServer::broadcast(const std::string &line) {
+void ControlServer::broadcast(std::string_view event, const std::string &line) {
   std::vector<Client *> subscribers;
   for (const auto &[fd, client] : clients_)
-    if (client->subscriber)
+    if (std::ranges::find(client->events, event) != client->events.end())
       subscribers.push_back(client.get());
   for (auto *client : subscribers) {
     if (client->response.size() - client->responseOffset + line.size() >
@@ -365,11 +373,11 @@ void ControlServer::broadcast(const std::string &line) {
   }
 }
 
-std::size_t ControlServer::subscribers() const {
-  std::size_t count = 0;
+bool ControlServer::subscribed(std::string_view event) const {
   for (const auto &[fd, client] : clients_)
-    count += client->subscriber ? 1 : 0;
-  return count;
+    if (std::ranges::find(client->events, event) != client->events.end())
+      return true;
+  return false;
 }
 
 void ControlServer::closeClient(Client *client) {

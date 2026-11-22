@@ -374,10 +374,12 @@ add_library(ludash-wayland
     src/compositor/commands/DeviceCommands.cpp
     src/compositor/commands/ExtensionCommands.cpp
     src/compositor/commands/LaunchCommands.cpp
+    src/compositor/commands/QueryCommands.cpp
     src/compositor/commands/SessionCommands.cpp
     src/compositor/commands/SettingsCommands.cpp
     src/compositor/commands/WallpaperCommands.cpp
     src/compositor/commands/WindowCommands.cpp
+    src/compositor/ipc/Events.cpp
     src/compositor/ipc/StateSnapshot.cpp
     src/compositor/input/CompositorActions.cpp
     src/compositor/wayland/DebugSnapshot.cpp

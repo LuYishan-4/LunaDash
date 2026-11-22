@@ -26,8 +26,9 @@ using CommandHandler =
 
 using CommandRegistry = Templates::NamedRegistry<CommandHandler>;
 
+// As sway's command replies: {"success": true}, or false with the reason.
 inline CommandResult commandError(std::string message) {
-  return Json{{"error", std::move(message)}};
+  return Json{{"success", false}, {"error", std::move(message)}};
 }
 
 
