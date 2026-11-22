@@ -72,7 +72,7 @@ The `PR policy gate` (`.github/workflows/pr-gate.yml`, `scripts/ci/check_pr_poli
 ## Branch flow
 
 - Feature/fix branch -> pull request -> `dev`
-- LunaDash-Shell or SlintLu `main` updates -> the component-revision workflow checks every 15 minutes and opens a PR updating the matching pin -> review and merge to `dev`
+- LunaDash-Shell or SlintLu `main` push -> that repository's `Update LunaDash pin` workflow commits the new `packaging/shell-revision` or `packaging/slintlu-revision` to `dev` (it needs the `LUNADASH_PIN_TOKEN` secret there) -> Dev CI builds it
 - Website commit on LunaDash-docs `main` -> LunaDash-docs deploys itself; the root Pages workflow fetches that branch on deployment
 - `dev` -> stabilization / merge queue -> `main`, through a same-repository promotion PR opened by maintainers
 - Release tags are created from the intended release commit.
