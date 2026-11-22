@@ -1,12 +1,12 @@
-#include "compositor/wayland/Register.hpp"
-#include "core/log/StallTrace.hpp"
-#include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
+#include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "core/log/Log.hpp"
+#include "core/log/StallTrace.hpp"
 #include <algorithm>
 
 namespace LunaDash {
@@ -21,26 +21,23 @@ void WaylandCompositor::Impl::addXWaylandSurface(
 
   auto client = std::make_unique<ClientWindow>();
   client->id = q->nextWindowId_++;
-  client->x11 = true;
-  client->xwayland = surface;
-  client->wlSurface = surface->surface;
-  client->workspace = q->workspace_;
+  client->type = ClientType::X11;
+  client->surface.xwayland = surface;
+  client->state.workspace = q->workspace_;
   client->processId = surface->pid;
-  client->floating = surface->override_redirect || surface->parent ||
-                     surface->modal;
+  client->state.floating =
+      surface->override_redirect || surface->parent || surface->modal;
   client->utility = surface->override_redirect;
-  client->preferredFloatingSize =
+  client->layout.preferredFloatingSize =
       Size(std::max<int>(1, surface->width), std::max<int>(1, surface->height));
   if (surface->override_redirect) {
-    client->manualGeometry =
-        Rect(surface->x, surface->y,
-              std::max<int>(1, surface->width),
-              std::max<int>(1, surface->height));
+    client->layout.manualGeometry =
+        Rect(surface->x, surface->y, std::max<int>(1, surface->width),
+             std::max<int>(1, surface->height));
   }
 
   auto *current = client.get();
-  auto *state = new XWaylandState(this, current, surface);
-  current->nativeState = state;
+  auto *state = new XWaylandState(this, current);
   surface->data = state;
   q->clients_.push_back(std::move(client));
   q->updateClientMetadata(current);
@@ -49,13 +46,13 @@ void WaylandCompositor::Impl::addXWaylandSurface(
 #endif
 }
 
-WaylandCompositor::Impl::XWaylandState::XWaylandState(
-    Impl *owner, ClientWindow *window, wlr_xwayland_surface *xwaylandSurface)
-    : impl(owner), client(window), surface(xwaylandSurface) {}
+WaylandCompositor::Impl::XWaylandState::XWaylandState(Impl *owner,
+                                                      ClientWindow *window)
+    : impl(owner), client(window) {}
 
 #if LUDASH_WLR_HAS_XWAYLAND
 void WaylandCompositor::Impl::XWaylandState::listenToSurface() {
-  auto &events = surface->events;
+  auto &events = client->surface.xwayland->events;
   listen<&XWaylandState::onAssociate, &XWaylandState::associate>(
       &events.associate);
   listen<&XWaylandState::onDissociate, &XWaylandState::dissociate>(
@@ -88,70 +85,69 @@ void WaylandCompositor::Impl::XWaylandState::listenToSurface() {
 }
 
 void WaylandCompositor::Impl::XWaylandState::onAssociate() {
-  if (!surface || !surface->surface)
+  auto *surface = clientSurface(*client);
+  if (!surface)
     return;
-  client->wlSurface = surface->surface;
-  listen<&XWaylandState::onMap, &XWaylandState::map>(
-      &client->wlSurface->events.map);
+  listen<&XWaylandState::onMap, &XWaylandState::map>(&surface->events.map);
   listen<&XWaylandState::onUnmap, &XWaylandState::unmap>(
-      &client->wlSurface->events.unmap);
-  if (client->wlSurface->mapped)
+      &surface->events.unmap);
+  if (surface->mapped)
     onMap();
 }
 
 void WaylandCompositor::Impl::XWaylandState::onDissociate() {
-  if (client->mapped)
+  if (client->state.mapped)
     onUnmap();
   Templates::detachListeners(map, unmap);
-  if (client->sceneTree) {
-    wlr_scene_node_destroy(&client->sceneTree->node);
-    client->sceneTree = nullptr;
-    client->sceneContent = nullptr;
+  if (client->scene.tree) {
+    wlr_scene_node_destroy(&client->scene.tree->node);
+    client->scene.tree = nullptr;
+    client->scene.content = nullptr;
   }
-  client->wlSurface = nullptr;
 }
 
 void WaylandCompositor::Impl::XWaylandState::onMap() {
-  if (!surface || !surface->surface)
+  auto *xwayland = client->surface.xwayland;
+  if (!xwayland || !xwayland->surface)
     return;
-  StallTrace::Section trace("x11 map", surface->class_ ? surface->class_ : "");
-  if (!client->wlSurface)
-    client->wlSurface = surface->surface;
-  if (!client->wlSurface)
-    return;
-  if (client->sceneTree && !client->sceneContent)
-    wlr_scene_node_destroy(&client->sceneTree->node);
-  if (!client->sceneTree) {
-    client->sceneTree = wlr_scene_tree_create(impl->normalLayer);
-    if (!client->sceneTree)
+  StallTrace::Section trace("x11 map",
+                            xwayland->class_ ? xwayland->class_ : "");
+  if (client->scene.tree && !client->scene.content)
+    wlr_scene_node_destroy(&client->scene.tree->node);
+  if (!client->scene.tree) {
+    client->scene.tree = wlr_scene_tree_create(impl->normalLayer);
+    if (!client->scene.tree)
       return;
-    client->sceneContent =
-        wlr_scene_subsurface_tree_create(client->sceneTree, client->wlSurface);
-    if (!client->sceneContent) {
-      wlr_scene_node_destroy(&client->sceneTree->node);
-      client->sceneTree = nullptr;
+    client->scene.content =
+        wlr_scene_subsurface_tree_create(client->scene.tree, xwayland->surface);
+    if (!client->scene.content) {
+      wlr_scene_node_destroy(&client->scene.tree->node);
+      client->scene.tree = nullptr;
       return;
     }
-    client->sceneTree->node.data = client;
+    client->scene.tree->node.data = client;
     listen<&XWaylandState::onSceneContentDestroy,
            &XWaylandState::sceneContentDestroy>(
-        &client->sceneContent->node.events.destroy);
+        &client->scene.content->node.events.destroy);
     listen<&XWaylandState::onSceneDestroy, &XWaylandState::sceneDestroy>(
-        &client->sceneTree->node.events.destroy);
+        &client->scene.tree->node.events.destroy);
   }
-  client->mapped = true;
+  client->state.mapped = true;
   auto *desktop = impl->q;
   desktop->updateClientMetadata(client);
 
-  if (!client->initialRuleApplied && !client->utility) {
-    const auto rule = initialWindowRule(
-        *desktop->pluginManager_,
-        {{"appId", client->appId}, {"title", client->title}, {"id", client->id}},
-        client->workspace, client->maximized, desktop->workspaceCount());
-    client->workspace = jsonInt(rule, "workspace");
-    client->maximized = jsonBool(rule, "maximized");
+  if (!client->layout.initialRuleApplied && !client->utility) {
+    const auto rule =
+        initialWindowRule(*desktop->pluginManager_,
+                          {{"appId", client->appId},
+                           {"title", client->title},
+                           {"id", client->id}},
+                          client->state.workspace, client->state.maximized,
+                          desktop->workspaceCount());
+    client->state.workspace = jsonInt(rule, "workspace");
+    client->state.maximized = jsonBool(rule, "maximized");
   }
-  client->initialRuleApplied = true;
+  client->layout.initialRuleApplied = true;
   impl->adoptShellDialog(client);
   desktop->arrange();
   if (!client->utility)
@@ -165,14 +161,15 @@ void WaylandCompositor::Impl::XWaylandState::onUnmap() {
     impl->foreignToplevels->remove(client->id);
   // Closing X11 windows shrink and fade out like Wayland ones (menus and
   // tooltips just vanish).
-  if (desktop->windowAnimations_ && client->sceneTree && client->mapped &&
-      !client->utility && client->sceneTree->node.enabled) {
-    desktop->windowAnimations_->close(client->sceneTree, impl->animationLayer);
-    desktop->windowAnimations_->cancel(client->sceneTree);
+  if (desktop->windowAnimations_ && client->scene.tree &&
+      client->state.mapped && !client->utility &&
+      client->scene.tree->node.enabled) {
+    desktop->windowAnimations_->close(client->scene.tree, impl->animationLayer);
+    desktop->windowAnimations_->cancel(client->scene.tree);
   }
-  if (impl->seat->keyboard_state.focused_surface == client->wlSurface)
+  if (impl->seat->keyboard_state.focused_surface == clientSurface(*client))
     wlr_seat_keyboard_notify_clear_focus(impl->seat);
-  client->mapped = false;
+  client->state.mapped = false;
   desktop->windowSwitcher_->remove(client->id);
   desktop->windowLayout_->remove(client->id);
   if (desktop->focused_ == client)
@@ -183,15 +180,15 @@ void WaylandCompositor::Impl::XWaylandState::onUnmap() {
 
 void WaylandCompositor::Impl::XWaylandState::onSceneContentDestroy() {
   Templates::detachListener(sceneContentDestroy);
-  client->sceneContent = nullptr;
+  client->scene.content = nullptr;
 }
 
 void WaylandCompositor::Impl::XWaylandState::onSceneDestroy() {
   Templates::detachListener(sceneDestroy);
   // The wrapper is compositor-owned and can be destroyed before XWM emits
   // dissociate. Never leave layout or dissociate with a dangling tree.
-  client->sceneTree = nullptr;
-  client->sceneContent = nullptr;
+  client->scene.tree = nullptr;
+  client->scene.content = nullptr;
 }
 
 void WaylandCompositor::Impl::XWaylandState::onDestroy() {
@@ -204,20 +201,18 @@ void WaylandCompositor::Impl::XWaylandState::onDestroy() {
   // Scene lifetime is independent of XWM lifetime. The destroy listener clears
   // sceneTree when wlroots goes first; otherwise dispose of the live tree now
   // so node.data cannot outlive ClientWindow. Do not synthesize another unmap.
-  if (owner->seat && window->wlSurface &&
-      owner->seat->keyboard_state.focused_surface == window->wlSurface)
+  if (owner->seat && clientSurface(*window) &&
+      owner->seat->keyboard_state.focused_surface == clientSurface(*window))
     wlr_seat_keyboard_notify_clear_focus(owner->seat);
-  window->mapped = false;
-  if (window->sceneTree)
-    wlr_scene_node_destroy(&window->sceneTree->node);
-  window->wlSurface = nullptr;
-  window->sceneTree = nullptr;
-  window->sceneContent = nullptr;
-  window->xwayland = nullptr;
-  if (surface)
-    surface->data = nullptr;
+  window->state.mapped = false;
+  if (window->scene.tree)
+    wlr_scene_node_destroy(&window->scene.tree->node);
+  window->scene.tree = nullptr;
+  window->scene.content = nullptr;
+  if (window->surface.xwayland)
+    window->surface.xwayland->data = nullptr;
+  window->surface.xwayland = nullptr;
   std::erase(owner->xwaylandSurfaces, this);
-  window->nativeState = nullptr;
   delete this;
 
   // Keep ClientWindow alive until the current Wayland/XWM signal dispatch has
@@ -232,26 +227,31 @@ void WaylandCompositor::Impl::XWaylandState::onConfigure(
     return;
   const Size size(std::max<int>(1, event->width),
                    std::max<int>(1, event->height));
-  client->preferredFloatingSize = size;
-  if (!client->mapped || client->floating || client->utility) {
+  client->layout.preferredFloatingSize = size;
+  if (!client->state.mapped || client->state.floating || client->utility) {
     const Rect requested(event->x, event->y, size.width(), size.height());
-    client->manualGeometry = requested;
-    wlr_xwayland_surface_configure(surface, event->x, event->y, event->width,
-                                   event->height);
-    if (client->sceneTree)
-      wlr_scene_node_set_position(&client->sceneTree->node, event->x, event->y);
-    client->geometry = requested;
+    client->layout.manualGeometry = requested;
+    wlr_xwayland_surface_configure(client->surface.xwayland, event->x, event->y,
+                                   event->width, event->height);
+    if (client->scene.tree)
+      wlr_scene_node_set_position(&client->scene.tree->node, event->x,
+                                  event->y);
+    client->layout.geometry = requested;
     return;
   }
   impl->q->arrange();
   // Explicit ConfigureRequests need a reply even when tiling rejects a size.
   // Ordinary metadata/layout refreshes do not resend identical configurations.
   wlr_xwayland_surface_configure(
-      surface,
-      static_cast<int16_t>(std::clamp(client->geometry.x(), -32768, 32767)),
-      static_cast<int16_t>(std::clamp(client->geometry.y(), -32768, 32767)),
-      static_cast<uint16_t>(std::clamp(client->geometry.width(), 1, 65535)),
-      static_cast<uint16_t>(std::clamp(client->geometry.height(), 1, 65535)));
+      client->surface.xwayland,
+      static_cast<int16_t>(
+          std::clamp(client->layout.geometry.x(), -32768, 32767)),
+      static_cast<int16_t>(
+          std::clamp(client->layout.geometry.y(), -32768, 32767)),
+      static_cast<uint16_t>(
+          std::clamp(client->layout.geometry.width(), 1, 65535)),
+      static_cast<uint16_t>(
+          std::clamp(client->layout.geometry.height(), 1, 65535)));
 }
 
 void WaylandCompositor::Impl::XWaylandState::onMove() {
@@ -259,8 +259,8 @@ void WaylandCompositor::Impl::XWaylandState::onMove() {
     return;
   // A move request without an active pointer grab cannot be made into an
   // interactive exchange. Preserve the legacy fallback for such clients.
-  client->floating = true;
-  client->manualGeometry = client->geometry;
+  client->state.floating = true;
+  client->layout.manualGeometry = client->layout.geometry;
   impl->q->arrange();
 }
 
@@ -270,21 +270,21 @@ void WaylandCompositor::Impl::XWaylandState::onMinimize(
     wlr_xwayland_minimize_event *event) {
   if (!event)
     return;
-  client->minimized = event->minimize;
+  client->state.minimized = event->minimize;
   impl->q->windowLayout_->setMinimized(client->id, event->minimize);
   impl->q->arrange();
   impl->q->synchronizeWindowFocus();
 }
 
 void WaylandCompositor::Impl::XWaylandState::onMaximize() {
-  if (surface)
+  if (const auto *xwayland = client->surface.xwayland)
     impl->q->setMaximized(client,
-                          surface->maximized_horz && surface->maximized_vert);
+                          xwayland->maximized_horz && xwayland->maximized_vert);
 }
 
 void WaylandCompositor::Impl::XWaylandState::onFullscreen() {
-  if (surface)
-    impl->q->setFullscreen(client, surface->fullscreen);
+  if (client->surface.xwayland)
+    impl->q->setFullscreen(client, client->surface.xwayland->fullscreen);
 }
 
 void WaylandCompositor::Impl::XWaylandState::onActivate() {
@@ -292,15 +292,16 @@ void WaylandCompositor::Impl::XWaylandState::onActivate() {
 }
 
 void WaylandCompositor::Impl::XWaylandState::onMetadata() {
-  if (!surface)
+  const auto *xwayland = client->surface.xwayland;
+  if (!xwayland)
     return;
-  client->processId = surface->pid;
+  client->processId = xwayland->pid;
   impl->q->updateClientMetadata(client);
   if (client->utility) {
-    client->floating = true;
-    client->manualGeometry =
-        Rect(surface->x, surface->y, std::max<int>(1, surface->width),
-             std::max<int>(1, surface->height));
+    client->state.floating = true;
+    client->layout.manualGeometry =
+        Rect(xwayland->x, xwayland->y, std::max<int>(1, xwayland->width),
+             std::max<int>(1, xwayland->height));
   }
   // Property/class/geometry notifications are also emitted while XWM is
   // still constructing a window. Do not feed those short-lived, unmapped
@@ -308,7 +309,7 @@ void WaylandCompositor::Impl::XWaylandState::onMetadata() {
   // window once its wl_surface is actually ready. This avoids configure/layout
   // churn for notification and recorder helper windows that may disappear
   // within the same X11 event burst.
-  if (client->mapped)
+  if (client->state.mapped)
     impl->q->arrange();
 }
 #endif

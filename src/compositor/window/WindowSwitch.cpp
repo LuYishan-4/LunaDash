@@ -1,13 +1,13 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
-#include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/renderer/capture/ThumbnailReadback.h"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/window/WindowRules.hpp"
-#include "compositor/window/animation/WindowAnimation.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include <algorithm>
 #include <chrono>
@@ -30,40 +30,40 @@ struct WaylandCompositor::ThumbnailWriteState {
 void WaylandCompositor::publishWindowLayout() {
   Json clients = Json::array();
   for (const auto &client : clients_) {
-    if (client->utility || !client->mapped)
+    if (client->utility || !client->state.mapped)
       continue;
     const SceneAnimationRectangle fallback{
-        client->geometry.x(), client->geometry.y(),
-        client->geometry.width(), client->geometry.height()};
+        client->layout.geometry.x(), client->layout.geometry.y(),
+        client->layout.geometry.width(), client->layout.geometry.height()};
     const auto frame = windowAnimations_
                            ? windowAnimations_->animation().visualGeometry(
-                                 client->sceneTree, fallback)
+                                 client->scene.tree, fallback)
                            : fallback;
-    clients.push_back(Json::object({{"id", client->id},
-                               {"frameX", frame.left},
-                               {"frameY", frame.top},
-                               {"frameWidth", frame.width},
-                               {"frameHeight", frame.height},
-                               {"cornerRadius", d->windowCorners
-                                    ? d->windowCorners->radius(client->sceneTree) : 0},
-                               {"fullscreen", client->fullscreen},
-                               {"visible", client->sceneTree && client->sceneTree->node.enabled},
-                               {"title", client->title},
-                               {"appId", client->appId},
-                               {"icon", client->iconName},
-                               {"workspace", client->workspace},
-                               {"mapped", true},
-                               {"desktop", client->desktop},
-                               {"x11", client->x11},
-                               {"floating", client->floating},
-                               {"minimized", client->minimized},
-                               {"maximized", client->maximized},
-                               {"hiddenByMaximize", client->hiddenByMaximize},
-                               {"focused", focused_ == client.get()},
-                               {"x", client->geometry.x()},
-                               {"y", client->geometry.y()},
-                               {"width", client->geometry.width()},
-                               {"height", client->geometry.height()}}));
+    clients.push_back(Json::object(
+        {{"id", client->id},
+         {"frameX", frame.left},
+         {"frameY", frame.top},
+         {"frameWidth", frame.width},
+         {"frameHeight", frame.height},
+         {"cornerRadius",
+          d->windowCorners ? d->windowCorners->radius(client->scene.tree) : 0},
+         {"fullscreen", client->state.fullscreen},
+         {"visible", client->scene.tree && client->scene.tree->node.enabled},
+         {"title", client->title},
+         {"appId", client->appId},
+         {"icon", client->iconName},
+         {"workspace", client->state.workspace},
+         {"mapped", true},
+         {"x11", clientIsX11(*client)},
+         {"floating", client->state.floating},
+         {"minimized", client->state.minimized},
+         {"maximized", client->state.maximized},
+         {"hiddenByMaximize", client->layout.hiddenByMaximize},
+         {"focused", focused_ == client.get()},
+         {"x", client->layout.geometry.x()},
+         {"y", client->layout.geometry.y()},
+         {"width", client->layout.geometry.width()},
+         {"height", client->layout.geometry.height()}}));
   }
   windowSwitcher_->setLayout(clients, workspace_, d->pointerWindow != 0);
 }
@@ -72,9 +72,8 @@ int WaylandCompositor::workspaceCount() const {
   constexpr int kMaximumWorkspaces = 100;
   int last = -1;
   for (const auto &client : clients_)
-    if (!client->utility && !client->desktop &&
-        (client->mapped || client->layoutPending))
-      last = std::max(last, client->workspace);
+    if (!client->utility && (client->state.mapped || client->layout.pending))
+      last = std::max(last, client->state.workspace);
   // One empty workspace after the last occupied one: a new workspace appears
   // once a window opens, not before.
   return std::clamp(std::max(last + 2, workspace_ + 1), 1, kMaximumWorkspaces);
@@ -82,12 +81,12 @@ int WaylandCompositor::workspaceCount() const {
 void WaylandCompositor::compactWorkspaces() {
   std::vector<bool> occupied;
   for (const auto &client : clients_) {
-    if (client->utility || client->desktop ||
-        !(client->mapped || client->layoutPending))
+    if (client->utility || !(client->state.mapped || client->layout.pending))
       continue;
-    if (client->workspace >= static_cast<int>(occupied.size()))
-      occupied.resize(static_cast<std::size_t>(client->workspace) + 1, false);
-    occupied[static_cast<std::size_t>(client->workspace)] = true;
+    if (client->state.workspace >= static_cast<int>(occupied.size()))
+      occupied.resize(static_cast<std::size_t>(client->state.workspace) + 1,
+                      false);
+    occupied[static_cast<std::size_t>(client->state.workspace)] = true;
   }
   int span = static_cast<int>(occupied.size());
   for (int workspace = span - 1; workspace-- > 0;) {
@@ -95,8 +94,8 @@ void WaylandCompositor::compactWorkspaces() {
       continue;
     --span;
     for (const auto &client : clients_)
-      if (client->workspace > workspace)
-        --client->workspace;
+      if (client->state.workspace > workspace)
+        --client->state.workspace;
     if (workspace_ > workspace)
       --workspace_;
   }
@@ -118,12 +117,13 @@ void WaylandCompositor::selectWorkspace(int workspace) {
 }
 void WaylandCompositor::activateTask(int window) {
   for (const auto &client : clients_) {
-    if (client->id != window || !client->mapped || client->utility)
+    if (client->id != window || !client->state.mapped || client->utility)
       continue;
     const bool restore = client.get() == focused_ &&
-                         client->workspace == workspace_ && client->maximized;
-    selectWorkspace(client->workspace);
-    client->minimized = false;
+                         client->state.workspace == workspace_ &&
+                         client->state.maximized;
+    selectWorkspace(client->state.workspace);
+    client->state.minimized = false;
     setClientMinimizedHint(client.get(), false);
     windowLayout_->setMinimized(window, false);
     if (windowTemplate_ &&
@@ -180,28 +180,29 @@ void WaylandCompositor::beginWindowSwitch(int direction, bool workspaces) {
     Rect bounds = area;
     const auto placements = windowLayout_->presentation(workspace, area);
     for (const auto &client : clients_) {
-      if (!client->mapped || client->utility || client->desktop ||
-          client->workspace != workspace)
+      if (!client->state.mapped || client->utility ||
+          client->state.workspace != workspace)
         continue;
-      Rect geometry = client->geometry;
+      Rect geometry = client->layout.geometry;
       for (const auto &placement : placements)
         if (placement.window == static_cast<LayoutWindowId>(client->id) &&
             !placement.minimized)
           geometry = placement.geometry;
-      if (!client->minimized && !client->hiddenByMaximize)
+      if (!client->state.minimized && !client->layout.hiddenByMaximize)
         bounds = bounds.united(geometry);
-      windows.push_back(Json::object({{"id", client->id},
-                                 {"title", client->title},
-                                 {"appId", client->appId},
-                                 {"icon", client->iconName},
-                                 {"x", geometry.x() - area.x()},
-                                 {"y", geometry.y() - area.y()},
-                                 {"width", geometry.width()},
-                                 {"height", geometry.height()},
-                                 {"minimized", client->minimized},
-                                 {"hiddenByMaximize", client->hiddenByMaximize},
-                                 {"focused", focused_ == client.get()}}));
-      if (!client->minimized && !client->hiddenByMaximize)
+      windows.push_back(
+          Json::object({{"id", client->id},
+                        {"title", client->title},
+                        {"appId", client->appId},
+                        {"icon", client->iconName},
+                        {"x", geometry.x() - area.x()},
+                        {"y", geometry.y() - area.y()},
+                        {"width", geometry.width()},
+                        {"height", geometry.height()},
+                        {"minimized", client->state.minimized},
+                        {"hiddenByMaximize", client->layout.hiddenByMaximize},
+                        {"focused", focused_ == client.get()}}));
+      if (!client->state.minimized && !client->layout.hiddenByMaximize)
         capture.push_back(client->id);
     }
     for (auto &window : windows) {
@@ -238,14 +239,14 @@ void WaylandCompositor::captureWorkspaceThumbnail(int serial,
   windows.erase(windows.begin());
   auto found =
       std::find_if(clients_.begin(), clients_.end(), [id](const auto &client) {
-        return client->id == id && client->mapped;
+        return client->id == id && client->state.mapped;
       });
   int width = 0;
   int height = 0;
   std::vector<std::uint8_t> pixels;
   bool captured = false;
-  if (found != clients_.end() && (*found)->wlSurface) {
-    auto *surface = (*found)->wlSurface;
+  if (found != clients_.end() && clientSurface(**found)) {
+    auto *surface = clientSurface(**found);
     auto *texture = wlr_surface_get_texture(surface);
     const auto sourceWidth = std::max(1, surface->current.width);
     const auto sourceHeight = std::max(1, surface->current.height);
@@ -356,12 +357,11 @@ void WaylandCompositor::finishWindowSwitch(bool accept) {
   }
   // Alt+Tab focuses, never toggles maximization like a taskbar activation.
   for (const auto &client : clients_) {
-    if (client->id != target || !client->mapped || client->utility ||
-        client->desktop)
+    if (client->id != target || !client->state.mapped || client->utility)
       continue;
-    if (client->workspace != workspace_)
-      selectWorkspace(client->workspace);
-    client->minimized = false;
+    if (client->state.workspace != workspace_)
+      selectWorkspace(client->state.workspace);
+    client->state.minimized = false;
     setClientMinimizedHint(client.get(), false);
     windowLayout_->setMinimized(target, false);
     windowLayout_->focus(target);

@@ -1,4 +1,4 @@
-#include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
@@ -25,9 +25,9 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
   if (!readClientProtocolMetadata(client))
     return;
   adoptScratchpad(client);
-  client->iconName = client->utility
-                         ? std::string()
-                         : windowIconName(client->appId, client->title);
+  setClientText(client->iconName,
+                client->utility ? std::string()
+                                : windowIconName(client->appId, client->title));
   // Taskbars see new titles, and X11 windows as they map.
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (d)
@@ -36,22 +36,22 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
 }
 
 void WaylandCompositor::raiseWithDialogs(ClientWindow *client) {
-  if (!client || !client->sceneTree)
+  if (!client || !client->scene.tree)
     return;
-  wlr_scene_node_raise_to_top(&client->sceneTree->node);
+  wlr_scene_node_raise_to_top(&client->scene.tree->node);
   for (const auto &dialog : clients_) {
-    if (!dialog->floating || !dialog->sceneTree ||
-        !dialog->sceneTree->node.enabled ||
-        (!dialog->toplevel && !dialog->xwayland))
+    if (!dialog->state.floating || !dialog->scene.tree ||
+        !dialog->scene.tree->node.enabled ||
+        (!clientToplevel(*dialog) && !clientXWayland(*dialog)))
       continue;
     if (clientIsTransientOf(dialog.get(), client, clients_.size()))
-      wlr_scene_node_raise_to_top(&dialog->sceneTree->node);
+      wlr_scene_node_raise_to_top(&dialog->scene.tree->node);
   }
 }
 
 void WaylandCompositor::focus(ClientWindow *client) {
-  if (!d || !client || !client->mapped || client->minimized ||
-      client->utility || client->workspace != workspace_ ||
+  if (!d || !client || !client->state.mapped || client->state.minimized ||
+      client->utility || client->state.workspace != workspace_ ||
       !clientReady(client))
     return;
 
@@ -62,29 +62,31 @@ void WaylandCompositor::focus(ClientWindow *client) {
   const bool changed = focused_ != client;
   focused_ = client;
 
-  if (!client->fullscreen && client->floating && client->hiddenByMaximize) {
+  if (!client->state.fullscreen && client->state.floating &&
+      client->layout.hiddenByMaximize) {
     for (const auto &other : clients_)
-      if (!other->floating && other->workspace == client->workspace &&
-          other->maximized)
+      if (!other->state.floating &&
+          other->state.workspace == client->state.workspace &&
+          other->state.maximized)
         setMaximized(other.get(), false);
     arrange();
   }
-  if (!client->fullscreen && windowTemplate_ &&
-      !windowTemplate_->allowOverlap && !client->floating &&
-      !client->maximized &&
-      windowLayout_->snapshot(client->workspace).maximizedWindow)
+  if (!client->state.fullscreen && windowTemplate_ &&
+      !windowTemplate_->allowOverlap && !client->state.floating &&
+      !client->state.maximized &&
+      windowLayout_->snapshot(client->state.workspace).maximizedWindow)
     setMaximized(client, true);
-  if (!client->floating)
+  if (!client->state.floating)
     windowLayout_->focus(client->id);
   // Selecting a tiled window must also scroll its column into view. Avoid
   // relayout for repeated clicks in the same window (including popup grabs).
-  if (changed && !client->floating)
+  if (changed && !client->state.floating)
     arrange();
-  if (client->sceneTree)
+  if (client->scene.tree)
     raiseWithDialogs(client);
-  if (changed && windowAnimations_ && client->sceneTree)
-    windowAnimations_->focus(client->sceneTree,
-                             animationRectangle(client->geometry));
+  if (changed && windowAnimations_ && client->scene.tree)
+    windowAnimations_->focus(client->scene.tree,
+                             animationRectangle(client->layout.geometry));
   if (changed)
     setClientActivated(client, true);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
@@ -95,15 +97,15 @@ void WaylandCompositor::focus(ClientWindow *client) {
 #else
   (void)previous;
 #endif
-  d->focusSurface(client->wlSurface);
+  d->focusSurface(clientSurface(*client));
   publishWindowLayout();
 }
 
 void WaylandCompositor::focusNext(int direction) {
   std::vector<ClientWindow *> visible;
   for (const auto &client : clients_)
-    if (client->mapped && !client->minimized && !client->utility &&
-        client->workspace == workspace_)
+    if (client->state.mapped && !client->state.minimized && !client->utility &&
+        client->state.workspace == workspace_)
       visible.push_back(client.get());
   if (visible.empty()) {
     ClientWindow *previous = focused_;
@@ -127,12 +129,12 @@ void WaylandCompositor::focusNext(int direction) {
 }
 
 void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
-  if (!client || client->maximized == maximized)
+  if (!client || client->state.maximized == maximized)
     return;
-  if (!client->floating) {
+  if (!client->state.floating) {
     windowLayout_->setMaximized(client->id, maximized);
   }
-  client->maximized = maximized;
+  client->state.maximized = maximized;
   setClientMaximizedHint(client, maximized);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (d)
@@ -141,15 +143,16 @@ void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
 }
 
 void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
-  if (!d || !client || client->fullscreen == fullscreen)
+  if (!d || !client || client->state.fullscreen == fullscreen)
     return;
 
   if (fullscreen) {
     for (const auto &other : clients_) {
-      if (other.get() == client || other->workspace != client->workspace ||
-          !other->fullscreen)
+      if (other.get() == client ||
+          other->state.workspace != client->state.workspace ||
+          !other->state.fullscreen)
         continue;
-      other->fullscreen = false;
+      other->state.fullscreen = false;
       setClientFullscreenHint(other.get(), false);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
       d->updateClientLegacyForeignToplevel(other.get());
@@ -157,7 +160,7 @@ void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
     }
   }
 
-  client->fullscreen = fullscreen;
+  client->state.fullscreen = fullscreen;
   setClientFullscreenHint(client, fullscreen);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   d->updateClientLegacyForeignToplevel(client);
@@ -171,7 +174,7 @@ void WaylandCompositor::setFullscreen(ClientWindow *client, bool fullscreen) {
 void WaylandCompositor::minimizeClient(ClientWindow *client) {
   if (!client)
     return;
-  client->minimized = true;
+  client->state.minimized = true;
   setClientMinimizedHint(client, true);
   windowLayout_->setMinimized(client->id, true);
 }
@@ -180,7 +183,7 @@ void WaylandCompositor::synchronizeWindowFocus() {
   const auto target = windowLayout_->snapshot(workspace_).focusedWindow;
   if (target) {
     auto *client = clientById(static_cast<int>(target));
-    if (client && client->mapped && !client->minimized) {
+    if (client && client->state.mapped && !client->state.minimized) {
       focus(client);
       return;
     }

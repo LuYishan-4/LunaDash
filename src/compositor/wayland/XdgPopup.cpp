@@ -25,10 +25,7 @@ WaylandCompositor::Impl::captureSceneForSurface(wlr_surface *surface) const {
         popup->popup->base->surface == surface)
       return popup->captureTree;
   if (auto *client = clientForSurface(surface)) {
-    if (client->x11 || !client->nativeState)
-      return nullptr;
-    auto *state = static_cast<ToplevelState *>(client->nativeState);
-    return state->imageCaptureTree;
+    return client->scene.capture;
   }
   return nullptr;
 }

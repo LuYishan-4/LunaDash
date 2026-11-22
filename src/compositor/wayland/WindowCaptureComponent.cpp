@@ -33,7 +33,7 @@ void WaylandCompositor::Impl::WindowCaptureComponent::onCaptureRequest(
   if (!request || !request->toplevel_handle)
     return;
   auto *state = static_cast<ToplevelState *>(request->toplevel_handle->data);
-  if (!state || state->impl != impl || !state->client->mapped ||
+  if (!state || state->impl != impl || !state->client->state.mapped ||
       !state->imageCaptureScene)
     return;
   if (!state->imageCaptureSource)

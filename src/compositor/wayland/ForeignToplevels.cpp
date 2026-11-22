@@ -36,7 +36,7 @@ ForeignToplevels::~ForeignToplevels() = default;
 void ForeignToplevels::update(const ClientWindow &client, bool focused) {
   if (!manager_)
     return;
-  if (!client.mapped || client.utility) {
+  if (!client.state.mapped || client.utility) {
     remove(client.id);
     return;
   }
@@ -85,7 +85,7 @@ void ForeignToplevels::update(const ClientWindow &client, bool focused) {
   }
   auto &entry = *slot;
   auto *handle = entry.handle;
-  const bool activated = focused && !client.minimized;
+  const bool activated = focused && !client.state.minimized;
   if (!entry.announced || entry.title != client.title) {
     entry.title = client.title;
     wlr_foreign_toplevel_handle_v1_set_title(handle, entry.title.c_str());
@@ -98,17 +98,20 @@ void ForeignToplevels::update(const ClientWindow &client, bool focused) {
     entry.activated = activated;
     wlr_foreign_toplevel_handle_v1_set_activated(handle, activated);
   }
-  if (!entry.announced || entry.minimized != client.minimized) {
-    entry.minimized = client.minimized;
-    wlr_foreign_toplevel_handle_v1_set_minimized(handle, client.minimized);
+  if (!entry.announced || entry.minimized != client.state.minimized) {
+    entry.minimized = client.state.minimized;
+    wlr_foreign_toplevel_handle_v1_set_minimized(handle,
+                                                 client.state.minimized);
   }
-  if (!entry.announced || entry.maximized != client.maximized) {
-    entry.maximized = client.maximized;
-    wlr_foreign_toplevel_handle_v1_set_maximized(handle, client.maximized);
+  if (!entry.announced || entry.maximized != client.state.maximized) {
+    entry.maximized = client.state.maximized;
+    wlr_foreign_toplevel_handle_v1_set_maximized(handle,
+                                                 client.state.maximized);
   }
-  if (!entry.announced || entry.fullscreen != client.fullscreen) {
-    entry.fullscreen = client.fullscreen;
-    wlr_foreign_toplevel_handle_v1_set_fullscreen(handle, client.fullscreen);
+  if (!entry.announced || entry.fullscreen != client.state.fullscreen) {
+    entry.fullscreen = client.state.fullscreen;
+    wlr_foreign_toplevel_handle_v1_set_fullscreen(handle,
+                                                  client.state.fullscreen);
   }
   entry.announced = true;
 }

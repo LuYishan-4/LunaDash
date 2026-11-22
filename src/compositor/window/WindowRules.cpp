@@ -21,32 +21,31 @@ std::string windowIconName(const std::string &appId, const std::string &title) {
 }
 
 bool windowUsesManagedLayout(const ClientWindow &client) {
-  return (client.mapped || client.layoutPending) && !client.floating &&
-         !client.utility;
+  return (client.state.mapped || client.layout.pending) &&
+         !client.state.floating && !client.utility;
 }
 
 bool windowAllowsPointerInteraction(const WindowTemplate &,
                                     const ClientWindow &client) {
-  return client.mapped && !client.utility && !client.desktop &&
-         !client.fullscreen;
+  return client.state.mapped && !client.utility && !client.state.fullscreen;
 }
 
 bool windowAllowsClientMoveResize(const WindowTemplate &windowTemplate,
                                   const ClientWindow &client) {
   return windowAllowsPointerInteraction(windowTemplate, client) &&
-         (client.floating || windowTemplate.clientMoveResize);
+         (client.state.floating || windowTemplate.clientMoveResize);
 }
 
 bool windowActivationTogglesMaximize(const WindowTemplate &windowTemplate,
                                      const ClientWindow &client) {
-  return windowTemplate.activationTogglesMaximize && !client.floating;
+  return windowTemplate.activationTogglesMaximize && !client.state.floating;
 }
 
 bool windowHiddenByMaximize(const WindowTemplate &windowTemplate,
                             LayoutWindowId maximized, bool inMaximizedFamily,
                             const ClientWindow &client) {
   return !windowTemplate.allowOverlap && maximized && !inMaximizedFamily &&
-         !client.desktop && !client.floating;
+         !client.state.floating;
 }
 
 } // namespace LunaDash

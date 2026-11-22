@@ -1,5 +1,4 @@
-#include "compositor/client/ClientWindow.hpp"
-#include "core/log/StallTrace.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/plugins/PluginManager.hpp"
@@ -14,6 +13,7 @@
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/desktop/PreferenceKeys.hpp"
 #include "core/json/JsonAccess.hpp"
+#include "core/log/StallTrace.hpp"
 
 #include <algorithm>
 #include <unordered_map>
@@ -81,18 +81,19 @@ bool WaylandCompositor::selectWindowTemplate() {
 
 Rect WaylandCompositor::floatingGeometry(const ClientWindow &client,
                                          const Rect &area) const {
-  if (client.maximized)
+  if (client.state.maximized)
     return area;
-  const Size preferred = client.preferredFloatingSize.isValid()
-                             ? client.preferredFloatingSize
+  const Size preferred = client.layout.preferredFloatingSize.isValid()
+                             ? client.layout.preferredFloatingSize
                              : WindowTuning::defaultFloatingSize;
   const Size bounded(std::min(preferred.width(), area.width()),
                      std::min(preferred.height(), area.height()));
   const Rect centered(area.x() + (area.width() - bounded.width()) / 2,
                       area.y() + (area.height() - bounded.height()) / 2,
                       bounded.width(), bounded.height());
-  auto geometry =
-      client.manualGeometry.isValid() ? client.manualGeometry : centered;
+  auto geometry = client.layout.manualGeometry.isValid()
+                      ? client.layout.manualGeometry
+                      : centered;
   geometry.setSize(geometry.size().boundedTo(area.size()));
   geometry.moveLeft(std::clamp(geometry.x(), area.left(),
                                area.right() - geometry.width() + 1));
@@ -121,7 +122,7 @@ Rect WaylandCompositor::workArea() const {
 
 void WaylandCompositor::configure(ClientWindow *client,
                                   const Rect &rectangle) {
-  if (!clientReady(client) || !client->sceneTree)
+  if (!clientReady(client) || !client->scene.tree)
     return;
   // Only the window under the pointer follows it directly; everything else,
   // the windows it pushes aside included, moves on the shared spring.
@@ -130,14 +131,14 @@ void WaylandCompositor::configure(ClientWindow *client,
     // The pointer places it until it is dropped (finishWindowPointer).
   } else if (windowAnimations_)
     windowAnimations_->relayout(
-        client->sceneTree, animationRectangle(client->geometry),
+        client->scene.tree, animationRectangle(client->layout.geometry),
         animationRectangle(rectangle), d->animationLayer,
-        client->mapped && client->sceneTree->node.enabled &&
-            !client->manualResize && !dragged);
+        client->state.mapped && client->scene.tree->node.enabled &&
+            !client->layout.manualResize && !dragged);
   else
-    wlr_scene_node_set_position(&client->sceneTree->node, rectangle.x(),
+    wlr_scene_node_set_position(&client->scene.tree->node, rectangle.x(),
                                 rectangle.y());
-  client->geometry = rectangle;
+  client->layout.geometry = rectangle;
   configureClientSurface(client, rectangle);
 }
 
@@ -163,7 +164,7 @@ void WaylandCompositor::arrange() {
   // Only stacking zooms windows; elsewhere they fill their slot at their own size.
   if (!windowTemplate_->allowOverlap || !windowTemplate_->clientMoveResize)
     for (const auto &client : clients_)
-      client->contentScale = 1.0;
+      client->effects.contentScale = 1.0;
   if (windowAnimations_)
     windowAnimations_->configure(sceneAnimationOptions(
         windowAnimationProfile(*pluginManager_, preferences, *windowTemplate_),
@@ -178,8 +179,9 @@ void WaylandCompositor::arrange() {
 
   ClientWindow *fullscreenClient = nullptr;
   for (const auto &candidate : clients_) {
-    if (candidate->mapped && !candidate->minimized && candidate->fullscreen &&
-        candidate->workspace == workspace_ && !candidate->utility) {
+    if (candidate->state.mapped && !candidate->state.minimized &&
+        candidate->state.fullscreen &&
+        candidate->state.workspace == workspace_ && !candidate->utility) {
       fullscreenClient = candidate.get();
       break;
     }
@@ -187,67 +189,72 @@ void WaylandCompositor::arrange() {
 
   // Keep the layout's window set in step with the clients.
   for (const auto &client : clients_) {
-    client->workspace = std::min(client->workspace, count - 1);
-    if (client->mapped && !client->preferredFloatingSize.isValid()) {
+    client->state.workspace = std::min(client->state.workspace, count - 1);
+    if (client->state.mapped &&
+        !client->layout.preferredFloatingSize.isValid()) {
       const Size committed = clientCommittedSize(*client);
       if (committed.width() > 0 && committed.height() > 0)
-        client->preferredFloatingSize = committed;
+        client->layout.preferredFloatingSize = committed;
     }
     if (!windowUsesManagedLayout(*client)) {
       windowLayout_->remove(client->id);
       continue;
     }
     const Size preferred = windowTemplate_ && windowTemplate_->allowOverlap
-                               ? client->preferredFloatingSize
+                               ? client->layout.preferredFloatingSize
                                : Size();
-    windowLayout_->insert(client->workspace, client->id, preferred);
-    windowLayout_->moveToWorkspace(client->id, client->workspace);
-    windowLayout_->setMinimized(client->id, client->minimized);
-    if (client->maximized)
+    windowLayout_->insert(client->state.workspace, client->id, preferred);
+    windowLayout_->moveToWorkspace(client->id, client->state.workspace);
+    windowLayout_->setMinimized(client->id, client->state.minimized);
+    if (client->state.maximized)
       windowLayout_->setMaximized(client->id, true);
   }
 
-  if (templateChanged && focused_ && focused_->mapped && !focused_->minimized)
+  if (templateChanged && focused_ && focused_->state.mapped &&
+      !focused_->state.minimized)
     windowLayout_->focus(focused_->id);
 
   // Visibility, scene layers and floating geometry.
   std::vector<ClientWindow *> revealed;
   std::unordered_map<int, WorkspaceLayoutSnapshot> snapshots;
   for (const auto &client : clients_) {
-    auto snapshotIt = snapshots.find(client->workspace);
+    auto snapshotIt = snapshots.find(client->state.workspace);
     if (snapshotIt == snapshots.end())
-      snapshotIt = snapshots
-                       .emplace(client->workspace,
-                                windowLayout_->snapshot(client->workspace))
-                       .first;
+      snapshotIt =
+          snapshots
+              .emplace(client->state.workspace,
+                       windowLayout_->snapshot(client->state.workspace))
+              .first;
     const auto maximized = snapshotIt->second.maximizedWindow;
-    if (!client->floating && (client->mapped || client->layoutPending)) {
+    if (!client->state.floating &&
+        (client->state.mapped || client->layout.pending)) {
       // The layout says which windows are maximized: the one covering the
       // workspace, or columns maximized beside the others.
       bool next = maximized == static_cast<LayoutWindowId>(client->id);
       for (const auto &placement : snapshotIt->second.columns)
         if (placement.window == static_cast<LayoutWindowId>(client->id))
           next = next || placement.maximized;
-      if (client->maximized != next) {
-        client->maximized = next;
+      if (client->state.maximized != next) {
+        client->state.maximized = next;
         setClientMaximizedHint(client.get(), next);
       }
     }
     const bool inMaximizedFamily =
         belongsToWindow(*client, clientById(static_cast<int>(maximized)), clients_);
-    client->hiddenByMaximize = windowHiddenByMaximize(
+    client->layout.hiddenByMaximize = windowHiddenByMaximize(
         *windowTemplate_, maximized, inMaximizedFamily, *client);
     const bool inFullscreenFamily =
         belongsToWindow(*client, fullscreenClient, clients_);
 
-    const bool unmanagedX11 = client->x11 && client->utility;
+    const bool unmanagedX11 = clientIsX11(*client) && client->utility;
     const bool visible =
-        client->mapped && !client->minimized &&
-        client->workspace == workspace_ &&
+        client->state.mapped && !client->state.minimized &&
+        client->state.workspace == workspace_ &&
         (unmanagedX11 ||
          (!client->utility &&
-          (fullscreenClient ? inFullscreenFamily : !client->hiddenByMaximize)));
-    if (client->sceneTree) {
+          (fullscreenClient ? inFullscreenFamily
+                            : !client->layout.hiddenByMaximize)));
+    if (client->scene.tree) {
       // Shell dialogs go above the shell's overlay, which takes the top of
       // the layers below.
       auto *targetLayer =
@@ -255,37 +262,38 @@ void WaylandCompositor::arrange() {
           : fullscreenClient && inFullscreenFamily && d->fullscreenLayer
               ? d->fullscreenLayer
               : d->normalLayer;
-      if (client->sceneTree->node.parent != targetLayer)
-        wlr_scene_node_reparent(&client->sceneTree->node, targetLayer);
-      const bool wasVisible = client->sceneTree->node.enabled;
+      if (client->scene.tree->node.parent != targetLayer)
+        wlr_scene_node_reparent(&client->scene.tree->node, targetLayer);
+      const bool wasVisible = client->scene.tree->node.enabled;
       // A window leaving with the previous workspace stays enabled until its
       // slide settles; SceneAnimation hides it then. Arranging again meanwhile
       // (focus changes do) must not cut the slide short.
-      const bool slidingOut =
-          windowAnimations_ && windowAnimations_->slidingOut(client->sceneTree);
-      bool keepSliding = !visible && slidingOut && client->mapped;
+      const bool slidingOut = windowAnimations_ &&
+                              windowAnimations_->slidingOut(client->scene.tree);
+      bool keepSliding = !visible && slidingOut && client->state.mapped;
       if (visible && slidingOut)
-        windowAnimations_->returnHome(client->sceneTree);
-      if (!visible && wasVisible && !slidingOut && client->mapped &&
+        windowAnimations_->returnHome(client->scene.tree);
+      if (!visible && wasVisible && !slidingOut && client->state.mapped &&
           windowAnimations_ && !overviewSwitch) {
-        if (slide && client->workspace != workspace_)
+        if (slide && client->state.workspace != workspace_)
           keepSliding = windowAnimations_->slideOut(
-              client->sceneTree, animationRectangle(client->geometry),
+              client->scene.tree, animationRectangle(client->layout.geometry),
               0, -slideDistance);
-        else if (client->minimized)
+        else if (client->state.minimized)
           // Minimizing drops the window toward the dock.
           windowAnimations_->close(
-              client->sceneTree, d->animationLayer, 0,
+              client->scene.tree, d->animationLayer, 0,
               std::max(WindowTuning::minimizeDropMinimum,
-                       client->geometry.height() / WindowTuning::minimizeDropDivisor));
+                       client->layout.geometry.height() /
+                           WindowTuning::minimizeDropDivisor));
         else
-          windowAnimations_->close(client->sceneTree, d->animationLayer);
+          windowAnimations_->close(client->scene.tree, d->animationLayer);
       }
-      if (visible && !wasVisible && client->geometry.isValid())
+      if (visible && !wasVisible && client->layout.geometry.isValid())
         revealed.push_back(client.get());
       if (!visible && windowAnimations_ && !keepSliding)
-        windowAnimations_->cancel(client->sceneTree);
-      wlr_scene_node_set_enabled(&client->sceneTree->node,
+        windowAnimations_->cancel(client->scene.tree);
+      wlr_scene_node_set_enabled(&client->scene.tree->node,
                                  visible || keepSliding);
     }
 
@@ -295,7 +303,7 @@ void WaylandCompositor::arrange() {
       configure(client.get(), fullscreenArea);
       continue;
     }
-    if (client->floating)
+    if (client->state.floating)
       configure(client.get(), floatingGeometry(*client, area));
   }
 
@@ -303,10 +311,10 @@ void WaylandCompositor::arrange() {
   // different workspace, or an existing fullscreen window covers this one.
   std::vector<int> layoutWorkspaces{workspace_};
   for (const auto &client : clients_)
-    if (client->layoutPending &&
+    if (client->layout.pending &&
         std::find(layoutWorkspaces.begin(), layoutWorkspaces.end(),
-                  client->workspace) == layoutWorkspaces.end())
-      layoutWorkspaces.push_back(client->workspace);
+                  client->state.workspace) == layoutWorkspaces.end())
+      layoutWorkspaces.push_back(client->state.workspace);
   std::vector<WindowPlacement> placements;
   for (const int workspace : layoutWorkspaces)
     for (auto &placement : windowLayout_->presentation(workspace, area))
@@ -317,9 +325,9 @@ void WaylandCompositor::arrange() {
   }
   for (const auto &placement : placements) {
     auto *client = clientById(static_cast<int>(placement.window));
-    if (!client || client->minimized || placement.hiddenByMaximize ||
-        (!client->layoutPending &&
-         (fullscreenClient || client->workspace != workspace_)))
+    if (!client || client->state.minimized || placement.hiddenByMaximize ||
+        (!client->layout.pending &&
+         (fullscreenClient || client->state.workspace != workspace_)))
       continue;
     configure(client, placement.geometry);
   }
@@ -327,16 +335,16 @@ void WaylandCompositor::arrange() {
   if (windowAnimations_ && !overviewSwitch)
     for (auto *client : revealed) {
       if (slide)
-        windowAnimations_->open(client->sceneTree,
-                                animationRectangle(client->geometry),
-                                0, slideDistance, false);
+        windowAnimations_->open(client->scene.tree,
+                                animationRectangle(client->layout.geometry), 0,
+                                slideDistance, false);
       else
-        windowAnimations_->open(client->sceneTree,
-                                animationRectangle(client->geometry));
+        windowAnimations_->open(client->scene.tree,
+                                animationRectangle(client->layout.geometry));
     }
 
-  if (focused_ && focused_->sceneTree && focused_->mapped &&
-      !focused_->minimized && focused_->workspace == workspace_)
+  if (focused_ && focused_->scene.tree && focused_->state.mapped &&
+      !focused_->state.minimized && focused_->state.workspace == workspace_)
     raiseWithDialogs(focused_);
 
   d->updateWindowCorners();

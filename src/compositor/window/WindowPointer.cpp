@@ -1,4 +1,4 @@
-#include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/window/WindowRules.hpp"
@@ -71,18 +71,18 @@ bool WaylandCompositor::Impl::beginWindowPointer(uint32_t button) {
   pointerClientGrab = false;
   pointerResizeEdges = 10; // xdg-shell bottom | right
   pointerResize = wlr_keyboard_get_modifiers(keyboard) & WLR_MODIFIER_SHIFT;
-  if (client->maximized) {
+  if (client->state.maximized) {
     q->setMaximized(client, false);
     q->arrange();
   }
   pointerLast = PointF(cursor->x, cursor->y);
   pointerOrigin = pointerLast;
   pointerStartScale = clientContentScale(*client);
-  pointerStartGeometry = client->geometry;
+  pointerStartGeometry = client->layout.geometry;
   pointerPublishTimeValid = false;
   pointerTarget = 0;
   pointerEdge = 0;
-  client->manualResize = true;
+  client->layout.manualResize = true;
   wlr_seat_pointer_notify_clear_focus(seat);
   setCursorImage(pointerResize ? "se-resize" : "grabbing");
   return true;
@@ -92,7 +92,8 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
                                                    uint32_t serial,
                                                    uint32_t edges,
                                                    bool validateSerial) {
-  if (!client || !q->windowTemplate_ || pointerWindow || !client->wlSurface)
+  if (!client || !q->windowTemplate_ || pointerWindow ||
+      !clientSurface(*client))
     return false;
   // A normal titlebar move is useful in both tiling and stacking: in tiling it
   // chooses another slot to swap with, while stacking follows the pointer and
@@ -104,7 +105,8 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
     return false;
   }
   if (validateSerial) {
-    if (!wlr_seat_validate_pointer_grab_serial(seat, client->wlSurface, serial))
+    if (!wlr_seat_validate_pointer_grab_serial(seat, clientSurface(*client),
+                                               serial))
       return false;
   } else if (!seat->pointer_state.grab_button) {
     return false;
@@ -113,7 +115,7 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   if ((edges & ~15u) || (edges & 3u) == 3u || (edges & 12u) == 12u)
     return false;
   q->focus(client);
-  if (client->maximized) {
+  if (client->state.maximized) {
     q->setMaximized(client, false);
     q->arrange();
   }
@@ -125,15 +127,16 @@ bool WaylandCompositor::Impl::beginClientWindowPointer(ClientWindow *client,
   pointerLast = PointF(cursor->x, cursor->y);
   pointerOrigin = pointerLast;
   pointerStartScale = clientContentScale(*client);
-  pointerStartGeometry = client->geometry;
+  pointerStartGeometry = client->layout.geometry;
   pointerPublishTimeValid = false;
   pointerTarget = pointerEdge = 0;
-  client->manualResize = true;
+  client->layout.manualResize = true;
   // A stacking window is zoomed, not resized: the client keeps its size.
   const bool zooms = q->windowTemplate_->allowOverlap &&
                      q->windowTemplate_->clientMoveResize;
-  if (client->toplevel)
-    wlr_xdg_toplevel_set_resizing(client->toplevel, pointerResize && !zooms);
+  if (clientToplevel(*client))
+    wlr_xdg_toplevel_set_resizing(clientToplevel(*client),
+                                  pointerResize && !zooms);
   setCursorImage(pointerResize ? "se-resize" : "grabbing");
   return true;
 }
@@ -142,8 +145,9 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   if (!pointerWindow)
     return false;
   const auto found = std::find_if(
-      q->clients_.begin(), q->clients_.end(),
-      [this](const auto &c) { return c->id == pointerWindow && c->mapped; });
+      q->clients_.begin(), q->clients_.end(), [this](const auto &c) {
+        return c->id == pointerWindow && c->state.mapped;
+      });
   if (found == q->clients_.end()) {
     finishWindowPointer(false);
     return true;
@@ -182,14 +186,14 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   const bool freeform =
       q->windowTemplate_ && q->windowTemplate_->allowOverlap &&
       q->windowTemplate_->clientMoveResize;
-  if (client->floating) {
-    auto geometry = client->geometry;
+  if (client->state.floating) {
+    auto geometry = client->layout.geometry;
     const auto area = q->workArea();
     if (pointerResize && freeform) {
       geometry = zoomedGeometry(pointerStartGeometry, pointerStartScale,
                                 pointerResizeEdges,
                                 (current - pointerOrigin).toPoint(), area,
-                                &client->contentScale);
+                                &client->effects.contentScale);
     } else if (pointerResize) {
       if (pointerResizeEdges & 4u) geometry.setLeft(std::min(geometry.right() - 119, geometry.left() + delta.x()));
       if (pointerResizeEdges & 8u) geometry.setRight(std::max(geometry.left() + 119, geometry.right() + delta.x()));
@@ -201,8 +205,8 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     geometry.setSize(geometry.size().boundedTo(area.size()));
     geometry.moveLeft(std::clamp(geometry.x(), area.left(), area.right() - geometry.width() + 1));
     geometry.moveTop(std::clamp(geometry.y(), area.top(), area.bottom() - geometry.height() + 1));
-    client->manualGeometry = geometry;
-    client->preferredFloatingSize = geometry.size();
+    client->layout.manualGeometry = geometry;
+    client->layout.preferredFloatingSize = geometry.size();
     q->configure(client, geometry);
     publishGeometry();
     return true;
@@ -238,12 +242,12 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     q->windowSwitcher_->setDrag(hint);
   };
   if (pointerResize && freeform) {
-    const auto geometry = client->geometry;
+    const auto geometry = client->layout.geometry;
     const auto area = q->workArea();
-    const auto target = zoomedGeometry(pointerStartGeometry, pointerStartScale,
-                                       pointerResizeEdges,
-                                       (current - pointerOrigin).toPoint(), area,
-                                       &client->contentScale);
+    const auto target =
+        zoomedGeometry(pointerStartGeometry, pointerStartScale,
+                       pointerResizeEdges, (current - pointerOrigin).toPoint(),
+                       area, &client->effects.contentScale);
     const int width = target.width();
     const int height = target.height();
     // Move first when growing a top/left edge, resize first when shrinking.
@@ -293,12 +297,12 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
     performWindowLayoutAction(
         *q->windowLayout_, *q->windowTemplate_, "resize-width",
         {{"window", client->id},
-         {"width", std::clamp(client->geometry.width() + delta.x(), 120,
+         {"width", std::clamp(client->layout.geometry.width() + delta.x(), 120,
                               std::max(120, q->workArea().width()))}});
     performWindowLayoutAction(
         *q->windowLayout_, *q->windowTemplate_, "resize-height",
         {{"window", client->id},
-         {"height", client->geometry.height() + delta.y()}});
+         {"height", client->layout.geometry.height() + delta.y()}});
     q->arrange();
     return true;
   }
@@ -329,14 +333,14 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   }
   // Tiled: the window follows the pointer above the others; dropped, it
   // springs into its (possibly new) slot.
-  if (client->sceneTree) {
+  if (client->scene.tree) {
     if (!pointerFollowing) {
       if (q->windowAnimations_)
-        q->windowAnimations_->cancel(client->sceneTree);
+        q->windowAnimations_->cancel(client->scene.tree);
       q->raiseWithDialogs(client);
       pointerFollowing = true;
     }
-    auto &node = client->sceneTree->node;
+    auto &node = client->scene.tree->node;
     wlr_scene_node_set_position(&node, node.x + delta.x(), node.y + delta.y());
   }
   updateSwapTarget();
@@ -349,9 +353,9 @@ void WaylandCompositor::Impl::finishWindowPointer(bool apply) {
   pointerTarget = pointerEdge = 0;
   for (const auto &client : q->clients_)
     if (client->id == moving) {
-      client->manualResize = false;
-      if (client->toplevel)
-        wlr_xdg_toplevel_set_resizing(client->toplevel, false);
+      client->layout.manualResize = false;
+      if (clientToplevel(*client))
+        wlr_xdg_toplevel_set_resizing(clientToplevel(*client), false);
     }
   if (apply && !pointerResize && target && q->windowTemplate_) {
     if (directMove && q->windowTemplate_->allowOverlap &&

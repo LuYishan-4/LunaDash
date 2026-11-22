@@ -1,18 +1,18 @@
-#include "compositor/window/animation/WindowAnimation.hpp"
-#include "core/log/StallTrace.hpp"
-#include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
-#include "config/desktop/DesktopPreferences.hpp"
+#include "compositor/window/animation/WindowAnimation.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
+#include "config/desktop/DesktopPreferences.hpp"
 #include "core/filesystem/FileIo.hpp"
 #include "core/log/Log.hpp"
+#include "core/log/StallTrace.hpp"
 #include <algorithm>
-#include <cstdint>
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <ctime>
 #include <string_view>
 #include <utility>
@@ -146,22 +146,26 @@ void WaylandCompositor::Impl::updateWindowCorners() {
   std::vector<WindowCorners::Surface> surfaces;
   const float opacity = eyeCareActive ? 1.0f : steadyWindowOpacity;
   for (const auto &client : q->clients_) {
-    if (!client->sceneTree)
+    if (!client->scene.tree)
       continue;
     wlr_box geometry{};
-    if (client->surface) {
+    if (clientXdg(*client)) {
 #if WLR_VERSION_MINOR >= 19
-      geometry = client->surface->geometry;
+      geometry = clientXdg(*client)->geometry;
 #else
-      wlr_xdg_surface_get_geometry(client->surface, &geometry);
+      wlr_xdg_surface_get_geometry(clientXdg(*client), &geometry);
 #endif
     }
-    const Size logical = clientLogicalSize(*client, client->geometry.size());
-    surfaces.push_back({client->sceneTree, client->sceneContent, client->wlSurface,
-                     {logical.width(), logical.height()},
-                     {geometry.x, geometry.y},
-                     client->mapped && !client->fullscreen &&
-                         !client->desktop && !client->utility, opacity});
+    const Size logical =
+        clientLogicalSize(*client, client->layout.geometry.size());
+    surfaces.push_back(
+        {client->scene.tree,
+         client->scene.content,
+         clientSurface(*client),
+         {logical.width(), logical.height()},
+         {geometry.x, geometry.y},
+         client->state.mapped && !client->state.fullscreen && !client->utility,
+         opacity});
   }
   windowCorners->update(surfaces);
 }
@@ -173,16 +177,18 @@ void WaylandCompositor::Impl::updateWindowGlass() {
   // Windows blur the wallpaper beneath them (one shared capture per output),
   // not the windows: moving, animating or typing never captures again.
   for (const auto &client : q->clients_)
-    if (client->sceneTree)
-      surfaces.push_back({client->sceneTree,
-                       {client->geometry.width(), client->geometry.height()},
-                       client->mapped && !client->fullscreen &&
-                           !client->desktop && !client->utility,
-                       windowCorners ? windowCorners->radius(client->sceneTree) : 0,
-                       -1.0f,
-                       q->windowAnimations_ &&
-                           q->windowAnimations_->animation().ownsOpacity(client->sceneTree),
-                       true});
+    if (client->scene.tree)
+      surfaces.push_back(
+          {client->scene.tree,
+           {client->layout.geometry.width(), client->layout.geometry.height()},
+           client->state.mapped && !client->state.fullscreen &&
+               !client->utility,
+           windowCorners ? windowCorners->radius(client->scene.tree) : 0,
+           -1.0f,
+           q->windowAnimations_ &&
+               q->windowAnimations_->animation().ownsOpacity(
+                   client->scene.tree),
+           true});
   // Layer-shell surfaces (the shell's overlays and popups) opt in through
   // ext-background-effect-v1 and get the same producer-owned,
   // input-transparent blur underlays; never sample the panel's own text or
@@ -458,19 +464,20 @@ void WaylandCompositor::Impl::OutputState::sendFrameDone(timespec *now) {
       screens.push_back(layoutBox(state->output));
   const bool overview = impl->q->overviewShown();
   for (const auto &client : impl->q->clients_) {
-    if (!client->mapped || !client->wlSurface ||
-        (client->workspace != impl->q->workspace_ && !overview))
+    if (!client->state.mapped || !clientSurface(*client) ||
+        (client->state.workspace != impl->q->workspace_ && !overview))
       continue;
     // The overview shows every workspace's windows live.
-    const bool here = overview || client->geometry.intersects(screen);
+    const bool here = overview || client->layout.geometry.intersects(screen);
     const bool elsewhere =
-        !here && std::any_of(screens.begin(), screens.end(), [&](const Rect &other) {
-          return client->geometry.intersects(other);
+        !here &&
+        std::any_of(screens.begin(), screens.end(), [&](const Rect &other) {
+          return client->layout.geometry.intersects(other);
         });
     if (!here && (elsewhere || !hiddenDue))
       continue;
     wlr_surface_for_each_surface(
-        client->wlSurface,
+        clientSurface(*client),
         [](wlr_surface *surface, int, int, void *data) {
           wlr_surface_send_frame_done(surface, static_cast<timespec *>(data));
         },

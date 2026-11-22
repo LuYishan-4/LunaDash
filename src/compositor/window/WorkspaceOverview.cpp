@@ -238,8 +238,9 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   const Rect screen(0, 0, output.width(), output.height());
   std::unordered_set<int> visibleWindows;
 
-  const auto draw = [&](ClientWindow *client, const Rect &layout, bool dragged) {
-    Rect rect = overviewRect(layout, client->workspace);
+  const auto draw = [&](ClientWindow *client, const Rect &layout,
+                        bool dragged) {
+    Rect rect = overviewRect(layout, client->state.workspace);
     if (dragged)
       rect.translate(static_cast<int>(std::lround(dragX)),
                      static_cast<int>(std::lround(dragY)));
@@ -269,8 +270,8 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     visibleWindows.insert(client->id);
     auto &copies = overview_.previewBuffers[client->id];
     std::unordered_set<wlr_scene_buffer *> seen;
-    clonePreview(&client->sceneTree->node, previewTreeNode, 0.0, 0.0, scale, true,
-                 copies, seen);
+    clonePreview(&client->scene.tree->node, previewTreeNode, 0.0, 0.0, scale,
+                 true, copies, seen);
     for (auto it = copies.begin(); it != copies.end();) {
       if (!seen.contains(it->first)) {
         wlr_scene_node_destroy(&it->second->node);
@@ -279,7 +280,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
         ++it;
       }
     }
-    overview_.previews.push_back({client->id, client->workspace, rect});
+    overview_.previews.push_back({client->id, client->state.workspace, rect});
   };
 
   // Other workspaces are laid out afresh: what the layout kept from their last
@@ -287,12 +288,14 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   // places overlap, so one preview covers another and cannot be picked.
   std::unordered_map<int, std::vector<WindowPlacement>> laidOut;
   const Rect area = workArea();
-  const auto placementOf = [&](const ClientWindow &client) -> const WindowPlacement * {
-    auto found = laidOut.find(client.workspace);
+  const auto placementOf =
+      [&](const ClientWindow &client) -> const WindowPlacement * {
+    auto found = laidOut.find(client.state.workspace);
     if (found == laidOut.end())
       found = laidOut
-                  .emplace(client.workspace,
-                           windowLayout_->presentation(client.workspace, area))
+                  .emplace(
+                      client.state.workspace,
+                      windowLayout_->presentation(client.state.workspace, area))
                   .first;
     for (const auto &placement : found->second)
       if (static_cast<int>(placement.window) == client.id)
@@ -303,28 +306,28 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   // Where each window is laid out: the current workspace as shown, the others
   // as their layout places them now.
   const auto layoutRect = [&](const ClientWindow &client) {
-    if (client.workspace == workspace_ || client.floating) {
+    if (client.state.workspace == workspace_ || client.state.floating) {
       // Where the window is drawn right now, so a focus move that scrolls
       // the columns animates in the preview too.
-      if (!windowAnimations_ || !client.sceneTree)
-        return client.geometry;
+      if (!windowAnimations_ || !client.scene.tree)
+        return client.layout.geometry;
       const auto frame = windowAnimations_->animation().visualGeometry(
-          client.sceneTree, animationRectangle(client.geometry));
+          client.scene.tree, animationRectangle(client.layout.geometry));
       return Rect(frame.left, frame.top, frame.width, frame.height);
     }
     if (const auto *placement = placementOf(client);
         placement && placement->geometry.isValid())
       return placement->geometry;
-    return client.geometry;
+    return client.layout.geometry;
   };
 
   ClientWindow *dragged = nullptr;
   for (const auto &client : clients_) {
     // A window a maximized one hides is not shown either: drawn underneath,
     // it could never be picked.
-    if (!client->mapped || client->minimized || client->utility ||
-        client->hiddenByMaximize || !client->sceneTree ||
-        !client->geometry.isValid())
+    if (!client->state.mapped || client->state.minimized || client->utility ||
+        client->layout.hiddenByMaximize || !client->scene.tree ||
+        !client->layout.geometry.isValid())
       continue;
     if (overview_.dragging && client->id == overview_.pressed) {
       dragged = client.get();
@@ -444,8 +447,9 @@ bool WaylandCompositor::overviewPointerMotion() {
 void WaylandCompositor::moveClientToWorkspace(ClientWindow *client, int workspace) {
   if (!client || client->utility)
     return;
-  client->workspace = std::clamp(workspace, 0, std::max(0, workspaceCount() - 1));
-  windowLayout_->moveToWorkspace(client->id, client->workspace);
+  client->state.workspace =
+      std::clamp(workspace, 0, std::max(0, workspaceCount() - 1));
+  windowLayout_->moveToWorkspace(client->id, client->state.workspace);
   arrange();
   synchronizeWindowFocus();
 }
@@ -488,7 +492,7 @@ bool WaylandCompositor::overviewPointerButton(std::uint32_t button, bool pressed
   if (overview_.dragging && client) {
     // Dropped on a window: swap with it on its workspace, or move there first.
     if (const auto *target = overviewPreviewAt(x, y, client->id)) {
-      if (target->workspace != client->workspace)
+      if (target->workspace != client->state.workspace)
         moveClientToWorkspace(client, target->workspace);
       if (performLayoutAction("swap", {{"window", client->id}, {"target", target->window}})) {
         arrange();
@@ -496,13 +500,13 @@ bool WaylandCompositor::overviewPointerButton(std::uint32_t button, bool pressed
       }
     } else {
       const int workspace = overviewWorkspaceAt(y);
-      if (workspace != client->workspace)
+      if (workspace != client->state.workspace)
         moveClientToWorkspace(client, workspace);
     }
   } else if (client) {
     // A click switches to the window.
-    selectWorkspace(client->workspace);
-    client->minimized = false;
+    selectWorkspace(client->state.workspace);
+    client->state.minimized = false;
     windowLayout_->setMinimized(client->id, false);
     windowLayout_->focus(client->id);
     arrange();

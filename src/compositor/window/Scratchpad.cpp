@@ -39,13 +39,13 @@ bool WaylandCompositor::toggleScratchpad(std::string *error) {
   for (const auto &client : clients_) {
     if (client->id != scratchpad_.window)
       continue;
-    const bool hide = client->mapped && !client->minimized &&
-                      client->workspace == workspace_ &&
+    const bool hide = client->state.mapped && !client->state.minimized &&
+                      client->state.workspace == workspace_ &&
                       focused_ == client.get();
-    client->workspace = workspace_;
-    client->minimized = hide;
-    client->floating = true;
-    client->maximized = false;
+    client->state.workspace = workspace_;
+    client->state.minimized = hide;
+    client->state.floating = true;
+    client->state.maximized = false;
     arrange();
     if (hide)
       synchronizeWindowFocus();
@@ -97,7 +97,7 @@ bool WaylandCompositor::toggleScratchpad(std::string *error) {
 
 void WaylandCompositor::adoptScratchpad(ClientWindow *client) {
   if (client && client->id == scratchpad_.window) {
-    client->floating = true;
+    client->state.floating = true;
     return;
   }
   if (!client || !scratchpad_.pending || client->utility ||
@@ -107,8 +107,8 @@ void WaylandCompositor::adoptScratchpad(ClientWindow *client) {
   d->cancelScratchpadTimeout();
   scratchpad_.pending = false;
   scratchpad_.process = 0;
-  client->floating = true;
-  client->workspace = workspace_;
-  client->preferredFloatingSize = Size(960, 540);
+  client->state.floating = true;
+  client->state.workspace = workspace_;
+  client->layout.preferredFloatingSize = Size(960, 540);
 }
 } // namespace LunaDash

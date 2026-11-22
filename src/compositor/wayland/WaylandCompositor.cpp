@@ -97,8 +97,8 @@ bool WaylandCompositor::start() {
   windowAnimations_->animation().setResizeHook(
       [this](wlr_scene_tree *tree, const SceneAnimationRectangle *current) {
         for (const auto &client : clients_)
-          if (client->sceneTree == tree) {
-            client->animatedSize =
+          if (client->scene.tree == tree) {
+            client->effects.animatedSize =
                 current ? Size(current->width, current->height) : Size();
             return;
           }

@@ -169,10 +169,10 @@ void CompositorCommands::registerWindowCommands(CommandRegistry &registry) {
     ClientWindow *client = nullptr;
     if (auto error = windowById(c, r, &client))
       return error;
-    if (client->workspace != c.workspace_)
-      c.workspaceSlide_ = client->workspace > c.workspace_ ? 1 : -1;
-    c.workspace_ = client->workspace;
-    client->minimized = false;
+    if (client->state.workspace != c.workspace_)
+      c.workspaceSlide_ = client->state.workspace > c.workspace_ ? 1 : -1;
+    c.workspace_ = client->state.workspace;
+    client->state.minimized = false;
     c.windowLayout_->setMinimized(client->id, false);
     c.windowLayout_->focus(client->id);
     c.arrange();

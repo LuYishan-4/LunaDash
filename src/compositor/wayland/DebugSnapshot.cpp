@@ -137,8 +137,10 @@ Json WaylandCompositor::debugSnapshot() const {
        {
            {"keyboards", keyboards},
            {"pointerDevices", d->pointerDevices},
-           {"keyboardFocus", describe(seat ? seat->keyboard_state.focused_surface : nullptr)},
-           {"pointerFocus", describe(seat ? seat->pointer_state.focused_surface : nullptr)},
+           {"keyboardFocus",
+            describe(seat ? seat->keyboard_state.focused_surface : nullptr)},
+           {"pointerFocus",
+            describe(seat ? seat->pointer_state.focused_surface : nullptr)},
            {"pointerGrab", seat && wlr_seat_pointer_has_grab(seat)},
            {"windowPointerOperation",
             d->pointerWindow ? (d->pointerResize ? "resize" : "move") : "none"},
@@ -150,21 +152,26 @@ Json WaylandCompositor::debugSnapshot() const {
            {"x", d->cursor ? d->cursor->x : 0.0},
            {"y", d->cursor ? d->cursor->y : 0.0},
            {"image", d->cursorImage},
-           {"theme", d->cursorManager && d->cursorManager->name ? d->cursorManager->name : ""},
+           {"theme", d->cursorManager && d->cursorManager->name
+                         ? d->cursorManager->name
+                         : ""},
            {"size", d->cursorManager ? d->cursorManager->size : 0},
        }},
       {"layers", layers},
       {"animations",
        {
            // 0 when animations are off (preferences or reduced motion).
-           {"durationMs", windowAnimations_ ? windowAnimations_->animation().duration() : 0},
+           {"durationMs",
+            windowAnimations_ ? windowAnimations_->animation().duration() : 0},
            {"active", windowAnimations_ ? windowAnimations_->activeCount() : 0},
        }},
       {"windows",
        {
            {"count", clients_.size()},
            {"mapped", std::count_if(clients_.cbegin(), clients_.cend(),
-                                    [](const auto &client) { return client->mapped; })},
+                                    [](const auto &client) {
+                                      return client->state.mapped;
+                                    })},
        }},
       {"capture",
        {
@@ -193,7 +200,8 @@ Json WaylandCompositor::debugSnapshot() const {
            {"idleInhibitors", d->idleNotify ? d->idleNotify->inhibitors() : 0},
            {"sessionLock", d->sessionLock && d->sessionLock->valid()},
            {"sessionLocked", d->sessionLocked()},
-           {"extWorkspace", d->workspaceProtocol && d->workspaceProtocol->valid()},
+           {"extWorkspace",
+            d->workspaceProtocol && d->workspaceProtocol->valid()},
            {"screencopy", d->screencopy != nullptr},
 #if LUDASH_WLR_HAS_DATA_CONTROL
            {"dataControl", d->dataControl != nullptr},

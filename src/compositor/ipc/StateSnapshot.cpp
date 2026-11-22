@@ -1,5 +1,5 @@
 #include "compositor/capture/ScreenCapture.hpp"
-#include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/plugins/PluginManager.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
@@ -81,72 +81,71 @@ Json WaylandCompositor::describeClients(Json &xwaylandUtilities) const {
     if (client->utility) {
       // Keep notifications out of the task list while exposing their lifetime
       // separately for diagnostics, including the interval before destruction.
-      if (client->x11)
-        xwaylandUtilities.push_back(
-            Json::object({{"id", client->id}, {"mapped", client->mapped}}));
+      if (clientIsX11(*client))
+        xwaylandUtilities.push_back(Json::object(
+            {{"id", client->id}, {"mapped", client->state.mapped}}));
       continue;
     }
     int bufferWidth = 0;
     int bufferHeight = 0;
-    if (client->wlSurface) {
-      bufferWidth = client->wlSurface->current.width;
-      bufferHeight = client->wlSurface->current.height;
+    if (clientSurface(*client)) {
+      bufferWidth = clientSurface(*client)->current.width;
+      bufferHeight = clientSurface(*client)->current.height;
     }
     wlr_box contentGeometry{};
-    if (client->surface) {
+    if (clientXdg(*client)) {
 #if WLR_VERSION_MINOR >= 19
-      contentGeometry = client->surface->geometry;
+      contentGeometry = clientXdg(*client)->geometry;
 #else
-      wlr_xdg_surface_get_geometry(client->surface, &contentGeometry);
+      wlr_xdg_surface_get_geometry(clientXdg(*client), &contentGeometry);
 #endif
     }
-    const auto fallback = animationRectangle(client->geometry);
+    const auto fallback = animationRectangle(client->layout.geometry);
     const auto frame = windowAnimations_
                            ? windowAnimations_->animation().visualGeometry(
-                                 client->sceneTree, fallback)
+                                 client->scene.tree, fallback)
                            : fallback;
     const bool sceneVisible =
-        client->sceneTree ? client->sceneTree->node.enabled : false;
-    entries.push_back(Json::object({
-        {"contentX", contentGeometry.x},
-        {"contentY", contentGeometry.y},
-        {"contentGeometryWidth",
-         client->surface ? contentGeometry.width : bufferWidth},
-        {"contentGeometryHeight",
-         client->surface ? contentGeometry.height : bufferHeight},
-        {"frameX", frame.left},
-        {"frameY", frame.top},
-        {"frameWidth", frame.width},
-        {"frameHeight", frame.height},
-        {"cornerRadius", d && d->windowCorners
-                             ? d->windowCorners->radius(client->sceneTree)
-                             : 0},
-        {"floating", client->floating},
-        {"contentWidth", bufferWidth},
-        {"contentHeight", bufferHeight},
-        {"contentVisible", sceneVisible},
-        {"contentPaintEnabled", true},
-        {"bufferWidth", bufferWidth},
-        {"bufferHeight", bufferHeight},
-        {"id", client->id},
-        {"title", client->title},
-        {"appId", client->appId},
-        {"icon", client->iconName},
-        {"desktop", client->desktop},
-        {"x11", client->x11},
-        {"workspace", client->workspace},
-        {"visible", sceneVisible},
-        {"focused", client.get() == focused_},
-        {"x", client->geometry.x()},
-        {"y", client->geometry.y()},
-        {"width", client->geometry.width()},
-        {"height", client->geometry.height()},
-        {"minimized", client->minimized},
-        {"maximized", client->maximized},
-        {"fullscreen", client->fullscreen},
-        {"hiddenByMaximize", client->hiddenByMaximize},
-        {"manualResize", client->manualResize},
-        {"mapped", client->mapped}}));
+        client->scene.tree ? client->scene.tree->node.enabled : false;
+    entries.push_back(Json::object(
+        {{"contentX", contentGeometry.x},
+         {"contentY", contentGeometry.y},
+         {"contentGeometryWidth",
+          clientXdg(*client) ? contentGeometry.width : bufferWidth},
+         {"contentGeometryHeight",
+          clientXdg(*client) ? contentGeometry.height : bufferHeight},
+         {"frameX", frame.left},
+         {"frameY", frame.top},
+         {"frameWidth", frame.width},
+         {"frameHeight", frame.height},
+         {"cornerRadius", d && d->windowCorners
+                              ? d->windowCorners->radius(client->scene.tree)
+                              : 0},
+         {"floating", client->state.floating},
+         {"contentWidth", bufferWidth},
+         {"contentHeight", bufferHeight},
+         {"contentVisible", sceneVisible},
+         {"contentPaintEnabled", true},
+         {"bufferWidth", bufferWidth},
+         {"bufferHeight", bufferHeight},
+         {"id", client->id},
+         {"title", client->title},
+         {"appId", client->appId},
+         {"icon", client->iconName},
+         {"x11", clientIsX11(*client)},
+         {"workspace", client->state.workspace},
+         {"visible", sceneVisible},
+         {"focused", client.get() == focused_},
+         {"x", client->layout.geometry.x()},
+         {"y", client->layout.geometry.y()},
+         {"width", client->layout.geometry.width()},
+         {"height", client->layout.geometry.height()},
+         {"minimized", client->state.minimized},
+         {"maximized", client->state.maximized},
+         {"fullscreen", client->state.fullscreen},
+         {"hiddenByMaximize", client->layout.hiddenByMaximize},
+         {"manualResize", client->layout.manualResize},
+         {"mapped", client->state.mapped}}));
   }
   return entries;
 }
@@ -183,14 +182,14 @@ Json WaylandCompositor::describeTiling() const {
       const auto *member = clientById(static_cast<int>(id));
       if (!member)
         continue;
-      const bool memberFocused = member == focused_ && !member->minimized;
+      const bool memberFocused = member == focused_ && !member->state.minimized;
       groupFocused = groupFocused || memberFocused;
       members.push_back(Json::object({{"window", static_cast<std::int64_t>(id)},
                                       {"title", member->title},
                                       {"appId", member->appId},
                                       {"icon", member->iconName},
                                       {"focused", memberFocused},
-                                      {"minimized", member->minimized}}));
+                                      {"minimized", member->state.minimized}}));
     }
     groups.push_back(Json::object({{"index", group},
                                    {"focused", groupFocused},
@@ -276,10 +275,10 @@ Json WaylandCompositor::shellState() const {
       clients.push_back(Json::object({{"id", client->id},
                                       {"title", client->title},
                                       {"appId", client->appId},
-                                      {"workspace", client->workspace},
+                                      {"workspace", client->state.workspace},
                                       {"focused", client.get() == focused_},
-                                      {"mapped", client->mapped},
-                                      {"minimized", client->minimized}}));
+                                      {"mapped", client->state.mapped},
+                                      {"minimized", client->state.minimized}}));
   auto preferences = desktopPreferences();
   preferences["plugins"] = jsonArray(pluginManager_->snapshot(), "installed");
   Json result{{"workspace", workspace_},

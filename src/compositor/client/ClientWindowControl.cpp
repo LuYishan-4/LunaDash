@@ -1,6 +1,6 @@
 #include "compositor/client/ClientWindowControl.hpp"
 
-#include "compositor/client/ClientWindow.hpp"
+#include "compositor/client/ClientSurface.hpp"
 #include "compositor/wayland/SurfaceText.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
@@ -14,13 +14,13 @@ namespace {
 
 #if LUDASH_WLR_HAS_XWAYLAND
 bool isXWaylandClient(const ClientWindow *client) {
-  return client && client->x11 && client->xwayland;
+  return client && clientXWayland(*client);
 }
 #endif
 
 bool xdgToplevelConfigurable(const ClientWindow *client) {
-  return client && client->toplevel && client->surface &&
-         client->surface->initialized;
+  auto *xdg = client ? clientXdg(*client) : nullptr;
+  return xdg && xdg->toplevel && xdg->initialized;
 }
 
 wlr_scene_buffer_point_accepts_input_func_t surfaceAcceptsInput = nullptr;
@@ -115,73 +115,77 @@ void configureXWaylandSurface(ClientWindow *client, const Rect &rectangle,
   const auto width = static_cast<uint16_t>(std::clamp(size.width(), 1, 65535));
   const auto height =
       static_cast<uint16_t>(std::clamp(size.height(), 1, 65535));
-  auto *surface = client->xwayland;
+  auto *surface = clientXWayland(*client);
   if (surface->x != x || surface->y != y || surface->width != width ||
       surface->height != height)
     wlr_xwayland_surface_configure(surface, x, y, width, height);
-  if (surface->maximized_horz != client->maximized ||
-      surface->maximized_vert != client->maximized)
-    WlrootsCompat::setXWaylandMaximized(surface, client->maximized);
-  if (surface->fullscreen != client->fullscreen)
-    wlr_xwayland_surface_set_fullscreen(surface, client->fullscreen);
-  client->lastSize = size;
+  if (surface->maximized_horz != client->state.maximized ||
+      surface->maximized_vert != client->state.maximized)
+    WlrootsCompat::setXWaylandMaximized(surface, client->state.maximized);
+  if (surface->fullscreen != client->state.fullscreen)
+    wlr_xwayland_surface_set_fullscreen(surface, client->state.fullscreen);
+  client->layout.lastSize = size;
 }
 
 void readXWaylandMetadata(ClientWindow *client) {
-  auto *surface = client->xwayland;
-  client->title = safeUtf8(surface->title);
-  client->appId =
-      safeUtf8(surface->class_ ? surface->class_ : surface->instance);
+  auto *surface = clientXWayland(*client);
+  setClientText(client->title, safeUtf8(surface->title));
+  setClientText(client->appId, safeUtf8(surface->class_ ? surface->class_
+                                                        : surface->instance));
   client->processId = surface->pid;
   client->utility = surface->override_redirect;
-  if (!client->initialRuleApplied)
-    client->floating = client->utility || surface->parent || surface->modal;
+  if (!client->layout.initialRuleApplied)
+    client->state.floating =
+        client->utility || surface->parent || surface->modal;
   else if (surface->parent || surface->modal)
-    client->floating = true;
+    client->state.floating = true;
 }
 #endif
 
 void configureXdgToplevel(ClientWindow *client, const Rect &rectangle,
                           const Size &size) {
-  const wlr_box geometry = xdgGeometry(client->surface);
+  auto *toplevel = clientToplevel(*client);
+  const wlr_box geometry = xdgGeometry(clientXdg(*client));
   wlr_box clip{geometry.x, geometry.y, rectangle.width(), rectangle.height()};
-  if (client->sceneContent)
-    wlr_scene_subsurface_tree_set_clip(&client->sceneContent->node,
-                                       client->floating ? nullptr : &clip);
-  if (client->lastSize != size) {
-    client->lastSize = size;
-    wlr_xdg_toplevel_set_size(client->toplevel, size.width(), size.height());
+  if (client->scene.content)
+    wlr_scene_subsurface_tree_set_clip(
+        &client->scene.content->node, client->state.floating ? nullptr : &clip);
+  if (client->layout.lastSize != size) {
+    client->layout.lastSize = size;
+    wlr_xdg_toplevel_set_size(toplevel, size.width(), size.height());
   }
-  wlr_xdg_toplevel_set_maximized(client->toplevel, client->maximized);
-  wlr_xdg_toplevel_set_fullscreen(client->toplevel, client->fullscreen);
+  wlr_xdg_toplevel_set_maximized(toplevel, client->state.maximized);
+  wlr_xdg_toplevel_set_fullscreen(toplevel, client->state.fullscreen);
 
   const std::uint32_t tiled =
-      client->floating || client->maximized || client->fullscreen
+      client->state.floating || client->state.maximized ||
+              client->state.fullscreen
           ? 0
           : WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT;
-  if (client->toplevel->scheduled.tiled != tiled)
-    wlr_xdg_toplevel_set_tiled(client->toplevel, tiled);
+  if (toplevel->scheduled.tiled != tiled)
+    wlr_xdg_toplevel_set_tiled(toplevel, tiled);
 }
 
 void readXdgMetadata(ClientWindow *client) {
-  client->title = safeUtf8(client->toplevel->title);
-  client->appId = safeUtf8(client->toplevel->app_id);
+  const auto *toplevel = clientToplevel(*client);
+  setClientText(client->title, safeUtf8(toplevel->title));
+  setClientText(client->appId, safeUtf8(toplevel->app_id));
   client->utility = isUtilityWindow(client->appId);
-  if (!client->initialRuleApplied)
-    client->floating = client->toplevel->parent != nullptr;
-  else if (client->toplevel->parent)
-    client->floating = true;
+  if (!client->layout.initialRuleApplied)
+    client->state.floating = toplevel->parent != nullptr;
+  else if (toplevel->parent)
+    client->state.floating = true;
 }
 
 } // namespace
 
 bool clientReady(const ClientWindow *client) {
-  if (!client || !client->wlSurface)
+  if (!client || !clientSurface(*client))
     return false;
-  if (client->x11)
-    return client->xwayland != nullptr;
-  return client->surface && client->surface->initialized &&
-         client->toplevel != nullptr;
+  if (clientIsX11(*client))
+    return true;
+  const auto *xdg = clientXdg(*client);
+  return xdg && xdg->initialized && xdg->toplevel;
 }
 
 bool clientIsTransientOf(const ClientWindow *client,
@@ -190,20 +194,24 @@ bool clientIsTransientOf(const ClientWindow *client,
   if (!client || !ancestor || client == ancestor)
     return false;
 #if LUDASH_WLR_HAS_XWAYLAND
-  if (client->xwayland && ancestor->xwayland) {
-    auto *parent = client->xwayland->parent;
+  const auto *xwayland = clientXWayland(*client);
+  const auto *ancestorXWayland = clientXWayland(*ancestor);
+  if (xwayland && ancestorXWayland) {
+    auto *parent = xwayland->parent;
     for (std::size_t depth = 0; parent && depth < maxDepth; ++depth) {
-      if (parent == ancestor->xwayland)
+      if (parent == ancestorXWayland)
         return true;
       parent = parent->parent;
     }
     return false;
   }
 #endif
-  if (client->toplevel && ancestor->toplevel) {
-    auto *parent = client->toplevel->parent;
+  const auto *toplevel = clientToplevel(*client);
+  const auto *ancestorToplevel = clientToplevel(*ancestor);
+  if (toplevel && ancestorToplevel) {
+    auto *parent = toplevel->parent;
     for (std::size_t depth = 0; parent && depth < maxDepth; ++depth) {
-      if (parent == ancestor->toplevel)
+      if (parent == ancestorToplevel)
         return true;
       parent = parent->parent;
     }
@@ -216,12 +224,12 @@ void setClientActivated(ClientWindow *client, bool active) {
     return;
 #if LUDASH_WLR_HAS_XWAYLAND
   if (isXWaylandClient(client)) {
-    wlr_xwayland_surface_activate(client->xwayland, active);
+    wlr_xwayland_surface_activate(clientXWayland(*client), active);
     return;
   }
 #endif
-  if (client->toplevel)
-    wlr_xdg_toplevel_set_activated(client->toplevel, active);
+  if (clientToplevel(*client))
+    wlr_xdg_toplevel_set_activated(clientToplevel(*client), active);
 }
 
 void closeClient(ClientWindow *client) {
@@ -229,46 +237,48 @@ void closeClient(ClientWindow *client) {
     return;
 #if LUDASH_WLR_HAS_XWAYLAND
   if (isXWaylandClient(client)) {
-    wlr_xwayland_surface_close(client->xwayland);
+    wlr_xwayland_surface_close(clientXWayland(*client));
     return;
   }
 #endif
-  if (client->toplevel)
-    wlr_xdg_toplevel_send_close(client->toplevel);
+  if (clientToplevel(*client))
+    wlr_xdg_toplevel_send_close(clientToplevel(*client));
 }
 
 void setClientMinimizedHint([[maybe_unused]] ClientWindow *client,
                             [[maybe_unused]] bool minimized) {
 #if LUDASH_WLR_HAS_XWAYLAND
   if (isXWaylandClient(client))
-    wlr_xwayland_surface_set_minimized(client->xwayland, minimized);
+    wlr_xwayland_surface_set_minimized(clientXWayland(*client), minimized);
 #endif
 }
 
 void setClientMaximizedHint(ClientWindow *client, bool maximized) {
 #if LUDASH_WLR_HAS_XWAYLAND
   if (isXWaylandClient(client)) {
-    WlrootsCompat::setXWaylandMaximized(client->xwayland, maximized);
+    WlrootsCompat::setXWaylandMaximized(clientXWayland(*client), maximized);
     return;
   }
 #endif
   if (xdgToplevelConfigurable(client))
-    wlr_xdg_toplevel_set_maximized(client->toplevel, maximized);
+    wlr_xdg_toplevel_set_maximized(clientToplevel(*client), maximized);
 }
 
 void setClientFullscreenHint(ClientWindow *client, bool fullscreen) {
 #if LUDASH_WLR_HAS_XWAYLAND
   if (isXWaylandClient(client)) {
-    wlr_xwayland_surface_set_fullscreen(client->xwayland, fullscreen);
+    wlr_xwayland_surface_set_fullscreen(clientXWayland(*client), fullscreen);
     return;
   }
 #endif
   if (xdgToplevelConfigurable(client))
-    wlr_xdg_toplevel_set_fullscreen(client->toplevel, fullscreen);
+    wlr_xdg_toplevel_set_fullscreen(clientToplevel(*client), fullscreen);
 }
 
 double clientContentScale(const ClientWindow &client) {
-  return client.fullscreen || client.maximized ? 1.0 : client.contentScale;
+  return client.state.fullscreen || client.state.maximized
+             ? 1.0
+             : client.effects.contentScale;
 }
 
 Size clientLogicalSize(const ClientWindow &client, const Size &visual) {
@@ -277,10 +287,11 @@ Size clientLogicalSize(const ClientWindow &client, const Size &visual) {
             std::max(1, static_cast<int>(std::lround(visual.height() / scale))));
   // A zoomed window's drawn size is rounded: keep the client's size rather
   // than send it a pixel of difference on every step of a zoom.
-  if (scale != 1.0 && client.lastSize.width() > 0 && client.lastSize.height() > 0 &&
-      std::abs(size.width() - client.lastSize.width()) <= 1 &&
-      std::abs(size.height() - client.lastSize.height()) <= 1)
-    return client.lastSize;
+  if (scale != 1.0 && client.layout.lastSize.width() > 0 &&
+      client.layout.lastSize.height() > 0 &&
+      std::abs(size.width() - client.layout.lastSize.width()) <= 1 &&
+      std::abs(size.height() - client.layout.lastSize.height()) <= 1)
+    return client.layout.lastSize;
   return size;
 }
 
@@ -289,19 +300,22 @@ void applyClientContentScale(ClientWindow &client) {
   Scale scale{content, content};
   // A resize animation stretches whatever the client last drew to the
   // animated size; it reaches 1:1 as the client's new size arrives.
-  if (client.animatedSize.width() > 0 && client.animatedSize.height() > 0) {
+  if (client.effects.animatedSize.width() > 0 &&
+      client.effects.animatedSize.height() > 0) {
     const Size committed = clientCommittedSize(client);
     if (committed.width() > 0 && committed.height() > 0)
-      scale = {static_cast<double>(client.animatedSize.width()) / committed.width(),
-               static_cast<double>(client.animatedSize.height()) / committed.height()};
+      scale = {static_cast<double>(client.effects.animatedSize.width()) /
+                   committed.width(),
+               static_cast<double>(client.effects.animatedSize.height()) /
+                   committed.height()};
   }
-  if (scale.x == 1.0 && scale.y == 1.0 && client.appliedScaleX == 1.0 &&
-      client.appliedScaleY == 1.0)
+  if (scale.x == 1.0 && scale.y == 1.0 && client.effects.scaleX == 1.0 &&
+      client.effects.scaleY == 1.0)
     return;
-  if (client.sceneTree)
-    scaleSurfaceBuffers(&client.sceneTree->node, 0, 0, scale);
-  client.appliedScaleX = scale.x;
-  client.appliedScaleY = scale.y;
+  if (client.scene.tree)
+    scaleSurfaceBuffers(&client.scene.tree->node, 0, 0, scale);
+  client.effects.scaleX = scale.x;
+  client.effects.scaleY = scale.y;
 }
 
 void configureClientSurface(ClientWindow *client, const Rect &rectangle) {
@@ -323,12 +337,13 @@ void configureClientSurface(ClientWindow *client, const Rect &rectangle) {
 
 Size clientCommittedSize(const ClientWindow &client) {
 #if LUDASH_WLR_HAS_XWAYLAND
-  if (isXWaylandClient(&client))
-    return Size(client.xwayland->width, client.xwayland->height);
+  if (const auto *xwayland = clientXWayland(client))
+    return Size(xwayland->width, xwayland->height);
 #endif
-  if (!client.surface)
+  auto *xdg = clientXdg(client);
+  if (!xdg)
     return Size();
-  const wlr_box geometry = xdgGeometry(client.surface);
+  const wlr_box geometry = xdgGeometry(xdg);
   return Size(geometry.width, geometry.height);
 }
 
@@ -341,7 +356,7 @@ bool readClientProtocolMetadata(ClientWindow *client) {
     return true;
   }
 #endif
-  if (!client->toplevel)
+  if (!clientToplevel(*client))
     return false;
   readXdgMetadata(client);
   return true;

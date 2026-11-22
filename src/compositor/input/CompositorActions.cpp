@@ -200,7 +200,9 @@ void CompositorActions::registerBuiltins(ActionRegistry &registry) {
         const int amount = change->percent
                                ? static_cast<int>(std::lround(area * change->value / 100.0))
                                : change->value;
-        const int width = change->relative ? c.focused_->geometry.width() + amount : amount;
+        const int width = change->relative
+                              ? c.focused_->layout.geometry.width() + amount
+                              : amount;
         c.performLayoutAction(
             "resize-width",
             {{"window", c.focused_->id},
@@ -209,13 +211,15 @@ void CompositorActions::registerBuiltins(ActionRegistry &registry) {
       [](std::string_view word) { return widthChange(word).has_value(); });
 
   // Windows.
-  add("maximize-column", none, ActionNeedsFocus,
-      [](C &c, auto &) { c.setMaximized(c.focused_, !c.focused_->maximized); });
-  add("fullscreen-window", none, ActionNeedsFocus,
-      [](C &c, auto &) { c.setFullscreen(c.focused_, !c.focused_->fullscreen); });
+  add("maximize-column", none, ActionNeedsFocus, [](C &c, auto &) {
+    c.setMaximized(c.focused_, !c.focused_->state.maximized);
+  });
+  add("fullscreen-window", none, ActionNeedsFocus, [](C &c, auto &) {
+    c.setFullscreen(c.focused_, !c.focused_->state.fullscreen);
+  });
   add("close-window", none, ActionNeedsFocus, [](C &c, auto &) { closeClient(c.focused_); });
   add("minimize-window", none, ActionNeedsFocus, [](C &c, auto &) {
-    c.focused_->minimized = true;
+    c.focused_->state.minimized = true;
     c.windowLayout_->setMinimized(c.focused_->id, true);
   });
   add("toggle-scratchpad", none, ActionNoRelayout, [](C &c, auto &) {
@@ -291,7 +295,8 @@ bool WaylandCompositor::runAction(std::string_view text, std::string *error) {
   if (!call || !checkActionCall(actions_, *call, error))
     return false;
   const auto *action = actions_.find(call->name);
-  if ((action->flags & ActionLeavesMaximized) && focused_ && focused_->maximized) {
+  if ((action->flags & ActionLeavesMaximized) && focused_ &&
+      focused_->state.maximized) {
     setMaximized(focused_, false);
     arrange();
   }

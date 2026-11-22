@@ -146,7 +146,6 @@ public:
     ClientWindow *const client;
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
     wlr_scene *imageCaptureScene = nullptr;
-    wlr_scene_tree *imageCaptureTree = nullptr;
     wlr_ext_foreign_toplevel_handle_v1 *foreignHandle = nullptr;
     wlr_ext_image_capture_source_v1 *imageCaptureSource = nullptr;
 #endif
@@ -170,8 +169,7 @@ public:
   };
 
   struct XWaylandState : LunaClint<XWaylandState> {
-    XWaylandState(Impl *owner, ClientWindow *window,
-                  wlr_xwayland_surface *xwaylandSurface);
+    XWaylandState(Impl *owner, ClientWindow *window);
     XWaylandState(const XWaylandState &) = delete;
     XWaylandState &operator=(const XWaylandState &) = delete;
     void listenToSurface();
@@ -194,7 +192,6 @@ public:
 
     Impl *const impl;
     ClientWindow *const client;
-    wlr_xwayland_surface *surface = nullptr;
     Slot associate;
     Slot dissociate;
     Slot map;

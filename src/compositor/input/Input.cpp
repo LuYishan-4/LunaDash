@@ -667,9 +667,9 @@ void WaylandCompositor::Impl::positionInputPopup(PopupState *popup) {
   if (!client)
     return;
   const auto &rect = activeTextInput->text->current.cursor_rectangle;
-  wlr_scene_node_set_position(&popup->sceneTree->node,
-                              client->geometry.x() + rect.x,
-                              client->geometry.y() + rect.y + rect.height);
+  wlr_scene_node_set_position(
+      &popup->sceneTree->node, client->layout.geometry.x() + rect.x,
+      client->layout.geometry.y() + rect.y + rect.height);
 }
 
 

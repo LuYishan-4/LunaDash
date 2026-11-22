@@ -116,7 +116,8 @@ void WaylandCompositor::Impl::XdgShellComponent::onActivationRequest(
     return;
 
   auto *target = impl->clientForSurface(request->surface);
-  if (target && target->mapped && !target->minimized && !target->utility)
+  if (target && target->state.mapped && !target->state.minimized &&
+      !target->utility)
     impl->q->focus(target);
 }
 #endif
