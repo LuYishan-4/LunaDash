@@ -56,32 +56,45 @@ WaylandCompositor::Impl::XWaylandState::XWaylandState(
 #if LUDASH_WLR_HAS_XWAYLAND
 void WaylandCompositor::Impl::XWaylandState::listenToSurface() {
   auto &events = surface->events;
-  listen<&XWaylandState::onAssociate>(&events.associate, associate);
-  listen<&XWaylandState::onDissociate>(&events.dissociate, dissociate);
-  listen<&XWaylandState::onDestroy>(&events.destroy, destroy);
-  listen<&XWaylandState::onConfigure>(&events.request_configure,
-                                      requestConfigure);
-  listen<&XWaylandState::onMove>(&events.request_move, requestMove);
-  listen<&XWaylandState::onResize>(&events.request_resize, requestResize);
-  listen<&XWaylandState::onMinimize>(&events.request_minimize, requestMinimize);
-  listen<&XWaylandState::onMaximize>(&events.request_maximize, requestMaximize);
-  listen<&XWaylandState::onFullscreen>(&events.request_fullscreen,
-                                       requestFullscreen);
-  listen<&XWaylandState::onActivate>(&events.request_activate, requestActivate);
-  listen<&XWaylandState::onMetadata>(&events.set_title, setTitle);
-  listen<&XWaylandState::onMetadata>(&events.set_class, setClass);
-  listen<&XWaylandState::onMetadata>(&events.set_parent, setParent);
-  listen<&XWaylandState::onMetadata>(&events.set_geometry, setGeometry);
-  listen<&XWaylandState::onMetadata>(&events.set_override_redirect,
-                                     setOverrideRedirect);
+  listen<&XWaylandState::onAssociate, &XWaylandState::associate>(
+      &events.associate);
+  listen<&XWaylandState::onDissociate, &XWaylandState::dissociate>(
+      &events.dissociate);
+  listen<&XWaylandState::onDestroy, &XWaylandState::destroy>(&events.destroy);
+  listen<&XWaylandState::onConfigure, &XWaylandState::requestConfigure>(
+      &events.request_configure);
+  listen<&XWaylandState::onMove, &XWaylandState::requestMove>(
+      &events.request_move);
+  listen<&XWaylandState::onResize, &XWaylandState::requestResize>(
+      &events.request_resize);
+  listen<&XWaylandState::onMinimize, &XWaylandState::requestMinimize>(
+      &events.request_minimize);
+  listen<&XWaylandState::onMaximize, &XWaylandState::requestMaximize>(
+      &events.request_maximize);
+  listen<&XWaylandState::onFullscreen, &XWaylandState::requestFullscreen>(
+      &events.request_fullscreen);
+  listen<&XWaylandState::onActivate, &XWaylandState::requestActivate>(
+      &events.request_activate);
+  listen<&XWaylandState::onMetadata, &XWaylandState::setTitle>(
+      &events.set_title);
+  listen<&XWaylandState::onMetadata, &XWaylandState::setClass>(
+      &events.set_class);
+  listen<&XWaylandState::onMetadata, &XWaylandState::setParent>(
+      &events.set_parent);
+  listen<&XWaylandState::onMetadata, &XWaylandState::setGeometry>(
+      &events.set_geometry);
+  listen<&XWaylandState::onMetadata, &XWaylandState::setOverrideRedirect>(
+      &events.set_override_redirect);
 }
 
 void WaylandCompositor::Impl::XWaylandState::onAssociate() {
   if (!surface || !surface->surface)
     return;
   client->wlSurface = surface->surface;
-  listen<&XWaylandState::onMap>(&client->wlSurface->events.map, map);
-  listen<&XWaylandState::onUnmap>(&client->wlSurface->events.unmap, unmap);
+  listen<&XWaylandState::onMap, &XWaylandState::map>(
+      &client->wlSurface->events.map);
+  listen<&XWaylandState::onUnmap, &XWaylandState::unmap>(
+      &client->wlSurface->events.unmap);
   if (client->wlSurface->mapped)
     onMap();
 }
@@ -120,10 +133,11 @@ void WaylandCompositor::Impl::XWaylandState::onMap() {
       return;
     }
     client->sceneTree->node.data = client;
-    listen<&XWaylandState::onSceneContentDestroy>(
-        &client->sceneContent->node.events.destroy, sceneContentDestroy);
-    listen<&XWaylandState::onSceneDestroy>(
-        &client->sceneTree->node.events.destroy, sceneDestroy);
+    listen<&XWaylandState::onSceneContentDestroy,
+           &XWaylandState::sceneContentDestroy>(
+        &client->sceneContent->node.events.destroy);
+    listen<&XWaylandState::onSceneDestroy, &XWaylandState::sceneDestroy>(
+        &client->sceneTree->node.events.destroy);
   }
   client->mapped = true;
   auto *desktop = impl->q;

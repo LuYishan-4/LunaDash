@@ -88,12 +88,16 @@ void WaylandCompositor::Impl::addXdgPopup(wlr_xdg_popup *popup) {
 WaylandCompositor::Impl::XdgPopupState::XdgPopupState(Impl *owner,
                                                       wlr_xdg_popup *xdgPopup)
     : impl(owner), popup(xdgPopup) {
-  listen<&XdgPopupState::onCommit>(&popup->base->surface->events.commit, commit);
-  listen<&XdgPopupState::onReposition>(&popup->events.reposition, reposition);
+  listen<&XdgPopupState::onCommit, &XdgPopupState::commit>(
+      &popup->base->surface->events.commit);
+  listen<&XdgPopupState::onReposition, &XdgPopupState::reposition>(
+      &popup->events.reposition);
 #if WLR_VERSION_MINOR < 18
-  listen<&XdgPopupState::onDestroy>(&popup->base->events.destroy, destroy);
+  listen<&XdgPopupState::onDestroy, &XdgPopupState::destroy>(
+      &popup->base->events.destroy);
 #else
-  listen<&XdgPopupState::onDestroy>(&popup->events.destroy, destroy);
+  listen<&XdgPopupState::onDestroy, &XdgPopupState::destroy>(
+      &popup->events.destroy);
 #endif
 }
 

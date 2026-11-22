@@ -16,7 +16,7 @@ public:
 private:
   void onNewSurface(wlr_layer_surface_v1 *surface);
 
-  Slot<LayerShellComponent> newSurface;
+  Slot newSurface;
 };
 
 } // namespace LunaDash

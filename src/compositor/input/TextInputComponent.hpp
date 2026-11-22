@@ -19,9 +19,9 @@ private:
   void onNewTextInput(wlr_text_input_v3 *text);
   void onKeyboardFocusChange(wlr_seat_keyboard_focus_change_event *event);
 
-  Slot<TextInputComponent> newInputMethod;
-  Slot<TextInputComponent> newTextInput;
-  Slot<TextInputComponent> keyboardFocusChange;
+  Slot newInputMethod;
+  Slot newTextInput;
+  Slot keyboardFocusChange;
 };
 
 } // namespace LunaDash

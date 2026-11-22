@@ -318,10 +318,11 @@ WaylandCompositor::Impl::OutputState::OutputState(Impl *owner,
     wlr_scene_output_layout_add_output(impl->sceneLayout, layoutOutput,
                                        sceneOutput);
 
-  listen<&OutputState::onFrame>(&output->events.frame, frame);
-  listen<&OutputState::onDestroy>(&output->events.destroy, destroy);
-  listen<&OutputState::onRequestState>(&output->events.request_state,
-                                       requestState);
+  listen<&OutputState::onFrame, &OutputState::frame>(&output->events.frame);
+  listen<&OutputState::onDestroy, &OutputState::destroy>(
+      &output->events.destroy);
+  listen<&OutputState::onRequestState, &OutputState::requestState>(
+      &output->events.request_state);
 }
 
 WaylandCompositor::Impl::OutputState::~OutputState() {

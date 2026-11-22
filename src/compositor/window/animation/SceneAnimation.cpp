@@ -306,13 +306,14 @@ SceneAnimationRectangle SceneAnimation::Motion::current() const {
 
 struct SceneAnimation::LiveState : Templates::LunaClint<LiveState> {
   void watchTree() {
-    listen<&LiveState::onTreeDestroy>(&tree->node.events.destroy, destroy);
+    listen<&LiveState::onTreeDestroy, &LiveState::destroy>(
+        &tree->node.events.destroy);
   }
   void onTreeDestroy() { owner->finishLive(tree, this, false); }
 
   SceneAnimation *owner = nullptr;
   wlr_scene_tree *tree = nullptr;
-  Templates::WaylandSlot<LiveState> destroy;
+  Templates::WaylandSlot destroy;
   Motion motion;
   std::uint64_t started = 0;
   std::uint64_t lastStep = 0;
@@ -335,7 +336,8 @@ struct SceneAnimation::LiveState : Templates::LunaClint<LiveState> {
 
 struct SceneAnimation::SnapshotState : Templates::LunaClint<SnapshotState> {
   void watchTree() {
-    listen<&SnapshotState::onTreeDestroy>(&tree->node.events.destroy, destroy);
+    listen<&SnapshotState::onTreeDestroy, &SnapshotState::destroy>(
+        &tree->node.events.destroy);
   }
   void onTreeDestroy() {
     std::erase(owner->snapshots_, this);
@@ -347,7 +349,7 @@ struct SceneAnimation::SnapshotState : Templates::LunaClint<SnapshotState> {
   SceneAnimation *owner = nullptr;
   LiveState *live = nullptr;
   wlr_scene_tree *tree = nullptr;
-  Templates::WaylandSlot<SnapshotState> destroy;
+  Templates::WaylandSlot destroy;
   std::uint64_t started = 0;
   std::uint64_t lastStep = 0;
   SceneAnimationRectangle original;

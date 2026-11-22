@@ -223,8 +223,9 @@ void WaylandCompositor::Impl::addXdgToplevel(wlr_xdg_surface *surface,
 WaylandCompositor::Impl::ToplevelState::ToplevelState(Impl *owner,
                                                       ClientWindow *window)
     : impl(owner), client(window) {
-  listen<&ToplevelState::onSceneContentDestroy>(
-      &client->sceneContent->node.events.destroy, sceneContentDestroy);
+  listen<&ToplevelState::onSceneContentDestroy,
+         &ToplevelState::sceneContentDestroy>(
+      &client->sceneContent->node.events.destroy);
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
   // Window capture gets a private scene so the stream does not inherit
   // workspace transforms, tiling clips or visibility of the desktop scene.
@@ -247,24 +248,33 @@ WaylandCompositor::Impl::ToplevelState::~ToplevelState() {
 void WaylandCompositor::Impl::ToplevelState::listenTo(
     wlr_xdg_surface *surface, wlr_xdg_toplevel *toplevel) {
   auto &surfaceEvents = surface->surface->events;
-  listen<&ToplevelState::onMap>(&surfaceEvents.map, map);
+  listen<&ToplevelState::onMap, &ToplevelState::map>(&surfaceEvents.map);
   // Capture the last mapped frame before wlroots disables the subsurface
   // tree. The surface still owns its buffer at the start of the unmap signal.
-  listenFirst<&ToplevelState::onUnmap>(&surfaceEvents.unmap, unmap);
-  listen<&ToplevelState::onCommit>(&surfaceEvents.commit, commit);
-  listen<&ToplevelState::onDestroy>(
-      WlrootsCompat::xdgToplevelDestroySignal(surface, toplevel), destroy);
+  listenFirst<&ToplevelState::onUnmap, &ToplevelState::unmap>(
+      &surfaceEvents.unmap);
+  listen<&ToplevelState::onCommit, &ToplevelState::commit>(
+      &surfaceEvents.commit);
+  listen<&ToplevelState::onDestroy, &ToplevelState::destroy>(
+      WlrootsCompat::xdgToplevelDestroySignal(surface, toplevel));
 
   auto &events = toplevel->events;
-  listen<&ToplevelState::onMetadata>(&events.set_title, setTitle);
-  listen<&ToplevelState::onMetadata>(&events.set_app_id, setAppId);
-  listen<&ToplevelState::onParent>(&events.set_parent, setParent);
-  listen<&ToplevelState::onMinimize>(&events.request_minimize, requestMinimize);
-  listen<&ToplevelState::onMaximize>(&events.request_maximize, requestMaximize);
-  listen<&ToplevelState::onFullscreen>(&events.request_fullscreen,
-                                       requestFullscreen);
-  listen<&ToplevelState::onMove>(&events.request_move, requestMove);
-  listen<&ToplevelState::onResize>(&events.request_resize, requestResize);
+  listen<&ToplevelState::onMetadata, &ToplevelState::setTitle>(
+      &events.set_title);
+  listen<&ToplevelState::onMetadata, &ToplevelState::setAppId>(
+      &events.set_app_id);
+  listen<&ToplevelState::onParent, &ToplevelState::setParent>(
+      &events.set_parent);
+  listen<&ToplevelState::onMinimize, &ToplevelState::requestMinimize>(
+      &events.request_minimize);
+  listen<&ToplevelState::onMaximize, &ToplevelState::requestMaximize>(
+      &events.request_maximize);
+  listen<&ToplevelState::onFullscreen, &ToplevelState::requestFullscreen>(
+      &events.request_fullscreen);
+  listen<&ToplevelState::onMove, &ToplevelState::requestMove>(
+      &events.request_move);
+  listen<&ToplevelState::onResize, &ToplevelState::requestResize>(
+      &events.request_resize);
 }
 
 void WaylandCompositor::Impl::ToplevelState::onMap() {
@@ -464,12 +474,15 @@ WaylandCompositor::Impl::LayerState::LayerState(
     Impl *owner, wlr_layer_surface_v1 *layerSurface,
     wlr_scene_layer_surface_v1 *scene)
     : impl(owner), surface(layerSurface), sceneLayer(scene) {
-  listen<&LayerState::onMap>(&surface->surface->events.map, map);
-  listen<&LayerState::onUnmap>(&surface->surface->events.unmap, unmap);
+  listen<&LayerState::onMap, &LayerState::map>(&surface->surface->events.map);
+  listen<&LayerState::onUnmap, &LayerState::unmap>(
+      &surface->surface->events.unmap);
   // The first surface commit marks the role initialized; onCommit performs the
   // initial configure and layout at that point.
-  listen<&LayerState::onCommit>(&surface->surface->events.commit, commit);
-  listen<&LayerState::onDestroy>(&surface->events.destroy, destroy);
+  listen<&LayerState::onCommit, &LayerState::commit>(
+      &surface->surface->events.commit);
+  listen<&LayerState::onDestroy, &LayerState::destroy>(
+      &surface->events.destroy);
 }
 
 void WaylandCompositor::Impl::LayerState::onMap() {

@@ -14,8 +14,8 @@ bool WaylandCompositor::Impl::OutputComponent::start() {
       wlr_xdg_output_manager_v1_create(impl->display, impl->outputLayout);
   if (!impl->screencopy || !impl->xdgOutput)
     return impl->fail("wlroots could not create the output protocol globals.");
-  listen<&OutputComponent::onNewOutput>(&impl->backend->events.new_output,
-                                        newOutput);
+  listen<&OutputComponent::onNewOutput, &OutputComponent::newOutput>(
+      &impl->backend->events.new_output);
   return true;
 }
 

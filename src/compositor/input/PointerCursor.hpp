@@ -59,7 +59,7 @@ private:
   wlr_surface *surface_ = nullptr;
   int32_t hotspotX_ = 0;
   int32_t hotspotY_ = 0;
-  Templates::WaylandSlot<PointerCursor> surfaceDestroy_;
+  Templates::WaylandSlot surfaceDestroy_;
 
   std::deque<Sample> strokes_;
   Clock::time_point lastShake_{};

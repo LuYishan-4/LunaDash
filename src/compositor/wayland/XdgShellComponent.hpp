@@ -24,9 +24,9 @@ private:
   void onActivationRequest(wlr_xdg_activation_v1_request_activate_event *request);
 #endif
 
-  Slot<XdgShellComponent> newSurface;
-  Slot<XdgShellComponent> newPopup;
-  Slot<XdgShellComponent> activationRequest;
+  Slot newSurface;
+  Slot newPopup;
+  Slot activationRequest;
 };
 
 } // namespace LunaDash

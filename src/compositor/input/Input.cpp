@@ -282,15 +282,18 @@ WaylandCompositor::Impl::KeyboardState::KeyboardState(Impl *owner,
     : impl(owner), keyboard(wlrKeyboard), ownerClient(owningClient),
       virtualKeyboard(isVirtual),
       lastLockedModifiers(wlrKeyboard->modifiers.locked) {
-  listen<&KeyboardState::onKey>(&keyboard->events.key, key);
-  listen<&KeyboardState::onModifiers>(&keyboard->events.modifiers, modifiers);
-  listen<&KeyboardState::onDestroy>(&keyboard->base.events.destroy, destroy);
+  listen<&KeyboardState::onKey, &KeyboardState::key>(&keyboard->events.key);
+  listen<&KeyboardState::onModifiers, &KeyboardState::modifiers>(
+      &keyboard->events.modifiers);
+  listen<&KeyboardState::onDestroy, &KeyboardState::destroy>(
+      &keyboard->base.events.destroy);
 }
 
 void WaylandCompositor::Impl::KeyboardState::listenForKeymap() {
   // Virtual keyboards publish their keymap after creation. Restore focus
   // after the seat's keymap listener has sent it, before the first key arrives.
-  listen<&KeyboardState::onKeymap>(&keyboard->events.keymap, keymap);
+  listen<&KeyboardState::onKeymap, &KeyboardState::keymap>(
+      &keyboard->events.keymap);
 }
 
 bool WaylandCompositor::Impl::KeyboardState::inputMethodBridgeActive() const {
@@ -673,12 +676,14 @@ void WaylandCompositor::Impl::positionInputPopup(PopupState *popup) {
 WaylandCompositor::Impl::InputMethodState::InputMethodState(
     Impl *owner, wlr_input_method_v2 *inputMethod)
     : impl(owner), method(inputMethod) {
-  listen<&InputMethodState::onCommit>(&method->events.commit, commit);
-  listen<&InputMethodState::onNewPopup>(&method->events.new_popup_surface,
-                                        newPopup);
-  listen<&InputMethodState::onGrabKeyboard>(&method->events.grab_keyboard,
-                                            grabKeyboard);
-  listen<&InputMethodState::onDestroy>(&method->events.destroy, destroy);
+  listen<&InputMethodState::onCommit, &InputMethodState::commit>(
+      &method->events.commit);
+  listen<&InputMethodState::onNewPopup, &InputMethodState::newPopup>(
+      &method->events.new_popup_surface);
+  listen<&InputMethodState::onGrabKeyboard, &InputMethodState::grabKeyboard>(
+      &method->events.grab_keyboard);
+  listen<&InputMethodState::onDestroy, &InputMethodState::destroy>(
+      &method->events.destroy);
 }
 
 void WaylandCompositor::Impl::InputMethodState::onCommit() {
@@ -737,7 +742,7 @@ void WaylandCompositor::Impl::InputMethodState::onDestroy() {
 WaylandCompositor::Impl::PopupState::PopupState(
     Impl *owner, wlr_input_popup_surface_v2 *inputPopup, wlr_scene_tree *tree)
     : impl(owner), popup(inputPopup), sceneTree(tree) {
-  listen<&PopupState::onDestroy>(&popup->events.destroy, destroy);
+  listen<&PopupState::onDestroy, &PopupState::destroy>(&popup->events.destroy);
 }
 
 void WaylandCompositor::Impl::PopupState::onDestroy() {
@@ -748,10 +753,14 @@ void WaylandCompositor::Impl::PopupState::onDestroy() {
 WaylandCompositor::Impl::TextInputState::TextInputState(
     Impl *owner, wlr_text_input_v3 *textInput)
     : impl(owner), text(textInput) {
-  listen<&TextInputState::onEnable>(&text->events.enable, enable);
-  listen<&TextInputState::onCommit>(&text->events.commit, commit);
-  listen<&TextInputState::onDisable>(&text->events.disable, disable);
-  listen<&TextInputState::onDestroy>(&text->events.destroy, destroy);
+  listen<&TextInputState::onEnable, &TextInputState::enable>(
+      &text->events.enable);
+  listen<&TextInputState::onCommit, &TextInputState::commit>(
+      &text->events.commit);
+  listen<&TextInputState::onDisable, &TextInputState::disable>(
+      &text->events.disable);
+  listen<&TextInputState::onDestroy, &TextInputState::destroy>(
+      &text->events.destroy);
 }
 
 void WaylandCompositor::Impl::TextInputState::onEnable() {

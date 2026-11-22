@@ -8,13 +8,15 @@ bool WaylandCompositor::Impl::TextInputComponent::start() {
   impl->textInputManager = wlr_text_input_manager_v3_create(impl->display);
   if (!impl->inputMethodManager || !impl->textInputManager)
     return impl->fail("wlroots could not create the text-input globals.");
-  listen<&TextInputComponent::onNewInputMethod>(
-      WlrootsCompat::newInputMethodSignal(impl->inputMethodManager),
-      newInputMethod);
-  listen<&TextInputComponent::onNewTextInput>(
-      WlrootsCompat::newTextInputSignal(impl->textInputManager), newTextInput);
-  listen<&TextInputComponent::onKeyboardFocusChange>(
-      &impl->seat->keyboard_state.events.focus_change, keyboardFocusChange);
+  listen<&TextInputComponent::onNewInputMethod,
+         &TextInputComponent::newInputMethod>(
+      WlrootsCompat::newInputMethodSignal(impl->inputMethodManager));
+  listen<&TextInputComponent::onNewTextInput,
+         &TextInputComponent::newTextInput>(
+      WlrootsCompat::newTextInputSignal(impl->textInputManager));
+  listen<&TextInputComponent::onKeyboardFocusChange,
+         &TextInputComponent::keyboardFocusChange>(
+      &impl->seat->keyboard_state.events.focus_change);
   return true;
 }
 

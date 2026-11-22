@@ -10,22 +10,27 @@ namespace LunaDash {
 bool WaylandCompositor::Impl::PointerComponent::start() {
   auto *cursor = impl->cursor;
   auto *seat = impl->seat;
-  listen<&PointerComponent::onMotion>(&cursor->events.motion, motion);
-  listen<&PointerComponent::onMotionAbsolute>(&cursor->events.motion_absolute,
-                                              motionAbsolute);
-  listen<&PointerComponent::onButton>(&cursor->events.button, button);
-  listen<&PointerComponent::onAxis>(&cursor->events.axis, axis);
-  listen<&PointerComponent::onFrame>(&cursor->events.frame, frame);
-  listen<&PointerComponent::onRequestCursor>(&seat->events.request_set_cursor,
-                                             requestCursor);
-  listen<&PointerComponent::onFocusChange>(
-      &seat->pointer_state.events.focus_change, focusChange);
+  listen<&PointerComponent::onMotion, &PointerComponent::motion>(
+      &cursor->events.motion);
+  listen<&PointerComponent::onMotionAbsolute,
+         &PointerComponent::motionAbsolute>(&cursor->events.motion_absolute);
+  listen<&PointerComponent::onButton, &PointerComponent::button>(
+      &cursor->events.button);
+  listen<&PointerComponent::onAxis, &PointerComponent::axis>(
+      &cursor->events.axis);
+  listen<&PointerComponent::onFrame, &PointerComponent::frame>(
+      &cursor->events.frame);
+  listen<&PointerComponent::onRequestCursor, &PointerComponent::requestCursor>(
+      &seat->events.request_set_cursor);
+  listen<&PointerComponent::onFocusChange, &PointerComponent::focusChange>(
+      &seat->pointer_state.events.focus_change);
   impl->cursorShapeManager =
       wlr_cursor_shape_manager_v1_create(impl->display, 1);
   if (!impl->cursorShapeManager)
     return impl->fail("wlroots could not create the cursor-shape global.");
-  listen<&PointerComponent::onRequestCursorShape>(
-      &impl->cursorShapeManager->events.request_set_shape, requestCursorShape);
+  listen<&PointerComponent::onRequestCursorShape,
+         &PointerComponent::requestCursorShape>(
+      &impl->cursorShapeManager->events.request_set_shape);
   return true;
 }
 

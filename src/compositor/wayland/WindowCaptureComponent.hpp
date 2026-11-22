@@ -19,7 +19,7 @@ private:
       wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
 #endif
 
-  Slot<WindowCaptureComponent> captureRequest;
+  Slot captureRequest;
 };
 
 } // namespace LunaDash

@@ -33,7 +33,7 @@ inline constexpr int kDefaultOutputRefreshMilliHz = 60000;
 
 class WaylandCompositor::Impl {
 public:
-  template <typename Owner> using Slot = WaylandSlot<Owner>;
+  using Slot = WaylandSlot;
 
   class Component {
   public:
@@ -95,9 +95,9 @@ public:
     ludash_night_color *nightColor = nullptr;
     int nightTemperature = 6500;
     std::string nightError;
-    Slot<OutputState> frame;
-    Slot<OutputState> destroy;
-    Slot<OutputState> requestState;
+    Slot frame;
+    Slot destroy;
+    Slot requestState;
 
   private:
     bool updateCaptureCursor();
@@ -154,19 +154,19 @@ public:
 #endif
     bool hasSurfaceGeometry = false;
     wlr_box lastSurfaceGeometry{};
-    Slot<ToplevelState> map;
-    Slot<ToplevelState> unmap;
-    Slot<ToplevelState> commit;
-    Slot<ToplevelState> destroy;
-    Slot<ToplevelState> sceneContentDestroy;
-    Slot<ToplevelState> setTitle;
-    Slot<ToplevelState> setAppId;
-    Slot<ToplevelState> setParent;
-    Slot<ToplevelState> requestMinimize;
-    Slot<ToplevelState> requestMaximize;
-    Slot<ToplevelState> requestFullscreen;
-    Slot<ToplevelState> requestMove;
-    Slot<ToplevelState> requestResize;
+    Slot map;
+    Slot unmap;
+    Slot commit;
+    Slot destroy;
+    Slot sceneContentDestroy;
+    Slot setTitle;
+    Slot setAppId;
+    Slot setParent;
+    Slot requestMinimize;
+    Slot requestMaximize;
+    Slot requestFullscreen;
+    Slot requestMove;
+    Slot requestResize;
   };
 
   struct XWaylandState : LunaClint<XWaylandState> {
@@ -195,25 +195,25 @@ public:
     Impl *const impl;
     ClientWindow *const client;
     wlr_xwayland_surface *surface = nullptr;
-    Slot<XWaylandState> associate;
-    Slot<XWaylandState> dissociate;
-    Slot<XWaylandState> map;
-    Slot<XWaylandState> unmap;
-    Slot<XWaylandState> sceneDestroy;
-    Slot<XWaylandState> sceneContentDestroy;
-    Slot<XWaylandState> destroy;
-    Slot<XWaylandState> requestConfigure;
-    Slot<XWaylandState> requestMove;
-    Slot<XWaylandState> requestResize;
-    Slot<XWaylandState> requestMinimize;
-    Slot<XWaylandState> requestMaximize;
-    Slot<XWaylandState> requestFullscreen;
-    Slot<XWaylandState> requestActivate;
-    Slot<XWaylandState> setTitle;
-    Slot<XWaylandState> setClass;
-    Slot<XWaylandState> setParent;
-    Slot<XWaylandState> setGeometry;
-    Slot<XWaylandState> setOverrideRedirect;
+    Slot associate;
+    Slot dissociate;
+    Slot map;
+    Slot unmap;
+    Slot sceneDestroy;
+    Slot sceneContentDestroy;
+    Slot destroy;
+    Slot requestConfigure;
+    Slot requestMove;
+    Slot requestResize;
+    Slot requestMinimize;
+    Slot requestMaximize;
+    Slot requestFullscreen;
+    Slot requestActivate;
+    Slot setTitle;
+    Slot setClass;
+    Slot setParent;
+    Slot setGeometry;
+    Slot setOverrideRedirect;
   };
 
   struct DeferredClientRemoval {
@@ -245,10 +245,10 @@ public:
     wlr_scene_layer_surface_v1 *const sceneLayer;
     bool mapped = false;
     bool configured = false;
-    Slot<LayerState> map;
-    Slot<LayerState> unmap;
-    Slot<LayerState> commit;
-    Slot<LayerState> destroy;
+    Slot map;
+    Slot unmap;
+    Slot commit;
+    Slot destroy;
   };
 
   struct XdgPopupState : LunaClint<XdgPopupState> {
@@ -266,9 +266,9 @@ public:
 #if LUDASH_WLR_HAS_EXT_WINDOW_CAPTURE
     wlr_scene_tree *captureTree = nullptr;
 #endif
-    Slot<XdgPopupState> commit;
-    Slot<XdgPopupState> reposition;
-    Slot<XdgPopupState> destroy;
+    Slot commit;
+    Slot reposition;
+    Slot destroy;
   };
 
   struct KeyboardState : LunaClint<KeyboardState> {
@@ -291,10 +291,10 @@ public:
     std::unordered_set<uint32_t> consumedKeys;
     bool metaTapPending = false;
     int metaTapKeycode = -1;
-    Slot<KeyboardState> key;
-    Slot<KeyboardState> keymap;
-    Slot<KeyboardState> modifiers;
-    Slot<KeyboardState> destroy;
+    Slot key;
+    Slot keymap;
+    Slot modifiers;
+    Slot destroy;
 
   private:
     bool inputMethodBridgeActive() const;
@@ -312,10 +312,10 @@ public:
 
     Impl *const impl;
     wlr_input_method_v2 *const method;
-    Slot<InputMethodState> commit;
-    Slot<InputMethodState> newPopup;
-    Slot<InputMethodState> grabKeyboard;
-    Slot<InputMethodState> destroy;
+    Slot commit;
+    Slot newPopup;
+    Slot grabKeyboard;
+    Slot destroy;
   };
 
   struct TextInputState : LunaClint<TextInputState> {
@@ -330,10 +330,10 @@ public:
 
     Impl *const impl;
     wlr_text_input_v3 *const text;
-    Slot<TextInputState> enable;
-    Slot<TextInputState> commit;
-    Slot<TextInputState> disable;
-    Slot<TextInputState> destroy;
+    Slot enable;
+    Slot commit;
+    Slot disable;
+    Slot destroy;
   };
 
   struct PopupState : LunaClint<PopupState> {
@@ -347,7 +347,7 @@ public:
     Impl *const impl;
     wlr_input_popup_surface_v2 *const popup;
     wlr_scene_tree *const sceneTree;
-    Slot<PopupState> destroy;
+    Slot destroy;
   };
 
   WaylandCompositor *q = nullptr;

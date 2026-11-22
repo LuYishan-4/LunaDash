@@ -22,18 +22,19 @@ constexpr std::uint32_t kManagerVersion = 1;
 struct WorkspaceProtocol::Listeners {
   wl_listener commit{};
   wl_listener destroy{};
-  WorkspaceProtocol *owner = nullptr;
+  std::function<void(void *)> commitCallback;
+  std::function<void()> destroyCallback;
 
-  static Listeners *from(wl_listener *listener, std::size_t offset) {
-    return reinterpret_cast<Listeners *>(reinterpret_cast<char *>(listener) - offset);
-  }
   static void onCommit(wl_listener *listener, void *data) {
-    from(listener, offsetof(Listeners, commit))->owner->onCommit(data);
+    Listeners *self = wl_container_of(listener, self, commit);
+    self->commitCallback(data);
   }
   // The display is going away and takes the manager and its handles with it.
   static void onDestroy(wl_listener *listener, void *) {
-    auto *self = from(listener, offsetof(Listeners, destroy));
-    self->owner->detach();
+    Listeners *self = wl_container_of(listener, self, destroy);
+    // The callback deletes these listeners, itself included: run a copy.
+    auto destroyed = self->destroyCallback;
+    destroyed();
   }
 };
 
@@ -60,7 +61,8 @@ WorkspaceProtocol::WorkspaceProtocol(wl_display *display,
     return;
   group_ = wlr_ext_workspace_group_handle_v1_create(manager_, 0);
   listeners_ = new Listeners();
-  listeners_->owner = this;
+  listeners_->commitCallback = [this](void *data) { onCommit(data); };
+  listeners_->destroyCallback = [this] { detach(); };
   listeners_->commit.notify = &Listeners::onCommit;
   listeners_->destroy.notify = &Listeners::onDestroy;
   wl_signal_add(&manager_->events.commit, &listeners_->commit);

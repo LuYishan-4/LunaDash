@@ -16,7 +16,7 @@ private:
   void onNewOutput(wlr_output *output);
   bool commitInitialState(wlr_output *output);
 
-  Slot<OutputComponent> newOutput;
+  Slot newOutput;
 };
 
 } // namespace LunaDash

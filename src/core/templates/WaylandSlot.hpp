@@ -4,11 +4,16 @@ extern "C" {
 #include <wayland-server-core.h>
 }
 
+#include <cstddef>
+#include <type_traits>
+
 namespace LunaDash::Templates {
 
-template <typename Owner> struct WaylandSlot {
+// A wl_listener kept inside the object it reports to. Nothing points back to
+// that object: the handler finds it from the listener's address, as
+// wl_container_of does, given the member the slot is (see connect()).
+struct WaylandSlot {
   wl_listener listener{};
-  Owner *owner = nullptr;
   bool connected = false;
 
   WaylandSlot() = default;
@@ -20,32 +25,24 @@ template <typename Owner> struct WaylandSlot {
   }
 };
 
-template <typename Owner>
-void attachListener(wl_signal *signal, WaylandSlot<Owner> &slot, Owner *owner,
-                    wl_notify_func_t notify) {
+inline void attachListener(wl_signal *signal, WaylandSlot &slot,
+                           wl_notify_func_t notify) {
   if (!signal || slot.connected)
     return;
-  slot.owner = owner;
   slot.listener.notify = notify;
   wl_signal_add(signal, &slot.listener);
   slot.connected = true;
 }
 
-template <typename Owner> void detachListener(WaylandSlot<Owner> &slot) {
+inline void detachListener(WaylandSlot &slot) {
   if (!slot.connected)
     return;
   wl_list_remove(&slot.listener.link);
   slot.connected = false;
-  slot.owner = nullptr;
 }
 
 template <typename... Slots> void detachListeners(Slots &...slots) {
   (detachListener(slots), ...);
-}
-
-template <typename Owner> Owner *listenerOwner(wl_listener *listener) {
-  auto *slot = reinterpret_cast<WaylandSlot<Owner> *>(listener);
-  return slot ? slot->owner : nullptr;
 }
 
 // Splits `void (Owner::*)(Event *)` and `void (Owner::*)()` into their parts.
@@ -67,15 +64,39 @@ template <typename OwnerType> struct SlotMethod<void (OwnerType::*)()> {
 template <auto Method>
 using SlotOwner = typename SlotMethod<decltype(Method)>::Owner;
 
+// The class a `WaylandSlot Owner::*` member belongs to.
+template <typename Member> struct SlotMember;
+template <typename OwnerType> struct SlotMember<WaylandSlot OwnerType::*> {
+  using Owner = OwnerType;
+};
 
-template <auto Method>
-void connect(wl_signal *signal, WaylandSlot<SlotOwner<Method>> &slot,
-             SlotOwner<Method> *owner) {
+template <auto Member>
+using SlotMemberOwner = typename SlotMember<decltype(Member)>::Owner;
+
+// The owner of the listener of slot `Member`: wl_container_of, with the member
+// given as a pointer to member. offsetof cannot take one, nor classes with
+// virtual functions, so the offset is measured on storage shaped like an
+// Owner; no object lives there and nothing in it is read.
+template <auto Member>
+SlotMemberOwner<Member> *slotOwner(wl_listener *listener) {
+  using Owner = SlotMemberOwner<Member>;
+  alignas(Owner) static const unsigned char shape[sizeof(Owner)]{};
+  const auto *probe = reinterpret_cast<const Owner *>(shape);
+  const std::ptrdiff_t offset =
+      reinterpret_cast<const unsigned char *>(&(probe->*Member).listener) -
+      shape;
+  return reinterpret_cast<Owner *>(reinterpret_cast<unsigned char *>(listener) -
+                                   offset);
+}
+
+// Connects `Method` of the object holding slot `Member` to `signal`.
+template <auto Method, auto Member>
+void connect(wl_signal *signal, WaylandSlot &slot) {
+  static_assert(std::is_same_v<SlotOwner<Method>, SlotMemberOwner<Member>>,
+                "the handler and the slot belong to the same class");
   using Traits = SlotMethod<decltype(Method)>;
-  attachListener(signal, slot, owner, [](wl_listener *listener, void *data) {
-    auto *self = listenerOwner<typename Traits::Owner>(listener);
-    if (!self)
-      return;
+  attachListener(signal, slot, [](wl_listener *listener, void *data) {
+    auto *self = slotOwner<Member>(listener);
     if constexpr (Traits::takesEvent)
       (self->*Method)(static_cast<typename Traits::Event *>(data));
     else
@@ -83,10 +104,10 @@ void connect(wl_signal *signal, WaylandSlot<SlotOwner<Method>> &slot,
   });
 }
 
-template <auto Method>
-void connectFirst(wl_signal *signal, WaylandSlot<SlotOwner<Method>> &slot,
-                  SlotOwner<Method> *owner) {
-  connect<Method>(signal, slot, owner);
+// connect(), but notified before the listeners already there.
+template <auto Method, auto Member>
+void connectFirst(wl_signal *signal, WaylandSlot &slot) {
+  connect<Method, Member>(signal, slot);
   if (!slot.connected)
     return;
   wl_list_remove(&slot.listener.link);

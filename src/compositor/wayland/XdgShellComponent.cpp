@@ -10,15 +10,15 @@ bool WaylandCompositor::Impl::XdgShellComponent::start() {
   if (!impl->xdgShell)
     return impl->fail("wlroots could not create the xdg-shell global.");
 #if WLR_VERSION_MINOR < 18
-  listen<&XdgShellComponent::onNewSurface>(&impl->xdgShell->events.new_surface,
-                                           newSurface);
+  listen<&XdgShellComponent::onNewSurface, &XdgShellComponent::newSurface>(
+      &impl->xdgShell->events.new_surface);
 #else
   // Since wlroots 0.18, xdg_shell exposes role-specific new_toplevel events.
   // Track the role as soon as it is created, then wait for initial_commit.
-  listen<&XdgShellComponent::onNewToplevel>(
-      &impl->xdgShell->events.new_toplevel, newSurface);
-  listen<&XdgShellComponent::onNewPopup>(&impl->xdgShell->events.new_popup,
-                                         newPopup);
+  listen<&XdgShellComponent::onNewToplevel, &XdgShellComponent::newSurface>(
+      &impl->xdgShell->events.new_toplevel);
+  listen<&XdgShellComponent::onNewPopup, &XdgShellComponent::newPopup>(
+      &impl->xdgShell->events.new_popup);
 #endif
 
 #if LUDASH_WLR_HAS_XDG_ACTIVATION
@@ -26,8 +26,9 @@ bool WaylandCompositor::Impl::XdgShellComponent::start() {
   // filtered through the seat's event-serial history before focus changes.
   impl->xdgActivation = wlr_xdg_activation_v1_create(impl->display);
   if (impl->xdgActivation)
-    listen<&XdgShellComponent::onActivationRequest>(
-        &impl->xdgActivation->events.request_activate, activationRequest);
+    listen<&XdgShellComponent::onActivationRequest,
+           &XdgShellComponent::activationRequest>(
+        &impl->xdgActivation->events.request_activate);
 #endif
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   // Keep the wlroots toplevel-management compatibility global alongside the

@@ -172,10 +172,11 @@ bool WaylandCompositor::Impl::ClipboardComponent::start() {
   if (!impl->dataControl)
     return impl->fail("wlroots could not create the data-control manager.");
 #endif
-  listen<&ClipboardComponent::onRequestSelection>(
-      &impl->seat->events.request_set_selection, requestSelection);
-  listen<&ClipboardComponent::onSelection>(&impl->seat->events.set_selection,
-                                           selection);
+  listen<&ClipboardComponent::onRequestSelection,
+         &ClipboardComponent::requestSelection>(
+      &impl->seat->events.request_set_selection);
+  listen<&ClipboardComponent::onSelection, &ClipboardComponent::selection>(
+      &impl->seat->events.set_selection);
   return true;
 }
 

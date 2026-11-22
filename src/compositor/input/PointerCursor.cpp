@@ -104,8 +104,8 @@ void PointerCursor::showSurface(wlr_surface *surface, int32_t hotspotX,
   hotspotX_ = hotspotX;
   hotspotY_ = hotspotY;
   if (surface)
-    listen<&PointerCursor::onSurfaceDestroy>(&surface->events.destroy,
-                                             surfaceDestroy_);
+    listen<&PointerCursor::onSurfaceDestroy, &PointerCursor::surfaceDestroy_>(
+        &surface->events.destroy);
   apply();
 }
 

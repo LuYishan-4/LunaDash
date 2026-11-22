@@ -24,8 +24,7 @@ struct WaylandHook {
     detach();
     run = std::move(function);
     listener.notify = [](wl_listener *self, void *data) {
-      auto *hook = reinterpret_cast<WaylandHook *>(
-          reinterpret_cast<char *>(self) - offsetof(WaylandHook, listener));
+      WaylandHook *hook = wl_container_of(self, hook, listener);
       auto function = hook->run;  // `run` may destroy the hook
       function(data);
     };

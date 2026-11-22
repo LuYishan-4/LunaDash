@@ -8,18 +8,18 @@ namespace LunaDash::Templates {
 
 template <typename Derived> class LunaClint {
 protected:
-  template <auto Method>
-  void listen(wl_signal *signal, WaylandSlot<Derived> &slot) {
-    static_assert(std::is_same_v<SlotOwner<Method>, Derived>,
-                  "listen<> takes a handler of the listening type");
-    connect<Method>(signal, slot, self());
+  // Connects handler `Method` to `signal` through this object's slot `Member`:
+  // listen<&Self::onCommit, &Self::commit>(&surface->events.commit).
+  template <auto Method, auto Member> void listen(wl_signal *signal) {
+    static_assert(std::is_same_v<SlotMemberOwner<Member>, Derived>,
+                  "listen<> takes a slot of the listening type");
+    connect<Method, Member>(signal, self()->*Member);
   }
 
-  template <auto Method>
-  void listenFirst(wl_signal *signal, WaylandSlot<Derived> &slot) {
-    static_assert(std::is_same_v<SlotOwner<Method>, Derived>,
-                  "listenFirst<> takes a handler of the listening type");
-    connectFirst<Method>(signal, slot, self());
+  template <auto Method, auto Member> void listenFirst(wl_signal *signal) {
+    static_assert(std::is_same_v<SlotMemberOwner<Member>, Derived>,
+                  "listenFirst<> takes a slot of the listening type");
+    connectFirst<Method, Member>(signal, self()->*Member);
   }
 
   template <auto Method> wl_event_source *timer(wl_event_loop *loop) {

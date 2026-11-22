@@ -74,17 +74,19 @@ public:
     WindowCorners::Size size;
     WindowCorners::Point origin;
     int radius = 0;
-    Templates::WaylandSlot<Entry> treeDestroy;
-    Templates::WaylandSlot<Entry> contentDestroy;
-    Templates::WaylandSlot<Entry> surfaceDestroy;
-    Templates::WaylandSlot<Entry> viewsDestroy;
+    Templates::WaylandSlot treeDestroy;
+    Templates::WaylandSlot contentDestroy;
+    Templates::WaylandSlot surfaceDestroy;
+    Templates::WaylandSlot viewsDestroy;
 
     explicit Entry(const Surface &value)
         : tree(value.tree), content(value.content), surface(value.surface) {
-      listen<&Entry::onTreeDestroy>(&tree->node.events.destroy, treeDestroy);
-      listen<&Entry::onContentDestroy>(&content->node.events.destroy,
-                                       contentDestroy);
-      listen<&Entry::onSurfaceDestroy>(&surface->events.destroy, surfaceDestroy);
+      listen<&Entry::onTreeDestroy, &Entry::treeDestroy>(
+          &tree->node.events.destroy);
+      listen<&Entry::onContentDestroy, &Entry::contentDestroy>(
+          &content->node.events.destroy);
+      listen<&Entry::onSurfaceDestroy, &Entry::surfaceDestroy>(
+          &surface->events.destroy);
     }
     ~Entry() {
       Templates::detachListeners(treeDestroy, contentDestroy, surfaceDestroy);
@@ -172,7 +174,8 @@ public:
       }
       clearViews(false);
       views = next;
-      listen<&Entry::onViewsDestroy>(&views->node.events.destroy, viewsDestroy);
+      listen<&Entry::onViewsDestroy, &Entry::viewsDestroy>(
+          &views->node.events.destroy);
       wlr_scene_node_place_below(&views->node, &content->node);
       wlr_scene_node_set_enabled(&views->node, true);
       wlr_scene_node_set_enabled(&content->node, false);

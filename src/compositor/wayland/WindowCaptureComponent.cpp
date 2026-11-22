@@ -20,8 +20,9 @@ bool WaylandCompositor::Impl::WindowCaptureComponent::start() {
       !impl->foreignToplevelCaptureSource)
     return impl->fail(
         "wlroots could not create window capture protocol globals.");
-  listen<&WindowCaptureComponent::onCaptureRequest>(
-      &impl->foreignToplevelCaptureSource->events.new_request, captureRequest);
+  listen<&WindowCaptureComponent::onCaptureRequest,
+         &WindowCaptureComponent::captureRequest>(
+      &impl->foreignToplevelCaptureSource->events.new_request);
 #endif
   return true;
 }

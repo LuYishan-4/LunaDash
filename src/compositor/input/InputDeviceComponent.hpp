@@ -15,8 +15,8 @@ private:
   void onNewInput(wlr_input_device *device);
   void onNewVirtualKeyboard(wlr_virtual_keyboard_v1 *keyboard);
 
-  Slot<InputDeviceComponent> newInput;
-  Slot<InputDeviceComponent> newVirtualKeyboard;
+  Slot newInput;
+  Slot newVirtualKeyboard;
 };
 
 } // namespace LunaDash

@@ -7,8 +7,8 @@ bool WaylandCompositor::Impl::LayerShellComponent::start() {
   impl->layerShell = wlr_layer_shell_v1_create(impl->display, 4);
   if (!impl->layerShell)
     return impl->fail("wlroots could not create the layer-shell global.");
-  listen<&LayerShellComponent::onNewSurface>(
-      &impl->layerShell->events.new_surface, newSurface);
+  listen<&LayerShellComponent::onNewSurface, &LayerShellComponent::newSurface>(
+      &impl->layerShell->events.new_surface);
 
   if (!BackgroundEffectManager::supported()) {
     logInfo("ext-background-effect-v1 needs wlroots 0.18 or newer; not offered.");

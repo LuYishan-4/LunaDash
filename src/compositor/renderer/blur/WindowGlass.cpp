@@ -78,13 +78,15 @@ public:
     std::uint64_t revision = 0;
     bool rapid = false;
     Stopwatch commitClock;
-    Templates::WaylandSlot<SurfaceWatch> commit;
-    Templates::WaylandSlot<SurfaceWatch> destroy;
+    Templates::WaylandSlot commit;
+    Templates::WaylandSlot destroy;
 
     SurfaceWatch(Impl *ownerValue, wlr_surface *value)
         : owner(ownerValue), surface(value) {
-      listen<&SurfaceWatch::onCommit>(&surface->events.commit, commit);
-      listen<&SurfaceWatch::onDestroy>(&surface->events.destroy, destroy);
+      listen<&SurfaceWatch::onCommit, &SurfaceWatch::commit>(
+          &surface->events.commit);
+      listen<&SurfaceWatch::onDestroy, &SurfaceWatch::destroy>(
+          &surface->events.destroy);
     }
 
     void onCommit() {
@@ -113,8 +115,8 @@ public:
     std::vector<wlr_scene_buffer *> parts;
     std::vector<ludash_corner_band> bands;
     wlr_buffer *backing = nullptr;
-    Templates::WaylandSlot<Entry> treeDestroy;
-    Templates::WaylandSlot<Entry> glassDestroy;
+    Templates::WaylandSlot treeDestroy;
+    Templates::WaylandSlot glassDestroy;
     Rect area;
     WindowGlass::Size clipSize;
     int cornerRadius = -1;
@@ -129,7 +131,8 @@ public:
     bool shared = false;
 
     explicit Entry(wlr_scene_tree *value) : tree(value) {
-      listen<&Entry::onTreeDestroy>(&tree->node.events.destroy, treeDestroy);
+      listen<&Entry::onTreeDestroy, &Entry::treeDestroy>(
+          &tree->node.events.destroy);
     }
     ~Entry() {
       Templates::detachListener(treeDestroy);
@@ -179,7 +182,8 @@ public:
       if (!glass)
         return false;
       wlr_scene_node_set_enabled(&glass->node, false);
-      listen<&Entry::onGlassDestroy>(&glass->node.events.destroy, glassDestroy);
+      listen<&Entry::onGlassDestroy, &Entry::glassDestroy>(
+          &glass->node.events.destroy);
       return true;
     }
 
@@ -304,7 +308,7 @@ public:
   Clock::time_point timerDue{};
   bool timerArmed = false;
   std::function<void()> requestFrame;
-  Templates::WaylandSlot<Impl> rootDestroy;
+  Templates::WaylandSlot rootDestroy;
   std::unordered_map<wlr_scene_tree *, std::unique_ptr<Entry>> entries;
   std::unordered_map<wlr_surface *, std::unique_ptr<SurfaceWatch>> watches;
   bool enabled = true;
@@ -320,7 +324,7 @@ public:
        wlr_scene_node *rootValue)
       : renderer(rendererValue), allocator(allocatorValue), root(rootValue) {
     if (root)
-      listen<&Impl::onRootDestroy>(&root->events.destroy, rootDestroy);
+      listen<&Impl::onRootDestroy, &Impl::rootDestroy>(&root->events.destroy);
   }
   void onRootDestroy() {
     Templates::detachListener(rootDestroy);

@@ -7,11 +7,11 @@ bool WaylandCompositor::Impl::InputDeviceComponent::start() {
       wlr_virtual_keyboard_manager_v1_create(impl->display);
   if (!impl->virtualKeyboardManager)
     return impl->fail("wlroots could not create the virtual-keyboard global.");
-  listen<&InputDeviceComponent::onNewInput>(&impl->backend->events.new_input,
-                                            newInput);
-  listen<&InputDeviceComponent::onNewVirtualKeyboard>(
-      &impl->virtualKeyboardManager->events.new_virtual_keyboard,
-      newVirtualKeyboard);
+  listen<&InputDeviceComponent::onNewInput, &InputDeviceComponent::newInput>(
+      &impl->backend->events.new_input);
+  listen<&InputDeviceComponent::onNewVirtualKeyboard,
+         &InputDeviceComponent::newVirtualKeyboard>(
+      &impl->virtualKeyboardManager->events.new_virtual_keyboard);
   return true;
 }
 

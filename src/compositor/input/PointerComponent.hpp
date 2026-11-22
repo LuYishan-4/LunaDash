@@ -26,14 +26,14 @@ private:
   // A left press outside every shell surface closes the shell's popups.
   void dismissShellPopups();
 
-  Slot<PointerComponent> motion;
-  Slot<PointerComponent> motionAbsolute;
-  Slot<PointerComponent> button;
-  Slot<PointerComponent> axis;
-  Slot<PointerComponent> frame;
-  Slot<PointerComponent> requestCursor;
-  Slot<PointerComponent> requestCursorShape;
-  Slot<PointerComponent> focusChange;
+  Slot motion;
+  Slot motionAbsolute;
+  Slot button;
+  Slot axis;
+  Slot frame;
+  Slot requestCursor;
+  Slot requestCursorShape;
+  Slot focusChange;
 };
 
 } // namespace LunaDash

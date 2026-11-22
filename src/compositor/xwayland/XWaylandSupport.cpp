@@ -59,9 +59,10 @@ bool XWaylandSupport::start(wl_display *display, wlr_compositor *compositor,
 
   xwayland_->data = this;
   wlr_xwayland_set_seat(xwayland_, seat_);
-  listen<&XWaylandSupport::onReady>(&xwayland_->events.ready, ready_);
-  listen<&XWaylandSupport::onNewSurface>(&xwayland_->events.new_surface,
-                                         newSurfaceListener_);
+  listen<&XWaylandSupport::onReady, &XWaylandSupport::ready_>(
+      &xwayland_->events.ready);
+  listen<&XWaylandSupport::onNewSurface, &XWaylandSupport::newSurfaceListener_>(
+      &xwayland_->events.new_surface);
   return true;
 #endif
 }

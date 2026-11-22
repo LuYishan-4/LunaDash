@@ -34,8 +34,8 @@ private:
   void onWriteReady(WriteTransfer *transfer, uint32_t mask);
   void finishWrite(WriteTransfer *transfer);
 
-  Slot<ClipboardComponent> requestSelection;
-  Slot<ClipboardComponent> selection;
+  Slot requestSelection;
+  Slot selection;
   std::unique_ptr<Capture> capture_;
   std::vector<std::unique_ptr<WriteTransfer>> writes_;
   wlr_data_source *ownedSource_ = nullptr;

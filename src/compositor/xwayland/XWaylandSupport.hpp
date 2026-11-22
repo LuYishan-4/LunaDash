@@ -49,7 +49,7 @@ public:
   bool launch(const std::vector<std::string> &command, std::string *error);
 
 private:
-  using Slot = Templates::WaylandSlot<XWaylandSupport>;
+  using Slot = Templates::WaylandSlot;
   void onReady();
   void onNewSurface(wlr_xwayland_surface *surface);
   // Collects exited X11 helper processes; runs from the event loop.
