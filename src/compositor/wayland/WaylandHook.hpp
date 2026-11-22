@@ -8,9 +8,6 @@
 
 namespace LunaDash {
 
-// A wl_listener that calls a function, for listeners owned by plain objects
-// (one per protocol handle). It detaches itself when destroyed, and the
-// function may destroy the hook while it runs.
 struct WaylandHook {
   wl_listener listener{};
   std::function<void(void *)> run;

@@ -20,6 +20,7 @@
 #include <wayland-server-core.h>
 
 namespace LunaDash {
+
 namespace {
 
 constexpr std::size_t kMaximumMimeTypes = 128;
@@ -33,23 +34,22 @@ void closeFd(int &fd) {
   fd = -1;
 }
 
-// The selection LunaDash keeps after its client is gone.
-struct OwnedDataSource {
+struct OiDataSource {
   wlr_data_source base{};
   std::function<void(const char *mimeType, int fd)> send;
   std::function<void()> destroyed;
   std::unordered_map<std::string, std::shared_ptr<const std::vector<char>>>
       mimeTypes;
 
-  static OwnedDataSource *from(wlr_data_source *source) {
-    OwnedDataSource *self = wl_container_of(source, self, base);
+  static OiDataSource *from(wlr_data_source *source) {
+    OiDataSource *self = wl_container_of(source, self, base);
     return self;
   }
   static void onSend(wlr_data_source *source, const char *mimeType, int fd) {
     auto *self = from(source);
-    if (!self->send || !mimeType) {
-      closeFd(fd);
-      return;
+    if(!self->send || !mimeType){
+        closeFd(fd);
+        return;
     }
     self->send(mimeType, fd);
   }
@@ -173,7 +173,7 @@ WaylandCompositor::Impl::ClipboardComponent::~ClipboardComponent() {
 
   if (!ownedSource_)
     return;
-  auto *owned = OwnedDataSource::from(ownedSource_);
+  auto *owned = OiDataSource::from(ownedSource_);
   owned->send = nullptr;
   owned->destroyed = nullptr;
   auto *source = std::exchange(ownedSource_, nullptr);
@@ -371,12 +371,12 @@ void WaylandCompositor::Impl::ClipboardComponent::finishCapture() {
       capture->payloads.empty())
     return;
 
-  auto *owned = new OwnedDataSource;
+  auto *owned = new OiDataSource;
   owned->send = [this](const char *mimeType, int fd) {
     sendStoredSelection(mimeType, fd);
   };
   owned->destroyed = [this] { onSourceDestroy(); };
-  wlr_data_source_init(&owned->base, OwnedDataSource::implementation());
+  wlr_data_source_init(&owned->base, OiDataSource::implementation());
   for (auto &[mimeType, bytes] : capture->payloads) {
     auto *name = static_cast<char *>(std::malloc(mimeType.size() + 1));
     if (!name) {
@@ -423,7 +423,7 @@ void WaylandCompositor::Impl::ClipboardComponent::sendStoredSelection(
     closeFd(fd);
     return;
   }
-  auto *owned = OwnedDataSource::from(ownedSource_);
+  auto *owned = OiDataSource::from(ownedSource_);
   const auto found = owned->mimeTypes.find(mimeType);
   if (found == owned->mimeTypes.end()) {
     closeFd(fd);

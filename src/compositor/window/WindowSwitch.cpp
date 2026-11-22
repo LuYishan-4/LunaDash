@@ -68,14 +68,13 @@ void WaylandCompositor::publishWindowLayout() {
   windowSwitcher_->setLayout(clients, workspace_, d->pointerWindow != 0);
 }
 int WaylandCompositor::workspaceCount() const {
-  // A bound for the numbers, not a limit anyone reaches.
+
   constexpr int kMaximumWorkspaces = 100;
   int last = -1;
   for (const auto &client : clients_)
     if (!client->utility && (client->state.mapped || client->layout.pending))
       last = std::max(last, client->state.workspace);
-  // One empty workspace after the last occupied one: a new workspace appears
-  // once a window opens, not before.
+
   return std::clamp(std::max(last + 2, workspace_ + 1), 1, kMaximumWorkspaces);
 }
 void WaylandCompositor::compactWorkspaces() {

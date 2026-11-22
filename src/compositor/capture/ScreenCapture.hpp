@@ -28,6 +28,9 @@ public:
   bool captureOutput(const ProcessEnvironment &environment,
                      const std::string &path, std::string *error);
   bool busy() const;
+
+
+  //debug return
   constexpr std::string_view phase() const noexcept {
     if (phase_ & PhaseFailed)
       return "failed";

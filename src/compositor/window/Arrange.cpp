@@ -146,22 +146,25 @@ void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
   StallTrace::Section trace("arrange");
-  // Windows and layers move or change here: the surface under the cursor may differ.
+
+
+
   d->schedulePointerRebase();
   compactWorkspaces();
-  // A workspace change slides the whole old workspace out and the new one in.
-  // In the overview the column of workspaces slides instead, and the windows
-  // just change workspace.
+
+
   const int slide = std::exchange(workspaceSlide_, 0);
   const bool overviewSwitch = slide && overview_.open;
-  // Workspaces stack vertically, as the overview shows them: the next one is
-  // below, so going there moves the old one up and the new one in from below.
+
+
   const int slideDistance =
       slide * (std::max(1, d->outputSize().height()) + WindowTuning::workspaceSlideGap);
   const auto preferences = desktopPreferences();
   applyVisualPreferences(preferences);
   const bool templateChanged = selectWindowTemplate();
-  // Only stacking zooms windows; elsewhere they fill their slot at their own size.
+
+
+
   if (!windowTemplate_->allowOverlap || !windowTemplate_->clientMoveResize)
     for (const auto &client : clients_)
       client->effects.contentScale = 1.0;
@@ -239,6 +242,13 @@ void WaylandCompositor::arrange() {
         setClientMaximizedHint(client.get(), next);
       }
     }
+
+
+
+
+
+
+    //fullscreen
     const bool inMaximizedFamily =
         belongsToWindow(*client, clientById(static_cast<int>(maximized)), clients_);
     client->layout.hiddenByMaximize = windowHiddenByMaximize(

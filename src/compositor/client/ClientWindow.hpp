@@ -13,7 +13,6 @@ struct wlr_xwayland_surface;
 
 namespace LunaDash {
 
-// The shell a window comes from. ClientSurface.hpp reads `surface` by it.
 enum class ClientType { XdgShell, X11 };
 
 struct ClientWindow {
@@ -29,21 +28,15 @@ struct ClientWindow {
   char *title = strdup("");
   char *iconName = strdup("");
 
-  // Helpers (override-redirect X11 windows, wl-clipboard): kept out of the
-  // layout, the window switcher and focus.
   bool utility = false;
-  // Opened while a shell overlay held the keyboard (settings opening a file
-  // chooser): it floats above the shell until no overlay is left.
   bool shellDialog = false;
 
   struct {
     wlr_scene_tree *tree = nullptr;
     wlr_scene_tree *content = nullptr;
-    // The window alone, in its own scene, for window capture (xdg-shell only).
     wlr_scene_tree *capture = nullptr;
   } scene;
 
-  // What the client and the user asked of the window.
   struct {
     int workspace = 0;
     bool mapped = false;
@@ -53,7 +46,6 @@ struct ClientWindow {
     bool floating = false;
   } state;
 
-  // Where the layout puts the window, in layout coordinates.
   struct {
     Rect geometry;
     Rect manualGeometry;        // moved or resized by hand while floating
@@ -67,14 +59,8 @@ struct ClientWindow {
 
   // Drawing only: visual effects, none of which moves the window.
   struct {
-    // Stacking windows zoom instead of resizing: the client keeps laying
-    // itself out at its own size and is drawn this many times as large
-    // (clientContentScale, applyClientContentScale).
     double contentScale = 1.0;
-    // The size a resize animation draws the window at right now (empty when
-    // none runs); its live buffers are stretched to it.
     Size animatedSize;
-    // The scale the scene currently draws the window at, per axis.
     double scaleX = 1.0, scaleY = 1.0;
   } effects;
 
