@@ -54,7 +54,10 @@ public:
 
 private:
   static int handleOutput(int fd, uint32_t mask, void *data);
+  static int handleExit(int fd, uint32_t mask, void *data);
   static int handleTimer(void *data);
+  // Collects the child if it has exited; true once the run is finished.
+  bool reap();
   void drainOutput(uint32_t mask);
   void finish(bool success, bool hasStatus = false, int status = 0);
   void stopSources();
@@ -69,7 +72,11 @@ private:
   const bool collectOutput_ = true;
   const bool forwardOutput_ = false;
   wl_event_source *outputSource_ = nullptr;
+  // The child's exit wakes the loop through its pidfd. The timer enforces a
+  // deadline, and polls for the exit only where there is no pidfd.
+  wl_event_source *exitSource_ = nullptr;
   wl_event_source *timerSource_ = nullptr;
+  int pidFd_ = -1;
   int outputFd_ = -1;
   pid_t childPid_ = -1;
   bool busy_ = false;

@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <spawn.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -35,6 +36,17 @@ void resetInheritedPriority(pid_t child) {
   if (errno != 0 || current >= 0)
     return;
   ::setpriority(PRIO_PROCESS, static_cast<id_t>(child), 0);
+}
+
+// A descriptor that becomes readable when `child` exits, or -1 where the
+// kernel (before Linux 5.3) or its headers have no pidfd_open.
+int openPidFd(pid_t child) {
+#ifdef SYS_pidfd_open
+  return static_cast<int>(::syscall(SYS_pidfd_open, child, 0));
+#else
+  (void)child;
+  return -1;
+#endif
 }
 
 void closeDescriptor(int &fd) {
@@ -234,10 +246,24 @@ bool ProcessRunner::runWithEnvironment(
         eventLoop_, outputFd_,
         WL_EVENT_READABLE | WL_EVENT_HANGUP | WL_EVENT_ERROR, handleOutput,
         this);
-  timerSource_ = wl_event_loop_add_timer(eventLoop_, handleTimer, this);
-  if ((!forwardOutput_ && !outputSource_) || !timerSource_ ||
-      wl_event_source_timer_update(timerSource_, timerIntervalMilliseconds_) <
-          0) {
+  pidFd_ = openPidFd(child);
+  if (pidFd_ >= 0)
+    exitSource_ = wl_event_loop_add_fd(eventLoop_, pidFd_, WL_EVENT_READABLE,
+                                       handleExit, this);
+  if (!exitSource_)
+    closeDescriptor(pidFd_);
+  // With a pidfd, a child without a timeout needs no timer at all.
+  const bool hasDeadline =
+      deadline_ != std::chrono::steady_clock::time_point::max();
+  const bool needsTimer = !exitSource_ || hasDeadline;
+  const int firstTimer = exitSource_ ? std::clamp(timeoutMilliseconds, 1, 60000)
+                                     : timerIntervalMilliseconds_;
+  if (needsTimer)
+    timerSource_ = wl_event_loop_add_timer(eventLoop_, handleTimer, this);
+  if ((!forwardOutput_ && !outputSource_) ||
+      (needsTimer && (!timerSource_ ||
+                      wl_event_source_timer_update(timerSource_, firstTimer) <
+                          0))) {
     failed_ = true;
     terminateChild();
     int status = 0;
@@ -263,7 +289,8 @@ void ProcessRunner::cancel() noexcept {
     return;
   failed_ = true;
   terminateChild();
-  if (timerSource_)
+  // The exit arrives through the pidfd; without one, poll for it soon.
+  if (!exitSource_ && timerSource_)
     wl_event_source_timer_update(timerSource_, kReapIntervalMilliseconds);
 }
 
@@ -273,33 +300,54 @@ int ProcessRunner::handleOutput(int, uint32_t mask, void *data) {
   return 0;
 }
 
+int ProcessRunner::handleExit(int, uint32_t, void *data) {
+  static_cast<ProcessRunner *>(data)->reap();
+  return 0;
+}
+
 int ProcessRunner::handleTimer(void *data) {
   auto *runner = static_cast<ProcessRunner *>(data);
-  int status = 0;
-  const pid_t result = ::waitpid(runner->childPid_, &status, WNOHANG);
-  if (result == runner->childPid_) {
-    runner->childPid_ = -1;
-    runner->drainOutput(0);
-    const bool success =
-        !runner->failed_ && WIFEXITED(status) && WEXITSTATUS(status) == 0;
-    runner->finish(success, true, status);
+  if (runner->reap())
     return 0;
+  const auto now = std::chrono::steady_clock::now();
+  if (runner->deadline_ != std::chrono::steady_clock::time_point::max()) {
+    if (now >= runner->deadline_) {
+      runner->failed_ = true;
+      runner->terminateChild();
+    } else if (runner->exitSource_) {
+      // Woken a little early: wait out the rest of the deadline.
+      const auto left = std::chrono::ceil<std::chrono::milliseconds>(
+          runner->deadline_ - now);
+      wl_event_source_timer_update(runner->timerSource_,
+                                   static_cast<int>(left.count()));
+      return 0;
+    }
   }
-  if (result < 0 && errno != EINTR) {
-    runner->failed_ = true;
-    runner->childPid_ = -1;
-    runner->finish(false);
-    return 0;
-  }
-  if (runner->deadline_ != std::chrono::steady_clock::time_point::max() &&
-      std::chrono::steady_clock::now() >= runner->deadline_) {
-    runner->failed_ = true;
-    runner->terminateChild();
-  }
-  if (runner->timerSource_)
+  // Without a pidfd the timer keeps polling for the exit.
+  if (!runner->exitSource_ && runner->timerSource_)
     wl_event_source_timer_update(runner->timerSource_,
                                  runner->timerIntervalMilliseconds_);
   return 0;
+}
+
+bool ProcessRunner::reap() {
+  int status = 0;
+  const pid_t result = ::waitpid(childPid_, &status, WNOHANG);
+  if (result == childPid_) {
+    childPid_ = -1;
+    drainOutput(0);
+    const bool success =
+        !failed_ && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    finish(success, true, status);
+    return true;
+  }
+  if (result < 0 && errno != EINTR) {
+    failed_ = true;
+    childPid_ = -1;
+    finish(false);
+    return true;
+  }
+  return false;
 }
 
 void ProcessRunner::drainOutput(uint32_t mask) {
@@ -386,6 +434,11 @@ void ProcessRunner::stopSources() {
     wl_event_source_remove(timerSource_);
     timerSource_ = nullptr;
   }
+  if (exitSource_) {
+    wl_event_source_remove(exitSource_);
+    exitSource_ = nullptr;
+  }
+  closeDescriptor(pidFd_);
   closeDescriptor(outputFd_);
 }
 
