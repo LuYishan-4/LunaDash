@@ -4,7 +4,12 @@
 namespace LunaDash {
 
 bool WaylandCompositor::Impl::LayerShellComponent::start() {
+
+#if WLR_VERSION_MINOR >= 18
+  impl->layerShell = wlr_layer_shell_v1_create(impl->display, 5);
+#else
   impl->layerShell = wlr_layer_shell_v1_create(impl->display, 4);
+#endif
   if (!impl->layerShell)
     return impl->fail("wlroots could not create the layer-shell global.");
   listen<&LayerShellComponent::onNewSurface, &LayerShellComponent::newSurface>(
