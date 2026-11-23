@@ -1,6 +1,5 @@
 #include "compositor/wayland/WorkspaceProtocol.hpp"
 
-// C++ library headers must be parsed before the wlroots compatibility macros.
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
@@ -13,11 +12,6 @@
 #if LUDASH_WLR_HAS_EXT_WORKSPACE
 
 namespace LunaDash {
-namespace {
-
-constexpr std::uint32_t kManagerVersion = 1;
-
-} // namespace
 
 struct WorkspaceProtocol::Listeners {
   wl_listener commit{};
@@ -29,10 +23,9 @@ struct WorkspaceProtocol::Listeners {
     Listeners *self = wl_container_of(listener, self, commit);
     self->commitCallback(data);
   }
-  // The display is going away and takes the manager and its handles with it.
+
   static void onDestroy(wl_listener *listener, void *) {
     Listeners *self = wl_container_of(listener, self, destroy);
-    // The callback deletes these listeners, itself included: run a copy.
     auto destroyed = self->destroyCallback;
     destroyed();
   }
@@ -56,7 +49,7 @@ bool WorkspaceProtocol::supported() { return true; }
 WorkspaceProtocol::WorkspaceProtocol(wl_display *display,
                                      std::function<void(int)> activate)
     : activate_(std::move(activate)) {
-  manager_ = wlr_ext_workspace_manager_v1_create(display, kManagerVersion);
+  manager_ = wlr_ext_workspace_manager_v1_create(display, 1);
   if (!manager_)
     return;
   group_ = wlr_ext_workspace_group_handle_v1_create(manager_, 0);

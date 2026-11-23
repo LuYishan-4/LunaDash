@@ -14,7 +14,6 @@
 namespace LunaDash {
 namespace {
 
-// What `subscribe` takes, as sway's subscribe does.
 constexpr std::array<std::string_view, 6> kEvents{"workspace",   "window",
                                                   "appearance",  "wallpaper",
                                                   "keybindings", "shutdown"};
@@ -31,7 +30,6 @@ std::string line(std::string_view event, Json body) {
   return jsonCompact(body);
 }
 
-// A window event's change, as sway names them where it has one.
 std::vector<std::string> windowChanges(const Json &old, const Json &now) {
   std::vector<std::string> changes;
   const auto changed = [&](const char *key) {

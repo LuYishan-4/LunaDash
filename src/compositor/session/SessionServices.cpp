@@ -66,9 +66,11 @@ SessionServices::SessionServices(wl_event_loop *eventLoop)
     : activationProcess_(eventLoop), systemctlProcess_(eventLoop) {}
 
 void SessionServices::publishActivationEnvironment(
-    const ProcessEnvironment &environment, ActivationCompletion completion) {
+    const ProcessEnvironment &environment,
+    std::function<void(bool, const std::string &)> completion) {
   const auto callback =
-      std::make_shared<ActivationCompletion>(std::move(completion));
+      std::make_shared<std::function<void(bool, const std::string &)>>(
+          std::move(completion));
   const auto finish = [callback](bool success, const std::string &message) {
     if (!*callback)
       return;
@@ -128,8 +130,9 @@ void SessionServices::publishActivationEnvironment(
 
 bool SessionServices::startSystemctl(const ProcessEnvironment &environment,
                                      const std::vector<std::string> &services,
-                                     Completion completion) {
-  const auto callback = std::make_shared<Completion>(std::move(completion));
+                                     std::function<void()> completion) {
+  const auto callback =
+      std::make_shared<std::function<void()>>(std::move(completion));
   const auto finish = [callback] {
     if (!*callback)
       return;
@@ -162,7 +165,7 @@ bool SessionServices::startSystemctl(const ProcessEnvironment &environment,
 }
 
 void SessionServices::refreshScreencastPortalServices(
-    const ProcessEnvironment &environment, Completion completion) {
+    const ProcessEnvironment &environment, std::function<void()> completion) {
   startSystemctl(
       environment,
       {"xdg-desktop-portal-wlr.service", "xdg-desktop-portal-gnome.service",
