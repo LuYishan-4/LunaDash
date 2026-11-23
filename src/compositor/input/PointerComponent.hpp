@@ -23,6 +23,12 @@ private:
   void onRequestCursorShape(
       wlr_cursor_shape_manager_v1_request_set_shape_event *event);
   void onFocusChange(wlr_seat_pointer_focus_change_event *event);
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS
+  void onNewConstraint(wlr_pointer_constraint_v1 *constraint);
+  void onConstraintDestroy();
+  void updateConstraint();
+  bool confineMotion(double &dx, double &dy);
+#endif
   // A left press outside every shell surface closes the shell's popups.
   void dismissShellPopups();
 
@@ -34,6 +40,15 @@ private:
   Slot requestCursor;
   Slot requestCursorShape;
   Slot focusChange;
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS
+  Slot newConstraint;
+  Slot activeConstraintDestroy;
+  wlr_pointer_constraints_v1 *constraints_ = nullptr;
+  wlr_pointer_constraint_v1 *activeConstraint_ = nullptr;
+#endif
+#if LUDASH_WLR_HAS_RELATIVE_POINTER
+  wlr_relative_pointer_manager_v1 *relativePointerManager_ = nullptr;
+#endif
 };
 
 } // namespace LunaDash

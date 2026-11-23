@@ -1,6 +1,5 @@
 #pragma once
 
-
 #ifdef __cplusplus
 
 #include <cmath>
@@ -85,20 +84,33 @@ extern "C" {
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_pointer.h>
+#if __has_include(<wlr/types/wlr_pointer_constraints_v1.h>)
+#include <wlr/types/wlr_pointer_constraints_v1.h>
+#include <wlr/util/region.h>
+#define LUDASH_WLR_HAS_POINTER_CONSTRAINTS 1
+#else
+#define LUDASH_WLR_HAS_POINTER_CONSTRAINTS 0
+#endif
+#if __has_include(<wlr/types/wlr_relative_pointer_v1.h>)
+#include <wlr/types/wlr_relative_pointer_v1.h>
+#define LUDASH_WLR_HAS_RELATIVE_POINTER 1
+#else
+#define LUDASH_WLR_HAS_RELATIVE_POINTER 0
+#endif
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_seat.h>
 #if __has_include(<wlr/types/wlr_single_pixel_buffer_v1.h>)
 #include <wlr/types/wlr_single_pixel_buffer_v1.h>
 #endif
-#include <wlr/types/wlr_subcompositor.h>
-#include <wlr/types/wlr_text_input_v3.h>
-#include <wlr/types/wlr_presentation_time.h>
-#include <wlr/types/wlr_viewporter.h>
+#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/types/wlr_cursor_shape_v1.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/types/wlr_presentation_time.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_text_input_v3.h>
+#include <wlr/types/wlr_viewporter.h>
 #include <wlr/types/wlr_virtual_keyboard_v1.h>
-#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #if __has_include(<wlr/types/wlr_xdg_activation_v1.h>)

@@ -78,12 +78,6 @@ bool WaylandCompositor::Impl::createRuntime() {
   }
 #endif
 #if LUDASH_WLR_HAS_DRM_SYNCOBJ && WLR_VERSION_MINOR >= 19
-  // wlroots 0.18 ships the protocol header, but renderer/backend timeline
-  // feature flags were added in 0.19.
-  // Modern Chromium/Electron clients can use explicit DRM timeline fences.
-  // wlroots' scene-surface helper integrates this protocol with scene
-  // rendering, but it is safe to advertise only when both ends support
-  // timeline synchronization.
   const int rendererDrmFd = wlr_renderer_get_drm_fd(renderer);
   if (rendererDrmFd >= 0 && renderer->features.timeline &&
       backend->features.timeline) {

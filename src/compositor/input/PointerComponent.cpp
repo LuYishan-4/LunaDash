@@ -31,6 +31,20 @@ bool WaylandCompositor::Impl::PointerComponent::start() {
   listen<&PointerComponent::onRequestCursorShape,
          &PointerComponent::requestCursorShape>(
       &impl->cursorShapeManager->events.request_set_shape);
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS
+  constraints_ = wlr_pointer_constraints_v1_create(impl->display);
+  if (!constraints_)
+    return impl->fail(
+        "wlroots could not create the pointer-constraints global.");
+  listen<&PointerComponent::onNewConstraint, &PointerComponent::newConstraint>(
+      &constraints_->events.new_constraint);
+#endif
+#if LUDASH_WLR_HAS_RELATIVE_POINTER
+  relativePointerManager_ =
+      wlr_relative_pointer_manager_v1_create(impl->display);
+  if (!relativePointerManager_)
+    return impl->fail("wlroots could not create the relative-pointer global.");
+#endif
   return true;
 }
 
@@ -40,8 +54,26 @@ void WaylandCompositor::Impl::PointerComponent::onMotion(
     return;
   if (impl->idleNotify)
     impl->idleNotify->activity();
+#if LUDASH_WLR_HAS_RELATIVE_POINTER
+  if (relativePointerManager_)
+    wlr_relative_pointer_manager_v1_send_relative_motion(
+        relativePointerManager_, impl->seat,
+        static_cast<uint64_t>(event->time_msec) * 1000, event->delta_x,
+        event->delta_y, event->unaccel_dx, event->unaccel_dy);
+#endif
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS
+  if (activeConstraint_ &&
+      activeConstraint_->type == WLR_POINTER_CONSTRAINT_V1_LOCKED)
+    return;
+  double dx = event->delta_x;
+  double dy = event->delta_y;
+  if (!confineMotion(dx, dy))
+    return;
+  wlr_cursor_move(impl->cursor, &event->pointer->base, dx, dy);
+#else
   wlr_cursor_move(impl->cursor, &event->pointer->base, event->delta_x,
                   event->delta_y);
+#endif
   impl->pointerCursor->moved();
   impl->processPointerMotion(event->time_msec);
 }
@@ -52,8 +84,43 @@ void WaylandCompositor::Impl::PointerComponent::onMotionAbsolute(
     return;
   if (impl->idleNotify)
     impl->idleNotify->activity();
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS || LUDASH_WLR_HAS_RELATIVE_POINTER
+  double lx = 0;
+  double ly = 0;
+  wlr_cursor_absolute_to_layout_coords(impl->cursor, &event->pointer->base,
+                                       event->x, event->y, &lx, &ly);
+  double dx = lx - impl->cursor->x;
+  double dy = ly - impl->cursor->y;
+#if LUDASH_WLR_HAS_RELATIVE_POINTER
+  if (relativePointerManager_)
+    wlr_relative_pointer_manager_v1_send_relative_motion(
+        relativePointerManager_, impl->seat,
+        static_cast<uint64_t>(event->time_msec) * 1000, dx, dy, dx, dy);
+#endif
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS
+  if (activeConstraint_ &&
+      activeConstraint_->type == WLR_POINTER_CONSTRAINT_V1_LOCKED)
+    return;
+  const bool confined =
+      activeConstraint_ &&
+      activeConstraint_->type == WLR_POINTER_CONSTRAINT_V1_CONFINED;
+  if (!confineMotion(dx, dy))
+    return;
+  if (confined) {
+    wlr_cursor_warp(impl->cursor, nullptr, impl->cursor->x + dx,
+                    impl->cursor->y + dy);
+  } else {
+    wlr_cursor_warp_absolute(impl->cursor, &event->pointer->base, event->x,
+                             event->y);
+  }
+#else
   wlr_cursor_warp_absolute(impl->cursor, &event->pointer->base, event->x,
                            event->y);
+#endif
+#else
+  wlr_cursor_warp_absolute(impl->cursor, &event->pointer->base, event->x,
+                           event->y);
+#endif
   impl->pointerCursor->moved();
   impl->processPointerMotion(event->time_msec);
 }
@@ -81,8 +148,7 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
       desktop->runAction("open-orbit");
       return;
     }
-    if (!pressed &&
-        impl->orbitPointerConsumed) {
+    if (!pressed && impl->orbitPointerConsumed) {
       impl->orbitPointerConsumed = false;
       return;
     }
@@ -90,8 +156,7 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
   if (desktop->overviewPointerButton(event->button, pressed))
     return;
   if (impl->pointerWindow) {
-    if (!pressed &&
-        event->button == impl->pointerButton) {
+    if (!pressed && event->button == impl->pointerButton) {
       if (impl->pointerClientGrab)
         wlr_seat_pointer_notify_button(seat, event->time_msec, event->button,
                                        event->state);
@@ -120,7 +185,7 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
     auto *surface = impl->surfaceAt(impl->cursor->x, impl->cursor->y, &sx, &sy);
     impl->pressedSurface =
         surface && surface == seat->pointer_state.focused_surface ? surface
-                                                                   : nullptr;
+                                                                  : nullptr;
     // sx, sy are surface coordinates; a zoomed window draws them scaled.
     const auto *owner = impl->clientForSurface(surface);
     impl->pressedSurfaceScale = owner ? clientContentScale(*owner) : 1.0;
@@ -130,7 +195,8 @@ void WaylandCompositor::Impl::PointerComponent::onButton(
   }
   wlr_seat_pointer_notify_button(seat, event->time_msec, event->button,
                                  event->state);
-  if (!pressed && seat->pointer_state.button_count == 0 && impl->pressedSurface) {
+  if (!pressed && seat->pointer_state.button_count == 0 &&
+      impl->pressedSurface) {
     // The grab ends: hand the pointer to whatever is under it now.
     impl->pressedSurface = nullptr;
     impl->schedulePointerRebase();
@@ -211,9 +277,73 @@ void WaylandCompositor::Impl::PointerComponent::onRequestCursorShape(
 
 void WaylandCompositor::Impl::PointerComponent::onFocusChange(
     wlr_seat_pointer_focus_change_event *event) {
-
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS
+  updateConstraint();
+#endif
   if (event && !event->new_surface)
     impl->schedulePointerRebase();
 }
+
+#if LUDASH_WLR_HAS_POINTER_CONSTRAINTS
+void WaylandCompositor::Impl::PointerComponent::onNewConstraint(
+    wlr_pointer_constraint_v1 *constraint) {
+  if (constraint &&
+      constraint->surface == impl->seat->pointer_state.focused_surface)
+    updateConstraint();
+}
+
+void WaylandCompositor::Impl::PointerComponent::onConstraintDestroy() {
+  Templates::detachListener(activeConstraintDestroy);
+  activeConstraint_ = nullptr;
+  if (impl->pointerCursor)
+    impl->pointerCursor->setHidden(false);
+}
+
+void WaylandCompositor::Impl::PointerComponent::updateConstraint() {
+  auto *surface = impl->seat->pointer_state.focused_surface;
+  auto *next = surface ? wlr_pointer_constraints_v1_constraint_for_surface(
+                             constraints_, surface, impl->seat)
+                       : nullptr;
+  if (next == activeConstraint_)
+    return;
+
+  auto *previous = activeConstraint_;
+  if (activeConstraintDestroy.connected)
+    Templates::detachListener(activeConstraintDestroy);
+  activeConstraint_ = nullptr;
+  impl->pointerCursor->setHidden(false);
+  if (previous)
+    wlr_pointer_constraint_v1_send_deactivated(previous);
+
+  if (!next)
+    return;
+  activeConstraint_ = next;
+  listen<&PointerComponent::onConstraintDestroy,
+         &PointerComponent::activeConstraintDestroy>(&next->events.destroy);
+  wlr_pointer_constraint_v1_send_activated(next);
+  if (next->type == WLR_POINTER_CONSTRAINT_V1_LOCKED)
+    impl->pointerCursor->setHidden(true);
+}
+
+bool WaylandCompositor::Impl::PointerComponent::confineMotion(double &dx,
+                                                              double &dy) {
+  if (!activeConstraint_ ||
+      activeConstraint_->type != WLR_POINTER_CONSTRAINT_V1_CONFINED)
+    return true;
+  double sx = 0;
+  double sy = 0;
+  auto *surface = impl->surfaceAt(impl->cursor->x, impl->cursor->y, &sx, &sy);
+  if (surface != activeConstraint_->surface)
+    return false;
+  double confinedX = 0;
+  double confinedY = 0;
+  if (!wlr_region_confine(&activeConstraint_->region, sx, sy, sx + dx, sy + dy,
+                          &confinedX, &confinedY))
+    return false;
+  dx = confinedX - sx;
+  dy = confinedY - sy;
+  return true;
+}
+#endif
 
 } // namespace LunaDash

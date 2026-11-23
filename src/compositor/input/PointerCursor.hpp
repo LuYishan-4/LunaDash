@@ -7,13 +7,12 @@
 #include <functional>
 #include <string>
 
-#include "compositor/window/animation/SceneAnimation.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
+#include "compositor/window/animation/SceneAnimation.hpp"
 #include "core/templates/LunaClint.hpp"
 #include "core/templates/WaylandSlot.hpp"
 
 namespace LunaDash {
-
 
 class PointerCursor final : public Templates::LunaClint<PointerCursor> {
 public:
@@ -26,6 +25,8 @@ public:
   void showXcursor(const char *name);
 
   void showSurface(wlr_surface *surface, int32_t hotspotX, int32_t hotspotY);
+
+  void setHidden(bool hidden);
 
   void moved();
 
@@ -53,9 +54,9 @@ private:
   std::function<void()> requestFrame_;
   const bool enabled_;
 
-
   std::string name_ = "default";
   bool clientSurface_ = false;
+  bool hidden_ = false;
   wlr_surface *surface_ = nullptr;
   int32_t hotspotX_ = 0;
   int32_t hotspotY_ = 0;

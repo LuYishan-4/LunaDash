@@ -11,7 +11,6 @@ namespace {
 
 using namespace std::chrono_literals;
 
-
 constexpr auto kShakeWindow = 800ms;
 
 constexpr double kShakeRatio = 3.5;
@@ -65,7 +64,8 @@ const wlr_buffer_impl imageBufferImpl = {
 
 PointerCursor::PointerCursor(wlr_cursor *cursor, wlr_xcursor_manager *manager,
                              uint32_t size, std::function<void()> requestFrame)
-    : cursor_(cursor), manager_(manager), requestFrame_(std::move(requestFrame)),
+    : cursor_(cursor), manager_(manager),
+      requestFrame_(std::move(requestFrame)),
       enabled_(environmentInt("LUNADASH_SHAKE_CURSOR", 1) != 0) {
   if (!enabled_)
     return;
@@ -106,6 +106,13 @@ void PointerCursor::showSurface(wlr_surface *surface, int32_t hotspotX,
   if (surface)
     listen<&PointerCursor::onSurfaceDestroy, &PointerCursor::surfaceDestroy_>(
         &surface->events.destroy);
+  apply();
+}
+
+void PointerCursor::setHidden(bool hidden) {
+  if (hidden_ == hidden)
+    return;
+  hidden_ = hidden;
   apply();
 }
 
@@ -156,7 +163,8 @@ void PointerCursor::moved() {
   if (growth_ == 1.0 && target_ == 1.0)
     lastStep_ = sample.time;
   lastShake_ = sample.time;
-  target_ = std::max(target_, std::min(kMaximumGrowth, 2.0 + path / span - kShakeRatio));
+  target_ = std::max(target_,
+                     std::min(kMaximumGrowth, 2.0 + path / span - kShakeRatio));
   requestFrame_();
 }
 
@@ -164,8 +172,8 @@ bool PointerCursor::advance() {
   if (growth_ == 1.0 && target_ == 1.0)
     return false;
   const auto now = Clock::now();
-  const double seconds =
-      std::clamp(std::chrono::duration<double>(now - lastStep_).count(), 0.0, 0.1);
+  const double seconds = std::clamp(
+      std::chrono::duration<double>(now - lastStep_).count(), 0.0, 0.1);
   lastStep_ = now;
   if (target_ > 1.0 && now - lastShake_ > kHold)
     target_ = 1.0;
@@ -183,6 +191,11 @@ bool PointerCursor::advance() {
 }
 
 void PointerCursor::apply() {
+  if (hidden_) {
+    wlr_cursor_unset_image(cursor_);
+    grown_ = false;
+    return;
+  }
   // A cursor a client hides stays hidden, however it is shaken.
   if (growth_ > 1.0 && large_ && (!clientSurface_ || surface_)) {
     // A client's own image cannot be redrawn larger: the arrow stands in.
@@ -202,7 +215,6 @@ void PointerCursor::apply() {
         largeBuffer_ = &buffer->base;
         largeBufferImage_ = large;
       }
-
 
       wlr_cursor_set_buffer(
           cursor_, largeBuffer_,

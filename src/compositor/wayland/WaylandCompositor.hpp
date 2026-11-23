@@ -50,8 +50,7 @@ public:
   explicit WaylandCompositor(const CompositorOptions &options);
   ~WaylandCompositor();
 
-  // Starts the wlroots runtime, the control socket, XWayland and the session
-  // clients. False when the compositor cannot run; the reason is logged.
+
   bool start();
 
   ProcessRunner *spawn(
@@ -74,15 +73,13 @@ public:
 
 
 private:
-  // IPC commands (compositor/commands) and actions (compositor/input/
-  // CompositorActions.cpp, what keys are bound to) operate on the compositor state.
+
   friend struct CompositorCommands;
   friend struct CompositorActions;
 
   class Impl;
   struct ThumbnailWriteState;
 
-  // The scratchpad terminal: the window once mapped, or the pending launch.
   struct ScratchpadState {
     int window = 0;
     std::int64_t process = 0;
@@ -91,7 +88,6 @@ private:
     std::string error;
   };
 
-  // Interactive (selection) and lunadashctl screenshot captures.
   struct CaptureState {
     std::string last;
     std::string error;
