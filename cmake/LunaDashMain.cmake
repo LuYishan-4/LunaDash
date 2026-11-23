@@ -268,6 +268,24 @@ add_custom_command(
     DEPENDS ${LUDASH_CURSOR_SHAPE_PROTOCOL_XML}
     VERBATIM)
 
+# wlroots 0.17-0.19 include the generated pointer-constraints declarations from
+# wlr_pointer_constraints_v1.h.
+set(LUDASH_POINTER_CONSTRAINTS_PROTOCOL_HEADER
+    ${CMAKE_CURRENT_BINARY_DIR}/pointer-constraints-unstable-v1-protocol.h)
+set(LUDASH_POINTER_CONSTRAINTS_PROTOCOL_XML
+    ${WAYLAND_PROTOCOLS_DATADIR}/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml)
+if(NOT EXISTS "${LUDASH_POINTER_CONSTRAINTS_PROTOCOL_XML}")
+    message(FATAL_ERROR
+        "wayland-protocols pointer-constraints XML not found: ${LUDASH_POINTER_CONSTRAINTS_PROTOCOL_XML}")
+endif()
+add_custom_command(
+    OUTPUT ${LUDASH_POINTER_CONSTRAINTS_PROTOCOL_HEADER}
+    COMMAND ${WAYLAND_SCANNER} server-header
+            ${LUDASH_POINTER_CONSTRAINTS_PROTOCOL_XML}
+            ${LUDASH_POINTER_CONSTRAINTS_PROTOCOL_HEADER}
+    DEPENDS ${LUDASH_POINTER_CONSTRAINTS_PROTOCOL_XML}
+    VERBATIM)
+
 # wlroots has no ext-background-effect-v1 implementation; LunaDash implements
 # the global itself, so it also compiles the scanner's interface code.
 set(LUDASH_BACKGROUND_EFFECT_PROTOCOL_XML
@@ -297,7 +315,8 @@ add_custom_command(
 
 add_custom_target(ludash-wlroots-protocol-headers
     DEPENDS ${LUDASH_WLR_LAYER_PROTOCOL_HEADER} ${LUDASH_XDG_SHELL_PROTOCOL_HEADER}
-            ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER})
+            ${LUDASH_CURSOR_SHAPE_PROTOCOL_HEADER}
+            ${LUDASH_POINTER_CONSTRAINTS_PROTOCOL_HEADER})
 target_include_directories(ludash-xwayland PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_dependencies(ludash-xwayland ludash-wlroots-protocol-headers)
 
