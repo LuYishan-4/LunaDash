@@ -16,7 +16,8 @@ namespace LunaDash {
 class WorkspaceProtocol final {
 public:
 
-  WorkspaceProtocol(wl_display *display, std::function<void(int index)> activate);
+  WorkspaceProtocol(wl_display *display, std::function<void(int index)> activate,
+                    std::function<void()> create);
   ~WorkspaceProtocol();
   WorkspaceProtocol(const WorkspaceProtocol &) = delete;
   WorkspaceProtocol &operator=(const WorkspaceProtocol &) = delete;
@@ -39,6 +40,7 @@ private:
   std::vector<wlr_output *> outputs_;
   int active_ = -1;
   std::function<void(int)> activate_;
+  std::function<void()> create_;
   Listeners *listeners_ = nullptr;
 };
 

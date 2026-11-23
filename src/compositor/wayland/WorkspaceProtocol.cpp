@@ -47,12 +47,14 @@ void WorkspaceProtocol::detach() {
 bool WorkspaceProtocol::supported() { return true; }
 
 WorkspaceProtocol::WorkspaceProtocol(wl_display *display,
-                                     std::function<void(int)> activate)
-    : activate_(std::move(activate)) {
+                                     std::function<void(int)> activate,
+                                     std::function<void()> create)
+    : activate_(std::move(activate)), create_(std::move(create)) {
   manager_ = wlr_ext_workspace_manager_v1_create(display, 1);
   if (!manager_)
     return;
-  group_ = wlr_ext_workspace_group_handle_v1_create(manager_, 0);
+  group_ = wlr_ext_workspace_group_handle_v1_create(
+      manager_, EXT_WORKSPACE_GROUP_HANDLE_V1_GROUP_CAPABILITIES_CREATE_WORKSPACE);
   listeners_ = new Listeners();
   listeners_->commitCallback = [this](void *data) { onCommit(data); };
   listeners_->destroyCallback = [this] { detach(); };
@@ -100,21 +102,32 @@ void WorkspaceProtocol::update(int count, int active,
 
 void WorkspaceProtocol::onCommit(void *data) {
   auto *event = static_cast<wlr_ext_workspace_v1_commit_event *>(data);
-  if (!event || !event->requests || !activate_)
+  if (!event || !event->requests)
     return;
-  // Switching rearranges and may remove handles: collect first, act after.
   int target = -1;
+  bool create = false;
   wlr_ext_workspace_v1_request *request = nullptr;
   wl_list_for_each(request, event->requests, link) {
+    if (request->type == WLR_EXT_WORKSPACE_V1_REQUEST_CREATE_WORKSPACE) {
+      if (request->create_workspace.group == group_) {
+        create = true;
+        target = -1;
+      }
+      continue;
+    }
     if (request->type != WLR_EXT_WORKSPACE_V1_REQUEST_ACTIVATE ||
         !request->activate.workspace)
       continue;
     const auto found = std::find(workspaces_.begin(), workspaces_.end(),
                                  request->activate.workspace);
-    if (found != workspaces_.end())
+    if (found != workspaces_.end()) {
       target = static_cast<int>(found - workspaces_.begin());
+      create = false;
+    }
   }
-  if (target >= 0 && target != active_)
+  if (create && create_)
+    create_();
+  else if (target >= 0 && target != active_ && activate_)
     activate_(target);
 }
 
@@ -127,7 +140,8 @@ namespace LunaDash {
 struct WorkspaceProtocol::Listeners {};
 
 bool WorkspaceProtocol::supported() { return false; }
-WorkspaceProtocol::WorkspaceProtocol(wl_display *, std::function<void(int)>) {}
+WorkspaceProtocol::WorkspaceProtocol(wl_display *, std::function<void(int)>,
+                                     std::function<void()>) {}
 WorkspaceProtocol::~WorkspaceProtocol() = default;
 void WorkspaceProtocol::detach() {}
 void WorkspaceProtocol::update(int, int, const std::vector<wlr_output *> &) {}

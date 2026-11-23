@@ -74,7 +74,8 @@ bool WaylandCompositor::start() {
   sessionServices_ = std::make_unique<SessionServices>(d->eventLoop);
   if (WorkspaceProtocol::supported())
     d->workspaceProtocol = std::make_unique<WorkspaceProtocol>(
-        d->display, [this](int index) { selectWorkspace(index); });
+        d->display, [this](int index) { selectWorkspace(index); },
+        [this] { selectWorkspace(workspaceCount() - 1); });
   d->idleNotify = std::make_unique<IdleNotify>(d->display, d->idleInhibit, d->seat);
   d->sessionLock = std::make_unique<SessionLock>(
       d->display, &d->scene->tree,
