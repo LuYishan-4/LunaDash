@@ -20,7 +20,6 @@ public:
     std::string reply;
     std::vector<std::string> events;
   };
-  // Asked first for every request; nothing when it is not a subscribe request.
   using SubscribeHandler =
       std::function<std::optional<Subscription>(std::string_view)>;
 
@@ -31,8 +30,6 @@ public:
   ControlServer(const ControlServer &) = delete;
   ControlServer &operator=(const ControlServer &) = delete;
 
-  // Sends `line` (without its newline) to every subscriber of `event`. A
-  // subscriber that stops reading and falls far behind is disconnected.
   void broadcast(std::string_view event, const std::string &line);
   bool subscribed(std::string_view event) const;
 
@@ -44,7 +41,7 @@ private:
   void acceptPendingConnections();
   void serveClient(Client *client, uint32_t mask);
   void closeClient(Client *client);
-  // Writes what a client has queued; false when it had to be closed.
+
   bool flushClient(Client *client);
   void updateSocketOwnership();
 

@@ -72,7 +72,9 @@ bool WaylandCompositor::Impl::createRuntime() {
   if (!scene)
     return fail("wlroots could not create the scene graph.");
   if (![&]() -> bool {
-  #if WLR_VERSION_MINOR == 18
+  #if WLR_VERSION_MINOR == 17
+      return wlr_presentation_create(display, backend) != nullptr;
+  #elif WLR_VERSION_MINOR == 18
       auto presentation = wlr_presentation_create(display, backend);
       if (!presentation) return false;
       wlr_scene_set_presentation(scene, presentation);
