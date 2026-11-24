@@ -380,8 +380,6 @@ public:
   wlr_output_state previousDisplay{};
   wl_event_source *displayRevertTimer = nullptr;
   std::chrono::steady_clock::time_point displayRevertDeadline{};
-  wl_event_source *scratchpadTimeout = nullptr;
-  std::uint64_t scratchpadTimeoutGeneration = 0;
   std::string displayError;
   // Desktop preferences virtualOutputSize and virtualOutputSizes; read once
   // and again after preferences change, never per frame or layout.
@@ -517,9 +515,6 @@ public:
   bool fail(const char *message);
   int runEventLoop(bool profile);
   void terminateEventLoop(int exitCode);
-  bool scheduleScratchpadTimeout(std::uint64_t generation);
-  void cancelScratchpadTimeout();
-  void onScratchpadTimeout();
   bool scheduleCallback(int delayMilliseconds, std::function<void()> callback);
   void cancelScheduledCallbacks();
 

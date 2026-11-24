@@ -40,12 +40,6 @@ void CompositorCommands::registerWindowCommands(CommandRegistry &registry) {
     c.setLauncherVisible(r.value == "true", false);
     return {};
   });
-  registry.add("scratchpad", [](C &c, const R &) -> CommandResult {
-    std::string error;
-    if (!c.toggleScratchpad(&error))
-      return commandError(error);
-    return {};
-  });
   registry.add("window-layout-action", [](C &c, const R &r) -> CommandResult {
     const auto object = parseJsonObject(r.value);
     if (!object.is_object() || !c.windowTemplate_)

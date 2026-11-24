@@ -374,7 +374,6 @@ target_link_libraries(ludash-scene-window-effects
     PRIVATE ludash-log)
 add_library(ludash-wayland
     src/compositor/wayland/NightLight.cpp
-    src/compositor/window/Scratchpad.cpp
     src/compositor/window/Arrange.cpp
     src/compositor/window/WindowFocus.cpp
     src/compositor/window/WindowLayoutSettings.cpp

@@ -52,7 +52,6 @@ void WaylandCompositor::Impl::shutdown() {
 
 void WaylandCompositor::Impl::releaseRuntime() {
   cancelScheduledCallbacks();
-  cancelScratchpadTimeout();
   clearPendingDisplay();
   if (!display || runtimeReleased)
     return;

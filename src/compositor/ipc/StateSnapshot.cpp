@@ -303,9 +303,6 @@ Json WaylandCompositor::describeLayout() const {
                       {"progress", overview_.progress},
                       {"previews",
                        static_cast<std::int64_t>(overview_.previews.size())}})},
-       {"scratchpad", Json::object({{"window", scratchpad_.window},
-                                    {"pending", scratchpad_.pending},
-                                    {"error", scratchpad_.error}})},
        {"pointerDrag", Json::object({{"window", d ? d->pointerWindow : 0},
                                      {"target", d ? d->pointerTarget : 0},
                                      {"edge", d ? d->pointerEdge : 0}})}});

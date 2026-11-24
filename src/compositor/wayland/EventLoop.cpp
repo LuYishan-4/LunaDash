@@ -105,44 +105,6 @@ void WaylandCompositor::Impl::terminateEventLoop(int status) {
   eventLoopRunning = false;
 }
 
-bool WaylandCompositor::Impl::scheduleScratchpadTimeout(std::uint64_t generation) {
-  cancelScratchpadTimeout();
-  if (!eventLoop)
-    return false;
-  scratchpadTimeout =
-      Templates::addTimer<&Impl::onScratchpadTimeout>(eventLoop, this);
-  if (!scratchpadTimeout) {
-    logCritical("Could not create the scratchpad launch timer.");
-    return false;
-  }
-  scratchpadTimeoutGeneration = generation;
-  if (wl_event_source_timer_update(scratchpadTimeout, 15000) < 0) {
-    cancelScratchpadTimeout();
-    logCritical("Could not schedule the scratchpad launch timer.");
-    return false;
-  }
-  return true;
-}
-
-void WaylandCompositor::Impl::cancelScratchpadTimeout() {
-  if (!scratchpadTimeout)
-    return;
-  wl_event_source_remove(scratchpadTimeout);
-  scratchpadTimeout = nullptr;
-}
-
-void WaylandCompositor::Impl::onScratchpadTimeout() {
-  cancelScratchpadTimeout();
-  if (q && q->scratchpad_.pending &&
-      q->scratchpad_.generation == scratchpadTimeoutGeneration) {
-    q->scratchpad_.pending = false;
-    q->scratchpad_.process = 0;
-    q->scratchpad_.error =
-        "The terminal did not create a new window. Configure "
-        "the terminal role to start a separate process.";
-  }
-}
-
 bool WaylandCompositor::Impl::scheduleCallback(
     int delayMilliseconds, std::function<void()> callback) {
   if (!eventLoop || !callback)

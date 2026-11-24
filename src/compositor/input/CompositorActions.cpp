@@ -222,13 +222,6 @@ void CompositorActions::registerBuiltins(ActionRegistry &registry) {
     c.focused_->state.minimized = true;
     c.windowLayout_->setMinimized(c.focused_->id, true);
   });
-  add("toggle-scratchpad", none, ActionNoRelayout, [](C &c, auto &) {
-    std::string error;
-    c.toggleScratchpad(&error);
-    if (!error.empty())
-      c.scratchpad_.error = error;
-  });
-
   // Workspaces. Beyond the last one is the empty workspace after it.
   add("focus-workspace", ActionArgument::Number, ActionNone,
       [](C &c, const Arguments &arguments) {

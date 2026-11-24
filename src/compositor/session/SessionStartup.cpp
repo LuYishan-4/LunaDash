@@ -56,18 +56,14 @@ void WaylandCompositor::startSessionClients(bool startShell) {
     if (!launchExternalCommand(command, &error))
       logWarning("Autostart %s failed: %s", command.front().c_str(), error.c_str());
 
-  // A first session shows the shell's Welcome, which the shell opens by itself and
-  // which finishes setup (finish-setup) when closed; later sessions start the user's
-  // startup apps, after a short wait so the shell's layers map first.
   d->scheduleCallback(SessionTuning::startupAppsDelayMs, [this] {
     if (lifecycle_.testStopping || lifecycle_.shuttingDown)
       return;
-    // Setup belongs to the LunaDash desktop; other shells bring their own first run.
+
     if (!setupComplete() && session_.shell == SessionConfig::Shell::LunaDash)
       return;
     for (const auto &app :
          desktopPreferences().value("startupApps", nlohmann::json::array()))
-      // Retired apps: Welcome is part of the shell, the package manager is gone.
       if (app.is_string() && app != "welcome" && app != "packages")
         spawn({"--app", app.get<std::string>()});
   });

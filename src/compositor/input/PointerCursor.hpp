@@ -41,7 +41,6 @@ private:
   };
 
   void onSurfaceDestroy();
-  // Shows the cursor asked for, at the current growth.
   void apply();
 
   wlr_cursor *cursor_;

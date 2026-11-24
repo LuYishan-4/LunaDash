@@ -15,9 +15,7 @@ namespace LunaDash {
 class ControlServer final {
 public:
   using RequestHandler = std::function<std::string(std::string_view)>;
-  // The answer to a subscribe request: its reply line, and the events the
-  // connection then receives from broadcast(). No events: the reply is sent
-  // and the connection closes, as for any other request.
+
   struct Subscription {
     std::string reply;
     std::vector<std::string> events;

@@ -24,7 +24,6 @@ ClientWindow *WaylandCompositor::clientById(int id) const {
 void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
   if (!readClientProtocolMetadata(client))
     return;
-  adoptScratchpad(client);
   setClientText(client->iconName,
                 client->utility ? std::string()
                                 : windowIconName(client->appId, client->title));
@@ -194,8 +193,6 @@ void WaylandCompositor::synchronizeWindowFocus() {
 void WaylandCompositor::removeClient(ClientWindow *client) {
   if (!client)
     return;
-  if (scratchpad_.window == client->id)
-    scratchpad_.window = 0;
   if (d && d->foreignToplevels)
     d->foreignToplevels->remove(client->id);
   if (focused_ == client)

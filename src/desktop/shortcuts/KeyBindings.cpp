@@ -42,7 +42,6 @@ nlohmann::json defaults() {
       {"Meta+W", "choose-wallpaper"},
       {"Meta+Ctrl+W", "random-wallpaper"},
       {"Meta+N", "toggle-night-light"},
-      {"Meta+grave", "toggle-scratchpad"},
       {"Meta+Tab", "toggle-overview"}};
   for (int workspace = 1; workspace <= 10; ++workspace) {
     const auto key = std::to_string(workspace % 10);
@@ -113,7 +112,6 @@ std::optional<Former> former(std::string_view name) {
       {"chooseWallpaper", "normal", "choose-wallpaper", "Meta+W"},
       {"randomWallpaper", "normal", "random-wallpaper", "Meta+Ctrl+W"},
       {"toggleEyeCare", "normal", "toggle-night-light", "Meta+N"},
-      {"toggleScratchpad", "normal", "toggle-scratchpad", "Meta+grave"},
       {"toggleOverview", "normal", "toggle-overview", "Meta+Tab"},
       {"overviewClose", "overview", "close-overview", "Escape"},
       {"overviewAccept", "overview", "close-overview", "Return"},

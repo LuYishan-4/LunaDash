@@ -80,14 +80,6 @@ private:
   class Impl;
   struct ThumbnailWriteState;
 
-  struct ScratchpadState {
-    int window = 0;
-    std::int64_t process = 0;
-    bool pending = false;
-    std::uint64_t generation = 0;
-    std::string error;
-  };
-
   struct CaptureState {
     std::string last;
     std::string error;
@@ -199,7 +191,6 @@ private:
   std::unique_ptr<WindowLayout> windowLayout_;
   bool shortcutCapture_ = false;
 
-  ScratchpadState scratchpad_;
   CaptureState capture_;
   LifecycleState lifecycle_;
   // The shell reported its launcher open (launcher-visible), for toggling it.
@@ -341,9 +332,6 @@ private:
   void resendKeyboardModifiers();
   void applyKeyboardConfiguration();
 
-  // Scratchpad (compositor/window/Scratchpad.cpp).
-  bool toggleScratchpad(std::string *error);
-  void adoptScratchpad(ClientWindow *client);
 };
 
 } // namespace LunaDash
