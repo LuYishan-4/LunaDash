@@ -22,7 +22,11 @@ bool WaylandCompositor::Impl::createRuntime() {
   if (!display || !eventLoop)
     return fail("Could not create the Wayland display.");
 
-  backend = WlrootsCompat::createPlatform(display);
+  #if WLR_VERSION_MINOR < 18
+    backend = wlr_backend_autocreate(display, nullptr);
+  #else
+    backend = wlr_backend_autocreate(wl_display_get_event_loop(display), nullptr);
+  #endif
   if (!backend)
     return fail("wlroots could not create a backend.");
   renderer = ludash_renderer_create(backend, options().graphics.c_str());
@@ -44,7 +48,7 @@ bool WaylandCompositor::Impl::createRuntime() {
     return fail("wlroots could not create the compositor global.");
   wlr_subcompositor_create(display);
   wlr_viewporter_create(display);
-  // The scene sends each surface its fractional scale; clients render sharply at 125 %.
+
   fractionalScale = wlr_fractional_scale_manager_v1_create(display, 1);
   if (!fractionalScale)
     return fail("wlroots could not create the fractional-scale global.");
@@ -56,15 +60,31 @@ bool WaylandCompositor::Impl::createRuntime() {
   if (!idleInhibit)
     return fail("wlroots could not create the idle-inhibit global.");
 
-  outputLayout = WlrootsCompat::createOutputLayout(display);
+#if WLR_VERSION_MINOR < 18
+    outputLayout = wlr_output_layout_create();
+#else
+    outputLayout = wlr_output_layout_create(display);
+#endif
   if (!outputLayout)
     return fail("wlroots could not create the output layout.");
 
   scene = wlr_scene_create();
   if (!scene)
     return fail("wlroots could not create the scene graph.");
-  if (!WlrootsCompat::createPresentation(display, backend, scene))
+  if (![&]() -> bool {
+  #if WLR_VERSION_MINOR == 18
+      auto presentation = wlr_presentation_create(display, backend);
+      if (!presentation) return false;
+      wlr_scene_set_presentation(scene, presentation);
+      return true;
+  #elif WLR_VERSION_MINOR == 19
+      return wlr_presentation_create(display, backend, nullptr);
+  #else
+      return wlr_presentation_create(display, backend, 2)!=nullptr;
+  #endif
+  }()){
     return fail("wlroots could not create the presentation-time global.");
+  }
 #if WLR_VERSION_MINOR >= 20
   if (wlr_renderer_get_drm_fd(renderer) >= 0 &&
       wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF)) {
@@ -94,12 +114,9 @@ bool WaylandCompositor::Impl::createRuntime() {
   animationLayer = wlr_scene_tree_create(&scene->tree);
   overviewLayer = wlr_scene_tree_create(&scene->tree);
   topLayer = wlr_scene_tree_create(&scene->tree);
-  // True xdg fullscreen sits above ordinary top-layer panels. Layer-shell
-  // OVERLAY stays above it for OSD/recorder overlays and selectors.
   fullscreenLayer = wlr_scene_tree_create(&scene->tree);
   overlayLayer = wlr_scene_tree_create(&scene->tree);
-  background = wlr_scene_rect_create(backgroundLayer, virtualOutputSize.width(),
-                                     virtualOutputSize.height(), backgroundColor);
+  background = wlr_scene_rect_create(backgroundLayer, virtualOutputSize.width(), virtualOutputSize.height(), backgroundColor);
   windowGlass = std::make_unique<WindowGlass>(
       renderer, allocator, &scene->tree.node, &normalLayer->node, eventLoop);
   windowGlass->setFrameRequest([this] {
@@ -134,13 +151,6 @@ bool WaylandCompositor::Impl::startRuntime() {
   if (wl_display_add_socket(display, options().socket.c_str()) != 0)
     return fail("Could not create the requested Wayland socket.");
 
-  // A few host-side Wayland helpers (notably GPU Screen Recorder's Flatpak
-  // bridge) still probe the conventional $XDG_RUNTIME_DIR/wayland-0 path
-  // instead of honoring a desktop-specific WAYLAND_DISPLAY. Keep LunaDash's
-  // stable lunadash-* socket for its own clients/control paths, but expose the
-  // same wl_display through the conventional socket in a real login session.
-  // Never add this alias while nested: wayland-0 may belong to the host
-  // compositor and must not be shadowed or treated as a startup failure.
   if (!nested && options().socket != "wayland-0") {
     if (wl_display_add_socket(display, "wayland-0") == 0) {
       logInfo("LunaDash Wayland compatibility socket: wayland-0");

@@ -85,7 +85,7 @@ void CompositorCommands::registerWallpaperCommands(CommandRegistry &registry) {
     return {};
   });
   // Selects a built-in shader wallpaper; the wallpaper settings validate the index.
-  registry.add("wallpaper", [](C &c, const R &r) -> CommandResult {
+  registry.add("wallpaper", [](C &, const R &r) -> CommandResult {
     const auto shader = parseInteger(trimmed(r.value));
     if (!shader || *shader < 0)
       return invalidCommand();

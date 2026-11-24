@@ -4,13 +4,7 @@
 
 namespace LunaDash::WlrootsCompat {
 
-inline wlr_backend *createPlatform(wl_display *display) {
-#if WLR_VERSION_MINOR < 18
-  return wlr_backend_autocreate(display, nullptr);
-#else
-  return wlr_backend_autocreate(wl_display_get_event_loop(display), nullptr);
-#endif
-}
+
 
 inline int nestedModeRefresh(wlr_output *output, int fallbackMilliHz) {
   if (!output)
@@ -26,14 +20,7 @@ inline int nestedModeRefresh(wlr_output *output, int fallbackMilliHz) {
   return fallbackMilliHz;
 }
 
-inline wlr_output_layout *createOutputLayout(wl_display *display) {
-#if WLR_VERSION_MINOR < 18
-  (void)display;
-  return wlr_output_layout_create();
-#else
-  return wlr_output_layout_create(display);
-#endif
-}
+
 
 inline void notifyPointerAxis(wlr_seat *seat,
                               const wlr_pointer_axis_event *event) {
@@ -133,25 +120,6 @@ inline void destroyRuntimeObjects(wlr_cursor *cursor, wlr_allocator *allocator,
 #endif
 }
 
-// wp_presentation: clients learn when each frame reached the screen. From
-// wlroots 0.18 on, scene surfaces send the feedback themselves once the
-// global exists; 0.17 needs the scene told about it.
-inline bool createPresentation(wl_display *display, wlr_backend *backend,
-                               wlr_scene *scene) {
-#if WLR_VERSION_MINOR < 18
-  auto *presentation = wlr_presentation_create(display, backend);
-  if (!presentation)
-    return false;
-  wlr_scene_set_presentation(scene, presentation);
-  return true;
-#elif WLR_VERSION_MINOR < 19
-  (void)scene;
-  return wlr_presentation_create(display, backend) != nullptr;
-#else
-  (void)scene;
-  return wlr_presentation_create(display, backend, 2) != nullptr;
-#endif
-}
 
 inline int expectedSeatProtocolVersion() {
 #if WLR_VERSION_MINOR < 20
