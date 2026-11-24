@@ -58,6 +58,11 @@ bool writeFileAtomically(const std::filesystem::path &path,
                ": " + std::strerror(errno);
     return false;
   }
+  int eError = 0;
+  auto rError = [&](int error) {
+    if (eError == 0)
+      eError = error;
+  };
   bool success = true;
   const char *data = contents.data();
   std::size_t remaining = contents.size();
@@ -66,18 +71,32 @@ bool writeFileAtomically(const std::filesystem::path &path,
     if (written < 0 && errno == EINTR)
       continue;
     if (written <= 0) {
+      rError(written == 0 ? EIO : errno);
       success = false;
       break;
     }
     data += written;
     remaining -= static_cast<std::size_t>(written);
   }
-  success = success && ::fchmod(descriptor, static_cast<mode_t>(permissions)) == 0;
-  success = success && ::fsync(descriptor) == 0;
-  success = (::close(descriptor) == 0) && success;
-  success = success && ::rename(buffer.c_str(), path.c_str()) == 0;
+  if (success &&
+      ::fchmod(descriptor, static_cast<mode_t>(permissions)) != 0) {
+    rError(errno);
+    success = false;
+  }
+  if (success && ::fsync(descriptor) != 0) {
+    rError(errno);
+    success = false;
+  }
+  if (::close(descriptor) != 0) {
+    rError(errno);
+    success = false;
+  }
+  if (success && ::rename(buffer.c_str(), path.c_str()) != 0) {
+    rError(errno);
+    success = false;
+  }
   if (!success) {
-    const auto reason = std::strerror(errno);
+    const auto reason = std::strerror(eError);
     ::unlink(buffer.c_str());
     if (error)
       *error = "Could not write " + path.string() + ": " + reason;
