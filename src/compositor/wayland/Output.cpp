@@ -18,6 +18,10 @@
 #include <utility>
 #include <vector>
 
+#ifndef LUDASH_ENABLE_FRAME_STAGE_TIMING
+#define LUDASH_ENABLE_FRAME_STAGE_TIMING 0
+#endif
+
 namespace LunaDash {
 namespace {
 bool screencopyPendingForOutput(wlr_screencopy_manager_v1 *manager,
@@ -189,11 +193,7 @@ void WaylandCompositor::Impl::updateWindowGlass() {
                q->windowAnimations_->animation().ownsOpacity(
                    client->scene.tree),
            true});
-  // Layer-shell surfaces (the shell's overlays and popups) opt in through
-  // ext-background-effect-v1 and get the same producer-owned,
-  // input-transparent blur underlays; never sample the panel's own text or
-  // change its buffer alpha. Without the blur capability shells keep their
-  // own (more opaque) glass.
+
   for (const auto *layer : layers) {
     if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer ||
         !backgroundEffects || !backgroundEffects->wantsBlur(layer->surface->surface))
@@ -228,9 +228,7 @@ void WaylandCompositor::Impl::arrangeLayers() {
     for (auto *layer : layers) {
       if (!layer || !layer->sceneLayer || !layer->surface)
         continue;
-      // wlroots 0.20 emits layer_shell.new_surface before the client's first
-      // commit. wlr_scene_layer_surface_v1_configure() is only valid after the
-      // role has been initialized by that commit.
+
       if (!layer->surface->initialized ||
           (layer->surface->current.exclusive_zone > 0) != exclusive)
         continue;
@@ -308,10 +306,6 @@ void WaylandCompositor::Impl::relayoutOutputs() {
 WaylandCompositor::Impl::OutputState::OutputState(Impl *owner,
                                                   wlr_output *wlrOutput)
     : impl(owner), output(wlrOutput) {
-  // Hardware cursor planes avoid a full scene composition on every mouse
-  // movement. Screencopy temporarily switches to software cursors so portal
-  // streams still receive the pointer. Direct-KMS recorders can opt into the
-  // old always-composited behavior with LUDASH_SOFTWARE_CURSOR=1.
   forceSoftwareCursor =
       !impl->nested && environmentInt("LUDASH_SOFTWARE_CURSOR") == 1;
   if (forceSoftwareCursor) {
@@ -347,6 +341,7 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
   const std::uint64_t nowNs = nanoseconds(now);
 
   const bool capturePending = updateCaptureCursor();
+#if LUDASH_ENABLE_FRAME_STAGE_TIMING
   std::uint64_t stageStart = nowNs;
   const auto stage = [this, &stageStart](std::size_t index) {
     timespec at{};
@@ -359,22 +354,35 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
       ++entry.slow;
     stageStart = ns;
   };
+#endif
   advanceAnimations(nowNs);
+#if LUDASH_ENABLE_FRAME_STAGE_TIMING
   stage(0);
+#endif
   impl->q->advanceOverview(nowNs + refreshPeriodNs());
+#if LUDASH_ENABLE_FRAME_STAGE_TIMING
   stage(1);
+#endif
   impl->updateWindowGlass();
+#if LUDASH_ENABLE_FRAME_STAGE_TIMING
   stage(2);
+#endif
   // Commits since the last frame reset zoomed windows to their own size.
   for (const auto &client : impl->q->clients_)
     applyClientContentScale(*client);
   if (impl->windowCorners)
     impl->windowCorners->settleWaits();
+#if LUDASH_ENABLE_FRAME_STAGE_TIMING
   stage(3);
+#endif
   commitScene();
+#if LUDASH_ENABLE_FRAME_STAGE_TIMING
   stage(4);
+#endif
   sendFrameDone(&now);
+#if LUDASH_ENABLE_FRAME_STAGE_TIMING
   stage(5);
+#endif
   // Animations, the overview's live previews and a shaken cursor's growth
   // step every frame.
   const bool cursorGrowing = impl->pointerCursor->advance();

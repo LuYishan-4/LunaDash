@@ -189,13 +189,11 @@ int WaylandCompositor::overviewWorkspaceAt(double y) const {
 }
 
 void WaylandCompositor::rebuildOverviewPreviews() {
-  if (overview_.tree) {
-    // Preserve preview nodes during a frame; update their geometry and buffers
-    // instead of destroying and recreating every scene texture.
-  } else if (!overviewShown() || !d || !d->overviewLayer) {
-    overview_.previews.clear();
-    return;
-  } else {
+  if (!overview_.tree) {
+    if (!overviewShown() || !d || !d->overviewLayer) {
+      overview_.previews.clear();
+      return;
+    }
     overview_.tree = wlr_scene_tree_create(d->overviewLayer);
     if (!overview_.tree)
       return;
