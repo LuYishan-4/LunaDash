@@ -87,7 +87,12 @@ Json WaylandCompositor::describeClient(const ClientWindow &client) const {
                        {"minimized", client.state.minimized},
                        {"maximized", client.state.maximized},
                        {"fullscreen", client.state.fullscreen},
-                       {"floating", client.state.floating}});
+                       {"floating", client.state.floating},
+
+                       {"x", client.layout.geometry.x()},
+                       {"y", client.layout.geometry.y()},
+                       {"width", client.layout.geometry.width()},
+                       {"height", client.layout.geometry.height()}});
 }
 
 Json WaylandCompositor::describeClients(Json &xwaylandUtilities) const {
@@ -122,11 +127,7 @@ Json WaylandCompositor::describeClients(Json &xwaylandUtilities) const {
                            : fallback;
     auto entry = describeClient(*client);
     entry.update(Json::object(
-        {{"x", client->layout.geometry.x()},
-         {"y", client->layout.geometry.y()},
-         {"width", client->layout.geometry.width()},
-         {"height", client->layout.geometry.height()},
-         {"frameX", frame.left},
+        {{"frameX", frame.left},
          {"frameY", frame.top},
          {"frameWidth", frame.width},
          {"frameHeight", frame.height},

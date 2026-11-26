@@ -43,7 +43,8 @@ std::vector<std::string> windowChanges(const Json &old, const Json &now) {
     changes.push_back("focus");
   if (changed("title") || changed("appId") || changed("icon"))
     changes.push_back("title");
-  if (changed("workspace"))
+
+  if (changed("workspace") || changed("x") || changed("y"))
     changes.push_back("move");
   turned("mapped", "map", "unmap");
   turned("minimized", "minimize", "restore");
