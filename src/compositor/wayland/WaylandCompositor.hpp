@@ -139,6 +139,15 @@ private:
     // switching workspaces in the overview slides the column of workspaces.
     double view = 0.0;
     double viewVelocity = 0.0;
+
+    struct TileMotion {
+      double x = 0.0;
+      double y = 0.0;
+      double vx = 0.0;
+      double vy = 0.0;
+    };
+    std::unordered_map<int, TileMotion> tileMotion;
+    double stepSeconds = 0.0;
   };
 
   // Counters reported by state() for input diagnostics.

@@ -231,6 +231,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     overview_.previewTrees.clear();
     overview_.previewFrames.clear();
     overview_.previewBuffers.clear();
+    overview_.tileMotion.clear();
     return;
   }
 
@@ -389,7 +390,15 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   const auto layoutRect = [&](const ClientWindow &client) {
     if (client.state.fullscreen)
       return fullscreenRect(client);
-    Rect rect = placedRect(client);
+    // Beside a fullscreen window the others are hidden and their own places
+    // go stale: they come from the same layout pass as the fullscreen one.
+    const bool spreadOut =
+        std::ranges::any_of(spreads, [&](const Spread &spread) {
+          return spread.workspace == client.state.workspace;
+        });
+    const auto *placement = spreadOut ? placementOf(client) : nullptr;
+    Rect rect = placement && placement->geometry.isValid() ? placement->geometry
+                                                           : placedRect(client);
     for (const auto &spread : spreads) {
       if (spread.workspace != client.state.workspace)
         continue;
@@ -401,6 +410,36 @@ void WaylandCompositor::rebuildOverviewPreviews() {
                      0);
     }
     return rect;
+  };
+
+  const bool openSettled = overview_.open && overview_.progress >= 1.0;
+  std::unordered_set<int> springing;
+  const auto tileRect = [&](const ClientWindow &client) {
+    const Rect target = layoutRect(client);
+    const bool spread =
+        std::ranges::any_of(spreads, [&](const Spread &spread) {
+          return spread.workspace == client.state.workspace;
+        });
+    if (!spread || !openSettled)
+      return target;
+    springing.insert(client.id);
+    auto [found, fresh] = overview_.tileMotion.try_emplace(
+        client.id, OverviewState::TileMotion{static_cast<double>(target.x()),
+                                             static_cast<double>(target.y())});
+    auto &motion = found->second;
+    if (!fresh) {
+      double dx = motion.x - target.x();
+      double dy = motion.y - target.y();
+      stepSceneSpring(dx, motion.vx, WindowTuning::overviewViewSpring,
+                      overview_.stepSeconds);
+      stepSceneSpring(dy, motion.vy, WindowTuning::overviewViewSpring,
+                      overview_.stepSeconds);
+      motion.x = target.x() + dx;
+      motion.y = target.y() + dy;
+    }
+    return Rect(static_cast<int>(std::lround(motion.x)),
+                static_cast<int>(std::lround(motion.y)), target.width(),
+                target.height());
   };
 
   ClientWindow *dragged = nullptr;
@@ -415,8 +454,10 @@ void WaylandCompositor::rebuildOverviewPreviews() {
       dragged = client.get();
       continue;
     }
-    draw(client.get(), layoutRect(*client), false);
+    draw(client.get(), tileRect(*client), false);
   }
+  std::erase_if(overview_.tileMotion,
+                [&](const auto &entry) { return !springing.contains(entry.first); });
   // The dragged window follows the pointer above the others.
   if (dragged)
     draw(dragged, layoutRect(*dragged), true);
@@ -486,6 +527,7 @@ void WaylandCompositor::advanceOverview(std::uint64_t presentNs) {
     overview_.previewTrees.clear();
     overview_.previewFrames.clear();
     overview_.previewBuffers.clear();
+    overview_.tileMotion.clear();
     for (auto *layer : {d->normalLayer, d->fullscreenLayer, d->animationLayer})
       if (layer)
         wlr_scene_node_set_enabled(&layer->node, true);
@@ -494,6 +536,7 @@ void WaylandCompositor::advanceOverview(std::uint64_t presentNs) {
   }
   if (overview_.open && settled)
     overview_.progress = 1.0;
+  overview_.stepSeconds = seconds;
   for (auto *layer : {d->normalLayer, d->fullscreenLayer, d->animationLayer})
     if (layer)
       wlr_scene_node_set_enabled(&layer->node, false);
