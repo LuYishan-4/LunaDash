@@ -21,7 +21,6 @@ struct wlr_xcursor_manager;
 namespace LunaDash {
 
 struct XWaylandSnapshot {
-  // XWayland starts on the first X11 client and runs rootless with the wlroots XWM.
   static constexpr const char *mode = "rootless-lazy-xwm";
   bool available = false;
   bool running = false;
