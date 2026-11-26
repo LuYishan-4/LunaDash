@@ -1,0 +1,37 @@
+// LunaDash's boot animation. Plymouth plays it as a loop of two seconds, so
+// whatever moves here should come back to where it started after 2s. To use
+// another: copy this file, change it and run `lunadash-boot-animation FILE`.
+export component BootAnimation inherits Window {
+    width: 300px;
+    height: 300px;
+    background: #000000;
+
+    property <float> breath: 0;
+    animate breath {
+        duration: 1s;
+        easing: ease-in-out;
+        iteration-count: -1;
+        direction: alternate;
+    }
+    init => {
+        root.breath = 1;
+    }
+
+    Rectangle {
+        width: 230px * (0.9 + 0.1 * root.breath);
+        height: self.width;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        border-radius: self.width / 2;
+        background: @radial-gradient(circle, #9db8ff55 0%, #9db8ff00 70%);
+        opacity: 0.35 + 0.65 * root.breath;
+    }
+    Image {
+        source: @image-url("../assets/lunadash.png");
+        width: 150px;
+        height: 150px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        opacity: 0.8 + 0.2 * root.breath;
+    }
+}

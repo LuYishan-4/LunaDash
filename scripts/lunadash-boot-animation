@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Makes a Slint animation the system's boot splash, as a Plymouth theme.
+#
+#   lunadash-boot-animation [--size WxH] [FILE.slint]
+#       Render FILE (default: LunaDash's), install the theme and rebuild the
+#       initramfs. Asks for the administrator password.
+#   lunadash-boot-animation --build-only DIR [--size WxH] [FILE.slint]
+#       Only write the theme to DIR.
+#
+# Plymouth's two-step plugin loops its throbber frames every two seconds, so
+# SlintLu renders the first two seconds of the component at 30 frames a second;
+# its animation should come back to where it started by then. The frames are
+# WxH pixels (300x300 by default), centred on the colour of their top-left
+# corner. Slint's software renderer draws them: positions, sizes, opacity and
+# colours animate, rotated elements do not turn.
+set -euo pipefail
+
+theme=lunadash
+share=/usr/share/lunadash/data/boot
+file=$share/boot-animation.slint
+size=300x300
+build_only=
+
+while (($#)); do
+    case $1 in
+        --build-only) build_only=${2:?--build-only takes a directory}; shift 2 ;;
+        --size) size=${2:?--size takes WIDTHxHEIGHT}; shift 2 ;;
+        -h|--help) sed -n '2,16s/^# \{0,1\}//p' "$0"; exit 0 ;;
+        -*) echo "Unknown option $1" >&2; exit 2 ;;
+        *) file=$1; shift ;;
+    esac
+done
+
+slintlu=${LUDASH_SLINTLU:-/usr/libexec/lunadash/slintlu}
+[[ -x $slintlu ]] || slintlu=$(command -v slintlu) ||
+    { echo 'SlintLu is not installed.' >&2; exit 1; }
+spinner=/usr/share/plymouth/themes/spinner
+[[ -d $spinner ]] || { echo 'Plymouth (and its spinner theme) is not installed.' >&2; exit 1; }
+[[ -f $file ]] || { echo "No such file: $file" >&2; exit 1; }
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+dir=$work/$theme
+mkdir -p "$dir"
+
+echo "Rendering $file…"
+info=$("$slintlu" render "$file" --out "$dir" --prefix throbber- --size "$size" --fps 30 --seconds 2)
+background=$(sed -n 's/.*"background":"#\([0-9a-f]\{6\}\)".*/\1/p' <<<"$info")
+background=${background:-000000}
+
+# With only throbber frames, two-step would play them as the end animation and
+# drop the loop: a one-frame end animation keeps it.
+cp "$dir/throbber-0000.png" "$dir/animation-0000.png"
+# The password and keyboard prompts (lock.png and entry.png are required).
+for image in lock entry bullet capslock keyboard keymap-render; do
+    [[ -f $spinner/$image.png ]] && cp "$spinner/$image.png" "$dir/"
+done
+
+cat >"$dir/$theme.plymouth" <<EOF
+[Plymouth Theme]
+Name=LunaDash
+Description=LunaDash's boot animation, rendered from a Slint component
+ModuleName=two-step
+
+[two-step]
+Font=Inter 12
+TitleFont=Inter Bold 32
+ImageDir=/usr/share/plymouth/themes/$theme
+HorizontalAlignment=.5
+VerticalAlignment=.5
+DialogHorizontalAlignment=.5
+DialogVerticalAlignment=.5
+TitleHorizontalAlignment=.5
+TitleVerticalAlignment=.382
+Transition=none
+TransitionDuration=0.0
+BackgroundStartColor=0x$background
+BackgroundEndColor=0x$background
+MessageBelowAnimation=true
+
+[boot-up]
+UseEndAnimation=false
+
+[shutdown]
+UseEndAnimation=false
+
+[reboot]
+UseEndAnimation=false
+EOF
+
+if [[ -n $build_only ]]; then
+    mkdir -p "$build_only"
+    cp -r "$dir/." "$build_only/"
+    echo "Theme written to $build_only"
+    exit 0
+fi
+
+echo 'Installing the theme and rebuilding the initramfs (administrator password)…'
+pkexec sh -c 'rm -rf "$2" && cp -r "$1" "$2" && plymouth-set-default-theme -R "$3"' \
+    sh "$dir" "/usr/share/plymouth/themes/$theme" "$theme"
+echo "The boot animation is now $file."
