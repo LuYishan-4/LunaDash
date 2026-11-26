@@ -253,10 +253,8 @@ void WaylandCompositor::rebuildOverviewPreviews() {
       overview_.previewTrees.emplace(client->id, previewTreeNode);
     }
     double pScale = scale;
-    int pX = rect.x();
-    int pY = rect.y();
 
-
+    Rect shown = rect;
     if (client->state.fullscreen && client->layout.geometry.isValid() &&
         layout.isValid()) {
       const auto &source = client->layout.geometry;
@@ -268,16 +266,17 @@ void WaylandCompositor::rebuildOverviewPreviews() {
           std::lround(source.width() * pScale));
       const int contentHeight = static_cast<int>(
           std::lround(source.height() * pScale));
-      pX += (rect.width() - contentWidth) / 2;
-      pY += (rect.height() - contentHeight) / 2;
+      shown = Rect(rect.x() + (rect.width() - contentWidth) / 2,
+                   rect.y() + (rect.height() - contentHeight) / 2, contentWidth,
+                   contentHeight);
     }
-    wlr_scene_node_set_position(&previewTreeNode->node, pX, pY);
+    wlr_scene_node_set_position(&previewTreeNode->node, shown.x(), shown.y());
     if (dragged)
       wlr_scene_node_raise_to_top(&previewTreeNode->node);
     static const float hover[4] = {1.0f, 1.0f, 1.0f, 0.35f};
     const bool ringed = client->id == overview_.hovered || client->id == dropWindow;
     auto &frame = overview_.previewFrames[client->id];
-    updateFrame(overview_.tree, frame, rect, client == focused_ ? 3 : ringed ? 2 : 0,
+    updateFrame(overview_.tree, frame, shown, client == focused_ ? 3 : ringed ? 2 : 0,
                 client == focused_ ? overview_.accent : hover);
     if (frame)
       wlr_scene_node_place_below(&frame->node, &previewTreeNode->node);
@@ -294,7 +293,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
         ++it;
       }
     }
-    overview_.previews.push_back({client->id, client->state.workspace, rect});
+    overview_.previews.push_back({client->id, client->state.workspace, shown});
   };
 
   // Other workspaces are laid out afresh: what the layout kept from their last
