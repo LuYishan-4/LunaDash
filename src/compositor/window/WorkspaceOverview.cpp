@@ -40,10 +40,8 @@ bool parseHexColor(const std::string &text, float rgba[4]) {
   return true;
 }
 
-// Copies the buffers under `node` into `parent`, scaled. The window's own tree
-// may be disabled (other workspaces, or the hidden real windows); the nodes
-// inside it keep their enabled state.
-void clonePreview(wlr_scene_node *node, wlr_scene_tree *parent, double x, double y,
+
+void scene_node_dfs(wlr_scene_node *node, wlr_scene_tree *parent, double x, double y,
                   double scale, bool root,
                   std::unordered_map<wlr_scene_buffer *, wlr_scene_buffer *> &copies,
                   std::unordered_set<wlr_scene_buffer *> &seen) {
@@ -57,7 +55,7 @@ void clonePreview(wlr_scene_node *node, wlr_scene_tree *parent, double x, double
     auto *tree = wlr_scene_tree_from_node(node);
     wlr_scene_node *child = nullptr;
     wl_list_for_each(child, &tree->children, link)
-        clonePreview(child, parent, x, y, scale, false, copies, seen);
+        scene_node_dfs(child, parent, x, y, scale, false, copies, seen);
     return;
   }
   if (node->type != WLR_SCENE_NODE_BUFFER)
@@ -256,8 +254,26 @@ void WaylandCompositor::rebuildOverviewPreviews() {
         return;
       overview_.previewTrees.emplace(client->id, previewTreeNode);
     }
-    wlr_scene_node_set_position(&previewTreeNode->node, rect.x(), rect.y());
-    // The dragged window is drawn above the others.
+    double pScale = scale;
+    int pX = rect.x();
+    int pY = rect.y();
+
+
+    if (client->state.fullscreen && client->layout.geometry.isValid() &&
+        layout.isValid()) {
+      const auto &source = client->layout.geometry;
+      const double fit = std::min(
+          static_cast<double>(layout.width()) / source.width(),
+          static_cast<double>(layout.height()) / source.height());
+      pScale *= fit;
+      const int contentWidth = static_cast<int>(
+          std::lround(source.width() * pScale));
+      const int contentHeight = static_cast<int>(
+          std::lround(source.height() * pScale));
+      pX += (rect.width() - contentWidth) / 2;
+      pY += (rect.height() - contentHeight) / 2;
+    }
+    wlr_scene_node_set_position(&previewTreeNode->node, pX, pY);
     if (dragged)
       wlr_scene_node_raise_to_top(&previewTreeNode->node);
     static const float hover[4] = {1.0f, 1.0f, 1.0f, 0.35f};
@@ -270,8 +286,8 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     visibleWindows.insert(client->id);
     auto &copies = overview_.previewBuffers[client->id];
     std::unordered_set<wlr_scene_buffer *> seen;
-    clonePreview(&client->scene.tree->node, previewTreeNode, 0.0, 0.0, scale,
-                 true, copies, seen);
+    scene_node_dfs(&client->scene.tree->node, previewTreeNode, 0.0, 0.0,
+                 pScale, true, copies, seen);
     for (auto it = copies.begin(); it != copies.end();) {
       if (!seen.contains(it->first)) {
         wlr_scene_node_destroy(&it->second->node);
@@ -306,6 +322,13 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   // Where each window is laid out: the current workspace as shown, the others
   // as their layout places them now.
   const auto layoutRect = [&](const ClientWindow &client) {
+    if (client.state.fullscreen) {
+      if (client.state.floating)
+        return floatingGeometry(client, area);
+      if (const auto *placement = placementOf(client);
+          placement && placement->geometry.isValid())
+        return placement->geometry;
+    }
     if (client.state.workspace == workspace_ || client.state.floating) {
       // Where the window is drawn right now, so a focus move that scrolls
       // the columns animates in the preview too.

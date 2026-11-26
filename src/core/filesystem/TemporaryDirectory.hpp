@@ -5,7 +5,6 @@
 
 namespace LunaDash {
 
-// Private (0700) directory removed recursively when the owner is destroyed.
 class TemporaryDirectory final {
 public:
   // Creates <TMPDIR>/lunadash-XXXXXX.
