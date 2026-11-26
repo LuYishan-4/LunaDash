@@ -344,8 +344,8 @@ void WaylandCompositor::rebuildOverviewPreviews() {
 
   struct Spread {
     int workspace;
-    int centerX;
-    int gain;
+    Rect column;
+    Rect tile;
   };
   std::vector<Spread> spreads;
   // Where a fullscreen window would be if it were not fullscreen.
@@ -357,16 +357,18 @@ void WaylandCompositor::rebuildOverviewPreviews() {
       return placement->geometry;
     return client.layout.geometry;
   };
+
   const auto fullscreenRect = [&](const ClientWindow &client) {
-    return Rect(columnOf(client).center().x() - output.width() / 2, 0,
+    const int centred = columnOf(client).center().x() - output.width() / 2;
+    const double progress = std::clamp(overview_.progress, 0.0, 1.0);
+    return Rect(static_cast<int>(std::lround(centred * progress)), 0,
                 output.width(), output.height());
   };
   for (const auto &client : clients_)
     if (client->state.fullscreen && client->state.mapped &&
         !client->state.minimized && !client->utility)
-      spreads.push_back({client->state.workspace,
-                         fullscreenRect(*client).center().x(),
-                         std::max(0, output.width() - columnOf(*client).width())});
+      spreads.push_back({client->state.workspace, columnOf(*client),
+                         fullscreenRect(*client)});
 
 
   const auto placedRect = [&](const ClientWindow &client) {
@@ -388,11 +390,16 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     if (client.state.fullscreen)
       return fullscreenRect(client);
     Rect rect = placedRect(client);
-    for (const auto &spread : spreads)
-      if (spread.workspace == client.state.workspace)
-        rect.translate(rect.center().x() < spread.centerX ? -spread.gain / 2
-                                                          : spread.gain / 2,
-                       0);
+    for (const auto &spread : spreads) {
+      if (spread.workspace != client.state.workspace)
+        continue;
+      // Neighbours keep their distance to the column's edge, now the tile's.
+      const bool left = rect.center().x() < spread.column.center().x();
+      rect.translate(left ? spread.tile.x() - spread.column.x()
+                          : spread.tile.x() + spread.tile.width() -
+                                (spread.column.x() + spread.column.width()),
+                     0);
+    }
     return rect;
   };
 
