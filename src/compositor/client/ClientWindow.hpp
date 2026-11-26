@@ -27,6 +27,9 @@ struct ClientWindow {
   char *appId = strdup("");
   char *title = strdup("");
   char *iconName = strdup("");
+  // An X11 window's own icon as a PNG, when it sets one; "" otherwise.
+  char *iconFile = strdup("");
+  int iconRevision = 0;
 
   bool utility = false;
   bool shellDialog = false;
@@ -71,6 +74,7 @@ struct ClientWindow {
     std::free(appId);
     std::free(title);
     std::free(iconName);
+    std::free(iconFile);
   }
 };
 

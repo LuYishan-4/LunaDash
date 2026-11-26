@@ -186,12 +186,18 @@ public:
     void onFullscreen();
     void onActivate();
     void onMetadata();
+#if WLR_VERSION_MINOR >= 20
+    void onIcon();
+#endif
     void onSceneDestroy();
     void onSceneContentDestroy();
     void onDestroy();
 
     Impl *const impl;
     ClientWindow *const client;
+#if WLR_VERSION_MINOR >= 20
+    Slot setIcon;
+#endif
     Slot associate;
     Slot dissociate;
     Slot map;

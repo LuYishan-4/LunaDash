@@ -41,7 +41,8 @@ std::vector<std::string> windowChanges(const Json &old, const Json &now) {
   };
   if (changed("focused") && jsonBool(now, "focused"))
     changes.push_back("focus");
-  if (changed("title") || changed("appId") || changed("icon"))
+  if (changed("title") || changed("appId") || changed("icon") ||
+      changed("iconFile"))
     changes.push_back("title");
 
   if (changed("workspace") || changed("x") || changed("y"))

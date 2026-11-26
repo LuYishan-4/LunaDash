@@ -7,10 +7,12 @@
 #include "compositor/window/WindowSwitcher.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "compositor/window/animation/AnimationProfile.hpp"
+#include "compositor/xwayland/WindowIcon.hpp"
 
 #include <algorithm>
 #include <iterator>
 #include <vector>
+#include <unistd.h>
 
 namespace LunaDash {
 
@@ -32,6 +34,21 @@ void WaylandCompositor::updateClientMetadata(ClientWindow *client) {
   if (d)
     d->updateClientLegacyForeignToplevel(client);
 #endif
+}
+
+void WaylandCompositor::updateX11Icon(ClientWindow *client) {
+  if (!client || !clientIsX11(*client) || !windowIcons_.isValid())
+    return;
+  if (*client->iconFile)
+    ::unlink(client->iconFile);
+  // A new name each time, so a picture cached by its path is not reused.
+  const auto path = windowIcons_.filePath(
+      std::to_string(client->id) + "-" +
+      std::to_string(++client->iconRevision) + ".png");
+  setClientText(client->iconFile,
+                writeXWaylandIcon(client->surface.xwayland, path) ? path
+                                                                  : std::string());
+  scheduleEvents();
 }
 
 void WaylandCompositor::raiseWithDialogs(ClientWindow *client) {

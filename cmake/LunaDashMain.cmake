@@ -417,6 +417,7 @@ add_library(ludash-wayland
     src/compositor/wayland/LayerShellComponent.cpp
     src/compositor/wayland/WindowCaptureComponent.cpp
     src/compositor/wayland/XWayland.cpp
+    src/compositor/xwayland/WindowIcon.cpp
     src/compositor/wayland/XdgPopup.cpp
     src/compositor/input/Input.cpp
     src/compositor/input/InputDeviceComponent.cpp
@@ -443,6 +444,14 @@ target_compile_definitions(ludash-wayland
         WLR_USE_UNSTABLE=1
         LUDASH_SHELL_SOURCE_DIR="${LUDASH_SHELL_SOURCE_DIR}"
         LUDASH_SCRIPT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+
+pkg_check_modules(LUDASH_XCB_EWMH IMPORTED_TARGET xcb-ewmh)
+if(LUDASH_XCB_EWMH_FOUND)
+    target_compile_definitions(ludash-wayland PRIVATE LUDASH_HAS_XCB_EWMH=1)
+    target_link_libraries(ludash-wayland PRIVATE PkgConfig::LUDASH_XCB_EWMH)
+else()
+    target_compile_definitions(ludash-wayland PRIVATE LUDASH_HAS_XCB_EWMH=0)
+endif()
 target_link_libraries(ludash-wayland
     PUBLIC
         ludash-screen-capture

@@ -8,6 +8,7 @@
 #include "core/log/Log.hpp"
 #include "core/log/StallTrace.hpp"
 #include <algorithm>
+#include <unistd.h>
 
 namespace LunaDash {
 
@@ -82,7 +83,16 @@ void WaylandCompositor::Impl::XWaylandState::listenToSurface() {
       &events.set_geometry);
   listen<&XWaylandState::onMetadata, &XWaylandState::setOverrideRedirect>(
       &events.set_override_redirect);
+#if WLR_VERSION_MINOR >= 20
+  listen<&XWaylandState::onIcon, &XWaylandState::setIcon>(&events.set_icon);
+#endif
 }
+
+#if WLR_VERSION_MINOR >= 20
+void WaylandCompositor::Impl::XWaylandState::onIcon() {
+  impl->q->updateX11Icon(client);
+}
+#endif
 
 void WaylandCompositor::Impl::XWaylandState::onAssociate() {
   auto *surface = clientSurface(*client);
@@ -135,6 +145,8 @@ void WaylandCompositor::Impl::XWaylandState::onMap() {
   client->state.mapped = true;
   auto *desktop = impl->q;
   desktop->updateClientMetadata(client);
+  if (!client->utility)
+    desktop->updateX11Icon(client);
 
   if (!client->layout.initialRuleApplied && !client->utility) {
     const auto rule =
@@ -197,6 +209,8 @@ void WaylandCompositor::Impl::XWaylandState::onDestroy() {
   ClientWindow *window = client;
   if (owner->foreignToplevels)
     owner->foreignToplevels->remove(window->id);
+  if (*window->iconFile)
+    ::unlink(window->iconFile);
 
   // Scene lifetime is independent of XWM lifetime. The destroy listener clears
   // sceneTree when wlroots goes first; otherwise dispose of the live tree now

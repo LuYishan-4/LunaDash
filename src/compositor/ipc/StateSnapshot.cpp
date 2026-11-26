@@ -80,6 +80,7 @@ Json WaylandCompositor::describeClient(const ClientWindow &client) const {
                        {"title", client.title},
                        {"appId", client.appId},
                        {"icon", client.iconName},
+                       {"iconFile", client.iconFile},
                        {"x11", clientIsX11(client)},
                        {"workspace", client.state.workspace},
                        {"focused", &client == focused_},

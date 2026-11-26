@@ -10,6 +10,7 @@
 #include "compositor/window/animation/WindowAnimation.hpp"
 #include "config/session/SessionConfig.hpp"
 #include "core/process/ProcessEnvironment.hpp"
+#include "core/filesystem/TemporaryDirectory.hpp"
 #include "core/process/ProcessRunner.hpp"
 #include <cstdint>
 #include <functional>
@@ -155,6 +156,8 @@ private:
   SessionHelperRegistry sessionHelpers_;
 
   std::unique_ptr<WindowSwitcher> windowSwitcher_;
+  // X11 windows' own icons (updateX11Icon).
+  TemporaryDirectory windowIcons_;
   std::unique_ptr<VideoWallpaperPlayer> videoWallpaper_;
   std::unique_ptr<ScreenCapture> screenCapture_;
   std::unique_ptr<BrightnessSettings> brightnessSettings_;
@@ -246,6 +249,8 @@ private:
   // (compositor/ipc/StateSnapshot.cpp).
   Json describeVersion() const;
   Json describeClient(const ClientWindow &client) const;
+  // Reads the icon an X11 window sets itself into its iconFile.
+  void updateX11Icon(ClientWindow *client);
   Json describeWorkspaces() const;
   Json describeLayout() const;
   Json describePreferences() const;
