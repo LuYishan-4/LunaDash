@@ -25,12 +25,14 @@ XWaylandSupport::~XWaylandSupport() { stop(); }
 
 bool XWaylandSupport::start(wl_display *display, wlr_compositor *compositor,
                             wlr_seat *seat,
+                            wlr_xcursor_manager *cursorManager,
                             std::map<std::string, std::string> environment,
                             NewSurfaceCallback newSurface) {
   stop();
   environment_ = std::move(environment);
   newSurface_ = std::move(newSurface);
   seat_ = seat;
+  cursorManager_ = cursorManager;
   eventLoop_ = display ? wl_display_get_event_loop(display) : nullptr;
   error_.clear();
   xwmReady_ = false;
@@ -71,10 +73,27 @@ void XWaylandSupport::onReady() {
   if (!xwayland_)
     return;
 #if LUDASH_WLR_HAS_XWAYLAND
-  // XWM creates the X11 CLIPBOARD/PRIMARY/DnD bridge on ready. Point it at the
-  // same seat used by wl_data_device and zwlr_data_control so X11 and Wayland
-  // selections become one compositor-owned clipboard domain.
+
   wlr_xwayland_set_seat(xwayland_, seat_);
+
+  if (cursorManager_) {
+    auto *cursor =
+        wlr_xcursor_manager_get_xcursor(cursorManager_, "default", 1);
+    if (cursor && cursor->image_count > 0) {
+      auto *image = cursor->images[0];
+#if WLR_VERSION_MAJOR > 0 || WLR_VERSION_MINOR > 20 ||                 \
+    (WLR_VERSION_MINOR == 20 && WLR_VERSION_MICRO >= 1)
+      wlr_xwayland_set_cursor(xwayland_, wlr_xcursor_image_get_buffer(image),
+                              static_cast<int32_t>(image->hotspot_x),
+                              static_cast<int32_t>(image->hotspot_y));
+#else
+      wlr_xwayland_set_cursor(
+          xwayland_, image->buffer, image->width * 4U, image->width,
+          image->height, static_cast<int32_t>(image->hotspot_x),
+          static_cast<int32_t>(image->hotspot_y));
+#endif
+    }
+  }
 #endif
   xwmReady_ = true;
 }
@@ -133,6 +152,7 @@ void XWaylandSupport::stop() {
 #endif
   xwayland_ = nullptr;
   seat_ = nullptr;
+  cursorManager_ = nullptr;
   eventLoop_ = nullptr;
   xwmReady_ = false;
   newSurface_ = {};
@@ -145,8 +165,7 @@ bool XWaylandSupport::startServer(std::string *error) {
     setError(error, error_.empty() ? "XWayland is unavailable." : error_);
     return false;
   }
-  // Lazy wlr_xwayland is intentionally not spawned here. Exporting DISPLAY is
-  // enough: the first X11 connection starts the server and then XWM.
+
   return true;
 }
 

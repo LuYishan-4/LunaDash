@@ -13,8 +13,6 @@ bool WaylandCompositor::Impl::XdgShellComponent::start() {
   listen<&XdgShellComponent::onNewSurface, &XdgShellComponent::newSurface>(
       &impl->xdgShell->events.new_surface);
 #else
-  // Since wlroots 0.18, xdg_shell exposes role-specific new_toplevel events.
-  // Track the role as soon as it is created, then wait for initial_commit.
   listen<&XdgShellComponent::onNewToplevel, &XdgShellComponent::newSurface>(
       &impl->xdgShell->events.new_toplevel);
   listen<&XdgShellComponent::onNewPopup, &XdgShellComponent::newPopup>(
@@ -22,8 +20,6 @@ bool WaylandCompositor::Impl::XdgShellComponent::start() {
 #endif
 
 #if LUDASH_WLR_HAS_XDG_ACTIVATION
-  // xdg-activation is optional in older wlroots builds. Its requests are
-  // filtered through the seat's event-serial history before focus changes.
   impl->xdgActivation = wlr_xdg_activation_v1_create(impl->display);
   if (impl->xdgActivation)
     listen<&XdgShellComponent::onActivationRequest,

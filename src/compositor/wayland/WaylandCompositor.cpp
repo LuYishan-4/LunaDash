@@ -198,7 +198,8 @@ void WaylandCompositor::startXWayland() {
   auto environment = clientEnvironment_;
   environment["XCURSOR_SIZE"] = std::to_string(
       preferenceValue(desktopPreferences(), Preference::cursorSize));
-  if (!xwayland_->start(d->display, d->compositor, d->seat, environment,
+  if (!xwayland_->start(d->display, d->compositor, d->seat, d->cursorManager,
+                        environment,
                         [this](wlr_xwayland_surface *surface) {
                           if (d)
                             d->addXWaylandSurface(surface);

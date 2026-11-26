@@ -16,6 +16,7 @@ struct wlr_compositor;
 struct wlr_seat;
 struct wlr_xwayland;
 struct wlr_xwayland_surface;
+struct wlr_xcursor_manager;
 
 namespace LunaDash {
 
@@ -39,6 +40,7 @@ public:
   XWaylandSupport &operator=(const XWaylandSupport &) = delete;
 
   bool start(wl_display *display, wlr_compositor *compositor, wlr_seat *seat,
+             wlr_xcursor_manager *cursorManager,
              std::map<std::string, std::string> environment,
              NewSurfaceCallback newSurface);
   void stop();
@@ -58,6 +60,7 @@ private:
 
   wlr_xwayland *xwayland_ = nullptr;
   wlr_seat *seat_ = nullptr;
+  wlr_xcursor_manager *cursorManager_ = nullptr;
   wl_event_loop *eventLoop_ = nullptr;
   wl_event_source *clientReaper_ = nullptr;
   std::vector<pid_t> clients_;
