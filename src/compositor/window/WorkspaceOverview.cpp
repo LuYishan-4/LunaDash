@@ -10,6 +10,7 @@
 #include "core/json/JsonAccess.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <ctime>
 #include <linux/input-event-codes.h>
@@ -94,20 +95,39 @@ void scene_node_dfs(wlr_scene_node *node, wlr_scene_tree *parent, double x, doub
                               static_cast<int>(std::lround(y * scale)));
 }
 
-// The ring around a preview: `width` wide in `color`, or hidden for a width of 0.
-// It lives as long as the preview, so it is updated, never created again.
-void updateFrame(wlr_scene_tree *parent, wlr_scene_rect *&frame, const Rect &rect,
+// The ring around a preview: four edges `width` wide in `color`, hidden for a
+// width of 0. Hollow, so a picture smaller than its tile shows the overview
+// around it, not the ring's colour. It lives as long as the preview, so it is
+// updated, never created again.
+void updateFrame(wlr_scene_tree *parent, wlr_scene_tree *&frame, const Rect &rect,
                  int width, const float color[4]) {
-  if (!frame && width > 0)
-    frame = wlr_scene_rect_create(parent, 1, 1, color);
+  if (!frame && width > 0) {
+    frame = wlr_scene_tree_create(parent);
+    for (int edge = 0; frame && edge < 4; ++edge)
+      wlr_scene_rect_create(frame, 1, 1, color);
+  }
   if (!frame)
     return;
   wlr_scene_node_set_enabled(&frame->node, width > 0);
   if (width <= 0)
     return;
-  wlr_scene_rect_set_size(frame, rect.width() + 2 * width, rect.height() + 2 * width);
-  wlr_scene_rect_set_color(frame, color);
   wlr_scene_node_set_position(&frame->node, rect.x() - width, rect.y() - width);
+  const int outerWidth = rect.width() + 2 * width;
+  const int outerHeight = rect.height() + 2 * width;
+  // Top, bottom, left, right.
+  const std::array<Rect, 4> edges{
+      Rect(0, 0, outerWidth, width), Rect(0, outerHeight - width, outerWidth, width),
+      Rect(0, width, width, rect.height()),
+      Rect(outerWidth - width, width, width, rect.height())};
+  std::size_t index = 0;
+  wlr_scene_node *child = nullptr;
+  wl_list_for_each(child, &frame->children, link) {
+    const Rect &box = edges[index++];
+    auto *edge = wlr_scene_rect_from_node(child);
+    wlr_scene_rect_set_size(edge, box.width(), box.height());
+    wlr_scene_rect_set_color(edge, color);
+    wlr_scene_node_set_position(child, box.x(), box.y());
+  }
 }
 
 } // namespace
@@ -132,6 +152,8 @@ void WaylandCompositor::toggleOverview() {
   const auto preferences = desktopPreferences();
   parseHexColor(jsonString(preferences, "accent"), overview_.accent);
   overview_.open = true;
+
+  wlr_seat_pointer_notify_clear_focus(d->seat);
   overview_.lastStep = monotonicNow();
   overview_.view = workspace_;
   overview_.viewVelocity = 0.0;
@@ -146,9 +168,12 @@ void WaylandCompositor::closeOverview() {
   overview_.hovered = 0;
   overview_.scroll = 0.0;
   overview_.scrollHorizontal = 0.0;
-  if (d)
-    for (const auto *output : d->outputs)
-      wlr_output_schedule_frame(output->output);
+  if (!d)
+    return;
+  for (const auto *output : d->outputs)
+    wlr_output_schedule_frame(output->output);
+
+  d->schedulePointerRebase();
 }
 
 Rect WaylandCompositor::overviewRect(const Rect &rectangle, int workspace) const {
@@ -316,16 +341,35 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     return nullptr;
   };
 
-  // Where each window is laid out: the current workspace as shown, the others
-  // as their layout places them now.
-  const auto layoutRect = [&](const ClientWindow &client) {
-    if (client.state.fullscreen) {
-      if (client.state.floating)
-        return floatingGeometry(client, area);
-      if (const auto *placement = placementOf(client);
-          placement && placement->geometry.isValid())
-        return placement->geometry;
-    }
+
+  struct Spread {
+    int workspace;
+    int centerX;
+    int gain;
+  };
+  std::vector<Spread> spreads;
+  // Where a fullscreen window would be if it were not fullscreen.
+  const auto columnOf = [&](const ClientWindow &client) {
+    if (client.state.floating)
+      return floatingGeometry(client, area);
+    if (const auto *placement = placementOf(client);
+        placement && placement->geometry.isValid())
+      return placement->geometry;
+    return client.layout.geometry;
+  };
+  const auto fullscreenRect = [&](const ClientWindow &client) {
+    return Rect(columnOf(client).center().x() - output.width() / 2, 0,
+                output.width(), output.height());
+  };
+  for (const auto &client : clients_)
+    if (client->state.fullscreen && client->state.mapped &&
+        !client->state.minimized && !client->utility)
+      spreads.push_back({client->state.workspace,
+                         fullscreenRect(*client).center().x(),
+                         std::max(0, output.width() - columnOf(*client).width())});
+
+
+  const auto placedRect = [&](const ClientWindow &client) {
     if (client.state.workspace == workspace_ || client.state.floating) {
       // Where the window is drawn right now, so a focus move that scrolls
       // the columns animates in the preview too.
@@ -339,6 +383,17 @@ void WaylandCompositor::rebuildOverviewPreviews() {
         placement && placement->geometry.isValid())
       return placement->geometry;
     return client.layout.geometry;
+  };
+  const auto layoutRect = [&](const ClientWindow &client) {
+    if (client.state.fullscreen)
+      return fullscreenRect(client);
+    Rect rect = placedRect(client);
+    for (const auto &spread : spreads)
+      if (spread.workspace == client.state.workspace)
+        rect.translate(rect.center().x() < spread.centerX ? -spread.gain / 2
+                                                          : spread.gain / 2,
+                       0);
+    return rect;
   };
 
   ClientWindow *dragged = nullptr;
