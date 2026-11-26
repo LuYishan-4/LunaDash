@@ -372,6 +372,9 @@ public:
   wlr_scene_tree *overviewLayer = nullptr;
   wlr_scene_tree *topLayer = nullptr;
   wlr_scene_tree *fullscreenLayer = nullptr;
+  // Black under a fullscreen window, where one that does not fill the screen
+  // would show what is behind it; shown while one is on the workspace.
+  wlr_scene_rect *fullscreenBackdrop = nullptr;
   wlr_scene_tree *overlayLayer = nullptr;
   wlr_scene_rect *background = nullptr;
   static constexpr float backgroundColor[4] = {0.043f, 0.067f, 0.078f, 1.0f};

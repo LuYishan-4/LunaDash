@@ -189,6 +189,12 @@ void WaylandCompositor::arrange() {
       break;
     }
   }
+  if (d->fullscreenBackdrop) {
+    wlr_scene_rect_set_size(d->fullscreenBackdrop, fullscreenArea.width(),
+                            fullscreenArea.height());
+    wlr_scene_node_set_enabled(&d->fullscreenBackdrop->node,
+                               fullscreenClient != nullptr);
+  }
 
   // Keep the layout's window set in step with the clients.
   for (const auto &client : clients_) {

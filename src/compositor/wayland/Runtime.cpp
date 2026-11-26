@@ -117,6 +117,10 @@ bool WaylandCompositor::Impl::createRuntime() {
   overviewLayer = wlr_scene_tree_create(&scene->tree);
   topLayer = wlr_scene_tree_create(&scene->tree);
   fullscreenLayer = wlr_scene_tree_create(&scene->tree);
+  static constexpr float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  fullscreenBackdrop = wlr_scene_rect_create(fullscreenLayer, 1, 1, black);
+  if (fullscreenBackdrop)
+    wlr_scene_node_set_enabled(&fullscreenBackdrop->node, false);
   overlayLayer = wlr_scene_tree_create(&scene->tree);
   background = wlr_scene_rect_create(backgroundLayer, virtualOutputSize.width(), virtualOutputSize.height(), backgroundColor);
   windowGlass = std::make_unique<WindowGlass>(
@@ -185,6 +189,7 @@ void WaylandCompositor::Impl::destroyRuntime() {
   overviewLayer = nullptr;
   topLayer = nullptr;
   fullscreenLayer = nullptr;
+  fullscreenBackdrop = nullptr;
   overlayLayer = nullptr;
   background = nullptr;
 
