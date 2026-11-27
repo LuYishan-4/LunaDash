@@ -261,6 +261,13 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   const Rect screen(0, 0, output.width(), output.height());
   std::unordered_set<int> visibleWindows;
 
+  // A fullscreen window that stepped aside is hidden at rest: its tile fades
+  // out as the overview closes, and the others go back to their own places.
+  const ClientWindow *aside = workspaceFullscreen();
+  if (aside && !steppedAsideFor(*aside))
+    aside = nullptr;
+  const double progress = std::clamp(overview_.progress, 0.0, 1.0);
+
   const auto draw = [&](ClientWindow *client, const Rect &layout,
                         bool dragged) {
     Rect rect = overviewRect(layout, client->state.workspace);
@@ -315,10 +322,12 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     // after this, and would flash the preview opaque for a frame.
     const bool fading = windowAnimations_ &&
                         windowAnimations_->animation().ownsOpacity(client->scene.tree);
-    const float opacity = fading ? -1.0f
-                          : client->state.fullscreen || client->utility
-                              ? 1.0f
-                              : d->steadyWindowOpacity;
+    float opacity = fading ? -1.0f
+                    : client->state.fullscreen || client->utility
+                        ? 1.0f
+                        : d->steadyWindowOpacity;
+    if (client == aside && opacity >= 0.0f)
+      opacity *= static_cast<float>(progress);
     scene_node_dfs(&client->scene.tree->node, previewTreeNode, 0.0, 0.0,
                  pScale, true, opacity, copies, seen);
     for (auto it = copies.begin(); it != copies.end();) {
@@ -357,6 +366,8 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     int workspace;
     Rect column;
     Rect tile;
+    // How far the neighbours move aside for the tile.
+    double weight;
   };
   std::vector<Spread> spreads;
   // Where a fullscreen window would be if it were not fullscreen.
@@ -371,15 +382,16 @@ void WaylandCompositor::rebuildOverviewPreviews() {
 
   const auto fullscreenRect = [&](const ClientWindow &client) {
     const int centred = columnOf(client).center().x() - output.width() / 2;
-    const double progress = std::clamp(overview_.progress, 0.0, 1.0);
-    return Rect(static_cast<int>(std::lround(centred * progress)), 0,
-                output.width(), output.height());
+    return Rect(static_cast<int>(std::lround(centred * (&client == aside ? 1.0
+                                                                       : progress))),
+                0, output.width(), output.height());
   };
   for (const auto &client : clients_)
     if (client->state.fullscreen && client->state.mapped &&
         !client->state.minimized && !client->utility)
       spreads.push_back({client->state.workspace, columnOf(*client),
-                         fullscreenRect(*client)});
+                         fullscreenRect(*client),
+                         client.get() == aside ? progress : 1.0});
 
 
   const auto placedRect = [&](const ClientWindow &client) {
@@ -414,10 +426,10 @@ void WaylandCompositor::rebuildOverviewPreviews() {
         continue;
       // Neighbours keep their distance to the column's edge, now the tile's.
       const bool left = rect.center().x() < spread.column.center().x();
-      rect.translate(left ? spread.tile.x() - spread.column.x()
-                          : spread.tile.x() + spread.tile.width() -
-                                (spread.column.x() + spread.column.width()),
-                     0);
+      const int shift = left ? spread.tile.x() - spread.column.x()
+                             : spread.tile.x() + spread.tile.width() -
+                                   (spread.column.x() + spread.column.width());
+      rect.translate(static_cast<int>(std::lround(shift * spread.weight)), 0);
     }
     return rect;
   };

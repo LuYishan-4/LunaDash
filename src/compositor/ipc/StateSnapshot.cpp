@@ -76,6 +76,7 @@ Json settingsToolsJson() {
 } // namespace
 
 Json WaylandCompositor::describeClient(const ClientWindow &client) const {
+  const Rect geometry = columnGeometry(client);
   return Json::object({{"id", client.id},
                        {"title", client.title},
                        {"appId", client.appId},
@@ -90,10 +91,10 @@ Json WaylandCompositor::describeClient(const ClientWindow &client) const {
                        {"fullscreen", client.state.fullscreen},
                        {"floating", client.state.floating},
 
-                       {"x", client.layout.geometry.x()},
-                       {"y", client.layout.geometry.y()},
-                       {"width", client.layout.geometry.width()},
-                       {"height", client.layout.geometry.height()}});
+                       {"x", geometry.x()},
+                       {"y", geometry.y()},
+                       {"width", geometry.width()},
+                       {"height", geometry.height()}});
 }
 
 Json WaylandCompositor::describeClients(Json &xwaylandUtilities) const {

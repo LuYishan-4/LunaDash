@@ -240,6 +240,14 @@ private:
   // Window layout (compositor/window/Arrange.cpp, WindowLayoutSettings.cpp).
   void configure(ClientWindow *client, const Rect &rectangle);
   void arrange();
+  // The fullscreen window of the current workspace, if one is mapped there.
+  ClientWindow *workspaceFullscreen() const;
+  // It steps aside while another window of its workspace has focus: hidden,
+  // still in the layout and the overview, to be picked again.
+  bool steppedAsideFor(const ClientWindow &fullscreen) const;
+  // Its place in the layout: a fullscreen window's column, not the screen, so
+  // windows keep their order as the columns scroll.
+  Rect columnGeometry(const ClientWindow &client) const;
   // A fullscreen window does not minimize itself (see Arrange.cpp).
   bool refusesMinimize(const ClientWindow &client, bool minimize) const;
   // Applies opacity, blur and eye-care preferences to the window effects.

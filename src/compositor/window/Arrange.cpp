@@ -143,6 +143,33 @@ void WaylandCompositor::configure(ClientWindow *client,
 }
 
 
+ClientWindow *WaylandCompositor::workspaceFullscreen() const {
+  for (const auto &candidate : clients_)
+    if (candidate->state.mapped && !candidate->state.minimized &&
+        candidate->state.fullscreen &&
+        candidate->state.workspace == workspace_ && !candidate->utility)
+      return candidate.get();
+  return nullptr;
+}
+
+bool WaylandCompositor::steppedAsideFor(const ClientWindow &fullscreen) const {
+  return focused_ && focused_ != &fullscreen &&
+         focused_->state.workspace == fullscreen.state.workspace &&
+         focused_->state.mapped && !focused_->state.minimized &&
+         !focused_->utility && !belongsToWindow(*focused_, &fullscreen, clients_);
+}
+
+Rect WaylandCompositor::columnGeometry(const ClientWindow &client) const {
+  if (!client.state.fullscreen || client.state.floating)
+    return client.layout.geometry;
+  for (const auto &placement :
+       windowLayout_->presentation(client.state.workspace, workArea()))
+    if (static_cast<int>(placement.window) == client.id &&
+        placement.geometry.isValid())
+      return placement.geometry;
+  return client.layout.geometry;
+}
+
 bool WaylandCompositor::refusesMinimize(const ClientWindow &client,
                                         bool minimize) const {
   return minimize && client.state.fullscreen;
@@ -187,23 +214,12 @@ void WaylandCompositor::arrange() {
                             std::max(1, output.height()));
   windowLayout_->configure(currentWindowLayoutSettings());
 
-  ClientWindow *fullscreenClient = nullptr;
-  for (const auto &candidate : clients_) {
-    if (candidate->state.mapped && !candidate->state.minimized &&
-        candidate->state.fullscreen &&
-        candidate->state.workspace == workspace_ && !candidate->utility) {
-      fullscreenClient = candidate.get();
-      break;
-    }
-  }
+  ClientWindow *fullscreenClient = workspaceFullscreen();
   // A fullscreen window steps aside while another window of its workspace has
   // focus: hidden, but still in the layout and the overview, to be picked again.
-  ClientWindow *steppedAside = nullptr;
-  if (fullscreenClient && focused_ && focused_ != fullscreenClient &&
-      focused_->state.workspace == workspace_ && focused_->state.mapped &&
-      !focused_->state.minimized && !focused_->utility &&
-      !belongsToWindow(*focused_, fullscreenClient, clients_))
-    steppedAside = std::exchange(fullscreenClient, nullptr);
+  ClientWindow *steppedAside = fullscreenClient && steppedAsideFor(*fullscreenClient)
+                                   ? std::exchange(fullscreenClient, nullptr)
+                                   : nullptr;
   if (d->fullscreenBackdrop) {
     wlr_scene_rect_set_size(d->fullscreenBackdrop, fullscreenArea.width(),
                             fullscreenArea.height());
