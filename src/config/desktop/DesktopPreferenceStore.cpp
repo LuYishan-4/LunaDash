@@ -440,6 +440,8 @@ bool validDesktopPreference(std::string_view key, const Json &value) {
     return value.is_string() &&
            (value == "us" || value == "gb" || value == "de" || value == "fr" ||
             value == "es" || value == "jp" || value == "tw");
+  if (key == "windowStyle")
+    return value.is_string() && (value == "tiling" || value == "stacking");
   if (key == "fontFamily")
     return value.is_string() &&
            (value == "sans-serif" || value == "serif" || value == "monospace");
@@ -652,6 +654,7 @@ Json defaultDesktopPreferenceValues() {
       {"workspaceCount", 10},
       {Preference::keyboardLayout.name, std::string(Preference::keyboardLayout.fallback)},
       {Preference::cursorSize.name, Preference::cursorSize.fallback},
+      {Preference::windowStyle.name, std::string(Preference::windowStyle.fallback)},
       {"fontFamily", "sans-serif"},
       {"clock24Hour", true},
       {"startupApps", Json::array()},

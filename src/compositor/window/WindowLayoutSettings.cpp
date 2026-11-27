@@ -13,8 +13,13 @@
 namespace LunaDash {
 
 std::string WaylandCompositor::selectedWindowTemplateKey() const {
-  // A window-layout plugin wins over the default template.
-  return windowTemplateForKey(pluginManager_->windowTemplateKey()).key;
+  // A window-layout plugin wins over the window style preference.
+  const auto plugin = pluginManager_->windowTemplateKey();
+  return windowTemplateForKey(
+             plugin.empty()
+                 ? preferenceValue(desktopPreferences(), Preference::windowStyle)
+                 : plugin)
+      .key;
 }
 
 Json WaylandCompositor::currentWindowLayoutSettings() const {

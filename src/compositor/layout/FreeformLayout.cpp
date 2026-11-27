@@ -253,6 +253,25 @@ std::vector<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
         size = size.scaledToFit(area.size());
       entry.geometry = Rect(Point(), size);
       entry.geometry.moveCenter(area.center());
+      // Cascade off windows already opened at the same spot.
+      constexpr int cascadeStep = 32;
+      for (std::size_t step = 0; step < d->entries.size(); ++step) {
+        const bool taken = std::any_of(
+            d->entries.begin(), d->entries.end(), [&](const auto &other) {
+              return other.first != entry.id &&
+                     other.second.workspace == workspace &&
+                     !other.second.minimized &&
+                     other.second.geometry.isValid() &&
+                     other.second.geometry.topLeft() == entry.geometry.topLeft();
+            });
+        if (!taken)
+          break;
+        entry.geometry.translate(Point(cascadeStep, cascadeStep));
+        if (entry.geometry.right() > area.right())
+          entry.geometry.moveLeft(area.left());
+        if (entry.geometry.bottom() > area.bottom())
+          entry.geometry.moveTop(area.top());
+      }
     }
     entry.geometry = Impl::bounded(entry.geometry, area);
   }
