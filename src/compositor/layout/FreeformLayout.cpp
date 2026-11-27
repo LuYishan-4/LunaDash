@@ -1,5 +1,6 @@
 #include "compositor/layout/FreeformLayout.hpp"
 #include <algorithm>
+#include <cmath>
 #include <unordered_map>
 #include <vector>
 
@@ -13,6 +14,99 @@ Rect quickTileRect(Rect area, std::uint32_t edges) {
               edges & 2u ? area.y() + area.height() - height : area.y(), width,
               height);
 }
+namespace {
+// Where a new window of `size` covers the others least, like KWin's smart
+// placement: the centre of `area` when it is free, otherwise beside or below
+// a window or on a coarse grid, the one nearest the centre among equals.
+Rect leastOverlapping(Size size, Rect area, const std::vector<Rect> &others) {
+  const auto overlap = [&](const Rect &candidate) {
+    long long covered = 0;
+    for (const auto &other : others) {
+      const Rect shared = candidate.intersected(other);
+      covered += static_cast<long long>(shared.width()) * shared.height();
+    }
+    return covered;
+  };
+  const int maximumX = area.x() + area.width() - size.width();
+  const int maximumY = area.y() + area.height() - size.height();
+  std::vector<int> xs{area.x(), maximumX};
+  std::vector<int> ys{area.y(), maximumY};
+  for (const auto &other : others) {
+    xs.push_back(other.x() + other.width());
+    xs.push_back(other.x() - size.width());
+    ys.push_back(other.y() + other.height());
+    ys.push_back(other.y() - size.height());
+  }
+  constexpr int grid = 48;
+  for (int x = area.x(); x < maximumX; x += grid)
+    xs.push_back(x);
+  for (int y = area.y(); y < maximumY; y += grid)
+    ys.push_back(y);
+  Rect best(Point(), size);
+  best.moveCenter(area.center());
+  long long bestOverlap = overlap(best);
+  const auto distance = [&](const Rect &candidate) {
+    const long long dx = candidate.center().x() - area.center().x();
+    const long long dy = candidate.center().y() - area.center().y();
+    return dx * dx + dy * dy;
+  };
+  long long bestDistance = 0;
+  for (const int x : xs)
+    for (const int y : ys) {
+      if (bestOverlap == 0 && bestDistance == 0)
+        return best;
+      if (x < area.x() || x > std::max(area.x(), maximumX) || y < area.y() ||
+          y > std::max(area.y(), maximumY))
+        continue;
+      const Rect candidate(Point(x, y), size);
+      const long long covered = overlap(candidate);
+      const long long away = distance(candidate);
+      if (covered < bestOverlap || (covered == bestOverlap && away < bestDistance)) {
+        best = candidate;
+        bestOverlap = covered;
+        bestDistance = away;
+      }
+    }
+  return best;
+}
+} // namespace
+
+std::vector<Rect> windowGrid(const std::vector<Rect> &windows, Rect area,
+                             int gap) {
+  const int count = static_cast<int>(windows.size());
+  std::vector<Rect> cells(windows.size());
+  if (count == 0)
+    return cells;
+  const int columns = static_cast<int>(std::ceil(std::sqrt(count)));
+  const int rows = (count + columns - 1) / columns;
+  std::vector<int> order(windows.size());
+  for (int index = 0; index < count; ++index)
+    order[index] = index;
+  std::ranges::sort(order, [&](int a, int b) {
+    return windows[a].center().y() < windows[b].center().y();
+  });
+  for (int row = 0; row < rows; ++row)
+    std::sort(order.begin() + row * columns,
+              order.begin() + std::min(count, (row + 1) * columns),
+              [&](int a, int b) {
+                return windows[a].center().x() < windows[b].center().x();
+              });
+  const double cellWidth = (area.width() - gap * (columns + 1.0)) / columns;
+  const double cellHeight = (area.height() - gap * (rows + 1.0)) / rows;
+  for (int slot = 0; slot < count; ++slot) {
+    const int row = slot / columns;
+    const int inRow = std::min(columns, count - row * columns);
+    const double rowLeft =
+        area.x() + (area.width() - inRow * cellWidth - (inRow + 1.0) * gap) / 2.0;
+    cells[order[slot]] = Rect(
+        static_cast<int>(std::lround(rowLeft + gap + (slot % columns) * (cellWidth + gap))),
+        static_cast<int>(std::lround(area.y() + gap + row * (cellHeight + gap))),
+        std::max(1, static_cast<int>(std::lround(cellWidth))),
+        std::max(1, static_cast<int>(std::lround(cellHeight))));
+  }
+  return cells;
+}
+
 class FreeformLayout::Impl {
 public:
   struct Entry {
@@ -293,31 +387,19 @@ std::vector<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
     if (entry.tile)
       entry.geometry = quickTileRect(area, entry.tile);
     if (!entry.geometry.isValid()) {
-      Size size =
-          entry.preferred.isValid() ? entry.preferred : d->defaultSize;
+      // The default size leaves the desktop showing around a lone window.
+      Size size = entry.preferred.isValid()
+                      ? entry.preferred
+                      : d->defaultSize.boundedTo(
+                            Size(area.width() * 2 / 3, area.height() * 3 / 4));
       if (size.width() > area.width() || size.height() > area.height())
         size = size.scaledToFit(area.size());
-      entry.geometry = Rect(Point(), size);
-      entry.geometry.moveCenter(area.center());
-      // Cascade off windows already opened at the same spot.
-      constexpr int cascadeStep = 32;
-      for (std::size_t step = 0; step < d->entries.size(); ++step) {
-        const bool taken = std::any_of(
-            d->entries.begin(), d->entries.end(), [&](const auto &other) {
-              return other.first != entry.id &&
-                     other.second.workspace == workspace &&
-                     !other.second.minimized &&
-                     other.second.geometry.isValid() &&
-                     other.second.geometry.topLeft() == entry.geometry.topLeft();
-            });
-        if (!taken)
-          break;
-        entry.geometry.translate(Point(cascadeStep, cascadeStep));
-        if (entry.geometry.right() > area.right())
-          entry.geometry.moveLeft(area.left());
-        if (entry.geometry.bottom() > area.bottom())
-          entry.geometry.moveTop(area.top());
-      }
+      std::vector<Rect> others;
+      for (const auto &[otherId, other] : d->entries)
+        if (otherId != entry.id && other.workspace == workspace &&
+            !other.minimized && other.geometry.isValid())
+          others.push_back(other.geometry);
+      entry.geometry = leastOverlapping(size, area, others);
     }
     entry.geometry = Impl::bounded(entry.geometry, area);
   }

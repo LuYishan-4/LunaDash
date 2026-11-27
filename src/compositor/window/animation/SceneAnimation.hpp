@@ -107,9 +107,11 @@ public:
   // Moves the destination of a running animation (a layer surface that was laid out again).
   void retarget(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry);
   int duration() const { return duration_; }
+  // `spring` replaces the window-movement spring for this motion.
   void relayout(wlr_scene_tree *tree, const SceneAnimationRectangle &previous,
                 const SceneAnimationRectangle &geometry,
-                wlr_scene_tree *overlay, bool animate = true);
+                wlr_scene_tree *overlay, bool animate = true,
+                const SceneSpring *spring = nullptr);
   void focus(wlr_scene_tree *tree, const SceneAnimationRectangle &geometry);
   void cancel(wlr_scene_tree *tree);
   void clear();

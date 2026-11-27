@@ -1,5 +1,7 @@
 #include "compositor/client/ClientWindow.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
+#include "compositor/layout/FreeformLayout.hpp"
+#include "compositor/renderer/color/HexColor.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
@@ -29,20 +31,9 @@ std::uint64_t monotonicNow() {
          static_cast<std::uint64_t>(now.tv_nsec);
 }
 
-// "#rrggbb" into RGBA; false when it is not one.
-bool parseHexColor(const std::string &text, float rgba[4]) {
-  if (text.size() != 7 || text.front() != '#')
-    return false;
-  for (int channel = 0; channel < 3; ++channel) {
-    const auto value = std::strtol(text.substr(1 + channel * 2, 2).c_str(), nullptr, 16);
-    rgba[channel] = static_cast<float>(value) / 255.0f;
-  }
-  rgba[3] = 1.0f;
-  return true;
-}
 
 
-// `opacity` is the copies' alpha; negative keeps each buffer's own.
+// scene_node_for_each_scene_buffer
 void scene_node_dfs(wlr_scene_node *node, wlr_scene_tree *parent, double x, double y,
                   double scale, bool root, float opacity,
                   std::unordered_map<wlr_scene_buffer *, wlr_scene_buffer *> &copies,
@@ -96,10 +87,6 @@ void scene_node_dfs(wlr_scene_node *node, wlr_scene_tree *parent, double x, doub
                               static_cast<int>(std::lround(y * scale)));
 }
 
-// The ring around a preview: four edges `width` wide in `color`, hidden for a
-// width of 0. Hollow, so a picture smaller than its tile shows the overview
-// around it, not the ring's colour. It lives as long as the preview, so it is
-// updated, never created again.
 void updateFrame(wlr_scene_tree *parent, wlr_scene_tree *&frame, const Rect &rect,
                  int width, const float color[4]) {
   if (!frame && width > 0) {
@@ -131,48 +118,20 @@ void updateFrame(wlr_scene_tree *parent, wlr_scene_tree *&frame, const Rect &rec
   }
 }
 
-// Stacking windows spread out so none hides another: a grid over `area` in
-// the windows' reading order (rows from the top, left to right in each), every
-// window scaled down (never up) into its cell, the last row centred.
+// Stacking windows spread out so none hides another: each scaled down (never
+// up) into its cell of a grid over `area`.
 std::vector<Rect> spreadOut(const std::vector<Rect> &windows, const Rect &area) {
-  const int count = static_cast<int>(windows.size());
-  std::vector<Rect> places(windows.size());
-  if (count == 0)
-    return places;
-  constexpr int gap = 24;
-  const int columns = static_cast<int>(std::ceil(std::sqrt(count)));
-  const int rows = (count + columns - 1) / columns;
-  std::vector<int> order(windows.size());
-  for (int index = 0; index < count; ++index)
-    order[index] = index;
-  std::ranges::sort(order, [&](int a, int b) {
-    return windows[a].center().y() < windows[b].center().y();
-  });
-  for (int row = 0; row < rows; ++row) {
-    const auto first = order.begin() + row * columns;
-    const auto last = order.begin() + std::min(count, (row + 1) * columns);
-    std::sort(first, last, [&](int a, int b) {
-      return windows[a].center().x() < windows[b].center().x();
-    });
-  }
-  const double cellWidth = (area.width() - gap * (columns + 1.0)) / columns;
-  const double cellHeight = (area.height() - gap * (rows + 1.0)) / rows;
-  for (int slot = 0; slot < count; ++slot) {
-    const int row = slot / columns;
-    const int inRow = std::min(columns, count - row * columns);
-    const double rowLeft =
-        area.x() + (area.width() - inRow * cellWidth - (inRow + 1.0) * gap) / 2.0;
-    const double cellX = rowLeft + gap + (slot % columns) * (cellWidth + gap);
-    const double cellY = area.y() + gap + row * (cellHeight + gap);
-    const Rect &window = windows[order[slot]];
-    const double fit = std::min({1.0, cellWidth / std::max(1, window.width()),
-                                 cellHeight / std::max(1, window.height())});
-    const int width = std::max(1, static_cast<int>(std::lround(window.width() * fit)));
-    const int height = std::max(1, static_cast<int>(std::lround(window.height() * fit)));
-    places[order[slot]] =
-        Rect(static_cast<int>(std::lround(cellX + (cellWidth - width) / 2.0)),
-             static_cast<int>(std::lround(cellY + (cellHeight - height) / 2.0)),
-             width, height);
+  auto places = windowGrid(windows, area, 24);
+  for (std::size_t index = 0; index < windows.size(); ++index) {
+    const Rect &window = windows[index];
+    Rect &cell = places[index];
+    const double fit =
+        std::min({1.0, static_cast<double>(cell.width()) / std::max(1, window.width()),
+                  static_cast<double>(cell.height()) / std::max(1, window.height())});
+    Rect fitted(Point(), Size(std::max(1, static_cast<int>(std::lround(window.width() * fit))),
+                              std::max(1, static_cast<int>(std::lround(window.height() * fit)))));
+    fitted.moveCenter(cell.center());
+    cell = fitted;
   }
   return places;
 }
@@ -496,8 +455,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
       return interpolated(placedRect(client), place->second, progress);
     if (client.state.fullscreen)
       return fullscreenRect(client);
-    // Beside a fullscreen window the others are hidden and their own places
-    // go stale: they come from the same layout pass as the fullscreen one.
+
     const bool spreadOut =
         std::ranges::any_of(spreads, [&](const Spread &spread) {
           return spread.workspace == client.state.workspace;

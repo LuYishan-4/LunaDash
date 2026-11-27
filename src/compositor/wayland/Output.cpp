@@ -35,8 +35,6 @@ bool screencopyPendingForOutput(wlr_screencopy_manager_v1 *manager,
   return false;
 }
 
-constexpr int kShellSurfaceRadius = 24;
-
 
 int layerBlurRadius(const wlr_layer_surface_v1 &layer) {
   constexpr std::uint32_t edges =
@@ -46,7 +44,7 @@ int layerBlurRadius(const wlr_layer_surface_v1 &layer) {
   const bool fillsOutput = (state.anchor & edges) == edges && state.margin.top == 0 &&
                            state.margin.right == 0 && state.margin.bottom == 0 &&
                            state.margin.left == 0;
-  return fillsOutput ? 0 : kShellSurfaceRadius;
+  return fillsOutput ? 0 : 24;
 }
 
 std::uint64_t nanoseconds(const timespec &time) {
@@ -177,8 +175,8 @@ void WaylandCompositor::Impl::updateWindowGlass() {
   if (!windowGlass)
     return;
   std::vector<WindowGlass::Surface> surfaces;
-  // Windows blur the wallpaper beneath them (one shared capture per output),
-  // not the windows: moving, animating or typing never captures again.
+
+
   for (const auto &client : q->clients_)
     if (client->scene.tree)
       surfaces.push_back(
@@ -368,8 +366,10 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
   stage(2);
 #endif
   // Commits since the last frame reset zoomed windows to their own size.
-  for (const auto &client : impl->q->clients_)
+  for (const auto &client : impl->q->clients_) {
     applyClientContentScale(*client);
+    impl->updateWindowBorder(client.get());
+  }
   if (impl->windowCorners)
     impl->windowCorners->settleWaits();
 #if LUDASH_ENABLE_FRAME_STAGE_TIMING

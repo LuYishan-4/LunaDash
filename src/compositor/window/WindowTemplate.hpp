@@ -11,9 +11,7 @@ namespace LunaDash {
 
 using WindowLayoutFactory = std::unique_ptr<WindowLayout> (*)();
 
-// A window-management policy: a layout plus the settings, actions and
-// animation profile the compositor exposes for it. Templates are registered
-// (registerWindowTemplate); the compositor only looks them up.
+
 struct WindowTemplate {
   std::string key;
   WindowLayoutFactory createLayout = nullptr;
@@ -23,11 +21,9 @@ struct WindowTemplate {
   Json layoutSettingsSchema = Json::object();
   Json layoutSettingsDefaults = Json::object();
   Json layoutActions = Json::object();
-  // Window-animation profile (the window-animation plugin target's settings).
+
   Json animation = Json::object();
-  // Springs and timings of the scene animation, not exposed to plugins:
-  // openScale, closeDuration and {stiffness, dampingRatio} objects for
-  // windowOpen and windowMovement (every displacement of a window).
+
   Json motion = Json::object();
   // Layout mode reported to the shell (state().layoutMode).
   std::string layoutMode;
@@ -35,8 +31,6 @@ struct WindowTemplate {
   bool sharesDesktopGap = false;
 };
 
-// Registry. The built-in templates (BuiltinWindowTemplates.cpp) are registered
-// before the first lookup; the first registered default wins.
 bool registerWindowTemplate(WindowTemplate windowTemplate, bool makeDefault = false,
                             std::string *error = nullptr);
 std::vector<WindowTemplate> windowTemplates();
@@ -44,7 +38,8 @@ const WindowTemplate &defaultWindowTemplate();
 // The template with this key, or the default template for an unknown/empty key.
 const WindowTemplate &windowTemplateForKey(std::string_view key);
 
-// Authoring helpers for template definitions.
+
+
 Json windowLayoutIntegerParameter(int minimum, int maximum, int value = 0);
 Json windowLayoutAction(const std::string &label, Json parameters,
                         bool requiresArea = false, bool cardinalDirection = false);

@@ -342,8 +342,8 @@ bool WaylandCompositor::Impl::updateWindowPointer() {
   const PointF current(cursor->x, cursor->y);
   const Point delta = (current - pointerLast).toPoint();
   pointerLast = current;
-  const Size minimum =
-      clientMinimumSize(*client).expandedTo(WindowTuning::minimumWindowSize);
+  const Size clientMinimum = clientMinimumSize(*client);
+  const Size minimum = clientMinimum.expandedTo(WindowTuning::minimumWindowSize);
   if (client->state.floating) {
     const auto area = q->workArea();
     auto geometry =

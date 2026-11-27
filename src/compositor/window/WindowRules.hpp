@@ -21,7 +21,7 @@ bool windowActivationTogglesMaximize(const WindowTemplate &windowTemplate,
 bool windowHiddenByMaximize(const WindowTemplate &windowTemplate,
                             LayoutWindowId maximized, bool inMaximizedFamily,
                             const ClientWindow &client);
-// The cursor for resizing from xdg `edges` (top 1, bottom 2, left 4, right 8).
+
 const char *windowResizeCursor(std::uint32_t edges);
 
 } // namespace LunaDash

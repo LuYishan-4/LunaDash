@@ -12,6 +12,8 @@ inline constexpr Size defaultFloatingSize{720, 500};
 
 inline constexpr int minimizeDropMinimum = 48;
 inline constexpr int minimizeDropDivisor = 6;
+// The outline stacking draws around each window.
+inline constexpr int stackingBorderWidth = 2;
 // Stacking windows: the invisible border outside a window that resizes it,
 // how far a corner reaches along its edges, how close an edge comes to the
 // screen or another window before it snaps there, and the smallest size a
@@ -24,6 +26,9 @@ inline constexpr Size minimumWindowSize{120, 80};
 // there; a tiled or maximized one goes back to its own size once dragged this far.
 inline constexpr int quickTileEdge = 3;
 inline constexpr double restoreDragDistance = 6.0;
+// Switching between tiling and stacking, windows travel to their new places
+// on this softer spring (about half a second), so the move can be followed.
+inline constexpr SceneSpring styleSwitchSpring{110.0, 1.0, 0.5, 10.0};
 // Widen/narrow column shortcuts.
 inline constexpr int columnResizeStep = 80;
 inline constexpr int columnMinimumWidth = 120;

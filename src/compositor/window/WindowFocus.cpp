@@ -94,8 +94,7 @@ void WaylandCompositor::focus(ClientWindow *client) {
     setMaximized(client, true);
   if (!client->state.floating)
     windowLayout_->focus(client->id);
-  // Selecting a tiled window must also scroll its column into view. Avoid
-  // relayout for repeated clicks in the same window (including popup grabs).
+
   if (changed && (!client->state.floating || client->state.fullscreen ||
                   (previous && previous->state.fullscreen)))
     arrange();
@@ -104,8 +103,11 @@ void WaylandCompositor::focus(ClientWindow *client) {
   if (changed && windowAnimations_ && client->scene.tree)
     windowAnimations_->focus(client->scene.tree,
                              animationRectangle(client->layout.geometry));
-  if (changed)
+  if (changed) {
     setClientActivated(client, true);
+    d->updateWindowBorder(previous);
+    d->updateWindowBorder(client);
+  }
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
   if (changed) {
     d->updateClientLegacyForeignToplevel(previous);
@@ -146,7 +148,32 @@ void WaylandCompositor::focusNext(int direction) {
 }
 
 void WaylandCompositor::setMaximized(ClientWindow *client, bool maximized) {
-  if (!client || client->state.maximized == maximized)
+  if (!client)
+    return;
+
+  // FreeformLayout makes maximization exclusive in a workspace, but that
+  // only updates its own entries. Keep the client-side state in sync too;
+  // otherwise arrange() can see the old window as maximized and re-apply it
+  // while the newly requested window is being configured.
+  const bool stacking = windowTemplate_ && windowTemplate_->allowOverlap;
+  const bool managed = stacking && !client->state.floating;
+  if (maximized && managed) {
+    for (const auto &other : clients_) {
+      if (other.get() == client || other->state.workspace != client->state.workspace ||
+          other->state.floating || !other->state.maximized)
+        continue;
+      other->state.maximized = false;
+      setClientMaximizedHint(other.get(), false);
+#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
+      if (d)
+        d->updateClientLegacyForeignToplevel(other.get());
+#endif
+    }
+  }
+
+  // A repeated maximize request is still useful above: it repairs the layout
+  // state after another window was previously maximized.
+  if (client->state.maximized == maximized && !maximized)
     return;
   if (!client->state.floating) {
     windowLayout_->setMaximized(client->id, maximized);
@@ -217,6 +244,8 @@ void WaylandCompositor::removeClient(ClientWindow *client) {
     focused_ = nullptr;
   windowSwitcher_->remove(client->id);
   windowLayout_->remove(client->id);
+  if (client->border.tree)
+    wlr_scene_node_destroy(&client->border.tree->node);
   std::erase_if(clients_,
                 [client](const auto &entry) { return entry.get() == client; });
   arrange();

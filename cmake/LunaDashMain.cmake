@@ -377,6 +377,8 @@ add_library(ludash-wayland
     src/compositor/wayland/NightLight.cpp
     src/compositor/window/Arrange.cpp
     src/compositor/window/WindowFocus.cpp
+    src/compositor/window/WindowBorders.cpp
+    src/compositor/window/WindowDecorations.cpp
     src/compositor/window/WindowLayoutSettings.cpp
     src/compositor/window/WorkspaceOverview.cpp
     src/compositor/window/animation/AnimationProfile.cpp

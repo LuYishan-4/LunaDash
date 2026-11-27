@@ -7,15 +7,21 @@
 
 namespace LunaDash {
 
-// The stacking template: overlapping windows that keep their own size and
-// position, or fill a half or a quarter of the screen (quick tiling). New
-// windows open centred, cascading off windows already there; window-layout
-// plugins can place them otherwise.
 // The part of `area` a window quick-tiled to `edges` fills (xdg edges: top 1,
 // bottom 2, left 4, right 8): a half, or a quarter in a corner, with a gap
 // where tiles meet.
 Rect quickTileRect(Rect area, std::uint32_t edges);
 
+// A grid of cells over `area`, `gap` apart, one for each of `windows` in
+// their reading order (rows from the top, left to right in each), the last
+// row centred: the cell of each window, in the order given.
+std::vector<Rect> windowGrid(const std::vector<Rect> &windows, Rect area,
+                             int gap);
+
+// The stacking template: overlapping windows that keep their own size and
+// position, or fill a half or a quarter of the screen (quick tiling). New
+// windows open where they cover the others least; window-layout plugins can
+// place them otherwise.
 class FreeformLayout final : public WindowLayout {
 public:
   FreeformLayout();

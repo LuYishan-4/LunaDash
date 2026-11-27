@@ -7,9 +7,6 @@
 
 namespace LunaDash {
 
-// Integer window and output geometry. Rect keeps the inclusive right/bottom
-// edge convention that compositor layout code and its tests rely on: a
-// rectangle at x=10 with width=5 has right() == 14.
 class Point {
 public:
   constexpr Point() noexcept = default;

@@ -120,6 +120,7 @@ extern "C" {
 #define LUDASH_WLR_HAS_XDG_ACTIVATION 0
 #endif
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_xdg_decoration_v1.h>
 #if __has_include(<wlr/xwayland.h>)
 #include <wlr/xwayland.h>
 #define LUDASH_WLR_HAS_XWAYLAND 1

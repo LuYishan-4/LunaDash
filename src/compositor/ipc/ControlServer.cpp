@@ -16,9 +16,9 @@
 
 namespace LunaDash {
 namespace {
-constexpr std::size_t kMaximumRequestBytes = 65536;
-constexpr int kClientTimeoutMs = 3000;
-constexpr std::size_t kMaximumQueuedBytes = 4 * 1024 * 1024;
+
+
+
 
 [[noreturn]] void throwSystemError(const char *operation) {
   throw std::system_error(errno, std::generic_category(), operation);
@@ -75,8 +75,8 @@ struct ControlServer::Client {
   std::string request;
   std::string response;
   std::size_t responseOffset = 0;
-  // Stays open for broadcast() of these events; `response` then queues the
-  // lines not yet sent.
+
+
   std::vector<std::string> events;
   std::function<void(uint32_t mask)> ready;
   std::function<void()> expired;
@@ -194,7 +194,7 @@ void ControlServer::serveClient(Client *client, uint32_t mask) {
       const ssize_t count = ::recv(client->fd, bytes, sizeof(bytes), 0);
       if (count > 0) {
         client->request.append(bytes, static_cast<std::size_t>(count));
-        if (client->request.size() > kMaximumRequestBytes) {
+        if (client->request.size() > 65536) {
           closeClient(client);
           return;
         }
@@ -325,7 +325,7 @@ void ControlServer::acceptPendingConnections() {
       ::close(fd);
       continue;
     }
-    wl_event_source_timer_update(client->timeoutSource, kClientTimeoutMs);
+    wl_event_source_timer_update(client->timeoutSource,3000);
     clients_.emplace(fd, std::move(client));
   }
 }
@@ -363,7 +363,7 @@ void ControlServer::broadcast(std::string_view event, const std::string &line) {
       subscribers.push_back(client.get());
   for (auto *client : subscribers) {
     if (client->response.size() - client->responseOffset + line.size() >
-        kMaximumQueuedBytes) {
+        4 * 1024 * 1024) {
       closeClient(client);
       continue;
     }

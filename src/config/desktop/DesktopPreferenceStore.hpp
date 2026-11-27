@@ -14,8 +14,6 @@ namespace LunaDash {
 
 nlohmann::json defaultDesktopPreferenceValues();
 
-// "WIDTHxHEIGHT" between 320x240 and 7680x4320, as virtual output sizes are
-// written in preferences and in the desktop-size command.
 std::optional<Size> parseVirtualOutputSize(std::string_view text);
 // The size of an output that advertises no modes (nested windows, headless
 // outputs) until something resizes it.

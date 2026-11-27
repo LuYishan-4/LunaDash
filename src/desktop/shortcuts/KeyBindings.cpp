@@ -24,6 +24,7 @@ nlohmann::json defaults() {
       {"Meta+Right", "tile-window right"},
       {"Meta+Up", "tile-window up"},
       {"Meta+Down", "tile-window down"},
+      {"Meta+S", "toggle-window-style"},
       {"Meta+bracketleft", "consume-or-expel-window-left"},
       {"Meta+bracketright", "consume-or-expel-window-right"},
       {"Meta+period", "expel-window-from-column"},

@@ -5,6 +5,38 @@
 
 namespace LunaDash {
 
+// One window's xdg-decoration: the mode follows the window style
+// (applyDecorationMode). The window is looked up by id, so a decoration
+// outliving its window finds none.
+struct WaylandCompositor::Impl::DecorationState : LunaClint<DecorationState> {
+  DecorationState(Impl *owner, wlr_xdg_toplevel_decoration_v1 *object, int window)
+      : impl(owner), decoration(object), windowId(window) {
+    listen<&DecorationState::onRequestMode, &DecorationState::requestMode>(
+        &decoration->events.request_mode);
+    listen<&DecorationState::onDestroy, &DecorationState::destroy>(
+        &decoration->events.destroy);
+    if (auto *client = impl->q->clientById(windowId)) {
+      client->decoration.object = decoration;
+      impl->applyDecorationMode(client);
+    }
+  }
+  void onRequestMode() { impl->applyDecorationMode(impl->q->clientById(windowId)); }
+  void onDestroy() {
+    if (auto *client = impl->q->clientById(windowId);
+        client && client->decoration.object == decoration) {
+      client->decoration.object = nullptr;
+      impl->q->arrange();
+    }
+    delete this;
+  }
+
+  Impl *impl;
+  wlr_xdg_toplevel_decoration_v1 *decoration;
+  int windowId;
+  Slot requestMode;
+  Slot destroy;
+};
+
 bool WaylandCompositor::Impl::XdgShellComponent::start() {
   impl->xdgShell = wlr_xdg_shell_create(impl->display, 3);
   if (!impl->xdgShell)
@@ -18,6 +50,11 @@ bool WaylandCompositor::Impl::XdgShellComponent::start() {
   listen<&XdgShellComponent::onNewPopup, &XdgShellComponent::newPopup>(
       &impl->xdgShell->events.new_popup);
 #endif
+
+  // Keep decorations client-side so applications own their titlebars.
+  if (auto *decorations = wlr_xdg_decoration_manager_v1_create(impl->display))
+    listen<&XdgShellComponent::onNewDecoration, &XdgShellComponent::newDecoration>(
+        &decorations->events.new_toplevel_decoration);
 
 #if LUDASH_WLR_HAS_XDG_ACTIVATION
   impl->xdgActivation = wlr_xdg_activation_v1_create(impl->display);
@@ -93,6 +130,16 @@ void WaylandCompositor::Impl::XdgShellComponent::onNewPopup(
   impl->addXdgPopup(popup);
 }
 #endif
+
+void WaylandCompositor::Impl::XdgShellComponent::onNewDecoration(
+    wlr_xdg_toplevel_decoration_v1 *decoration) {
+  auto *tree = decoration && decoration->toplevel && decoration->toplevel->base
+                   ? static_cast<wlr_scene_tree *>(decoration->toplevel->base->data)
+                   : nullptr;
+  auto *client = tree ? static_cast<ClientWindow *>(tree->node.data) : nullptr;
+  if (client)
+    new DecorationState(impl, decoration, client->id);
+}
 
 #if LUDASH_WLR_HAS_XDG_ACTIVATION
 void WaylandCompositor::Impl::XdgShellComponent::onActivationRequest(

@@ -254,17 +254,15 @@ void reapChild(GPid pid, gint, gpointer data) {
   delete child;
 }
 
-void setColorScheme(bool dark) {
+// `gsettings set schema key value`, in the background.
+void setGSetting(const char *schema, const char *key, const char *value) {
   const std::string program = findExecutable("gsettings");
   if (program.empty())
     return;
   gchar *arguments[] = {
-      const_cast<gchar *>(program.c_str()),
-      const_cast<gchar *>("set"),
-      const_cast<gchar *>("org.gnome.desktop.interface"),
-      const_cast<gchar *>("color-scheme"),
-      const_cast<gchar *>(dark ? "prefer-dark" : "prefer-light"),
-      nullptr,
+      const_cast<gchar *>(program.c_str()), const_cast<gchar *>("set"),
+      const_cast<gchar *>(schema),          const_cast<gchar *>(key),
+      const_cast<gchar *>(value),           nullptr,
   };
   GPid pid = 0;
   GError *error = nullptr;
@@ -284,6 +282,11 @@ void setColorScheme(bool dark) {
 
 } // namespace
 
+void synchronizeWindowButtons(bool stacking) {
+  setGSetting("org.gnome.desktop.wm.preferences", "button-layout",
+              stacking ? "appmenu:minimize,maximize,close" : "appmenu:close");
+}
+
 Json synchronizeApplicationTheme(const Json &preferences, const Json &palette) {
   static std::string previous;
   static Json result;
@@ -300,7 +303,8 @@ Json synchronizeApplicationTheme(const Json &preferences, const Json &palette) {
 
   // This system preference is independent of the optional GTK and Kitty
   // theme files, so publish it even when application theme sync is disabled.
-  setColorScheme(palette.value("dark", false));
+  setGSetting("org.gnome.desktop.interface", "color-scheme",
+              palette.value("dark", false) ? "prefer-dark" : "prefer-light");
   if (!enabled)
     return result;
 

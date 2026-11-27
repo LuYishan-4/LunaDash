@@ -683,8 +683,7 @@ void WindowGlass::update(const std::vector<Surface> &surfaces,
     // A fade owns the alpha of its window. Otherwise every buffer of the
     // window gets the window opacity on every frame, during slides and moves
     // too: rounded corners recreate their views and clients add subsurfaces at
-    // any time, and a value applied once would leave those new buffers
-    // opaque. An unchanged value costs nothing.
+
     if (!surface.fading) {
       float value = surface.enabled
                         ? (surface.opacity >= 0.0f

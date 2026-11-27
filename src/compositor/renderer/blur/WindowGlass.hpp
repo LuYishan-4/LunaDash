@@ -31,14 +31,10 @@ public:
     Size size;
     bool enabled = true;
     int cornerRadius = 16;
-    // A shell surface owns its alpha in its client buffer. Negative uses the
-    // application-window preference; explicit values never dim shell text.
+
     float opacity = -1.0f;
-    // An animation fades it: its opacity is the animation's until it ends.
     bool fading = false;
-    // Blurs only what lies below the window layer (wallpaper, bottom layers):
-    // one capture per output, which every such surface crops. Moving or
-    // animating windows then never capture again.
+
     bool shared = false;
   };
 

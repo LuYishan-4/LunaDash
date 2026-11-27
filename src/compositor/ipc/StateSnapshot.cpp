@@ -1,5 +1,6 @@
 #include "compositor/capture/ScreenCapture.hpp"
 #include "compositor/client/ClientSurface.hpp"
+#include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/plugins/PluginManager.hpp"
 #include "compositor/renderer/selection/RenderSelection.h"
@@ -122,11 +123,12 @@ Json WaylandCompositor::describeClients(Json &xwaylandUtilities) const {
       contentGeometry.width = bufferWidth;
       contentGeometry.height = bufferHeight;
     }
+    // The window frame and its client surface have the same geometry.
     const auto fallback = animationRectangle(client->layout.geometry);
-    const auto frame = windowAnimations_
-                           ? windowAnimations_->animation().visualGeometry(
-                                 client->scene.tree, fallback)
-                           : fallback;
+    auto frame = windowAnimations_
+                     ? windowAnimations_->animation().visualGeometry(
+                           client->scene.tree, fallback)
+                     : fallback;
     auto entry = describeClient(*client);
     entry.update(Json::object(
         {{"frameX", frame.left},

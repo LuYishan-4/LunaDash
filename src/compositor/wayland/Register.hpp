@@ -49,6 +49,7 @@ public:
   };
   class OutputComponent;
   class XdgShellComponent;
+  struct DecorationState;
   class LayerShellComponent;
   class WindowCaptureComponent;
   class InputDeviceComponent;
@@ -499,6 +500,14 @@ public:
   wlr_scene_rect *quickTileOutline = nullptr;
   // A tiled window being dragged follows the pointer itself, outside its slot.
   bool pointerFollowing = false;
+  // While arrange() lays windows out for a new window style.
+  bool styleSwitch = false;
+  // Stacking windows' outlines (WindowBorders.cpp): premultiplied colours for
+  // the focused window and the others (applyVisualPreferences).
+  float borderFocused[4]{};
+  float borderUnfocused[4]{};
+  void updateWindowBorder(ClientWindow *client);
+  void applyDecorationMode(ClientWindow *client);
   std::chrono::steady_clock::time_point pointerPublishTime{};
   bool pointerPublishTimeValid = false;
   bool runtimeReleased = false;

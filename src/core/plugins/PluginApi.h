@@ -9,9 +9,6 @@ extern "C" {
 #define LUDASH_PLUGIN_API_VERSION 2u
 #define LUDASH_PLUGIN_EXPORT __attribute__((visibility("default")))
 
-/* UTF-8 JSON, borrowed request and caller-owned response. Return bytes written,
- * excluding the NUL, or a negative value on failure. No Qt/wlroots pointers
- * cross this ABI. Calls occur on the compositor thread; never block. */
 typedef struct ludash_plugin_api {
   uint32_t struct_size;
   uint32_t api_version;

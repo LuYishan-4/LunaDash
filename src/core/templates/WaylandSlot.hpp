@@ -9,9 +9,6 @@ extern "C" {
 
 namespace LunaDash::Templates {
 
-// A wl_listener kept inside the object it reports to. Nothing points back to
-// that object: the handler finds it from the listener's address, as
-// wl_container_of does, given the member the slot is (see connect()).
 struct WaylandSlot {
   wl_listener listener{};
   bool connected = false;

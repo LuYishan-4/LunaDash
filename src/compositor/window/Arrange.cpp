@@ -1,5 +1,6 @@
 #include "compositor/client/ClientSurface.hpp"
 #include "compositor/client/ClientWindowControl.hpp"
+#include "compositor/layout/FreeformLayout.hpp"
 #include "compositor/plugins/ExtensionHooks.hpp"
 #include "compositor/plugins/PluginManager.hpp"
 #include "compositor/wayland/Register.hpp"
@@ -9,7 +10,10 @@
 #include "compositor/window/WindowTemplate.hpp"
 #include "compositor/window/WindowTuning.hpp"
 #include "compositor/window/animation/AnimationProfile.hpp"
+#include "compositor/renderer/color/HexColor.hpp"
+#include "config/appearance/AppearancePalette.hpp"
 #include "config/desktop/DesktopPreferenceStore.hpp"
+#include "desktop/theme/ThemeSync.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "config/desktop/PreferenceKeys.hpp"
 #include "core/json/JsonAccess.hpp"
@@ -23,7 +27,7 @@
 namespace LunaDash {
 namespace {
 
-// True when `client` is `owner` or one of its (transient) dialogs.
+
 template <typename Clients>
 bool belongsToWindow(const ClientWindow &client, const ClientWindow *owner,
                      const Clients &clients) {
@@ -36,6 +40,18 @@ bool belongsToWindow(const ClientWindow &client, const ClientWindow *owner,
 } // namespace
 
 void WaylandCompositor::applyVisualPreferences(const Json &preferences) {
+  // Stacking outlines: the accent around the focused window, a quiet line
+  // around the others.
+  const auto palette = appearancePalette(preferences);
+  const auto premultiplied = [](const std::string &hex, float alpha, float *rgba) {
+    if (!parseHexColor(hex, rgba))
+      return;
+    for (int channel = 0; channel < 3; ++channel)
+      rgba[channel] *= alpha;
+    rgba[3] = alpha;
+  };
+  premultiplied(jsonString(palette, "accent"), 0.95f, d->borderFocused);
+  premultiplied(jsonString(palette, "border"), 0.6f, d->borderUnfocused);
   d->eyeCareActive = preferenceValue(preferences, Preference::eyeCare);
   const bool blur =
       preferenceValue(preferences, Preference::blur) && !d->eyeCareActive;
@@ -80,9 +96,25 @@ bool WaylandCompositor::selectWindowTemplate() {
         if (slot.window == static_cast<LayoutWindowId>(client->id))
           client->layout.stackingGeometry = slot.geometry;
   windowTemplate_ = &selectedTemplate;
+  // GTK applications draw their own titlebars: offer them every button a
+  // stacking desktop has.
+  synchronizeWindowButtons(windowTemplate_->allowOverlap);
   windowLayout_ = createWindowLayout(*windowTemplate_);
   installWindowPlacementFilter();
   return true;
+}
+
+// Switching to stacking, each window goes back to where it was the last time
+// stacking was in use; the others are placed like new windows, at the default
+// size where they cover the rest least. No window's size depends on another's.
+void WaylandCompositor::placeSwitchedToStacking() {
+  for (const auto &client : clients_) {
+    const auto &place = client->layout.stackingGeometry;
+    if (windowUsesManagedLayout(*client) && place.isValid())
+      performLayoutAction("place", {{"window", client->id}, {"x", place.x()},
+                                    {"y", place.y()}, {"width", place.width()},
+                                    {"height", place.height()}});
+  }
 }
 
 Rect WaylandCompositor::floatingGeometry(const ClientWindow &client,
@@ -94,8 +126,14 @@ Rect WaylandCompositor::floatingGeometry(const ClientWindow &client,
                              : WindowTuning::defaultFloatingSize;
   const Size bounded(std::min(preferred.width(), area.width()),
                      std::min(preferred.height(), area.height()));
-  const Rect centered(area.x() + (area.width() - bounded.width()) / 2,
-                      area.y() + (area.height() - bounded.height()) / 2,
+  // A dialog opens centred over the window it belongs to.
+  Rect over = area;
+  for (const auto &candidate : clients_)
+    if (clientIsTransientOf(&client, candidate.get(), 1) &&
+        candidate->layout.geometry.isValid())
+      over = candidate->layout.geometry;
+  const Rect centered(over.x() + (over.width() - bounded.width()) / 2,
+                      over.y() + (over.height() - bounded.height()) / 2,
                       bounded.width(), bounded.height());
   auto geometry = client.layout.manualGeometry.isValid()
                       ? client.layout.manualGeometry
@@ -130,6 +168,8 @@ void WaylandCompositor::configure(ClientWindow *client,
                                   const Rect &rectangle) {
   if (!clientReady(client) || !client->scene.tree)
     return;
+  const Rect previous = client->layout.geometry;
+  client->layout.geometry = rectangle;
   // Only the window under the pointer follows it directly; everything else,
   // the windows it pushes aside included, moves on the shared spring.
   const bool dragged = d->pointerWindow == client->id;
@@ -137,15 +177,16 @@ void WaylandCompositor::configure(ClientWindow *client,
     // The pointer places it until it is dropped (finishWindowPointer).
   } else if (windowAnimations_)
     windowAnimations_->relayout(
-        client->scene.tree, animationRectangle(client->layout.geometry),
+        client->scene.tree, animationRectangle(previous),
         animationRectangle(rectangle), d->animationLayer,
         client->state.mapped && client->scene.tree->node.enabled &&
-            !client->layout.manualResize && !dragged);
+            !client->layout.manualResize && !dragged,
+        d->styleSwitch ? &WindowTuning::styleSwitchSpring : nullptr);
   else
     wlr_scene_node_set_position(&client->scene.tree->node, rectangle.x(),
                                 rectangle.y());
-  client->layout.geometry = rectangle;
   configureClientSurface(client, rectangle);
+  d->updateWindowBorder(client);
 }
 
 
@@ -193,7 +234,7 @@ void WaylandCompositor::arrange() {
 
 
   const int slide = std::exchange(workspaceSlide_, 0);
-  // The overview shows windows as previews, which copy a fade's alpha.
+
   const bool inOverview = overviewShown();
 
 
@@ -202,6 +243,12 @@ void WaylandCompositor::arrange() {
   const auto preferences = desktopPreferences();
   applyVisualPreferences(preferences);
   const bool templateChanged = selectWindowTemplate();
+  d->styleSwitch = templateChanged;
+
+  for (const auto &client : clients_) {
+    if (templateChanged)
+      d->applyDecorationMode(client.get());
+  }
 
 
 
@@ -218,8 +265,8 @@ void WaylandCompositor::arrange() {
   windowLayout_->configure(currentWindowLayoutSettings());
 
   ClientWindow *fullscreenClient = workspaceFullscreen();
-  // A fullscreen window steps aside while another window of its workspace has
-  // focus: hidden, but still in the layout and the overview, to be picked again.
+
+
   ClientWindow *steppedAside = fullscreenClient && steppedAsideFor(*fullscreenClient)
                                    ? std::exchange(fullscreenClient, nullptr)
                                    : nullptr;
@@ -233,8 +280,11 @@ void WaylandCompositor::arrange() {
   // Keep the layout's window set in step with the clients.
   for (const auto &client : clients_) {
     client->state.workspace = std::min(client->state.workspace, count - 1);
-    if (client->state.mapped &&
-        !client->layout.preferredFloatingSize.isValid()) {
+    // A window's own size, as it first drew itself free (stacking, or a
+    // floating dialog); a tile's size is the layout's, not its own.
+    if (client->state.mapped && !client->layout.preferredFloatingSize.isValid() &&
+        ((windowTemplate_->allowOverlap && !templateChanged) ||
+         client->state.floating)) {
       const Size committed = clientCommittedSize(*client);
       if (committed.width() > 0 && committed.height() > 0)
         client->layout.preferredFloatingSize = committed;
@@ -243,27 +293,27 @@ void WaylandCompositor::arrange() {
       windowLayout_->remove(client->id);
       continue;
     }
-    const Size preferred = windowTemplate_ && windowTemplate_->allowOverlap
-                               ? client->layout.preferredFloatingSize
-                               : Size();
-    if (windowLayout_->insert(client->state.workspace, client->id, preferred) &&
-        windowTemplate_->allowOverlap && client->layout.stackingGeometry.isValid()) {
-      const auto &place = client->layout.stackingGeometry;
-      performLayoutAction("place", {{"window", client->id}, {"x", place.x()},
-                                    {"y", place.y()}, {"width", place.width()},
-                                    {"height", place.height()}});
-    }
+
+
+    const Size preferred =
+        windowTemplate_ && windowTemplate_->allowOverlap &&
+                client->layout.preferredFloatingSize.isValid()
+            ? client->layout.preferredFloatingSize
+            : Size();
+    windowLayout_->insert(client->state.workspace, client->id, preferred);
     windowLayout_->moveToWorkspace(client->id, client->state.workspace);
     windowLayout_->setMinimized(client->id, client->state.minimized);
     if (client->state.maximized)
       windowLayout_->setMaximized(client->id, true);
   }
 
+  if (templateChanged && windowTemplate_->allowOverlap)
+    placeSwitchedToStacking();
   if (templateChanged && focused_ && focused_->state.mapped &&
       !focused_->state.minimized)
     windowLayout_->focus(focused_->id);
 
-  // Visibility, scene layers and floating geometry.
+
   std::vector<ClientWindow *> revealed;
   std::unordered_map<int, WorkspaceLayoutSnapshot> snapshots;
   for (const auto &client : clients_) {
@@ -277,8 +327,8 @@ void WaylandCompositor::arrange() {
     const auto maximized = snapshotIt->second.maximizedWindow;
     if (!client->state.floating &&
         (client->state.mapped || client->layout.pending)) {
-      // The layout says which windows are maximized: the one covering the
-      // workspace, or columns maximized beside the others.
+
+
       bool next = maximized == static_cast<LayoutWindowId>(client->id);
       for (const auto &placement : snapshotIt->second.columns)
         if (placement.window == static_cast<LayoutWindowId>(client->id))
@@ -288,11 +338,6 @@ void WaylandCompositor::arrange() {
         setClientMaximizedHint(client.get(), next);
       }
     }
-
-
-
-
-
 
     //fullscreen
     const bool inMaximizedFamily =
@@ -407,6 +452,7 @@ void WaylandCompositor::arrange() {
       !focused_->state.minimized && focused_->state.workspace == workspace_)
     raiseWithDialogs(focused_);
 
+  d->styleSwitch = false;
   d->updateWindowCorners();
   publishWindowLayout();
   publishWorkspaces();

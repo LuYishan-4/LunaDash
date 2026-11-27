@@ -24,8 +24,11 @@ private:
   void onActivationRequest(wlr_xdg_activation_v1_request_activate_event *request);
 #endif
 
+  void onNewDecoration(wlr_xdg_toplevel_decoration_v1 *decoration);
+
   Slot newSurface;
   Slot newPopup;
+  Slot newDecoration;
   Slot activationRequest;
 };
 

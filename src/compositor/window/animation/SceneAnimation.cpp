@@ -21,10 +21,9 @@ extern "C" {
 namespace LunaDash {
 namespace {
 using OpacityMap = std::unordered_map<wlr_scene_buffer *, float>;
-// CLOCK_MONOTONIC, the clock of output frame and presentation times.
 using Clock = std::chrono::steady_clock;
 
-// A frame that took longer than this does not advance springs further.
+
 constexpr double maximumStepSeconds = 0.1;
 // The crossfade from a relayout preview to the live window starts after this
 // share of the motion; an opening window is revealed later.
@@ -549,9 +548,11 @@ void SceneAnimation::focus(wlr_scene_tree *tree,
 void SceneAnimation::relayout(wlr_scene_tree *tree,
                               const SceneAnimationRectangle &previous,
                               const SceneAnimationRectangle &geometry,
-                              wlr_scene_tree *overlay, bool animate) {
+                              wlr_scene_tree *overlay, bool animate,
+                              const SceneSpring *spring) {
   if (!tree)
     return;
+  const SceneSpring movement = spring ? sanitized(*spring) : windowMovement_;
   if (!animate || duration_ <= 0 || !previous.valid()) {
     cancel(tree);
     wlr_scene_node_set_position(&tree->node, geometry.left, geometry.top);
@@ -581,7 +582,7 @@ void SceneAnimation::relayout(wlr_scene_tree *tree,
       }
     }
     if (!old->opening)
-      old->motion.spring = windowMovement_;
+      old->motion.spring = movement;
     old->motion.retarget(geometry);
     applyLive(old, monotonicNow());
     return;
@@ -595,7 +596,7 @@ void SceneAnimation::relayout(wlr_scene_tree *tree,
   }
   auto *state = new LiveState;
   state->tree = tree;
-  state->motion.start(windowMovement_, from, geometry);
+  state->motion.start(movement, from, geometry);
   state->preview = preview;
   if (preview)
     preview->live = state;

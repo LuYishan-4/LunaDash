@@ -140,6 +140,7 @@ void WaylandCompositor::Impl::configureInitialToplevel(ClientWindow *client) {
   if (!xdg || !xdg->toplevel || !xdg->initialized)
     return;
   auto *toplevel = xdg->toplevel;
+  applyDecorationMode(client);
   q->updateClientMetadata(client);
   q->arrange();
   client->state.fullscreen = toplevel->requested.fullscreen;

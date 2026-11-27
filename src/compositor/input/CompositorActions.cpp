@@ -6,6 +6,9 @@
 #include "compositor/wayland/WaylandCompositor.hpp"
 #include "compositor/window/WindowTemplate.hpp"
 #include "compositor/window/WindowTuning.hpp"
+#include "config/desktop/DesktopPreferenceStore.hpp"
+#include "config/desktop/DesktopPreferences.hpp"
+#include "config/desktop/PreferenceKeys.hpp"
 #include "core/json/JsonAccess.hpp"
 #include "core/log/Log.hpp"
 #include "desktop/app/DefaultApplications.hpp"
@@ -256,6 +259,15 @@ void CompositorActions::registerBuiltins(ActionRegistry &registry) {
       [](std::string_view word) {
         return word == "left" || word == "right" || word == "up" || word == "down";
       });
+  // Tiling and stacking take turns; the windows move to their new places.
+  add("toggle-window-style", none, ActionNone, [](C &, auto &) {
+    const bool stacking =
+        preferenceValue(desktopPreferences(), Preference::windowStyle) == "stacking";
+    std::string error;
+    if (!updateDesktopPreferences(
+            {{Preference::windowStyle.name, stacking ? "tiling" : "stacking"}}, &error))
+      logWarning("Could not switch the window style: %s", error.c_str());
+  });
   // Workspaces. Beyond the last one is the empty workspace after it.
   add("focus-workspace", ActionArgument::Number, ActionNone,
       [](C &c, const Arguments &arguments) {

@@ -7,7 +7,10 @@
 #include <cstring>
 #include <string_view>
 
+struct wlr_scene_buffer;
+struct wlr_scene_rect;
 struct wlr_scene_tree;
+struct wlr_xdg_toplevel_decoration_v1;
 struct wlr_xdg_surface;
 struct wlr_xwayland_surface;
 
@@ -60,6 +63,23 @@ struct ClientWindow {
     bool hiddenByMaximize = false;
     bool initialRuleApplied = false;
   } layout;
+
+  // The client's xdg-decoration object. LunaDash keeps decorations
+  // client-side, so the application owns its titlebar.
+  struct {
+    wlr_xdg_toplevel_decoration_v1 *object = nullptr;
+  } decoration;
+
+  // Stacking: the outline around the window (WindowBorders.cpp), in the
+  // window layer just below it; what it was last drawn with.
+  struct {
+    wlr_scene_tree *tree = nullptr;
+    wlr_scene_rect *edges[4]{};
+    wlr_scene_buffer *corners[4]{};
+    float color[4]{};
+    int radius = -1;
+    double scale = 0.0;
+  } border;
 
   // Drawing only: visual effects, none of which moves the window.
   struct {
