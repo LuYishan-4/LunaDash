@@ -297,15 +297,18 @@ void WaylandCompositor::rebuildOverviewPreviews() {
                    contentHeight);
     }
     wlr_scene_node_set_position(&previewTreeNode->node, shown.x(), shown.y());
-    if (dragged)
-      wlr_scene_node_raise_to_top(&previewTreeNode->node);
     static const float hover[4] = {1.0f, 1.0f, 1.0f, 0.35f};
     const bool ringed = client->id == overview_.hovered || client->id == dropWindow;
     auto &frame = overview_.previewFrames[client->id];
     updateFrame(overview_.tree, frame, shown, client == focused_ ? 3 : ringed ? 2 : 0,
                 client == focused_ ? overview_.accent : hover);
-    if (frame)
-      wlr_scene_node_place_below(&frame->node, &previewTreeNode->node);
+
+    if (dragged)
+      wlr_scene_node_raise_to_top(frame ? &frame->node : &previewTreeNode->node);
+    if (frame && dragged)
+      wlr_scene_node_place_below(&previewTreeNode->node, &frame->node);
+    else if (frame)
+      wlr_scene_node_place_above(&frame->node, &previewTreeNode->node);
     visibleWindows.insert(client->id);
     auto &copies = overview_.previewBuffers[client->id];
     std::unordered_set<wlr_scene_buffer *> seen;
