@@ -12,6 +12,18 @@ inline constexpr Size defaultFloatingSize{720, 500};
 
 inline constexpr int minimizeDropMinimum = 48;
 inline constexpr int minimizeDropDivisor = 6;
+// Stacking windows: the invisible border outside a window that resizes it,
+// how far a corner reaches along its edges, how close an edge comes to the
+// screen or another window before it snaps there, and the smallest size a
+// resize leaves.
+inline constexpr int resizeBorder = 10;
+inline constexpr int resizeCorner = 24;
+inline constexpr int snapDistance = 12;
+inline constexpr Size minimumWindowSize{120, 80};
+// A dragged stacking window held this close to the screen's edge quick-tiles
+// there; a tiled or maximized one goes back to its own size once dragged this far.
+inline constexpr int quickTileEdge = 3;
+inline constexpr double restoreDragDistance = 6.0;
 // Widen/narrow column shortcuts.
 inline constexpr int columnResizeStep = 80;
 inline constexpr int columnMinimumWidth = 120;

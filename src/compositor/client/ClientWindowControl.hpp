@@ -20,13 +20,11 @@ void setClientFullscreenHint(ClientWindow *client, bool fullscreen);
 
 void configureClientSurface(ClientWindow *client, const Rect &rectangle);
 
-double clientContentScale(const ClientWindow &client);
-
-Size clientLogicalSize(const ClientWindow &client, const Size &visual);
-
 void applyClientContentScale(ClientWindow &client);
 
 Size clientCommittedSize(const ClientWindow &client);
+// The smallest size the client accepts (0 where it sets none).
+Size clientMinimumSize(const ClientWindow &client);
 
 bool readClientProtocolMetadata(ClientWindow *client);
 

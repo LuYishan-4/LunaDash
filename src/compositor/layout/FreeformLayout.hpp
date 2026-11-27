@@ -1,14 +1,21 @@
 #pragma once
 
 #include "compositor/layout/WindowLayout.hpp"
+#include <cstdint>
 #include <memory>
 #include <vector>
 
 namespace LunaDash {
 
 // The stacking template: overlapping windows that keep their own size and
-// position. New windows open centred, cascading off windows already there;
-// window-layout plugins can place them otherwise.
+// position, or fill a half or a quarter of the screen (quick tiling). New
+// windows open centred, cascading off windows already there; window-layout
+// plugins can place them otherwise.
+// The part of `area` a window quick-tiled to `edges` fills (xdg edges: top 1,
+// bottom 2, left 4, right 8): a half, or a quarter in a corner, with a gap
+// where tiles meet.
+Rect quickTileRect(Rect area, std::uint32_t edges);
+
 class FreeformLayout final : public WindowLayout {
 public:
   FreeformLayout();
@@ -49,6 +56,8 @@ private:
   bool reorder(LayoutWindowId window, int direction);
   bool resize(LayoutWindowId window, int width);
   bool center(LayoutWindowId window, Rect area);
+  bool place(LayoutWindowId window, Rect geometry);
+  bool tile(LayoutWindowId window, std::uint32_t edges);
 
   class Impl;
   std::unique_ptr<Impl> d;

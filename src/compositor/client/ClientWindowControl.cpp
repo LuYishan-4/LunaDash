@@ -275,29 +275,8 @@ void setClientFullscreenHint(ClientWindow *client, bool fullscreen) {
     wlr_xdg_toplevel_set_fullscreen(clientToplevel(*client), fullscreen);
 }
 
-double clientContentScale(const ClientWindow &client) {
-  return client.state.fullscreen || client.state.maximized
-             ? 1.0
-             : client.effects.contentScale;
-}
-
-Size clientLogicalSize(const ClientWindow &client, const Size &visual) {
-  const double scale = clientContentScale(client);
-  Size size(std::max(1, static_cast<int>(std::lround(visual.width() / scale))),
-            std::max(1, static_cast<int>(std::lround(visual.height() / scale))));
-  // A zoomed window's drawn size is rounded: keep the client's size rather
-  // than send it a pixel of difference on every step of a zoom.
-  if (scale != 1.0 && client.layout.lastSize.width() > 0 &&
-      client.layout.lastSize.height() > 0 &&
-      std::abs(size.width() - client.layout.lastSize.width()) <= 1 &&
-      std::abs(size.height() - client.layout.lastSize.height()) <= 1)
-    return client.layout.lastSize;
-  return size;
-}
-
 void applyClientContentScale(ClientWindow &client) {
-  const double content = clientContentScale(client);
-  Scale scale{content, content};
+  Scale scale{1.0, 1.0};
   // A resize animation stretches whatever the client last drew to the
   // animated size; it reaches 1:1 as the client's new size arrives.
   if (client.effects.animatedSize.width() > 0 &&
@@ -321,10 +300,7 @@ void applyClientContentScale(ClientWindow &client) {
 void configureClientSurface(ClientWindow *client, const Rect &rectangle) {
   if (!clientReady(client))
     return;
-  // The client lays itself out at its logical size; a zoomed window is then
-  // drawn larger or smaller (applyClientContentScale).
-  const Size size = clientLogicalSize(
-      *client, Size(std::max(1, rectangle.width()), std::max(1, rectangle.height())));
+  const Size size(std::max(1, rectangle.width()), std::max(1, rectangle.height()));
   const Rect logical(rectangle.x(), rectangle.y(), size.width(), size.height());
 #if LUDASH_WLR_HAS_XWAYLAND
   if (isXWaylandClient(client)) {
@@ -333,6 +309,19 @@ void configureClientSurface(ClientWindow *client, const Rect &rectangle) {
   }
 #endif
   configureXdgToplevel(client, logical, size);
+}
+
+Size clientMinimumSize(const ClientWindow &client) {
+#if LUDASH_WLR_HAS_XWAYLAND
+  if (const auto *xwayland = clientXWayland(client))
+    return xwayland->size_hints
+               ? Size(std::max(0, xwayland->size_hints->min_width),
+                      std::max(0, xwayland->size_hints->min_height))
+               : Size();
+#endif
+  if (const auto *toplevel = clientToplevel(client))
+    return Size(toplevel->current.min_width, toplevel->current.min_height);
+  return Size();
 }
 
 Size clientCommittedSize(const ClientWindow &client) {

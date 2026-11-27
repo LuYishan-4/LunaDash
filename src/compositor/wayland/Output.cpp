@@ -160,8 +160,7 @@ void WaylandCompositor::Impl::updateWindowCorners() {
       wlr_xdg_surface_get_geometry(clientXdg(*client), &geometry);
 #endif
     }
-    const Size logical =
-        clientLogicalSize(*client, client->layout.geometry.size());
+    const Size logical = client->layout.geometry.size();
     surfaces.push_back(
         {client->scene.tree,
          client->scene.content,

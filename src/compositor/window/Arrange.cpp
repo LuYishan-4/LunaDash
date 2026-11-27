@@ -73,6 +73,12 @@ bool WaylandCompositor::selectWindowTemplate() {
     return false;
   if (d->pointerWindow)
     d->finishWindowPointer(false);
+  // Leaving stacking, windows remember their places for when it comes back.
+  if (windowTemplate_ && windowTemplate_->allowOverlap)
+    for (const auto &client : clients_)
+      for (const auto &slot : windowLayout_->snapshot(client->state.workspace).columns)
+        if (slot.window == static_cast<LayoutWindowId>(client->id))
+          client->layout.stackingGeometry = slot.geometry;
   windowTemplate_ = &selectedTemplate;
   windowLayout_ = createWindowLayout(*windowTemplate_);
   installWindowPlacementFilter();
@@ -199,9 +205,6 @@ void WaylandCompositor::arrange() {
 
 
 
-  if (!windowTemplate_->allowOverlap || !windowTemplate_->clientMoveResize)
-    for (const auto &client : clients_)
-      client->effects.contentScale = 1.0;
   if (windowAnimations_)
     windowAnimations_->configure(sceneAnimationOptions(
         windowAnimationProfile(*pluginManager_, preferences, *windowTemplate_),
@@ -243,7 +246,13 @@ void WaylandCompositor::arrange() {
     const Size preferred = windowTemplate_ && windowTemplate_->allowOverlap
                                ? client->layout.preferredFloatingSize
                                : Size();
-    windowLayout_->insert(client->state.workspace, client->id, preferred);
+    if (windowLayout_->insert(client->state.workspace, client->id, preferred) &&
+        windowTemplate_->allowOverlap && client->layout.stackingGeometry.isValid()) {
+      const auto &place = client->layout.stackingGeometry;
+      performLayoutAction("place", {{"window", client->id}, {"x", place.x()},
+                                    {"y", place.y()}, {"width", place.width()},
+                                    {"height", place.height()}});
+    }
     windowLayout_->moveToWorkspace(client->id, client->state.workspace);
     windowLayout_->setMinimized(client->id, client->state.minimized);
     if (client->state.maximized)
@@ -381,7 +390,9 @@ void WaylandCompositor::arrange() {
     configure(client, placement.geometry);
   }
 
-  if (windowAnimations_ && !inOverview)
+  // Switching between tiling and stacking, windows that come out from behind
+  // a maximized one slide from their old place (configure) instead.
+  if (windowAnimations_ && !inOverview && !templateChanged)
     for (auto *client : revealed) {
       if (slide)
         windowAnimations_->open(client->scene.tree,

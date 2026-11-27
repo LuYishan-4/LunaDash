@@ -485,15 +485,18 @@ public:
   // wlroots clears pointer_state.focused_surface when the surface goes away.
   wlr_surface *pressedSurface = nullptr;
   PointF pressedSurfaceOrigin;
-  // The pressed surface's content scale: surface coordinates are layout
-  // distances divided by it.
-  double pressedSurfaceScale = 1.0;
   PointF pointerLast;
-  // Where the drag began and the window's content scale then: zooming is
-  // measured from the start, so the edge stays under the pointer.
+  // Where the drag began, and the window then: stacking windows follow the
+  // pointer's whole travel from there, so snapping never drifts.
   PointF pointerOrigin;
-  double pointerStartScale = 1.0;
   Rect pointerStartGeometry;
+  // A maximized or quick-tiled stacking window being moved goes back to its
+  // own size once the pointer has moved.
+  bool pointerRestore = false;
+  // Where releasing a dragged stacking window would quick-tile it (xdg edges;
+  // top alone maximizes), shown by an outline under the window.
+  uint32_t pointerQuickTile = 0;
+  wlr_scene_rect *quickTileOutline = nullptr;
   // A tiled window being dragged follows the pointer itself, outside its slot.
   bool pointerFollowing = false;
   std::chrono::steady_clock::time_point pointerPublishTime{};
@@ -502,6 +505,13 @@ public:
   bool beginWindowPointer(uint32_t button);
   bool beginClientWindowPointer(ClientWindow *client, uint32_t serial,
                                 uint32_t edges, bool validateSerial = true);
+  // Pressing just outside a stacking window's edge resizes it from there.
+  bool beginBorderResize(uint32_t button);
+  // The edges of the window whose resize border is at (x, y), 0 for none.
+  uint32_t resizeEdgesAt(double x, double y, ClientWindow **client) const;
+  void startWindowPointer(ClientWindow *client, uint32_t button, uint32_t edges,
+                          bool clientGrab);
+  void showQuickTile(uint32_t edges, const Rect &outline, ClientWindow *client);
   bool updateWindowPointer();
   void finishWindowPointer(bool apply);
 

@@ -54,6 +54,7 @@ struct ClientWindow {
     Rect manualGeometry;        // moved or resized by hand while floating
     Size preferredFloatingSize; // the size it takes when it floats
     Size lastSize;              // the size last sent to the client
+    Rect stackingGeometry;      // its place when stacking was last in use
     bool pending = false;       // a new tile, configured once it is placed
     bool manualResize = false;
     bool hiddenByMaximize = false;
@@ -62,7 +63,6 @@ struct ClientWindow {
 
   // Drawing only: visual effects, none of which moves the window.
   struct {
-    double contentScale = 1.0;
     Size animatedSize;
     double scaleX = 1.0, scaleY = 1.0;
   } effects;

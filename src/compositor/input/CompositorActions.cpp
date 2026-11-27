@@ -4,6 +4,7 @@
 #include "compositor/client/ClientWindowControl.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/WaylandCompositor.hpp"
+#include "compositor/window/WindowTemplate.hpp"
 #include "compositor/window/WindowTuning.hpp"
 #include "core/json/JsonAccess.hpp"
 #include "core/log/Log.hpp"
@@ -222,6 +223,39 @@ void CompositorActions::registerBuiltins(ActionRegistry &registry) {
     c.focused_->state.minimized = true;
     c.windowLayout_->setMinimized(c.focused_->id, true);
   });
+  // Quick tiling, like KDE's: a stacking window fills the half of the screen
+  // on that side, a quarter when combined with the other axis, and goes back
+  // to its own size when sent the same way again. Tiling moves the focus.
+  add(
+      "tile-window", ActionArgument::Word, ActionNone,
+      [](C &c, const Arguments &arguments) {
+        const auto &side = arguments.front();
+        const std::uint32_t direction = side == "up"     ? 1u
+                                        : side == "down" ? 2u
+                                        : side == "left" ? 4u
+                                                         : 8u;
+        auto *client = c.focused_;
+        if (!client || client->state.floating || client->state.fullscreen ||
+            !windowTemplateSupportsAction(*c.windowTemplate_, "tile")) {
+          focusDirection(c, direction == 4u ? -1 : direction == 8u ? 1 : 0,
+                         direction == 1u ? -1 : direction == 2u ? 1 : 0);
+          return;
+        }
+        std::uint32_t tile = 0;
+        for (const auto &slot : c.windowLayout_->snapshot(client->state.workspace).columns)
+          if (slot.window == static_cast<LayoutWindowId>(client->id))
+            tile = static_cast<std::uint32_t>(jsonInt(slot.metadata, "tile"));
+        // Toward the other side of the same axis leaves that axis.
+        const std::uint32_t axis = direction & 3u ? 3u : 12u;
+        const std::uint32_t next = tile == direction ? 0u
+                                   : (tile & axis) && !(tile & direction)
+                                       ? tile & ~axis
+                                       : tile | direction;
+        c.performLayoutAction("tile", {{"window", client->id}, {"edges", next}});
+      },
+      [](std::string_view word) {
+        return word == "left" || word == "right" || word == "up" || word == "down";
+      });
   // Workspaces. Beyond the last one is the empty workspace after it.
   add("focus-workspace", ActionArgument::Number, ActionNone,
       [](C &c, const Arguments &arguments) {

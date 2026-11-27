@@ -64,6 +64,19 @@ Json tilingActions() {
   return actions;
 }
 
+Json stackingActions() {
+  auto actions = commonActions();
+  const auto window = windowLayoutIntegerParameter(1, 2147483647, 1);
+  const auto position = windowLayoutIntegerParameter(-32768, 32768);
+  const auto size = windowLayoutIntegerParameter(1, 32768, 1);
+  actions["place"] = windowLayoutAction("Place window", {{"window", window},
+      {"x", position}, {"y", position}, {"width", size}, {"height", size}});
+  // xdg edges: top 1, bottom 2, left 4, right 8; 0 restores the window.
+  actions["tile"] = windowLayoutAction("Quick tile",
+      {{"window", window}, {"edges", windowLayoutIntegerParameter(0, 15)}});
+  return actions;
+}
+
 WindowTemplate stackingTemplate() {
   static const Json schema{
       {"defaultWidth", Json::object({{"type", "integer"},
@@ -76,7 +89,7 @@ WindowTemplate stackingTemplate() {
                                      {"minimum", 160},
                                      {"maximum", 1600},
                                      {"label", "Default window height"}})}};
-  static const auto actions = commonActions();
+  static const auto actions = stackingActions();
   WindowTemplate value{"stacking", &createFreeformLayout, true, true, false,
                        schema, windowTemplateDefaults(schema), actions,
                        defaultWindowAnimation()};

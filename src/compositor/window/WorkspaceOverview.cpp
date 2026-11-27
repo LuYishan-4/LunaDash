@@ -131,6 +131,61 @@ void updateFrame(wlr_scene_tree *parent, wlr_scene_tree *&frame, const Rect &rec
   }
 }
 
+// Stacking windows spread out so none hides another: a grid over `area` in
+// the windows' reading order (rows from the top, left to right in each), every
+// window scaled down (never up) into its cell, the last row centred.
+std::vector<Rect> spreadOut(const std::vector<Rect> &windows, const Rect &area) {
+  const int count = static_cast<int>(windows.size());
+  std::vector<Rect> places(windows.size());
+  if (count == 0)
+    return places;
+  constexpr int gap = 24;
+  const int columns = static_cast<int>(std::ceil(std::sqrt(count)));
+  const int rows = (count + columns - 1) / columns;
+  std::vector<int> order(windows.size());
+  for (int index = 0; index < count; ++index)
+    order[index] = index;
+  std::ranges::sort(order, [&](int a, int b) {
+    return windows[a].center().y() < windows[b].center().y();
+  });
+  for (int row = 0; row < rows; ++row) {
+    const auto first = order.begin() + row * columns;
+    const auto last = order.begin() + std::min(count, (row + 1) * columns);
+    std::sort(first, last, [&](int a, int b) {
+      return windows[a].center().x() < windows[b].center().x();
+    });
+  }
+  const double cellWidth = (area.width() - gap * (columns + 1.0)) / columns;
+  const double cellHeight = (area.height() - gap * (rows + 1.0)) / rows;
+  for (int slot = 0; slot < count; ++slot) {
+    const int row = slot / columns;
+    const int inRow = std::min(columns, count - row * columns);
+    const double rowLeft =
+        area.x() + (area.width() - inRow * cellWidth - (inRow + 1.0) * gap) / 2.0;
+    const double cellX = rowLeft + gap + (slot % columns) * (cellWidth + gap);
+    const double cellY = area.y() + gap + row * (cellHeight + gap);
+    const Rect &window = windows[order[slot]];
+    const double fit = std::min({1.0, cellWidth / std::max(1, window.width()),
+                                 cellHeight / std::max(1, window.height())});
+    const int width = std::max(1, static_cast<int>(std::lround(window.width() * fit)));
+    const int height = std::max(1, static_cast<int>(std::lround(window.height() * fit)));
+    places[order[slot]] =
+        Rect(static_cast<int>(std::lround(cellX + (cellWidth - width) / 2.0)),
+             static_cast<int>(std::lround(cellY + (cellHeight - height) / 2.0)),
+             width, height);
+  }
+  return places;
+}
+
+Rect interpolated(const Rect &from, const Rect &to, double progress) {
+  const auto mix = [progress](int a, int b) {
+    return static_cast<int>(std::lround(a + (b - a) * progress));
+  };
+  return Rect(mix(from.x(), to.x()), mix(from.y(), to.y()),
+              std::max(1, mix(from.width(), to.width())),
+              std::max(1, mix(from.height(), to.height())));
+}
+
 } // namespace
 
 bool WaylandCompositor::overviewShown() const {
@@ -267,6 +322,14 @@ void WaylandCompositor::rebuildOverviewPreviews() {
   if (aside && !steppedAsideFor(*aside))
     aside = nullptr;
   const double progress = std::clamp(overview_.progress, 0.0, 1.0);
+  const bool stacking = windowTemplate_ && windowTemplate_->allowOverlap;
+  const auto previewable = [](const ClientWindow &client) {
+    // A window a maximized one hides is not shown either: drawn underneath,
+    // it could never be picked.
+    return client.state.mapped && !client.state.minimized && !client.utility &&
+           !client.layout.hiddenByMaximize && client.scene.tree &&
+           client.layout.geometry.isValid();
+  };
 
   const auto draw = [&](ClientWindow *client, const Rect &layout,
                         bool dragged) {
@@ -289,8 +352,10 @@ void WaylandCompositor::rebuildOverviewPreviews() {
     double pScale = scale;
 
     Rect shown = rect;
-    if (client->state.fullscreen && client->layout.geometry.isValid() &&
-        layout.isValid()) {
+    // Fullscreen and spread-out stacking windows are drawn smaller than they
+    // are, scaled into their tile.
+    if ((client->state.fullscreen || stacking) &&
+        client->layout.geometry.isValid() && layout.isValid()) {
       const auto &source = client->layout.geometry;
       const double fit = std::min(
           static_cast<double>(layout.width()) / source.width(),
@@ -387,7 +452,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
                 0, output.width(), output.height());
   };
   for (const auto &client : clients_)
-    if (client->state.fullscreen && client->state.mapped &&
+    if (!stacking && client->state.fullscreen && client->state.mapped &&
         !client->state.minimized && !client->utility)
       spreads.push_back({client->state.workspace, columnOf(*client),
                          fullscreenRect(*client),
@@ -409,7 +474,26 @@ void WaylandCompositor::rebuildOverviewPreviews() {
       return placement->geometry;
     return client.layout.geometry;
   };
+  // Stacking: each workspace's windows spread over it, moving out from where
+  // they are as the overview opens.
+  std::unordered_map<int, Rect> spreadPlaces;
+  if (stacking) {
+    std::unordered_map<int, std::vector<const ClientWindow *>> byWorkspace;
+    for (const auto &client : clients_)
+      if (previewable(*client))
+        byWorkspace[client->state.workspace].push_back(client.get());
+    for (const auto &[workspace, windows] : byWorkspace) {
+      std::vector<Rect> sizes;
+      for (const auto *client : windows)
+        sizes.push_back(client->layout.geometry);
+      const auto places = spreadOut(sizes, area);
+      for (std::size_t index = 0; index < windows.size(); ++index)
+        spreadPlaces[windows[index]->id] = places[index];
+    }
+  }
   const auto layoutRect = [&](const ClientWindow &client) {
+    if (const auto place = spreadPlaces.find(client.id); place != spreadPlaces.end())
+      return interpolated(placedRect(client), place->second, progress);
     if (client.state.fullscreen)
       return fullscreenRect(client);
     // Beside a fullscreen window the others are hidden and their own places
@@ -442,7 +526,7 @@ void WaylandCompositor::rebuildOverviewPreviews() {
         std::ranges::any_of(spreads, [&](const Spread &spread) {
           return spread.workspace == client.state.workspace;
         });
-    if (!spread || !openSettled)
+    if ((!spread && !stacking) || !openSettled)
       return target;
     springing.insert(client.id);
     auto [found, fresh] = overview_.tileMotion.try_emplace(
@@ -464,19 +548,28 @@ void WaylandCompositor::rebuildOverviewPreviews() {
                 target.height());
   };
 
+  // Drawn in their stacking order, so windows still overlapping as the
+  // overview opens or closes keep the one on top.
+  std::vector<ClientWindow *> drawOrder;
+  if (d->normalLayer) {
+    wlr_scene_node *node = nullptr;
+    wl_list_for_each(node, &d->normalLayer->children, link)
+      for (const auto &client : clients_)
+        if (client->scene.tree && &client->scene.tree->node == node)
+          drawOrder.push_back(client.get());
+  }
+  for (const auto &client : clients_)
+    if (std::ranges::find(drawOrder, client.get()) == drawOrder.end())
+      drawOrder.push_back(client.get());
   ClientWindow *dragged = nullptr;
-  for (const auto &client : clients_) {
-    // A window a maximized one hides is not shown either: drawn underneath,
-    // it could never be picked.
-    if (!client->state.mapped || client->state.minimized || client->utility ||
-        client->layout.hiddenByMaximize || !client->scene.tree ||
-        !client->layout.geometry.isValid())
+  for (auto *client : drawOrder) {
+    if (!previewable(*client))
       continue;
     if (overview_.dragging && client->id == overview_.pressed) {
-      dragged = client.get();
+      dragged = client;
       continue;
     }
-    draw(client.get(), tileRect(*client), false);
+    draw(client, tileRect(*client), false);
   }
   std::erase_if(overview_.tileMotion,
                 [&](const auto &entry) { return !springing.contains(entry.first); });
@@ -641,7 +734,9 @@ bool WaylandCompositor::overviewPointerButton(std::uint32_t button, bool pressed
     if (const auto *target = overviewPreviewAt(x, y, client->id)) {
       if (target->workspace != client->state.workspace)
         moveClientToWorkspace(client, target->workspace);
-      if (performLayoutAction("swap", {{"window", client->id}, {"target", target->window}})) {
+      // Stacking windows keep their own places: only the workspace changes.
+      if (!windowTemplate_->allowOverlap &&
+          performLayoutAction("swap", {{"window", client->id}, {"target", target->window}})) {
         arrange();
         synchronizeWindowFocus();
       }

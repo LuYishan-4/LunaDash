@@ -2,6 +2,7 @@
 #include "compositor/input/Keyboard.hpp"
 #include "compositor/wayland/Register.hpp"
 #include "compositor/wayland/wlroots/WlrootsCompat.hpp"
+#include "compositor/window/WindowRules.hpp"
 #include "compositor/window/WindowSwitcher.hpp"
 #include "config/desktop/DesktopPreferences.hpp"
 #include "core/log/Log.hpp"
@@ -129,13 +130,20 @@ void WaylandCompositor::Impl::processPointerMotion(uint32_t time) {
   if (pressedSurface && seat->pointer_state.button_count > 0 &&
       seat->pointer_state.focused_surface == pressedSurface) {
     wlr_seat_pointer_notify_motion(
-        seat, time, (cursor->x - pressedSurfaceOrigin.x()) / pressedSurfaceScale,
-        (cursor->y - pressedSurfaceOrigin.y()) / pressedSurfaceScale);
+        seat, time, cursor->x - pressedSurfaceOrigin.x(),
+        cursor->y - pressedSurfaceOrigin.y());
     return;
   }
   pressedSurface = nullptr;
   if (q->overviewPointerMotion())
     return;
+  // Just outside a stacking window's edge the pointer resizes it.
+  ClientWindow *bordered = nullptr;
+  if (const auto edges = resizeEdgesAt(cursor->x, cursor->y, &bordered)) {
+    wlr_seat_pointer_notify_clear_focus(seat);
+    setCursorImage(windowResizeCursor(edges));
+    return;
+  }
   double sx = 0;
   double sy = 0;
   wlr_surface *surface = surfaceAt(cursor->x, cursor->y, &sx, &sy);

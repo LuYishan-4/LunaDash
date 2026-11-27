@@ -48,4 +48,17 @@ bool windowHiddenByMaximize(const WindowTemplate &windowTemplate,
          !client.state.floating;
 }
 
+const char *windowResizeCursor(std::uint32_t edges) {
+  switch (edges) {
+  case 1: return "n-resize";
+  case 2: return "s-resize";
+  case 4: return "w-resize";
+  case 8: return "e-resize";
+  case 5: return "nw-resize";
+  case 9: return "ne-resize";
+  case 6: return "sw-resize";
+  default: return "se-resize";
+  }
+}
+
 } // namespace LunaDash

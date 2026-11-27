@@ -4,6 +4,15 @@
 #include <vector>
 
 namespace LunaDash {
+Rect quickTileRect(Rect area, std::uint32_t edges) {
+  constexpr int split = 8;
+  const bool horizontal = edges & 12u, vertical = edges & 3u;
+  const int width = horizontal ? (area.width() - split) / 2 : area.width();
+  const int height = vertical ? (area.height() - split) / 2 : area.height();
+  return Rect(edges & 8u ? area.x() + area.width() - width : area.x(),
+              edges & 2u ? area.y() + area.height() - height : area.y(), width,
+              height);
+}
 class FreeformLayout::Impl {
 public:
   struct Entry {
@@ -14,6 +23,10 @@ public:
     bool minimized = false;
     bool maximized = false;
     bool fresh = true;
+    // Quick tiling: the screen edges it fills (xdg edges: top 1, bottom 2,
+    // left 4, right 8), and the size it goes back to.
+    std::uint32_t tile = 0;
+    Rect restore;
   };
   std::unordered_map<LayoutWindowId, Entry> entries;
   std::vector<LayoutWindowId> order;
@@ -181,6 +194,12 @@ bool FreeformLayout::performAction(const std::string &action,
                       area);
   if (action == "center")
     return center(window, area);
+  if (action == "place")
+    return place(window, Rect(jsonInt(payload, "x"), jsonInt(payload, "y"),
+                              jsonInt(payload, "width"),
+                              jsonInt(payload, "height")));
+  if (action == "tile")
+    return tile(window, static_cast<std::uint32_t>(jsonInt(payload, "edges")));
   return false;
 }
 bool FreeformLayout::groupWith(LayoutWindowId, LayoutWindowId) { return false; }
@@ -231,6 +250,31 @@ bool FreeformLayout::reorder(LayoutWindowId window, int direction) {
   d->order.insert(d->order.begin(), window);
   return true;
 }
+bool FreeformLayout::place(LayoutWindowId window, Rect geometry) {
+  if (!d->entries.contains(window) || !geometry.isValid())
+    return false;
+  auto &entry = d->entries[window];
+  entry.tile = 0;
+  entry.geometry = Impl::bounded(geometry, d->area(entry.workspace));
+  return true;
+}
+bool FreeformLayout::tile(LayoutWindowId window, std::uint32_t edges) {
+  if (!d->entries.contains(window) || (edges & 3u) == 3u ||
+      (edges & 12u) == 12u || (edges & ~15u))
+    return false;
+  auto &entry = d->entries[window];
+  if (!entry.tile && entry.geometry.isValid())
+    entry.restore = entry.geometry;
+  if (!edges && entry.tile && entry.restore.isValid()) {
+    // Back to its own size, centred where the tile was.
+    Rect restored(Point(), entry.restore.size());
+    restored.moveCenter(entry.geometry.center());
+    entry.geometry = Impl::bounded(restored, d->area(entry.workspace));
+  }
+  entry.tile = edges;
+  entry.maximized = false;
+  return true;
+}
 bool FreeformLayout::center(LayoutWindowId window, Rect area) {
   if (!d->entries.contains(window) || !area.isValid())
     return false;
@@ -246,6 +290,8 @@ std::vector<WindowPlacement> FreeformLayout::layout(LayoutWorkspaceId workspace,
     (void)id;
     if (entry.workspace != workspace || entry.minimized)
       continue;
+    if (entry.tile)
+      entry.geometry = quickTileRect(area, entry.tile);
     if (!entry.geometry.isValid()) {
       Size size =
           entry.preferred.isValid() ? entry.preferred : d->defaultSize;
@@ -311,6 +357,10 @@ FreeformLayout::snapshot(LayoutWorkspaceId workspace) const {
     placement.focused = result.focusedWindow == id;
     placement.geometry = entry.geometry;
     placement.newWindow = entry.fresh;
+    if (entry.tile)
+      placement.metadata = {{"tile", entry.tile},
+                            {"restoreWidth", entry.restore.width()},
+                            {"restoreHeight", entry.restore.height()}};
     result.columns.push_back(placement);
   }
   return result;
