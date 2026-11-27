@@ -17,7 +17,6 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
 namespace LunaDash {
@@ -163,13 +162,6 @@ void WaylandCompositor::toggleOverview() {
     wlr_output_schedule_frame(output->output);
 }
 
-
-bool WaylandCompositor::holdMinimize(ClientWindow *client, bool minimize) {
-  client->state.minimizeHeld =
-      minimize && overview_.open && client->state.fullscreen;
-  return client->state.minimizeHeld;
-}
-
 void WaylandCompositor::closeOverview() {
   overview_.open = false;
   overview_.pressed = 0;
@@ -179,18 +171,6 @@ void WaylandCompositor::closeOverview() {
   overview_.scrollHorizontal = 0.0;
   if (!d)
     return;
-  bool minimized = false;
-  for (const auto &client : clients_)
-    if (std::exchange(client->state.minimizeHeld, false) &&
-        client.get() != focused_) {
-      minimizeClient(client.get());
-#if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT
-      d->updateClientLegacyForeignToplevel(client.get());
-#endif
-      minimized = true;
-    }
-  if (minimized)
-    arrange();
   for (const auto *output : d->outputs)
     wlr_output_schedule_frame(output->output);
 

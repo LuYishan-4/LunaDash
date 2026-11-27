@@ -283,7 +283,7 @@ void WaylandCompositor::Impl::XWaylandState::onResize() { onMove(); }
 
 void WaylandCompositor::Impl::XWaylandState::onMinimize(
     wlr_xwayland_minimize_event *event) {
-  if (!event || impl->q->holdMinimize(client, event->minimize))
+  if (!event || impl->q->refusesMinimize(*client, event->minimize))
     return;
   client->state.minimized = event->minimize;
   impl->q->windowLayout_->setMinimized(client->id, event->minimize);

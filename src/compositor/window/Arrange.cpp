@@ -142,6 +142,12 @@ void WaylandCompositor::configure(ClientWindow *client,
   configureClientSurface(client, rectangle);
 }
 
+
+bool WaylandCompositor::refusesMinimize(const ClientWindow &client,
+                                        bool minimize) const {
+  return minimize && client.state.fullscreen;
+}
+
 void WaylandCompositor::arrange() {
   if (!d || !d->scene)
     return;
@@ -190,6 +196,14 @@ void WaylandCompositor::arrange() {
       break;
     }
   }
+  // A fullscreen window steps aside while another window of its workspace has
+  // focus: hidden, but still in the layout and the overview, to be picked again.
+  ClientWindow *steppedAside = nullptr;
+  if (fullscreenClient && focused_ && focused_ != fullscreenClient &&
+      focused_->state.workspace == workspace_ && focused_->state.mapped &&
+      !focused_->state.minimized && !focused_->utility &&
+      !belongsToWindow(*focused_, fullscreenClient, clients_))
+    steppedAside = std::exchange(fullscreenClient, nullptr);
   if (d->fullscreenBackdrop) {
     wlr_scene_rect_set_size(d->fullscreenBackdrop, fullscreenArea.width(),
                             fullscreenArea.height());
@@ -262,11 +276,12 @@ void WaylandCompositor::arrange() {
         *windowTemplate_, maximized, inMaximizedFamily, *client);
     const bool inFullscreenFamily =
         belongsToWindow(*client, fullscreenClient, clients_);
+    const bool besideFocus = belongsToWindow(*client, steppedAside, clients_);
 
     const bool unmanagedX11 = clientIsX11(*client) && client->utility;
     const bool visible =
         client->state.mapped && !client->state.minimized &&
-        client->state.workspace == workspace_ &&
+        client->state.workspace == workspace_ && !besideFocus &&
         (unmanagedX11 ||
          (!client->utility &&
           (fullscreenClient ? inFullscreenFamily
@@ -342,7 +357,8 @@ void WaylandCompositor::arrange() {
   }
   for (const auto &placement : placements) {
     auto *client = clientById(static_cast<int>(placement.window));
-    if (!client || client->state.minimized || placement.hiddenByMaximize ||
+    if (!client || client == steppedAside || client->state.minimized ||
+        placement.hiddenByMaximize ||
         (!client->layout.pending &&
          (fullscreenClient || client->state.workspace != workspace_)))
       continue;

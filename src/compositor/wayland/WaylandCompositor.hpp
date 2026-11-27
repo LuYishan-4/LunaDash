@@ -240,6 +240,8 @@ private:
   // Window layout (compositor/window/Arrange.cpp, WindowLayoutSettings.cpp).
   void configure(ClientWindow *client, const Rect &rectangle);
   void arrange();
+  // A fullscreen window does not minimize itself (see Arrange.cpp).
+  bool refusesMinimize(const ClientWindow &client, bool minimize) const;
   // Applies opacity, blur and eye-care preferences to the window effects.
   void applyVisualPreferences(const Json &preferences);
   // Switches to the selected window template; true when it changed.
@@ -321,8 +323,6 @@ private:
   // Workspace overview (compositor/window/WorkspaceOverview.cpp).
   void toggleOverview();
   void closeOverview();
-  // True when a minimize request from `client` waits for the overview to close.
-  bool holdMinimize(ClientWindow *client, bool minimize);
   bool overviewShown() const;
   bool overviewOpen() const;
   // Steps the zoom to `presentNs` and redraws the previews; called every frame.

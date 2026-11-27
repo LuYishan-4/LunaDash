@@ -96,7 +96,8 @@ void WaylandCompositor::focus(ClientWindow *client) {
     windowLayout_->focus(client->id);
   // Selecting a tiled window must also scroll its column into view. Avoid
   // relayout for repeated clicks in the same window (including popup grabs).
-  if (changed && !client->state.floating)
+  if (changed && (!client->state.floating || client->state.fullscreen ||
+                  (previous && previous->state.fullscreen)))
     arrange();
   if (client->scene.tree)
     raiseWithDialogs(client);

@@ -399,7 +399,7 @@ void WaylandCompositor::Impl::ToplevelState::onParent() {
 }
 
 void WaylandCompositor::Impl::ToplevelState::onMinimize() {
-  if (impl->q->holdMinimize(client, true))
+  if (impl->q->refusesMinimize(*client, true))
     return;
   client->state.minimized = true;
   impl->q->windowLayout_->setMinimized(client->id, true);

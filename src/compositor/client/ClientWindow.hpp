@@ -47,8 +47,6 @@ struct ClientWindow {
     bool maximized = false;
     bool fullscreen = false;
     bool floating = false;
-    // A minimize asked for while the overview is open (holdMinimize).
-    bool minimizeHeld = false;
   } state;
 
   struct {
