@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- The LunaDash mark for small sizes: the app icon's crescent and sparkles without its tile. -->
+  <defs>
+    <linearGradient id="moon" x1="10" y1="12" x2="44" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#cfe3ff"/>
+      <stop offset="1" stop-color="#8fb4ff"/>
+    </linearGradient>
+    <linearGradient id="star" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f5b6d6"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="6" y1="40" x2="60" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9ccbfb" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#9ccbfb" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#c4b5fd" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="cut">
+      <rect width="64" height="64" fill="#ffffff"/>
+      <circle cx="39" cy="24" r="17" fill="#000000"/>
+    </mask>
+  </defs>
+  <!-- A faint orbit sweeping under the crescent. -->
+  <path d="M7 45 C 18 58, 46 59, 59 41" fill="none" stroke="url(#orbit)" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Crescent -->
+  <circle cx="27" cy="33" r="21" fill="url(#moon)" mask="url(#cut)"/>
+  <!-- Sparkles -->
+  <path d="M47 6 L49.2 12.8 L56 15 L49.2 17.2 L47 24 L44.8 17.2 L38 15 L44.8 12.8 Z" fill="url(#star)"/>
+  <path d="M56 27 L57.2 30.8 L61 32 L57.2 33.2 L56 37 L54.8 33.2 L51 32 L54.8 30.8 Z" fill="#cfe3ff"/>
+</svg>
