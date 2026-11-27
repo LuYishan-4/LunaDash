@@ -143,6 +143,7 @@ void WaylandCompositor::Impl::XWaylandState::onMap() {
         &client->scene.tree->node.events.destroy);
   }
   client->state.mapped = true;
+  impl->finishSplash();
   auto *desktop = impl->q;
   desktop->updateClientMetadata(client);
   if (!client->utility)

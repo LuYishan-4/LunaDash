@@ -11,6 +11,8 @@
 #include "core/process/ExecutableLookup.hpp"
 
 #include <algorithm>
+#include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
@@ -41,9 +43,11 @@ void WaylandCompositor::startSessionClients(bool startShell) {
   std::string error;
   switch (session_.shell) {
   case SessionConfig::Shell::LunaDash:
+    d->showSplash();
     spawn({"--session"}, {}, false);
     break;
   case SessionConfig::Shell::Custom:
+    d->showSplash();
     logInfo("LunaDash shell: custom (%s)", session_.shellCommand.front().c_str());
     if (!launchExternalCommand(session_.shellCommand, &error))
       logWarning("The custom shell could not start: %s", error.c_str());
@@ -67,6 +71,42 @@ void WaylandCompositor::startSessionClients(bool startShell) {
       if (app.is_string() && app != "welcome" && app != "packages")
         spawn({"--app", app.get<std::string>()});
   });
+}
+
+void WaylandCompositor::Impl::showSplash() {
+  if (splash || !splashLayer)
+    return;
+  const char *assets = std::getenv("LUNADASH_ASSET_DIR");
+  splash = std::make_unique<SessionSplash>(
+      splashLayer, eventLoop,
+      assets && *assets ? std::filesystem::path(assets) / "luna-mark.svg"
+                        : std::filesystem::path{});
+  scheduleCallback(SessionTuning::splashTimeoutMs, [this] { finishSplash(); });
+  for (const auto *state : outputs)
+    if (state && state->output)
+      wlr_output_schedule_frame(state->output);
+}
+
+void WaylandCompositor::Impl::finishSplash() {
+  if (!splash)
+    return;
+  splash->finish();
+  for (const auto *state : outputs)
+    if (state && state->output)
+      wlr_output_schedule_frame(state->output);
+}
+
+void WaylandCompositor::Impl::advanceSplash(std::uint64_t nowNs) {
+  if (!splash)
+    return;
+  const Size size = outputSize();
+  if (!splash->advance(nowNs, size.width(), size.height())) {
+    splash.reset();
+    return;
+  }
+  for (const auto *state : outputs)
+    if (state && state->output)
+      wlr_output_schedule_frame(state->output);
 }
 
 void WaylandCompositor::scheduleShellRestart() {

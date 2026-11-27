@@ -4,6 +4,8 @@ namespace LunaDash::SessionTuning {
 
 
 inline constexpr int startupAppsDelayMs = 1200;
+// The splash fades out by then even if the shell never draws its wallpaper.
+inline constexpr int splashTimeoutMs = 12000;
 
 inline constexpr int shellRestartBaseMs = 250;
 inline constexpr int shellRestartMaxMs = 4000;

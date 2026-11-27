@@ -382,6 +382,7 @@ add_library(ludash-wayland
     src/compositor/window/animation/AnimationProfile.cpp
     src/compositor/wayland/WaylandCompositor.cpp
     src/compositor/session/SessionStartup.cpp
+    src/compositor/session/SessionSplash.cpp
     src/compositor/session/SessionHelpers.cpp
     src/compositor/session/ShellLocation.cpp
     src/compositor/session/ShellRequests.cpp

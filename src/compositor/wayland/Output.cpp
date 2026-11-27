@@ -360,6 +360,7 @@ void WaylandCompositor::Impl::OutputState::onFrame() {
   stage(0);
 #endif
   impl->q->advanceOverview(nowNs + refreshPeriodNs());
+  impl->advanceSplash(nowNs + refreshPeriodNs());
 #if LUDASH_ENABLE_FRAME_STAGE_TIMING
   stage(1);
 #endif

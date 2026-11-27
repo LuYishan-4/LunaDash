@@ -284,6 +284,7 @@ void WaylandCompositor::Impl::ToplevelState::onMap() {
   StallTrace::Section trace("window map", client ? client->appId : std::string());
   auto *desktop = impl->q;
   client->state.mapped = true;
+  impl->finishSplash();
   client->layout.pending = false;
   desktop->updateClientMetadata(client);
   impl->adoptShellDialog(client);
@@ -495,6 +496,8 @@ WaylandCompositor::Impl::LayerState::LayerState(
 void WaylandCompositor::Impl::LayerState::onMap() {
   StallTrace::Section trace("layer map", surface && surface->namespace_ ? surface->namespace_ : "");
   mapped = true;
+  if (surface->current.layer == ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND)
+    impl->finishSplash();
   impl->arrangeLayers();
   impl->q->arrange();
   if (impl->animatesLayer(this)) {

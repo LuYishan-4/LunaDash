@@ -48,7 +48,6 @@ session_log=$(mktemp "$state_dir/session-XXXXXXXX")
 mv -- "$session_log" "$session_log.log"
 session_log="$session_log.log"
 umask "$session_umask"
-echo "LunaDash session log: $session_log"
 exec >>"$session_log" 2>&1
 # A user-level generic portals.conf from another desktop takes precedence
 # over /usr/share. Seed a LunaDash-only file without modifying that generic

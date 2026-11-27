@@ -10,6 +10,7 @@
 #include "compositor/renderer/blur/WindowGlass.hpp"
 #include "compositor/renderer/clip/WindowCorners.hpp"
 #include "compositor/renderer/color/NightColor.h"
+#include "compositor/session/SessionSplash.hpp"
 #include "compositor/window/animation/SceneAnimation.hpp"
 #include "compositor/wayland/wlroots/WlrootsHeaders.hpp"
 #include "core/templates/LunaClint.hpp"
@@ -382,6 +383,9 @@ public:
   // would show what is behind it; shown while one is on the workspace.
   wlr_scene_rect *fullscreenBackdrop = nullptr;
   wlr_scene_tree *overlayLayer = nullptr;
+  // The session splash, above everything while the shell starts.
+  wlr_scene_tree *splashLayer = nullptr;
+  std::unique_ptr<SessionSplash> splash;
   wlr_scene_rect *background = nullptr;
   static constexpr float backgroundColor[4] = {0.043f, 0.067f, 0.078f, 1.0f};
   wlr_output *primaryOutput = nullptr;
@@ -545,6 +549,10 @@ public:
 
   void updateBackground();
   void updateWindowGlass();
+  void showSplash();
+  // The desktop is up (or will not come): the splash fades out.
+  void finishSplash();
+  void advanceSplash(std::uint64_t nowNs);
   void updateWindowCorners();
   void updateNightLight();
 

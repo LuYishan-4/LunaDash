@@ -56,6 +56,7 @@ void WaylandCompositor::Impl::releaseRuntime() {
   if (!display || runtimeReleased)
     return;
   runtimeReleased = true;
+  splash.reset();
   windowGlass.reset();
   windowCorners.reset();
   wl_display_destroy_clients(display);
