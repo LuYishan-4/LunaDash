@@ -10,12 +10,15 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 #include <unistd.h>
 
@@ -113,11 +116,108 @@ bool supportedImage(const std::filesystem::path &path) {
          extensions.end();
 }
 
-bool readableImage(const std::filesystem::path &path) {
+// The size an image's header gives, read directly: gdk-pixbuf decodes through
+// glycin's sandboxed loaders, hundreds of milliseconds a call on the
+// compositor's thread. Formats it cannot read here go to gdk-pixbuf.
+std::optional<std::pair<std::uint64_t, std::uint64_t>>
+headerImageSize(const std::filesystem::path &path) {
+  std::ifstream input(path, std::ios::binary);
+  std::array<unsigned char, 32> head{};
+  input.read(reinterpret_cast<char *>(head.data()), head.size());
+  if (input.gcount() < static_cast<std::streamsize>(head.size()))
+    return std::nullopt;
+  const auto le = [&](std::size_t at, int bytes) {
+    std::uint64_t value = 0;
+    for (int i = bytes - 1; i >= 0; --i)
+      value = value << 8 | head[at + i];
+    return value;
+  };
+  const auto be = [&](std::size_t at, int bytes) {
+    std::uint64_t value = 0;
+    for (int i = 0; i < bytes; ++i)
+      value = value << 8 | head[at + i];
+    return value;
+  };
+  const auto is = [&](std::size_t at, std::string_view text) {
+    return std::equal(text.begin(), text.end(), head.begin() + at,
+                      [](char a, unsigned char b) {
+                        return static_cast<unsigned char>(a) == b;
+                      });
+  };
+  if (is(0, "\x89PNG\r\n\x1a\n") && is(12, "IHDR"))
+    return std::pair{be(16, 4), be(20, 4)};
+  if (is(0, "GIF8"))
+    return std::pair{le(6, 2), le(8, 2)};
+  if (is(0, "BM")) {
+    if (le(14, 4) == 12)
+      return std::pair{le(18, 2), le(20, 2)};
+    const auto height = static_cast<std::int32_t>(le(22, 4));
+    return std::pair{le(18, 4),
+                     static_cast<std::uint64_t>(height < 0 ? -std::int64_t{height}
+                                                           : height)};
+  }
+  if (is(0, "RIFF") && is(8, "WEBP")) {
+    if (is(12, "VP8 ") && head[23] == 0x9d && head[24] == 0x01 &&
+        head[25] == 0x2a)
+      return std::pair{le(26, 2) & 0x3fff, le(28, 2) & 0x3fff};
+    if (is(12, "VP8L") && head[20] == 0x2f) {
+      const auto bits = le(21, 4);
+      return std::pair{(bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1};
+    }
+    if (is(12, "VP8X"))
+      return std::pair{le(24, 3) + 1, le(27, 3) + 1};
+    return std::nullopt;
+  }
+  if (head[0] != 0xff || head[1] != 0xd8)
+    return std::nullopt;
+  // JPEG: walk the segments to the first start of frame.
+  input.clear();
+  input.seekg(2);
+  for (;;) {
+    int marker = input.get();
+    if (marker != 0xff)
+      return std::nullopt;
+    while (marker == 0xff)
+      marker = input.get();
+    if (marker == EOF || marker == 0xda || marker == 0xd9)
+      return std::nullopt;
+    if (marker == 0x01 || (marker >= 0xd0 && marker <= 0xd7))
+      continue;
+    std::array<unsigned char, 7> segment{};
+    input.read(reinterpret_cast<char *>(segment.data()), 2);
+    if (input.gcount() != 2)
+      return std::nullopt;
+    const int length = segment[0] << 8 | segment[1];
+    if (length < 2)
+      return std::nullopt;
+    const bool frame = marker >= 0xc0 && marker <= 0xcf && marker != 0xc4 &&
+                       marker != 0xc8 && marker != 0xcc;
+    if (frame) {
+      input.read(reinterpret_cast<char *>(segment.data()), 5);
+      if (input.gcount() != 5)
+        return std::nullopt;
+      return std::pair{std::uint64_t(segment[3] << 8 | segment[4]),
+                       std::uint64_t(segment[1] << 8 | segment[2])};
+    }
+    input.seekg(length - 2, std::ios::cur);
+  }
+}
+
+std::optional<std::pair<std::uint64_t, std::uint64_t>>
+imageSize(const std::filesystem::path &path) {
+  if (auto size = headerImageSize(path))
+    return size;
   int width = 0;
   int height = 0;
-  return gdk_pixbuf_get_file_info(path.c_str(), &width, &height) != nullptr &&
-         width > 0 && height > 0;
+  if (!gdk_pixbuf_get_file_info(path.c_str(), &width, &height))
+    return std::nullopt;
+  return std::pair{static_cast<std::uint64_t>(std::max(width, 0)),
+                   static_cast<std::uint64_t>(std::max(height, 0))};
+}
+
+bool readableImage(const std::filesystem::path &path) {
+  const auto size = imageSize(path);
+  return size && size->first > 0 && size->second > 0;
 }
 
 bool isVideoContent(const std::filesystem::path &path) {
@@ -436,14 +536,9 @@ bool setWallpaperImage(const std::filesystem::path &path, std::string *error) {
   const bool video = wallpaperIsVideo(canonicalPath);
   bool validImage = false;
   if (!video && !filesystemError && fileSize <= 64 * 1024 * 1024) {
-    int width = 0;
-    int height = 0;
-    validImage = gdk_pixbuf_get_file_info(canonicalPath.c_str(), &width,
-                                          &height) != nullptr &&
-                 width > 0 && height > 0 &&
-                 static_cast<std::uint64_t>(width) *
-                         static_cast<std::uint64_t>(height) <=
-                     32 * 1024 * 1024;
+    const auto size = imageSize(canonicalPath);
+    validImage = size && size->first > 0 && size->second > 0 &&
+                 size->first * size->second <= 32 * 1024 * 1024;
   }
   const bool validVideo =
       video && !filesystemError &&

@@ -116,7 +116,8 @@ add_library(ludash-log src/core/log/Log.cpp src/core/log/StallTrace.cpp)
 target_include_directories(ludash-log PUBLIC src)
 add_library(ludash-executable-lookup src/core/process/ExecutableLookup.cpp)
 target_include_directories(ludash-executable-lookup PUBLIC src)
-add_library(ludash-process-runner src/core/process/ProcessRunner.cpp)
+add_library(ludash-process-runner src/core/process/ProcessRunner.cpp
+    src/core/process/LoopTask.cpp)
 target_include_directories(ludash-process-runner PUBLIC src)
 target_link_libraries(ludash-process-runner PUBLIC ludash-executable-lookup
     PkgConfig::WAYLAND_SERVER

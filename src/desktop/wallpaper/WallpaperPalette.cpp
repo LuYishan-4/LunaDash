@@ -2,6 +2,7 @@
 
 #include "config/desktop/DesktopPreferences.hpp"
 #include "core/process/ExecutableLookup.hpp"
+#include "core/process/LoopTask.hpp"
 #include "core/process/ProcessRunner.hpp"
 #include "desktop/wallpaper/WallpaperSettings.hpp"
 
@@ -19,10 +20,25 @@
 
 namespace LunaDash {
 namespace {
+// Decoding goes through glycin's sandboxed loaders, hundreds of milliseconds:
+// a thread does it, and the event loop applies the colours.
+struct PaletteTask {
+  std::filesystem::path image;
+  std::filesystem::path original;
+  std::string failure;
+  std::uint64_t generation = 0;
+  // Written by the thread.
+  bool decoded = false;
+  std::string accent;
+  std::string secondaryAccent;
+  std::unique_ptr<LoopTask> task;
+};
+
 struct MediaState {
   wl_event_loop *eventLoop = nullptr;
   std::unique_ptr<ProcessRunner> optimizationRunner;
   std::unique_ptr<ProcessRunner> extractionRunner;
+  std::unique_ptr<PaletteTask> palette;
   std::filesystem::path selectedPath;
   std::filesystem::path optimizationPath;
   std::filesystem::path optimizationTemporary;
@@ -111,20 +127,12 @@ std::string hslHex(double hue, double saturation, double lightness) {
   return color;
 }
 
-bool extractPalette(const std::filesystem::path &imagePath,
-                    const std::filesystem::path &original) {
-  if (!desktopPreferences().value("wallpaperColors", true) ||
-      wallpaperImagePath() != original)
-    return true;
-
-  GError *loadError = nullptr;
-  GdkPixbuf *loaded = gdk_pixbuf_new_from_file_at_scale(imagePath.c_str(), 96,
-                                                        96, TRUE, &loadError);
-  if (!loaded) {
-    if (loadError)
-      g_error_free(loadError);
-    return false;
-  }
+// On the task's thread: no preference or settings access.
+void decodePalette(PaletteTask &task) {
+  GdkPixbuf *loaded = gdk_pixbuf_new_from_file_at_scale(task.image.c_str(), 96,
+                                                        96, TRUE, nullptr);
+  if (!loaded)
+    return;
   GdkPixbuf *oriented = gdk_pixbuf_apply_embedded_orientation(loaded);
   g_object_unref(loaded);
   GdkPixbuf *image = oriented;
@@ -155,24 +163,69 @@ bool extractPalette(const std::filesystem::path &imagePath,
     }
   }
   g_object_unref(image);
+  task.decoded = true;
 
   const auto largest = std::max_element(weights.begin(), weights.end());
   if (*largest <= 0)
-    return true;
+    return;
   const int index = static_cast<int>(largest - weights.begin());
   const double hue = (index + 0.5) / 24.0;
   const double sat = std::clamp(saturation[index] / *largest, 0.25, 0.65);
-  std::string error;
-  if (!updateDesktopPreferences({{"accent", hslHex(hue, sat, 0.78)},
-                                 {"secondaryAccent", hslHex(hue, 0.22, 0.65)}},
-                                &error)) {
-    mediaState().error = std::move(error);
-    return false;
-  }
-  return true;
+  task.accent = hslHex(hue, sat, 0.78);
+  task.secondaryAccent = hslHex(hue, 0.22, 0.65);
+}
+
+bool mediaBusy() {
+  const auto &state = mediaState();
+  return state.palette || state.optimizationRunner->busy() ||
+         state.extractionRunner->busy();
 }
 
 void startMediaTasks();
+
+void finishPalette() {
+  auto &state = mediaState();
+  const auto palette = std::move(state.palette);
+  if (palette->generation == state.generation &&
+      wallpaperImagePath() == palette->original) {
+    std::string error;
+    if (!palette->decoded) {
+      if (state.error.empty())
+        state.error = palette->failure;
+    } else if (!palette->accent.empty() &&
+               !updateDesktopPreferences(
+                   {{"accent", palette->accent},
+                    {"secondaryAccent", palette->secondaryAccent}},
+                   &error)) {
+      state.error = std::move(error);
+    }
+  }
+  if (palette->generation != state.generation && !mediaBusy())
+    startMediaTasks();
+}
+
+// Colours the desktop after `imagePath`, a picture of the selected `original`.
+void extractPalette(const std::filesystem::path &imagePath,
+                    const std::filesystem::path &original,
+                    std::string failure) {
+  auto &state = mediaState();
+  if (state.palette || !desktopPreferences().value("wallpaperColors", true) ||
+      wallpaperImagePath() != original)
+    return;
+  auto palette = std::make_unique<PaletteTask>();
+  palette->image = imagePath;
+  palette->original = original;
+  palette->failure = std::move(failure);
+  palette->generation = state.generation;
+  palette->task = std::make_unique<LoopTask>(
+      state.eventLoop, [raw = palette.get()] { decodePalette(*raw); },
+      finishPalette);
+  if (!palette->task->started()) {
+    state.error = "Could not start reading the wallpaper colours.";
+    return;
+  }
+  state.palette = std::move(palette);
+}
 
 void finishOptimization(std::uint64_t generation,
                         const std::filesystem::path &source,
@@ -197,8 +250,7 @@ void finishOptimization(std::uint64_t generation,
     state.optimizationTemporary.clear();
   }
   std::filesystem::remove(temporary, filesystemError);
-  if (generation != state.generation && !state.optimizationRunner->busy() &&
-      !state.extractionRunner->busy())
+  if (generation != state.generation && !mediaBusy())
     startMediaTasks();
 }
 
@@ -212,8 +264,8 @@ void finishExtraction(std::uint64_t generation,
   if (generation == state.generation && state.selectedPath == source) {
     const auto size = std::filesystem::file_size(poster, filesystemError);
     if (result.success && !filesystemError && size > 0) {
-      if (!extractPalette(poster, source) && state.error.empty())
-        state.error = "Could not decode a preview frame from this video.";
+      extractPalette(poster, source,
+                     "Could not decode a preview frame from this video.");
     } else {
       std::filesystem::remove(poster, filesystemError);
       state.error = "Could not decode a preview frame from this video.";
@@ -221,22 +273,19 @@ void finishExtraction(std::uint64_t generation,
   } else {
     std::filesystem::remove(poster, filesystemError);
   }
-  if (generation != state.generation && !state.optimizationRunner->busy() &&
-      !state.extractionRunner->busy())
+  if (generation != state.generation && !mediaBusy())
     startMediaTasks();
 }
 
 void startMediaTasks() {
   auto &state = mediaState();
-  if (!state.eventLoop || state.optimizationRunner->busy() ||
-      state.extractionRunner->busy())
+  if (!state.eventLoop || mediaBusy())
     return;
   state.taskGeneration = state.generation;
   state.error.clear();
   const auto source = state.selectedPath;
   if (!state.selectedVideo) {
-    if (!extractPalette(source, source) && state.error.empty())
-      state.error = "Could not decode the wallpaper image.";
+    extractPalette(source, source, "Could not decode the wallpaper image.");
     return;
   }
 
@@ -244,8 +293,8 @@ void startMediaTasks() {
   std::error_code filesystemError;
   const bool posterExists =
       std::filesystem::is_regular_file(poster, filesystemError);
-  if (posterExists && !extractPalette(poster, source))
-    state.error = "Could not decode the wallpaper preview.";
+  if (posterExists)
+    extractPalette(poster, source, "Could not decode the wallpaper preview.");
 
   const auto ffmpeg = findExecutable("ffmpeg");
   if (ffmpeg.empty()) {
@@ -373,6 +422,7 @@ void refreshWallpaperPalette(wl_event_loop *eventLoop,
 
 void cancelWallpaperPalette() {
   auto &state = mediaState();
+  state.palette.reset();
   if (state.optimizationRunner) {
     state.optimizationRunner->cancel();
     state.optimizationRunner.reset();
