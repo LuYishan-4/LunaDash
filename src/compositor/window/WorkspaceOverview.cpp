@@ -43,8 +43,9 @@ bool parseHexColor(const std::string &text, float rgba[4]) {
 }
 
 
+// `opacity` is the copies' alpha; negative keeps each buffer's own.
 void scene_node_dfs(wlr_scene_node *node, wlr_scene_tree *parent, double x, double y,
-                  double scale, bool root,
+                  double scale, bool root, float opacity,
                   std::unordered_map<wlr_scene_buffer *, wlr_scene_buffer *> &copies,
                   std::unordered_set<wlr_scene_buffer *> &seen) {
   if (!root && !node->enabled)
@@ -57,7 +58,7 @@ void scene_node_dfs(wlr_scene_node *node, wlr_scene_tree *parent, double x, doub
     auto *tree = wlr_scene_tree_from_node(node);
     wlr_scene_node *child = nullptr;
     wl_list_for_each(child, &tree->children, link)
-        scene_node_dfs(child, parent, x, y, scale, false, copies, seen);
+        scene_node_dfs(child, parent, x, y, scale, false, opacity, copies, seen);
     return;
   }
   if (node->type != WLR_SCENE_NODE_BUFFER)
@@ -91,7 +92,7 @@ void scene_node_dfs(wlr_scene_node *node, wlr_scene_tree *parent, double x, doub
   wlr_scene_buffer_set_dest_size(
       copy, std::max(1, static_cast<int>(std::lround(width * scale))),
       std::max(1, static_cast<int>(std::lround(height * scale))));
-  wlr_scene_buffer_set_opacity(copy, buffer->opacity);
+  wlr_scene_buffer_set_opacity(copy, opacity >= 0.0f ? opacity : buffer->opacity);
   wlr_scene_node_set_position(&copy->node, static_cast<int>(std::lround(x * scale)),
                               static_cast<int>(std::lround(y * scale)));
 }
@@ -317,23 +318,29 @@ void WaylandCompositor::rebuildOverviewPreviews() {
                    contentHeight);
     }
     wlr_scene_node_set_position(&previewTreeNode->node, shown.x(), shown.y());
+    if (dragged)
+      wlr_scene_node_raise_to_top(&previewTreeNode->node);
     static const float hover[4] = {1.0f, 1.0f, 1.0f, 0.35f};
     const bool ringed = client->id == overview_.hovered || client->id == dropWindow;
     auto &frame = overview_.previewFrames[client->id];
     updateFrame(overview_.tree, frame, shown, client == focused_ ? 3 : ringed ? 2 : 0,
                 client == focused_ ? overview_.accent : hover);
-
-    if (dragged)
-      wlr_scene_node_raise_to_top(frame ? &frame->node : &previewTreeNode->node);
-    if (frame && dragged)
-      wlr_scene_node_place_below(&previewTreeNode->node, &frame->node);
-    else if (frame)
-      wlr_scene_node_place_above(&frame->node, &previewTreeNode->node);
+    if (frame)
+      wlr_scene_node_place_below(&frame->node, &previewTreeNode->node);
     visibleWindows.insert(client->id);
     auto &copies = overview_.previewBuffers[client->id];
     std::unordered_set<wlr_scene_buffer *> seen;
+    // The window's alpha, not its buffers': one that just appeared (a new
+    // subsurface or corner view) stays opaque until the glass pass sets it,
+    // after this, and would flash the preview opaque for a frame.
+    const bool fading = windowAnimations_ &&
+                        windowAnimations_->animation().ownsOpacity(client->scene.tree);
+    const float opacity = fading ? -1.0f
+                          : client->state.fullscreen || client->utility
+                              ? 1.0f
+                              : d->steadyWindowOpacity;
     scene_node_dfs(&client->scene.tree->node, previewTreeNode, 0.0, 0.0,
-                 pScale, true, copies, seen);
+                 pScale, true, opacity, copies, seen);
     for (auto it = copies.begin(); it != copies.end();) {
       if (!seen.contains(it->first)) {
         wlr_scene_node_destroy(&it->second->node);

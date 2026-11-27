@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <cmath>
 #include <cstdint>
 #include <ctime>
 #include <string_view>
@@ -194,28 +193,6 @@ void WaylandCompositor::Impl::updateWindowGlass() {
                q->windowAnimations_->animation().ownsOpacity(
                    client->scene.tree),
            true});
-  // Previews copy their window's alpha before this runs, opaque for a frame
-  // when a new subsurface or corner view appears: they get it here too.
-  for (const auto &preview : q->overview_.previews) {
-    const auto tree = q->overview_.previewTrees.find(preview.window);
-    const auto *client = q->clientById(preview.window);
-    if (tree == q->overview_.previewTrees.end() || !client ||
-        !client->scene.tree || client->layout.geometry.width() <= 0)
-      continue;
-    const double scale = static_cast<double>(preview.rect.width()) /
-                         client->layout.geometry.width();
-    surfaces.push_back(
-        {tree->second,
-         {preview.rect.width(), preview.rect.height()},
-         client->state.mapped && !client->state.fullscreen && !client->utility,
-         windowCorners ? static_cast<int>(std::lround(
-                             windowCorners->radius(client->scene.tree) * scale))
-                       : 0,
-         -1.0f,
-         q->windowAnimations_ &&
-             q->windowAnimations_->animation().ownsOpacity(client->scene.tree),
-         true});
-  }
 
   for (const auto *layer : layers) {
     if (!layer || !layer->mapped || !layer->surface || !layer->sceneLayer ||
