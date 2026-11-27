@@ -398,6 +398,8 @@ void WaylandCompositor::Impl::ToplevelState::onParent() {
 }
 
 void WaylandCompositor::Impl::ToplevelState::onMinimize() {
+  if (impl->q->holdMinimize(client, true))
+    return;
   client->state.minimized = true;
   impl->q->windowLayout_->setMinimized(client->id, true);
 #if LUDASH_WLR_HAS_FOREIGN_TOPLEVEL_MANAGEMENT

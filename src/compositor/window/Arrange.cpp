@@ -154,7 +154,8 @@ void WaylandCompositor::arrange() {
 
 
   const int slide = std::exchange(workspaceSlide_, 0);
-  const bool overviewSwitch = slide && overview_.open;
+  // The overview shows windows as previews, which copy a fade's alpha.
+  const bool inOverview = overviewShown();
 
 
   const int slideDistance =
@@ -290,7 +291,7 @@ void WaylandCompositor::arrange() {
       if (visible && slidingOut)
         windowAnimations_->returnHome(client->scene.tree);
       if (!visible && wasVisible && !slidingOut && client->state.mapped &&
-          windowAnimations_ && !overviewSwitch) {
+          windowAnimations_ && !inOverview) {
         if (slide && client->state.workspace != workspace_)
           keepSliding = windowAnimations_->slideOut(
               client->scene.tree, animationRectangle(client->layout.geometry),
@@ -348,7 +349,7 @@ void WaylandCompositor::arrange() {
     configure(client, placement.geometry);
   }
 
-  if (windowAnimations_ && !overviewSwitch)
+  if (windowAnimations_ && !inOverview)
     for (auto *client : revealed) {
       if (slide)
         windowAnimations_->open(client->scene.tree,

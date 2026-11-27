@@ -321,6 +321,8 @@ private:
   // Workspace overview (compositor/window/WorkspaceOverview.cpp).
   void toggleOverview();
   void closeOverview();
+  // True when a minimize request from `client` waits for the overview to close.
+  bool holdMinimize(ClientWindow *client, bool minimize);
   bool overviewShown() const;
   bool overviewOpen() const;
   // Steps the zoom to `presentNs` and redraws the previews; called every frame.
