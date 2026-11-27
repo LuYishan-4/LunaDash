@@ -514,7 +514,7 @@ configure_file(data/lunadash.desktop.in lunadash.desktop @ONLY)
 configure_file(data/lunadash-app.desktop.in lunadash-app.desktop @ONLY)
 install(TARGETS ludash-desktop ludash-compositor ludashctl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/ludash-desktop ${CMAKE_CURRENT_BINARY_DIR}/ludash-compositor ${CMAKE_CURRENT_BINARY_DIR}/ludashctl DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(PROGRAMS scripts/lunadash-session scripts/ludash-session scripts/lunadash-clipboard-history scripts/lunadash-boot-animation
+install(PROGRAMS scripts/lunadash-session scripts/ludash-session scripts/lunadash-clipboard-history
     scripts/lunadash-screencast-chooser DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lunadash-app.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
@@ -538,7 +538,6 @@ else()
         DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/xdg/LunaDash)
 endif()
 install(DIRECTORY data/assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/data/assets)
-install(DIRECTORY data/boot/ DESTINATION ${CMAKE_INSTALL_DATADIR}/lunadash/data/boot)
 install(FILES data/assets/lunadash.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps)
 install(DIRECTORY data/wallpapers/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ludash/wallpapers)
 # ananicy-cpp reads its rules only from /etc/ananicy.d; see the file for why the
